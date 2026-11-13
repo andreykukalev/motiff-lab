@@ -8,7 +8,8 @@
 # It checks out the tag (detached; your branch comes back with `git switch -`), builds music-core, Verovio (only the
 # first time), the web app's score scripts, generates the Xcode project and builds it signed with your team from
 # ipad/App/Config/Local.xcconfig (a free Apple ID: the app runs for 7 days). With one iPad connected by cable or on the
-# same network it installs the app there; otherwise it opens Xcode, where Product > Run installs it.
+# same network it installs the app there; otherwise it opens Xcode, where Product > Run installs it (Account.json then
+# keeps this build's "Default" until the next run of the script puts it back).
 # Needs what ipad/README.md lists: Xcode, XcodeGen, CMake, the .NET 10 SDK, and the Apple ID signed in to Xcode once.
 #
 # Servers (infra/README.md, "The develop environment"): Account.json carries both environments, Main (the players' real
@@ -25,6 +26,14 @@ ref="${1:?Usage: ipad/build-version.sh <tag or branch>, for example v0.1}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
+settings=ipad/App/MotiffLab/Account.json
+# A run that left Xcode open for Product > Run keeps this build's start in Account.json (see the end); when that line is
+# the clone's only change, it is put back here before anything else.
+if [[ "$(git status --porcelain --untracked-files=no)" == " M $settings" ]] \
+  && [[ -z "$(git diff -U0 -- "$settings" | grep -E '^[-+][^-+]' | grep -v '"Default"' || true)" ]]; then
+  echo "==> Putting back $settings, which the last run left for Xcode"
+  git checkout --quiet -- "$settings"
+fi
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "The clone has uncommitted changes; commit or stash them first." >&2
   exit 1
@@ -61,7 +70,7 @@ esac
 address() { sed -nE "s#.*\"Api\"[[:space:]]*:[[:space:]]*\"(https://[A-Za-z0-9.-]+)\".*#\1#p" "$account"; }
 if grep -q '"Default"' "$account"; then
   # Only this build's copy changes: the committed file comes back when the script ends, built or not.
-  trap 'git -C "$root" checkout --quiet -- ipad/App/MotiffLab/Account.json' EXIT
+  trap 'git -C "$root" checkout --quiet -- "$settings"' EXIT
   sed -E "s#(\"Default\"[[:space:]]*:[[:space:]]*\")[^\"]*#\1$start#" "$account" > "$account.tmp" && mv "$account.tmp" "$account"
   echo "    Starts in $start. Main: $(address | sed -n 1p); Test: $(address | sed -n 2p)"
 else
@@ -94,6 +103,12 @@ if [[ "$(wc -l <<< "$ipads" | tr -d ' ')" == 1 && -n "$ipads" ]]; then
   echo "Done: Motiff Lab $version ($build) is on the iPad."
 else
   echo "No single connected iPad found: Xcode opens; choose the iPad and Product > Run."
+  # Xcode builds again on Product > Run, from the files as they are: Account.json keeps this build's start, or the app
+  # would start in Main and not be a version build. The next run of this script puts it back by itself.
+  if [[ -n "$(git -C "$root" diff --name-only -- "$settings")" ]]; then
+    trap - EXIT
+    echo "    $settings keeps \"Default\": \"$start\" for the run. After it: git checkout -- $settings"
+  fi
   open MotiffLab.xcodeproj
 fi
 echo "To go back to your branch: git switch -"

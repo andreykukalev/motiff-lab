@@ -151,6 +151,8 @@ struct SettingsSheet: View {
         .background(Color.ds("surface"))
         .modifier(PageSizedSheet())
         .task { await settings.load() }
+        // The API scales to zero: a plan or profile that did not come at launch is asked again when Settings opens.
+        .task { await account.refreshIfMissing() }
     }
 
     @ViewBuilder private func navigation(vertical: Bool) -> some View {
@@ -426,6 +428,10 @@ struct AccountPanel: View {
             Text(text["settings.plan"]).dsType(.label).foregroundStyle(Color.ds("ink-2"))
             Spacer()
             Text(planName).dsType(.label).foregroundStyle(account.plan?.isPro == true ? Color.ds("plum") : Color.ds("ink"))
+            if account.plan == nil && account.planFailed && !account.planAsking {
+                Button(text["settings.planRetry"]) { Task { await account.refreshPlan() } }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
         }
         if account.plan?.isTester == true {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -441,7 +447,8 @@ struct AccountPanel: View {
     }
 
     private var planName: String {
-        guard let plan = account.plan else { return text["settings.planUnknown"] }
+        // "Did not answer" only after an ask failed; while asking (a cold start takes up to half a minute), «Проверяю…».
+        guard let plan = account.plan else { return text[account.planFailed && !account.planAsking ? "settings.planUnknown" : "settings.planChecking"] }
         return plan.isPro ? text["settings.planPro"] : text["settings.planFree"]
     }
 }

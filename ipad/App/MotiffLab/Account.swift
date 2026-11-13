@@ -141,11 +141,17 @@ struct PlayerProfile: Equatable, Sendable {
 final class Account: ObservableObject {
     static let choiceKey = "ml-test-plan"
     static let planHeader = "Motiff-Plan"
+    /// How long an ask for the plan or the profile waits: the API scales to zero, and its cold start takes 25-35 s.
+    static let coldStartTimeout: TimeInterval = 60
 
     /// The signed-in player's name or email, or nil when nobody is signed in.
     @Published private(set) var player: String?
     /// The plan as the API answered it; nil while signed out or when the API could not be reached.
     @Published private(set) var plan: AccountPlan?
+    /// Whether the API is being asked for the plan now: Settings says «Проверяю…» rather than "did not answer".
+    @Published private(set) var planAsking = false
+    /// Whether the last ask for the plan failed (no token, no answer, not 200): only then Settings says "did not answer".
+    @Published private(set) var planFailed = false
     /// A tester's choice on this device; nil for the account's own plan.
     @Published private(set) var choice: Plan?
     /// The name and photo the player chose; nil while signed out, before the API answers, or when it cannot be reached.
@@ -163,6 +169,8 @@ final class Account: ObservableObject {
     private let session: URLSession
     private let text: UIText
     private var account: MSALAccount?
+    /// Counts the asks for the plan, so only the latest one's answer is shown.
+    private var planAsks = 0
 
     init(setup: EnvironmentSetup? = .bundled, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
         self.setup = setup
@@ -301,6 +309,7 @@ final class Account: ObservableObject {
         account = nil
         player = nil
         plan = nil
+        planFailed = false
         profile = nil
     }
 
@@ -314,12 +323,36 @@ final class Account: ObservableObject {
     }
 
     /// Asks the API for the plan again; nil when it cannot be reached, and then the app offers no Pro feature.
+    /// While it asks, `planAsking`; when it got no plan, `planFailed`. An ask overtaken by a newer one (another
+    /// environment, a tester's choice) changes nothing.
     func refreshPlan() async {
-        guard let options, player != nil, let token = await token(options.apiScope),
-              let request = request(path: "account", token: token)
-        else { return }
-        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return }
-        plan = AccountPlan.read(answer.0)
+        guard let options, player != nil else { return }
+        planAsks += 1
+        let ask = planAsks
+        planAsking = true
+        planFailed = false
+        let answer = await fetch("account", options: options)
+        guard ask == planAsks else { return }
+        planAsking = false
+        guard player != nil else { return }
+        if let answer, let read = AccountPlan.read(answer) { plan = read } else { planFailed = true }
+    }
+
+    /// Asks again for what is missing while signed in (Settings opens, the app comes back): the plan when there is none
+    /// and no ask is under way, the profile when there is none. Asks nothing when signed out.
+    func refreshIfMissing() async {
+        guard player != nil else { return }
+        if plan == nil && !planAsking { await refreshPlan() }
+        if profile == nil { await refreshProfile() }
+    }
+
+    /// The API's answer at the path with the player's token, waiting long enough for a cold start; nil without a token
+    /// or a 200.
+    private func fetch(_ path: String, options: AccountOptions) async -> Data? {
+        guard let token = await token(options.apiScope), var request = request(path: path, token: token) else { return nil }
+        request.timeoutInterval = Self.coldStartTimeout
+        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return answer.0
     }
 
     /// Whether the signed-in player may use the feature; false when signed out.
@@ -327,11 +360,8 @@ final class Account: ObservableObject {
 
     /// Asks the API for the player's profile again; it stays as it was when the API cannot be reached.
     func refreshProfile() async {
-        guard let options, player != nil, let token = await token(options.apiScope),
-              let request = request(path: "profile", token: token)
-        else { return }
-        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return }
-        profile = PlayerProfile.read(answer.0)
+        guard let options, player != nil, let answer = await fetch("profile", options: options), player != nil else { return }
+        profile = PlayerProfile.read(answer)
     }
 
     /// Keeps the player's name and photo (nil clears either); nil when kept, else what went wrong in the player's words.

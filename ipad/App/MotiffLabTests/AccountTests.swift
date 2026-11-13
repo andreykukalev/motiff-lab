@@ -77,6 +77,17 @@ final class AccountTests: XCTestCase {
         XCTAssertTrue(Account.tokenClaims("not a token").isEmpty)
     }
 
+    /// Signed out, nothing is asked again and Settings shows no "did not answer"; a cold start gets a minute.
+    func testSignedOutAsksNothingAgain() async throws {
+        let account = Account(options: try XCTUnwrap(AccountOptions.load()))
+        await account.refreshIfMissing()
+        await account.refreshPlan()
+        XCTAssertNil(account.plan)
+        XCTAssertFalse(account.planAsking)
+        XCTAssertFalse(account.planFailed)
+        XCTAssertGreaterThanOrEqual(Account.coldStartTimeout, 60)
+    }
+
     func testABuildWithoutSignInShowsNoAccount() {
         XCTAssertFalse(Account(options: nil).isAvailable)
         let empty = AccountOptions(authority: "", clientId: "", apiScope: "", scanScope: "", api: "", scan: "")
