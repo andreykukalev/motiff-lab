@@ -41,6 +41,17 @@ final class OriginalsController: ObservableObject {
     var changed: (@MainActor () -> Void)?
     private let text = UIText.current
 
+    /// The originals and this iPad's links to them as music-core said them when the piece opened (`OpenPiece.own`), so
+    /// PDF | Notes offers a linked PDF from the score's first frame rather than once `load` has asked again (#495 BUG-02);
+    /// `load` reads and checks them as before.
+    init(opened summary: PieceSummary? = nil, folder: URL = OriginalLinks.folder) {
+        self.folder = folder
+        guard let summary else { return }
+        originals = summary.originals
+        projectId = summary.id
+        links = Self.linksHere(to: originals, project: projectId, in: folder)
+    }
+
     /// The piece's PDF original, when it has one.
     var pdf: OriginalEntry? { originals.first(where: \.isDocument) }
 
@@ -272,14 +283,18 @@ final class OriginalsController: ObservableObject {
         guard let object = facadeObject(answer), object["error"] == nil else { return false }
         originals = OriginalEntry.list(object["originals"])
         projectId = object["projectId"] as? String ?? projectId
-        var found: [String: OriginalLink] = [:]
-        if let projectId {
-            for original in originals {
-                found[original.id] = OriginalLinks.load(project: projectId, original: original.id, in: folder)
-            }
-        }
-        links = found
+        links = Self.linksHere(to: originals, project: projectId, in: folder)
         return true
+    }
+
+    /// This iPad's links to the originals, by original.
+    private static func linksHere(to originals: [OriginalEntry], project: String?, in folder: URL) -> [String: OriginalLink] {
+        guard let project else { return [:] }
+        var found: [String: OriginalLink] = [:]
+        for original in originals {
+            found[original.id] = OriginalLinks.load(project: project, original: original.id, in: folder)
+        }
+        return found
     }
 
     /// The piece written to its project file, which the sync then sends online with the iPad's mark.
