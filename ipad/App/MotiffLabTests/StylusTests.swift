@@ -208,22 +208,31 @@ final class StylusTests: XCTestCase {
     @MainActor
     func testTheGestureOpensThePaletteAndAToolChosenInItTurnsThePenOn() {
         let pdf = PdfController()
-        let saved = (PenMemory.savedTool(), PenMemory.savedPrevious())
-        defer { PenMemory.keep(tool: saved.0, previous: saved.1) }
-        pdf.tool = .pen(.graphite)
+        let saved = PenMemory.saved()
+        defer { PenMemory.keep(saved) }
+        pdf.pen = PenState(active: .marker, previous: .eraser, pencil: ToolSettings(width: 0, ink: .carmine))
         pdf.pencilGesture(.palette, at: CGPoint(x: 300, y: 400))
         XCTAssertEqual(pdf.pencilPalette, PencilPaletteCall(at: CGPoint(x: 300, y: 400)))
         pdf.pencilGesture(.palette, at: nil)
         XCTAssertNil(pdf.pencilPalette, "a second double tap closes it")
         pdf.pencilGesture(.palette, at: nil)
-        pdf.chooseFromPalette(.pen(.carmine))
-        XCTAssertEqual(pdf.tool, .pen(.carmine))
+        pdf.chooseFromPalette(.pencil)
+        XCTAssertEqual(pdf.tool, .pen(.carmine), "the pencil comes back in its own ink")
         XCTAssertTrue(pdf.penOn, "a tool chosen there writes at once")
+        XCTAssertNil(pdf.pencilPalette)
+        pdf.penOn = false
+        pdf.pencilGesture(.palette, at: nil)
+        pdf.chooseFromPalette(width: 2)
+        XCTAssertEqual(pdf.pen.active, .pencil, "a thickness chosen there keeps the tool")
+        XCTAssertEqual(pdf.pen.pencil.width, 2)
+        XCTAssertTrue(pdf.penOn)
         XCTAssertNil(pdf.pencilPalette)
         pdf.pencilGesture(.eraser, at: nil)
         XCTAssertEqual(pdf.tool, .eraser)
         pdf.pencilGesture(.eraser, at: nil)
         XCTAssertEqual(pdf.tool, .pen(.carmine), "the eraser again goes back to the tool before")
+        pdf.pencilGesture(.previous, at: nil)
+        XCTAssertEqual(pdf.tool, .eraser, "«switch to previous» goes to the tool before")
     }
 
     func testThePaletteSpreadsItsButtonsOverAHalfCircleAndKeepsInside() {

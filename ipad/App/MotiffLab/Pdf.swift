@@ -37,12 +37,10 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     @Published var penOn = false { didSet { applyInput() } }
     /// Whether the pages take ink: not on a PDF linked in Files, whose marks would be kept nowhere (version 0.3).
     var inkable = true
-    /// The tool, as last chosen on this device (PenMemory): the same as on the score, after PDF | Notes too.
-    @Published var tool = PenMemory.savedTool() {
-        didSet {
-            if oldValue != tool { previousTool = oldValue }
-            PenMemory.keep(tool: tool, previous: previousTool)
-        }
+    /// The pen's one tool and each tool's settings (PenState, #495 UX-06), as last chosen on this device (PenMemory): the
+    /// same as on the score, after PDF | Notes too.
+    @Published var pen = PenMemory.saved() {
+        didSet { if pen != oldValue { PenMemory.keep(pen) } }
     }
     @Published var canUndo = false
     /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
@@ -55,10 +53,6 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     weak var view: PDFView?
     /// The pen over the pages, and who writes and who scrolls (#479 items 7 and 18).
     let ink = InkInput()
-    var previousTool = PenMemory.savedPrevious()
-    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
-    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths() } }
-    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths() } }
     /// What the pen and the eraser did here, newest last, for Undo: a stroke kept, or a press of the eraser (BUG-05).
     var steps: [InkStep] = []
     /// The eraser on a page while it is pressed, and the presses lifted and still being saved, shown as they left the
@@ -770,46 +764,5 @@ struct PdfMore: View {
         .padding(CGFloat.ds("s-4"))
         .frame(width: 320, alignment: .leading)
         .background(Color.ds("surface"))
-    }
-}
-
-/// The pen's palette on a PDF (the score's PenPalette, 0023): the pencil and its four inks, the highlighter, the eraser,
-/// the thickness, Undo and the cross.
-struct PdfPenPalette: View {
-    @ObservedObject var pdf: PdfController
-    let text: UIText
-
-    var body: some View {
-        // The whole palette where it fits; in portrait its words give way to the icons alone.
-        ViewThatFits(in: .horizontal) {
-            palette(compact: false)
-            palette(compact: true)
-        }
-    }
-
-    private func palette(compact: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            PenTools(holder: pdf, text: text, compact: compact)
-            PaletteDivider()
-            Button {
-                pdf.undo()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "undo", size: CGFloat.ds("icon-s"))
-                    if !compact { Text(text["pencil.undo"]) }
-                }
-            }
-            .buttonStyle(DSItemStyle())
-            .accessibilityLabel(text["pencil.undo"])
-            .disabled(!pdf.canUndo)
-            PenClose(holder: pdf, text: text)
-        }
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .padding(.vertical, CGFloat.ds("s-1"))
-        .background(Color.ds("surface-2"), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
-        .dsShadow("shadow-menu")
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["pencil.label"])
     }
 }

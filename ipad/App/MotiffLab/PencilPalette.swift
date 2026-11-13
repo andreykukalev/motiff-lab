@@ -79,24 +79,40 @@ extension PenHolder {
         case .palette:
             pencilPalette = pencilPalette == nil ? PencilPaletteCall(at: point) : nil
         case .eraser:
-            tool = tool == .eraser ? previousTool : .eraser
+            pen.toggleEraser()
         case .previous:
-            tool = previousTool
+            pen.choosePrevious()
         case .nothing:
             break
         }
     }
 
     /// A tool chosen in the pencil palette: the Pen comes on with it, so the Pencil writes with it at once.
-    func chooseFromPalette(_ tool: ScoreController.Tool) {
-        self.tool = tool
+    func chooseFromPalette(_ tool: ActiveTool) {
+        pen.choose(tool)
+        closePaletteWritingOn()
+    }
+
+    /// A thickness of the active tool chosen in the pencil palette: the tool stays, the Pen comes on.
+    func chooseFromPalette(width: Int) {
+        pen.setWidth(width)
+        closePaletteWritingOn()
+    }
+
+    /// An ink of the pencil chosen in the pencil palette: the tool stays, the Pen comes on.
+    func chooseFromPalette(ink: ScoreController.Ink) {
+        pen.setInk(ink)
+        closePaletteWritingOn()
+    }
+
+    private func closePaletteWritingOn() {
         penOn = true
         pencilPalette = nil
     }
 }
 
-/// Where the pencil palette's buttons go: the tools and inks on an outer half circle, the thicknesses on an inner one,
-/// Undo in the middle, opening upward from the Pencil, or downward where there is no room above.
+/// Where the pencil palette's buttons go: the tools on an inner half circle, the active tool's settings on an outer
+/// one, Undo in the middle, opening upward from the Pencil, or downward where there is no room above.
 enum PaletteLayout {
     /// The offsets from the middle of `count` buttons spread evenly over a half circle of the radius, left to right.
     static func arc(count: Int, radius: CGFloat, upward: Bool) -> [CGPoint] {
@@ -116,21 +132,35 @@ enum PaletteLayout {
         let y = upward ? min(at.y, size.height - reach / 4) : max(at.y, reach / 4)
         return (CGPoint(x: x, y: y), upward)
     }
+
+    /// The outer half circle's places (#495 UX-06): the pencil's four inks on the left, a gap, the three thicknesses on
+    /// the right. The thicknesses keep their places for the marker, which has no inks.
+    static let settingSlots = 8
+
+    /// The place on the outer half circle of an ink of the pencil.
+    static func slot(ink: ScoreController.Ink) -> Int {
+        ScoreController.Ink.allCases.firstIndex(of: ink) ?? 0
+    }
+
+    /// The place on the outer half circle of a thickness.
+    static func slot(width: Int) -> Int {
+        settingSlots - PenSizes.pen.count + width
+    }
 }
 
-/// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. The four inks of
-/// the pencil, the highlighter and the eraser in a half circle, the three thicknesses inside it and Undo in the middle; a
-/// tool chosen turns the Pen on with it. A tap beside it closes it.
+/// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. The tools (the
+/// pencil, the marker, the eraser) on an inner half circle, exactly one chosen; the active tool's settings on an outer
+/// one (#495 UX-06): the pencil's inks and its thicknesses, the marker's thicknesses in the same places, nothing for the
+/// eraser; Undo in the middle. Whatever is chosen turns the Pen on with it and closes the palette; a tap beside it closes
+/// it.
 struct PencilPalette<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let call: PencilPaletteCall
     let text: UIText
 
     private static var button: CGFloat { CGFloat.ds("h-touch") }
-    private static var outer: CGFloat { button * 2.1 }
-    private static var inner: CGFloat { button * 1.1 }
-    private static var widthKeys: [String] { ["pencil.widthThin", "pencil.widthMedium", "pencil.widthThick"] }
-    private static var dots: [CGFloat] { [4, 8, 13] }
+    private static var outer: CGFloat { button * 2.5 }
+    private static var inner: CGFloat { button * 1.3 }
 
     var body: some View {
         GeometryReader { proxy in
@@ -151,15 +181,24 @@ struct PencilPalette<Holder: PenHolder>: View {
     }
 
     private func ring(_ upward: Bool) -> some View {
-        let tools: [ScoreController.Tool] = ScoreController.Ink.allCases.map { .pen($0) } + [.highlighter, .eraser]
-        let outer = PaletteLayout.arc(count: tools.count, radius: Self.outer, upward: upward)
-        let inner = PaletteLayout.arc(count: PenSizes.pen.count, radius: Self.inner, upward: upward)
+        let pen = holder.pen
+        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
+        let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
         return ZStack {
-            ForEach(tools.indices, id: \.self) { index in
-                toolButton(tools[index]).offset(x: outer[index].x, y: outer[index].y)
+            ForEach(ActiveTool.allCases.indices, id: \.self) { index in
+                toolButton(ActiveTool.allCases[index]).offset(x: tools[index].x, y: tools[index].y)
             }
-            ForEach(0..<PenSizes.pen.count, id: \.self) { width in
-                widthButton(width).offset(x: inner[width].x, y: inner[width].y)
+            if pen.active == .pencil {
+                ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
+                    let slot = slots[PaletteLayout.slot(ink: ink)]
+                    inkButton(ink).offset(x: slot.x, y: slot.y)
+                }
+            }
+            if pen.current != nil {
+                ForEach(PenSizes.pen.indices, id: \.self) { width in
+                    let slot = slots[PaletteLayout.slot(width: width)]
+                    widthButton(width).offset(x: slot.x, y: slot.y)
+                }
             }
             undoButton
         }
@@ -167,41 +206,46 @@ struct PencilPalette<Holder: PenHolder>: View {
         .accessibilityLabel(text["pencil.palette"])
     }
 
-    private func toolButton(_ tool: ScoreController.Tool) -> some View {
-        let chosen = holder.penOn && holder.tool == tool
+    private func toolButton(_ tool: ActiveTool) -> some View {
+        let chosen = holder.pen.active == tool
         return Button {
             holder.chooseFromPalette(tool)
         } label: {
-            disc(chosen: chosen) {
-                switch tool {
-                case .pen(let ink):
-                    Circle().fill(Color(uiColor: ink.color)).frame(width: 22, height: 22)
-                case .highlighter:
-                    Icon(name: "highlight", size: CGFloat.ds("icon-m"))
-                case .eraser:
+            disc(chosen: chosen, tool: true) {
+                if let icon = tool.icon {
+                    Icon(name: icon, size: CGFloat.ds("icon-m"))
+                } else {
                     // The kit has no eraser icon: its word, as in the palette under the bar.
-                    Text(text["pencil.eraser"]).dsType(.label).lineLimit(1).fixedSize()
+                    Text(text[tool.labelKey]).dsType(.label).lineLimit(1).fixedSize()
                 }
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(text[Self.label(tool)])
+        .accessibilityLabel(text[tool.labelKey])
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+
+    private func inkButton(_ ink: ScoreController.Ink) -> some View {
+        let chosen = holder.pen.isChosen(ink: ink)
+        return Button {
+            holder.chooseFromPalette(ink: ink)
+        } label: {
+            disc(chosen: chosen) { InkSwatch(ink: ink) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(text[ink.labelKey])
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
     private func widthButton(_ width: Int) -> some View {
-        let chosen = holder.width == width
+        let chosen = holder.pen.isChosen(width: width)
         return Button {
-            holder.setWidth(width)
-            holder.penOn = true
-            holder.pencilPalette = nil
+            holder.chooseFromPalette(width: width)
         } label: {
-            disc(chosen: chosen) {
-                Circle().fill(Color.ds("ink")).frame(width: Self.dots[width], height: Self.dots[width])
-            }
+            disc(chosen: chosen) { WidthDot(width: width, pen: holder.pen) }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(text[Self.widthKeys[width]])
+        .accessibilityLabel(text[WidthDot.labelKeys[width]])
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
@@ -216,22 +260,19 @@ struct PencilPalette<Holder: PenHolder>: View {
         .accessibilityLabel(text["pencil.undo"])
     }
 
-    private func disc<Content: View>(chosen: Bool, @ViewBuilder content: () -> Content) -> some View {
-        content()
-            .foregroundStyle(chosen ? Color.ds("accent") : Color.ds("ink"))
+    /// A button of the palette, on the surface. The chosen tool lies on the accent's strong tint, as in the tools under
+    /// the bar; a chosen setting has the accent's tint and ring, as there.
+    private func disc<Content: View>(chosen: Bool, tool: Bool = false, @ViewBuilder content: () -> Content) -> some View {
+        let tint = !chosen ? Color.clear : Color.ds(tool ? "accent-tint-strong" : "accent-tint")
+        let ringed = chosen && !tool
+        return content()
+            .foregroundStyle(chosen ? Color.ds("ink") : Color.ds("ink-2"))
             .padding(.horizontal, CGFloat.ds("s-1"))
             .frame(minWidth: Self.button, minHeight: Self.button)
-            .background(chosen ? Color.ds("accent-tint") : Color.ds("surface"), in: Capsule())
-            .overlay(Capsule().strokeBorder(chosen ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: chosen ? 2 : 1))
+            .background(tint, in: Capsule())
+            .background(Color.ds("surface"), in: Capsule())
+            .overlay(Capsule().strokeBorder(ringed ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: ringed ? 2 : 1))
             .dsShadow("shadow-menu")
             .contentShape(Capsule())
-    }
-
-    private static func label(_ tool: ScoreController.Tool) -> String {
-        switch tool {
-        case .pen(let ink): ink.labelKey
-        case .highlighter: "pencil.highlighter"
-        case .eraser: "pencil.eraser"
-        }
     }
 }

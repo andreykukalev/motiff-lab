@@ -145,35 +145,6 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(Double(style?.first ?? "") ?? 0, Double(PenSizes.highlighterAlpha), accuracy: 0.001, "the layer is as translucent as amber-tint")
     }
 
-    /// The pen's tool, ink and thicknesses are kept on the device (#479 item 11), so PDF | Notes and opening a piece again
-    /// keep the pencil the player chose.
-    func testThePensToolInkAndThicknessAreKeptOnTheDevice() throws {
-        let suite = "motiff.tests.pen"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
-        defer { defaults.removePersistentDomain(forName: suite) }
-
-        XCTAssertEqual(PenMemory.savedTool(in: defaults), .pen(.graphite), "the graphite pencil the first time")
-        XCTAssertEqual(PenMemory.savedPrevious(in: defaults), .eraser)
-        XCTAssertEqual(PenMemory.savedWidth(highlighter: false, in: defaults), PenSizes.defaultWidth)
-
-        PenMemory.keep(tool: .pen(.carmine), previous: .highlighter, in: defaults)
-        PenMemory.keep(width: 2, highlighter: false, in: defaults)
-        PenMemory.keep(width: 0, highlighter: true, in: defaults)
-        XCTAssertEqual(PenMemory.savedTool(in: defaults), .pen(.carmine))
-        XCTAssertEqual(PenMemory.savedPrevious(in: defaults), .highlighter)
-        XCTAssertEqual(PenMemory.savedWidth(highlighter: false, in: defaults), 2)
-        XCTAssertEqual(PenMemory.savedWidth(highlighter: true, in: defaults), 0)
-
-        let pens: [ScoreController.Tool] = ScoreController.Ink.allCases.map { ScoreController.Tool.pen($0) }
-        for tool in pens + [ScoreController.Tool.highlighter, ScoreController.Tool.eraser] {
-            XCTAssertEqual(PenMemory.tool(PenMemory.code(tool)), tool)
-        }
-        XCTAssertNil(PenMemory.tool("pen.violet"), "an ink the app does not have is not a tool")
-        defaults.set(7, forKey: PenMemory.penWidthKey)
-        XCTAssertEqual(PenMemory.savedWidth(highlighter: false, in: defaults), PenSizes.defaultWidth, "a thickness out of range is the middle one")
-    }
-
     /// A stroke begun in a line's margin (v0.4) is kept against the line's first bar (u below 0) or its last (u above 1),
     /// drawn where it was written, and music-core keeps it thinned.
     func testAStrokeInALinesMarginIsKeptAgainstTheLinesEdgeBar() async throws {

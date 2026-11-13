@@ -279,13 +279,13 @@ extension PdfController {
             let origin = view.convert(CGPoint(x: on.box.minX, y: on.box.maxY), from: on.page)
             return LiveInkView.Style(
                 colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: light),
-                radius: max(0.25, PenSizes.pen[penWidth] * on.space / 2) * scale, followsPressure: true,
+                radius: max(0.25, PenSizes.pen[pen.pencil.width] * on.space / 2) * scale, followsPressure: true,
                 grain: (origin: origin, tile: InkPaint.tile * CGFloat(scale))
             )
         case .highlighter:
             return LiveInkView.Style(
                 colour: DesignTokens.dynamicColor("amber").resolvedColor(with: light),
-                radius: PenSizes.highlighter[highlighterWidth] * on.space / 2 * scale, followsPressure: false,
+                radius: PenSizes.highlighter[pen.marker.width] * on.space / 2 * scale, followsPressure: false,
                 alpha: PenSizes.highlighterAlpha
             )
         case .eraser:
@@ -302,15 +302,15 @@ extension PdfController {
         }
         let onPage = samples.map { InkSample(view.convert($0.point, to: on.page), pressure: $0.pressure) }
         let number = document.index(for: on.page) + 1
-        let tool = tool
+        let pen = pen
         let box = on.box
         inkQueue.then { [weak self] in
             guard let self else { return }
-            switch tool {
+            switch pen.stroke {
             case .pen(let colour):
-                await self.keep(onPage, tool: "pen", colour: colour.rawValue, size: PenSizes.pen[self.penWidth], page: number, box: box)
+                await self.keep(onPage, tool: "pen", colour: colour.rawValue, size: PenSizes.pen[pen.pencil.width], page: number, box: box)
             case .highlighter:
-                await self.keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[self.highlighterWidth], page: number, box: box)
+                await self.keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[pen.marker.width], page: number, box: box)
             case .eraser:
                 // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
                 break
