@@ -6,7 +6,10 @@
 // The web app has two places (the piece's and the selection's, placesOf); the iPad draws both playheads of the playback
 // model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, playheadsOf): the black track at the position, always,
 // and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
+// On the iPad the black dot and the cobalt knob are handles the pen or a finger drags (#495 UX-08, playhead-grab.ts). The
+// line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line (#495 UX-07).
 
+import type { Handle } from "../playback/playback-model.js";
 import type { Playhead, ScoreBar } from "./score-geometry.js";
 
 /** What Blazor says (Score/ScorePlayheads.cs). */
@@ -82,8 +85,6 @@ export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefi
 /** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
 const TRACK_INSET = 3;
 const TRACK_GAP = 10;
-/** The selection playhead reaches this far above and below the staves, its knob on top. */
-const LINE_REACH = 8;
 
 /** Where the track goes for a place: across its bar, under its system, and how far it is filled. */
 export function trackOf(at: Playhead, lineBottom: number): { left: number; top: number; width: number; filled: number } {
@@ -99,6 +100,15 @@ export interface PlayheadsHost {
     at(tick: number): Playhead | undefined;
     /** The lowest ink of the system a bar is on, so the track runs under every note of the line. */
     lineBottom(bar: ScoreBar): number;
+    /** A press on a playhead's handle (the black dot, the cobalt knob); without it the handles take no press (the web). */
+    grab?(handle: Handle, event: PointerEvent): void;
+}
+
+/** A playhead's handle where it is on screen: its centre in the client's pixels. */
+export interface Grip {
+    handle: Handle;
+    x: number;
+    y: number;
 }
 
 /** The playheads drawn over one score. */
@@ -133,6 +143,22 @@ export class ScorePlayheadMarks {
         hideAll(this.track?.element ?? null, this.line);
     }
 
+    /** The handles shown, with their centres in the client's pixels, for the iPad to leave a touch there to them. */
+    grips(): Grip[] {
+        const shown: [Handle, Element | null | undefined, HTMLElement | null][] = [
+            ["black", this.track?.dot, this.track?.element ?? null],
+            ["blue", this.line?.firstElementChild, this.line],
+        ];
+        const grips: Grip[] = [];
+        for (const [handle, element, mark] of shown) {
+            if (element !== null && element !== undefined && mark !== null && !mark.hidden && mark.isConnected) {
+                const box = element.getBoundingClientRect();
+                grips.push({ handle, x: box.left + box.width / 2, y: box.top + box.height / 2 });
+            }
+        }
+        return grips;
+    }
+
     dispose(): void {
         this.hide();
         this.track?.element.remove();
@@ -144,7 +170,7 @@ export class ScorePlayheadMarks {
             hideAll(this.track?.element ?? null);
             return;
         }
-        const track = (this.track ??= trackMark());
+        const track = (this.track ??= trackMark(this.grabber("black")));
         const place = trackOf(at, this.owner.lineBottom(at.bar));
         show(this.host, track.element);
         transform(track.element, place.left, place.top);
@@ -159,22 +185,37 @@ export class ScorePlayheadMarks {
             hideAll(this.line);
             return;
         }
-        const line = (this.line ??= lineMark());
+        const line = (this.line ??= lineMark(this.grabber("blue")));
         show(this.host, line);
-        transform(line, at.x - 1, at.top - LINE_REACH);
-        size(line, null, at.bottom - at.top + 2 * LINE_REACH);
+        transform(line, at.x - 1, at.top);
+        size(line, null, at.bottom - at.top);
+    }
+
+    /** What a press on a handle does: the host's grab, or nothing when the host takes none. */
+    private grabber(handle: Handle): ((event: PointerEvent) => void) | null {
+        const owner = this.owner;
+        return owner.grab === undefined ? null : (event) => owner.grab?.(handle, event);
     }
 }
 
-/** The track with its fill and its dot. */
-function trackMark(): { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } {
+/** The track with its fill and its dot, the dot a handle when the host grabs. */
+function trackMark(grab: ((event: PointerEvent) => void) | null): { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } {
     const element = mark("gtrack");
     const fill = mark("fill");
     const dot = mark("dot");
     fill.hidden = false;
     dot.hidden = false;
+    grip(dot, grab);
     element.append(fill, dot);
     return { element, fill, dot };
+}
+
+/** Makes a mark a handle that takes a press; the iPad's score.css gives it a touch target and keeps the page still there. */
+function grip(element: HTMLElement, grab: ((event: PointerEvent) => void) | null): void {
+    if (grab !== null) {
+        element.classList.add("grip");
+        element.addEventListener("pointerdown", grab);
+    }
 }
 
 /** An overlay over the score that takes no taps and is not read out. */
@@ -186,10 +227,12 @@ function mark(className: string): HTMLElement {
     return element;
 }
 
-function lineMark(): HTMLElement {
+function lineMark(grab: ((event: PointerEvent) => void) | null): HTMLElement {
     const line = mark("ph-sel");
-    line.append(mark("knob"));
-    line.firstElementChild?.removeAttribute("hidden");
+    const knob = mark("knob");
+    knob.hidden = false;
+    grip(knob, grab);
+    line.append(knob);
     return line;
 }
 

@@ -44,6 +44,8 @@ final class RollController: NSObject, ObservableObject {
     var spacePressed: (@MainActor () -> Void)?
     /// The playhead moved on the roll: to a tick, and with `play` a tap that plays from there.
     var playheadMoved: (@MainActor (_ tick: Double, _ play: Bool) -> Void)?
+    /// A lane's playhead taken, dragged or let go by its handle (#495 UX-08): the player runs the model (PlayheadDrag.swift).
+    var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
 
@@ -235,6 +237,9 @@ final class RollController: NSObject, ObservableObject {
         }
         if let seek = message["seek"] as? [String: Any], let tick = (seek["tick"] as? NSNumber)?.doubleValue {
             playheadMoved?(tick, (seek["play"] as? Bool) ?? false)
+        }
+        if let gesture = PlayheadGesture(message: message["drag"]) {
+            playheadGestured?(gesture)
         }
         if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
             noteEdited?(made)

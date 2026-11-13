@@ -54,6 +54,12 @@ const host = {
                 post({ seek: { tick, play: Boolean(play) } });
                 break;
             }
+            case "OnRollDrag": {
+                // A lane's playhead dragged by its handle (#495 UX-08): taken, moved to a tick, let go; Swift runs the model.
+                const [phase, handle, tick] = args;
+                post({ drag: { phase, handle, tick } });
+                break;
+            }
             case "OnRollNoteChange": {
                 const [id, onset, pitch, length] = args;
                 post({ edit: { kind: "change", id, onset, pitch, length } });

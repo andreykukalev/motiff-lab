@@ -62,6 +62,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
     var placeTapped: (@MainActor (Range<Double>) -> Void)?
+    /// A playhead's handle taken, dragged or let go on the page (#495 UX-08): the player runs the model (PlayheadDrag.swift).
+    var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// The one playback position as the page last had it (the selection it turns cobalt in), or nil for the one playhead of before.
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
@@ -268,6 +270,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published var pencilPalette: PencilPaletteCall?
     /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
     private var handleSpots: [CGPoint] = []
+    /// The playheads' handles, in the document's pixels, as the page last reported them: a finger there takes the handle.
+    private var headSpots: [CGPoint] = []
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
@@ -317,7 +321,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
         ink.rubs = { [weak self] in self?.tool == .eraser }
         ink.rubbed = { [weak self] points, lifted in self?.rubbed(points, lifted: lifted) }
-        ink.handles = { [weak self] in self?.handlesInView() ?? [] }
+        ink.handles = { [weak self] in self.map { $0.inView($0.handleSpots) } ?? [] }
+        ink.heads = { [weak self] in self.map { $0.inView($0.headSpots) } ?? [] }
         ink.pencil.perform = { [weak self] action, point in self?.pencilGesture(action, at: point) }
         applyInput()
 
@@ -424,10 +429,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     /// Under the modes (version 0.5) a tap places a playhead on its beat; notes are edited only in the roll (#479 item 23).
+    /// A playhead's handle dragged goes to the player, and where the handles are is kept for the pen (#495 UX-08).
     private func receivedUnderModes(_ message: [String: Any]) {
         func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
         if let place = message["place"] as? [String: Any], let start = number(place["start"]), let end = number(place["end"]) {
             placeTapped?(start..<max(end, start + 1))
+        }
+        if let heads = message["heads"] as? [[String: Any]] {
+            headSpots = heads.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
+        }
+        if let gesture = PlayheadGesture(message: message["drag"]) {
+            playheadGestured?(gesture)
         }
     }
 
@@ -1963,10 +1975,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
     }
 
-    /// The selection's handles where they are on the screen now, in the web view's coordinates.
-    private func handlesInView() -> [CGPoint] {
+    /// Handles, given in the document's pixels, where they are on the screen now, in the web view's coordinates.
+    private func inView(_ spots: [CGPoint]) -> [CGPoint] {
         let zoom = webView.scrollView.zoomScale
-        return handleSpots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
+        return spots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
     }
 
     /// The mode as the page has it: "pen" while the Pen is on, none before the modes.

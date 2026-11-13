@@ -6,7 +6,7 @@ import Foundation
 /// selection; Цикл is the promise that while it is on, playback keeps the position inside the selection.
 ///
 /// The Swift port of the reference, src/MotiffLab.Web/Scripts/playback/playback-model.ts: the same pure rules (the
-/// design's T1–T13 and the release rules of T16), run on the same case file, MotiffLabTests/Golden/playback-model.json
+/// design's T1–T16, the drag of a playhead included), run on the same case file, MotiffLabTests/Golden/playback-model.json
 /// (PlaybackPositionTests). Player owns the selection and Цикл and sends the steps to the engine.
 enum PlaybackModel {
     /// The selection and Цикл are the player's own, the tick and the transport the engine's.
@@ -37,6 +37,10 @@ enum PlaybackModel {
         case seek(Double)
         /// T13: a tap on the roll's loop strip moves both playheads inside the selection.
         case seekInLoop(Double)
+        /// T14: a playhead's handle taken by the pen or a finger: playback stands while it is held.
+        case grab
+        /// T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts).
+        case drag(Handle, to: Double)
         /// T16: a playhead let go where the position now is, playing on when it played as the gesture began.
         case release(Handle, resume: Bool)
     }
@@ -117,6 +121,10 @@ enum PlaybackModel {
             return seek(state, to: at)
         case .seekInLoop(let at):
             return seekInLoop(state, to: at)
+        case .grab:
+            return grab(state)
+        case .drag(let handle, let at):
+            return drag(state, handle, to: at)
         case .release(let handle, let resume):
             return release(state, handle, resume: resume)
         }
@@ -183,6 +191,29 @@ enum PlaybackModel {
     private static func seekInLoop(_ state: State, to at: Double) -> Decision {
         guard let selection = state.selection else { return (state, []) }
         let to = min(max(at, selection.lowerBound), max(selection.lowerBound, selection.upperBound - 1))
+        var after = state
+        after.tick = to
+        return (after, [.seek(to)])
+    }
+
+    /// T14: playback stands while a playhead is held, so the drag is heard alone; the player keeps whether it played (T16).
+    private static func grab(_ state: State) -> Decision {
+        guard playing(state.transport) else { return (state, []) }
+        var after = state
+        after.transport = .stopped
+        return (after, [.pause])
+    }
+
+    /// T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
+    /// the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
+    /// place is where the position already is.
+    private static func drag(_ state: State, _ handle: Handle, to at: Double) -> Decision {
+        var to = max(0, at)
+        if handle == .blue {
+            guard let selection = state.selection else { return (state, []) }
+            to = min(max(at, selection.lowerBound), max(selection.lowerBound, selection.upperBound - 1))
+        }
+        guard to != state.tick else { return (state, []) }
         var after = state
         after.tick = to
         return (after, [.seek(to)])

@@ -34,6 +34,8 @@ import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
 import { viewOf } from "../playback/playback-model.js";
+import { PlayheadDrag } from "../playback/playhead-drag.js";
+import { laneDragTick, laneHeadAt } from "./roll-head-drag.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import { fitsWhenTurned, selectionShift, viewOnLoad } from "./roll-view.js";
 
@@ -289,6 +291,12 @@ export class PianoRoll {
     private looping = false;
     private placeLabel = "";
     private overviewPointer: number | null = null;
+    /** The lanes' playheads dragged by their handles (#495 UX-08, roll-head-drag.ts): the handle taken, its places, its end. */
+    private readonly laneDrag = new PlayheadDrag((message) => {
+        void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, message.phase === "move" ? message.tick : null);
+    });
+    /** Where the press on a lane's playhead began, until it moves past a tap. */
+    private lanePress: number | null = null;
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -465,6 +473,8 @@ export class PianoRoll {
         this.roll.addEventListener("pointermove", this.onPointerMove);
         this.roll.addEventListener("pointerup", this.onPointerUp);
         this.roll.addEventListener("pointercancel", this.onPointerCancel);
+        // A playhead whose pointer the roll lost is let go, so nothing is left held (#495 UX-08).
+        this.roll.addEventListener("lostpointercapture", (event) => this.laneDrag.release(event.pointerId));
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
         this.keys.addEventListener("pointerdown", this.onKeysDown);
@@ -875,6 +885,9 @@ export class PianoRoll {
      * the roll goes there too. With the lanes a tap on the notes plays nothing.
      */
     setLanes(on: boolean): void {
+        if (!on) {
+            this.laneDrag.release();
+        }
         this.lanes = on;
         this.overview.style.display = on ? "" : "none";
         this.invalidate();
@@ -1068,6 +1081,7 @@ export class PianoRoll {
         this.keys.removeEventListener("pointerup", this.onKeysUp);
         this.keys.removeEventListener("pointercancel", this.onKeysUp);
         this.releaseAllLive();
+        this.laneDrag.release();
         this.scroller.removeEventListener("input", this.onScroll);
         document.removeEventListener("pointerdown", this.onDocumentPointerDown);
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
@@ -1082,7 +1096,7 @@ export class PianoRoll {
         }
         const player = this.player;
         if (player !== null) {
-            const now = this.playhead.heard(player.currentTick());
+            const now = this.laneDrag.heard(this.playhead.heard(player.currentTick()));
             if (now !== this.tickNow) {
                 const jumped = Math.abs(now - this.tickNow) > TICKS_PER_QUARTER;
                 this.tickNow = now;
@@ -1690,15 +1704,61 @@ export class PianoRoll {
     private pressPlayhead(event: PointerEvent, x: number, y: number): boolean {
         const finger = event.pointerType !== "mouse";
         const line = this.touchReading && finger;
-        if (this.editing || this.player === null || !onPlayhead(x, y, this.xOf(this.tickNow), BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
+        if (this.editing || this.player === null) {
+            return false;
+        }
+        if (this.lanes) {
+            return this.pressLaneHead(event, x, y);
+        }
+        if (!onPlayhead(x, y, this.xOf(this.tickNow), BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
             return false;
         }
         this.playhead.begin(event.pointerId, x);
         return true;
     }
 
+    /**
+     * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
+     * down its line, a touch target wide: the drag moves it on the sixteenth grid, not what lies under it.
+     */
+    private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
+        const view = viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: "stopped" });
+        const heads = { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue), stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
+        const handle = laneHeadAt(x, y, heads);
+        if (handle === null || !this.laneDrag.grab(handle, event.pointerId)) {
+            return false;
+        }
+        this.lanePress = x;
+        return true;
+    }
+
+    /** A move of the press on a lane's playhead, past a tap: it goes to the tick under it, held as its handle is. */
+    private moveLaneHead(event: PointerEvent, x: number): boolean {
+        const handle = this.laneDrag.handle;
+        const model = this.model;
+        if (handle === null || model === null || !this.laneDrag.holds(event.pointerId)) {
+            return false;
+        }
+        if (this.lanePress !== null && Math.abs(x - this.lanePress) < CLICK_SLOP) {
+            return true;
+        }
+        this.lanePress = null;
+        const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
+        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, this.motif, model.end);
+        if (tick !== undefined) {
+            this.laneDrag.move(event.pointerId, tick);
+            this.invalidate();
+        }
+        return true;
+    }
+
     /** The end of a press on the playhead: a drag has moved it; a tap on it in touch reading plays from there. */
     private releasePlayhead(event: PointerEvent): boolean {
+        if (this.laneDrag.holds(event.pointerId)) {
+            this.laneDrag.release(event.pointerId);
+            this.invalidate();
+            return true;
+        }
         const ended = this.playhead.end(event.pointerId);
         if (ended === null) {
             return false;
@@ -2285,6 +2345,7 @@ export class PianoRoll {
             this.cancelEditPress();
         }
         this.playhead.cancel();
+        this.laneDrag.release();
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
         this.pinch = {
@@ -2305,7 +2366,7 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.movedByFingers(event, x, event.clientY - box.top) || this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
+        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x) || this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
             return;
         }
         if (this.moveRulePress(event, x, event.clientY - box.top)) {
@@ -2451,6 +2512,7 @@ export class PianoRoll {
         this.rulePress = null;
         this.box = null;
         this.playhead.cancel();
+        this.laneDrag.release();
         this.invalidate();
     };
 

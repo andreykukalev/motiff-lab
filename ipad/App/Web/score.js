@@ -45,7 +45,9 @@
 // follows unless the player turned that off: the system playing is kept below the bar, so the next one shows beneath it
 // (0018 section 7). A scroll by hand wins for a few seconds, as on the web, and the next Play follows again. While the
 // line is out of sight, the bar it is in goes to Swift (`playheadAway`, -1 when it is back), for the chip that returns
-// to it (`returnToPlayhead`).
+// to it (`returnToPlayhead`). Under the modes the two playheads of the playback model are drawn (`playheads`), and their
+// handles are dragged (#495 UX-08): the handle taken, its places and its letting go go to Swift (`drag`), and where the
+// handles are (`heads`), so a finger there is never the pen's.
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -54,7 +56,9 @@ import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, fr
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
 import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
+import { ScoreGrab } from "../score/playhead-grab.js";
 import { viewOf } from "../playback/playback-model.js";
+import { PlayheadDrag } from "../playback/playhead-drag.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -509,7 +513,30 @@ const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => s
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
     lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
+    grab: (handle, event) => grabs.begin(handle, event),
 });
+
+/** Where the player is, as Swift last said (`playing`): what the playheads are drawn at when no drag shows another place. */
+const heard = { tick: 0, playing: false };
+
+/**
+ * The playheads dragged by their handles (#495 UX-08 and UX-10, Scripts/score/playhead-grab.ts): the black one inside the
+ * bar it stood in, the blue one inside the selection, on the sixteenth grid. Swift is told the handle taken, its places
+ * once a frame and its letting go (`drag`), and runs the playback model. A finger always takes a handle; the Pencil does,
+ * except where it writes (the Pen): there it writes, as the design has it.
+ */
+const grabs = new ScoreGrab({
+    geometry: () => state.geometry,
+    onsetOf: (id) => state.timeline?.onsetOf(id),
+    selection: () => state.heads?.selection ?? null,
+    position: () => heard.tick,
+    takes: (pointerType) => state.heads !== null && !state.focus && (pointerType !== "pen" || (state.input?.pen?.tap ?? !state.pen)),
+    point: (event) => {
+        const view = document.body.getBoundingClientRect();
+        return { x: event.clientX - view.left + document.body.scrollLeft, y: event.clientY - view.top + document.body.scrollTop };
+    },
+    moved: () => reportPlace(drawHeads(), !heard.playing),
+}, new PlayheadDrag((message) => post({ drag: message })));
 
 /**
  * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select" or "pen";
@@ -548,7 +575,9 @@ function tapActs() {
 function playheads(value) {
     state.heads = value ?? null;
     if (state.heads === null) {
+        grabs.cancel();
         heads.hide();
+        reportGrips();
     } else {
         placePlayhead(null);
     }
@@ -680,7 +709,8 @@ document.body.addEventListener("click", (event) => {
         post({ bookmark: bookmark.dataset.bookmark });
         return;
     }
-    if (selection.swallowsClick() || !tapActs() || target === null || target.closest(".sel-handle")) {
+    // A press on a playhead's handle is the handle's, a tap on it included: it never places the playhead or selects a bar.
+    if (selection.swallowsClick() || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
     if (state.mode !== null) {
@@ -818,6 +848,9 @@ focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: 
 function focus({ open, label, back }) {
     state.focus = Boolean(open);
     focusLayer.hidden = !state.focus;
+    if (state.focus) {
+        grabs.cancel();
+    }
     if (!state.focus) {
         cardScore.replaceChildren();
         card.timeline = null;
@@ -927,17 +960,10 @@ function playing({ tick, playing, follow, auto = true }) {
         sounding.byHand = -Infinity;
     }
     playhead.played ||= playing;
+    heard.tick = tick;
+    heard.playing = playing;
     if (state.heads !== null) {
-        // The playback model (version 0.5.2): out of focus the black playhead always shows, and the blue one with a selection.
-        let at;
-        if (state.focus) {
-            heads.hide();
-        } else {
-            const chosen = state.heads.selection ?? null;
-            const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: playing ? "playing" : "stopped" });
-            at = heads.place(playheadsOf(view, chosen));
-        }
-        reportPlace(at, !playing);
+        reportPlace(drawHeads(), !playing);
     } else {
         // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
         const resting = !playing && playhead.played && tick > 0;
@@ -956,6 +982,47 @@ function playing({ tick, playing, follow, auto = true }) {
         return keepInView(document.querySelector("#pages .playing"));
     }
     return null;
+}
+
+/**
+ * The playback model's two playheads (version 0.5.2): out of focus the black playhead always shows, and the blue one with a
+ * selection, at the player's place or, while a handle is dragged and just after, where it was dragged to. Returns where the
+ * black one is.
+ */
+function drawHeads() {
+    let at;
+    if (state.focus || state.heads === null) {
+        heads.hide();
+    } else {
+        const chosen = state.heads.selection ?? null;
+        const tick = grabs.drag.heard(heard.tick);
+        const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: heard.playing ? "playing" : "stopped" });
+        at = heads.place(playheadsOf(view, chosen));
+    }
+    reportGrips();
+    return at;
+}
+
+let gripsReported = "";
+let gripsAt = -Infinity;
+/** While the piece plays the handles are measured no more often than this, in milliseconds, so playing stays light. */
+const GRIPS_PLAYING_MS = 250;
+
+/**
+ * Where the playheads' handles are, in the document's pixels, when they have moved a little: a finger there takes the
+ * handle, never the pen's stroke (InkInput, #495 UX-08).
+ */
+function reportGrips() {
+    if (heard.playing && state.heads !== null && performance.now() - gripsAt < GRIPS_PLAYING_MS) {
+        return;
+    }
+    gripsAt = performance.now();
+    const grips = state.heads === null || state.focus ? [] : heads.grips().map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
+    const key = grips.map(({ handle, x, y }) => `${handle} ${Math.round(x / 2)} ${Math.round(y / 2)}`).join(",");
+    if (key !== gripsReported) {
+        gripsReported = key;
+        post({ heads: grips });
+    }
 }
 
 /** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
