@@ -62,11 +62,28 @@ struct OnlineProjects {
     /// False where the app may not write (Main in a version build, `EnvironmentSetup.writes`): then only reads go out,
     /// and a save is refused here without being sent.
     var writable = true
+    /// The last reset stamp the iPad applied in this environment (`TestReset`, 0 for none), where «Очистить всё» reaches
+    /// it (Test on develop's own API); nil elsewhere, and then the list's stamp is never read and saves carry none.
+    var resetApplied: Int64?
 
     /// The player's projects saved online; nil when signed out, offline or when the API cannot be reached.
     func list() async -> [OnlineProject]? {
-        guard case .success(let data) = await get("projects") else { return nil }
-        return OnlineProject.list(data)
+        await listing()?.projects
+    }
+
+    /// The list, and a reset stamp newer than `resetApplied` when the player cleared everything from another device.
+    struct Listing: Equatable, Sendable {
+        let projects: [OnlineProject]
+        /// Set when this iPad's test library is to be cleared before anything syncs (`TestLibrary.applyReset`).
+        var resetDue: Int64?
+    }
+
+    /// The list with the player's reset stamp (the `Motiff-Reset` header of develop's API); nil as `list`.
+    func listing() async -> Listing? {
+        guard case .success(let done) = await send("projects", { _ in }), let projects = OnlineProject.list(done.data) else { return nil }
+        let stamp = TestReset.stamp(done.response.value(forHTTPHeaderField: TestReset.header))
+        guard let applied = resetApplied, TestReset.isDue(stamp, applied: applied) else { return Listing(projects: projects) }
+        return Listing(projects: projects, resetDue: stamp)
     }
 
     /// The projects listed online whose id is in no project file here, in the API's order.
@@ -106,6 +123,8 @@ struct OnlineProjects {
             request.httpBody = Data(file.utf8)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             if let ifMatch { request.setValue(ifMatch, forHTTPHeaderField: "If-Match") }
+            // So the API refuses a piece from before a reset this iPad has not applied yet (409, the code "reset").
+            if let resetApplied { request.setValue(String(resetApplied), forHTTPHeaderField: TestReset.seenHeader) }
         }
         switch answer {
         case .success(let done): return .saved(etag: done.response.value(forHTTPHeaderField: "ETag"))
@@ -147,10 +166,6 @@ struct OnlineProjects {
             if await PieceSummary.read(entry.url)?.id == id { return entry.url }
         }
         return nil
-    }
-
-    private func get(_ path: String) async -> Result<Data, Failure> {
-        await send(path) { _ in }.map { $0.data }.mapError(Self.failure)
     }
 
     private static func failure(_ refused: Refused) -> Failure {

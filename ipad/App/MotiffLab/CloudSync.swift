@@ -58,6 +58,9 @@ struct CloudSync {
         var changed = false
         /// How many pieces stay here because the free account's room online is full.
         var overQuota = 0
+        /// The player cleared everything from another device (`TestReset`): the pass synced nothing, and the library
+        /// clears Test's files here before the next one (`TestLibrary.applyReset`).
+        var reset: Int64?
     }
 
     /// A project file here as the pass sees it.
@@ -67,9 +70,12 @@ struct CloudSync {
         let modified: Date
     }
 
-    /// One pass; nothing happens while signed out or offline.
+    /// One pass; nothing happens while signed out or offline, or when everything was cleared from another device since
+    /// this iPad last applied a reset: then nothing here is sent, and the outcome says so.
     func run() async -> Outcome {
-        guard let rows = await online.list() else { return Outcome() }
+        guard let listing = await online.listing() else { return Outcome() }
+        if let reset = listing.resetDue { return Outcome(reset: reset) }
+        let rows = listing.projects
         let listed = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var here: [String: Local] = [:]
         // The most recently changed file first, so a copy made in Files does not stand for the piece.

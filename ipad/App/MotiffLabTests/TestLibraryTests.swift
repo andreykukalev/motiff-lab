@@ -1,7 +1,7 @@
 import XCTest
 @testable import MotiffLab
 
-/// «Очистить тестовую библиотеку» (Andrei, 2026-11-13): only the Test environment's own files go, never Main's and never
+/// «Очистить всё» (Andrei, 2026-11-13): only the Test environment's own files go, never Main's and never
 /// anything else; the online copies only on develop's own API. And Settings · About says which build this is.
 final class TestLibraryTests: XCTestCase {
     private let documents = URL(fileURLWithPath: "/container/Documents", isDirectory: true)
@@ -106,6 +106,77 @@ final class TestLibraryTests: XCTestCase {
         XCTAssertFalse(TestLibrary.offered(Account(setup: EnvironmentSetup(main: main, test: test, buildDefault: .main), defaults: defaults)))
         XCTAssertFalse(TestLibrary.offered(Account(options: main, defaults: defaults)), "a build that knows only Main")
         XCTAssertFalse(TestLibrary.offered(Account(setup: nil, defaults: defaults)))
+    }
+
+    // «Очистить всё» from another device (TestReset): the list's stamp, newer than the one applied here, clears this iPad.
+    func testAStampIsAWholeNumberAndOnlyANewerOneIsDue() {
+        XCTAssertEqual(TestReset.stamp("1763043540123"), 1_763_043_540_123)
+        XCTAssertEqual(TestReset.stamp(" 42 "), 42)
+        for value in [nil, "", "-1", "4.2", "1e9", "abc", "٣", String(repeating: "9", count: 16)] {
+            XCTAssertNil(TestReset.stamp(value), String(describing: value))
+        }
+        XCTAssertFalse(TestReset.isDue(nil, applied: 0))
+        XCTAssertFalse(TestReset.isDue(0, applied: 0))
+        XCTAssertTrue(TestReset.isDue(100, applied: 0))
+        XCTAssertFalse(TestReset.isDue(100, applied: 100))
+        XCTAssertTrue(TestReset.isDue(101, applied: 100))
+        XCTAssertFalse(TestReset.isDue(99, applied: 100))
+    }
+
+    func testTheStampAppliedIsKeptPerEnvironmentAndNeverGoesBack() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "TestResetTests"))
+        defaults.removePersistentDomain(forName: "TestResetTests")
+        defer { defaults.removePersistentDomain(forName: "TestResetTests") }
+        XCTAssertEqual(TestReset.applied(defaults, in: .test), 0)
+        TestReset.record(200, in: defaults, environment: .test)
+        TestReset.record(150, in: defaults, environment: .test)
+        XCTAssertEqual(TestReset.applied(defaults, in: .test), 200)
+        XCTAssertEqual(TestReset.applied(defaults, in: .main), 0)
+        XCTAssertEqual(TestReset.key(.test), "ml-test-reset.test")
+        // Kept in the preferences, not among the files the clear deletes.
+        XCTAssertFalse(TestLibrary.deletes(URL(fileURLWithPath: "/container/Library/Preferences/ml-test-reset.test"), documents: documents, support: support))
+    }
+
+    func testResetsReachTheIPadOnlyInTestOnDevelopsApi() {
+        let main = AccountOptions(
+            authority: "https://motifflab.ciamlogin.com/tenant", clientId: "client", apiScope: "s", scanScope: "", api: "https://a.example", scan: "")
+        var test = main
+        test.api = "https://ca-motifflab-api-dev.example"
+        let setup = EnvironmentSetup(main: main, test: test, buildDefault: .test)
+        XCTAssertTrue(TestReset.applies(setup, in: .test))
+        XCTAssertFalse(TestReset.applies(setup, in: .main))
+        XCTAssertFalse(TestReset.applies(nil, in: .test))
+    }
+
+    private func resets(_ applied: Int64?) -> OnlineProjects {
+        OnlineProjects(session: StubAPI.session(), request: { path in URL(string: "https://api.example/\(path)").map { URLRequest(url: $0) } }, resetApplied: applied)
+    }
+
+    func testTheListSaysWhenAResetIsDueAndThePassThenSendsNothing() async throws {
+        StubAPI.reset(["https://api.example/projects": .init(status: 200, body: Data("[]".utf8), headers: [TestReset.header: "200"])])
+        defer { StubAPI.reset() }
+
+        let due = await resets(100).listing()
+        XCTAssertEqual(due, OnlineProjects.Listing(projects: [], resetDue: 200))
+        let applied = await resets(200).listing()
+        XCTAssertNil(applied?.resetDue, "already applied here")
+        let elsewhere = await resets(nil).listing()
+        XCTAssertNil(elsewhere?.resetDue, "Main, or Test on another API: the stamp is never read")
+
+        StubAPI.reset(["https://api.example/projects": .init(status: 200, body: Data("[]".utf8), headers: [TestReset.header: "200"])])
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TestResetTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let outcome = await CloudSync(online: resets(0), folder: folder, recordsURL: folder.appendingPathComponent("sync-test.json")) { _ in "" }.run()
+        XCTAssertEqual(outcome.reset, 200)
+        XCTAssertEqual(StubAPI.requests.map { $0.httpMethod ?? "GET" }, ["GET"], "nothing from before the reset is sent")
+    }
+
+    func testASaveSaysWhichResetItComesAfter() async throws {
+        StubAPI.reset(["PUT https://api.example/projects/p_1": .init(status: 204, body: Data())])
+        defer { StubAPI.reset() }
+        _ = await resets(300).upload("p_1", file: "{}", ifMatch: nil)
+        _ = await resets(nil).upload("p_1", file: "{}", ifMatch: nil)
+        XCTAssertEqual(StubAPI.requests.map { $0.value(forHTTPHeaderField: TestReset.seenHeader) }, ["300", nil])
     }
 
     func testAboutSaysTheTagOrTheBranchAndCommitElseDev() {

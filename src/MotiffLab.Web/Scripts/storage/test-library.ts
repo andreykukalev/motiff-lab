@@ -1,4 +1,4 @@
-// «Очистить тестовую библиотеку» on the web test site (Andrei, 2026-11-13; infra/README.md, "A fresh testing cycle"): before
+// «Очистить всё» on the web test site (Andrei, 2026-11-13; infra/README.md, "A fresh testing cycle"): before
 // a new testing cycle the test site starts from an empty library in this browser. It empties the app's own stores of the
 // library, every IndexedDB database below, and the library's entries in local storage, then the page loads again. The
 // interface language, the theme, the settings, the sign-in (MSAL's own entries), the scan server address and the day's
@@ -78,6 +78,63 @@ export async function clearTestLibrary(): Promise<number> {
         localStorage.removeItem(key);
     }
     return keys.length;
+}
+
+// «Очистить всё» (Andrei, 2026-11-13): the reset stamp the API's list of projects carries on develop (the header
+// Motiff-Reset, src/MotiffLab.Api/TestReset.cs), and the one this browser last applied. A newer stamp means the player
+// cleared everything from another device: this browser clears its test library too before it syncs or sends anything.
+// The applied stamp is kept outside the library's entries, so the clear never takes it.
+
+/** Where this browser keeps the last reset stamp it applied: one of the device's entries, not the library's. */
+export const RESET_KEY = PREFIX + "ml-test-reset";
+
+/** The stamp in a header's value: a whole number from 0 (milliseconds since 1970); null for anything else. */
+export function parseStamp(value: string | null | undefined): number | null {
+    if (typeof value !== "string" || !/^[0-9]{1,15}$/.test(value.trim())) {
+        return null;
+    }
+    return Number(value.trim());
+}
+
+/** The last reset stamp this browser applied; 0 when none, or when storage cannot be read. */
+export function appliedReset(): number {
+    try {
+        return parseStamp(localStorage.getItem(RESET_KEY)) ?? 0;
+    } catch {
+        return 0;
+    }
+}
+
+/** Whether the list's stamp is newer than the one applied here, so this browser's test library is to be cleared. */
+export function isResetDue(header: string | null | undefined, applied: number = appliedReset()): boolean {
+    const stamp = parseStamp(header);
+    return stamp !== null && stamp > applied;
+}
+
+/** Keeps the stamp as applied here; an older one never replaces a newer one. */
+export function recordReset(header: string | number): void {
+    const stamp = parseStamp(String(header));
+    if (stamp === null || stamp <= appliedReset()) {
+        return;
+    }
+    try {
+        localStorage.setItem(RESET_KEY, String(stamp));
+    } catch {
+        // Not kept: the next list clears again, which leaves the same empty library.
+    }
+}
+
+/**
+ * Applies a reset made on another device: on a test site, when the list's stamp is newer than the one applied here, it
+ * empties the library in this browser and keeps the stamp. True when it did, and the page is then to load again.
+ */
+export async function applyReset(header: string | null | undefined): Promise<boolean> {
+    if (!isTestSiteHere() || !isResetDue(header)) {
+        return false;
+    }
+    await clearTestLibrary();
+    recordReset(header ?? "");
+    return true;
 }
 
 /** Loads the page again, so nothing of the old library stays in memory. */

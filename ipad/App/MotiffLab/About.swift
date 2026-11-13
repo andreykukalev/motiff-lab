@@ -37,7 +37,7 @@ struct BuildInfo: Equatable, Sendable {
 }
 
 /// Settings · About: the version, the commit and the date of this build, and the environment the iPad works in; in Test,
-/// «Очистить тестовую библиотеку».
+/// «Очистить всё».
 struct AboutPanel: View {
     @ObservedObject var account: Account
     let text: UIText

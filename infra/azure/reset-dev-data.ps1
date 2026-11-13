@@ -15,8 +15,10 @@
      before: partition key /ownerId (Hash, the same key version), the same indexing policy, serverless (no throughput).
   The API's data access (dev-env.bicep's role assignment) is on the database, not on the container, so it stays; nothing
   else in rg-motifflab-dev changes. -WhatIf shows what would go and changes nothing.
-  The pieces on the devices are cleared there: Settings, About, "Clear the test library" on the iPad (in Test) and on the
-  web test site. Clear the database first, so a device's sync finds nothing to bring back.
+  The spare for all testers at once: the normal way is Settings, About, "Clear everything" on one device (the iPad in
+  Test or the web test site), which empties that player's data in the test database and makes each of their devices
+  clear its test library at its next sync (infra/README.md, "A fresh testing cycle"). This script empties every player's
+  data but tells no device: afterwards each player presses "Clear everything" once on one device.
 
 .EXAMPLE
   .\infra\azure\reset-dev-data.ps1 -WhatIf
@@ -120,5 +122,5 @@ finally {
 }
 
 Write-MotiffStep 'Done'
-Write-MotiffInfo 'The test database is empty. Now clear each device: Settings, About, "Clear the test library"'
-Write-MotiffInfo '(the iPad in the Test environment, and the web test site in each browser you test with).'
+Write-MotiffInfo 'The test database is empty. Now each player presses Settings, About, "Clear everything" on one device'
+Write-MotiffInfo '(the iPad in the Test environment, or the web test site); their other devices clear at their next sync.'
