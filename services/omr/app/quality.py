@@ -1,7 +1,8 @@
 """Looks at a page image before homr reads it: how sharp it is, how dark its print is, and which way up it lies.
 
 Phone photos of a book are often sideways or upside down in the pixels themselves, with no orientation tag
-to say so, and homr reads pixels as stored. Staff lines tell which way a page lies. Cut the page into bands
+to say so, and homr reads pixels as stored. Only such pictures are turned: a PDF page drawn by a program
+(pages.py) is read as it is, since the signs below can mislead on a clean engraving (issue #479 item 15). Staff lines tell which way a page lies. Cut the page into bands
 across its height: a band that holds a staff has long runs of ink across most of its width, so the right
 way round has many such bands and the page turned a quarter has few. Which end of the staves is the start
 tells upright from upside down: each system opens with a brace (and often a bar number) just before its
@@ -65,8 +66,9 @@ _TURNS = {
 }
 
 
-def examine(image: Image.Image) -> tuple[Image.Image, Look]:
-    """Returns the page in greyscale, turned the right way up, and what was seen."""
+def examine(image: Image.Image, turn: bool = True) -> tuple[Image.Image, Look]:
+    """Returns the page in greyscale, turned the right way up, and what was seen. Without `turn` the page is only
+    measured: it stays the way it is (a PDF page drawn by a program, which lies as its author made it)."""
     grey = image.convert("L")
     work = grey.copy()
     work.thumbnail((WORK_SIDE, WORK_SIDE), Image.Resampling.BOX)
@@ -74,7 +76,7 @@ def examine(image: Image.Image) -> tuple[Image.Image, Look]:
     ink = _ink(work)
     contrast = _percentile(ink, 0.995)
     rotation = 0
-    if contrast >= MIN_CONTRAST:
+    if turn and contrast >= MIN_CONTRAST:
         rotation = _rotation(ink.point(lambda level: 255 if level >= contrast * INK_SHARE else 0))
     look = Look(sharpness=_sharpness(work, contrast), contrast=contrast, rotation=rotation)
     return (grey.transpose(_TURNS[rotation]) if rotation else grey), look

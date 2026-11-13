@@ -1,8 +1,11 @@
 """Turns an uploaded PDF or photo into page images for homr.
 
 Everything happens in memory and in the job's own temporary folder; nothing is written anywhere else.
-Each page is looked at first (quality.py): turned the right way up if it lies sideways or upside down,
-and measured for sharpness and contrast.
+Each page is looked at first (quality.py) and measured for sharpness and contrast. A photo, or a PDF page
+that is only a picture (a scan), is turned the right way up if it lies sideways or upside down. A PDF page
+drawn by a program (its text and lines are in the PDF) lies as its author made it and is never turned: on
+such a clean engraving the signs of which way up a page lies can mislead, and a page read upside down is
+different music (issue #479 item 15).
 """
 
 from __future__ import annotations
@@ -84,12 +87,20 @@ def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Page]:
             page = pdf[index]
             try:
                 image = page.render(scale=PDF_DPI / 72, grayscale=True).to_pil()
+                turn = not drawn(page)
             finally:
                 page.close()
-            written.append(_write(image, folder, index + 1))
+            written.append(_write(image, folder, index + 1, turn))
         return written
     finally:
         pdf.close()
+
+
+def drawn(page) -> bool:
+    """Whether a PDF page was drawn by a program: it holds text or lines, not only pictures."""
+    import pypdfium2.raw as pdfium_c
+
+    return any(each.type in (pdfium_c.FPDF_PAGEOBJ_TEXT, pdfium_c.FPDF_PAGEOBJ_PATH) for each in page.get_objects())
 
 
 def _open_image(data: bytes) -> Image.Image:
@@ -102,8 +113,8 @@ def _open_image(data: bytes) -> Image.Image:
     return ImageOps.exif_transpose(image)
 
 
-def _write(image: Image.Image, folder: Path, number: int) -> Page:
-    image, look = quality.examine(image)
+def _write(image: Image.Image, folder: Path, number: int, turn: bool = True) -> Page:
+    image, look = quality.examine(image, turn)
     long_side = max(image.size)
     if long_side > MAX_LONG_SIDE:
         image.thumbnail((MAX_LONG_SIDE, MAX_LONG_SIDE), Image.Resampling.LANCZOS)
