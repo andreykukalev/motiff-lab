@@ -43,12 +43,12 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(levels.allSatisfy { $0["available"] as? Bool == true })
     }
 
-    func testTheBracketsAndTheSelectionAreReadFromMusicCore() throws {
+    func testThePhrasesAndTheSelectionAreReadFromMusicCore() throws {
         let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
         XCTAssertEqual(shown.level, "phrase")
         XCTAssertEqual(shown.counts["phrase"], shown.units.count)
         let first = try XCTUnwrap(shown.units.first)
-        XCTAssertEqual(first.kind, "start")
+        XCTAssertEqual(first.number, 1, "the first unit starts the piece")
         XCTAssertEqual(first.name, "фраза", "a unit is named in the piece's language")
         XCTAssertLessThan(first.onset, first.end)
 
