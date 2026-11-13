@@ -34,6 +34,7 @@ import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
+import { fitsWhenTurned, selectionShift, viewOnLoad } from "./roll-view.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -351,6 +352,8 @@ export class PianoRoll {
     private focusIndex: number | undefined;
     /** The motif selection (S1-M1, S1-M2): its range and its notes, or null for none. */
     private motif: { start: number; end: number; notes: Set<number>; alone: boolean } | null = null;
+    /** The selection's span shown before the notes came back (BUG-04), until the selection is sent again: not a new one. */
+    private keptSpan: Span | null = null;
     /** A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the selection. */
     private drag: { pointer: number; anchorX: number; anchor: number; current: number; edge: boolean } | null = null;
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
@@ -477,25 +480,31 @@ export class PianoRoll {
         this.frame = requestAnimationFrame(this.tick);
     }
 
-    /** Shows a piece, replacing what was shown, and keeps it under the key given for the next roll. The selection is cleared. */
-    load(payload: RollPayload, key?: string): void {
+    /**
+     * Shows a piece, replacing what was shown, and keeps it under the key given for the next roll. The selection is cleared.
+     * With `keepView` (the same piece's notes again, after an edit) the zoom and the stretch in view stay (BUG-04).
+     */
+    load(payload: RollPayload, key?: string, keepView = false): void {
         const model = RollModel.fromPayload(payload);
         if (key !== undefined) {
             keptModel = { key, model };
         }
-        this.show(model);
+        this.show(model, keepView);
     }
 
     /** Shows the piece kept under the key, as load does; false when another is kept, so Blazor sends this one. */
-    loadKept(key: string): boolean {
+    loadKept(key: string, keepView = false): boolean {
         if (keptModel?.key !== key) {
             return false;
         }
-        this.show(keptModel.model);
+        this.show(keptModel.model, keepView);
         return true;
     }
 
-    private show(model: RollModel): void {
+    private show(model: RollModel, keepView: boolean): void {
+        const motif = this.motif;
+        const span = motif === null ? this.keptSpan : { start: motif.start, end: motif.end };
+        const view = viewOnLoad({ scroll: this.scroll, pitchTop: this.pitchTop, fitted: this.fitted, span }, keepView, this.editing);
         this.model = model;
         this.selected = new Set();
         this.focusIndex = undefined;
@@ -510,14 +519,14 @@ export class PianoRoll {
         this.drag = null;
         this.press = null;
         this.pan = null;
-        this.fitted = false;
         this.editDrag = null;
         this.rulePress = null;
         this.boxPicked.clear();
-        if (!this.editing) {
-            this.scroll = 0;
-            this.pitchTop = null;
-        } else if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
+        this.fitted = view.fitted;
+        this.keptSpan = view.span;
+        this.pitchTop = view.pitchTop;
+        this.scroll = Math.min(this.maxScroll(), view.scroll);
+        if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
             this.editId = null;
         }
         this.updateLanes();
@@ -879,10 +888,14 @@ export class PianoRoll {
         }
     }
 
-    /** In phrase focus the roll fits every selection it is given (testing item 12). */
+    /**
+     * In phrase focus the roll fits every selection it is given (testing item 12). Turned on it fits at once, but not again
+     * when it is only sent again, and not when read by touch, which keeps the player's zoom on Expand (BUG-04).
+     */
     setFitsSelection(on: boolean): void {
+        const fits = fitsWhenTurned(this.fitsSelection, on, this.touchReading);
         this.fitsSelection = on;
-        if (on) {
+        if (fits) {
             this.fit();
         }
     }
@@ -908,8 +921,8 @@ export class PianoRoll {
             return;
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
-        const moved = this.motif === null || this.motif.start !== start;
-        const changed = moved || this.motif?.end !== end;
+        const { moved, changed } = selectionShift(this.motif ?? this.keptSpan, start, end);
+        this.keptSpan = null;
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
         this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
@@ -919,7 +932,7 @@ export class PianoRoll {
             this.keepInView(start);
             this.pitchTop = null;
         }
-        if (this.touchReading ? changed : this.fitsSelection && (moved || this.motif.end !== end)) {
+        if (this.touchReading ? changed : this.fitsSelection && moved) {
             this.fit();
         }
         this.invalidate();
@@ -927,6 +940,7 @@ export class PianoRoll {
 
     clearMotif(): void {
         this.motif = null;
+        this.keptSpan = null;
         this.motifPitches = null;
         this.drag = null;
         // With no selection there is nothing to fit again: a new size keeps the left edge and the zoom.

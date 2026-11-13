@@ -48,10 +48,19 @@ final class RollController: NSObject, ObservableObject {
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
 
     let webView: WKWebView
+    /// Where the roll is on screen, as the score screen has it (RollPlace.shown): the one place whose holder has the web view
+    /// (#495 BUG-01). Not published, so setting it renders nothing again; the new place's holder takes the web view at once.
+    var place: RollPlace? {
+        didSet {
+            if place != oldValue { RollHolder.placeChanged(self) }
+        }
+    }
     private let text = UIText.current
     private var pageReady = false
     private var loaded = false
     private var piece: OpenPiece?
+    /// The piece whose notes the roll shows: its notes loaded again keep the roll's zoom and view (#495 BUG-04).
+    private var shownPiece: Int32?
     private var dark = false
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
@@ -244,12 +253,16 @@ final class RollController: NSObject, ObservableObject {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
-        let request: [String: Any] = ["roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"]]
+        // The same piece's notes again (a note edited, a version taken in, another naming) keep the zoom and the view (BUG-04).
+        let request: [String: Any] = [
+            "roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"], "keep": shownPiece == id,
+        ]
         do {
             let shown = try await webView.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             colourBy = shown?["colourBy"] as? String ?? "hand"
             canChangeColour = ((shown?["modes"] as? [Any])?.count ?? 0) > 1
             loaded = true
+            shownPiece = id
             if lanesOn {
                 _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": true], contentWorld: .page)
             }
@@ -349,7 +362,7 @@ struct RollDrawer: View {
                 head(compact: false)
                 head(compact: true)
             }
-            RollSurface(roll: roll, text: text)
+            RollSurface(roll: roll, place: .drawer, text: text)
         }
         .padding(.top, CGFloat.ds("s-5"))
         .padding(.horizontal, CGFloat.ds("s-3"))
@@ -458,20 +471,23 @@ struct RollDrawer: View {
 }
 
 /// The roll's one web view, in the drawer or over the card in focus. Each place gets a holder of its own that the web view
-/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Expand hands the web view from the
-/// drawer to the card while the drawer is still sliding away; the holder shown last takes it back, rather than the web view
-/// keeping the size of a holder that is going.
+/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Only the holder of the place shown
+/// has the web view (RollPlace.holder, #495 BUG-01): Expand hands it from the drawer to the card once, while the drawer is
+/// still sliding away, and no SwiftUI update moves it again. Before, each update of each holder took it: while the music
+/// played (an update about thirty times a second) the drawer going and the card coming passed it back and forth on every
+/// update, each move resizing the roll, refitting it and sending a new zoom, which updated both holders again.
 struct ScoreRollView: UIViewRepresentable {
     @ObservedObject var roll: RollController
+    let place: RollPlace
 
     func makeUIView(context: Context) -> RollHolder {
-        let holder = RollHolder(webView: roll.webView)
-        holder.hold()
+        let holder = RollHolder(roll: roll, place: place)
+        holder.claim()
         return holder
     }
 
     func updateUIView(_ holder: RollHolder, context: Context) {
-        holder.hold()
+        holder.claim()
     }
 
     /// All the room it is offered, never the size the web view kept from its last place.
@@ -481,14 +497,23 @@ struct ScoreRollView: UIViewRepresentable {
     }
 }
 
-/// A place the roll's web view fills: its bounds, on every layout. A holder leaving the screen with the web view hands it
-/// to a holder still on screen.
+/// A place the roll's web view fills: its bounds, on every layout. Of the holders, the newest of the place shown has the web
+/// view; a holder that is going, or of another place, never takes it.
 final class RollHolder: UIView {
     private static let all = NSHashTable<RollHolder>.weakObjects()
+    /// How many holders were made: each one's number, so the newest of a place is known.
+    private static var made = 0
+    private weak var roll: RollController?
     private let webView: WKWebView
+    private let place: RollPlace
+    private let number: Int
 
-    init(webView: WKWebView) {
-        self.webView = webView
+    init(roll: RollController, place: RollPlace) {
+        self.roll = roll
+        webView = roll.webView
+        self.place = place
+        Self.made += 1
+        number = Self.made
         super.init(frame: .zero)
         Self.all.add(self)
     }
@@ -497,11 +522,22 @@ final class RollHolder: UIView {
         return nil
     }
 
-    func hold() {
-        if webView.superview !== self {
-            addSubview(webView)
-        }
+    /// Takes the web view when this is the holder of the place shown and does not have it yet; else changes nothing.
+    func claim() {
+        guard webView.superview !== self, let roll, Self.holder(of: roll) === self else { return }
+        addSubview(webView)
         setNeedsLayout()
+    }
+
+    /// The place shown changed: its holder takes the web view, when it is made already; else it takes it as it is made.
+    static func placeChanged(_ roll: RollController) {
+        holder(of: roll)?.claim()
+    }
+
+    private static func holder(of roll: RollController) -> RollHolder? {
+        let holders = all.allObjects.filter { $0.roll === roll }
+        let newest = RollPlace.holder(for: roll.place, among: holders.map { (place: $0.place, made: $0.number) })
+        return holders.first { $0.number == newest }
     }
 
     override func layoutSubviews() {
@@ -509,11 +545,5 @@ final class RollHolder: UIView {
         if webView.superview === self {
             webView.frame = bounds
         }
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window == nil, webView.superview === self else { return }
-        Self.all.allObjects.first { $0 !== self && $0.window != nil && $0.webView === webView }?.hold()
     }
 }

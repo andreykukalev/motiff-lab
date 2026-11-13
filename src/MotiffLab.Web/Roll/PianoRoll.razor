@@ -280,6 +280,8 @@ else
 
         if (!ReferenceEquals(Notes, _shown))
         {
+            // Notes again on a roll that shows notes (an edit, a version taken in) keep its zoom and view (#495 BUG-04).
+            bool keepView = _shown is not null;
             _shown = Notes;
             _byId = Notes.ToDictionary(note => note.Id);
             _selected = [];
@@ -303,9 +305,9 @@ else
             _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
             // The notes cross over once per piece: a second roll on them (Expand) takes what the first was sent (#419).
             string notesKey = RollShared.NotesKey(Notes, Score);
-            if (!await _view.InvokeAsync<bool>("loadKept", notesKey))
+            if (!await _view.InvokeAsync<bool>("loadKept", notesKey, keepView))
             {
-                await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score), notesKey);
+                await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score), notesKey, keepView);
             }
 
             _shownFits = null;

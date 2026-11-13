@@ -112,13 +112,15 @@ function modesOf(payload) {
 
 /**
  * Shows a piece: the roll's data from music-core (`roll`), its labels in the interface's language, whether the notes
- * carry their names, and the appearance. Returns the colour scheme shown and those the piece allows.
+ * carry their names, and the appearance. With `keep`, the same piece's notes again (a note edited, a version taken in, another
+ * naming): the zoom, the stretch in view and the selection stay as they are (#495 BUG-04). Returns the colour scheme shown
+ * and those the piece allows.
  */
-function load({ roll, labels, noteNames, dark, colourBy }) {
+function load({ roll, labels, noteNames, dark, colourBy, keep }) {
     theme(dark);
     view.setLabels(labels);
     state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
-    view.load(state.payload);
+    view.load(state.payload, undefined, Boolean(keep));
     view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows, roll.names.short, roll.names.shortRows, roll.names.octaves);
     view.setNoteNames(Boolean(noteNames));
     state.modes = modesOf(state.payload);

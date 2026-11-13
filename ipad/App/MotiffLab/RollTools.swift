@@ -48,6 +48,25 @@ struct RollZoom: Equatable, Sendable {
     }
 }
 
+/// Where the roll is on screen (#495 BUG-01): in its drawer, or over the card in focus (Expand). The roll has one web view,
+/// so one holder has it: of the place shown, the newest, never one that is going or of another place.
+enum RollPlace: Equatable, Sendable {
+    case drawer, focus
+
+    /// The place shown: the drawer while it is open, else the card in focus showing the phrase as a roll; nil for neither.
+    static func shown(drawerOpen: Bool, focused: Bool, focusRoll: Bool) -> RollPlace? {
+        if drawerOpen { return .drawer }
+        return focused && focusRoll ? .focus : nil
+    }
+
+    /// Of the holders there are (each one's place and the order it was made in), the one that has the web view: the newest
+    /// of the place shown; nil while no place is shown, or none of its holders is made yet.
+    static func holder(for place: RollPlace?, among holders: [(place: RollPlace, made: Int)]) -> Int? {
+        guard let place else { return nil }
+        return holders.filter { $0.place == place }.map { $0.made }.max()
+    }
+}
+
 /// What the player chose on the roll's bar numbers or the selection's handles: a bar tapped, which selects that bar; or a
 /// stretch dragged across, which selects by beats where the score does (#349, the modes) and by bars otherwise. It is the
 /// one selection of the score, the pill and the loop strip, so whatever is chosen here shows on the score at once.
@@ -192,10 +211,11 @@ struct RollZoomControls: View {
 /// The roll's web view with the zoom over it: the same in the drawer and in the expanded roll.
 struct RollSurface: View {
     @ObservedObject var roll: RollController
+    let place: RollPlace
     let text: UIText
 
     var body: some View {
-        ScoreRollView(roll: roll)
+        ScoreRollView(roll: roll, place: place)
             .overlay(alignment: .bottom) {
                 RollZoomControls(roll: roll, text: text)
             }
