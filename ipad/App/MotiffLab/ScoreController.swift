@@ -62,8 +62,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
     var placeTapped: (@MainActor (Range<Double>) -> Void)?
-    /// A tap on a note in Edit notes, by when it starts: the roll's editor opens on it.
-    var noteToEdit: (@MainActor (Double) -> Void)?
     /// The one playback position as the page last had it (the selection it turns cobalt in), or nil for the one playhead of before.
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
@@ -364,7 +362,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
             // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before.
             if chosen["beats"] as? Bool == true {
-                Task { await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}") }
+                selectBeats(start, end)
             } else {
                 Task { await select(start, end) }
             }
@@ -412,14 +410,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// Under the modes (version 0.5) a tap places a playhead on its beat, or in Edit notes opens the note on the roll.
+    /// Under the modes (version 0.5) a tap places a playhead on its beat; notes are edited only in the roll (#479 item 23).
     private func receivedUnderModes(_ message: [String: Any]) {
         func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
         if let place = message["place"] as? [String: Any], let start = number(place["start"]), let end = number(place["end"]) {
             placeTapped?(start..<max(end, start + 1))
-        }
-        if let edit = message["editNote"] as? [String: Any], let onset = number(edit["onset"]) {
-            noteToEdit?(onset)
         }
     }
 
@@ -467,6 +462,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Selects a passage through music-core, which keeps it within what a selection may hold.
     func select(_ start: Double, _ end: Double) async {
         await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}")
+    }
+
+    /// Selects a passage by beats (#349): music-core takes its edges out to the beat lines. A drag on the score or on the
+    /// roll's bar numbers and handles (#479 item 23), where the score selects by beats.
+    func selectBeats(_ start: Double, _ end: Double) {
+        Task { await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}") }
     }
 
     /// Selects whole bars, as the piano roll picks them; a tap that extends takes the selection to the bar tapped.

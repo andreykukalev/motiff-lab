@@ -7,9 +7,22 @@ import WebKit
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
 /// Escape clears the selection (a tap never does, #338), Space plays or pauses; the playhead dragged or nudged by a beat moves
 /// the player there, and a tap inside the loop or the selection plays from there (v0.2); with the note editor on (testing item
-/// 15), a note moved, added or taken out goes to music-core as a correction on the draft.
+/// 15), a note moved, added or taken out goes to music-core as a correction on the draft. Since v0.5.2 (#479 item 23) the
+/// roll is where notes are edited: its own modes, Navigate and Edit notes (RollMode, who edits is RollInput's), the zoom on
+/// each axis it reports and Swift draws (RollTools), and a drag across its bar numbers selecting by beats as the score does.
 @MainActor
 final class RollController: NSObject, ObservableObject {
+    /// The mode chosen on the roll's switch (#479 item 23); Edit notes holds while the note editor is open.
+    @Published var mode: RollMode = .navigate {
+        didSet {
+            guard mode != oldValue else { return }
+            sendEditor()
+        }
+    }
+    /// The bars and the octaves in view, as the roll last reported them; nil until it has.
+    @Published private(set) var zoom: RollZoom?
+    /// The mode the roll is in: Edit notes only while the editor is open.
+    var shownMode: RollMode { RollMode.shown(chosen: mode, editorOpen: editorState != nil) }
     /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
     @Published var noteNames = true {
         didSet {
@@ -23,8 +36,10 @@ final class RollController: NSObject, ObservableObject {
     @Published private(set) var canChangeColour = false
     @Published private(set) var problem: String?
 
-    /// Bars chosen on the roll: the first, the last, and whether a tap extends the selection to them.
-    var barsPicked: (@MainActor (_ first: Int, _ last: Int, _ extend: Bool) -> Void)?
+    /// A bar tapped or a stretch dragged on the roll's bar numbers or the selection's handles; `byBeats` says how a drag
+    /// selects (by beats where the score does).
+    var picked: (@MainActor (RollPick) -> Void)?
+    var byBeats: (@MainActor () -> Bool)?
     var cleared: (@MainActor () -> Void)?
     var spacePressed: (@MainActor () -> Void)?
     /// The playhead moved on the roll: to a tick, and with `play` a tap that plays from there.
@@ -45,6 +60,10 @@ final class RollController: NSObject, ObservableObject {
     private var lanesOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
     private var editor: [String: Any] = ["on": false]
+    /// The note editor's state as the score has it; nil while it is closed.
+    private var editorState: NoteEditorState?
+    /// Who edits and who moves the roll, as last told (RollInput).
+    private var input: [String: Any] = [:]
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -117,13 +136,42 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
-    /// The note editor on, with its tool and the note picked, or off (nil): a press on the notes then edits them.
+    /// The note editor open, with its tool and the note picked, or closed (nil), when the roll goes back to Navigate. A press
+    /// on the notes edits them in Edit notes only (#479 item 23).
     func showEditor(_ state: NoteEditorState?) {
-        var data: [String: Any] = ["on": state != nil, "tool": state?.tool ?? "move"]
-        if let picked = state?.picked { data["picked"] = picked }
+        editorState = state
+        if state == nil { mode = .navigate }
+        sendEditor()
+    }
+
+    private func sendEditor() {
+        let editing = shownMode == .edit
+        var data: [String: Any] = ["on": editing, "tool": editorState?.tool ?? "move"]
+        if editing, let picked = editorState?.picked { data["picked"] = picked }
         editor = data
+        applyInput()
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
+    /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
+    func applyInput() {
+        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode).page
+        guard loaded else { return }
+        let data = input
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, or Fit.
+    enum ZoomAxis: String {
+        case time, pitch, fit
+    }
+
+    func zoomStep(_ axis: ZoomAxis, _ direction: Int) {
+        guard loaded else { return }
+        let data: [String: Any] = ["axis": axis.rawValue, "direction": direction]
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.zoom(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
     /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
@@ -164,9 +212,11 @@ final class RollController: NSObject, ObservableObject {
     }
 
     fileprivate func received(_ message: [String: Any]) {
-        func number(_ value: Any?) -> Int? { (value as? NSNumber)?.intValue }
-        if let range = message["range"] as? [String: Any], let first = number(range["first"]), let last = number(range["last"]) {
-            barsPicked?(first, last, (range["extend"] as? Bool) ?? false)
+        if let range = message["range"] as? [String: Any], let pick = RollPick(range, byBeats: byBeats?() ?? false) {
+            picked?(pick)
+        }
+        if let report = message["zoom"] as? [String: Any], let read = RollZoom(report), read != zoom {
+            zoom = read
         }
         if message["clear"] != nil {
             cleared?()
@@ -216,6 +266,8 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
+            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode).page
+            _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
         } catch {
             problem = error.localizedDescription
         }
@@ -278,7 +330,8 @@ private final class RollMessageRelay: NSObject, WKScriptMessageHandler {
 }
 
 /// The piano roll's drawer (ds.css `.drawer`, the web app's roll drawer): up from the bottom, 40% of the height in
-/// landscape and 30% in portrait, with its head (where it is, Note names, the colour scheme, Close) over the roll.
+/// landscape and 30% in portrait, with its head (where it is, its mode switch and its settings, or the note editor's tools)
+/// over the roll and the zoom on each axis over the notes (#479 item 23).
 struct RollDrawer: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
@@ -291,12 +344,12 @@ struct RollDrawer: View {
 
     var body: some View {
         VStack(spacing: CGFloat.ds("s-2")) {
-            if let editor = score.noteEditor {
-                editing(editor)
-            } else {
-                head
+            // The head on one line where it fits, else with the roll's settings in More (portrait, the mockup's «⋯»).
+            ViewThatFits(in: .horizontal) {
+                head(compact: false)
+                head(compact: true)
             }
-            ScoreRollView(roll: roll)
+            RollSurface(roll: roll, text: text)
         }
         .padding(.top, CGFloat.ds("s-5"))
         .padding(.horizontal, CGFloat.ds("s-3"))
@@ -310,103 +363,87 @@ struct RollDrawer: View {
         .accessibilityLabel(text["bar.roll"])
     }
 
-    /// Where it is with Clear selection, Edit notes, Note names, the colour scheme, Expand and Close.
-    private var head: some View {
+    /// The head (the approved mockup v0.5.2, #479 item 23): where it is, the roll's mode switch, and then in Navigate Clear
+    /// selection, Note names, the colour scheme, Expand and Close, or in Edit notes the editor's tools, Cancel and Save.
+    @ViewBuilder private func head(compact: Bool) -> some View {
+        let mode = roll.shownMode
         HStack(spacing: CGFloat.ds("s-2")) {
-            Text(heading).overline()
+            if !(compact && mode == .edit) {
+                Text(heading).dsType(.bodyStrong).foregroundStyle(Color.ds("ink")).lineLimit(1).fixedSize()
+            }
             // The selection menu gives way to the drawer, so the selection is let go here (#338).
-            if score.selection != nil {
+            if !compact, mode == .navigate, score.selection != nil {
                 ClearSelectionButton(score: score, text: text)
             }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            Button {
-                score.beginNoteEdit()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "pen", size: CGFloat.ds("icon-s"))
-                    Text(text["edit.begin"])
+            RollModeSwitch(chosen: mode, text: text) { roll.choose($0, score: score) }
+            if mode == .edit, let editor = score.noteEditor {
+                RollEditTools(score: score, editor: editor, text: text, compact: compact)
+                Spacer(minLength: CGFloat.ds("s-2"))
+                RollEditFinish(score: score, editor: editor, text: text)
+            } else {
+                Spacer(minLength: CGFloat.ds("s-2"))
+                if compact {
+                    more
+                } else {
+                    settings
                 }
-            }
-            .buttonStyle(DSItemStyle())
-            .help(text["edit.beginHint"])
-            Button {
-                roll.noteNames.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    Circle().fill(roll.noteNames ? Color.ds("accent") : Color.ds("hairline-strong")).frame(width: 6, height: 6)
-                    Text(text["roll.noteNames"])
+                // A draft with changes waits in Navigate for Cancel or Save.
+                if let editor = score.noteEditor {
+                    RollEditFinish(score: score, editor: editor, text: text)
                 }
-            }
-            .buttonStyle(DSItemStyle(on: roll.noteNames))
-            .accessibilityAddTraits(roll.noteNames ? .isSelected : [])
-            Button(text["roll.colour.\(roll.colourBy)"]) {
-                roll.nextColour()
-            }
-            .buttonStyle(DSItemStyle())
-            .disabled(!roll.canChangeColour)
-            .help(text["roll.colourHint"])
-            Button(action: expand) {
-                HStack(spacing: 6) {
-                    Icon(name: "search", size: CGFloat.ds("icon-s"))
-                    Text(text["roll.expand"])
+                Button(action: close) {
+                    Icon(name: "close").frame(width: CGFloat.ds("h-compact"), height: CGFloat.ds("h-compact"))
                 }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["bar.close"])
             }
-            .buttonStyle(DSItemStyle())
-            .help(text["roll.expandHint"])
-            Button(action: close) {
-                Icon(name: "close").frame(width: 32, height: 32)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["bar.close"])
         }
     }
 
-    /// The note editor's head (testing item 15): the tools, Undo, Reset, Cancel and Save, and what the tool does.
-    private func editing(_ editor: NoteEditorState) -> some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                // The overline in the accent: the roll is being edited.
-                Text(text["edit.title"]).dsType(.overline).textCase(.uppercase).tracking(0.66).foregroundStyle(Color.ds("accent"))
-                SegmentedChoice(options: ["move", "add", "delete"].map { ($0, text["edit.\($0)"]) }, chosen: editor.tool, label: text["edit.tool"]) {
-                    score.chooseNoteEditTool($0)
-                }
-                Button {
-                    score.undoNoteEdit()
-                } label: {
-                    Icon(name: "undo", size: CGFloat.ds("icon-s")).frame(width: 32, height: 32)
-                }
-                .buttonStyle(DSItemStyle())
-                .disabled(!editor.canUndo)
-                .accessibilityLabel(text["edit.undo"])
-                Button(text["edit.reset"]) {
-                    score.resetNotes()
-                }
-                .buttonStyle(DSItemStyle())
-                .disabled(!editor.canReset)
-                .help(text["edit.resetHint"])
-                Spacer(minLength: CGFloat.ds("s-2"))
-                Button(text["edit.cancel"]) {
-                    score.cancelNoteEdit()
-                }
-                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                Button {
-                    score.saveNoteEdit()
-                } label: {
-                    HStack(spacing: 6) {
-                        Icon(name: "check", size: CGFloat.ds("icon-s"))
-                        Text(text["edit.save"])
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                .disabled(!editor.changed)
+    /// Note names, the colour scheme and Expand, on the head's line.
+    @ViewBuilder private var settings: some View {
+        Button {
+            roll.noteNames.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Circle().fill(roll.noteNames ? Color.ds("accent") : Color.ds("hairline-strong")).frame(width: 6, height: 6)
+                Text(text["roll.noteNames"])
             }
-            Text("\(text["edit.\(editor.tool)Hint"]) \(text["edit.keptOnSave"])")
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .lineLimit(2)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["edit.toolbar"])
+        .buttonStyle(DSItemStyle(on: roll.noteNames))
+        .accessibilityAddTraits(roll.noteNames ? .isSelected : [])
+        Button(text["roll.colour.\(roll.colourBy)"]) {
+            roll.nextColour()
+        }
+        .buttonStyle(DSItemStyle())
+        .disabled(!roll.canChangeColour)
+        .help(text["roll.colourHint"])
+        Button(action: expand) {
+            HStack(spacing: 6) {
+                Icon(name: "search", size: CGFloat.ds("icon-s"))
+                Text(text["roll.expand"])
+            }
+        }
+        .buttonStyle(DSItemStyle())
+        .help(text["roll.expandHint"])
+    }
+
+    /// The same in More where the head is narrow, with Clear selection.
+    private var more: some View {
+        Menu {
+            if score.selection != nil {
+                Button(text["menu.clearSelection"]) { score.clearSelection() }
+            }
+            Toggle(text["roll.noteNames"], isOn: $roll.noteNames)
+            Button(text["roll.colour.\(roll.colourBy)"]) { roll.nextColour() }
+                .disabled(!roll.canChangeColour)
+            Button(text["roll.expand"], action: expand)
+        } label: {
+            Icon(name: "more").frame(width: CGFloat.ds("h-control"), height: CGFloat.ds("h-control"))
+        }
+        .menuStyle(.button)
+        .buttonStyle(BarActionStyle())
+        .accessibilityLabel(text["bar.more"])
     }
 
     /// "Piano roll · bars 9–16", or "Piano roll" with nothing selected.

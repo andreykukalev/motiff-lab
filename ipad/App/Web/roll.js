@@ -2,7 +2,9 @@
 // which Blazor drives in the web app; here Swift drives it through window.roll, and what the player does on it goes to
 // Swift as a message: bars dragged across or a bar number tapped, the selection cleared by Escape, Space pressed, the playhead
 // dragged, nudged by a beat or a tap inside the loop or the selection to play from there, and with the note editor on (testing item 15) a note moved, added or taken out. The roll reads
-// the player's position every frame; Swift sends it about 30 times a second (`position`).
+// the player's position every frame; Swift sends it about 30 times a second (`position`). Since v0.5.2 (#479 item 23) the
+// roll is also where notes are edited: Swift says which pointer edits (`input`), draws the zoom on each axis from what the
+// roll reports (`zoom` both ways), and takes a drag across the bar numbers by its ticks, to select by beats.
 import { createPianoRoll } from "../roll/piano-roll.js";
 import { THEME_CHANGED } from "../layout/theme.js";
 
@@ -30,10 +32,17 @@ const host = {
                 const first = barAt(Math.min(anchor, current));
                 const last = click ? first : barAt(Math.max(Math.min(anchor, current), Math.max(anchor, current) - 1));
                 if (first !== undefined && last !== undefined) {
-                    post({ range: { first, last, extend: Boolean(extend) } });
+                    // The ticks too: a drag across the bar numbers or a handle selects by beats where the score does (#479 item 23).
+                    const from = Math.min(anchor, current);
+                    const to = Math.max(anchor, current);
+                    post({ range: { first, last, extend: Boolean(extend), click: Boolean(click), from, to } });
                 }
                 break;
             }
+            case "OnRollZoom":
+                // The bars and the octaves in view, and which steps are left, for the zoom controls Swift draws (#479 item 23).
+                post({ zoom: args[0] });
+                break;
             case "OnRollClear":
                 post({ clear: true });
                 break;
@@ -72,6 +81,9 @@ view.follow(player);
 // the selection or sounds a note, and each selection is fitted to the roll, again when the iPad turns. A finger on the
 // playhead drags it, and a tap inside the loop or the selection plays from there (v0.2).
 view.setTouchReading(true);
+// The zoom on each axis (v0.5.2, #479 item 23): Swift draws "− 9 bars +" with Fit and "+ 3 octaves −" from what the roll
+// reports, and a pinch zooms the axis it spreads along while two fingers move the roll.
+view.setAxisZoom(true);
 
 /** The number of the bar that holds a tick, the last bar for a tick at or past the end. */
 function barAt(tick) {
@@ -195,5 +207,25 @@ function edit({ on, tool, picked }) {
     view.pickForEdit(on ? picked ?? null : null);
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit, lanes };
+/**
+ * Who edits and who moves the roll (#479 item 23, InputRules.swift `RollInput`): whether a finger ("touch") and the Pencil
+ * ("pen") edit while the editor is on, and how many fingers move the roll.
+ */
+function input({ touch, pen, scrollFingers }) {
+    view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1 });
+}
+
+/** A step of the zoom from Swift's controls (#479 item 23): "time" or "pitch", +1 in or −1 out; "fit" is Fit. */
+function zoom({ axis, direction }) {
+    const step = direction > 0 ? 1 : -1;
+    if (axis === "time") {
+        view.zoomTime(step);
+    } else if (axis === "pitch") {
+        view.zoomPitch(step);
+    } else if (axis === "fit") {
+        view.fit();
+    }
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit, lanes, input, zoom };
 post("ready");

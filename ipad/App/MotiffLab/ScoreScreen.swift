@@ -105,7 +105,8 @@ struct ScoreScreen: View {
 
     private var pillShown: Bool {
         // Under the one playback position (v0.5.2, #479 item 22) the pill always shows: it is where the music plays.
-        if score.onePosition { return true }
+        // The roll's drawer never hides Play either (#479 item 23): the pill rides over it.
+        if score.onePosition || rollOpen { return true }
         return ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
@@ -222,7 +223,7 @@ struct ScoreScreen: View {
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
                 if score.focused && score.focusRoll && !rollOpen {
-                    FocusRollCard(roll: roll)
+                    FocusRollCard(roll: roll, score: score, text: text)
                 }
             }
             .overlay {
@@ -367,7 +368,10 @@ struct ScoreScreen: View {
                 // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
                 if phase == .background { save() }
                 // The iPad's setting «Only draw with Apple Pencil» may have changed meanwhile.
-                if phase == .active { score.applyInput() }
+                if phase == .active {
+                    score.applyInput()
+                    roll.applyInput()
+                }
             }
             .onChange(of: settings.values) { _, _ in applyExperiments() }
     }
@@ -384,15 +388,10 @@ struct ScoreScreen: View {
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
         // The modes (version 0.5): a tap on a beat moves the one playback position there (v0.5.2), playing on from there when
-        // it plays; in focus it stays inside the loop. In Edit notes a note opens the roll with its editor on.
+        // it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
         score.placeTapped = { [weak heard, weak shown] beat in
             guard let heard else { return }
             heard.go(to: shown?.onePosition == true ? beat.lowerBound : Player.place(beat.lowerBound, inside: heard.loop), play: false)
-        }
-        let rolling = $rollOpen
-        score.noteToEdit = { [weak shown] _ in
-            rolling.wrappedValue = true
-            if shown?.noteEditor == nil { shown?.beginNoteEdit() }
         }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
@@ -436,7 +435,15 @@ struct ScoreScreen: View {
             // In focus, another version takes the variation's place again.
             if let version = shown?.focusVersion, version.sounds { heard?.setVariation(version.notes, version: true) }
         }
-        roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
+        // One selection for the score, the roll, the pill and the loop strip (#479 item 23): what the roll picks is the score's
+        // selection, by beats where the score selects by beats, and the roll shows it back with the score.
+        roll.byBeats = { [weak shown] in !(shown?.beatLines.isEmpty ?? true) }
+        roll.picked = { [weak shown] pick in
+            switch pick {
+            case let .bars(first, last, extend): shown?.selectBars(first, last, extend: extend)
+            case let .beats(span): shown?.selectBeats(span.lowerBound, span.upperBound)
+            }
+        }
         roll.cleared = { [weak shown] in shown?.clearSelection() }
         wireRollPlayback()
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
@@ -499,6 +506,9 @@ struct ScoreScreen: View {
                     }
                     roll.show(piece, dark: colorScheme == .dark)
                     roll.showSelection(score.selection, loop: player.loop)
+                } else if !rollOpen && !rollBeforeFocus {
+                    // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
+                    score.cancelNoteEdit()
                 }
             }
             .onChange(of: rollOpen) { _, open in
@@ -509,7 +519,8 @@ struct ScoreScreen: View {
                     roll.showSelection(score.selection, loop: player.loop)
                 } else {
                     // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
-                    score.cancelNoteEdit()
+                    // Expand takes the editor into the roll in focus, with its draft (#479 item 23).
+                    if !rollBeforeFocus { score.cancelNoteEdit() }
                 }
             }
             .onChange(of: score.check) { _, _ in
@@ -1461,21 +1472,46 @@ struct ClearSelectionButton: View {
 /// with another version over the phrase and no variation, Notes / Version / Alternate, and Take into the score or
 /// Restore these notes for the phrase's bars (0022, section 5). Reading / As played comes with transcriptions on the iPad.
 /// The phrase as a roll in focus (testing item 12): a card over the page's card, as wide and as tall as the stage between the bar
-/// and the pill, with the roll inside between previous and next.
+/// and the pill, with the roll inside between previous and next. Its head has only the roll's mode switch (the approved mockup
+/// v0.5.2, #479 item 23), with the note editor's tools while notes are edited, and the zoom on each axis floats over the notes.
 struct FocusRollCard: View {
     @ObservedObject var roll: RollController
+    @ObservedObject var score: ScoreController
+    let text: UIText
 
     var body: some View {
-        ScoreRollView(roll: roll)
-            .padding(.vertical, CGFloat.ds("s-3"))
-            .padding(.horizontal, CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
-            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
-            .dsShadow("shadow-sheet")
-            // The stage's insets, as FocusSteps and Web/score.css `#focus .stage` have them.
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
-            .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
+        VStack(spacing: CGFloat.ds("s-2")) {
+            ViewThatFits(in: .horizontal) {
+                head(compact: false)
+                head(compact: true)
+            }
+            RollSurface(roll: roll, text: text)
+        }
+        .padding(.vertical, CGFloat.ds("s-3"))
+        .padding(.horizontal, CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
+        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
+        .dsShadow("shadow-sheet")
+        // The stage's insets, as FocusSteps and Web/score.css `#focus .stage` have them.
+        .padding(.horizontal, CGFloat.ds("s-4"))
+        .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
+        .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
+    }
+
+    private func head(compact: Bool) -> some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Spacer(minLength: 0)
+            RollModeSwitch(chosen: roll.shownMode, text: text) { roll.choose($0, score: score) }
+            if let editor = score.noteEditor {
+                if roll.shownMode == .edit {
+                    RollEditTools(score: score, editor: editor, text: text, compact: compact)
+                }
+                Spacer(minLength: CGFloat.ds("s-2"))
+                RollEditFinish(score: score, editor: editor, text: text)
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
     }
 }
 

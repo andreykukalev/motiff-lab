@@ -114,7 +114,6 @@
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/piano-roll.ts","symbol":"PianoRoll.drawGutter","value":24,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/piano-roll.ts","symbol":"PianoRoll.drawKeyboard","value":26,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/piano-roll.ts","symbol":"PianoRoll.drawRoll","value":87,"why":"existing before #332"},
-    {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/piano-roll.ts","symbol":"onPointerDown","value":20,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/piano-roll.ts","symbol":"onPointerMove","value":43,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/roll/roll-model.ts","symbol":"RollModel.lanes","value":16,"why":"existing before #332"},
     {"tool":"eslint","rule":"max-lines","file":"src/MotiffLab.Web/Scripts/score/score-geometry.ts","symbol":"","value":656,"why":"existing before #332"},
