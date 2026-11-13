@@ -234,15 +234,11 @@ else
 
     private (bool On, string Tool)? _shownEditing;
     private string? _shownPicked;
-    private (string? Mode, ScorePlayheads? Playheads) _shownRules;
+    private string? _shownMode;
 
     /// <summary>The mode the bar chose (version 0.5, Scripts/roll/roll-modes.ts); null keeps the roll as it was.</summary>
     [Parameter]
     public string? Mode { get; set; }
-
-    /// <summary>The two playheads of version 0.5, drawn as on the score; null draws the one playhead as before.</summary>
-    [Parameter]
-    public ScorePlayheads? Playheads { get; set; }
 
     /// <summary>A click under the modes: the tick under it, and whether Shift was held.</summary>
     [Parameter]
@@ -427,10 +423,10 @@ else
             await view.InvokeVoidAsync("pointAt", point.Tick, point.Pitch);
         }
 
-        if ((Mode, Playheads) != _shownRules)
+        if (Mode != _shownMode)
         {
-            _shownRules = (Mode, Playheads);
-            await view.InvokeVoidAsync("setRules", Mode, Playheads);
+            _shownMode = Mode;
+            await view.InvokeVoidAsync("setRules", Mode);
         }
 
         (bool, string) editing = (Editor?.On ?? false, Editor?.Tool ?? "move");

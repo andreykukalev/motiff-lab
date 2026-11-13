@@ -111,7 +111,7 @@
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
                            PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" TakenBars="ScoreTakenBars" PerformancePicked="OnPerformancePickedAsync"
                            Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway"
-                           Mode="@ScoreMode" BeatLines="ScoreBeatLines" Playheads="Playheads" SpanChosen="OnScoreSpanChosenAsync" BeatClicked="OnScoreBeatClickedAsync" NoteToEdit="OnScoreNoteToEditAsync" />
+                           Mode="@ScoreMode" BeatLines="ScoreBeatLines" SpanChosen="OnScoreSpanChosenAsync" BeatClicked="OnScoreBeatClickedAsync" NoteToEdit="OnScoreNoteToEditAsync" />
             }
             else
             {
@@ -404,7 +404,7 @@
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor"
-                               Expanded="ExpandRollAsync" Mode="@ScoreMode" Playheads="Playheads" Placed="OnRollPlacedAsync" />
+                               Expanded="ExpandRollAsync" Mode="@ScoreMode" Placed="OnRollPlacedAsync" />
                 </section>
             }
 

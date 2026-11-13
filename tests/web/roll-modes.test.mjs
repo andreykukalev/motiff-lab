@@ -32,15 +32,28 @@ function recorder() {
 const frame = { xOf: (tick) => 62 + tick / 10, header: 24, left: 62, right: 800, height: 300 };
 const inks = { ink: "ink", accent: "accent", surface: "surface", paper: "paper" };
 
-test("the piece's playhead on the roll is an ink line with a dot, hollow when it stands; no grey column (#479 item 19)", () => {
+test("the black playhead on the roll is an ink line with a dot, hollow when it stands; no grey column (#479 item 19)", () => {
     const { context, drawn } = recorder();
-    drawPlayheads(context, frame, { selectionHolds: false, global: 0, selection: null }, 960, false, inks);
+    drawPlayheads(context, frame, { black: 960, blue: null, playing: false }, inks);
     assert.deepEqual(drawn.rects, [{ x: 157, y: 24, w: 2, h: 276, colour: "ink" }], "one 2 px line, nothing a beat wide");
     assert.deepEqual(drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface"], "a ring, the dot, and its hollow middle");
 
     const playing = recorder();
-    drawPlayheads(playing.context, frame, { selectionHolds: false, global: 0, selection: 1200 }, 960, true, inks);
-    assert.deepEqual(playing.drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface", "accent"], "solid while playing; the selection's knob in cobalt");
+    drawPlayheads(playing.context, frame, { black: 960, blue: 1200, playing: true }, inks);
+    assert.deepEqual(playing.drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface", "accent"], "solid while playing; the blue knob in cobalt");
+    assert.deepEqual(playing.drawn.discs.map((disc) => disc.y), [24, 24, 24, 24], "apart, both knobs sit on the bar numbers");
+});
+
+test("where the two playheads of the model meet, the black dot hangs under the blue knob, so both show (#495 UX-10)", () => {
+    const { context, drawn } = recorder();
+    drawPlayheads(context, frame, { black: 1200, blue: 1200, playing: false }, inks);
+    const dot = drawn.discs.filter((disc) => disc.colour === "ink");
+    const knob = drawn.discs.filter((disc) => disc.colour === "accent");
+    assert.equal(dot.length, 1);
+    assert.equal(knob.length, 1);
+    assert.equal(dot[0].x, knob[0].x, "on the same line");
+    assert.equal(knob[0].y, 24);
+    assert.ok(dot[0].y - dot[0].radius >= knob[0].y + knob[0].radius, "the dot clear below the knob");
 });
 
 test("a playback line off the notes is not drawn", () => {

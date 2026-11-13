@@ -42,14 +42,14 @@ for (const one of cases.filter((each) => each.event !== undefined)) {
     });
 }
 
-test("the report says Цикл, the colour of Play and the places that stand, not the moving position", () => {
+test("the report says Цикл, the colour of Play and the place it names, not the moving position", () => {
     const { owner } = ownerOf({ selection: { start: 960, end: 1920 }, loop: false, tick: 0, transport: "stopped" });
-    assert.deepEqual(owner.report({ tick: 480, transport: "stopped" }), { loop: false, context: "piece", inside: false, waits: 960, at: null });
-    assert.deepEqual(owner.report({ tick: 1200, transport: "playing" }), { loop: false, context: "selection", inside: true, waits: null, at: null });
-    assert.deepEqual(owner.report({ tick: 2400, transport: "playing" }), { loop: false, context: "piece", inside: false, waits: 1920, at: null });
+    assert.deepEqual(owner.report({ tick: 480, transport: "stopped" }), { loop: false, context: "piece", at: null });
+    assert.deepEqual(owner.report({ tick: 1200, transport: "playing" }), { loop: false, context: "selection", at: null });
+    assert.deepEqual(owner.report({ tick: 2400, transport: "playing" }), { loop: false, context: "piece", at: null });
     owner.apply({ type: "cycle" }, { tick: 2400, transport: "stopped" });
     // Stopped with Цикл on outside the selection: Play is cobalt and names the selection's start, where it will play.
-    assert.deepEqual(owner.report({ tick: 2400, transport: "stopped" }), { loop: true, context: "selection", inside: false, waits: 960, at: 960 });
+    assert.deepEqual(owner.report({ tick: 2400, transport: "stopped" }), { loop: true, context: "selection", at: 960 });
 });
 
 test("while another owner holds the engine's loop the model's loop waits, and hold gives it back", () => {

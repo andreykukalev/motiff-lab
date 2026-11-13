@@ -1,8 +1,9 @@
-// The playback model of v0.5.2 on the web (#495 UX-10, slice W1; the experiment Two playheads and modes, Settings ·
+// The playback model of v0.5.2 on the web (#495 UX-10, slices W1 and W2; the experiment Two playheads and modes, Settings ·
 // Experimental): one Play button, in the pill, cobalt where the selection plays (or, stopped, will play) and ink where the
 // piece goes on, with the place as bar.beat; Цикл with the selection's span, on by itself with a new selection, which takes
 // the position to the selection's start; a click on a beat outside the selection turns it off. No Play in the bar and none
-// and no Loop in the selection's menu. The black playhead is a track under its bar with a dot (#479 item 19).
+// and no Loop in the selection's menu. The black playhead is a track under its bar with a dot (#479 item 19); the blue one,
+// from the same model, is held to the selection.
 import { expect, test } from "@playwright/test";
 import { openFurElise, withAudioDiagnostic } from "./steps.mjs";
 
@@ -43,6 +44,7 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     const errors = await openFurElise(page);
     const bars = await firstSystem(page);
     const track = page.locator("div.score .gtrack");
+    const blue = page.locator("div.score .ph-sel");
     const pill = page.locator(".pill");
     const play = pill.locator(".play-at");
     const cycle = pill.getByRole("button", { name: /^Loop \d+\.\d+ – \d+\.\d+$/ });
@@ -68,6 +70,8 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     await expect(play).not.toHaveClass(/\bpiece\b/);
     await expect(play).toHaveAccessibleName(`Play from ${span[1]}`);
     expect(barOf(bars, await across(track))).toBe(2);
+    // Both playheads come from the model (W2): the blue one waits at the selection's start.
+    await expect.poll(async () => barOf(bars, await across(blue))).toBe(4);
     await expect(page.locator(".ctx").getByRole("button", { name: /^(Loop|Play the selection)$/ })).toHaveCount(0);
 
     // Play plays the selection from its start; Space pauses inside it, where Play stays cobalt.
@@ -81,6 +85,7 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     await expect(play).not.toHaveClass(/\bpiece\b/);
     const inside = barOf(bars, await across(track));
     expect(inside === 4 || inside === 5).toBe(true);
+    expect(Math.abs((await across(blue)) - (await across(track))) < 16).toBe(true);
 
     // Цикл off: the position stays; a click on a beat after the selection makes Play the piece's, in ink.
     await cycle.click();
@@ -92,6 +97,8 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     await page.mouse.click((bars[after].left + bars[after].right) / 2, bars[after].middle);
     await expect.poll(async () => barOf(bars, await across(track))).toBe(after);
     await expect(play).toHaveClass(/\bpiece\b/);
+    // Past the selection with Цикл off, the blue playhead stands at its end, at the right edge of its last bar.
+    await expect.poll(async () => barOf(bars, await across(blue))).toBe(5);
 
     // Цикл on takes the position to the selection's start: Play is cobalt there.
     await cycle.click();
@@ -111,5 +118,6 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     await expect(page.locator(".selection-status")).toContainText("Nothing selected");
     await expect(cycle).toHaveCount(0);
     expect(barOf(bars, await across(track))).toBe(1);
+    await expect(blue).toBeHidden();
     expect(errors).toEqual([]);
 });

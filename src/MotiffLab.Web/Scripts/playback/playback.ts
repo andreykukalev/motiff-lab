@@ -333,7 +333,7 @@ export class Player {
         }
     }
 
-    /** Blazor hears the model's loop, context and the places that do not move with the position, when one changes. */
+    /** Blazor hears Цикл, the context and the place Play names when one changes; the views read the playheads themselves. */
     private reportModel(engine: EnginePlace = this.place()): void {
         if (!this.owner.held) {
             return;
@@ -342,7 +342,7 @@ export class Player {
         const key = JSON.stringify(report);
         if (key !== this.modelReported) {
             this.modelReported = key;
-            void this.dotnet.invokeMethodAsync("OnPlaybackModel", report.loop, report.context, report.inside, report.waits, report.at);
+            void this.dotnet.invokeMethodAsync("OnPlaybackModel", report.loop, report.context, report.at);
         }
     }
 
