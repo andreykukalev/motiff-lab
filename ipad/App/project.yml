@@ -66,6 +66,11 @@ targets:
       - path: ../../src/MotiffLab.Web/wwwroot/js/storage
         type: folder
         buildPhase: resources
+      # The playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts): the score and the roll draw both
+      # playheads from its viewOf, as the web does.
+      - path: ../../src/MotiffLab.Web/wwwroot/js/playback
+        type: folder
+        buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
       - path: ../../src/MotiffLab.Web/wwwroot/audio/piano
         type: folder
