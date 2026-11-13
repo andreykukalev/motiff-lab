@@ -89,12 +89,31 @@ export interface PositionMark {
  * knob, at the selection's end once playback passed it. Where they meet, the black dot hangs under the blue knob, so both show.
  */
 export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, view: ModelPlaces, inks: PlayheadInks): void {
-    const together = view.blue !== null && Math.round(frame.xOf(view.blue)) === Math.round(frame.xOf(view.black));
-    const dotY = together ? frame.header + KNOB_RADIUS + RING + DOT_RADIUS : frame.header;
-    drawPositionLine(context, frame, frame.xOf(view.black), { colour: inks.ink, knobY: dotY, radius: DOT_RADIUS, solid: view.playing }, inks);
-    if (view.blue !== null) {
-        drawPositionLine(context, frame, frame.xOf(view.blue), { colour: inks.accent, knobY: frame.header, radius: KNOB_RADIUS, solid: true }, inks);
+    const knobs = playheadKnobs(frame, view);
+    drawPositionLine(context, frame, knobs.black.x, { colour: inks.ink, knobY: knobs.black.y, radius: DOT_RADIUS, solid: view.playing }, inks);
+    if (knobs.blue !== null) {
+        drawPositionLine(context, frame, knobs.blue.x, { colour: inks.accent, knobY: knobs.blue.y, radius: KNOB_RADIUS, solid: true }, inks);
     }
+}
+
+/** The centre of a playhead's dot or knob on the roll, in pixels. */
+export interface Knob {
+    x: number;
+    y: number;
+}
+
+/**
+ * Where drawPlayheads puts the black dot and the blue knob, the handles a press takes (#495 UX-08): both on the bar
+ * numbers' lower edge, the dot under the knob where the two playheads meet.
+ */
+export function playheadKnobs(frame: Pick<RollFrame, "xOf" | "header">, view: Pick<ModelPlaces, "black" | "blue">): { black: Knob; blue: Knob | null } {
+    const black = frame.xOf(view.black);
+    const blue = view.blue === null ? null : frame.xOf(view.blue);
+    const together = blue !== null && Math.round(blue) === Math.round(black);
+    return {
+        black: { x: black, y: together ? frame.header + KNOB_RADIUS + RING + DOT_RADIUS : frame.header },
+        blue: blue === null ? null : { x: blue, y: frame.header },
+    };
 }
 
 /** A playback line down the notes from the bar numbers, with its knob ringed in the surface; hollow when it stands. */

@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DRAG_GRID, PlayheadDrag, barOf, snapTick } from "../../src/MotiffLab.Web/wwwroot/js/playback/playhead-drag.js";
-import { laneDragTick, laneHeadAt } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-head-drag.js";
+import { playheadKnobs } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
 import { placeInBar, tickInBar } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 import { ScoreGrab, scoreDragTick } from "../../src/MotiffLab.Web/wwwroot/js/score/playhead-grab.js";
 
@@ -235,4 +236,21 @@ test("a press on a score handle is the handle's alone: captured, never passed on
     dot.fire("lostpointercapture", pointer(dot, { pointerId: 2 }));
     assert.deepEqual(sent.slice(3).map((message) => message.phase), ["grab", "move", "release"], "a lost pointer lets the playhead go");
     delete globalThis.HTMLElement;
+});
+
+test("on the web's roll a press takes the blue knob or the black dot on the bar numbers' edge, the nearer one (#495 UX-08, W3)", () => {
+    const apart = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 800, blue: 1600 });
+    assert.deepEqual(apart, { black: { x: 200, y: 24 }, blue: { x: 400, y: 24 } });
+    assert.equal(knobHeadAt(205, 28, apart, 10), "black");
+    assert.equal(knobHeadAt(396, 20, apart, 10), "blue");
+    assert.equal(knobHeadAt(300, 24, apart, 10), null, "away from both");
+    assert.equal(knobHeadAt(200, 80, apart, 10), null, "down the line is the notes'");
+    assert.equal(knobHeadAt(200, 24, { black: apart.black, blue: null }, 10), "black", "no blue playhead without a selection");
+
+    // Together, the black dot hangs under the blue knob, as drawn: each is taken where it shows.
+    const together = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 1600, blue: 1600 });
+    assert.equal(together.blue.y, 24);
+    assert.ok(together.black.y > together.blue.y);
+    assert.equal(knobHeadAt(400, 24, together, 22), "blue");
+    assert.equal(knobHeadAt(400, together.black.y + 2, together, 22), "black");
 });

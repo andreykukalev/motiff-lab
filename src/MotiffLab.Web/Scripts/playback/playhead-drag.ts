@@ -3,7 +3,7 @@
 // the sixteenth grid counted from its bar's start (the note editor's grid) and stays inside the bar, and inside the
 // selection for the blue playhead (snapTick). The view shows the place at once and tells its host the newest one once a
 // frame (PlayheadDrag); the host's player runs the playback model's T14–T16 (playback-model.ts). Shared by the score and
-// the roll, on the iPad and, later, on the web. Nothing here touches the DOM, so Node tests it.
+// the roll, on the iPad and on the web (slice W3). Nothing here touches the DOM, so Node tests it.
 
 import type { Handle, Span } from "./playback-model.js";
 

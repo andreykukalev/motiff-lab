@@ -6,8 +6,9 @@
 // Both apps draw both playheads of the playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, viewOf and
 // playheadsOf), from the model the player holds (playback-owner.ts on the web): the black track at the position, always,
 // and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
-// On the iPad the black dot and the cobalt knob are handles the pen or a finger drags (#495 UX-08, playhead-grab.ts). The
-// line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line (#495 UX-07).
+// In both apps the black dot and the cobalt knob are handles the pen, a finger or the mouse drags (#495 UX-08,
+// playhead-grab.ts). The line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line
+// (#495 UX-07).
 
 import type { Handle } from "../playback/playback-model.js";
 import type { Playhead, ScoreBar } from "./score-geometry.js";
@@ -82,7 +83,7 @@ export interface PlayheadsHost {
     at(tick: number): Playhead | undefined;
     /** The lowest ink of the system a bar is on, so the track runs under every note of the line. */
     lineBottom(bar: ScoreBar): number;
-    /** A press on a playhead's handle (the black dot, the cobalt knob); without it the handles take no press (the web). */
+    /** A press on a playhead's handle (the black dot, the cobalt knob); without it the handles take no press. */
     grab?(handle: Handle, event: PointerEvent): void;
 }
 

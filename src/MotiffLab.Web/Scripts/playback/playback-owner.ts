@@ -1,13 +1,15 @@
-// The web's owner of the playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2, slice W1; the
-// experiment «Два указателя и режимы»): the TypeScript Player (playback.ts) holds the selection and Цикл here, takes the
+// The web's owner of the playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2, slices W1–W3;
+// the experiment «Два указателя и режимы»): the TypeScript Player (playback.ts) holds the selection and Цикл here, takes the
 // position and the transport from the engine, and runs every event through the shared rules (playback-model.ts, the ones
-// the iPad's Player runs in Swift on the same case file). Blazor only sends the events and shows what comes back.
+// the iPad's Player runs in Swift on the same case file). Blazor only sends the events and shows what comes back; a
+// playhead dragged on the score or the roll comes here from the view straight (`gesture`, #495 UX-08).
 //
 // Other owners of the engine's loop (hearing in turn, the answer, the circle's scale, the DNA map) set their own loop: while
 // one holds it (`take`), the model's loop steps change the model but not the engine, and `hold` gives the engine the
 // model's loop again once they end.
 
-import { engineLoop, next, viewOf, type Context, type ModelEvent, type ModelState, type Span, type Step, type Transport } from "./playback-model.js";
+import { engineLoop, next, playingOf, viewOf, type Context, type Handle, type ModelEvent, type ModelState, type Span, type Step, type Transport } from "./playback-model.js";
+import type { DragMessage } from "./playhead-drag.js";
 
 /** Where the engine is, from its last report. */
 export interface EnginePlace {
@@ -28,6 +30,23 @@ export interface ModelReport {
 /** The engine's loop after an answer: a span, none, or untouched (undefined). */
 export type LoopAfter = Span | null | undefined;
 
+/** What an event did: the engine's loop after it, and where the engine will be once it has the steps. */
+export interface Applied {
+    loop: LoopAfter;
+    engine: EnginePlace;
+}
+
+/**
+ * A playhead held by the mouse, the pen or a finger (T14–T16, as the iPad's PlayheadDrag.swift): which one, whether playback
+ * played as it was taken, so it plays on when it is let go, and the place it was last dragged to, which the release rules
+ * read before the engine has reported it.
+ */
+interface Held {
+    handle: Handle;
+    resume: boolean;
+    last: number;
+}
+
 export class PlaybackOwner {
     /** Whether the model holds: the experiment is on and the page is not in focus. Off, the page drives the engine itself. */
     held = false;
@@ -36,6 +55,8 @@ export class PlaybackOwner {
     private loop = true;
     /** Another owner holds the engine's loop until `hold`. */
     private taken = false;
+    /** The playhead held now, or null. */
+    private gripped: Held | null = null;
 
     constructor(private readonly perform: (step: Step) => void) {}
 
@@ -59,7 +80,7 @@ export class PlaybackOwner {
      * and Цикл become what the model says. Returns the engine's loop after it, undefined when the steps leave it alone, and
      * where the engine will be once it has the steps.
      */
-    apply(event: ModelEvent, engine: EnginePlace): { loop: LoopAfter; engine: EnginePlace } {
+    apply(event: ModelEvent, engine: EnginePlace): Applied {
         const decided = next(this.state(engine), event);
         this.selection = decided.state.selection;
         this.loop = decided.state.loop;
@@ -76,6 +97,43 @@ export class PlaybackOwner {
         return { loop, engine: { tick: decided.state.tick, transport: decided.state.transport } };
     }
 
+    /** Whether a playhead is held now: Blazor hears of the gesture at its start and its end only. */
+    get dragging(): boolean {
+        return this.gripped !== null;
+    }
+
+    /**
+     * A playhead's handle on the score or the roll (T14–T16, Player.handle(PlayheadGesture) on the iPad): taken, playback
+     * stands; dragged, the position goes there and the notes it passes sound; let go, the release rules run on the place it
+     * was let go at, and playback goes on when it played. A handle taken while another is still held lets the old one go
+     * first. Null for a move or a release with nothing held.
+     */
+    gesture(message: DragMessage, engine: EnginePlace): Applied | null {
+        const held = this.gripped;
+        switch (message.phase) {
+            case "grab":
+                if (held !== null) {
+                    this.gesture({ phase: "release", handle: held.handle }, engine);
+                }
+                this.gripped = { handle: message.handle, resume: playingOf(engine.transport), last: engine.tick };
+                return this.apply({ type: "grab" }, engine);
+            case "move": {
+                if (held === null) {
+                    return null;
+                }
+                const moved = this.apply({ type: "drag", handle: held.handle, at: message.tick }, standing(held));
+                held.last = moved.engine.tick;
+                return moved;
+            }
+            case "release":
+                if (held === null) {
+                    return null;
+                }
+                this.gripped = null;
+                return this.apply({ type: "release", handle: held.handle, resume: held.resume }, standing(held));
+        }
+    }
+
     /** Another owner set the engine's loop: the model's waits until `hold`. */
     take(): void {
         this.taken = true;
@@ -89,9 +147,16 @@ export class PlaybackOwner {
         return loop;
     }
 
-    /** A new piece: no selection; Цикл and whether the model holds stay as they were. */
+    /** A new piece: no selection and nothing held; Цикл and whether the model holds stay as they were. */
     reset(): void {
         this.selection = null;
         this.taken = false;
+        this.gripped = null;
     }
+}
+
+/** The engine as a drag holds it: at the place last dragged to, and standing, as the grab made it, though it may not have
+ * reported either yet. */
+function standing(held: Held): EnginePlace {
+    return { tick: held.last, transport: "stopped" };
 }
