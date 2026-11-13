@@ -679,7 +679,8 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.loop) { _, loop in
                 roll.showSelection(score.selection, loop: loop)
-                if rollShown { showRollPosition() }
+                // Цикл turned on or off: the blue playhead waits at the selection's start or stands at its end (v0.5.2).
+                syncPlayheads()
             }
             .onChange(of: score.noteEditor) { _, editor in
                 // The note editor on the roll (testing item 15): a press on its notes edits them while it is open.
@@ -734,15 +735,15 @@ struct ScoreScreen: View {
 /// Settings · Experimental on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
 /// beats (#349).
 extension ScoreScreen {
-    /// The one playback position as the page and the roll show it (v0.5.2, #479 items 19, 22, 25): the selection, inside which
-    /// the position is cobalt, and the roll's lanes; nil and off for the one playhead of before, and in focus.
+    /// The playback model as the page and the roll draw it (v0.5.2, #495 UX-10): the selection the blue playhead keeps to and
+    /// Цикл, and the roll's lanes; nil and off for the one playhead of before, and in focus.
     private func syncPlayheads() {
         let on = score.onePosition
         let range = score.playRange?.range
         var data: [String: Any]?
         if on {
             let selection: Any = range.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
-            data = ["selection": selection]
+            data = ["selection": selection, "loop": player.cycle]
         }
         score.showPlayheads(data)
         roll.lanes(on)

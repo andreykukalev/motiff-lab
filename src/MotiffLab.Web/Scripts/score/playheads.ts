@@ -3,8 +3,9 @@
 // the system that plays, only as wide as the bar, filled up to the place, with a dot on it, in the notation's dark ink;
 // the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The
 // selection's playhead is a cobalt line with a knob inside the selection's band: cobalt is the selection's colour only.
-// The web app has two places (the piece's and the selection's, placesOf); the iPad has one, which is the selection's
-// cobalt line inside it and the ink track outside it (onePlace).
+// The web app has two places (the piece's and the selection's, placesOf); the iPad draws both playheads of the playback
+// model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, playheadsOf): the black track at the position, always,
+// and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
 
 import type { Playhead, ScoreBar } from "./score-geometry.js";
 
@@ -23,6 +24,10 @@ export interface PlayheadPlaces {
     selection: number | null;
     /** Whether the piece plays from the global place: its dot is solid. */
     globalPlays: boolean;
+    /** Whether the selection's playhead stands at the selection's end: it is drawn at the band's right edge (edgeOf). */
+    selectionAtEnd?: boolean;
+    /** The playhead the score follows and reports out of sight; by default the one that plays. */
+    follow?: "global" | "selection";
 }
 
 /** The places of the two playheads from what Blazor said and the player's place. */
@@ -40,17 +45,38 @@ export interface TickSpan {
     end: number;
 }
 
+/** What playheadsOf reads from the playback model's view (playback-model.ts, viewOf). */
+export interface ModelPlaces {
+    black: number;
+    blue: number | null;
+    playing: boolean;
+}
+
 /**
- * The one playback position of the iPad (version 0.5.2, #479 item 25): inside the selection it is the selection's cobalt
- * line, outside it the ink track, never both.
+ * The two playheads of the playback model (version 0.5.2, #495 UX-10): the black track at the position, always, its dot solid
+ * while it plays; with a selection the cobalt line at the blue place, at the band's right edge when it stands at the end.
+ * The score follows the black one, which is where the music is.
  */
-export function onePlace(selection: TickSpan | null, playerTick: number, playing: boolean): PlayheadPlaces {
-    const inside = selection !== null && playerTick >= selection.start && playerTick < selection.end;
+export function playheadsOf(view: ModelPlaces, selection: TickSpan | null): PlayheadPlaces {
     return {
-        global: inside ? null : playerTick,
-        selection: inside ? playerTick : null,
-        globalPlays: playing && !inside,
+        global: view.black,
+        selection: view.blue,
+        globalPlays: view.playing,
+        selectionAtEnd: selection !== null && view.blue === selection.end,
+        follow: "global",
     };
+}
+
+/**
+ * Where a playhead standing at the selection's end goes: where the end lies in its bar, or, when the end is a bar line, at
+ * the right edge of the bar before it, as the band ends there (the next bar may start another line). `atEnd` and
+ * `beforeEnd` are the places of the end and of the tick before it.
+ */
+export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefined, end: number): Playhead | undefined {
+    if (atEnd !== undefined && atEnd.bar.tick !== end) {
+        return atEnd;
+    }
+    return beforeEnd === undefined ? atEnd : { ...beforeEnd, x: beforeEnd.bar.right };
 }
 
 /** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
@@ -88,10 +114,19 @@ export class ScorePlayheadMarks {
     /** Draws the playheads; returns where the one that plays is, for the score to follow and to say when it is out of sight. */
     place(places: PlayheadPlaces): Playhead | undefined {
         const global = places.global === null ? undefined : this.owner.at(places.global);
-        const selection = places.selection === null ? undefined : this.owner.at(places.selection);
+        const selection = this.selectionAt(places);
         this.placeGlobal(global, places.globalPlays);
         this.placeSelection(selection);
-        return places.globalPlays || places.selection === null ? global : selection;
+        const follow = places.follow ?? (places.globalPlays || places.selection === null ? "global" : "selection");
+        return follow === "global" ? global : selection;
+    }
+
+    private selectionAt(places: PlayheadPlaces): Playhead | undefined {
+        const tick = places.selection;
+        if (tick === null) {
+            return undefined;
+        }
+        return places.selectionAtEnd === true ? edgeOf(this.owner.at(tick), this.owner.at(tick - 1), tick) : this.owner.at(tick);
     }
 
     hide(): void {

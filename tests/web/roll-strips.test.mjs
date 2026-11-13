@@ -1,5 +1,5 @@
 // Tests for the strips of the iPad's roll (v0.5.2, #479 item 25; Scripts/roll/roll-strips.ts), run in Node on the compiled
-// output: one position, ink outside the selection and cobalt inside; the loop strip; the whole piece in one line.
+// output: the black and the blue playheads of the playback model; the loop strip; the whole piece in one line.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { drawLoopLane, drawOverview, drawPosition, insideOf, overviewTick, overviewTrack } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-strips.js";
@@ -41,14 +41,22 @@ test("inside the selection is from its start up to, not at, its end", () => {
     assert.equal(insideOf(null, 1000), false);
 });
 
-test("the one position is ink outside the selection and cobalt inside it", () => {
-    const outside = recorder();
-    drawPosition(outside.context, frame, 480, { start: 960, end: 1920 }, true, inks);
-    assert.equal(outside.drawn.rects[0].colour, "ink");
-    const inside = recorder();
-    drawPosition(inside.context, frame, 1200, { start: 960, end: 1920 }, true, inks);
-    assert.equal(inside.drawn.rects[0].colour, "accent");
-    assert.equal(inside.drawn.discs.at(-1).y, 24 + 14, "its dot sits in the loop lane");
+test("the black playhead is an ink line under the loop strip, and the blue one a cobalt line with its handle in it (#495 UX-10)", () => {
+    const alone = recorder();
+    drawPosition(alone.context, frame, { black: 480, blue: null, playing: true }, inks);
+    assert.deepEqual(alone.drawn.rects, [{ x: 109, y: 24 + 28, w: 2, h: 300 - 24 - 28, colour: "ink" }]);
+    assert.deepEqual(alone.drawn.discs, [], "the black dot is on the whole-piece strip");
+
+    const both = recorder();
+    drawPosition(both.context, frame, { black: 2400, blue: 1920, playing: true }, inks);
+    assert.deepEqual(both.drawn.rects.map((rect) => [rect.x, rect.colour]), [[301, "ink"], [253, "accent"]]);
+    assert.equal(both.drawn.discs.at(-1).y, 24 + 14, "the blue handle sits in the loop lane");
+    assert.equal(both.drawn.discs.at(-1).x, 254, "at the selection's end, the strip's right handle");
+
+    const together = recorder();
+    drawPosition(together.context, frame, { black: 1200, blue: 1200, playing: false }, inks);
+    assert.deepEqual(together.drawn.rects.map((rect) => rect.colour), ["ink", "accent"], "cobalt over ink where they meet");
+    assert.equal(together.drawn.discs.at(-1).colour, "surface", "stopped, the handle is hollow");
 });
 
 test("the loop strip draws nothing without a selection and a handle at each end with one", () => {
@@ -71,9 +79,10 @@ test("a tap on the whole piece finds its tick along the track, clamped to the pi
     assert.equal(overviewTick(0, 1048, 96000), 0);
 });
 
-test("the whole piece writes the position in cobalt inside the selection and the last bar on the right", () => {
+test("the whole piece writes the position and its black dot in ink, also inside the selection, and the last bar on the right", () => {
     const { context, drawn } = recorder();
     drawOverview(context, 1048, { tick: 1200, label: "9.2", end: 96000, lastBar: "105", view: { start: 0, end: 4800 }, selection: { start: 960, end: 1920 }, playing: false }, inks);
-    assert.deepEqual(drawn.texts.map((text) => [text.text, text.colour]), [["9.2", "accent"], ["105", "muted"]]);
+    assert.deepEqual(drawn.texts.map((text) => [text.text, text.colour]), [["9.2", "ink"], ["105", "muted"]]);
+    assert.equal(drawn.discs.at(-2).colour, "ink", "the black dot");
     assert.equal(drawn.discs.at(-1).colour, "surface", "stopped, the dot is hollow");
 });
