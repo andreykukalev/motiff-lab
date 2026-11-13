@@ -84,7 +84,7 @@ A bookmark is a passage the musician has named and filed: “Opening theme”, �
 
 ## Annotations
 
-Marks are made on the page, never in a separate note-taking screen. Any iPad is supported. With a stylus, the stylus always draws and the finger never does, so there is no mode to enter or leave. Without one, the Pen action in the bar turns drawing on: one finger draws, two fingers scroll and pinch, and a tap on Pen (or on the page with two fingers) turns it off again; the bar shows the pen as active so it is never a mystery why the page is not scrolling. Every mark is anchored to a bar or a phrase, so it survives zoom, reflow and page turns and can be found again in the Notes tab of the Contents drawer.
+Marks are made on the page, never in a separate note-taking screen. Any iPad is supported. With a stylus, the stylus follows the tool chosen in the bar (since 2026-11-13, #479 item 18: with Pen it draws, with Select it selects, with Navigate it moves the page) and the finger never draws: it always scrolls. Without one, the Pen action in the bar turns drawing on: one finger draws, two fingers scroll and pinch, and a tap on Pen (or on the page with two fingers) turns it off again; the bar shows the pen as active so it is never a mystery why the page is not scrolling. Every mark is anchored to a bar or a phrase, so it survives zoom, reflow and page turns and can be found again in the Notes tab of the Contents drawer.
 
 | Mark | On paper | How you make it | How it shows | Found again in |
 | --- | --- | --- | --- | --- |
@@ -218,7 +218,7 @@ Every capability in the current build has a home in the new model. Three things 
 | Original / Variation / Alternate | Segmented control in the focus bar, present only when the phrase has a variation; the variation is drawn as an ossia staff |
 | Phrase strip, previous / next | Brackets above the staff with their numbers; previous / next in the focus bar; phrase numbers under the page thumbnails |
 | Phrase setup: make selection a phrase, merge, reset, hear transitions | Contextual menu on a selection: Make phrase, Merge with next, Split here; granularity (Short / Phrases / Sentences), Show brackets and Reset to detected in the Phrases menu; lead-in toggle in focus |
-| Pencil: 3 colours, marker, eraser, undo, clear | A stylus draws directly; without one, Pen in the bar turns finger drawing on; palette on first touch; two-finger tap undoes; Clear ink on this page in the Pen menu |
+| Pencil: 3 colours, marker, eraser, undo, clear | A stylus draws with Pen on (it follows the tool); without one, Pen in the bar turns finger drawing on; palette on first touch; two-finger tap undoes; Clear ink on this page in the Pen menu |
 | Loop / Clear selection | Loop in the pill; tap outside the selection clears it |
 | Transport: play, stop, position, tempo, metronome, count-in | The pill; position is the playhead on the score |
 | Play tab: from start, repeat, play to end, whole piece, 50 / 75 / 100% | Pill and focus bar; play to end and whole piece are Play with Loop off |
@@ -241,7 +241,7 @@ Every capability in the current build has a home in the new model. Three things 
 | --- | --- |
 | Can a musician work with the score comfortably for a long time? | The page fills the screen at A4 proportions, the bar fades, the pill fades while playing. Nothing is docked. The document scrolls continuously, so a phrase that crosses a page edge is read without a break; two pages per row in landscape match a stand. |
 | Can they quickly find and focus on a phrase? | Brackets are on the page above the staff; one tap on a bracket selects, a second tap (or Focus in the menu) lifts it. Previous / next in the focus bar walks the piece phrase by phrase. Phrase numbers under page thumbnails jump anywhere. |
-| Can they annotate without interrupting their workflow? | A stylus draws at once with no mode; a finger draws after one tap on Pen. Notes, bookmarks and highlights are two taps from the bar they concern. Nothing opens a separate screen. |
+| Can they annotate without interrupting their workflow? | A stylus draws after one tap on Pen, or a double tap or squeeze of the Pencil and a tool in its palette; a finger draws after one tap on Pen too, on an iPad without a stylus. Notes, bookmarks and highlights are two taps from the bar they concern. Nothing opens a separate screen. |
 | Can they reach extra information without losing focus? | The Insights stream covers a third of the screen and the phrase stays visible beside it; facts highlight on the page; trying a variation never stops the loop; a swipe puts the sheet away with the selection intact. |
 | Does the piano roll add value without stealing attention? | It is absent until asked for, aligned bar for bar under the phrase when present, and gone with a swipe. |
 | Is the plain A4 experience immediately there? | It is the state the piece opens in. The resume point restores the page, and nothing else is shown until the user acts. |
@@ -250,7 +250,7 @@ Every capability in the current build has a home in the new model. Three things 
 ## Open questions before visual design
 
 - [x] Pages are layout units inside one continuously scrolling document (decided in the Navigation model thread). Verovio paginates to fixed A4 pages with a stable bar-to-page map, as the Design system screens show; confirm the current build uses fixed page sizes rather than a flowing layout.
-- [x] Decided: any iPad is a target, with or without a stylus. Ink therefore has a Pen mode for the finger (the Pen action in the bar); with a stylus the mode is unnecessary because the stylus always draws. See Annotations.
+- [x] Decided: any iPad is a target, with or without a stylus. Ink therefore has a Pen mode for the finger (the Pen action in the bar). Since 2026-11-13 (#479 item 18) the stylus follows the tool as well, so it selects in Select and draws only with Pen; the finger always scrolls. See Annotations.
 - [x] Phrases belong to the piece and are shared by all its sessions, as does the chosen granularity. Confirm, and confirm that detection can produce the three levels (Short / Phrases / Sentences) from one analysis rather than three runs, and that a manual edit overrides detection at its level until Reset.
 - [x] Decided: a phrase can hold any number of saved variations. The ossia shows one at a time; a row of chips above it picks which, and two can be compared side by side. See Phrase focus.
 - [x] Is “for reading” vs “as played” per view? Decided: Reading is the default for a transcription and As played is one tap away wherever the musician is, per phrase and in place, never a buried per-piece setting. See Phrase focus and Annotations (Performance layer).

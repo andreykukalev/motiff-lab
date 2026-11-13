@@ -18,6 +18,7 @@
   <symbol id="ic-highlight" viewBox="0 0 20 20"><path d="M5 15l-2 2h4l1-1M5 15l7-7 3 3-7 7"/><path d="M12 8l2-2 3 3-2 2"/></symbol>
   <symbol id="ic-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.5"/></symbol>
   <symbol id="ic-insight" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4M7 9a2 2 0 0 1 2-2"/></symbol>
+  <symbol id="ic-keysig" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="M8.6 6.2v8M11.4 5.8v8M6.6 9l6.8-1.3M6.6 12.3l6.8-1.3"/></symbol>
   <symbol id="ic-layers" viewBox="0 0 20 20"><path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/></symbol>
   <symbol id="ic-leadin" viewBox="0 0 20 20"><path d="M3 10h7.5M8 7l2.5 3L8 13"/><path d="M13.5 4H17v12h-3.5"/></symbol>
   <symbol id="ic-loop" viewBox="0 0 20 20"><path d="M4 9a5 5 0 0 1 5-5h7M16 4l-2.5-2.5M16 4l-2.5 2.5"/><path d="M16 11a5 5 0 0 1-5 5H4M4 16l2.5-2.5M4 16l2.5 2.5"/></symbol>
@@ -35,6 +36,7 @@
   <symbol id="ic-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
   <symbol id="ic-recheck" viewBox="0 0 20 20"><path d="M16.25 10a6.25 6.25 0 1 1-1.85-4.45"/><path d="M14.75 2.75v3h-3"/></symbol>
   <symbol id="ic-roll" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M5 7.5h4M8 10h5M6 12.5h3M12 7.5h3"/></symbol>
+  <symbol id="ic-scroll" viewBox="0 0 20 20"><rect x="4.5" y="2.75" width="11" height="14.5" rx="1.5"/><path d="M10 6.5v7M7.75 8.5 10 6.25l2.25 2.25M7.75 11.5 10 13.75l2.25-2.25"/></symbol>
   <symbol id="ic-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></symbol>
   <symbol id="ic-select" viewBox="0 0 20 20"><path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/></symbol>
   <symbol id="ic-tag" viewBox="0 0 20 20"><path d="M3.5 4.5v5l7.5 7.5 6.5-6.5L10 3H5a1.5 1.5 0 0 0-1.5 1.5z"/><circle cx="7" cy="7" r="1"/></symbol>

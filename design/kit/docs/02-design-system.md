@@ -115,7 +115,7 @@ Icons are line icons on a 20 px grid with a 1.5 px stroke, round caps and joins,
 
 - **Pairing**: an icon never stands alone in the pill or menus except the five universally known ones (play, pause, more, back, close); everything else carries its word.
 
-- **Named set** (code names, as in icons.js): phrases, pen, roll, insight (the Insights action), play, pause, loop, metronome, count, hands, pages, check, note, bookmark, tag, highlight, back, fwd, more, plus, user, close, search, info, layers, trash, export, mic, camera, file, undo, chevd, dial, leadin, dot, and since version 0.5 folder (a folder to import) and recheck (look through a folder again).
+- **Named set** (code names, as in icons.js): phrases, pen, roll, insight (the Insights action), play, pause, loop, metronome, count, hands, pages, check, note, bookmark, tag, highlight, back, fwd, more, plus, user, close, search, info, layers, trash, export, mic, camera, file, undo, chevd, dial, leadin, dot, and since version 0.5 folder (a folder to import), recheck (look through a folder again), move, select and editnote (the modes), scroll (Navigate: a page with arrows, replacing move in the iPad bar) and keysig (the Circle: a circle with a sharp; Andrei approved both on 2026-11-13, #479 item 21).
 
 ## Design tokens
 

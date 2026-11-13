@@ -7,6 +7,8 @@ import { test } from "node:test";
 import {
     anchorBar,
     anchorMark,
+    densify,
+    eraseAlong,
     framesByTick,
     nearestBar,
     outlinePath,
@@ -209,4 +211,23 @@ test("the iPad app's pen sizes are the web app's, thin to thick", async () => {
     assert.deepEqual(list("pen"), [...PEN_SIZES]);
     assert.deepEqual(list("highlighter"), [...HIGHLIGHTER_SIZES]);
     assert.equal(Number(swift.match(/static let defaultWidth = (\d+)/)[1]), DEFAULT_WIDTH);
+});
+
+test("the line is walked in short steps, its pressure taken along it", () => {
+    const walked = densify([{ x: 0, y: 0, pressure: 0 }, { x: 10, y: 0, pressure: 1 }], 2.5);
+    assert.deepEqual(walked.map((p) => p.x), [0, 2.5, 5, 7.5, 10]);
+    assert.deepEqual(walked.map((p) => p.pressure), [0, 0.25, 0.5, 0.75, 1]);
+    assert.deepEqual(densify([], 1), []);
+});
+
+test("the eraser cuts a stroke where it passes and leaves the rest (#479 item 7)", () => {
+    const line = Array.from({ length: 11 }, (_, i) => ({ x: i * 10, y: 0, pressure: 0.5 }));
+    const pieces = eraseAlong(line, 1, [{ x: 50, y: -20 }, { x: 50, y: 20 }], 5);
+    assert.equal(pieces.length, 2, "a pass across the middle leaves both ends");
+    assert.ok(pieces[0].at(-1).x < 44);
+    assert.ok(pieces[1][0].x > 56);
+    assert.equal(pieces[0][0].x, 0);
+    assert.equal(pieces[1].at(-1).x, 100);
+    assert.equal(eraseAlong(line, 1, [{ x: 50, y: 40 }], 5), null, "a path that misses leaves the stroke alone");
+    assert.deepEqual(eraseAlong(line, 1, [{ x: -10, y: 0 }, { x: 110, y: 0 }], 5), [], "a path along it takes all of it");
 });

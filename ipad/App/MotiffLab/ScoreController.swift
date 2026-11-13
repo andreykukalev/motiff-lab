@@ -1,16 +1,16 @@
 import PDFKit
-import PencilKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
 
 /// The score and the pencil marks on it (decision record 0019, sections 1.4 and 2.2). The pages are Verovio's SVG in one
 /// web view, which runs the web app's own score modules (Web/score.js over Scripts/score) to know where each bar is
-/// and to draw the marks. The Apple Pencil writes with PencilKit for its low latency: when a stroke ends, its points
-/// go to the page to be kept against the bar they start in, music-core saves the stroke in the project file
-/// (`ink.add`, `marks.ink` in project file version 12), and the marks are drawn again from what music-core answers.
-/// PencilKit's own drawing is cleared after every stroke, so a mark lives only in the project file and shows the
-/// same in the web app. A finger never writes: it scrolls.
+/// and to draw the marks. The pen writes through InkInput, which draws the stroke as it is written with the outline and
+/// grain the page keeps it with (#479 item 7): when a stroke ends, its points go to the page to be kept against the bar
+/// they start in, music-core saves the stroke in the project file (`ink.add`, `marks.ink` in project file version 12),
+/// and the marks are drawn again from what music-core answers, so a mark lives only in the project file and shows in
+/// the same place in the web app. Who writes, selects and scrolls with a finger or the Pencil is InputRules' (#479
+/// item 18): the stylus follows the tool, a finger moves around the music.
 @MainActor
 final class ScoreController: NSObject, ObservableObject, PenHolder {
     enum Tool: Equatable {
@@ -40,11 +40,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         didSet {
             if oldValue != tool { previousTool = oldValue }
             PenMemory.keep(tool: tool, previous: previousTool)
-            applyTool()
         }
     }
-    /// The bar's Pen (0018 section 5): while it is on, a finger writes too and two fingers scroll, so the score takes
-    /// marks on any iPad, with or without a Pencil. The Pencil always writes.
+    /// The bar's Pen (0018 section 5): while it is on, the Pencil writes; on an iPad without a stylus one finger writes
+    /// and two fingers scroll, so the score takes marks with or without a Pencil (InputRules).
     @Published var penOn = false {
         didSet {
             applyInput()
@@ -70,6 +69,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var playheadsShown = ""
     /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
     @Published private(set) var phrases: PhraseLevelsShown?
+    /// «Не показывать» in the Phrases menu (#479 item 21): the phrases are not named, in the Contents nor for the
+    /// selection, until a level is chosen again. Kept on this device for every piece; the piece's level stays as it was.
+    @Published var phrasesHidden = UserDefaults.standard.bool(forKey: ScoreController.phrasesHiddenKey) {
+        didSet { UserDefaults.standard.set(phrasesHidden, forKey: Self.phrasesHiddenKey) }
+    }
+    static let phrasesHiddenKey = "motiff.phrases.hidden"
     /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
@@ -251,16 +256,20 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     let webView: WKWebView
-    private let canvas = PKCanvasView()
+    /// The pen, and who writes and who scrolls (#479 items 7 and 18).
+    private let ink = InkInput()
     private var piece: OpenPiece?
     private var dark = false
     private var pageReady = false
     private var shown = false
-    private var clearing = false
     private(set) var previousTool = PenMemory.savedPrevious()
     /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
-    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths(); applyTool() } }
-    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths(); applyTool() } }
+    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths() } }
+    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths() } }
+    /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
+    @Published var pencilPalette: PencilPaletteCall?
+    /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
+    private var handleSpots: [CGPoint] = []
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
@@ -299,22 +308,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         webView.isOpaque = false
         webView.backgroundColor = .clear
 
-        // The canvas lies over the web view and takes only the Pencil: its drawing gesture is moved to the web view,
-        // so a finger still reaches the web view and scrolls the score.
-        canvas.backgroundColor = .clear
-        canvas.isOpaque = false
+        // The pen's gesture and the stroke being written lie over the web view; the rules say which pointers they take.
+        ink.attach(to: webView, pan: webView.scrollView.panGestureRecognizer)
+        ink.style = { [weak self] point in self?.liveStyle(at: point) }
+        ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
+        ink.handles = { [weak self] in self?.handlesInView() ?? [] }
+        ink.pencil.perform = { [weak self] action, point in self?.pencilGesture(action, at: point) }
         applyInput()
-        canvas.isScrollEnabled = false
-        canvas.delegate = self
-        canvas.frame = webView.bounds
-        canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        canvas.isUserInteractionEnabled = false
-        webView.addSubview(canvas)
-        webView.addGestureRecognizer(canvas.drawingGestureRecognizer)
-        let pencil = UIPencilInteraction()
-        pencil.delegate = self
-        webView.addInteraction(pencil)
-        applyTool()
 
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
     }
@@ -384,6 +384,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let note = message["noteMarker"] as? String {
             openNote(note)
         }
+        if let handles = message["handles"] as? [[String: Any]] {
+            handleSpots = handles.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
+        }
         if let away = number(message["playheadAway"]) {
             playheadAway = away < 0 ? nil : away
         }
@@ -425,6 +428,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
     /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
+        phrasesHidden = false
         guard let piece, level != phrases?.level else { return }
         let request = "{\"level\": \"\(level)\"}"
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
@@ -432,6 +436,19 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
             if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
             if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+            await showSelection()
+            await updatePlayRange()
+        }
+    }
+
+    /// «Вернуть найденные» (the web app's Reset level): the level shown forgets the player's own boundaries, made in
+    /// the Music Studio, and has the units found in the file again.
+    func resetLevel() {
+        guard let piece, let level = phrases?.level, phrases?.edited.contains(level) == true else { return }
+        let request = "{\"reset\": true, \"level\": \"\(level)\"}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.edit", request) }
+            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
             await showSelection()
             await updatePlayRange()
         }
@@ -541,13 +558,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let bars = selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))
             : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        let phrase = phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } ?? false
+        let phrase = !phrasesHidden && phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } == true
         return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", bars)
     }
 
     var bookmarkTitle: String {
         guard let selection else { return "" }
-        if let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+        if !phrasesHidden, let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
             return label(of: unit)
         }
         let bars = selection.firstBar == selection.lastBar
@@ -1683,7 +1700,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.
     private func setPageStill(_ still: Bool) {
         webView.scrollView.isScrollEnabled = !still
-        canvas.drawingGestureRecognizer.isEnabled = !still
+        ink.still = still
     }
 
     private static func json(_ object: [String: Any]) -> String? {
@@ -1777,7 +1794,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             ) as? [String: Any]
             if let space = (laid?["space"] as? NSNumber)?.doubleValue, space > 0 {
                 staffSpace = space
-                applyTool()
             }
             shown = true
             if let tick = piece.landing?.tick {
@@ -1785,6 +1801,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
             }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
+            applyInput()
             await sendModeNow()
             await sendPlayheadsNow()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
@@ -1833,36 +1850,50 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Strokes
 
-    /// A stroke PencilKit finished: its points in the page's pixels, then kept as a mark or, with the eraser, what it
-    /// passed over taken away. The canvas covers the whole page, so the Pencil writes in the margins too: a stroke begun
-    /// left or right of a line is kept against the line's first or last bar and drawn from that edge of its line in any
-    /// layout (`anchorMark` and `placeMark` in pencil-marks.ts), and music-core keeps its points thinned (`ink.add`).
-    private func strokeEnded(_ stroke: PKStroke) {
-        guard let piece, shown else { return }
-        let zoom = max(webView.scrollView.zoomScale, 0.01)
-        let points: [[String: Double]] = stroke.path.interpolatedPoints(by: .distance(1.5)).map { point in
-            let inCanvas = point.location.applying(stroke.transform)
-            let inPage = webView.scrollView.convert(inCanvas, from: canvas)
-            // UITouch force is about 1 for an ordinary press: pressure 0.5, as the web takes a pen without pressure.
-            return ["x": inPage.x / zoom, "y": inPage.y / zoom, "pressure": min(1, max(0, Double(point.force) / 2))]
+    /// A stroke the pen finished (InkInput), its points in the web view's coordinates: in the page's pixels, then kept as
+    /// a mark or, with the eraser, what it passed over cut away. The pen covers the whole page, so the Pencil writes in the
+    /// margins too: a stroke begun left or right of a line is kept against the line's first or last bar and drawn from that
+    /// edge of its line in any layout (`anchorMark` and `placeMark` in pencil-marks.ts), and music-core keeps its points
+    /// thinned (`ink.add`). The stroke written stays over the page until the page draws it as kept.
+    private func strokeEnded(_ samples: [InkSample]) {
+        guard let piece, shown, !samples.isEmpty else {
+            ink.live.dropOldest()
+            return
         }
-        guard !points.isEmpty else { return }
+        let zoom = max(webView.scrollView.zoomScale, 0.01)
+        let points: [[String: Double]] = samples.map { sample in
+            let inPage = webView.scrollView.convert(sample.point, from: webView)
+            return ["x": inPage.x / zoom, "y": inPage.y / zoom, "pressure": sample.pressure]
+        }
         let tool = tool
         Task {
             switch tool {
             case .eraser:
-                let ids = try? await webView.callAsyncJavaScript("return motiff.erase(data)", arguments: ["data": ["points": points]], contentWorld: .page) as? [String]
-                if let ids, !ids.isEmpty {
-                    added.removeAll { ids.contains($0) }
-                    canUndo = !added.isEmpty
-                    await change(piece.id, "ink.remove", ["ids": ids])
-                }
-            case .pen(let ink):
-                await add(piece.id, points, tool: "pen", colour: ink.rawValue, width: penWidth)
+                ink.live.dropOldest()
+                await erase(piece.id, points)
+            case .pen(let colour):
+                await add(piece.id, points, tool: "pen", colour: colour.rawValue, width: penWidth)
+                ink.live.dropOldest()
             case .highlighter:
                 await add(piece.id, points, tool: "highlighter", colour: "amber", width: highlighterWidth)
+                ink.live.dropOldest()
             }
         }
+    }
+
+    /// The eraser cuts the marks it passed over (#479 item 7): what is left of each is kept as new marks, then the marks
+    /// it touched go.
+    private func erase(_ piece: Int32, _ points: [[String: Double]]) async {
+        guard let cut = try? await webView.callAsyncJavaScript("return motiff.eraseAlong(data)", arguments: ["data": ["points": points]], contentWorld: .page) as? [String: Any],
+              let removed = cut["removed"] as? [String], !removed.isEmpty
+        else { return }
+        let pieces = cut["added"] as? [[String: Any]] ?? []
+        if !pieces.isEmpty {
+            await change(piece, "ink.add", ["strokes": pieces])
+        }
+        added.removeAll { removed.contains($0) }
+        canUndo = !added.isEmpty
+        await change(piece, "ink.remove", ["ids": removed])
     }
 
     /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
@@ -1876,19 +1907,20 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await change(piece, "ink.add", ["strokes": [mark]])
     }
 
-    /// Who writes and who scrolls. The Pencil only writes: the score never scrolls under it.
-    private func applyInput() {
-        let pan = webView.scrollView.panGestureRecognizer
-        #if targetEnvironment(simulator)
-        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
-        // trackpad (or the wheel) scroll the score.
-        canvas.drawingPolicy = .anyInput
-        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
-        #else
-        canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
-        pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        pan.minimumNumberOfTouches = InteractionMode.scrollFingers(mode: mode, penOn: penOn)
-        #endif
+    /// Who writes, selects and scrolls (InputRules, #479 item 18): the pen's gesture and the scroll view take the
+    /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
+    /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
+    func applyInput() {
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
+        ink.apply(rules)
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
+    }
+
+    /// The selection's handles where they are on the screen now, in the web view's coordinates.
+    private func handlesInView() -> [CGPoint] {
+        let zoom = webView.scrollView.zoomScale
+        return handleSpots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
     }
 
     /// The mode as the page has it: "pen" while the Pen is on, none before the modes.
@@ -1920,49 +1952,36 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.playheads(data)", arguments: ["data": value], contentWorld: .page)
     }
 
-    /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom. The
-    /// highlighter draws opaque amber on a canvas laid at the highlighter's alpha, so a stroke crossing itself stays one
-    /// flat band, as the page draws the kept ones (#479 item 9).
-    private func applyTool() {
+    /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the
+    /// pencil in its ink with the page's grain from the page's top left corner, the highlighter opaque on a layer as
+    /// translucent as the page's, the eraser a light trail as wide as it reaches.
+    private func liveStyle(at point: CGPoint) -> LiveInkView.Style? {
         let zoom = webView.scrollView.zoomScale
-        canvas.alpha = tool == .highlighter ? PenSizes.highlighterAlpha : 1
+        let theme = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
+        let space = Double(staffSpace * zoom)
         switch tool {
-        case .pen(let ink):
-            canvas.tool = PKInkingTool(.pen, color: ink.color, width: PenSizes.pen[penWidth] * staffSpace * zoom * 1.6)
+        case .pen(let colour):
+            let origin = webView.scrollView.convert(CGPoint.zero, to: webView)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: theme),
+                radius: PenSizes.pen[penWidth] * space / 2, followsPressure: true,
+                grain: (origin: origin, tile: InkPaint.tile * zoom)
+            )
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber"), width: PenSizes.highlighter[highlighterWidth] * staffSpace * zoom)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("amber").resolvedColor(with: theme),
+                radius: PenSizes.highlighter[highlighterWidth] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
+            )
         case .eraser:
-            canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
+            return LiveInkView.Style(
+                colour: DesignTokens.color("ink-graphite").withAlphaComponent(0.25),
+                radius: Self.eraserReach * Double(zoom), followsPressure: false
+            )
         }
     }
-}
 
-extension ScoreController: PKCanvasViewDelegate {
-    nonisolated func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        MainActor.assumeIsolated {
-            guard !clearing, let stroke = canvasView.drawing.strokes.last else { return }
-            clearing = true
-            canvasView.drawing = PKDrawing()
-            clearing = false
-            strokeEnded(stroke)
-        }
-    }
-}
-
-extension ScoreController: UIPencilInteractionDelegate {
-    /// A double tap on the Pencil does what the player chose in the iPad's settings, as in 0015.
-    nonisolated func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
-        MainActor.assumeIsolated {
-            switch UIPencilInteraction.preferredTapAction {
-            case .switchEraser:
-                tool = tool == .eraser ? previousTool : .eraser
-            case .switchPrevious:
-                tool = previousTool
-            default:
-                break
-            }
-        }
-    }
+    /// How far the eraser reaches from its path, in the page's pixels (score.js ERASER_REACH).
+    private static let eraserReach = 10.0
 }
 
 /// Passes the page's messages on without the web view keeping the controller alive.

@@ -2,24 +2,16 @@ import XCTest
 
 @testable import MotiffLab
 
-/// The modes and the two playheads of version 0.5 (product specs interaction-modes and two-playheads): how many fingers
-/// scroll the score in each mode, where a tap places a playhead and what the score page is told to draw.
+/// The modes and the two playheads of version 0.5 (product specs interaction-modes and two-playheads): the modes' keys,
+/// icons and words, where a tap places a playhead and what the score page is told to draw. Who scrolls in each mode is
+/// InputRules' (StylusTests).
 final class ModesTests: XCTestCase {
     func testTheModesAreTheWebAppsWithItsKeysIconsAndWords() {
         XCTAssertEqual(InteractionMode.allCases, [.navigate, .select, .edit, .pen])
         XCTAssertEqual(InteractionMode.allCases.map(\.key), ["h", "s", "e", "p"])
-        XCTAssertEqual(InteractionMode.allCases.map(\.icon), ["move", "select", "editnote", "pen"])
+        XCTAssertEqual(InteractionMode.allCases.map(\.icon), ["scroll", "select", "editnote", "pen"])
         XCTAssertEqual(InteractionMode.edit.label, "mode.edit")
         XCTAssertEqual(InteractionMode.navigate.hint, "mode.navigateHint")
-    }
-
-    func testOneFingerScrollsInNavigateAndBeforeTheModesTwoOtherwise() {
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: nil, penOn: false), 1)
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: nil, penOn: true), 2)
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: .navigate, penOn: false), 1)
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: .select, penOn: false), 2)
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: .edit, penOn: false), 2)
-        XCTAssertEqual(InteractionMode.scrollFingers(mode: .navigate, penOn: true), 2)
     }
 
     func testATapInsideTheSelectionPlacesItsPlayheadElseTheGlobalOne() {

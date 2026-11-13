@@ -348,9 +348,18 @@ struct ScoreScreen: View {
                     if let file { try? await ProjectFiles.save(piece: id, to: file) }
                 }
             }
+            .overlay {
+                // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8), over everything else.
+                if let call = score.pencilPalette {
+                    PencilPalette(holder: score, call: call, text: text)
+                }
+            }
+            .animation(.easeOut(duration: 0.16), value: score.pencilPalette)
             .onChange(of: scenePhase) { _, phase in
                 // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
                 if phase == .background { save() }
+                // The iPad's setting «Only draw with Apple Pencil» may have changed meanwhile.
+                if phase == .active { score.applyInput() }
             }
             .onChange(of: settings.values) { _, _ in applyExperiments() }
     }
@@ -841,16 +850,12 @@ struct ScoreBar: View {
         .modifier(FloatingSurface())
     }
 
-    /// Phrases, Pen, the piano roll, Insights, the extra information, Play and More.
+    /// In groups without captions, as the approved mockup v0.5.2 (#479 item 21): what the score shows (Phrases, the extra
+    /// information, the piano roll), then how the score is used (the modes, or the Pen before them), then the Circle and
+    /// Insights, then Play and More.
     @ViewBuilder private var actions: some View {
-        Button {
-            phrasesOpen.toggle()
-        } label: {
-            Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-        }
-        .buttonStyle(BarActionStyle(on: phrasesOpen))
-        .accessibilityLabel(text["bar.phrases"])
-        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
+        viewButtons
+        PaletteDivider()
         if score.mode != nil {
             // The modes of version 0.5 (Settings · Experimental): one group for the score and the roll, the Pen in it.
             ModeGroup(score: score, text: text)
@@ -862,16 +867,19 @@ struct ScoreBar: View {
             }
             .buttonStyle(BarActionStyle(on: score.penOn))
             .accessibilityLabel(text["bar.pen"])
+            .accessibilityHint(text["pencil.padHint"])
             .accessibilityAddTraits(score.penOn ? .isSelected : [])
         }
-        Button {
-            rollOpen.toggle()
-        } label: {
-            Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        PaletteDivider()
+        if let openReference {
+            // The Reference (an experiment): the Circle, the circle with a sharp, opens the circle of fifths.
+            Button(action: openReference) {
+                Icon(name: "keysig", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text["reference.open"])
+            .accessibilityHint(text["reference.openHint"])
         }
-        .buttonStyle(BarActionStyle(on: rollOpen))
-        .accessibilityLabel(text["bar.roll"])
-        .accessibilityAddTraits(rollOpen ? .isSelected : [])
         Button {
             insightsOpen.toggle()
         } label: {
@@ -880,17 +888,24 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: insightsOpen))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(insightsOpen ? .isSelected : [])
-        if let openReference {
-            // The Reference (an experiment): Circle, a word rather than an icon, opens the circle of fifths over the score.
-            Button(action: openReference) {
-                Text(text["reference.open"])
-                    .dsType(.label)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: 40)
+        PaletteDivider()
+        playAndMore
+    }
+
+    /// What the score shows: Phrases and its menu, the extra information and its list, and the piano roll.
+    @ViewBuilder private var viewButtons: some View {
+        Button {
+            phrasesOpen.toggle()
+        } label: {
+            HStack(spacing: 0) {
+                Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+                Icon(name: "chevd", size: CGFloat.ds("icon-s")).padding(.trailing, CGFloat.ds("s-1"))
             }
-            .buttonStyle(BarActionStyle())
-            .accessibilityHint(text["reference.openHint"])
         }
+        .buttonStyle(BarActionStyle(on: phrasesOpen))
+        .accessibilityLabel(text["bar.phrases"])
+        .accessibilityValue(score.phrasesHidden ? text["phrases.hide"] : "")
+        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
         // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {
@@ -918,6 +933,18 @@ struct ScoreBar: View {
                     .presentationCompactAdaptation(.popover)
             }
         }
+        Button {
+            rollOpen.toggle()
+        } label: {
+            Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: rollOpen))
+        .accessibilityLabel(text["bar.roll"])
+        .accessibilityAddTraits(rollOpen ? .isSelected : [])
+    }
+
+    /// Play and More.
+    @ViewBuilder private var playAndMore: some View {
         // Under the two playheads (version 0.5) the bar's Play plays the piece from the global playhead, filled dark while
         // it plays, and Space plays it when nothing is selected.
         let dark = twoPlayheads && globalPlaying
@@ -1561,38 +1588,64 @@ struct FocusSteps: View {
     }
 }
 
-/// Phrases, from the bar (0018 section 3): the level focus steps by, Short, Phrases or Sentences, and
-/// how many units the piece has at it. It never lists the phrases, and since #479 item 14 the score does not draw them.
+/// Phrases, from the bar (0018 section 3; the approved mockup v0.5.2, #479 item 21): the level focus steps by, Short,
+/// Phrases or Sentences, each with how many units the piece has at it, or «Не показывать», then «Вернуть найденные» for
+/// a level the player changed. It never lists the phrases, and since #479 item 14 the score does not draw them.
 struct PhrasesPanel: View {
     @ObservedObject var score: ScoreController
     let text: UIText
 
+    private static let names = ["short": "phrases.levelShort", "phrase": "phrases.levelPhrases", "sentence": "phrases.levelSentences"]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            Text(text["phrases.levelTitle"]).overline()
-            Picker(text["phrases.levelTitle"], selection: Binding(get: { score.phrases?.level ?? "phrase" }, set: { score.showLevel($0) })) {
-                Text(text["phrases.levelShort"]).tag("short")
-                Text(text["phrases.levelPhrases"]).tag("phrase")
-                Text(text["phrases.levelSentences"]).tag("sentence")
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+            Text(text["phrases.levelTitle"]).overline().padding(.bottom, CGFloat.ds("s-1"))
+            ForEach(PhraseLevelsShown.ids, id: \.self) { level in
+                let count = score.phrases?.counts[level]
+                row(text[Self.names[level] ?? ""], count: count.map(String.init), on: !score.phrasesHidden && (score.phrases?.level ?? "phrase") == level) {
+                    score.showLevel(level)
+                }
             }
-            .pickerStyle(.segmented)
-            if let phrases = score.phrases {
-                Text(text.count(countKey(phrases.level), phrases.counts[phrases.level] ?? phrases.units.count))
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("ink-2"))
+            PaletteRule()
+            row(text["phrases.hide"], count: nil, on: score.phrasesHidden) {
+                score.phrasesHidden = true
             }
+            .accessibilityHint(text["phrases.hideHint"])
+            PaletteRule()
+            Button(text["phrases.resetLevel"]) { score.resetLevel() }
+                .buttonStyle(DSItemStyle())
+                .disabled(score.phrasesHidden || !(score.phrases.map { $0.edited.contains($0.level) } ?? false))
+                .accessibilityHint(text["phrases.resetHint"])
         }
-        .padding(CGFloat.ds("s-4"))
-        .frame(width: 320, alignment: .leading)
+        .padding(CGFloat.ds("s-3"))
+        .frame(width: 300, alignment: .leading)
         .presentationCompactAdaptation(.popover)
     }
 
-    private func countKey(_ level: String) -> String {
-        switch level {
-        case "short": "phrases.countShort"
-        case "sentence": "phrases.countSentences"
-        default: "phrases.countPhrases"
+    /// A choice of the menu: a round mark, filled while it is chosen, its word and, for a level, its count.
+    private func row(_ title: String, count: String?, on: Bool, choose: @escaping () -> Void) -> some View {
+        Button(action: choose) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Circle()
+                    .strokeBorder(on ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: on ? 5 : 1.5)
+                    .frame(width: 16, height: 16)
+                Text(title).lineLimit(1)
+                Spacer(minLength: CGFloat.ds("s-2"))
+                if let count {
+                    Text(count).dsType(.caption).foregroundStyle(Color.ds("ink-3"))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(DSItemStyle(on: on))
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// A thin rule across a menu, between its groups.
+private struct PaletteRule: View {
+    var body: some View {
+        Rectangle().fill(Color.ds("hairline")).frame(height: 1).padding(.vertical, CGFloat.ds("s-1"))
     }
 }
 

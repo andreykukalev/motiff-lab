@@ -1,5 +1,4 @@
 import PDFKit
-import PencilKit
 import SwiftUI
 
 /// A page the player bookmarked in a PDF piece, as music-core answers `document.marks` (0023).
@@ -33,7 +32,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// screen's own split.
     @Published var family = PieceFamily()
 
-    /// The bar's Pen: while it is on, a finger writes too and two fingers scroll. The Pencil always writes.
+    /// The bar's Pen: while it is on, the Pencil writes; on an iPad without a stylus one finger writes and two scroll
+    /// (InputRules, #479 item 18). A finger always scrolls while the iPad is used with a stylus.
     @Published var penOn = false { didSet { applyInput() } }
     /// Whether the pages take ink: not on a PDF linked in Files, whose marks would be kept nowhere (version 0.3).
     var inkable = true
@@ -42,22 +42,23 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         didSet {
             if oldValue != tool { previousTool = oldValue }
             PenMemory.keep(tool: tool, previous: previousTool)
-            applyTool()
         }
     }
     @Published var canUndo = false
+    /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
+    @Published var pencilPalette: PencilPaletteCall?
     /// The strokes on the pages, as music-core answered the last call.
     @Published private(set) var strokes: [DocumentStroke] = []
 
     /// The page to open at once the pages are laid out.
     private(set) var startPage = 1
     weak var view: PDFView?
-    let canvas = PKCanvasView()
+    /// The pen over the pages, and who writes and who scrolls (#479 items 7 and 18).
+    let ink = InkInput()
     var previousTool = PenMemory.savedPrevious()
     /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
-    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths(); applyTool() } }
-    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths(); applyTool() } }
-    var clearing = false
+    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths() } }
+    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths() } }
     /// The strokes added here, newest last, for Undo.
     var added: [String] = []
     private(set) var piece: Int32 = 0
@@ -272,12 +273,6 @@ struct PdfPages: UIViewRepresentable {
             self.view = view
             NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewPageChanged, object: view)
             NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewVisiblePagesChanged, object: view)
-            NotificationCenter.default.addObserver(self, selector: #selector(scaleChanged), name: .PDFViewScaleChanged, object: view)
-        }
-
-        /// The live stroke keeps the thickness it will have on the page at the new size.
-        @objc func scaleChanged(_ notification: Notification) {
-            controller.applyTool()
         }
 
         @objc func pageChanged(_ notification: Notification) {
@@ -305,6 +300,7 @@ struct PdfScreen: View {
     var linked = false
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
+    @ObservedObject private var settings = DeviceSettings.shared
     @State private var readingOpen = false
     @State private var settingsOpen = false
     @State private var settingsNext = false
@@ -319,6 +315,7 @@ struct PdfScreen: View {
     @State private var partsOpen = false
     @State private var more = false
     @State private var metronomeOpen = false
+    @State private var referenceOpen = false
 
     var body: some View {
         GeometryReader { screen in
@@ -355,7 +352,12 @@ struct PdfScreen: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .padding(.top, CGFloat.ds("s-3"))
                 .animation(.easeOut(duration: 0.16), value: pdf.penOn)
+                if let call = pdf.pencilPalette {
+                    // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8).
+                    PencilPalette(holder: pdf, call: call, text: text)
+                }
             }
+            .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
             .overlay(alignment: .bottom) {
                 if metronomeOpen {
                     MetronomePill(metronome: metronome, text: text) {
@@ -386,6 +388,9 @@ struct PdfScreen: View {
                 readPanel(readNotes).presentationDetents([.medium])
             }
         }
+        .sheet(isPresented: $referenceOpen) {
+            ReferenceSheet(text: text, settings: settings)
+        }
         .sheet(isPresented: $settingsOpen) {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
         }
@@ -404,6 +409,8 @@ struct PdfScreen: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { save() }
+            // The iPad's setting «Only draw with Apple Pencil» may have changed meanwhile.
+            if phase == .active { pdf.applyInput() }
         }
     }
 
@@ -465,7 +472,9 @@ struct PdfScreen: View {
             }
     }
 
-    /// Bookmark the page, the metronome, the pen and More.
+    /// Bookmark the page and the metronome, then how the pages are used (the modes, or the Pen before them), then the
+    /// Circle and More: the modes, the Circle and More where the score's bar has them (the approved mockup v0.5.2, #479
+    /// item 21).
     @ViewBuilder private var barActions: some View {
         if !linked {
             Button {
@@ -488,15 +497,34 @@ struct PdfScreen: View {
         .accessibilityLabel(text["metronome.label"])
         .accessibilityAddTraits(metronomeOpen ? .isSelected : [])
         if !linked {
-            Button {
-                pdf.penOn.toggle()
-            } label: {
-                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            PaletteDivider()
+            if settings.isOn("experimental.playheads") {
+                // The score's modes: nothing on a PDF's pages is selected or edited, so only Navigate and Pen choose.
+                ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select, .edit]) { mode in
+                    pdf.penOn = mode == .pen
+                }
+            } else {
+                Button {
+                    pdf.penOn.toggle()
+                } label: {
+                    Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+                }
+                .buttonStyle(BarActionStyle(on: pdf.penOn))
+                .accessibilityLabel(text["bar.pen"])
+                .accessibilityHint(text["pencil.padHint"])
+                .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
             }
-            .buttonStyle(BarActionStyle(on: pdf.penOn))
-            .accessibilityLabel(text["bar.pen"])
-            .accessibilityHint(text["pencil.hint"])
-            .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
+        }
+        PaletteDivider()
+        if settings.isOn("experimental.reference") {
+            Button {
+                referenceOpen = true
+            } label: {
+                Icon(name: "keysig", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: referenceOpen))
+            .accessibilityLabel(text["reference.open"])
+            .accessibilityHint(text["reference.openHint"])
         }
         Button {
             more.toggle()

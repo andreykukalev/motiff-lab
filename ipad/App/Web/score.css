@@ -28,10 +28,16 @@ body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); backgrou
 
 /* The pencil marks over the pages, in the document's pixels; the score scrolls with them. */
 #ink { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-.mark.pen.graphite { fill: var(--ink-graphite); }
-.mark.pen.carmine { fill: var(--ink-carmine); }
-.mark.pen.forest { fill: var(--ink-forest); }
-.mark.pen.ochre { fill: var(--ink-ochre); }
+/* The pencil's marks are filled with their ink through the pencil's grain (#479 item 7, score.html #grain). */
+.mark.pen.graphite { fill: url(#pencil-graphite) var(--ink-graphite); }
+.mark.pen.carmine { fill: url(#pencil-carmine) var(--ink-carmine); }
+.mark.pen.forest { fill: url(#pencil-forest) var(--ink-forest); }
+.mark.pen.ochre { fill: url(#pencil-ochre) var(--ink-ochre); }
+#grain { position: absolute; width: 0; height: 0; overflow: hidden; }
+#grain rect.graphite { fill: var(--ink-graphite); }
+#grain rect.carmine { fill: var(--ink-carmine); }
+#grain rect.forest { fill: var(--ink-forest); }
+#grain rect.ochre { fill: var(--ink-ochre); }
 /* The highlighter's strokes are one layer (#479 item 9): opaque amber inside it, the layer as translucent as the
    amber-tint token, so overlapping strokes never darken. */
 .mark.highlighter { fill: var(--amber); }

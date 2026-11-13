@@ -1,8 +1,11 @@
 // The score in the iPad app (decision record 0019 section 1.4). The pages are Verovio's SVG; where each bar sits is
 // read by the web app's own score geometry, and pencil marks are anchored to bars and drawn exactly as the web app
-// does (Scripts/score/pencil-marks.ts, compiled into the app as score/). PencilKit draws the live stroke in Swift; when
-// it ends, Swift hands its points here to be kept against its bar (`anchor`), saves the stroke in the project file
-// through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
+// does (Scripts/score/pencil-marks.ts, compiled into the app as score/). Swift draws the live stroke with the same
+// outline and grain (InkInput.swift); when it ends, Swift hands its points here to be kept against its bar (`anchor`),
+// saves the stroke in the project file through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
+// The pencil's marks are filled with the grain of Web/grain.png (score.html, #479 item 7); the eraser cuts the marks
+// it passes over into what is left of them (`eraseAlong`). Who selects, taps or writes with a finger or the Pencil is
+// Swift's (`input`, InputRules.swift, #479 item 18).
 //
 // The score is also the selection surface (0018 section 3): the web app's own selection layer
 // (Scripts/score/selection-layer.ts) draws the band and its handles and turns a long press and a drag across bars into a
@@ -46,7 +49,7 @@ import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
-import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
+import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, eraseAlong, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
 import { ScorePlayheadMarks, placesOf } from "../score/playheads.js";
@@ -85,8 +88,12 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null };
 let nextId = 0;
+
+/** The kind of pointer that pressed last ("touch" for a finger, "pen" for the Pencil), for the tap that follows. */
+let lastPointer = "touch";
+document.addEventListener("pointerdown", (event) => { lastPointer = event.pointerType; }, true);
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
 function show({ pages, timemap, dark }) {
@@ -466,8 +473,9 @@ function reportMenu() {
 const selection = new SelectionLayer(document.body, {
     geometry: () => state.geometry,
     marksTop: (band) => bookmarksTop(band),
-    // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars.
-    penOn: () => state.pen || state.focus,
+    // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars. Once Swift
+    // has sent the rules for each pointer (`input`, #479 item 18), they say who selects instead.
+    penOn: () => state.focus || (state.input === null && state.pen),
     chosen: (first, last) => {
         const end = state.geometry?.barAt(last)?.end;
         if (end !== undefined) {
@@ -483,6 +491,7 @@ const selection = new SelectionLayer(document.body, {
     // and there a finger drags at once, as two fingers scroll.
     mode: () => state.mode,
     fingerDrags: () => state.mode === "select",
+    dragStart: (pointerType) => (state.focus ? "none" : state.input?.[pointerType]?.select),
 });
 
 /** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
@@ -511,6 +520,22 @@ function mode({ name }) {
 }
 
 /**
+ * Who does what on the score (#479 item 18, InputRules.swift): for "touch" (a finger) and "pen" (the Pencil), how a press
+ * starts a selection ("now", "longPress" or "none") and whether a tap acts on the page. Before Swift sends them, the
+ * rules before: the Pen on, nothing but writing.
+ */
+function input(rules) {
+    state.input = rules ?? null;
+    selection.place();
+}
+
+/** Whether the tap just made acts on the page: not by a pointer that writes. */
+function tapActs() {
+    const rule = state.input?.[lastPointer];
+    return rule === undefined ? !state.pen : rule.tap;
+}
+
+/**
  * The two playheads (version 0.5): { selectionHolds, global, selection, fade }, as the web app's Score/ScorePlayheads.cs;
  * null draws the one playhead as before.
  */
@@ -530,7 +555,8 @@ function playheads(value) {
  */
 function tapUnderModes(event, target) {
     const geometry = state.geometry;
-    if (geometry === null || state.mode === "pen") {
+    // In the Pen a tap by a finger that does not write places the playhead, as in Navigate (#479 item 18).
+    if (geometry === null || (state.mode === "pen" && state.input === null)) {
         return;
     }
     if (state.mode === "edit") {
@@ -558,7 +584,23 @@ const placeMenu = selection.placeMenu.bind(selection);
 selection.placeMenu = () => {
     placeMenu();
     reportMenu();
+    reportHandles();
 };
+
+let handlesReported = "";
+
+/**
+ * Where the selection's handles are, in the document's pixels, whenever they move: a touch on one moves it, and the
+ * Pencil does not write there (#479 item 18).
+ */
+function reportHandles() {
+    const handles = [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
+    const key = JSON.stringify(handles);
+    if (key !== handlesReported) {
+        handlesReported = key;
+        post({ handles });
+    }
+}
 selection.setMenu(menu);
 
 /** A drawer over the left of the page (the Contents): the selection layer keeps the menu to its right, as on the web. */
@@ -642,7 +684,7 @@ document.body.addEventListener("click", (event) => {
         post({ bookmark: bookmark.dataset.bookmark });
         return;
     }
-    if (selection.swallowsClick() || state.pen || target === null || target.closest(".sel-handle")) {
+    if (selection.swallowsClick() || !tapActs() || target === null || target.closest(".sel-handle")) {
         return;
     }
     if (state.mode !== null) {
@@ -675,6 +717,32 @@ function erase({ points }) {
         }
     }
     return ids;
+}
+
+/**
+ * The eraser's path, in the document's pixels (#479 item 7): the marks it passed over, and what is left of each, kept
+ * against its bars again, as a real eraser leaves a line in pieces. Swift adds the pieces and removes the marks.
+ */
+function eraseAlongPath({ points }) {
+    const removed = [];
+    const added = [];
+    for (const mark of state.marks) {
+        const place = placeMark(mark, state.byTick);
+        const pieces = place === null ? null : eraseAlong(place.points, place.radius, points, ERASER_REACH);
+        if (pieces === null) {
+            continue;
+        }
+        removed.push(mark.id);
+        for (const piece of pieces) {
+            nextId += 1;
+            const id = `m${Date.now().toString(36)}${nextId.toString(36)}`;
+            const kept = anchorMark(state.frames, piece, { id, tool: mark.tool, colour: mark.colour, size: mark.size });
+            if (kept !== null) {
+                added.push(kept);
+            }
+        }
+    }
+    return { removed, added };
 }
 
 /** Draws the piece's marks, as music-core answers them (`marks.ink`). */
@@ -1161,5 +1229,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

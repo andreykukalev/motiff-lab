@@ -1,5 +1,4 @@
 import PDFKit
-import PencilKit
 import UIKit
 
 /// A stroke on a PDF's page, as music-core answers `document.marks` (0023, `DocumentMarks`): the pencil layer's shape with
@@ -51,7 +50,21 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
         return path
     }
 
-    /// What the request to keep a stroke says: the points PencilKit gave, on the page they start on.
+    /// The stroke's points in the page's own coordinates with their pressure, for its outline (InkOutline).
+    func samples(in box: CGRect) -> [InkSample] {
+        let located = path(in: box)
+        return located.indices.map { index in
+            let at = index * 3 - 1
+            return InkSample(located[index], pressure: index == 0 || at >= points.count ? pressure : points[at])
+        }
+    }
+
+    /// The stroke's half-thickness on the page at pressure 0.5, in the page's points.
+    func radius(in box: CGRect) -> Double {
+        max(0.25, size * box.width / Self.spacesAcross / 2)
+    }
+
+    /// What the request to keep a stroke says: the points the pen gave, on the page they start on.
     static func request(id: String, tool: String, colour: String, size: Double, page: Int, box: CGRect, points: [(CGPoint, Double)]) -> [String: Any]? {
         guard let first = points.first else { return nil }
         let space = box.width / spacesAcross
@@ -76,15 +89,18 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
     }
 }
 
+
 /// Strokes drawn by PDFKit with their page, kept only in memory: the PDF is never written back, the strokes live in the
-/// project. A pen stroke is one mark in its ink at its thickness. All the highlighter's strokes on a page are one mark, a
-/// single layer: drawn opaque together, then laid on the page once at the highlighter's alpha, so where strokes overlap
-/// the amber is as light as anywhere else (#479 item 9: each stroke translucent on its own darkened the overlaps).
+/// project. Each is InkOutline's shape, as the stroke looked while it was written (#479 item 7). A pen stroke is one mark
+/// in its ink, with its pressure and the pencil's grain, tiled from the page's top left corner as the stroke written was.
+/// All the highlighter's strokes on a page are one mark, a single layer: drawn opaque together, then laid on the page
+/// once at the highlighter's alpha, so where strokes overlap the amber is as light as anywhere else (#479 item 9).
 final class InkMark: PDFAnnotation {
-    private var lines: [(points: [CGPoint], width: CGFloat)] = []
+    private var outlines: [CGPath] = []
     private var colour = UIColor.black.cgColor
     /// The alpha the layer is laid at: 1 for the pen, the highlighter's for its layer.
     private var layerAlpha: CGFloat = 1
+    private var grain: (origin: CGPoint, tile: CGFloat)?
 
     /// The marks a page's strokes are drawn as: each pen stroke on its own, the highlighter's strokes as one layer.
     static func marks(_ strokes: [DocumentStroke], on page: PDFPage) -> [InkMark] {
@@ -96,24 +112,22 @@ final class InkMark: PDFAnnotation {
     /// The strokes as one mark, in the first one's tool and ink.
     init(_ strokes: [DocumentStroke], on page: PDFPage) {
         let box = page.bounds(for: .cropBox)
-        let lines: [(points: [CGPoint], width: CGFloat)] = strokes.map { stroke in
-            (points: stroke.path(in: box), width: max(0.5, CGFloat(stroke.size) * box.width / CGFloat(DocumentStroke.spacesAcross)))
+        let highlighter = strokes.first?.tool == "highlighter"
+        let outlines = strokes.map { stroke in
+            InkOutline.path(stroke.samples(in: box), radius: stroke.radius(in: box), followsPressure: !highlighter)
         }
-        let bounds = lines.reduce(CGRect.null) { union, line in
-            let xs = line.points.map(\.x)
-            let ys = line.points.map(\.y)
-            let extent = CGRect(x: (xs.min() ?? 0) - line.width, y: (ys.min() ?? 0) - line.width, width: (xs.max() ?? 0) - (xs.min() ?? 0) + 2 * line.width, height: (ys.max() ?? 0) - (ys.min() ?? 0) + 2 * line.width)
-            return union.union(extent)
-        }
+        let bounds = outlines.reduce(CGRect.null) { $0.union($1.boundingBoxOfPath) }.insetBy(dx: -2, dy: -2)
         super.init(bounds: bounds.isNull ? .zero : bounds, forType: .square, withProperties: nil)
-        self.lines = lines
+        self.outlines = outlines
         let light = UITraitCollection(userInterfaceStyle: .light)
         // The page is paper in both appearances, so the inks are the daylight ones.
-        if strokes.first?.tool == "highlighter" {
+        if highlighter {
             colour = DesignTokens.dynamicColor("amber").resolvedColor(with: light).cgColor
             layerAlpha = PenSizes.highlighterAlpha
         } else {
             colour = DesignTokens.dynamicColor("ink-\(strokes.first?.colour ?? "graphite")").resolvedColor(with: light).cgColor
+            // The page's coordinates run up from its bottom edge: the first tile's bottom is a tile below the top.
+            grain = (origin: CGPoint(x: box.minX, y: box.maxY - InkPaint.tile), tile: InkPaint.tile)
         }
         shouldDisplay = true
         shouldPrint = false
@@ -124,52 +138,23 @@ final class InkMark: PDFAnnotation {
     }
 
     override func draw(with box: PDFDisplayBox, in context: CGContext) {
-        guard !lines.isEmpty else { return }
-        context.saveGState()
-        // The strokes are drawn opaque into one transparency layer, which is composited once at the layer's alpha.
-        context.setAlpha(layerAlpha)
-        context.beginTransparencyLayer(auxiliaryInfo: nil)
-        context.setStrokeColor(colour)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-        for line in lines {
-            guard let first = line.points.first else { continue }
-            context.setLineWidth(line.width)
-            context.move(to: first)
-            if line.points.count == 1 {
-                context.addLine(to: first)
-            } else {
-                for point in line.points.dropFirst() { context.addLine(to: point) }
-            }
-            context.strokePath()
-        }
-        context.endTransparencyLayer()
-        context.restoreGState()
+        guard !outlines.isEmpty else { return }
+        InkPaint.fill(outlines, colour: colour, alpha: layerAlpha, grain: grain, in: context)
     }
 }
 
-extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
+extension PdfController {
     /// The pen's default size in the page's spaces (the web app's PEN_SIZE); the sizes of every thickness are PenSizes.
     static let penSize = PenSizes.pen[PenSizes.defaultWidth]
 
-    /// Lays the canvas over the pages. It takes only the Pencil unless Pen is on: its drawing gesture is moved to the PDF
-    /// view, so a finger still scrolls the pages.
+    /// The pen over the pages (InkInput): it writes, and the PDF view's scroll view scrolls, as InputRules say.
     func attach(to view: PDFView) {
         guard inkable else { return }
-        canvas.backgroundColor = .clear
-        canvas.isOpaque = false
-        canvas.isScrollEnabled = false
-        canvas.delegate = self
-        canvas.frame = view.bounds
-        canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        canvas.isUserInteractionEnabled = false
-        view.addSubview(canvas)
-        view.addGestureRecognizer(canvas.drawingGestureRecognizer)
-        let pencil = UIPencilInteraction()
-        pencil.delegate = self
-        view.addInteraction(pencil)
+        ink.attach(to: view, pan: scroll?.panGestureRecognizer)
+        ink.style = { [weak self] point in self?.liveStyle(at: point) }
+        ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
+        ink.pencil.perform = { [weak self] action, point in self?.pencilGesture(action, at: point) }
         applyInput()
-        applyTool()
     }
 
     func undo() {
@@ -182,100 +167,121 @@ extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
         view?.subviews.compactMap { $0 as? UIScrollView }.first
     }
 
-    /// Who writes and who scrolls, as on the score: the Pencil only writes; with Pen on a finger writes and two scroll.
+    /// Who writes and who scrolls, as on the score (InputRules): the stylus follows the tool, a finger scrolls; on an
+    /// iPad without a stylus one finger writes with Pen on and two scroll. Again when the app comes back, as the iPad's
+    /// setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        guard let pan = scroll?.panGestureRecognizer else { return }
-        #if targetEnvironment(simulator)
-        canvas.drawingPolicy = .anyInput
-        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
-        #else
-        canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
-        pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        pan.minimumNumberOfTouches = penOn ? 2 : 1
-        #endif
+        ink.apply(InputRules(stylus: InkInput.stylusPreferred, tool: .init(mode: nil, penOn: penOn), surface: .pdf))
     }
 
-    /// PencilKit draws the live stroke as the tool will look on the page at its size on the screen now. The highlighter
-    /// draws opaque amber on a canvas laid at the highlighter's alpha, so a stroke crossing itself stays one flat band, as
-    /// the page draws the kept ones (#479 item 9).
-    func applyTool() {
-        let width = (view?.currentPage?.bounds(for: .cropBox).width ?? 595) / DocumentStroke.spacesAcross * (view?.scaleFactor ?? 1)
-        canvas.alpha = tool == .highlighter ? PenSizes.highlighterAlpha : 1
-        switch tool {
-        case .pen(let ink):
-            canvas.tool = PKInkingTool(.pen, color: ink.color, width: max(1, PenSizes.pen[penWidth] * width * 1.6))
-        case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber"), width: PenSizes.highlighter[highlighterWidth] * width)
-        case .eraser:
-            canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
-        }
-    }
-
-    /// A stroke PencilKit finished: its points on the page it starts on, then kept as a stroke or, with the eraser, the
-    /// strokes it passed over taken away.
-    func strokeEnded(_ stroke: PKStroke) {
-        guard let view, let document else { return }
-        let located = stroke.path.interpolatedPoints(by: .distance(1.5)).map { point in
-            // UITouch force is about 1 for an ordinary press: pressure 0.5, as the web takes a pen without pressure.
-            (canvas.convert(point.location.applying(stroke.transform), to: view), min(1, max(0, Double(point.force) / 2)))
-        }
-        guard let first = located.first, let page = view.page(for: first.0, nearest: true) else { return }
+    /// The page under a point of the PDF view, with its box and its space (a hundred and twentieth of its width).
+    private func page(at point: CGPoint) -> (page: PDFPage, box: CGRect, space: Double)? {
+        guard let view, let page = view.page(for: point, nearest: true) else { return nil }
         let box = page.bounds(for: .cropBox)
-        let onPage = located.map { (view.convert($0.0, to: page), $0.1) }
-        let number = document.index(for: page) + 1
+        return (page, box, Double(box.width) / DocumentStroke.spacesAcross)
+    }
+
+    /// How the stroke beginning at a point looks while it is written: as the page will draw it at this zoom (InkOutline),
+    /// the pencil with the grain from the page's top left corner, the highlighter opaque on a layer as translucent as the
+    /// page's, the eraser a light trail as wide as it reaches.
+    private func liveStyle(at point: CGPoint) -> LiveInkView.Style? {
+        guard let view, let on = page(at: point) else { return nil }
+        let scale = Double(view.scaleFactor)
+        let light = UITraitCollection(userInterfaceStyle: .light)
         switch tool {
-        case .eraser:
-            let ids = erased(by: onPage.map(\.0), on: number, box: box)
-            guard !ids.isEmpty else { return }
-            added.removeAll { ids.contains($0) }
-            canUndo = !added.isEmpty
-            Task { await change("document.ink.remove", ["ids": ids]) }
-        case .pen(let ink):
-            keep(onPage, tool: "pen", colour: ink.rawValue, size: PenSizes.pen[penWidth], page: number, box: box)
+        case .pen(let colour):
+            let origin = view.convert(CGPoint(x: on.box.minX, y: on.box.maxY), from: on.page)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: light),
+                radius: max(0.25, PenSizes.pen[penWidth] * on.space / 2) * scale, followsPressure: true,
+                grain: (origin: origin, tile: InkPaint.tile * CGFloat(scale))
+            )
         case .highlighter:
-            keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[highlighterWidth], page: number, box: box)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("amber").resolvedColor(with: light),
+                radius: PenSizes.highlighter[highlighterWidth] * on.space / 2 * scale, followsPressure: false,
+                alpha: PenSizes.highlighterAlpha
+            )
+        case .eraser:
+            return LiveInkView.Style(
+                colour: DesignTokens.color("ink-graphite").withAlphaComponent(0.25),
+                radius: on.space * scale, followsPressure: false
+            )
         }
     }
 
-    private func keep(_ points: [(CGPoint, Double)], tool: String, colour: String, size: Double, page: Int, box: CGRect) {
-        let id = "pk_" + UUID().uuidString.prefix(12).lowercased()
+    /// A stroke the pen finished, its points in the PDF view's: on the page it starts on, then kept as a stroke or, with
+    /// the eraser, what it passed over cut away. The stroke written stays over the page until the page draws it as kept.
+    private func strokeEnded(_ samples: [InkSample]) {
+        guard let view, let document, let first = samples.first, let on = page(at: first.point) else {
+            ink.live.dropOldest()
+            return
+        }
+        let onPage = samples.map { InkSample(view.convert($0.point, to: on.page), pressure: $0.pressure) }
+        let number = document.index(for: on.page) + 1
+        let tool = tool
+        Task {
+            switch tool {
+            case .eraser:
+                ink.live.dropOldest()
+                await erase(onPage.map(\.point), on: number, box: on.box)
+            case .pen(let colour):
+                await keep(onPage, tool: "pen", colour: colour.rawValue, size: PenSizes.pen[penWidth], page: number, box: on.box)
+                ink.live.dropOldest()
+            case .highlighter:
+                await keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[highlighterWidth], page: number, box: on.box)
+                ink.live.dropOldest()
+            }
+        }
+    }
+
+    private func keep(_ samples: [InkSample], tool: String, colour: String, size: Double, page: Int, box: CGRect) async {
+        let id = Self.newId()
+        let points = samples.map { ($0.point, $0.pressure) }
         guard let request = DocumentStroke.request(id: id, tool: tool, colour: colour, size: size, page: page, box: box, points: points) else { return }
         added.append(id)
         canUndo = true
-        Task { await change("document.ink.add", ["strokes": [request]]) }
+        await change("document.ink.add", ["strokes": [request]])
+    }
+
+    private static func newId() -> String {
+        "pk_" + UUID().uuidString.prefix(12).lowercased()
+    }
+
+    /// The eraser cuts the strokes it passed over (#479 item 7): what is left of each is kept as new strokes, then the
+    /// strokes it touched go.
+    private func erase(_ path: [CGPoint], on page: Int, box: CGRect) async {
+        let cut = erasure(by: path, on: page, box: box)
+        guard !cut.removed.isEmpty else { return }
+        if !cut.added.isEmpty {
+            await change("document.ink.add", ["strokes": cut.added])
+        }
+        added.removeAll { cut.removed.contains($0) }
+        canUndo = !added.isEmpty
+        await change("document.ink.remove", ["ids": cut.removed])
     }
 
     /// The strokes on the page that the eraser's path passed over, within a space of their line.
     func erased(by path: [CGPoint], on page: Int, box: CGRect) -> [String] {
-        let space = box.width / DocumentStroke.spacesAcross
-        return strokes.filter { stroke in
-            guard stroke.page == page else { return false }
-            let reach = space * (1 + stroke.size / 2)
-            return stroke.path(in: box).contains { point in path.contains { hypot($0.x - point.x, $0.y - point.y) <= reach } }
-        }.map(\.id)
+        erasure(by: path, on: page, box: box).removed
     }
 
-    nonisolated func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        MainActor.assumeIsolated {
-            guard !clearing, let stroke = canvasView.drawing.strokes.last else { return }
-            clearing = true
-            canvasView.drawing = PKDrawing()
-            clearing = false
-            strokeEnded(stroke)
-        }
-    }
-
-    /// A double tap on the Pencil does what the player chose in the iPad's settings, as on the score.
-    nonisolated func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
-        MainActor.assumeIsolated {
-            switch UIPencilInteraction.preferredTapAction {
-            case .switchEraser:
-                tool = tool == .eraser ? previousTool : .eraser
-            case .switchPrevious:
-                tool = previousTool
-            default:
-                break
+    /// What the eraser's path does on a page: the strokes it touched, and what is left of them as strokes to keep, each in
+    /// its stroke's tool, ink and size (InkSplit).
+    func erasure(by path: [CGPoint], on page: Int, box: CGRect) -> (removed: [String], added: [[String: Any]]) {
+        let reach = Double(box.width) / DocumentStroke.spacesAcross
+        var removed: [String] = []
+        var pieces: [[String: Any]] = []
+        for stroke in strokes where stroke.page == page {
+            guard let left = InkSplit.pieces(stroke.samples(in: box), radius: stroke.radius(in: box), path: path, reach: reach) else { continue }
+            removed.append(stroke.id)
+            pieces += left.compactMap { piece in
+                DocumentStroke.request(
+                    id: Self.newId(), tool: stroke.tool, colour: stroke.colour, size: stroke.size, page: page, box: box,
+                    points: piece.map { ($0.point, $0.pressure) }
+                )
             }
         }
+        return (removed, pieces)
     }
 }

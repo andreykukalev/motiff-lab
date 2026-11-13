@@ -39,6 +39,29 @@ export interface SelectionHost extends BeatSource {
     mode?(): InteractionMode | null;
     /** Whether a finger drags at once, without the long press: the iPad in Select, where two fingers scroll. */
     fingerDrags?(): boolean;
+    /**
+     * How a press of this pointer type starts a selection, where the host decides it (the iPad's stylus model, #479
+     * item 18): at once, after a long press (in any mode, never from inside the selection) or not at all. Undefined
+     * keeps the rules above.
+     */
+    dragStart?(pointerType: string): DragStart | undefined;
+}
+
+/** How a press may start a selection: "now" drags at once, "longPress" after a long press, "none" never. */
+export type DragStart = "now" | "longPress" | "none";
+
+/**
+ * How a press starts a selection: the host's rule for its pointer where it gives one, else the rules before it: the pen
+ * writes and the mouse and a finger write while the pen is on; a finger waits for the long press unless it drags at once.
+ */
+export function dragStartOf(pointerType: string, rule: DragStart | undefined, penOn: boolean, fingerDrags: boolean): DragStart {
+    if (rule !== undefined) {
+        return rule;
+    }
+    if (pointerType === "pen" || penOn) {
+        return "none";
+    }
+    return pointerType === "touch" && !fingerDrags ? "longPress" : "now";
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -270,12 +293,14 @@ export class SelectionLayer {
     }
 
     private readonly onPointerDown = (event: PointerEvent): void => {
-        if (this.drag !== null || this.handleDrag !== null || event.pointerType === "pen" || this.owner.penOn()) {
+        if (this.drag !== null || this.handleDrag !== null) {
             return;
         }
         // A finger waits for the long press, unless it drags at once (the iPad in Select): then it drags as a mouse does.
-        const touch = event.pointerType === "touch" && this.owner.fingerDrags?.() !== true;
-        if (!touch && event.button !== 0) {
+        const rule = this.owner.dragStart?.(event.pointerType);
+        const start = dragStartOf(event.pointerType, rule, this.owner.penOn(), this.owner.fingerDrags?.() === true);
+        const touch = start === "longPress";
+        if (start === "none" || (!touch && event.button !== 0)) {
             return;
         }
         // A bracket, a handle and anything Blazor put over the score are their own targets.
@@ -283,7 +308,7 @@ export class SelectionLayer {
             return;
         }
         const at = this.point(event);
-        if (!this.dragMayStart(at)) {
+        if (!this.dragMayStart(at, rule !== undefined)) {
             return;
         }
         const drag: Drag = { pointerId: event.pointerId, x: at.x, y: at.y, touch, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
@@ -293,8 +318,11 @@ export class SelectionLayer {
         this.drag = drag;
     };
 
-    /** Under the rules of version 0.5 only Select starts a selection with a drag, and never from inside the selection. */
-    private dragMayStart(at: { x: number; y: number }): boolean {
+    /**
+     * Under the rules of version 0.5 only Select starts a selection with a drag, and never from inside the selection; where
+     * the host rules the pointer (`ruled`, the iPad), its rule says which modes, and still never from inside.
+     */
+    private dragMayStart(at: { x: number; y: number }, ruled: boolean): boolean {
         const mode = this.owner.mode?.() ?? null;
         if (mode === null) {
             return true;
@@ -304,7 +332,7 @@ export class SelectionLayer {
             const top = parseFloat(band.style.top);
             return { left, top, right: left + parseFloat(band.style.width), bottom: top + parseFloat(band.style.height) };
         });
-        return mode === "select" && !inside(bands, at.x, at.y);
+        return (ruled || mode === "select") && !inside(bands, at.x, at.y);
     }
 
     private startDrag(drag: Drag): void {

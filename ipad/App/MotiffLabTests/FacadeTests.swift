@@ -368,6 +368,9 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(pdf.document?.page(at: 1)?.annotations.contains { $0 is InkMark } ?? false)
         XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 2, box: box), ["pk_test"])
         XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 1, box: box), [], "the eraser takes only the page it is on")
+        let cut = pdf.erasure(by: [CGPoint(x: 150, y: 691)], on: 2, box: box)
+        XCTAssertEqual(cut.added.count, 2, "the eraser cuts the stroke in two where it passed (#479 item 7)")
+        XCTAssertEqual(cut.added.compactMap { $0["colour"] as? String }, ["carmine", "carmine"], "the pieces keep the stroke's ink")
         XCTAssertNil(request["margin"], "a stroke begun on the page is in no margin")
 
         // A stroke begun beside the page is in its margin (v0.4), kept so and drawn where it was written.
