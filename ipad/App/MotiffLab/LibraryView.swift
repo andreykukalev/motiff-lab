@@ -383,7 +383,14 @@ struct LibraryView: View {
             overQuota = outcome.overQuota
             if outcome.changed { await reload() }
         }
-        let listed = await account.online.list() ?? []
+        let listing = await account.online.listing()
+        // Everything was cleared from another device (`TestReset`; the pass above then sent nothing): Test's library here
+        // goes too, and the library reads itself again (`account.libraryCleared`).
+        if let stamp = listing?.resetDue, TestLibrary.applyReset(account, stamp: stamp) {
+            problem = text["testLibrary.clearedElsewhere"]
+            return
+        }
+        let listed = listing?.projects ?? []
         online = OnlineProjects.notHere(listed, here: Set(summaries.values.compactMap(\.id)))
     }
 

@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// «Очистить тестовую библиотеку» (Andrei, 2026-11-13): before a new testing cycle the Test environment starts from an
-/// empty library, to import again and see what changed. Settings · About offers it only while the iPad works in Test, in
-/// a build that knows Test (infra/README.md, "A fresh testing cycle"; the test database is emptied by
-/// infra/azure/reset-dev-data.ps1). It deletes only the app's own files of the Test environment, never Main's and never
-/// anything outside the app: the player's PDFs, recordings and folders added by link stay where they are.
+/// «Очистить всё» (Andrei, 2026-11-13): before a new testing cycle the Test environment starts from an empty library
+/// everywhere, to import again and see what changed. Settings · About offers it only while the iPad works in Test, in a
+/// build that knows Test (infra/README.md, "A fresh testing cycle"). Signed in, it deletes the player's data in the test
+/// database, and their other devices clear their own test library at their next sync (`TestReset`). On the iPad it deletes
+/// only the app's own files of the Test environment, never Main's and never anything outside the app: the player's PDFs,
+/// recordings and folders added by link stay where they are.
 enum TestLibrary {
     /// What the clear came to.
     enum Outcome: Equatable {
@@ -14,7 +15,7 @@ enum TestLibrary {
         case refused(String)
     }
 
-    /// The player's copies in the Test database, as the API's DELETE /me answered.
+    /// The player's copies in the Test database, as the API's POST /me/reset answered.
     enum Online: Equatable {
         case signedOut, deleted, failed, notDevelop
     }
@@ -91,6 +92,73 @@ enum TestLibrary {
         case .signedOut, .deleted: break
         }
         guard offered(account) else { return .refused("testLibrary.notTest") }
+        let done = clearLocal(account)
+        return .cleared(pieces: done.pieces, failed: done.failed)
+    }
+}
+
+/// «Очистить всё» across the player's devices (Andrei, 2026-11-13): pressing it on one device deletes the player's data in
+/// the test database (the API's POST /me/reset, src/MotiffLab.Api/TestReset.cs), which records a reset stamp; develop's
+/// API then sends the stamp with every list of projects. Each device keeps the stamp it last applied, per environment, in
+/// its preferences (never among the files the clear deletes). A newer stamp in a list means the player cleared everything
+/// from another device: the iPad clears its own test library before the pass syncs anything (`applyReset`), and its saves
+/// say which stamp they come after, so the API refuses one from before the reset. Only in Test on develop's own API.
+enum TestReset {
+    /// The player's last reset stamp, on the list of projects (milliseconds since 1970, the server's clock).
+    static let header = "Motiff-Reset"
+    /// The stamp this iPad last applied, sent with a save.
+    static let seenHeader = "Motiff-Reset-Seen"
+
+    /// The stamp in a header's value: a whole number from 0; nil for anything else.
+    static func stamp(_ value: String?) -> Int64? {
+        guard let value = value?.trimmingCharacters(in: .whitespaces), !value.isEmpty, value.count <= 15,
+              value.allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return nil }
+        return Int64(value)
+    }
+
+    /// Whether the list's stamp is newer than the one applied here, so the test library here is to be cleared.
+    static func isDue(_ stamp: Int64?, applied: Int64) -> Bool {
+        guard let stamp else { return false }
+        return stamp > applied
+    }
+
+    /// Whether resets reach the iPad in the environment: as for deleting the online copies, only Test on develop's API.
+    static func applies(_ setup: EnvironmentSetup?, in environment: ServerEnvironment) -> Bool {
+        TestLibrary.deletesOnline(setup, in: environment)
+    }
+
+    /// Where the stamp applied in the environment is kept, in the preferences.
+    static func key(_ environment: ServerEnvironment) -> String { "ml-test-reset.\(environment.rawValue)" }
+
+    /// The last stamp applied in the environment; 0 when none.
+    static func applied(_ defaults: UserDefaults, in environment: ServerEnvironment) -> Int64 {
+        stamp(defaults.string(forKey: key(environment))) ?? 0
+    }
+
+    /// Keeps the stamp as applied in the environment; an older one never replaces a newer one.
+    static func record(_ stamp: Int64, in defaults: UserDefaults, environment: ServerEnvironment) {
+        guard stamp > applied(defaults, in: environment) else { return }
+        defaults.set(String(stamp), forKey: key(environment))
+    }
+}
+
+extension TestLibrary {
+    /// Applies a reset made on another device, found by a sync pass (`OnlineProjects.Listing.resetDue`): Test's own files
+    /// on this iPad go, exactly as the clear deletes them, and the stamp is kept. Nothing is deleted online (the player's
+    /// data there went with the reset). False when it did not run: the iPad left Test, or an import or a recognition is
+    /// running; the stamp then stays unapplied, so the next pass tries again and still sends nothing meanwhile.
+    @MainActor
+    static func applyReset(_ account: Account, stamp: Int64) -> Bool {
+        guard offered(account), !ImportRunner.shared.running, !RecognitionQueue.shared.running else { return false }
+        _ = clearLocal(account)
+        account.resetApplied(stamp)
+        return true
+    }
+
+    /// Test's own files on this iPad, and anything an import or a recognition keeps of them in memory.
+    @MainActor
+    fileprivate static func clearLocal(_ account: Account) -> (pieces: Int, failed: Int) {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let records = importRecords(in: support).standardizedFileURL
         // A job or a batch kept in memory for Test's records is forgotten too (never one of Main's).
@@ -98,7 +166,7 @@ enum TestLibrary {
         if RecognitionQueue.shared.root.standardizedFileURL == records { RecognitionQueue.shared.stop() }
         let done = clearFiles(support: support)
         account.libraryWasCleared()
-        return .cleared(pieces: done.pieces, failed: done.failed)
+        return done
     }
 }
 

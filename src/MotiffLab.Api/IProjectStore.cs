@@ -5,7 +5,8 @@ namespace MotiffLab.Api;
 /// <summary>
 /// Where a player's projects and profile are kept: one document per project, in the player's own partition. The project
 /// file (with its sessions, observations and source) is stored packed; the summary is kept beside it so a list
-/// never loads the files. The profile (the name and photo the player chose) is one more document in the same partition.
+/// never loads the files. The profile (the name and photo the player chose) is one more document in the same partition,
+/// and so is the reset stamp of the develop deployment (<see cref="TestReset"/>).
 /// </summary>
 internal interface IProjectStore
 {
@@ -24,6 +25,15 @@ internal interface IProjectStore
 
     /// <summary>Deletes everything the player keeps here, their profile too, and returns how many projects that was.</summary>
     Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken);
+
+    /// <summary>The player's last reset stamp (<see cref="TestReset"/>), or null when they never reset.</summary>
+    Task<long?> GetResetAsync(string ownerId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes everything the player keeps here, as <see cref="DeleteAllAsync"/>, then keeps <paramref name="stamp"/> as
+    /// their reset stamp, which no list of projects shows as a project. Returns how many projects went.
+    /// </summary>
+    Task<int> ResetAsync(string ownerId, long stamp, CancellationToken cancellationToken);
 
     /// <summary>The name and photo the player chose, or null when they have chosen none.</summary>
     Task<StoredProfile?> GetProfileAsync(string ownerId, CancellationToken cancellationToken);

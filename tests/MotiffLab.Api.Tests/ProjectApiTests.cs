@@ -180,12 +180,12 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         Assert.Equal(file, ProjectEndpoints.Unpack(ProjectEndpoints.Pack(file)));
     }
 
-    private static string Player() => Guid.NewGuid().ToString();
+    internal static string Player() => Guid.NewGuid().ToString();
 
-    private static byte[] File(string id) =>
+    internal static byte[] File(string id) =>
         ProjectFile.Write(Project.Create(id, "minuet.musicxml", Encoding.UTF8.GetBytes("<score-partwise/>"), s_created));
 
-    private static ByteArrayContent Json(byte[] body)
+    internal static ByteArrayContent Json(byte[] body)
     {
         var content = new ByteArrayContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -252,7 +252,7 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     private sealed record Summary(string Id, string FileName, int MotifCount, int ResumeCount);
 
     /// <summary>The API with an in-memory store and tokens signed by a test key instead of External ID's.</summary>
-    public sealed class Api : WebApplicationFactory<Program>
+    public class Api : WebApplicationFactory<Program>
     {
         private const string Issuer = "https://login.test/tenant/v2.0";
         private const string Audience = "api-client-id";
@@ -267,10 +267,18 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
             SigningCredentials = new SigningCredentials(s_key, SecurityAlgorithms.HmacSha256),
         });
 
+        /// <summary>The database the API is told it has; the store is in memory whatever it says (TestReset reads its name).</summary>
+        protected virtual string? CosmosEndpoint => null;
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseSetting("Cors:Origins", "https://motiff.example");
             builder.UseSetting("Cors:OriginPattern", @"https://motiff-[0-9]+\.example");
+            if (CosmosEndpoint is { } endpoint)
+            {
+                builder.UseSetting("Cosmos:Endpoint", endpoint);
+            }
+
             builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton<IProjectStore, InMemoryProjectStore>();
