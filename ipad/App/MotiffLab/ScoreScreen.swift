@@ -94,8 +94,11 @@ struct ScoreScreen: View {
         (size.width > size.height ? 0.4 : 0.3) * size.height
     }
 
-    /// Whether the roll is on screen: in its drawer, or over the card in focus.
-    private var rollShown: Bool { rollOpen || (score.focused && score.focusRoll) }
+    /// Where the roll is on screen: in its drawer, or over the card in focus; the one place its web view is in (#495 BUG-01).
+    private var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: rollOpen, focused: score.focused, focusRoll: score.focusRoll) }
+
+    /// Whether the roll is on screen.
+    private var rollShown: Bool { rollPlace != nil }
 
     /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
     private var rollSpan: String? {
@@ -222,7 +225,7 @@ struct ScoreScreen: View {
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
-                if score.focused && score.focusRoll && !rollOpen {
+                if rollPlace == .focus {
                     FocusRollCard(roll: roll, score: score, text: text)
                 }
             }
@@ -646,6 +649,10 @@ struct ScoreScreen: View {
             }
             .onChange(of: colorScheme) { _, scheme in
                 if rollShown { roll.show(piece, dark: scheme == .dark) }
+            }
+            .onChange(of: rollPlace) { _, place in
+                // The one holder of the roll's web view follows the place shown, so Expand and Back move it once (#495 BUG-01).
+                roll.place = place
             }
             .onChange(of: player.tick) { _, tick in
                 score.playhead(tick, playing: player.state == .playing)
@@ -1485,7 +1492,7 @@ struct FocusRollCard: View {
                 head(compact: false)
                 head(compact: true)
             }
-            RollSurface(roll: roll, text: text)
+            RollSurface(roll: roll, place: .focus, text: text)
         }
         .padding(.vertical, CGFloat.ds("s-3"))
         .padding(.horizontal, CGFloat.ds("h-touch") + CGFloat.ds("s-2"))

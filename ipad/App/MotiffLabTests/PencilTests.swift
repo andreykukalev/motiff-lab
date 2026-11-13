@@ -368,6 +368,19 @@ final class PencilTests: XCTestCase {
         try await Task.sleep(nanoseconds: 300_000_000)
         let kept = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
         XCTAssertEqual(kept, fitted, "the same selection again leaves the roll as it is")
+        // #495 BUG-04: the notes loaded again (a note edited), the selection sent back and fitting turned on (Expand) keep the
+        // zoom the player set.
+        _ = try await view.callAsyncJavaScript("return roll.zoom(data)", arguments: ["data": ["axis": "time", "direction": 1]], contentWorld: .page)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let zoomed = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        let request: [String: Any] = ["roll": roll, "labels": RollController.labels(UIText(language: "en")), "noteNames": true, "dark": false, "keep": true]
+        _ = try await view.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page)
+        _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": twoBars], contentWorld: .page)
+        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let reloaded = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        XCTAssertEqual(reloaded, zoomed, "the notes again keep the zoom")
+        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": false], contentWorld: .page)
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
 

@@ -87,4 +87,25 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(RollPick(still, byBeats: true), .beats(5760..<5761), "never an empty stretch")
         XCTAssertNil(RollPick(["from": 0, "to": 10], byBeats: true))
     }
+
+    /// #495 BUG-01: the roll's one web view is in one place, the drawer while it is open, else the card in focus as a roll.
+    func testTheRollIsInOnePlaceTheDrawerFirst() {
+        XCTAssertEqual(RollPlace.shown(drawerOpen: true, focused: false, focusRoll: false), .drawer)
+        XCTAssertEqual(RollPlace.shown(drawerOpen: true, focused: true, focusRoll: true), .drawer, "the card shows the roll once the drawer is gone")
+        XCTAssertEqual(RollPlace.shown(drawerOpen: false, focused: true, focusRoll: true), .focus)
+        XCTAssertNil(RollPlace.shown(drawerOpen: false, focused: true, focusRoll: false), "the phrase in focus as notes")
+        XCTAssertNil(RollPlace.shown(drawerOpen: false, focused: false, focusRoll: true), "Expand before focus has come")
+    }
+
+    /// #495 BUG-01: of the holders, only the newest of the place shown has the web view, so the drawer sliding away while the
+    /// card comes, updated thirty times a second while the music plays, never takes it back.
+    func testOnlyTheNewestHolderOfThePlaceShownHasTheWebView() {
+        let expanding: [(place: RollPlace, made: Int)] = [(.drawer, 1), (.focus, 2)]
+        XCTAssertEqual(RollPlace.holder(for: .focus, among: expanding), 2, "Expand: the card's holder, not the drawer's going")
+        XCTAssertEqual(RollPlace.holder(for: .drawer, among: expanding), 1, "before focus has come, the drawer keeps it")
+        let reopened: [(place: RollPlace, made: Int)] = [(.drawer, 3), (.focus, 2), (.drawer, 4)]
+        XCTAssertEqual(RollPlace.holder(for: .drawer, among: reopened), 4, "the drawer opened again while the last one still slides away")
+        XCTAssertNil(RollPlace.holder(for: .focus, among: [(.drawer, 1)]), "the card's holder is not made yet: it takes the web view when it is")
+        XCTAssertNil(RollPlace.holder(for: nil, among: expanding), "the roll on no place: nobody takes the web view")
+    }
 }
