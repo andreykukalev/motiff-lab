@@ -35,12 +35,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var color: UIColor { DesignTokens.color("ink-\(rawValue)") }
     }
 
-    /// The tool, as last chosen on this device (PenMemory): the same after PDF | Notes and when the piece opens again.
-    @Published var tool = PenMemory.savedTool() {
-        didSet {
-            if oldValue != tool { previousTool = oldValue }
-            PenMemory.keep(tool: tool, previous: previousTool)
-        }
+    /// The pen's one tool and each tool's settings (PenState, #495 UX-06), as last chosen on this device (PenMemory): the
+    /// same after PDF | Notes and when the piece opens again.
+    @Published var pen = PenMemory.saved() {
+        didSet { if pen != oldValue { PenMemory.keep(pen) } }
     }
     /// The bar's Pen (0018 section 5): while it is on, the Pencil writes; on an iPad without a stylus one finger writes
     /// and two fingers scroll, so the score takes marks with or without a Pencil (InputRules).
@@ -260,10 +258,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var dark = false
     private var pageReady = false
     private var shown = false
-    private(set) var previousTool = PenMemory.savedPrevious()
-    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
-    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths() } }
-    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths() } }
     /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
     @Published var pencilPalette: PencilPaletteCall?
     /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
@@ -1881,14 +1875,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             point["pressure"] = sample.pressure
             return point
         }
-        let tool = tool
+        let pen = pen
         inkQueue.then { [weak self] in
             guard let self else { return }
-            switch tool {
+            switch pen.stroke {
             case .pen(let colour):
-                await self.add(piece.id, points, tool: "pen", colour: colour.rawValue, width: self.penWidth)
+                await self.add(piece.id, points, tool: "pen", colour: colour.rawValue, width: pen.pencil.width)
             case .highlighter:
-                await self.add(piece.id, points, tool: "highlighter", colour: "amber", width: self.highlighterWidth)
+                await self.add(piece.id, points, tool: "highlighter", colour: "amber", width: pen.marker.width)
             case .eraser:
                 // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
                 break
@@ -2011,13 +2005,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let origin = webView.scrollView.convert(CGPoint.zero, to: webView)
             return LiveInkView.Style(
                 colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: theme),
-                radius: PenSizes.pen[penWidth] * space / 2, followsPressure: true,
+                radius: PenSizes.pen[pen.pencil.width] * space / 2, followsPressure: true,
                 grain: (origin: origin, tile: InkPaint.tile * zoom)
             )
         case .highlighter:
             return LiveInkView.Style(
                 colour: DesignTokens.dynamicColor("amber").resolvedColor(with: theme),
-                radius: PenSizes.highlighter[highlighterWidth] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
+                radius: PenSizes.highlighter[pen.marker.width] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
             )
         case .eraser:
             return nil

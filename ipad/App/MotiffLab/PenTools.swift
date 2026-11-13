@@ -14,201 +14,192 @@ enum PenSizes {
     static var highlighterAlpha: CGFloat { DesignTokens.color("amber-tint").cgColor.alpha }
 }
 
-/// The pen's tool, ink and thicknesses, kept on the device and shared by the score and a PDF's pages (#479 item 11): PDF |
-/// Notes and opening a piece again keep the pencil the player chose instead of going back to graphite.
-enum PenMemory {
-    static let toolKey = "motiff.pen.tool"
-    static let previousKey = "motiff.pen.previous"
-    static let penWidthKey = "motiff.pen.width.pen"
-    static let highlighterWidthKey = "motiff.pen.width.highlighter"
-
-    /// How a tool is kept: "pen.graphite" (and the other inks), "highlighter" or "eraser".
-    static func code(_ tool: ScoreController.Tool) -> String {
-        switch tool {
-        case .pen(let ink): "pen.\(ink.rawValue)"
-        case .highlighter: "highlighter"
-        case .eraser: "eraser"
-        }
-    }
-
-    /// The tool a kept code names; nil for anything else.
-    static func tool(_ code: String?) -> ScoreController.Tool? {
-        guard let code else { return nil }
-        if code == "highlighter" { return .highlighter }
-        if code == "eraser" { return .eraser }
-        guard code.hasPrefix("pen."), let ink = ScoreController.Ink(rawValue: String(code.dropFirst(4))) else { return nil }
-        return .pen(ink)
-    }
-
-    /// The tool last chosen on this device; the graphite pencil the first time.
-    static func savedTool(in defaults: UserDefaults = .standard) -> ScoreController.Tool {
-        tool(defaults.string(forKey: toolKey)) ?? .pen(.graphite)
-    }
-
-    /// The tool before it, for the way back from the eraser and the Pencil's double tap.
-    static func savedPrevious(in defaults: UserDefaults = .standard) -> ScoreController.Tool {
-        tool(defaults.string(forKey: previousKey)) ?? .eraser
-    }
-
-    /// The thickness last chosen for the pen or, with `highlighter`, the highlighter; the middle one the first time.
-    static func savedWidth(highlighter: Bool, in defaults: UserDefaults = .standard) -> Int {
-        let key = highlighter ? highlighterWidthKey : penWidthKey
-        guard defaults.object(forKey: key) != nil else { return PenSizes.defaultWidth }
-        let width = defaults.integer(forKey: key)
-        return PenSizes.pen.indices.contains(width) ? width : PenSizes.defaultWidth
-    }
-
-    static func keep(tool: ScoreController.Tool, previous: ScoreController.Tool, in defaults: UserDefaults = .standard) {
-        defaults.set(code(tool), forKey: toolKey)
-        defaults.set(code(previous), forKey: previousKey)
-    }
-
-    static func keep(width: Int, highlighter: Bool, in defaults: UserDefaults = .standard) {
-        defaults.set(width, forKey: highlighter ? highlighterWidthKey : penWidthKey)
-    }
-}
-
-/// What the pen palette changes, on the score and on a PDF's pages: the tool, its thickness and the Pen itself, and the
-/// pencil palette the Pencil's double tap or squeeze opens (#479 item 8), with Undo.
+/// What the pen palettes change, on the score and on a PDF's pages: the pen's state (one tool and each tool's settings,
+/// PenState, #495 UX-06), the Pen itself, and the pencil palette the Pencil's double tap or squeeze opens (#479 item 8),
+/// with Undo.
 @MainActor
 protocol PenHolder: ObservableObject {
-    var tool: ScoreController.Tool { get set }
-    var previousTool: ScoreController.Tool { get }
+    var pen: PenState { get set }
     var penOn: Bool { get set }
-    var penWidth: Int { get set }
-    var highlighterWidth: Int { get set }
     var pencilPalette: PencilPaletteCall? { get set }
     var canUndo: Bool { get }
     func undo()
 }
 
 extension PenHolder {
-    /// The thickness of the tool that draws now; the eraser has none.
-    var width: Int? {
-        switch tool {
-        case .pen: penWidth
-        case .highlighter: highlighterWidth
-        case .eraser: nil
-        }
-    }
-
-    /// The size a new mark of the tool now is kept at, in staff spaces.
-    var drawingSize: Double {
-        tool == .highlighter ? PenSizes.highlighter[highlighterWidth] : PenSizes.pen[penWidth]
-    }
-
-    /// Keeps both thicknesses on the device (PenMemory), for the next piece and the other view.
-    func keepWidths() {
-        PenMemory.keep(width: penWidth, highlighter: false)
-        PenMemory.keep(width: highlighterWidth, highlighter: true)
-    }
-
-    /// A thickness chosen: for the highlighter or the pen, back from the eraser to the tool before it.
-    func setWidth(_ width: Int) {
-        if tool == .eraser {
-            tool = previousTool == .eraser ? .pen(.graphite) : previousTool
-        }
-        if tool == .highlighter {
-            highlighterWidth = width
-        } else {
-            penWidth = width
-        }
-    }
-
-    /// The pencil in the ink it last had.
-    func choosePencil() {
-        if case .pen = tool { return }
-        if case .pen = previousTool {
-            tool = previousTool
-        } else {
-            tool = .pen(.graphite)
-        }
-    }
+    /// What a stroke written now is, read from the one active tool and its settings.
+    var tool: ScoreController.Tool { pen.stroke }
 }
 
-/// The front of the pen palette (ds.css `.pen-palette`), shared by the score and a PDF's pages: the pencil and its four
-/// inks, the highlighter, the eraser and the thickness. Testing (2026-11-06): the inks alone did not read as the way back
-/// from the highlighter to the pencil, and there was no thickness.
-struct PenTools<Holder: PenHolder>: View {
+/// The tools (ds.css `.seg`, at a fingertip's height, #495 UX-06): the pencil, the marker and the eraser, exactly one on
+/// the accent's strong tint. Choosing one keeps every tool's settings; each option keeps its width either way, so the
+/// tools do not move under the finger.
+struct PenToolChoice<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let text: UIText
     /// Icons without their words, where the palette would not fit across the screen (an iPad in portrait).
     var compact = false
 
-    private static var widthKeys: [String] { ["pencil.widthThin", "pencil.widthMedium", "pencil.widthThick"] }
-    /// The dots that show the three thicknesses.
-    private static var dots: [CGFloat] { [4, 8, 13] }
-
     var body: some View {
-        let pencil: Bool = { if case .pen = holder.tool { return true } else { return false } }()
-        Button {
-            holder.choosePencil()
-        } label: {
-            HStack(spacing: 6) {
-                Icon(name: "pen", size: CGFloat.ds("icon-s"))
-                if !compact { Text(text["pencil.pen"]) }
-            }
-        }
-        .buttonStyle(DSItemStyle(on: pencil))
-        .accessibilityLabel(text["pencil.pen"])
-        .accessibilityAddTraits(pencil ? .isSelected : [])
-        ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
-            let chosen = holder.tool == .pen(ink)
-            Button {
-                holder.tool = .pen(ink)
-            } label: {
-                Circle()
-                    .fill(Color(uiColor: ink.color))
-                    .frame(width: 20, height: 20)
-                    .padding(2)
-                    .overlay(Circle().strokeBorder(chosen ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: chosen ? 2 : 1))
-                    .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(text[ink.labelKey])
-            .accessibilityAddTraits(chosen ? .isSelected : [])
-        }
-        PaletteDivider()
-        Button {
-            holder.tool = .highlighter
-        } label: {
-            HStack(spacing: 6) {
-                Icon(name: "highlight", size: CGFloat.ds("icon-s"))
-                if !compact { Text(text["pencil.highlighter"]) }
-            }
-        }
-        .buttonStyle(DSItemStyle(on: holder.tool == .highlighter))
-        .accessibilityLabel(text["pencil.highlighter"])
-        .accessibilityAddTraits(holder.tool == .highlighter ? .isSelected : [])
-        Button(text["pencil.eraser"]) {
-            holder.tool = .eraser
-        }
-        .buttonStyle(DSItemStyle(on: holder.tool == .eraser))
-        .accessibilityAddTraits(holder.tool == .eraser ? .isSelected : [])
-        PaletteDivider()
         HStack(spacing: 0) {
-            ForEach(0..<PenSizes.pen.count, id: \.self) { width in
-                let chosen = holder.width == width
+            ForEach(ActiveTool.allCases, id: \.self) { tool in
+                let on = holder.pen.active == tool
                 Button {
-                    holder.setWidth(width)
+                    holder.pen.choose(tool)
                 } label: {
-                    // A dot as thick as the line it draws: thin, medium, thick.
-                    Circle()
-                        .fill(Color.ds("ink"))
-                        .frame(width: Self.dots[width], height: Self.dots[width])
-                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                        .background(chosen ? Color.ds("accent-tint") : .clear, in: Circle())
-                        .overlay(Circle().strokeBorder(chosen ? Color.ds("accent") : .clear, lineWidth: 2))
-                        .contentShape(Circle())
+                    ZStack {
+                        // The option in the chosen weight, unseen, holds its width.
+                        label(tool, weight: 600).hidden().accessibilityHidden(true)
+                        label(tool, weight: on ? 600 : 500)
+                    }
+                    .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+                    .frame(minWidth: CGFloat.ds("h-touch"), minHeight: CGFloat.ds("h-touch"))
+                    .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(text[Self.widthKeys[width]])
-                .accessibilityAddTraits(chosen ? .isSelected : [])
+                .accessibilityLabel(text[tool.labelKey])
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+        .padding(2)
+        .background(Color.ds("surface"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .fixedSize()
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["pencil.width"])
+        .accessibilityLabel(text["pencil.tool"])
+    }
+
+    /// The tool's kit icon and its word; the word alone for the eraser, which has no icon in the kit.
+    private func label(_ tool: ActiveTool, weight: Int) -> some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            if let icon = tool.icon { Icon(name: icon, size: CGFloat.ds("icon-s")) }
+            if !compact || tool.icon == nil {
+                Text(text[tool.labelKey]).lineLimit(1)
+            }
+        }
+        .font(DesignTokens.font(weight: weight, size: 13, relativeTo: .callout))
+    }
+}
+
+/// The active tool's settings (#495 UX-06), in a capsule of their own under the tools: the pencil's four inks and its
+/// three thicknesses, the marker's three thicknesses, each led by its tool's icon. The eraser has none, so the row goes.
+/// A setting chosen changes only the tool it belongs to and never switches tools.
+struct PenToolSettings<Holder: PenHolder>: View {
+    @ObservedObject var holder: Holder
+    let text: UIText
+
+    var body: some View {
+        let pen = holder.pen
+        if pen.current != nil {
+            HStack(spacing: CGFloat.ds("s-1")) {
+                if let icon = pen.active.icon {
+                    Icon(name: icon, size: CGFloat.ds("icon-s"))
+                        .foregroundStyle(Color.ds("ink-3"))
+                        .padding(.horizontal, CGFloat.ds("s-2"))
+                }
+                if pen.active == .pencil {
+                    HStack(spacing: 0) {
+                        ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
+                            PenSettingButton(chosen: pen.isChosen(ink: ink), label: text[ink.labelKey]) {
+                                holder.pen.setInk(ink)
+                            } content: {
+                                InkSwatch(ink: ink)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(text["pencil.ink"])
+                    PaletteDivider()
+                }
+                HStack(spacing: 0) {
+                    ForEach(PenSizes.pen.indices, id: \.self) { width in
+                        PenSettingButton(chosen: pen.isChosen(width: width), label: text[WidthDot.labelKeys[width]]) {
+                            holder.pen.setWidth(width)
+                        } content: {
+                            WidthDot(width: width, pen: pen)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(text["pencil.width"])
+            }
+            .modifier(PaletteSurface())
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(text.format("pencil.settings", text[pen.active.labelKey]))
+        }
+    }
+}
+
+/// One setting of a tool at a fingertip's size: a ring in the accent while it is the tool's.
+struct PenSettingButton<Content: View>: View {
+    private let chosen: Bool
+    private let label: String
+    private let action: () -> Void
+    private let content: () -> Content
+
+    init(chosen: Bool, label: String, action: @escaping () -> Void, @ViewBuilder content: @escaping () -> Content) {
+        self.chosen = chosen
+        self.label = label
+        self.action = action
+        self.content = content
+    }
+
+    var body: some View {
+        Button(action: action) {
+            content()
+                .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                .background(chosen ? Color.ds("accent-tint") : .clear, in: Circle())
+                .overlay(Circle().strokeBorder(chosen ? Color.ds("accent") : .clear, lineWidth: 2))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+}
+
+/// An ink of the pencil, as a disc of its colour.
+struct InkSwatch: View {
+    let ink: ScoreController.Ink
+
+    var body: some View {
+        Circle()
+            .fill(Color(uiColor: ink.color))
+            .overlay(Circle().strokeBorder(Color.ds("hairline-strong")))
+            .frame(width: CGFloat.ds("icon-m"), height: CGFloat.ds("icon-m"))
+    }
+}
+
+/// A thickness as a dot as thick as the line it draws, in the colour the tool draws in: the pencil's ink, the marker's
+/// amber (a little larger, as its band is wide).
+struct WidthDot: View {
+    let width: Int
+    let pen: PenState
+
+    static let labelKeys = ["pencil.widthThin", "pencil.widthMedium", "pencil.widthThick"]
+    private static let pencilDots: [CGFloat] = [4, 8, 13]
+    private static let markerDots: [CGFloat] = [8, 12, 16]
+
+    var body: some View {
+        let marker = pen.active == .marker
+        let side = (marker ? Self.markerDots : Self.pencilDots)[width]
+        Circle()
+            .fill(marker ? Color.ds("amber") : Color(uiColor: pen.ink.color))
+            .frame(width: side, height: side)
+    }
+}
+
+/// The surface of the pen palette's rows (ds.css `.pen-palette`): a capsule on the raised surface with a hairline.
+struct PaletteSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .padding(.vertical, CGFloat.ds("s-1"))
+            .background(Color.ds("surface-2"), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+            .dsShadow("shadow-menu")
     }
 }
 

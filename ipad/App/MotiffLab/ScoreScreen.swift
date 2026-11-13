@@ -1736,65 +1736,6 @@ private struct PaletteRule: View {
     }
 }
 
-/// The pen palette under the bar while the Pen is on (ds.css `.pen-palette`): the pencil and its four inks, the
-/// highlighter, the eraser, the thickness, Undo, the layers and a cross that puts the tools away. The Pencil writes with
-/// the chosen one; a double tap on it switches as the iPad's settings say.
-struct PenPalette: View {
-    @ObservedObject var score: ScoreController
-    let text: UIText
-    @State private var layersOpen = false
-
-    var body: some View {
-        // The whole palette where it fits; in portrait its words give way to the icons alone.
-        ViewThatFits(in: .horizontal) {
-            palette(compact: false)
-            palette(compact: true)
-        }
-    }
-
-    private func palette(compact: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            PenTools(holder: score, text: text, compact: compact)
-            PaletteDivider()
-            Button {
-                score.undo()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "undo", size: CGFloat.ds("icon-s"))
-                    if !compact { Text(text["pencil.undo"]) }
-                }
-            }
-            .buttonStyle(DSItemStyle())
-            .accessibilityLabel(text["pencil.undo"])
-            .disabled(!score.canUndo)
-            Button {
-                layersOpen.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "layers", size: CGFloat.ds("icon-s"))
-                    if !compact { Text(text["layers.title"]) }
-                }
-            }
-            .accessibilityLabel(text["layers.title"])
-            .buttonStyle(DSItemStyle(on: layersOpen || !score.hiddenLayers.isDisjoint(with: ScoreController.layers)))
-            .popover(isPresented: $layersOpen) {
-                LayersList(score: score, text: text)
-                    .padding(CGFloat.ds("s-4"))
-                    .frame(width: 300, alignment: .leading)
-                    .presentationCompactAdaptation(.popover)
-            }
-            PenClose(holder: score, text: text)
-        }
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .padding(.vertical, CGFloat.ds("s-1"))
-        .background(Color.ds("surface-2"), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
-        .dsShadow("shadow-menu")
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["pencil.label"])
-    }
-}
-
 /// More, from the bar: Check for a piece with flags, Other versions, the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
 /// credit wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later
 /// steps.
