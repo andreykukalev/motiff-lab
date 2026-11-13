@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -177,14 +178,15 @@ internal sealed class OpenDocument
     /// they were, where each page starts in the notes (<c>documentPages</c>), the scan's Check flags open and a resume point
     /// at the start, as the web app's PDF view makes it. With "reports" (version 0.4), as scan.join takes them, one per page
     /// of the notes, the scan keeps the server's page reports and the bars on a poor page are flagged PageQuality. The piece
-    /// is then opened as notes; until it is closed, saving it here writes the notes too.
+    /// is then opened as notes; until it is closed, saving it here writes the notes too. The engine's mistakes are put right
+    /// first (<see cref="ScanRepair"/>), as scan.join does, so a PDF read in one request is repaired as one read in parts.
     /// </summary>
     private string Read(Request request)
     {
         byte[] musicXml;
         try
         {
-            musicXml = Convert.FromBase64String(request.Required("musicXml"));
+            musicXml = ScanRepair.Repair(Convert.FromBase64String(request.Required("musicXml")));
         }
         catch (FormatException)
         {

@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 
@@ -115,7 +116,8 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "musicXml" (base64) the scan server read from the PDF kept in this piece, "engine", "pages" and "name": the notes
     /// added as another version from the score (0022), and the PDF's pages linked to these bars by the bar numbers the scan
-    /// began each page with. Answers the comparison, as performance.add does.
+    /// began each page with. Answers the comparison, as performance.add does. The engine's mistakes are put right first
+    /// (<see cref="ScanRepair"/>), as in document.read.
     /// </summary>
     private string AddDocumentNotes(Request request)
     {
@@ -127,7 +129,7 @@ internal sealed partial class OpenPiece
         byte[] musicXml;
         try
         {
-            musicXml = Convert.FromBase64String(request.Required("musicXml"));
+            musicXml = ScanRepair.Repair(Convert.FromBase64String(request.Required("musicXml")));
         }
         catch (FormatException)
         {

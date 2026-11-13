@@ -33,6 +33,12 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// detected (<see cref="ScanCheck"/>). Pure and deterministic, and repairing a repaired score changes nothing. A score
 /// that is not partwise MusicXML comes back as it is; <see cref="ScanJoin"/> says what is wrong with it.
 /// </para>
+/// <para>
+/// Every way the engine's MusicXML reaches the notes runs it (issue #495 BUG-03): <see cref="ScanJoin.Join"/> for pages
+/// and parts read one request at a time, and, for a PDF or photo read in one request, the facade's document.read and
+/// sources.documentNotes (iPad) and the web app's NotesReading, scan import and Sources. A score kept before it ran keeps
+/// its reading until its notes are read again.
+/// </para>
 /// </remarks>
 public static partial class ScanRepair
 {
