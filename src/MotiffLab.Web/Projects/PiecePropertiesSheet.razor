@@ -3,9 +3,9 @@
 
 @* A piece's properties (version 0.2, ux-prototype/v2/screens/lib-4-props.png): its title; its composer, with the composers
    already in the library offered while typing; its tags as chips, each taken off by its ✕ and a new one added with «+ tag»
-   (or picked from the library's); and the playlists it is on, ticked, with «New playlist». What is typed is the player's; a
-   field left empty shows what the file says again, named in its placeholder. Done keeps it in the project; Escape or a tap
-   outside leaves it as it was. *@
+   (or picked from the library's); and the playlists it is on, ticked, with «New playlist». What is typed is the player's; the
+   title starts as the piece is named, by its file's name when nothing names it (#479), and a field left empty shows what the
+   file says again, named in its placeholder. Done keeps it in the project; Escape or a tap outside leaves it as it was. *@
 <section class="lib-sheet props-sheet" role="dialog" aria-modal="true" aria-labelledby="props-title" tabindex="-1" @ref="_sheet" @onkeydown="OnKey">
     <header class="hd">
         <h2 class="ttl" id="props-title">@Text["library.properties"]</h2>
@@ -131,6 +131,10 @@
     private bool _saving;
     private string? _for;
 
+    /// <summary>The title kept as the player's: none (the file's own) when the field is empty or holds just what the file says, so the title the field starts with is never fixed as the player's.</summary>
+    private string? PlayersTitle =>
+        PieceMetadata.Clean(_title) is { } typed && !string.Equals(typed, PieceMetadata.Clean(_fromFile.Title.Value), StringComparison.Ordinal) ? typed : null;
+
     /// <summary>The library's tags not on this piece yet, narrowed to what is typed in the new tag.</summary>
     private IReadOnlyList<string> TagSuggestions =>
         [.. LibraryTags.Where(tag => !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase)
@@ -145,7 +149,8 @@
 
         _for = Project.Id;
         _fromFile = (Project with { Metadata = PieceMetadata.None }).Details;
-        _title = Project.Metadata.Title;
+        // The title as the library shows it: the player's, the one the score names, else the file's name.
+        _title = Project.Metadata.Title ?? _fromFile.Title.Value;
         _composer = Project.Metadata.Composer;
         _tags = [.. Project.Metadata.Tags];
         _playlists = [.. Project.Metadata.Playlists];
@@ -284,7 +289,7 @@
         {
             AddTag(_newTag ?? "");
             AddPlaylist(_newPlaylist);
-            await Saved.InvokeAsync(new PieceMetadata(_title, _composer, _tags, _playlists));
+            await Saved.InvokeAsync(new PieceMetadata(PlayersTitle, _composer, _tags, _playlists));
         }
         finally
         {

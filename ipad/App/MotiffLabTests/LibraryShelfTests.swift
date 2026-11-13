@@ -123,7 +123,34 @@ final class LibraryShelfTests: XCTestCase {
         XCTAssertEqual(picked.pieces.map(\.title), ["Für Elise, opening", "Waltz sketch"])
         XCTAssertNil(picked.groups)
         XCTAssertTrue(LibraryPage.of([], LibraryQuery(), tab: .playlists, picked: nil, locale: english).isEmpty)
-        XCTAssertEqual(LibraryTab.allCases, [.all, .composers, .recent, .playlists, .sessions])
+        XCTAssertEqual(LibraryTab.allCases, [.all, .composers, .recent, .playlists, .sessions, .online])
+    }
+
+    /// «Нет на этом iPad» (#479): a tab of its own after the others, shown only while a piece saved online is not here,
+    /// its projects searched as the pieces are and listed from A.
+    func testThePiecesSavedOnlineHaveTheirOwnTabWhileOneIsNotHere() {
+        XCTAssertEqual(LibraryTab.tabs(online: false), [.all, .composers, .recent, .playlists, .sessions])
+        XCTAssertEqual(LibraryTab.tabs(online: true), [.all, .composers, .recent, .playlists, .sessions, .online])
+        XCTAssertEqual(LibraryTab.online.shown(online: true), .online)
+        XCTAssertEqual(LibraryTab.online.shown(online: false), .all)
+        XCTAssertEqual(LibraryTab.recent.shown(online: false), .recent)
+        XCTAssertTrue(LibraryPage.of(shelf, LibraryQuery(), tab: .online, picked: nil, locale: english).isEmpty)
+        let online = [
+            OnlineProject(id: "p_2", fileName: "Waltz sketch.mid"),
+            OnlineProject(id: "p_1", fileName: "Für Elise.musicxml"),
+            OnlineProject(id: "p_3", fileName: ""),
+        ]
+        XCTAssertEqual(LibraryShelf.online(online, search: "", locale: english).map(\.title), ["Für Elise", "p_3", "Waltz sketch"])
+        XCTAssertEqual(LibraryShelf.online(online, search: "fur", locale: english).map(\.id), ["p_1"])
+        XCTAssertEqual(LibraryShelf.online(online, search: "nothing", locale: english), [])
+    }
+
+    /// The properties' title starts as the piece is named (#479); kept as it starts, it stays the file's own.
+    func testATitleThePropertiesStartWithIsNotFixedAsThePlayers() {
+        XCTAssertNil(LibraryShelf.playersTitle("Waltz sketch", file: "Waltz sketch"))
+        XCTAssertNil(LibraryShelf.playersTitle("  Waltz   sketch ", file: "Waltz sketch"))
+        XCTAssertNil(LibraryShelf.playersTitle("   ", file: "Waltz sketch"))
+        XCTAssertEqual(LibraryShelf.playersTitle("My  waltz", file: "Waltz sketch"), "My waltz")
     }
 
     func testOnePlaylistFiltersAndSearchFindsItsName() {

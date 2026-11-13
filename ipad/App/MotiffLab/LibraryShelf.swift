@@ -6,10 +6,20 @@ enum LibrarySort: String, CaseIterable, Sendable {
 }
 
 /// The library's tabs (design: ux-prototype/v2/screens/lib-1-list.png, lib-3-sessions.png), in Andrei's order: every
-/// piece as a list, the composers with their pieces, the ones opened last, the playlists with their pieces, and the
-/// sessions of current work as cards.
+/// piece as a list, the composers with their pieces, the ones opened last, the playlists with their pieces, the
+/// sessions of current work as cards, and the pieces saved online that are not on this iPad (version 0.5, #479).
 enum LibraryTab: String, CaseIterable, Sendable {
-    case all, composers, recent, playlists, sessions
+    case all, composers, recent, playlists, sessions, online
+
+    /// The tabs shown: «Нет на этом iPad» only while a piece saved online is not here.
+    static func tabs(online: Bool) -> [LibraryTab] {
+        allCases.filter { $0 != .online || online }
+    }
+
+    /// The tab to show: this one, or All pieces once nothing saved online is missing here.
+    func shown(online: Bool) -> LibraryTab {
+        self == .online && !online ? .all : self
+    }
 }
 
 /// A line of the Composers or Playlists tab: a composer or a playlist and how many pieces it holds; no name for the pieces
@@ -122,6 +132,9 @@ struct LibraryPage: Equatable, Sendable {
         case .sessions:
             let sessions = LibraryShelf.pieces(of: .sessions, entries)
             return LibraryPage(pieces: LibraryShelf.apply(sessions, LibraryQuery(search: query.search, sort: .recent), locale: locale), groups: nil, indexed: false)
+        case .online:
+            // The projects saved online are not pieces here: the tab lists them itself (`LibraryShelf.online`).
+            return LibraryPage(pieces: [], groups: nil, indexed: false)
         }
     }
 
@@ -154,7 +167,23 @@ enum LibraryShelf {
         case .all, .composers, .playlists: entries
         case .recent: Array(entries.sorted { $0.modified > $1.modified }.prefix(recentCount))
         case .sessions: entries.filter(\.inSession).sorted { $0.modified > $1.modified }
+        case .online: []
         }
+    }
+
+    /// The projects saved online that are not here, narrowed by the search as the pieces are, from A.
+    static func online(_ projects: [OnlineProject], search: String, locale: Locale) -> [OnlineProject] {
+        let words = fold(search).split(whereSeparator: \.isWhitespace).map(String.init)
+        return projects
+            .filter { project in words.allSatisfy { fold(project.title).contains($0) } }
+            .sorted { compare($0.title, $1.title, locale: locale) == .orderedAscending }
+    }
+
+    /// The title a piece's properties keep: what the player typed, or nil (the file's own) when it is empty or just what
+    /// the file says, so a title the field starts with is never fixed as the player's (#479).
+    static func playersTitle(_ typed: String, file: String) -> String? {
+        guard let typed = clean(typed) else { return nil }
+        return typed == clean(file) ? nil : typed
     }
 
     /// The composers of the pieces given, in the language's order, each once whatever its letter case and with how many

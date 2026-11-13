@@ -3,8 +3,9 @@ import SwiftUI
 /// A piece's properties (version 0.2, Andrei's approved ux-prototype/v2/screens/lib-4-props.png): its title, its composer,
 /// with the composers already in the library offered while typing, its tags as chips, each taken off by its ✕ and a new one
 /// added with «+ tag» (or picked from the library's), and the playlists it is on, ticked, with «New playlist». What is typed
-/// is the player's; a field left empty shows what the file says again, named in its placeholder. Done keeps it: music-core
-/// writes it into the project file (`project.metadata`); a swipe down leaves it as it was.
+/// is the player's; the title starts as the piece is named, by the file's name when nothing names it (#479), and a field
+/// left empty shows what the file says again, named in its placeholder. Done keeps it: music-core writes it into the
+/// project file (`project.metadata`); a swipe down leaves it as it was.
 struct PiecePropertiesSheet: View {
     let entry: LibraryEntry
     let composers: [String]
@@ -42,7 +43,8 @@ struct PiecePropertiesSheet: View {
         self.libraryPlaylists = libraryPlaylists
         self.text = text
         self.saved = saved
-        _title = State(initialValue: summary?.playersTitle ?? "")
+        // The title as the library shows it: the player's, the one the score names, else the file's name.
+        _title = State(initialValue: summary?.playersTitle ?? entry.title)
         _composer = State(initialValue: summary?.playersComposer ?? "")
         _tags = State(initialValue: summary?.tags ?? [])
         let own = summary?.playlists ?? []
@@ -94,7 +96,11 @@ struct PiecePropertiesSheet: View {
         .task {
             focus = .title
             if let file = await PieceDetailsFile.fromFile(entry.url) {
-                if file.titleFrom == "file", let named = file.title { fileTitle = named }
+                if file.titleFrom == "file", let named = file.title {
+                    // The field still holding what the file was thought to say takes what it does say.
+                    if title == fileTitle { title = named }
+                    fileTitle = named
+                }
                 fileComposer = file.composerFrom == "file" ? file.composer : nil
             }
         }
@@ -179,8 +185,11 @@ struct PiecePropertiesSheet: View {
                         .onSubmit(addTyped)
                         .autocorrectionDisabled()
                         .dsType(.label)
+                        .foregroundStyle(Color.ds(FieldLook.ink))
+                        .tint(Color.ds("accent"))
                         .padding(.horizontal, CGFloat.ds("s-4"))
                         .frame(width: 200, height: CGFloat.ds("h-control"))
+                        .background(Color.ds(FieldLook.background), in: Capsule())
                         .overlay(Capsule().strokeBorder(Color.ds("accent")))
                         .accessibilityLabel(text["library.newTag"])
                 } else {
@@ -317,7 +326,7 @@ struct PiecePropertiesSheet: View {
         let kept = LibraryShelf.adding(newTag, to: tags, library: libraryTags)
         addTypedPlaylist()
         do {
-            try await PieceDetailsFile.save(entry.url, title: LibraryShelf.clean(title), composer: LibraryShelf.clean(composer), tags: kept, playlists: playlists)
+            try await PieceDetailsFile.save(entry.url, title: LibraryShelf.playersTitle(title, file: fileTitle), composer: LibraryShelf.clean(composer), tags: kept, playlists: playlists)
             await saved()
             dismiss()
         } catch {
@@ -326,18 +335,25 @@ struct PiecePropertiesSheet: View {
     }
 }
 
-/// A one-line field in the kit's look (ds.css `.field input`): body type on the paper, a strong hairline round it, the
-/// accent's ring while it is typed in. Also the fields of «Пьесы в этом файле».
+/// A one-line field in the kit's look (ds.css `.field`): body type in the ink on the fields' surface, a strong hairline
+/// round it, the accent's ring while it is typed in. Both colours follow the stand, so what is typed reads in Daylight and
+/// at Night (#479: on the paper, which stays cream at Night, the Night ink was light on light). The app's one-line
+/// fields: the properties, «Пьесы в этом файле», a performance's name and the player's name.
 struct FieldLook: ViewModifier {
     var on = false
+
+    /// The tokens of a field (ds.css `.field`): its surface and its text.
+    static let background = "surface-2"
+    static let ink = "ink"
 
     func body(content: Content) -> some View {
         content
             .dsType(.body)
-            .foregroundStyle(Color.ds("ink"))
+            .foregroundStyle(Color.ds(Self.ink))
+            .tint(Color.ds("accent"))
             .padding(.horizontal, CGFloat.ds("s-4"))
             .frame(height: CGFloat.ds("h-touch"))
-            .background(Color.ds("paper"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .background(Color.ds(Self.background), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(on ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: on ? 2 : 1))
     }
 }
