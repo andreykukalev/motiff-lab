@@ -101,7 +101,9 @@ xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration R
   || { grep -E "error:|\*\* BUILD" /tmp/motiff-app.log | tail -20; exit 1; }
 app="$(pwd)/../build/derived/Build/Products/Release-iphoneos/MotiffLab.app"
 
-ipads="$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && /(available|connected)/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F-]{27}$/) print $i }')"
+# A real iPad's identifier is its UDID (00008132-001404C234B9001C) or, in older Xcodes, a CoreDevice UUID; the
+# simulators newer Xcodes also list are left out. No {n} intervals: the awk of macOS may not take them.
+ipads="$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && /(available|connected)/ && !/simulated/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9A-F]+-[0-9A-F-]+$/ && length($i) >= 24) { print $i; break } }')"
 if [[ "$(wc -l <<< "$ipads" | tr -d ' ')" == 1 && -n "$ipads" ]]; then
   echo "==> Installing on the iPad"
   xcrun devicectl device install app --device "$ipads" "$app"
