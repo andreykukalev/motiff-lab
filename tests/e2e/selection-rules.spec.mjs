@@ -91,8 +91,11 @@ test("in Edit notes a click on a note opens it on the roll's editor", async ({ p
     await withExperiment(page);
     const errors = await openFurElise(page);
     await firstSystem(page);
-    await page.keyboard.press("e");
-    await expect(page.locator("div.score")).toHaveAttribute("data-mode", "edit");
+    // The mode keys listen once the page has attached them after its first render: a key pressed before that is lost.
+    await expect(async () => {
+        await page.keyboard.press("e");
+        await expect(page.locator("div.score")).toHaveAttribute("data-mode", "edit", { timeout: 1000 });
+    }).toPass();
     // A notehead of the second system, clear of the bar floating over the top of the page.
     const head = await page.evaluate(() => {
         const system = document.querySelectorAll(".score svg g.system")[1];

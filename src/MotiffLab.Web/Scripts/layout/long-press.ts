@@ -56,6 +56,8 @@ export class LongPress {
     }
 
     private readonly onDown = (event: PointerEvent): void => {
+        // A new press: a click left over from an earlier long press released elsewhere is not swallowed later.
+        this.swallowClick = false;
         const name = this.nameOf(event.target);
         if (name === null || !event.isPrimary || event.button !== 0) {
             return;
@@ -94,13 +96,13 @@ export class LongPress {
         }
     };
 
-    /** The release after a long press is not also a tap on the element. */
+    /** The release after a long press is not also a tap on the element, however long the press was held. */
     private readonly onClick = (event: MouseEvent): void => {
         if (!this.swallowClick) {
             return;
         }
         this.swallowClick = false;
-        if (this.recentlyFired() && this.nameOf(event.target) !== null) {
+        if (this.nameOf(event.target) !== null) {
             event.preventDefault();
             event.stopPropagation();
         }

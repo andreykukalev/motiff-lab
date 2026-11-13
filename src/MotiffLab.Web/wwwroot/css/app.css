@@ -9683,6 +9683,11 @@ body:has(> #app > .library) {
     overflow-y: auto;
 }
 
+/* The result scrolls; its notation and panels keep their height instead of shrinking under what follows. */
+.ref-sheet.handbook .ref-result > * {
+    flex-shrink: 0;
+}
+
 .ref-sheet.handbook .ref-result-head {
     display: flex;
     align-items: center;
