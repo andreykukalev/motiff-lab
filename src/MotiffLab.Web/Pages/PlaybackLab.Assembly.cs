@@ -317,6 +317,8 @@ public partial class PlaybackLab
         _selection = null;
         _rollOpen = false;
         _insightsOpen = false;
+        // The versions play as they did before the playback model (v0.5.2): it lets go until the work is done.
+        await SyncModelAsync();
         await ShowSourceAsync(show ?? _assemblyShown);
     }
 
@@ -344,6 +346,8 @@ public partial class PlaybackLab
             await ApplyFilterAsync();
             await SetVariationSourcesAsync();
         }
+
+        await SyncModelAsync();
     }
 
     /// <summary>

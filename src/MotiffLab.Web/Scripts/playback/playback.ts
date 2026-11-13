@@ -3,6 +3,8 @@
 // playback position to Blazor. Blazor imports this module through JS interop.
 
 import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
+import type { ModelEvent, ModelState, Step } from "./playback-model.js";
+import { PlaybackOwner, type EnginePlace, type LoopAfter } from "./playback-owner.js";
 import { SAMPLE_RATE, decodeMono, peaksOf } from "../import/recording.js";
 import { openRecording } from "../storage/recording-store.js";
 
@@ -57,6 +59,10 @@ export class Player {
     private disposed = false;
     private recordingKey: string | null = null;
     private recordingSound: RecordingSound | null = null;
+    /** The playback model of v0.5.2 (#495 UX-10, playback-owner.ts): the selection and Цикл, while it holds. */
+    private readonly owner = new PlaybackOwner((step) => this.perform(step));
+    /** What Blazor was last told of the model, so it hears again only when that changes. */
+    private modelReported = "";
 
     private constructor(context: AudioContext, node: AudioWorkletNode, dotnet: DotNetObject) {
         this.context = context;
@@ -91,6 +97,7 @@ export class Player {
     }
 
     setTimeline(timeline: TimelinePayload): void {
+        this.owner.reset();
         this.post({ type: "timeline", ...timeline });
     }
 
@@ -113,10 +120,7 @@ export class Player {
      */
     async play(): Promise<void> {
         await this.resume();
-        const started = new Promise<void>((resolve) => {
-            this.startWaiters.push(resolve);
-            setTimeout(resolve, PLAY_CONFIRM_MS);
-        });
+        const started = this.starting();
         this.post({ type: "play" });
         await started;
     }
@@ -133,8 +137,9 @@ export class Player {
         this.post({ type: "rate", value });
     }
 
-    /** Loops a range; with `once`, plays it once and stops back at its start. */
+    /** Loops a range; with `once`, plays it once and stops back at its start. While the model holds, another owner takes the loop. */
     setLoop(start: number, end: number, once = false): void {
+        this.owner.take();
         this.post({ type: "loop", start, end, once });
     }
 
@@ -144,7 +149,56 @@ export class Player {
 
     /** Loops each pass in turn, its sources over its range, from the start of the first (#43). */
     setAlternation(passes: LoopPass[]): void {
+        this.owner.take();
         this.post({ type: "alternate", passes });
+    }
+
+    // The playback model (v0.5.2, #495 UX-10, slice W1): Blazor sends the events, the rules decide, the engine gets the steps.
+    // Each event answers the engine's loop after it as Blazor keeps it: null untouched, [] none, [start, end] a passage.
+
+    /** Whether the model holds: the experiment on and the page not in focus. Turned on, Blazor hears where it stands. */
+    holdModel(on: boolean): void {
+        this.owner.held = on;
+        this.modelReported = "";
+        this.reportModel();
+    }
+
+    /** T9–T11: the selection as the range it plays, or none (null). The position never moves. */
+    setSelection(start: number | null, end: number | null): number[] | null {
+        return this.apply({ type: "select", selection: start === null || end === null ? null : { start, end } });
+    }
+
+    /** T1–T3: the one Play button, Space or a pedal; resolves once the engine plays when it was told to. */
+    async press(): Promise<number[] | null> {
+        if (this.state() !== "stopped") {
+            return this.apply({ type: "press" });
+        }
+        await this.resume();
+        const started = this.starting();
+        const loop = this.apply({ type: "press" });
+        await started;
+        return loop;
+    }
+
+    /** T7, T8: Цикл on or off; the same as it is changes nothing. */
+    setSelectionLoop(on: boolean): number[] | null {
+        return on === this.owner.state(this.place()).loop ? null : this.apply({ type: "cycle" });
+    }
+
+    /** T12: the black playhead moved by a tap (a beat, a bar, a note, a fact's place): out of the selection, Цикл turns off. */
+    moveTo(tick: number): number[] | null {
+        return this.apply({ type: "seek", at: tick });
+    }
+
+    /** The engine loops the model's passage again once another owner of the loop has ended. */
+    holdLoop(): number[] {
+        const loop = this.owner.hold(this.place());
+        return loop === null ? [] : [loop.start, loop.end];
+    }
+
+    /** The model's state now, the position as heard; null while it does not hold. */
+    model(): ModelState | null {
+        return this.owner.held ? this.owner.state({ tick: this.currentTick(), transport: this.state() }) : null;
     }
 
     setMetronome(on: boolean): void {
@@ -242,6 +296,64 @@ export class Player {
         await this.context.close();
     }
 
+    /** Where the engine is now, as heard. */
+    private place(): EnginePlace {
+        return { tick: Math.round(this.currentTick()), transport: this.state() };
+    }
+
+    /** An event of the model; Blazor hears at once where the engine will be, before the engine reports it. */
+    private apply(event: ModelEvent): number[] | null {
+        const decided: { loop: LoopAfter; engine: EnginePlace } = this.owner.apply(event, this.place());
+        this.reportModel(decided.engine);
+        const loop = decided.loop;
+        return loop === undefined ? null : loop === null ? [] : [loop.start, loop.end];
+    }
+
+    /** A step of the model to the engine. */
+    private perform(step: Step): void {
+        switch (step.type) {
+            case "play":
+                this.post({ type: "play" });
+                break;
+            case "pause":
+                this.post({ type: "pause" });
+                break;
+            case "seek":
+                this.post({ type: "seek", tick: step.at });
+                break;
+            case "loop":
+                this.post({ type: "loop", start: step.start, end: step.end });
+                break;
+            case "loopOff":
+                this.post({ type: "loopOff" });
+                break;
+            case "scrub":
+            case "scrubEnd":
+                break;
+        }
+    }
+
+    /** Blazor hears the model's loop, context and the places that do not move with the position, when one changes. */
+    private reportModel(engine: EnginePlace = this.place()): void {
+        if (!this.owner.held) {
+            return;
+        }
+        const report = this.owner.report(engine);
+        const key = JSON.stringify(report);
+        if (key !== this.modelReported) {
+            this.modelReported = key;
+            void this.dotnet.invokeMethodAsync("OnPlaybackModel", report.loop, report.context, report.inside, report.waits, report.at);
+        }
+    }
+
+    /** Resolves once the engine reports it plays, or after PLAY_CONFIRM_MS. */
+    private starting(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.startWaiters.push(resolve);
+            setTimeout(resolve, PLAY_CONFIRM_MS);
+        });
+    }
+
     private post(message: EngineMessage, transfer: Transferable[] = []): void {
         if (!this.disposed) {
             this.dotnetStale = true;
@@ -320,6 +432,7 @@ export class Player {
             this.dotnetStale = false;
             void this.dotnet.invokeMethodAsync("OnPlaybackPosition", tick, report.state, report.pass);
         }
+        this.reportModel();
     }
 }
 

@@ -179,9 +179,13 @@
                         <button class="act chev @(_popover == Popover.Layers ? "on" : null)" aria-expanded="@(_popover == Popover.Layers ? "true" : "false")" aria-label="@Text["extra.list"]"
                                 title="@Text["extra.list"]" @onclick="() => TogglePopover(Popover.Layers)"><Icon Name="chevd" /></button>
                     </span>
-                    <button class="act @(TwoPlayheads ? "gplay" : null) @(TwoPlayheads && GlobalPlaying ? "on" : null)" @onclick="ToggleGlobalPlayAsync" aria-label="@(GlobalPlaying ? Text["transport.pause"] : Text["transport.play"])">
-                        <Icon Name="@(GlobalPlaying ? "pause" : "play")" Size="IconSize.Large" />
-                    </button>
+                    @if (!ModelHolds)
+                    {
+                        @* Under the playback model (v0.5.2) the one Play is in the pill, which then always shows. *@
+                        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State != PlaybackState.Stopped ? Text["transport.pause"] : Text["transport.play"])">
+                            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
+                        </button>
+                    }
                     <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                             @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
                 }
@@ -681,16 +685,19 @@
             {
                 @* The transport pill (0018 section 2, design/kit/ds.css .pill): with a selection or while playing. *@
                 <div class="pill @(_pillMenu != PillMenu.None ? "settings-open" : null)" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection data-long-press="pill">
-                    @* Under the two playheads the pill has no Play and no Loop: the bar's Play plays the piece, the selection's menu the selection. *@
-                    @if (!TwoPlayheads)
+                    @if (ModelHolds)
                     {
-                    <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
-                    </button>
+                        @ModelTransport
                     }
-                    @if (!TwoPlayheads && _selection is { NoteIds.Count: > 0 })
+                    else
                     {
-                        <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+                        <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
+                        </button>
+                        @if (_selection is { NoteIds.Count: > 0 })
+                        {
+                            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+                        }
                     }
                     @if (Focused)
                     {
@@ -780,6 +787,29 @@
         <button class="btn quiet all-settings" aria-haspopup="dialog" @onclick="() => OpenSettings(section)">@Text["settings.all"]</button>
     </div>;
 
+    /// <summary>
+    /// The pill's transport under the playback model (v0.5.2, #495 UX-10, PlaybackLab.Playheads.cs), as on the iPad: one Play
+    /// whose colour follows the place, cobalt where the selection plays (or, stopped, will play) and ink where the piece goes
+    /// on, with the place as bar.beat; with a selection, Цикл with its span.
+    /// </summary>
+    private RenderFragment ModelTransport => @<text>
+        @{
+            bool playing = Player.State != PlaybackState.Stopped;
+            bool cobalt = Player.Context == PlaybackContext.Selection;
+            string place = PlayPlace;
+        }
+        <button class="play-at @(cobalt ? null : "piece")" @onclick="PressAsync" aria-label="@Text.Format(playing ? "pill.pauseAt" : "pill.play", place)"
+                title="@Text[cobalt ? "pill.playSelectionHint" : "pill.playPieceHint"]">
+            <span class="pb" aria-hidden="true"><Icon Name="@(playing ? "pause" : "playf")" /></span><span class="lbl" aria-hidden="true">@Text.Format(playing ? "pill.pauseAt" : "pill.from", place)</span>
+        </button>
+        @if (CycleSpan is { } span)
+        {
+            <span class="div" aria-hidden="true"></span>
+            <button class="it @(Player.SelectionLoop ? "on" : null)" aria-pressed="@(Player.SelectionLoop ? "true" : "false")" title="@Text["pill.cycleHint"]"
+                    @onclick="ToggleCycleAsync"><Icon Name="loop" /> @Text.Format("pill.cycle", span.First, span.Last)</button>
+        }
+    </text>;
+
     private RenderFragment SelectionMenu => @<div class="menu">
         @if (_noteDraft is { } note)
         {
@@ -792,13 +822,11 @@
         else
         {
             @* Each item names itself in aria-label, so its word can give way to the icon alone in a narrow window (portrait, Split View). *@
-            @if (TwoPlayheads && _selection is { NoteIds.Count: > 0 })
+            @if (!ModelHolds)
             {
-                @* The selection Play, first in its menu (version 0.5): from the selection playhead, round on Loop or once. *@
-                <button class="it selplay" aria-label="@(SelectionPlaying ? Text["transport.pause"] : Text["selection.play"])" title="@Text["selection.playHint"]"
-                        @onclick="ToggleSelectionPlayAsync"><span class="pb" aria-hidden="true"><Icon Name="@(SelectionPlaying ? "pause" : "playf")" /></span><span class="lbl">@(SelectionPlaying ? Text["transport.pause"] : Text["selection.playShort"])</span></button>
+                @* Under the playback model (v0.5.2) Play and Цикл are in the pill only. *@
+                <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
             }
-            <button class="it @(LoopShown ? "on" : null)" aria-pressed="@(LoopShown ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopShownAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
             <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /><span class="lbl">@Text["focus.enter"]</span></button>
             <button class="it" aria-label="@Text["menu.note"]" @onclick="StartNote"><Icon Name="note" /><span class="lbl">@Text["menu.note"]</span></button>
             <button class="it" aria-label="@Text["menu.bookmark"]" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /><span class="lbl">@Text["menu.bookmark"]</span></button>
@@ -1868,8 +1896,8 @@
         }
         <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                 @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-        <button class="act @(TwoPlayheads ? "gplay" : null) @(TwoPlayheads && GlobalPlaying ? "on" : null)" @onclick="ToggleGlobalPlayAsync" aria-label="@(GlobalPlaying ? Text["transport.pause"] : Text["transport.play"])">
-            <Icon Name="@(GlobalPlaying ? "pause" : "play")" Size="IconSize.Large" />
+        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State != PlaybackState.Stopped ? Text["transport.pause"] : Text["transport.play"])">
+            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
         </button>
     </text>;
 
@@ -2358,6 +2386,7 @@
 
         await SyncLayoutAsync();
         await SyncModeKeysAsync();
+        await SyncModelAsync();
     }
 
     public void Dispose()
@@ -2372,6 +2401,7 @@
     {
         await FollowScaleAsync();
         await FollowPlayingInFocusAsync();
+        await FollowCycleAsync();
         StateHasChanged();
     });
 
@@ -2641,9 +2671,9 @@
             return;
         }
 
-        if (TwoPlayheads)
+        if (ModelHolds)
         {
-            await TwoPlayheadsSpaceAsync();
+            await PressAsync();
             return;
         }
 
@@ -2669,8 +2699,14 @@
     {
         _pillKept = true;
         await Player.PlayAsync();
+        await TrackPlaybackAsync();
+    }
+
+    /// <summary>Counts a start of playback for analytics when the player has turned them on (#64).</summary>
+    private Task TrackPlaybackAsync()
+    {
         string hear = !VariationChosen ? "original" : _hear.Length > 1 ? "both" : "variation";
-        await Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
+        return Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
     }
 
     private async Task StopAsync()
@@ -2941,7 +2977,11 @@
         // The steps follow the selection as it changes, so the player keeps hearing and seeing them.
         await ReplayAsync();
 
-        if (_looping)
+        if (ModelHolds)
+        {
+            await SelectInModelAsync();
+        }
+        else if (_looping)
         {
             if (_selection.NoteIds.Count == 0)
             {
@@ -3001,15 +3041,18 @@
 
     private async Task ClearSelectionAsync()
     {
-        Tick? handOver = HandOverAt;
+        _selection = null;
+        if (ModelHolds)
+        {
+            // T11: nothing loops, the black playhead stays where it is.
+            await SelectInModelAsync();
+        }
+
         if (_looping)
         {
             await StopLoopingAsync();
         }
 
-        await HandOverAsync(handOver);
-
-        _selection = null;
         _bookmarkDraft = _bookmarkDraft is { Id: null } ? null : _bookmarkDraft;
         _noteDraft = null;
         // Nothing to lift: focus goes with the selection.
@@ -3300,7 +3343,8 @@
         _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
         if (choice?.Place is { } place)
         {
-            await Player.SeekAsync(place.Span.Onset);
+            await Player.MoveAsync(place.Span.Onset);
+            await FollowModelAsync();
         }
     }
 
@@ -3695,6 +3739,7 @@
         else
         {
             await Player.SelectSourcesAsync(ids);
+            await FollowModelAsync();
         }
     }
 
@@ -3736,7 +3781,6 @@
     /// </summary>
     private async Task<TickSpan> LoopSelectionAsync(MotifSelection selection)
     {
-        KeepGlobalPlace();
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
@@ -3753,15 +3797,26 @@
         {
             await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(selection.Span))));
         }
+        // In focus, Lead-in takes in the bar before and the bar after.
+        TickSpan range = WithLead(PlayRange(selection));
+        if (ModelHolds)
+        {
+            // The playback model (v0.5.2) loops the selection with Цикл on; the position stays where it is (T9, T10).
+            await LoopInModelAsync(range);
+        }
+
         if (_alternating)
         {
             return await AlternateAsync(selection);
         }
 
         await Player.SelectSourcesAsync(WithLeadSource(_hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)));
-        // In focus, Lead-in takes in the bar before and the bar after.
-        TickSpan range = WithLead(PlayRange(selection));
-        await Player.SetLoopAsync(range, once: SelectionPlaysOnce);
+        if (ModelHolds)
+        {
+            return range;
+        }
+
+        await Player.SetLoopAsync(range);
         if (!range.Contains(Player.Position))
         {
             await Player.SeekAsync(range.Onset);
@@ -3815,16 +3870,17 @@
 
     private async Task StopLoopingAsync()
     {
-        bool handedBack = await HandBackAsync();
+        if (ModelHolds)
+        {
+            await StopInModelAsync();
+            return;
+        }
+
         _looping = false;
         _alternating = false;
         _answerLoop = null;
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
-        if (handedBack)
-        {
-            await Player.SeekAsync(_globalAt);
-        }
     }
 
     /// <summary>The selection in words: where it is, which notes it keeps and whether a hand is inferred.</summary>

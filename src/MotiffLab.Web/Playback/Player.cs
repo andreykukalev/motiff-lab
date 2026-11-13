@@ -15,7 +15,7 @@ namespace MotiffLab.Web.Playback;
 /// such as the original motif and a variation. Selecting sources, for A/B or layered listening,
 /// keeps the musical position.
 /// </remarks>
-public sealed class Player(IJSRuntime js) : IAsyncDisposable
+public sealed partial class Player(IJSRuntime js) : IAsyncDisposable
 {
     public const string OriginalSource = "original";
 
@@ -178,10 +178,17 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
     /// <summary>
     /// Loops a range, such as the selected motif, or stops looping with null. With <paramref name="once"/> the range plays once
-    /// and playback stops at its end, back at its start.
+    /// and playback stops at its end, back at its start. While the playback model holds, a range is another owner's loop and
+    /// null gives the engine the model's loop back (<see cref="HoldLoopAsync"/>).
     /// </summary>
     public async Task SetLoopAsync(TickSpan? range, bool once = false)
     {
+        if (range is null && ModelHeld)
+        {
+            await HoldLoopAsync();
+            return;
+        }
+
         IJSObjectReference engine = await EngineAsync();
         Loop = range;
         EndAlternation();

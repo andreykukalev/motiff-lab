@@ -10497,27 +10497,41 @@ body:has(> #app > .library) {
     transform: translate(-50%, -50%);
 }
 
-/* The bar's Play fills dark while the piece plays; the selection's Play, first in its menu, is a cobalt disc. */
-.lab.workspace .bar .act.gplay.on {
-    border-radius: 50%;
-    background: var(--ink);
-    color: var(--surface);
-}
-
-.lab.workspace .ctx .menu > .it.selplay {
-    padding-left: var(--s-1);
+/* The one Play of the playback model (v0.5.2, #495 UX-10), in the pill: a cobalt disc and words where the selection plays
+   (or, stopped, will play), an ink disc and words where the piece goes on, with the place as bar.beat. */
+.lab.workspace .pill .play-at {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: var(--h-control);
+    padding: 0 var(--s-2) 0 0;
+    border-radius: var(--r-pill);
     color: var(--accent);
     font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--t-fast) var(--ease);
 }
 
-.lab.workspace .ctx .menu > .it.selplay .pb {
+.lab.workspace .pill .play-at .pb {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
+    width: var(--h-control);
+    height: var(--h-control);
     border-radius: 50%;
     background: var(--accent);
     color: var(--on-accent);
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.lab.workspace .pill .play-at.piece {
+    color: var(--ink);
+}
+
+.lab.workspace .pill .play-at.piece .pb {
+    background: var(--ink);
+    color: var(--surface);
 }
 
 /* The modes on the Piano Roll (version 0.5, Scripts/roll/roll-modes.ts): the hand in Navigate, a crosshair to select by

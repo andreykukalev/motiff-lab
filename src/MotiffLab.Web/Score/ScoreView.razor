@@ -529,7 +529,8 @@ else if (_loading && !HoldHeight)
             return;
         }
 
-        await Player.SeekAsync(new Tick(at));
+        // A tap moves the black playhead (T12 of the playback model while it holds).
+        await Player.MoveAsync(new Tick(at));
         if (pitch >= 0)
         {
             await NotePicked.InvokeAsync(new NotePoint(at, pitch));

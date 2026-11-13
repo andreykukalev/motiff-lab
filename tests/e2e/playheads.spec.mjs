@@ -1,7 +1,8 @@
-// The two playheads of version 0.5 (the experiment Two playheads and modes, Settings · Experimental; product spec
-// two-playheads): the global one, a track under its bar with a dot (v0.5.2, #479 item 19), placed by a click outside the
-// selection and played by the bar's Play, which fills dark and fades nothing; the selection's, a cobalt line, placed by a click inside it and
-// played by Play first in its menu or Space; when the selection goes, the global playhead takes the selection playhead's place.
+// The playback model of v0.5.2 on the web (#495 UX-10, slice W1; the experiment Two playheads and modes, Settings ·
+// Experimental): one Play button, in the pill, cobalt where the selection plays (or, stopped, will play) and ink where the
+// piece goes on, with the place as bar.beat; Цикл with the selection's span, on by itself with a new selection, which takes
+// the position to the selection's start; a click on a beat outside the selection turns it off. No Play in the bar and none
+// and no Loop in the selection's menu. The black playhead is a track under its bar with a dot (#479 item 19).
 import { expect, test } from "@playwright/test";
 import { openFurElise, withAudioDiagnostic } from "./steps.mjs";
 
@@ -37,63 +38,78 @@ async function drag(page, from, to) {
     await page.mouse.up();
 }
 
-test("two playheads: each placed by a click, each with its Play, and the global one takes the selection's place", async ({ page }) => {
+test("one Play button whose colour follows the place, and Цикл that loops the selection from its start", async ({ page }) => {
     await withExperiment(page);
     const errors = await openFurElise(page);
     const bars = await firstSystem(page);
     const track = page.locator("div.score .gtrack");
-    const line = page.locator("div.score .ph-sel");
-    const score = page.locator("div.score");
+    const pill = page.locator(".pill");
+    const play = pill.locator(".play-at");
+    const cycle = pill.getByRole("button", { name: /^Loop \d+\.\d+ – \d+\.\d+$/ });
 
-    // The global playhead stands at the start, stopped: a hollow dot; the one playhead of before is not drawn.
-    await expect(track).toBeVisible();
-    await expect(track).toHaveClass(/stop/);
-    await expect(page.locator("div.score .playhead")).toBeHidden();
+    // The pill always shows the one Play, in ink with nothing selected; the bar has none.
+    await expect(play).toBeVisible();
+    await expect(play).toHaveClass(/\bpiece\b/);
+    await expect(play).toHaveAccessibleName(/^Play from \d+\.\d+$/);
+    await expect(page.locator(".bar").getByRole("button", { name: "Play", exact: true })).toHaveCount(0);
+    await expect(cycle).toHaveCount(0);
 
-    // A click on a bar places it there.
+    // A click on a bar moves the black playhead there.
     await page.mouse.click(bars[2].left + 12, bars[2].middle);
     await expect.poll(async () => barOf(bars, await across(track))).toBe(2);
 
-    // A selection by beats: its playhead stands at its start, and a click inside places it; the global one stays.
+    // A selection by beats: Цикл shows with its span and turns on by itself; the position stays. Stopped outside it with
+    // Цикл on, Play is cobalt and names the selection's start, where it will play. The menu has neither Play nor Loop.
     await page.keyboard.press("s");
     await drag(page, { x: bars[4].left + 4, y: bars[4].middle }, { x: bars[5].right - 4, y: bars[5].middle });
     await expect(page.locator(".selection-status")).toContainText("Selected");
-    await expect(line).toBeVisible();
-    await expect.poll(async () => barOf(bars, await across(line))).toBe(4);
-    await page.mouse.click(bars[5].left + 12, bars[5].middle);
-    await expect.poll(async () => barOf(bars, await across(line))).toBe(5);
+    await expect(cycle).toHaveAttribute("aria-pressed", "true");
+    const span = (await cycle.textContent()).trim().match(/(\d+\.\d+) – (\d+\.\d+)/);
+    await expect(play).not.toHaveClass(/\bpiece\b/);
+    await expect(play).toHaveAccessibleName(`Play from ${span[1]}`);
     expect(barOf(bars, await across(track))).toBe(2);
+    await expect(page.locator(".ctx").getByRole("button", { name: /^(Loop|Play the selection)$/ })).toHaveCount(0);
 
-    // Play first in the selection's menu plays the selection; the global playhead waits and nothing fades. Space pauses.
-    const menu = page.locator(".ctx");
-    await expect(menu.getByRole("button").first()).toHaveAccessibleName("Play the selection");
-    await expect(page.locator(".pill").getByRole("button", { name: "Play", exact: true })).toHaveCount(0);
-    await menu.getByRole("button", { name: "Play the selection" }).click();
+    // Play plays the selection from its start; Space pauses inside it, where Play stays cobalt.
+    await play.click();
     await withAudioDiagnostic(page, test.info(), async () => {
-        await expect(menu.getByRole("button", { name: "Pause" })).toBeVisible();
+        await expect(play).toHaveAccessibleName(/^Pause · \d+\.\d+$/);
     });
-    await expect(score).not.toHaveClass(/fading/);
-    expect(barOf(bars, await across(track))).toBe(2);
+    await expect.poll(async () => barOf(bars, await across(track))).toBeGreaterThanOrEqual(4);
     await page.keyboard.press("Space");
-    await expect(menu.getByRole("button", { name: "Play the selection" })).toBeVisible();
-    const left = barOf(bars, await across(line));
-    expect(left === 4 || left === 5).toBe(true);
-    expect(barOf(bars, await across(track))).toBe(2);
+    await expect(play).toHaveAccessibleName(/^Play from \d+\.\d+$/);
+    await expect(play).not.toHaveClass(/\bpiece\b/);
+    const inside = barOf(bars, await across(track));
+    expect(inside === 4 || inside === 5).toBe(true);
 
-    // Escape removes the selection: the global playhead takes the selection playhead's place, which goes.
+    // Цикл off: the position stays; a click on a beat after the selection makes Play the piece's, in ink.
+    await cycle.click();
+    await expect(cycle).toHaveAttribute("aria-pressed", "false");
+    expect(barOf(bars, await across(track))).toBe(inside);
+    const after = bars.length - 1;
+    expect(after).toBeGreaterThan(5);
+    // In the bar's middle, clear of the selection's handle at its edge.
+    await page.mouse.click((bars[after].left + bars[after].right) / 2, bars[after].middle);
+    await expect.poll(async () => barOf(bars, await across(track))).toBe(after);
+    await expect(play).toHaveClass(/\bpiece\b/);
+
+    // Цикл on takes the position to the selection's start: Play is cobalt there.
+    await cycle.click();
+    await expect(cycle).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(async () => barOf(bars, await across(track))).toBe(4);
+    await expect(play).not.toHaveClass(/\bpiece\b/);
+    await expect(play).toHaveAccessibleName(`Play from ${span[1]}`);
+
+    // A click on a beat outside the selection takes the black playhead out of it and turns Цикл off (T12).
+    await page.mouse.click(bars[1].left + 12, bars[1].middle);
+    await expect(cycle).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(async () => barOf(bars, await across(track))).toBe(1);
+    await expect(play).toHaveClass(/\bpiece\b/);
+
+    // Escape removes the selection: Цикл goes, the black playhead stays where it was.
     await page.keyboard.press("Escape");
     await expect(page.locator(".selection-status")).toContainText("Nothing selected");
-    await expect(line).toBeHidden();
-    await expect.poll(async () => barOf(bars, await across(track))).toBe(left);
-
-    // The bar's Play plays the piece from there: it fills dark, the dot is solid and no bar fades (#479 item 19).
-    await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
-    await expect(page.locator(".bar .act.gplay")).toHaveClass(/\bon\b/);
-    await expect(track).not.toHaveClass(/stop/);
-    await expect(score).not.toHaveClass(/fading/);
-    await expect(page.locator("div.score svg g.measure.lit")).toHaveCount(0);
-    await page.keyboard.press("Space");
-    await expect(page.locator(".bar .act.gplay")).not.toHaveClass(/\bon\b/);
-    await expect(score).not.toHaveClass(/fading/);
+    await expect(cycle).toHaveCount(0);
+    expect(barOf(bars, await across(track))).toBe(1);
     expect(errors).toEqual([]);
 });

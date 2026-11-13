@@ -88,7 +88,9 @@ public partial class PlaybackLab
 
         await StopLoopingAsync();
         _dnaPlaying = true;
-        await Player.SeekAsync(Tick.Zero);
+        // The piece from its start: under the playback model a move out of the selection turns Цикл off (T12).
+        await Player.MoveAsync(Tick.Zero);
+        await FollowModelAsync();
         await PlayAsync();
     }
 

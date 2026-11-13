@@ -8,168 +8,170 @@ using MotiffLab.Web.Score;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// The two playheads of version 0.5 (the experiment Two playheads and modes, Settings · Experimental; product spec
-/// two-playheads). One player, two places: the global playhead plays the piece from the bar's Play and never stops at the
-/// selection; the selection playhead plays only inside the selection from Play first in its menu, round on Loop or once
-/// without it, back at its start after. A click outside the selection places the global one and inside it the selection's;
-/// Space plays the selection when there is one, else the piece; when the selection goes the global playhead takes the
-/// selection playhead's place. In focus, playing stays as it was.
+/// The playback model of version 0.5.2 on the web (#495 UX-10, the architect's design playback-model-v0.5.2, slice W1; the
+/// experiment Two playheads and modes, Settings · Experimental). One position in the engine, two playheads on screen: the
+/// black one is the position, the blue one the position held to the selection. One Play button in the pill, cobalt where
+/// the selection plays (or, stopped, will play) and ink where the piece goes on, with the place as bar.beat; and Цикл with
+/// the selection's span, which turns on with a new selection and, turned on, takes the position to its start. The script's
+/// player owns the model (<see cref="Player"/>, <c>Scripts/playback/playback-owner.ts</c>); the page sends it the events and
+/// keeps what is heard in step: while Цикл loops the selection, the selection's notes alone, else the piece. In focus, and
+/// while versions are assembled, playing stays as it was.
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>Loop in the selection's menu: the selection Play goes round, or plays once and stops.</summary>
-    private bool _loopChosen = true;
+    /// <summary>Цикл as the page last followed it, so a change the model made by itself (a tap outside the selection) is heard.</summary>
+    private bool? _cycleFollowed;
 
-    /// <summary>Where the global playhead waits while the selection has the player (<see cref="_looping"/>).</summary>
-    private Tick _globalAt;
+    /// <summary>Whether the playback model holds: the experiment is on, the page not in focus and not assembling versions.</summary>
+    private bool ModelHolds => PlayheadsOn && !Focused && !_assembling;
 
-    /// <summary>Where the selection playhead waits while the piece has the player; null for the selection's start.</summary>
-    private Tick? _selectionAt;
+    /// <summary>The selection as the range the model plays: what plays for it, or its span when it holds no notes.</summary>
+    private TickSpan? ModelRange => _selection is { } selection ? (selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null;
 
-    /// <summary>Whether the two playheads hold: the experiment is on and the page is not in focus, which plays as before.</summary>
-    private bool TwoPlayheads => PlayheadsOn && !Focused;
-
-    /// <summary>Whether the global Play plays: the player plays and the selection does not have it.</summary>
-    private bool GlobalPlaying => Player.State != PlaybackState.Stopped && !(TwoPlayheads && _looping);
-
-    /// <summary>Whether the selection Play plays.</summary>
-    private bool SelectionPlaying => TwoPlayheads && _looping && Player.State != PlaybackState.Stopped;
-
-    /// <summary>Loop as its button shows it: the choice for the selection Play, or the loop in force before version 0.5.</summary>
-    private bool LoopShown => TwoPlayheads ? _loopChosen : Looping;
-
-    /// <summary>The selection playhead's place while the piece has the player: where it was left, inside the selection, else its start.</summary>
-    private Tick? SelectionWaitsAt => _selection is not { } selection ? null
-        : _selectionAt is { } at && selection.Span.Contains(at) ? at : selection.Span.Onset;
-
-    /// <summary>The playheads the score draws, or null while the experiment is off (the one playhead as before) or in focus.</summary>
-    private ScorePlayheads? Playheads => TwoPlayheads
-        ? new ScorePlayheads(_looping, _globalAt.Value, _looping ? _selection?.Span.Onset.Value : SelectionWaitsAt?.Value)
+    /// <summary>The playheads the score and the roll draw while the model holds, or null for the one playhead as before.</summary>
+    private ScorePlayheads? Playheads => ModelHolds && Player.ModelHeld
+        ? new ScorePlayheads(Player.Inside, Player.Position.Value, Player.Waits?.Value)
         : null;
 
-    /// <summary>The bar's Play: the piece from the global playhead. While the selection has the player, the piece takes it back.</summary>
-    private async Task ToggleGlobalPlayAsync()
+    /// <summary>The place the Play button names, as bar.beat: the position, or where Play will start.</summary>
+    private string PlayPlace => _meter is null ? "" : BeatText(Player.PlayFrom ?? Player.Position);
+
+    /// <summary>The selection's span as Цикл names it: its first and its last beat, as bar.beat.</summary>
+    private (string First, string Last)? CycleSpan => _selection is { } selection && _meter is not null
+        ? (BeatText(selection.Span.Onset), BeatText(new Tick(Math.Max(selection.Span.Onset.Value, selection.Span.End.Value - 1))))
+        : null;
+
+    private string BeatText(Tick tick)
     {
-        if (!TwoPlayheads || !_looping)
+        MetricPosition at = _meter!.ToPosition(tick);
+        return FormattableString.Invariant($"{at.Bar}.{at.Beat}");
+    }
+
+    /// <summary>The model holds or lets go as the page enters or leaves focus or the experiment is switched; holding, it takes the selection.</summary>
+    private async Task SyncModelAsync()
+    {
+        if (!Player.IsReady || _score is null || ModelHolds == Player.ModelHeld)
+        {
+            return;
+        }
+
+        await Player.HoldModelAsync(ModelHolds);
+        if (ModelHolds)
+        {
+            await Player.SetSelectionAsync(ModelRange);
+            await Player.HoldLoopAsync();
+            await FollowModelAsync();
+        }
+    }
+
+    /// <summary>The one Play button, Space or a pedal (T1–T3); while notes are shown in another key, they are heard there.</summary>
+    private async Task PressAsync()
+    {
+        if (Transposed is not null)
         {
             await TogglePlayAsync();
             return;
         }
 
-        await StopLoopingAsync();
-        await PlayAsync();
+        await SyncModelAsync();
+        bool starts = Player.State == PlaybackState.Stopped;
+        _pillKept = true;
+        await Player.PressAsync();
+        if (starts)
+        {
+            await TrackPlaybackAsync();
+        }
     }
 
-    /// <summary>Play first in the selection's menu, or Space with a selection: the selection from its playhead, or a pause.</summary>
-    private async Task ToggleSelectionPlayAsync()
+    /// <summary>Цикл in the pill (T7, T8): on, the position goes to the selection's start and it repeats; off, playback goes on past it.</summary>
+    private async Task ToggleCycleAsync()
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection)
-        {
-            return;
-        }
-
-        if (_looping)
-        {
-            await TogglePlayAsync();
-            return;
-        }
-
-        Tick from = SelectionWaitsAt ?? selection.Span.Onset;
-        if (Player.State != PlaybackState.Stopped)
-        {
-            await Player.PauseAsync();
-        }
-
-        _looping = true;
-        TickSpan range = await LoopSelectionAsync(selection);
-        await Player.SeekAsync(range.Contains(from) ? from : range.Onset);
-        await PlayAsync();
+        await SyncModelAsync();
+        await Player.SetSelectionLoopAsync(!Player.SelectionLoop);
+        await FollowModelAsync();
     }
 
-    /// <summary>Loop in the selection's menu: whether the selection Play goes round; a selection playing now follows at once.</summary>
-    private async Task ToggleLoopChosenAsync()
+    /// <summary>The selection changed (T9–T11): the model takes it, Цикл turning on with a new one, and what is heard follows.</summary>
+    private async Task SelectInModelAsync()
     {
-        _loopChosen = !_loopChosen;
-        if (_looping && _selection is { NoteIds.Count: > 0 } selection)
+        await SyncModelAsync();
+        await Player.SetSelectionAsync(ModelRange);
+        if (_looping && Player.SelectionLoop && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null && !_scaleHeard)
         {
+            // The new selection's notes loop in place of the old ones.
             await LoopSelectionAsync(selection);
+            return;
         }
-    }
 
-    /// <summary>Loop in the selection's menu: the choice for the selection Play, or the loop in force before version 0.5.</summary>
-    private Task ToggleLoopShownAsync() => TwoPlayheads ? ToggleLoopChosenAsync() : ToggleLoopSelectionAsync();
-
-    /// <summary>The selection plays once rather than round: Loop is off in its menu, outside focus.</summary>
-    private bool SelectionPlaysOnce => TwoPlayheads && !_loopChosen;
-
-    /// <summary>The global playhead's place is kept when the selection takes the player from the piece.</summary>
-    private void KeepGlobalPlace()
-    {
-        if (Player.Loop is null)
-        {
-            _globalAt = Player.Position;
-        }
+        await FollowModelAsync();
     }
 
     /// <summary>
-    /// The selection gives the player back to the piece: its playhead stays where the player was and the global one comes
-    /// back to its place, stopped. Before version 0.5 (or in focus) the player just stops looping. Returns whether it did.
+    /// What is heard follows the model: while Цикл loops a selection of notes, those notes alone (and the variation as chosen),
+    /// else the piece. Another owner of the loop (the answer, the circle's scale) keeps it until it ends.
     /// </summary>
-    private async Task<bool> HandBackAsync()
+    private async Task FollowModelAsync()
     {
-        if (!TwoPlayheads || Player.Loop is null)
+        _cycleFollowed = Player.SelectionLoop;
+        if (!ModelHolds || !Player.ModelHeld || _answerLoop is not null || _scaleHeard)
         {
-            return false;
-        }
-
-        if (_selection is not null)
-        {
-            _selectionAt = Player.Position;
-        }
-
-        if (Player.State != PlaybackState.Stopped)
-        {
-            await Player.PauseAsync();
-        }
-
-        return true;
-    }
-
-    /// <summary>Where the global playhead goes when the selection is removed: the selection playhead's place, unless the piece plays.</summary>
-    private Tick? HandOverAt => TwoPlayheads && _selection is not null && !GlobalPlaying ? (_looping ? Player.Position : SelectionWaitsAt) : null;
-
-    /// <summary>The selection removed: the global playhead takes the place the selection playhead had (spec two-playheads, section 3).</summary>
-    private async Task HandOverAsync(Tick? at)
-    {
-        _selectionAt = null;
-        if (at is { } place)
-        {
-            await Player.SeekAsync(place);
-        }
-    }
-
-    /// <summary>A click on a beat inside the selection places its playhead; anywhere else, the global one.</summary>
-    private async Task PlacePlayheadAsync(Tick at)
-    {
-        if (_selection is { } selection && selection.Span.Contains(at))
-        {
-            _selectionAt = at;
-            if (_looping)
-            {
-                await Player.SeekAsync(at);
-            }
-
             return;
         }
 
-        if (_looping)
+        bool loops = Player.SelectionLoop && _selection is { NoteIds.Count: > 0 };
+        if (loops == _looping)
         {
-            _globalAt = at;
+            return;
         }
-        else
+
+        if (loops)
         {
-            await Player.SeekAsync(at);
+            _looping = true;
+            await LoopSelectionAsync(_selection!);
+            return;
         }
+
+        _looping = false;
+        _alternating = false;
+        await Player.SelectSourcesAsync(_hear);
+    }
+
+    /// <summary>The model changed Цикл by itself (a tap outside the selection, from the score or the roll): what is heard follows.</summary>
+    private Task FollowCycleAsync() => ModelHolds && _cycleFollowed != Player.SelectionLoop ? FollowModelAsync() : Task.CompletedTask;
+
+    /// <summary>The model's part of looping the selection: its range, Цикл on, and the engine loops it unless the passes alternate.</summary>
+    private async Task LoopInModelAsync(TickSpan range)
+    {
+        await Player.SetSelectionAsync(range);
+        if (!Player.SelectionLoop)
+        {
+            await Player.SetSelectionLoopAsync(true);
+            _cycleFollowed = true;
+        }
+
+        if (!_alternating)
+        {
+            await Player.HoldLoopAsync();
+        }
+    }
+
+    /// <summary>The model's part of stopping a loop: another owner's loop ends, the model's comes back, and what is heard follows it.</summary>
+    private async Task StopInModelAsync()
+    {
+        _looping = false;
+        _alternating = false;
+        _answerLoop = null;
+        await Player.HoldLoopAsync();
+        await Player.SelectSourcesAsync(_hear);
+        await FollowModelAsync();
+    }
+
+    /// <summary>A click on a beat (T12): the black playhead goes there; out of the selection Цикл turns off.</summary>
+    private async Task PlacePlayheadAsync(Tick at)
+    {
+        await SyncModelAsync();
+        await Player.MoveAsync(at);
+        await FollowModelAsync();
     }
 
     /// <summary>Space outside the roll (Scripts/layout/mode-keys.ts): as the roll's Space.</summary>
@@ -182,8 +184,4 @@ public partial class PlaybackLab
             StateHasChanged();
         }
     }
-
-    /// <summary>Space under the two playheads: the selection Play with a selection of notes, else the global Play.</summary>
-    private Task TwoPlayheadsSpaceAsync() =>
-        _selection is { NoteIds.Count: > 0 } ? ToggleSelectionPlayAsync() : ToggleGlobalPlayAsync();
 }

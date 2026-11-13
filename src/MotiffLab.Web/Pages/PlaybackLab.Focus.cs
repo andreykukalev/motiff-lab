@@ -170,7 +170,9 @@ public partial class PlaybackLab
             _hear = [Player.OriginalSource];
         }
 
-        if ((versionHeard || _leadIn) && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
+        // The playback model holds again out of focus (v0.5.2): it takes the selection and loops it as Цикл says.
+        await SyncModelAsync();
+        if ((versionHeard || _leadIn || ModelHolds) && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
         {
             await LoopSelectionAsync(selection);
         }
