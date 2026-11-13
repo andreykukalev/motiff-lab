@@ -5,21 +5,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { playsOrPauses } from "../../src/MotiffLab.Web/wwwroot/js/layout/mode-keys.js";
-import { edgeOf, placesOf, playheadsOf, trackOf } from "../../src/MotiffLab.Web/wwwroot/js/score/playheads.js";
+import { edgeOf, playheadsOf, trackOf } from "../../src/MotiffLab.Web/wwwroot/js/score/playheads.js";
 import { viewOf } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-model.js";
 
-test("while the piece has the player, the global playhead is the player's place and the selection's waits", () => {
-    const places = placesOf({ selectionHolds: false, global: 0, selection: 960 }, 2400, true);
-    assert.deepEqual(places, { global: 2400, selection: 960, globalPlays: true });
-});
-
-test("while the selection has the player, its playhead is the player's place and the global one waits", () => {
-    const places = placesOf({ selectionHolds: true, global: 4800, selection: 960 }, 1200, true);
-    assert.deepEqual(places, { global: 4800, selection: 1200, globalPlays: false });
-    assert.equal(placesOf({ selectionHolds: false, global: 0, selection: null }, 480, false).globalPlays, false, "stopped, the dot is hollow");
-});
-
-test("the iPad draws both playheads of the playback model: black at the position, blue held to the selection (#495 UX-10)", () => {
+test("both apps draw both playheads of the playback model: black at the position, blue held to the selection (#495 UX-10)", () => {
     const selection = { start: 960, end: 1920 };
     const before = viewOf({ selection, loop: false, tick: 480, transport: "playing" });
     assert.deepEqual(playheadsOf(before, selection), { global: 480, selection: 960, globalPlays: true, selectionAtEnd: false, follow: "global" });
@@ -29,6 +18,8 @@ test("the iPad draws both playheads of the playback model: black at the position
     assert.deepEqual(playheadsOf(after, selection), { global: 2400, selection: 1920, globalPlays: true, selectionAtEnd: true, follow: "global" }, "blue stands at the end, black goes on");
     const none = viewOf({ selection: null, loop: true, tick: 1200, transport: "playing" });
     assert.equal(playheadsOf(none, null).selection, null, "no blue without a selection");
+    const waiting = viewOf({ selection, loop: true, tick: 2400, transport: "stopped" });
+    assert.deepEqual(playheadsOf(waiting, selection), { global: 2400, selection: 960, globalPlays: false, selectionAtEnd: false, follow: "global" }, "stopped outside with Цикл on, blue waits at the start Play will play from");
 });
 
 test("the blue playhead standing at a bar line stands at the right edge of the selection's last bar, not on the next line", () => {

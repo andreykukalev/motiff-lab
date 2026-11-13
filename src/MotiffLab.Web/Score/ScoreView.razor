@@ -69,7 +69,6 @@ else if (_loading && !HoldHeight)
     private bool _shownEvenBars = true;
     private string? _shownMode;
     private IReadOnlyList<long>? _shownBeatLines;
-    private ScorePlayheads? _shownPlayheads;
     private bool _paged = true;
     private bool _exporting;
     private string? _pdfError;
@@ -100,10 +99,6 @@ else if (_loading && !HoldHeight)
     /// <summary>music-core's beat lines in ticks, which the selection snaps to under the rules of version 0.5.</summary>
     [Parameter]
     public IReadOnlyList<long>? BeatLines { get; set; }
-
-    /// <summary>The two playheads of version 0.5 (<see cref="ScorePlayheads"/>); null draws the one playhead as before.</summary>
-    [Parameter]
-    public ScorePlayheads? Playheads { get; set; }
 
     /// <summary>Raised under the rules of version 0.5 when beats are chosen: a drag in Select, or a handle moved.</summary>
     [Parameter]
@@ -344,12 +339,6 @@ else if (_loading && !HoldHeight)
         {
             (_shownMode, _shownBeatLines) = (Mode, BeatLines);
             await _view.InvokeVoidAsync("setRules", Mode, BeatLines?.ToArray());
-        }
-
-        if (Playheads != _shownPlayheads)
-        {
-            _shownPlayheads = Playheads;
-            await _view.InvokeVoidAsync("setPlayheads", Playheads);
         }
 
         if (HoldHeight != _shownHold)

@@ -4,11 +4,12 @@
 // with a drag from outside it (Andrei's exception to mockup a4); Edit notes draws a box round notes to pick them for the
 // editor, which is not a selection; Pen draws nothing here. In every mode a drag that starts inside the selection leaves it
 // alone, a click places a playhead on the beat under it (inside the selection its own, else the global one) and never
-// changes the selection, and the edges still resize it. The playheads are lines (v0.5.2, #479 item 19): the global one in ink
-// with a dot on the bar numbers, the selection's in cobalt with a knob; no grey column. Nothing here touches the DOM.
+// changes the selection, and the edges still resize it. The playheads are the playback model's (v0.5.2, #495 UX-10,
+// playback-model.ts viewOf): the black one an ink line with a dot on the bar numbers, the blue one a cobalt line with a knob;
+// no grey column. Nothing here touches the DOM.
 
 import type { InteractionMode } from "../score/score-modes.js";
-import type { PlayheadsState } from "../score/playheads.js";
+import type { ModelPlaces } from "../score/playheads.js";
 import type { RollNote } from "./roll-model.js";
 
 /** What a press on the notes or the bar numbers begins under the rules. */
@@ -83,15 +84,16 @@ export interface PositionMark {
 }
 
 /**
- * The two playheads over the roll (v0.5.2, #479 item 19): the piece's an ink line with a dot on the bar numbers, solid while
- * the piece plays and hollow when it stands, and the selection's a cobalt line with its knob. No grey column.
+ * The two playheads of the playback model over the roll (v0.5.2, #495 UX-10, viewOf): the black one an ink line with a dot on
+ * the bar numbers, solid while it plays and hollow when it stands, always; with a selection the blue one a cobalt line with its
+ * knob, at the selection's end once playback passed it. Where they meet, the black dot hangs under the blue knob, so both show.
  */
-export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, state: PlayheadsState, playerTick: number, playing: boolean, inks: PlayheadInks): void {
-    const global = state.selectionHolds ? state.global : playerTick;
-    const selection = state.selectionHolds ? playerTick : state.selection;
-    drawPositionLine(context, frame, frame.xOf(global), { colour: inks.ink, knobY: frame.header, radius: DOT_RADIUS, solid: playing && !state.selectionHolds }, inks);
-    if (selection !== null) {
-        drawPositionLine(context, frame, frame.xOf(selection), { colour: inks.accent, knobY: frame.header, radius: KNOB_RADIUS, solid: true }, inks);
+export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, view: ModelPlaces, inks: PlayheadInks): void {
+    const together = view.blue !== null && Math.round(frame.xOf(view.blue)) === Math.round(frame.xOf(view.black));
+    const dotY = together ? frame.header + KNOB_RADIUS + RING + DOT_RADIUS : frame.header;
+    drawPositionLine(context, frame, frame.xOf(view.black), { colour: inks.ink, knobY: dotY, radius: DOT_RADIUS, solid: view.playing }, inks);
+    if (view.blue !== null) {
+        drawPositionLine(context, frame, frame.xOf(view.blue), { colour: inks.accent, knobY: frame.header, radius: KNOB_RADIUS, solid: true }, inks);
     }
 }
 

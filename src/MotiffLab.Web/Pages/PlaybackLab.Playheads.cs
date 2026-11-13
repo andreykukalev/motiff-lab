@@ -3,7 +3,6 @@ using Microsoft.JSInterop;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.Web.Playback;
-using MotiffLab.Web.Score;
 
 namespace MotiffLab.Web.Pages;
 
@@ -27,11 +26,6 @@ public partial class PlaybackLab
 
     /// <summary>The selection as the range the model plays: what plays for it, or its span when it holds no notes.</summary>
     private TickSpan? ModelRange => _selection is { } selection ? (selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null;
-
-    /// <summary>The playheads the score and the roll draw while the model holds, or null for the one playhead as before.</summary>
-    private ScorePlayheads? Playheads => ModelHolds && Player.ModelHeld
-        ? new ScorePlayheads(Player.Inside, Player.Position.Value, Player.Waits?.Value)
-        : null;
 
     /// <summary>The place the Play button names, as bar.beat: the position, or where Play will start.</summary>
     private string PlayPlace => _meter is null ? "" : BeatText(Player.PlayFrom ?? Player.Position);

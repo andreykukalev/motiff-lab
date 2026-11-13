@@ -13,7 +13,8 @@ import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreRules } from "./score-modes.js";
-import { ScorePlayheadMarks, placesOf, type PlayheadsState } from "./playheads.js";
+import { ScorePlayheadMarks, playheadsOf } from "./playheads.js";
+import { viewOf, type ModelState } from "../playback/playback-model.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -30,6 +31,8 @@ interface DotNetObject {
 interface PlayerHandle {
     currentTick(): number;
     state(): string;
+    /** The playback model's state with the position as heard (v0.5.2, #495 UX-10), or null while it does not hold. */
+    model?(): ModelState | null;
 }
 
 /** What Blazor gets back from a load. */
@@ -287,9 +290,10 @@ export class ScoreView {
     private readonly selection: SelectionLayer;
     /** The rules of version 0.5 (the experiment Two playheads and modes): off until Blazor names a mode. */
     private readonly rules: ScoreRules;
-    /** The two playheads of version 0.5 (playheads.ts), drawn instead of the one playhead while Blazor gives their state. */
+    /** The two playheads of the playback model (playheads.ts), drawn instead of the one playhead while the model holds. */
     private readonly heads: ScorePlayheadMarks;
-    private headsState: PlayheadsState | null = null;
+    /** Whether the two playheads were drawn last frame, so the one playhead goes when they come and they go when it comes back. */
+    private headsShown = false;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
@@ -500,6 +504,7 @@ export class ScoreView {
             this.mark([], false);
             this.placePlayhead(null);
             this.heads.hide();
+            this.headsShown = false;
         }
     }
 
@@ -612,16 +617,6 @@ export class ScoreView {
     setRules(mode: string | null, lines: number[] | null): void {
         this.rules.set(mode, lines);
         this.selection.place();
-    }
-
-    /** The two playheads of version 0.5 (playheads.ts); null draws the one playhead as before. */
-    setPlayheads(state: PlayheadsState | null): void {
-        this.headsState = state;
-        if (state === null) {
-            this.heads.hide();
-        } else {
-            this.placePlayhead(null);
-        }
     }
 
     /** The contextual menu Blazor draws for the selection, placed over the band as the score scrolls. */
@@ -1563,15 +1558,32 @@ export class ScoreView {
             const tick = player.currentTick();
             this.played ||= playing;
             this.mark(this.timeline.soundingAt(tick), playing);
-            if (this.headsState !== null) {
-                this.reportPlace(this.heads.place(placesOf(this.headsState, tick, playing)), !playing);
-            } else {
-                // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
-                this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
-            }
+            this.placeHeads(player, tick, playing);
         }
         this.frame = requestAnimationFrame(this.tick);
     };
+
+    /**
+     * While the playback model holds (v0.5.2, #495 UX-10), both of its playheads from viewOf: the black one at the position,
+     * always, and with a selection the blue one held to it; else the one playhead as before.
+     */
+    private placeHeads(player: PlayerHandle, tick: number, playing: boolean): void {
+        const model = player.model?.() ?? null;
+        if (model !== null) {
+            if (!this.headsShown) {
+                this.headsShown = true;
+                this.placePlayhead(null);
+            }
+            this.reportPlace(this.heads.place(playheadsOf(viewOf(model), model.selection)), !playing);
+            return;
+        }
+        if (this.headsShown) {
+            this.headsShown = false;
+            this.heads.hide();
+        }
+        // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
+        this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
+    }
 
     private mark(ids: string[], scroll: boolean): void {
         const key = ids.join(" ");

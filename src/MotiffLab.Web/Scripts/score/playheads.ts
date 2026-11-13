@@ -3,23 +3,14 @@
 // the system that plays, only as wide as the bar, filled up to the place, with a dot on it, in the notation's dark ink;
 // the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The
 // selection's playhead is a cobalt line with a knob inside the selection's band: cobalt is the selection's colour only.
-// The web app has two places (the piece's and the selection's, placesOf); the iPad draws both playheads of the playback
-// model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, playheadsOf): the black track at the position, always,
+// Both apps draw both playheads of the playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, viewOf and
+// playheadsOf), from the model the player holds (playback-owner.ts on the web): the black track at the position, always,
 // and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
 // On the iPad the black dot and the cobalt knob are handles the pen or a finger drags (#495 UX-08, playhead-grab.ts). The
 // line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line (#495 UX-07).
 
 import type { Handle } from "../playback/playback-model.js";
 import type { Playhead, ScoreBar } from "./score-geometry.js";
-
-/** What Blazor says (Score/ScorePlayheads.cs). */
-export interface PlayheadsState {
-    /** The selection has the player: the player's place is the selection playhead's, the global one waits at `global`. */
-    selectionHolds: boolean;
-    global: number;
-    /** Where the selection playhead waits while the piece has the player; null without a selection. */
-    selection: number | null;
-}
 
 /** Where each playhead goes this frame, in ticks; null hides it. */
 export interface PlayheadPlaces {
@@ -31,15 +22,6 @@ export interface PlayheadPlaces {
     selectionAtEnd?: boolean;
     /** The playhead the score follows and reports out of sight; by default the one that plays. */
     follow?: "global" | "selection";
-}
-
-/** The places of the two playheads from what Blazor said and the player's place. */
-export function placesOf(state: PlayheadsState, playerTick: number, playing: boolean): PlayheadPlaces {
-    return {
-        global: state.selectionHolds ? state.global : playerTick,
-        selection: state.selectionHolds ? playerTick : state.selection,
-        globalPlays: playing && !state.selectionHolds,
-    };
 }
 
 /** A stretch of ticks [start, end). */

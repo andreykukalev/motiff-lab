@@ -30,10 +30,9 @@ import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
-import { viewOf } from "../playback/playback-model.js";
+import { viewOf, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag } from "../playback/playhead-drag.js";
 import { laneDragTick, laneHeadAt } from "./roll-head-drag.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
@@ -63,6 +62,8 @@ interface PlayerHandle {
     /** Strikes and releases a key by hand, over playback or without it. */
     noteOn?(pitch: number, velocity?: number): void;
     noteOff?(pitch: number): void;
+    /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
+    model?(): ModelState | null;
 }
 
 /** A note of the variation drawn over the roll, with where it came from in the motif. */
@@ -401,9 +402,10 @@ export class PianoRoll {
     private labels: RollLabels;
     /** The note editor (testing item 15): on, its tool, the note picked by id, the length of the next note added, and a drag of a note. */
     private editing = false;
-    /** The modes and the two playheads of version 0.5 (roll-modes.ts); null while the experiment is off. */
+    /** The modes of version 0.5 (roll-modes.ts); null while the experiment is off. */
     private mode: InteractionMode | null = null;
-    private heads: PlayheadsState | null = null;
+    /** The selection, Цикл and transport of the player's model last drawn, so a change of them alone draws again. */
+    private modelDrawn = "";
     /** A press under the modes: what it began and where; a pan keeps the scroll and rows it started from. */
     private rulePress: { pointer: number; x: number; y: number; tick: number; pitch: number; gesture: RollGesture; shift: boolean; scroll: number; top: number; moving: boolean } | null = null;
     /** The box being drawn in Edit notes, to where the pointer is; and the notes the last box took, for the editor. */
@@ -567,10 +569,9 @@ export class PianoRoll {
         this.invalidate();
     }
 
-    /** The mode the bar chose and the two playheads (version 0.5, roll-modes.ts); a null mode keeps the roll as it was. */
-    setRules(mode: string | null, heads: PlayheadsState | null): void {
+    /** The mode the bar chose (version 0.5, roll-modes.ts); a null mode keeps the roll as it was. */
+    setRules(mode: string | null): void {
         this.mode = modeOf(mode);
-        this.heads = this.mode === null ? null : heads;
         if (this.mode === null) {
             delete this.roll.dataset.mode;
         } else {
@@ -1107,6 +1108,7 @@ export class PianoRoll {
                     this.keepInView(now);
                 }
             }
+            this.dirty ||= this.modelChanged(player);
         }
         if (this.dirty) {
             this.dirty = false;
@@ -1878,19 +1880,32 @@ export class PianoRoll {
         return true;
     }
 
-    /** The two playheads and the box being drawn, under the modes of version 0.5; false while they are off. */
+    /**
+     * The box being drawn and the two playheads of the playback model (#495 UX-10), from the player's model with the position
+     * of this frame, under the modes of version 0.5; false while they are off or the player does not hold the model.
+     */
     private drawRules(context: CanvasRenderingContext2D, width: number, height: number): boolean {
         const press = this.rulePress;
         if (press !== null && this.box !== null) {
             drawBox(context, press, this.box, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
         }
-        const model = this.model;
-        if (this.heads === null || model === null) {
+        const state = this.mode === null || this.model === null ? null : (this.player?.model?.() ?? null);
+        if (state === null) {
             return false;
         }
         const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, left: GUTTER, right: width, height };
-        const playing = this.player !== null && this.player.state() !== "stopped";
-        drawPlayheads(context, frame, this.heads, this.tickNow, playing, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        drawPlayheads(context, frame, viewOf({ ...state, tick: this.tickNow }), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        return true;
+    }
+
+    /** Whether the player's model changed but for its position since it was drawn: Цикл or a pause moves or fills a playhead. */
+    private modelChanged(player: PlayerHandle): boolean {
+        const state = this.mode === null ? null : (player.model?.() ?? null);
+        const key = state === null ? "" : `${state.selection?.start ?? ""}:${state.selection?.end ?? ""}:${state.loop}:${state.transport}`;
+        if (key === this.modelDrawn) {
+            return false;
+        }
+        this.modelDrawn = key;
         return true;
     }
 

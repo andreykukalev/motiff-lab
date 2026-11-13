@@ -22,12 +22,6 @@ public sealed partial class Player
     /// <summary>The colour of the Play button: playing, where the sound is; stopped, what Play will play.</summary>
     public PlaybackContext Context { get; private set; } = PlaybackContext.Piece;
 
-    /// <summary>Whether the position lies inside the selection.</summary>
-    public bool Inside { get; private set; }
-
-    /// <summary>The blue playhead while it waits outside the selection (at its start or its end); null inside it or without one.</summary>
-    public Tick? Waits { get; private set; }
-
     /// <summary>The place Play names when it is not the position: stopped with Цикл on outside the selection, its start.</summary>
     public Tick? PlayFrom { get; private set; }
 
@@ -86,14 +80,12 @@ public sealed partial class Player
         Changed?.Invoke();
     }
 
-    /// <summary>Called by the script when what the model shows changes: Цикл, the colour of Play and the places that stand.</summary>
+    /// <summary>Called by the script when what the model shows changes: Цикл, the colour of Play and the place it names.</summary>
     [JSInvokable]
-    public void OnPlaybackModel(bool loop, string context, bool inside, double? waits, double? at)
+    public void OnPlaybackModel(bool loop, string context, double? at)
     {
         SelectionLoop = loop;
         Context = context == "selection" ? PlaybackContext.Selection : PlaybackContext.Piece;
-        Inside = inside;
-        Waits = waits is { } tick ? new Tick((long)Math.Round(tick)) : null;
         PlayFrom = at is { } from ? new Tick((long)Math.Round(from)) : null;
         Changed?.Invoke();
     }

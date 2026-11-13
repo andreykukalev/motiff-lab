@@ -15,15 +15,12 @@ export interface EnginePlace {
     transport: Transport;
 }
 
-/** What Blazor is told of the model: changes only when one of these does, not with every move of the position. */
+/** What Blazor is told of the model: changes only when one of these does, not with every move of the position. The
+ * playheads the views draw themselves from the player's model (score-view.ts, piano-roll.ts). */
 export interface ModelReport {
     /** Цикл, as the pill shows it. */
     loop: boolean;
     context: Context;
-    /** Whether the position lies inside the selection. */
-    inside: boolean;
-    /** The blue playhead while it does not move with the black one (outside the selection), else null. */
-    waits: number | null;
     /** The place Play names when it is not the position (stopped with Цикл on outside the selection: its start), else null. */
     at: number | null;
 }
@@ -53,8 +50,6 @@ export class PlaybackOwner {
         return {
             loop: this.loop,
             context: view.context,
-            inside: view.inside,
-            waits: view.blue === null || view.inside ? null : view.blue,
             at: view.at === view.black ? null : view.at,
         };
     }

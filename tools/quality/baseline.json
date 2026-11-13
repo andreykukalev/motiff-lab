@@ -157,7 +157,6 @@
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Pages/PlaybackLab.razor","symbol":"same file","value":30,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Roll/PianoRoll.razor","symbol":"with src/MotiffLab.Web/Score/ScoreView.razor","value":18,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Scripts/score/phrase-card.ts","symbol":"with src/MotiffLab.Web/Scripts/score/score-view.ts","value":15,"why":"existing before #332"},
-    {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Scripts/score/phrase-card.ts","symbol":"with src/MotiffLab.Web/Scripts/score/score-view.ts","value":18,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Scripts/storage/pencil-store.ts","symbol":"with src/MotiffLab.Web/Scripts/storage/recording-store.ts","value":22,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Settings/SettingChoice.razor","symbol":"with src/MotiffLab.Web/Settings/SettingSwitch.razor","value":1,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"tests/MotiffLab.MusicCore.Tests/Analysis/CharacterFactTests.cs","symbol":"with tests/MotiffLab.MusicCore.Tests/Variations/EmbellishmentTests.cs","value":11,"why":"existing before #332"},
