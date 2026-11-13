@@ -91,6 +91,17 @@ final class PencilTests: XCTestCase {
         let missed = try await call(view, "erase", ["points": [["x": x, "y": y + 400]]]) as? [String]
         XCTAssertEqual(missed, [])
 
+        // The eraser cuts along its path (#479 item 7): a pass across the middle leaves both ends, each kept again
+        // against its bar in the stroke's own ink.
+        let across = [["x": x + 20, "y": y - 20], ["x": x + 20, "y": y + 24]]
+        let answered = try await call(view, "eraseAlong", ["points": across])
+        let cut = try XCTUnwrap(answered as? [String: Any])
+        XCTAssertEqual(cut["removed"] as? [String], [mark["id"] as? String ?? "?"])
+        let pieces = try XCTUnwrap(cut["added"] as? [[String: Any]])
+        XCTAssertEqual(pieces.count, 2, "the stroke is left in two pieces")
+        XCTAssertEqual(pieces.compactMap { $0["colour"] as? String }, ["carmine", "carmine"])
+        XCTAssertEqual(pieces.compactMap { ($0["bar"] as? NSNumber)?.doubleValue }, [value("tick"), value("tick")])
+
         // The project file keeps the stroke as it is, for the web app to draw in the same place.
         let file = await MusicCore.run { MusicCore.call(piece: piece.id, "project.save", #"{"now": "2026-11-04T12:00:00Z"}"#) }
         let saved = try XCTUnwrap(facadeObject(file))

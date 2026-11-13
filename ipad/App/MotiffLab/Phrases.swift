@@ -9,6 +9,8 @@ struct PhraseLevelsShown: Equatable, Sendable {
     /// How many units each level has, by its id.
     var counts: [String: Int]
     var units: [PhraseUnit]
+    /// The levels the player changed (boundaries added or taken away, in the Music Studio), which can be reset.
+    var edited: Set<String> = []
 
     static let ids = ["short", "phrase", "sentence"]
 
@@ -22,6 +24,11 @@ struct PhraseLevelsShown: Equatable, Sendable {
             if let id = entry["id"] as? String { counts[id] = (entry["count"] as? NSNumber)?.intValue ?? 0 }
         }
         self.counts = counts
+        let edits = object["edits"] as? [String: Any] ?? [:]
+        self.edited = Set(Self.ids.filter { id in
+            let level = edits[id] as? [String: Any] ?? [:]
+            return ["added", "removed"].contains { !((level[$0] as? [Any]) ?? []).isEmpty }
+        })
         self.units = units.compactMap(PhraseUnit.init(answer:))
     }
 

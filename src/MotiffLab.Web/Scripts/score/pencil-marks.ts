@@ -330,6 +330,74 @@ function distanceToSegment(a: InkPoint, b: InkPoint, x: number, y: number): numb
     return Math.hypot(a.x + t * dx - x, a.y + t * dy - y);
 }
 
+/** How far a point is from a line through the eraser's points, or from its one point. */
+function distanceToPath(path: ReadonlyArray<{ x: number; y: number }>, x: number, y: number): number {
+    if (path.length === 1) {
+        return Math.hypot(path[0].x - x, path[0].y - y);
+    }
+    let nearest = Infinity;
+    for (let i = 1; i < path.length; i++) {
+        nearest = Math.min(nearest, distanceToSegment({ ...path[i - 1], pressure: 0 }, { ...path[i], pressure: 0 }, x, y));
+    }
+    return nearest;
+}
+
+/** The stroke's points with more between any two further apart than `step`, their pressure taken along the line. */
+export function densify(points: readonly InkPoint[], step: number): InkPoint[] {
+    const walked: InkPoint[] = points.slice(0, 1);
+    for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        const parts = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step);
+        for (let part = 1; part < parts; part++) {
+            const t = part / parts;
+            walked.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y), pressure: a.pressure + t * (b.pressure - a.pressure) });
+        }
+        walked.push(b);
+    }
+    return walked;
+}
+
+/**
+ * What is left of a stroke after the eraser passed along `path` (the iPad, #479 item 7): the runs of its centre line
+ * farther from the path than the eraser's reach and the stroke's own half-thickness, as a real eraser leaves a line in
+ * pieces. The line is first walked in short steps, so a cut can fall between two of its points; a piece keeps two
+ * points or more. Null when the eraser missed the stroke; an empty list when it took all of it. The iPad's PDF pages
+ * split their strokes the same way (InkSplit in ipad/App/MotiffLab/InkGeometry.swift).
+ */
+export function eraseAlong(
+    points: readonly InkPoint[],
+    radius: number,
+    path: ReadonlyArray<{ x: number; y: number }>,
+    reach: number,
+): InkPoint[][] | null {
+    if (points.length === 0 || path.length === 0) {
+        return null;
+    }
+    const limit = reach + radius;
+    const walked = densify(points, Math.max(0.5, limit / 2));
+    const gone = walked.map((point) => distanceToPath(path, point.x, point.y) <= limit);
+    if (!gone.includes(true)) {
+        return null;
+    }
+    const pieces: InkPoint[][] = [];
+    let run: InkPoint[] = [];
+    walked.forEach((point, i) => {
+        if (!gone[i]) {
+            run.push(point);
+            return;
+        }
+        if (run.length > 1) {
+            pieces.push(run);
+        }
+        run = [];
+    });
+    if (run.length > 1) {
+        pieces.push(run);
+    }
+    return pieces;
+}
+
 const TOOLS: ReadonlySet<string> = new Set<MarkTool>(["pen", "highlighter"]);
 const MARGINS: ReadonlySet<string> = new Set<StrokeMargin>(["left", "right"]);
 const COLOURS: ReadonlySet<string> = new Set<MarkColour>(["graphite", "carmine", "forest", "ochre", "amber"]);

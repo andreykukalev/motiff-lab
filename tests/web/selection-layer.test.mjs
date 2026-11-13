@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { menuPlace, ordered } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-layer.js";
+import { dragStartOf, menuPlace, ordered } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-layer.js";
 import { barLines, beatAt, keyLines, nearestLine, spanOf, stepEdge } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-beats.js";
 import { BRACKET_LIFT } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 
@@ -99,4 +99,15 @@ test("the arrow keys move a beat edge among the beat lines and the barlines, eac
         { tick: 1440, end: 2880 },
     ];
     assert.deepEqual(keyLines([480, 960, 1440, 1920], bars), [0, 480, 960, 1440, 1920, 2880]);
+});
+
+test("a press starts a selection as the host's rule for its pointer says, else as before", () => {
+    assert.equal(dragStartOf("pen", "now", false, false), "now", "on the iPad the stylus selects in Select (#479 item 18)");
+    assert.equal(dragStartOf("touch", "longPress", false, true), "longPress");
+    assert.equal(dragStartOf("pen", "none", false, false), "none");
+    assert.equal(dragStartOf("pen", undefined, false, false), "none", "without rules the pen writes");
+    assert.equal(dragStartOf("mouse", undefined, true, false), "none", "and the mouse writes while the pen is on");
+    assert.equal(dragStartOf("touch", undefined, false, false), "longPress");
+    assert.equal(dragStartOf("touch", undefined, false, true), "now");
+    assert.equal(dragStartOf("mouse", undefined, false, false), "now");
 });

@@ -10,7 +10,7 @@ enum PenSizes {
 
     /// How much of the highlighter's amber a highlighted place shows, however many strokes cover it: the alpha of the
     /// `amber-tint` token. Highlighter strokes are drawn opaque as one layer and the layer is laid on the page once at this
-    /// alpha (#479 item 9: overlapping strokes showed darker blotches), live in PencilKit and on the page after.
+    /// alpha (#479 item 9: overlapping strokes showed darker blotches), live (InkInput) and on the page after.
     static var highlighterAlpha: CGFloat { DesignTokens.color("amber-tint").cgColor.alpha }
 }
 
@@ -68,7 +68,8 @@ enum PenMemory {
     }
 }
 
-/// What the pen palette changes, on the score and on a PDF's pages: the tool, its thickness and the Pen itself.
+/// What the pen palette changes, on the score and on a PDF's pages: the tool, its thickness and the Pen itself, and the
+/// pencil palette the Pencil's double tap or squeeze opens (#479 item 8), with Undo.
 @MainActor
 protocol PenHolder: ObservableObject {
     var tool: ScoreController.Tool { get set }
@@ -76,6 +77,9 @@ protocol PenHolder: ObservableObject {
     var penOn: Bool { get set }
     var penWidth: Int { get set }
     var highlighterWidth: Int { get set }
+    var pencilPalette: PencilPaletteCall? { get set }
+    var canUndo: Bool { get }
+    func undo()
 }
 
 extension PenHolder {

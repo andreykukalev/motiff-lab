@@ -184,7 +184,7 @@ This follows the DS tab's "Applying it to the existing app", adjusted with what 
 4. **Selection**: band, handles, contextual menu; sticky selection.
 5. **Phrase focus**: lifted card, dim page, prev/next, ossia with variation chips, Original / Variation / Alternate, Reading | As played, lead-in.
 6. **Piano roll drawer** (aligned bar for bar), then the **Insights sheet** (stream, Try / Keep / Adjust), then **Contents drawer** (bookmarks, Notes, Pages).
-7. **Annotations**: stylus always draws; Pen mode for finger; margin notes, highlights, fingering, bookmark brackets; layers in the Pen menu.
+7. **Annotations**: the stylus follows the tool (since 2026-11-13, #479 item 18: it draws with Pen, selects with Select); Pen mode for finger; margin notes, highlights, fingering, bookmark brackets; layers in the Pen menu.
 8. **Library and import** (resume points replace sessions; Check layer and drawer replace report pages).
 9. **Settings** (global sheet with presets, first-run preset screen, contextual popovers).
 10. **Piece DNA**, then **AI Assistant** (Pro).
