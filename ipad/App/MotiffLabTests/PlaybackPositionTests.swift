@@ -16,7 +16,7 @@ final class PlaybackPositionTests: XCTestCase {
         let cases = try Self.cases()
         XCTAssertGreaterThan(cases.count, 40, "the case file is read whole")
         let rules = Set(cases.compactMap { $0["rule"] as? String })
-        for rule in ["view", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T16"] {
+        for rule in ["view", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14", "T15", "T16"] {
             XCTAssertTrue(rules.contains(rule), "a case for \(rule)")
         }
         for one in cases {
@@ -36,6 +36,16 @@ final class PlaybackPositionTests: XCTestCase {
                 XCTAssertEqual(PlaybackModel.view(of: state), view, "\(label): what the views draw")
             }
         }
+    }
+
+    /// The score and the roll report a playhead's handle as `{ drag: { phase, handle, tick } }` (#495 UX-08).
+    func testAPlayheadGestureIsReadFromThePagesMessage() {
+        XCTAssertEqual(PlayheadGesture(message: ["phase": "grab", "handle": "blue"] as [String: Any]), .grab(.blue))
+        XCTAssertEqual(PlayheadGesture(message: ["phase": "move", "handle": "black", "tick": 960] as [String: Any]), .move(960))
+        XCTAssertEqual(PlayheadGesture(message: ["phase": "release", "handle": "black", "tick": NSNull()] as [String: Any]), .release)
+        XCTAssertNil(PlayheadGesture(message: ["phase": "grab", "handle": "green"] as [String: Any]), "no such playhead")
+        XCTAssertNil(PlayheadGesture(message: ["phase": "move", "handle": "black"] as [String: Any]), "a move without its tick")
+        XCTAssertNil(PlayheadGesture(message: nil))
     }
 
     func testTheEngineLoopsTheSelectionOnlyWhileCycleIsOn() {
@@ -97,14 +107,27 @@ final class PlaybackPositionTests: XCTestCase {
             if let at = number(object["at"]) { return .seek(at) }
         case "seekInLoop":
             if let at = number(object["at"]) { return .seekInLoop(at) }
-        case "release":
-            if let handle = (object["handle"] as? String).flatMap(PlaybackModel.Handle.init(rawValue:)), let resume = object["resume"] as? Bool {
-                return .release(handle, resume: resume)
-            }
+        case "grab", "drag", "release":
+            if let gesture = gesture(object) { return gesture }
         default:
             break
         }
         throw Malformed(what: "\(label): an event")
+    }
+
+    /// A playhead taken, dragged or let go (T14–T16); nil when a field is missing.
+    private static func gesture(_ object: [String: Any]) -> PlaybackModel.Event? {
+        let handle = (object["handle"] as? String).flatMap(PlaybackModel.Handle.init(rawValue:))
+        switch object["type"] as? String {
+        case "grab":
+            return .grab
+        case "drag":
+            guard let handle, let at = number(object["at"]) else { return nil }
+            return .drag(handle, to: at)
+        default:
+            guard let handle, let resume = object["resume"] as? Bool else { return nil }
+            return .release(handle, resume: resume)
+        }
     }
 
     private static func steps(_ value: Any?, _ label: String) throws -> [TransportStep] {

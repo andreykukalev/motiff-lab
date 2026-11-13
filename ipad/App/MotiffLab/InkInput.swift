@@ -28,6 +28,9 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     var rubbed: (_ points: [CGPoint], _ lifted: Bool) -> Void = { _, _ in }
     /// The selection handles' centres in the host's coordinates: a touch there moves the handle and never writes.
     var handles: () -> [CGPoint] = { [] }
+    /// The playheads' handles' centres in the host's coordinates (#495 UX-08): a finger there drags the playhead and never
+    /// writes; the Pencil writes there in the Pen, as the design has it (playback-model-v0.5.2, «Жест»).
+    var heads: () -> [CGPoint] = { [] }
     /// While the page is still (phrase focus), nothing writes on it.
     var still = false {
         didSet { apply(rules) }
@@ -120,11 +123,14 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
 
     // MARK: - UIGestureRecognizerDelegate
 
-    /// A touch on a selection handle (its 44 pt target) moves the handle: the pen does not take it.
+    /// A touch on a selection handle (its 44 pt target) moves the handle, and a finger on a playhead's handle drags the
+    /// playhead: the pen does not take them.
     func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard recognizer === gesture, let host else { return true }
         let at = touch.location(in: host)
-        return !handles().contains { hypot($0.x - at.x, $0.y - at.y) <= InputRules.handleReach }
+        let near = { (spot: CGPoint) in hypot(spot.x - at.x, spot.y - at.y) <= InputRules.handleReach }
+        if touch.type != .pencil && heads().contains(where: near) { return false }
+        return !handles().contains(where: near)
     }
 
     /// Two fingers scroll and pinch beside a finger writing, which then lets its stroke go.

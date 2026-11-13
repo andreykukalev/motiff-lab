@@ -7,8 +7,8 @@
 // This is the reference: pure functions over a state, written once. The iPad's Player runs a Swift port of it
 // (ipad/App/MotiffLab/PlaybackPosition.swift, PlaybackModel), and both run the one case file
 // ipad/App/MotiffLabTests/Golden/playback-model.json (tests/web/playback-model.test.mjs, PlaybackPositionTests.swift).
-// The rules are the design's transitions T1–T13 and the release rules of T16; the drag itself (T14, T15) and scrubbing
-// come in later slices.
+// The rules are the design's transitions T1–T16: a playhead taken (T14) pauses playback, dragged (T15) it moves the
+// position, the blue one inside the selection, and let go (T16) it plays on when it played. Scrubbing comes in slice I4.
 
 /** A stretch of ticks [start, end), 480 to the quarter. */
 export interface Span {
@@ -53,6 +53,10 @@ export type ModelEvent =
     | { type: "seek"; at: number }
     /** T13: a tap on the roll's loop strip moves both playheads inside the selection. */
     | { type: "seekInLoop"; at: number }
+    /** T14: a playhead's handle taken by the pen or a finger: playback stands while it is held. */
+    | { type: "grab" }
+    /** T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts). */
+    | { type: "drag"; handle: Handle; at: number }
     /** T16: a playhead let go where the position now is, playing on when it played as the gesture began. */
     | { type: "release"; handle: Handle; resume: boolean };
 
@@ -123,6 +127,10 @@ export function next(state: ModelState, event: ModelEvent): Decision {
             return seek(state, event.at);
         case "seekInLoop":
             return seekInLoop(state, event.at);
+        case "grab":
+            return grab(state);
+        case "drag":
+            return drag(state, event.handle, event.at);
         case "release":
             return release(state, event.handle, event.resume);
     }
@@ -192,6 +200,31 @@ function seekInLoop(state: ModelState, at: number): Decision {
         return { state, steps: [] };
     }
     const to = Math.min(Math.max(at, selection.start), Math.max(selection.start, selection.end - 1));
+    return { state: { ...state, tick: to }, steps: [{ type: "seek", at: to }] };
+}
+
+/** T14: playback stands while a playhead is held, so the drag is heard alone; the player keeps whether it played (T16). */
+function grab(state: ModelState): Decision {
+    if (playingOf(state.transport)) {
+        return { state: { ...state, transport: "stopped" }, steps: [{ type: "pause" }] };
+    }
+    return { state, steps: [] };
+}
+
+/**
+ * T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
+ * the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
+ * place is where the position already is.
+ */
+function drag(state: ModelState, handle: Handle, at: number): Decision {
+    const selection = state.selection;
+    if (handle === "blue" && selection === null) {
+        return { state, steps: [] };
+    }
+    const to = handle === "blue" && selection !== null ? Math.min(Math.max(at, selection.start), Math.max(selection.start, selection.end - 1)) : Math.max(0, at);
+    if (to === state.tick) {
+        return { state, steps: [] };
+    }
     return { state: { ...state, tick: to }, steps: [{ type: "seek", at: to }] };
 }
 

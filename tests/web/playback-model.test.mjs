@@ -1,4 +1,4 @@
-// Tests for the playback model of v0.5.2 (#495 UX-10, Scripts/playback/playback-model.ts) on the case file the iPad's
+// Tests for the playback model of v0.5.2 (#495 UX-08 and UX-10, Scripts/playback/playback-model.ts) on the case file the iPad's
 // Swift port runs too (ipad/App/MotiffLabTests/Golden/playback-model.json, PlaybackPositionTests.swift), in Node on the
 // compiled module:   dotnet build src/MotiffLab.Web && node --test tests/web
 
@@ -11,7 +11,7 @@ import { engineLoop, next, viewOf } from "../../src/MotiffLab.Web/wwwroot/js/pla
 const root = new URL("../../", import.meta.url);
 const { cases } = JSON.parse(readFileSync(new URL("ipad/App/MotiffLabTests/Golden/playback-model.json", root), "utf8"));
 
-const RULES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T16"];
+const RULES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14", "T15", "T16"];
 
 test("the case file covers every transition of the slice and the table of what the player sees", () => {
     const rules = new Set(cases.map((one) => one.rule));

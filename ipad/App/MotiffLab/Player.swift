@@ -188,13 +188,19 @@ final class Player: ObservableObject {
         PlaybackModel.State(selection: selection, loop: cycle, tick: tick, transport: state)
     }
 
+    /// A playhead held by the pen or a finger now (T14–T16, PlayheadDrag.swift); nil while none is.
+    var drag: PlayheadDrag?
+
     /// One event of the playback model: the engine gets its steps, and the selection and Цикл become what the model says;
-    /// the position and the transport come back from the engine.
-    func apply(_ event: PlaybackModel.Event) {
-        let decided = PlaybackModel.next(model, event)
+    /// the position and the transport come back from the engine. A drag gives the state as it holds it (`from`). Returns the
+    /// state the model expects once the engine has the steps.
+    @discardableResult
+    func apply(_ event: PlaybackModel.Event, from given: PlaybackModel.State? = nil) -> PlaybackModel.State {
+        let decided = PlaybackModel.next(given ?? model, event)
         selection = decided.state.selection
         cycle = decided.state.loop
         perform(decided.steps)
+        return decided.state
     }
 
     /// The score's selection as it is now, after focus or with the experiment turned on: the model takes it (T9–T11), and
@@ -348,6 +354,8 @@ final class Player: ObservableObject {
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
+        // A playhead held as the screen closes is let go where it is; the pause below ends what sounds.
+        drag = nil
         polling?.cancel()
         polling = nil
         send(.pause)

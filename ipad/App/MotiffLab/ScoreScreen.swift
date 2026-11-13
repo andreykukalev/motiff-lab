@@ -781,6 +781,10 @@ extension ScoreScreen {
                 heard.move(to: tick, play: play, selection: shown.playRange?.range)
             }
         }
+        // A playhead dragged by its handle on the score or the roll (#495 UX-08, T14–T16): the player runs the model. The pages
+        // send it only under the playback model, and a gesture that ends after the model went is still let go.
+        score.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
+        roll.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
     }
 
     /// Where the player is, for the roll: with the lanes, also the place as bar.beat and whether the selection loops.

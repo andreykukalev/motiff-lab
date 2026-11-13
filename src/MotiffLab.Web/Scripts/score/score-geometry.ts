@@ -332,21 +332,7 @@ export function readPage(svg: string, number: number): PageGeometry {
 
 /** The x of a tick in a bar, from its onsets and their x (see ScoreGeometry.playhead). */
 export function placeInBar(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[], tick: number): number {
-    const span = Number.isFinite(bar.end) ? bar.end - bar.tick : 0;
-    if (points.length === 0) {
-        return span > 0 ? bar.left + ((bar.right - bar.left) * (tick - bar.tick)) / span : bar.left;
-    }
-    const first = points[0];
-    const last = points[points.length - 1];
-    // Before the first onset: from where the bar's start would be at the pace of the notes after it, never left of the bar.
-    let start = bar.left;
-    if (first.tick > bar.tick && span > 0 && bar.end > first.tick) {
-        start = Math.max(bar.left, first.x - ((first.tick - bar.tick) / (bar.end - first.tick)) * (bar.right - first.x));
-    }
-    const line: { tick: number; x: number }[] = [...(first.tick > bar.tick ? [{ tick: bar.tick, x: start }] : []), ...points];
-    if (Number.isFinite(bar.end) && bar.end > last.tick) {
-        line.push({ tick: bar.end, x: bar.right });
-    }
+    const line = barLine(bar, points);
     if (tick <= line[0].tick) {
         return line[0].x;
     }
@@ -358,6 +344,48 @@ export function placeInBar(bar: Rect & { tick: number; end: number }, points: re
         }
     }
     return line[line.length - 1].x;
+}
+
+/**
+ * The tick at an x in a bar: placeInBar the other way round, along the same line through the bar's onsets, for a playhead
+ * dragged across it (#495 UX-08). Left of the line it is the bar's first moment, right of it the line's last; where the
+ * line does not move on (onsets drawn at one x) it is the first tick there.
+ */
+export function tickInBar(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[], x: number): number {
+    const line = barLine(bar, points);
+    if (x <= line[0].x) {
+        return line[0].tick;
+    }
+    for (let i = 1; i < line.length; i++) {
+        const from = line[i - 1];
+        const to = line[i];
+        if (x < to.x) {
+            return from.tick + ((to.tick - from.tick) * (x - from.x)) / (to.x - from.x);
+        }
+    }
+    return line[line.length - 1].tick;
+}
+
+/**
+ * The line a bar's time takes across it: from where its start would be at the pace of the notes after it (never left of
+ * the bar), through the onsets and their x, to its right barline at its end. A bar with no notes is crossed evenly.
+ */
+function barLine(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[]): { tick: number; x: number }[] {
+    const span = Number.isFinite(bar.end) ? bar.end - bar.tick : 0;
+    if (points.length === 0) {
+        return span > 0 ? [{ tick: bar.tick, x: bar.left }, { tick: bar.end, x: bar.right }] : [{ tick: bar.tick, x: bar.left }];
+    }
+    const first = points[0];
+    const last = points[points.length - 1];
+    let start = bar.left;
+    if (first.tick > bar.tick && span > 0 && bar.end > first.tick) {
+        start = Math.max(bar.left, first.x - ((first.tick - bar.tick) / (bar.end - first.tick)) * (bar.right - first.x));
+    }
+    const line: { tick: number; x: number }[] = [...(first.tick > bar.tick ? [{ tick: bar.tick, x: start }] : []), ...points];
+    if (Number.isFinite(bar.end) && bar.end > last.tick) {
+        line.push({ tick: bar.end, x: bar.right });
+    }
+    return line;
 }
 
 function place(rect: Rect, at: PagePlacement): Rect {
@@ -611,6 +639,12 @@ export class ScoreGeometry {
         const bottom = bar.staves.length > 0 ? Math.max(...bar.staves.map((staff) => staff.bottom)) : bar.bottom;
         const points = this.timePoints(index, onsetOf);
         return { x: placeInBar(bar, points, tick), top, bottom, bar };
+    }
+
+    /** The tick at an x across a bar, along its onsets as the playhead crosses it (tickInBar). */
+    tickAt(bar: ScoreBar, x: number, onsetOf: (id: string) => number | undefined): number {
+        const index = this.bars.indexOf(bar);
+        return tickInBar(bar, index < 0 ? [] : this.timePoints(index, onsetOf), x);
     }
 
     /** The bar's onsets with the x of their notes (the middle of the noteheads that start together), in time order. */
