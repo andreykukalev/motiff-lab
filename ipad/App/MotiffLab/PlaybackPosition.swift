@@ -1,62 +1,211 @@
 import Foundation
 
-/// One playback position (v0.5.2, #479 items 19, 22 and 25; product spec two-playheads, as approved on 2026-11-13): the
-/// score, the roll and the pill show the same place. Inside the selection it is the selection's, in cobalt; outside it is
-/// the piece's, in ink. With Цикл on the selection loops, also when playing began before it was made; with Цикл off playback
-/// goes on past it. Pure decisions, so they are tested without the audio.
-enum PlaybackPosition {
-    /// Whether a tick lies inside the selection, from its start up to, not at, its end.
+/// The playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2; Settings · Experimental, «Два
+/// указателя и режимы»): one position in the engine, two playheads on screen, one Play button and the selection's Цикл. The
+/// engine's position is the black playhead, the piece's place; the blue one stores nothing, it is the position held to the
+/// selection; Цикл is the promise that while it is on, playback keeps the position inside the selection.
+///
+/// The Swift port of the reference, src/MotiffLab.Web/Scripts/playback/playback-model.ts: the same pure rules (the
+/// design's T1–T13 and the release rules of T16), run on the same case file, MotiffLabTests/Golden/playback-model.json
+/// (PlaybackPositionTests). Player owns the selection and Цикл and sends the steps to the engine.
+enum PlaybackModel {
+    /// The selection and Цикл are the player's own, the tick and the transport the engine's.
+    struct State: Equatable {
+        /// The selection as the range it plays, [start, end).
+        var selection: Range<Double>?
+        /// Цикл: the selection loops while it is on; it means something only with a selection, and is kept without one.
+        var loop: Bool
+        var tick: Double
+        var transport: TransportState
+    }
+
+    /// Which playhead a gesture held: the black one is the piece's, the blue one the selection's.
+    enum Handle: String {
+        case black, blue
+    }
+
+    enum Event: Equatable {
+        /// T1–T3: the Play button, Space or a pedal.
+        case press
+        /// T4–T6: the engine reported where it is and whether it plays (it loops and stops by itself).
+        case report(tick: Double, transport: TransportState)
+        /// T7, T8: the Цикл control.
+        case cycle
+        /// T9–T11: the selection appeared, changed or went (nil).
+        case select(Range<Double>?)
+        /// T12: a tap on a beat or a bar, or on the whole-piece strip, moves the black playhead.
+        case seek(Double)
+        /// T13: a tap on the roll's loop strip moves both playheads inside the selection.
+        case seekInLoop(Double)
+        /// T16: a playhead let go where the position now is, playing on when it played as the gesture began.
+        case release(Handle, resume: Bool)
+    }
+
+    /// The colour of the Play button and its words: the selection's (cobalt) or the piece's (ink).
+    enum Context: String {
+        case selection, piece
+    }
+
+    /// What the views draw, derived from the state alone.
+    struct View: Equatable {
+        /// Whether the position lies inside the selection, from its start up to, not at, its end.
+        var inside: Bool
+        /// The black playhead: the position, always shown.
+        var black: Double
+        /// The blue playhead, with a selection: the position held to it; at its end it stands at the band's right edge.
+        var blue: Double?
+        var playing: Bool
+        /// Playing, where the sound is; stopped, what Play will play.
+        var context: Context
+        /// The place the Play button names: the position, or stopped with Цикл on outside the selection, where Play starts.
+        var at: Double
+    }
+
+    /// The model after an event, as the engine will report it once it has the steps, and the steps, in order.
+    typealias Decision = (state: State, steps: [TransportStep])
+
     static func inside(_ tick: Double, _ selection: Range<Double>?) -> Bool {
         selection?.contains(tick) ?? false
     }
 
-    /// The passage the engine loops: the selection while Цикл is on, else none.
-    static func loop(selection: Range<Double>?, cycle: Bool) -> Range<Double>? {
-        cycle ? selection : nil
+    static func playing(_ transport: TransportState) -> Bool {
+        transport != .stopped
     }
 
-    /// Цикл after the selection changed: on by itself when a selection appears where there was none; else as it was.
-    static func cycle(after old: Range<Double>?, _ new: Range<Double>?, was cycle: Bool) -> Bool {
-        old == nil && new != nil ? true : cycle
+    /// The passage the engine loops for this model: the selection while Цикл is on, else none. Other owners of the engine's
+    /// loop (hearing in turn, a variation, the circle's scale, focus) put this one back when they end.
+    static func engineLoop(_ state: State) -> Range<Double>? {
+        state.loop ? state.selection : nil
     }
 
-    /// The cobalt Play (or Space with a selection): a pause while the position plays inside the selection; else the selection
-    /// from where the position is inside it, or from its start, playing on past it when Цикл is off.
-    static func playSelection(_ selection: Range<Double>, at tick: Double, playing: Bool) -> [TransportStep] {
-        let within = inside(tick, selection)
-        if playing && within {
-            return [.pause]
+    /// The two playheads, the Play button's colour and the place it names.
+    static func view(of state: State) -> View {
+        let within = inside(state.tick, state.selection)
+        let sounding = playing(state.transport)
+        var blue: Double?
+        var at = state.tick
+        var holds = within
+        if let selection = state.selection {
+            if within {
+                blue = state.tick
+            } else {
+                blue = state.loop ? selection.lowerBound : min(max(state.tick, selection.lowerBound), selection.upperBound)
+            }
+            if !sounding {
+                holds = state.loop || within
+                if state.loop && !within { at = selection.lowerBound }
+            }
         }
-        var steps: [TransportStep] = within ? [] : [.seek(selection.lowerBound)]
-        if !playing {
+        return View(inside: within, black: state.tick, blue: blue, playing: sounding, context: holds ? .selection : .piece, at: at)
+    }
+
+    /// The model's answer to an event: what the engine is told and what the state becomes.
+    static func next(_ state: State, _ event: Event) -> Decision {
+        switch event {
+        case .press:
+            return press(state)
+        case .report(let tick, let transport):
+            var after = state
+            after.tick = tick
+            after.transport = transport
+            return (after, [])
+        case .cycle:
+            return cycle(state)
+        case .select(let selection):
+            return select(state, selection)
+        case .seek(let at):
+            return seek(state, to: at)
+        case .seekInLoop(let at):
+            return seekInLoop(state, to: at)
+        case .release(let handle, let resume):
+            return release(state, handle, resume: resume)
+        }
+    }
+
+    /// T1 a pause while it plays; T2 stopped with Цикл on outside the selection, the selection from its start; T3 else from
+    /// the position.
+    private static func press(_ state: State) -> Decision {
+        var after = state
+        if playing(state.transport) {
+            after.transport = .stopped
+            return (after, [.pause])
+        }
+        after.transport = .playing
+        if let selection = state.selection, state.loop, !selection.contains(state.tick) {
+            after.tick = selection.lowerBound
+            return (after, [.seek(selection.lowerBound), .play])
+        }
+        return (after, [.play])
+    }
+
+    /// T7 on: the selection loops and the position goes to its start, playing on or waiting there as it was; T8 off:
+    /// playback goes on past the selection. Without a selection there is no Цикл to press.
+    private static func cycle(_ state: State) -> Decision {
+        guard let selection = state.selection else { return (state, []) }
+        var after = state
+        after.loop = !state.loop
+        if state.loop {
+            return (after, [.loopOff])
+        }
+        after.tick = selection.lowerBound
+        return (after, [.loop(selection), .seek(selection.lowerBound)])
+    }
+
+    /// T9 a selection appears: Цикл turns on (design question В2); T10 it changes: Цикл as it was; T11 it goes: nothing
+    /// loops, Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not.
+    private static func select(_ state: State, _ selection: Range<Double>?) -> Decision {
+        guard selection != state.selection else { return (state, []) }
+        var after = state
+        after.selection = selection
+        if state.selection == nil && selection != nil {
+            after.loop = true
+        }
+        if let wanted = engineLoop(after) {
+            return (after, [.loop(wanted)])
+        }
+        let steps: [TransportStep] = engineLoop(state) != nil ? [.loopOff] : []
+        return (after, steps)
+    }
+
+    /// T12: the black playhead is the piece's, so taking it out of the selection leaves the loop: Цикл turns off first (В8).
+    private static func seek(_ state: State, to at: Double) -> Decision {
+        let to = max(0, at)
+        var after = state
+        after.tick = to
+        if engineLoop(state) != nil && !inside(to, state.selection) {
+            after.loop = false
+            return (after, [.loopOff, .seek(to)])
+        }
+        return (after, [.seek(to)])
+    }
+
+    /// T13: the loop strip moves the position inside the selection only, so Цикл stays as it is.
+    private static func seekInLoop(_ state: State, to at: Double) -> Decision {
+        guard let selection = state.selection else { return (state, []) }
+        let to = min(max(at, selection.lowerBound), max(selection.lowerBound, selection.upperBound - 1))
+        var after = state
+        after.tick = to
+        return (after, [.seek(to)])
+    }
+
+    /// T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12);
+    /// the blue one stays inside the selection and leaves Цикл alone. Playing when the gesture began, it plays on from there.
+    private static func release(_ state: State, _ handle: Handle, resume: Bool) -> Decision {
+        var after = state
+        var steps: [TransportStep] = []
+        if handle == .black && engineLoop(state) != nil && !inside(state.tick, state.selection) {
+            after.loop = false
+            steps.append(.loopOff)
+        }
+        if resume && !playing(state.transport) {
+            after.transport = .playing
             steps.append(.play)
         }
-        return steps
-    }
-
-    /// The ink Play (or Space with nothing selected): the piece from the position, or a pause while it plays outside the
-    /// selection. Inside the selection it plays on past it, so Цикл goes off (`cycle` is what Цикл becomes). From outside
-    /// with Цикл on, the selection still loops when playback reaches it: the engine plays first, then gets the loop, since
-    /// its Play would jump into a loop it already had.
-    static func playPiece(selection: Range<Double>?, at tick: Double, playing: Bool, cycle: Bool) -> (steps: [TransportStep], cycle: Bool) {
-        guard let selection else {
-            return ([playing ? .pause : .play], cycle)
-        }
-        if inside(tick, selection) {
-            var steps: [TransportStep] = cycle ? [.loopOff] : []
-            if !playing {
-                steps.append(.play)
-            }
-            return (steps, false)
-        }
-        if playing {
-            return ([.pause], cycle)
-        }
-        return (cycle ? [.loopOff, .play, .loop(selection)] : [.play], cycle)
+        return (after, steps)
     }
 }
 
-/// What the player is told to do, in order (Player.perform).
+/// What the engine is told, in order (PlaybackModel's steps, Player.perform).
 enum TransportStep: Equatable {
     case pause
     case play
@@ -113,61 +262,5 @@ struct BarBeats: Equatable, Sendable {
             return Mark(at: at, place: BarBeat(bar: bar, beat: number))
         }
         return BarBeats(marks: marks)
-    }
-}
-
-/// The pill's state (v0.5.2, #479 item 22, approved mockup): with a selection a cobalt Play with its span, Цикл, and an ink
-/// Play from the position; without one only the ink Play. The Play that has the position plays in its colour.
-struct TransportPill: Equatable {
-    /// What the cobalt button says: the span "9.1 – 12.3", or while it plays inside, the position and the span "10.3 · 9.1–12.3".
-    enum SelectionLabel: Equatable {
-        case span(first: String, last: String)
-        case inside(position: String, first: String, last: String)
-    }
-
-    /// What the ink button says: "С 16.2" (from the position), or "Пауза · 16.2" while the piece plays.
-    enum PieceLabel: Equatable {
-        case from(String)
-        case pauseAt(String)
-    }
-
-    /// The ink button's sign: a pause while the piece plays; a filled Play alone; an outlined Play beside the cobalt one.
-    enum PieceIcon: Equatable {
-        case pause
-        case play
-        case playOutline
-    }
-
-    struct SelectionButton: Equatable {
-        var playing: Bool
-        var label: SelectionLabel
-    }
-
-    struct PieceButton: Equatable {
-        var icon: PieceIcon
-        /// A filled ink disc (it has the position or stands alone), else an ink ring.
-        var filled: Bool
-        var label: PieceLabel
-    }
-
-    /// Nil without a selection.
-    var selection: SelectionButton?
-    var cycle: Bool
-    var piece: PieceButton
-
-    /// The pill for the position (`position`, as bar.beat), the selection's span when there is one, whether the position is
-    /// inside it, and whether the player plays.
-    static func of(position: String, span: (first: String, last: String)?, inside: Bool, playing: Bool, cycle: Bool) -> TransportPill {
-        let within = span != nil && inside
-        let piecePlaying = playing && !within
-        let selection = span.map { span in
-            SelectionButton(
-                playing: playing && within,
-                label: playing && within ? .inside(position: position, first: span.first, last: span.last) : .span(first: span.first, last: span.last)
-            )
-        }
-        let icon: PieceIcon = piecePlaying ? .pause : span == nil ? .play : .playOutline
-        let piece = PieceButton(icon: icon, filled: piecePlaying || span == nil, label: piecePlaying ? .pauseAt(position) : .from(position))
-        return TransportPill(selection: selection, cycle: cycle, piece: piece)
     }
 }
