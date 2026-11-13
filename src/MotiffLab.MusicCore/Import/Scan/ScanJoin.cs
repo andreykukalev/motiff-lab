@@ -23,7 +23,7 @@ public static class ScanJoin
 {
     private static readonly XmlReaderSettings Safe = new() { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null };
 
-    /// <summary>The pages joined into one score; one page comes back as it is.</summary>
+    /// <summary>The pages joined into one score, the engine's mistakes in it put right (<see cref="ScanRepair"/>); one page that needs no repair comes back as it is.</summary>
     /// <exception cref="ArgumentException">No page, a page that is not partwise MusicXML, or pages with different parts.</exception>
     public static byte[] Join(IReadOnlyList<byte[]> pages)
     {
@@ -43,7 +43,7 @@ public static class ScanJoin
 
         if (pages.Count == 1)
         {
-            return pages[0];
+            return ScanRepair.Repair(pages[0]);
         }
 
         int number = LastNumber(parts[0]);
@@ -77,7 +77,7 @@ public static class ScanJoin
             number += added;
         }
 
-        return Write(first);
+        return ScanRepair.Repair(Write(first));
     }
 
     /// <summary>

@@ -620,18 +620,31 @@ public static partial class NotationGenerator
             if (hasHands || (tracks.Length == 1 && spansBothClefs))
             {
                 static bool IsRight(ShownNote note) => note.Note.Hand?.Value is { } hand ? hand == Hand.Right : note.Note.Pitch.MidiNumber >= MiddleC;
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Treble, Hand.Right, !hasHands, [.. trackNotes.Where(IsRight)]));
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Bass, Hand.Left, !hasHands, [.. trackNotes.Where(note => !IsRight(note))]));
+                ShownNote[] right = [.. trackNotes.Where(IsRight)];
+                ShownNote[] left = [.. trackNotes.Where(note => !IsRight(note))];
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(right, Clef.Treble), Hand.Right, !hasHands, right));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(left, Clef.Bass), Hand.Left, !hasHands, left));
             }
             else
             {
-                int high = trackNotes.Count(note => note.Note.Pitch.MidiNumber >= MiddleC);
-                Clef clef = high >= trackNotes.Length - high ? Clef.Treble : Clef.Bass;
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, clef, null, false, trackNotes));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(trackNotes, Clef.Treble), null, false, trackNotes));
             }
         }
 
         return staves;
+    }
+
+    /// <summary>
+    /// The clef a staff's notes read best in: treble when most are at or above middle C, bass when most are below, and
+    /// <paramref name="usual"/> on a tie or with no notes. So a right hand written low, as in a piece on two bass clefs
+    /// (v0.5, issue #479, item 15), is not shown on ledger lines under a treble clef. A choice for showing the notes, made
+    /// from their pitches; the notes do not change.
+    /// </summary>
+    private static Clef ClefFor(ShownNote[] notes, Clef usual)
+    {
+        int high = notes.Count(note => note.Note.Pitch.MidiNumber >= MiddleC);
+        int low = notes.Length - high;
+        return high > low ? Clef.Treble : low > high ? Clef.Bass : usual;
     }
 
     /// <summary>Chords in voices that never overlap, the highest voice first.</summary>

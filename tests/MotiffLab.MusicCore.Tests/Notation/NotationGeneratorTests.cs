@@ -284,6 +284,24 @@ public class NotationGeneratorTests
     }
 
     [Fact]
+    public void A_right_hand_written_low_gets_a_bass_clef_as_on_a_page_with_two_bass_clefs()
+    {
+        Note[] notes =
+        [
+            Note("r1", 57, 0, 480, hand: Hand.Right), Note("r2", 59, 480, 480, hand: Hand.Right), Note("r3", 61, 960, 480, hand: Hand.Right),
+            Note("r4", 62, 1440, 480, hand: Hand.Right), Note("r5", 54, 1920, 1920, hand: Hand.Right),
+            Note("l1", 38, 0, 3840, hand: Hand.Left),
+        ];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes);
+
+        Assert.Equal([new NotationStaff(1, 0, Clef.Bass, Hand.Right, false), new NotationStaff(2, 0, Clef.Bass, Hand.Left, false)], result.Staves);
+        Assert.All(mei.Descendants(s_mei + "staffDef"), staffDef => Assert.Equal("F", (string)staffDef.Attribute("clef.shape")!));
+        (GeneratedNotation usual, _) = Generate([Note("r", 67, 0, 1920, hand: Hand.Right), Note("l", 43, 0, 1920, hand: Hand.Left)]);
+        Assert.Equal([Clef.Treble, Clef.Bass], usual.Staves.Select(staff => staff.Clef));
+    }
+
+    [Fact]
     public void Several_tracks_get_one_staff_each_with_a_clef_for_their_range()
     {
         (GeneratedNotation result, _) = Generate([Note("a", 72, 0, 1920, track: 0), Note("b", 40, 0, 1920, track: 1), Note("c", 76, 0, 1920, track: 1)]);
