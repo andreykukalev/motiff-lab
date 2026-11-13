@@ -29,11 +29,14 @@ struct ReferenceRoot: Equatable, Identifiable {
 /// Chords or Scales of the Reference as music-core answers them (`reference.chord`, `reference.scale` on piece 0): the
 /// seventeen roots, what can be built on them, and the card of the one chosen. The app only lays them out.
 struct ReferenceLookup {
-    /// A chord or a scale to choose: its id ("minor7", "dorian"), for a chord the symbol after the root, and its name.
+    /// A chord or a scale to choose: its id ("minor7", "dorian"), for a chord the symbol after the root, and its name; the
+    /// group it is offered in ("Triad", "Mode", …) and a scale's name within it ("major" of the pentatonics), since v0.5.
     struct Choice: Identifiable, Equatable {
         var id: String
         var suffix: String
         var name: String
+        var family = ""
+        var short = ""
     }
 
     /// A chord's own card (`ChordCard`): symbol, name, degrees over notes, then root position and each inversion.
@@ -80,7 +83,9 @@ struct ReferenceLookup {
         roots = (object["roots"] as? [Any] ?? []).compactMap { ReferenceRoot($0) }
         choices = ((object["types"] ?? object["forms"]) as? [[String: Any]] ?? []).compactMap { choice in
             guard let id = choice["id"] as? String else { return nil }
-            return Choice(id: id, suffix: choice["suffix"] as? String ?? "", name: choice["name"] as? String ?? "")
+            let name = choice["name"] as? String ?? ""
+            return Choice(id: id, suffix: choice["suffix"] as? String ?? "", name: name, family: choice["family"] as? String ?? "",
+                          short: choice["short"] as? String ?? name)
         }
         guard let card = object["card"] as? [String: Any], let root = ReferenceRoot(card["root"]) else { return }
         let formula = card["formula"] as? [String] ?? []
@@ -251,47 +256,6 @@ struct ScaleCardPanel: View {
             MiniKeyboard(sound: scale.sound)
                 .frame(maxWidth: 320, alignment: .leading)
                 .accessibilityLabel(text.format("reference.keys", scale.notes.joined(separator: " ")))
-        }
-    }
-}
-
-/// Chords or Scales in the Reference's sheet: a root, then what to build on it (a chord's chips show its symbol on that
-/// root), then the card. Everything is music-core's; the view only lays it out.
-struct ReferenceLookupView: View {
-    let lookup: ReferenceLookup
-    /// "chords" or "scales".
-    let kind: String
-    let text: UIText
-    @ObservedObject var reference: ReferenceController
-    let choose: (ReferenceRoot?, String?) -> Void
-
-    var body: some View {
-        let root = lookup.chord?.root ?? lookup.scale?.root
-        let chosen = lookup.chord?.type ?? lookup.scale?.form
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            Text(text["reference.root"]).overline()
-            RootChips(roots: lookup.roots, chosen: root, label: text["reference.root"]) { choose($0, chosen) }
-            Text(text[kind == "chords" ? "reference.chordType" : "reference.scaleForm"]).overline()
-            FlowLayout(spacing: CGFloat.ds("s-2")) {
-                ForEach(lookup.choices) { choice in
-                    let on = chosen == choice.id
-                    Button(kind == "chords" ? "\(root?.letter ?? "")\(choice.suffix)" : choice.name) { choose(root, choice.id) }
-                        .buttonStyle(SignatureChoiceStyle(on: on))
-                        .accessibilityLabel(kind == "chords" ? "\(root?.letter ?? "")\(choice.suffix), \(choice.name)" : choice.name)
-                        .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            if let chord = lookup.chord {
-                ChordCardPanel(chord: chord, shown: reference.chordShown, text: text) { sound in
-                    Task { await reference.hearChord(sound) }
-                }
-                .padding(.top, CGFloat.ds("s-3"))
-            } else if let scale = lookup.scale {
-                ScaleCardPanel(scale: scale, text: text) {
-                    Task { await reference.hearScale() }
-                }
-                .padding(.top, CGFloat.ds("s-3"))
-            }
         }
     }
 }

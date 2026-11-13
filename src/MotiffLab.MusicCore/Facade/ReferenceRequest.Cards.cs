@@ -10,8 +10,8 @@ internal static partial class ReferenceRequest
 {
     /// <summary>
     /// {"step"?, "alter"?, "type"?, "language", "naming"} → {"roots": the seventeen roots ({"step", "alter", "letter",
-    /// "name"}), "types": the chords to choose from ({"id", "suffix", "name"}), "card": the chord's card, or null without
-    /// "type"}. A card: {"root", "type", "symbol", "name", "formula", "notes", "positions": [{"inversion", "title", "figure"
+    /// "name"}), "types": the chords to choose from ({"id", "suffix", "name", and since v0.5 "family": "Triad", "Seventh" or
+    /// "SixthOrNinth"}), "card": the chord's card, or null without "type"}. A card: {"root", "type", "symbol", "name", "formula", "notes", "positions": [{"inversion", "title", "figure"
     /// (or null), "notes", "block", "arpeggio"}]}, each sound as a key card's ({"id", "pitches", "keyboardLow",
     /// "keyboardHigh"}) for reference.sound with the same "step", "alter" and "type".
     /// </summary>
@@ -30,6 +30,7 @@ internal static partial class ReferenceRequest
                 json.WriteString("id", choice.Id);
                 json.WriteString("suffix", choice.Suffix);
                 json.WriteString("name", choice.Name);
+                json.WriteString("family", choice.Family.ToString());
                 json.WriteEndObject();
             }
 
@@ -39,7 +40,8 @@ internal static partial class ReferenceRequest
     }
 
     /// <summary>
-    /// {"step"?, "alter"?, "form"?, "language", "naming"} → {"roots", "forms": the scales to choose from ({"id", "name"}),
+    /// {"step"?, "alter"?, "form"?, "language", "naming"} → {"roots", "forms": the scales to choose from ({"id", "name", and
+    /// since v0.5 "short", its name within its group, and "family": "MajorAndMinor", "Mode" or "Pentatonic"}),
     /// "card": the scale's card, or null without "form"}. A card: {"root", "form", "name", "title", "formula", "notes",
     /// "descending", "sound"}, its sound up and down with "keys", the way up the keyboard marks.
     /// </summary>
@@ -57,6 +59,8 @@ internal static partial class ReferenceRequest
                 json.WriteStartObject();
                 json.WriteString("id", choice.Id);
                 json.WriteString("name", choice.Name);
+                json.WriteString("short", choice.Short);
+                json.WriteString("family", choice.Family.ToString());
                 json.WriteEndObject();
             }
 

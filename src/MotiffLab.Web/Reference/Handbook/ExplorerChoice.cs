@@ -10,7 +10,7 @@ namespace MotiffLab.Web.Reference.Handbook;
 public sealed class ExplorerChoice
 {
     /// <summary>The tempos the explorer offers, quarters a minute.</summary>
-    public static IReadOnlyList<int> Tempos { get; } = [60, 72, 90, 108, 120];
+    public static IReadOnlyList<int> Tempos => HarmonyExplorer.Tempos;
 
     public ExplorerChoice(MusicalKey key) => Start(key);
 

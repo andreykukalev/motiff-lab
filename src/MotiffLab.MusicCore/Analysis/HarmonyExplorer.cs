@@ -50,6 +50,9 @@ public static class HarmonyExplorer
     /// <summary>The most bars a progression holds.</summary>
     public const int MaxBars = 8;
 
+    /// <summary>The tempos the explorer offers, quarters a minute (Andrei approved the mockup, 2026-11-12).</summary>
+    public static IReadOnlyList<int> Tempos { get; } = [60, 72, 90, 108, 120];
+
     private const int LowestBass = 40;
     private const int LowestRightHand = 55;
 

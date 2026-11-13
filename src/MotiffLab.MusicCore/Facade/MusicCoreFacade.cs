@@ -37,6 +37,9 @@ public sealed class MusicCoreFacade
     /// scales and chords to hear (the Reference experiment, <see cref="Analysis.KeyReference"/>), calls added. Also within 12
     /// (the Reference, part 2), reference.chord and reference.scale on piece 0 answer a chord's and a scale's own card,
     /// reference.sound sounds them, and reference.key on an open piece also answers "pieceKey", calls and fields added.
+    /// Also within 12 (version 0.5, the iPad's «Справочник»), reference.sounding sounds a chord or a scale as chosen (position,
+    /// spacing, the way it is played, octaves) and reference.explorer the harmony explorer's progression in a texture, and the
+    /// chords and scales offered tell their "family", calls and fields added.
     /// Also within 12, for the iPad's practice experiments (#327, #328, #349): select takes "snap": "beat" and a selection
     /// answers "firstBeat" and "lastBeat"; playback takes "hands" ("both", "right", "left") and answers "hands" (which hands
     /// the notes carry, and whether any was inferred); resume.save takes "passage": null for no passage, fields added.

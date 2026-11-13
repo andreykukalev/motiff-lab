@@ -10,6 +10,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// of fifths with any key's card, for the iPad's Circle sheet, which opens from the library and from a piece alike. Within
 /// 12 (the Reference, part 2), reference.chord and reference.scale answer a chord's and a scale's own card, reference.sound
 /// sounds them too, and reference.key on an open piece also answers the key the piece starts in, calls and fields added.
+/// Within 12 (v0.5, the iPad's «Справочник»), reference.sounding and reference.explorer sound a chord or a scale as chosen and
+/// the harmony explorer's progression, calls added.
 /// </summary>
 internal static partial class ReferenceRequest
 {
@@ -20,6 +22,8 @@ internal static partial class ReferenceRequest
         "reference.sound" => Sound(fields),
         "reference.chord" => Chord(fields),
         "reference.scale" => Scale(fields),
+        "reference.sounding" => Sounding(fields),
+        "reference.explorer" => Explorer(fields),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
     };
 
