@@ -62,12 +62,6 @@ struct ScoreScreen: View {
     /// The Contents drawer's width over the left of the page in landscape (ds.css `.sheet.left`).
     static let contentsWidth: CGFloat = 320
 
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil) {
-        self.piece = piece
-        self.switchView = switchView
-        _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
-    }
-
     var body: some View {
         GeometryReader { screen in
             let landscape = screen.size.width > screen.size.height
@@ -735,6 +729,15 @@ struct ScoreScreen: View {
         await insights.leave()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.page(pages.page(of: tick)))
+    }
+}
+
+extension ScoreScreen {
+    /// The piece's screen, its originals known from the piece's opening (#495 BUG-02).
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil) {
+        self.piece = piece
+        self.switchView = switchView
+        _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
     }
 }
 
