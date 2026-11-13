@@ -54,6 +54,10 @@ version="${ref#v}"
 [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || version="0.0.0"
 build="$(git rev-list --count HEAD)"
 echo "    $(git log -1 --format='%h %s'), version $version ($build)"
+# What Settings · About shows: the tag, or the branch and the commit; and when this build was made (UTC).
+commit="$(git rev-parse --short=7 HEAD)"
+if git rev-parse --verify --quiet "refs/tags/$ref" >/dev/null; then shown="$ref"; else shown="$ref $commit"; fi
+built="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 echo "==> Servers"
 account="$root/ipad/App/MotiffLab/Account.json"
@@ -92,7 +96,8 @@ cd ipad/App
 xcodegen --quiet
 xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
   -destination 'generic/platform=iOS' -derivedDataPath ../build/derived -allowProvisioningUpdates \
-  MARKETING_VERSION="$version" CURRENT_PROJECT_VERSION="$build" > /tmp/motiff-app.log 2>&1 \
+  MARKETING_VERSION="$version" CURRENT_PROJECT_VERSION="$build" \
+  MOTIFF_BUILD_VERSION="$shown" MOTIFF_BUILD_COMMIT="$commit" MOTIFF_BUILD_DATE="$built" > /tmp/motiff-app.log 2>&1 \
   || { grep -E "error:|\*\* BUILD" /tmp/motiff-app.log | tail -20; exit 1; }
 app="$(pwd)/../build/derived/Build/Products/Release-iphoneos/MotiffLab.app"
 

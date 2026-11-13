@@ -109,7 +109,7 @@ final class DeviceSettings: ObservableObject {
 /// iPad acts on are shown: the others join the sheet with the features they switch.
 struct SettingsSheet: View {
     enum SheetSection: String, CaseIterable, Hashable {
-        case guidance, score, layers, roll, appearance, account, experimental
+        case guidance, score, layers, roll, appearance, account, experimental, about
     }
 
     @ObservedObject var settings: DeviceSettings
@@ -303,6 +303,9 @@ struct SettingsSheet: View {
             if settings.isOn("experimental.playheads") {
                 switchRow("experimental.playheadsFade", text["settings.playheadsFade"], hint: text["settings.playheadsFadeHint"])
             }
+        case .about:
+            // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
+            AboutPanel(account: account, text: text)
         }
     }
 
@@ -337,6 +340,7 @@ struct SettingsSheet: View {
         case .appearance: text["settings.appearance"]
         case .account: text["settings.section.account"]
         case .experimental: text["settings.section.experimental"]
+        case .about: text["settings.section.about"]
         }
     }
 

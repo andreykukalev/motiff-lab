@@ -281,6 +281,40 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
         }
     }
 
+    /// <summary>
+    /// Deletes the signed-in player's copies in the test database (the API's DELETE /me, their profile there too), for
+    /// «Очистить тестовую библиотеку» on the test site. Only on develop's own API (<see cref="IsDevelopApi"/>): a test
+    /// site still on the main servers deletes nothing online. Saving online stays as it was.
+    /// </summary>
+    public async Task<TestCopies> DeleteTestCopiesAsync()
+    {
+        if (await account.PlayerAsync() is null)
+        {
+            return TestCopies.SignedOut;
+        }
+
+        if (!IsDevelopApi(account.Options.Api))
+        {
+            return TestCopies.NotDevelop;
+        }
+
+        using HttpRequestMessage request = await RequestAsync(HttpMethod.Delete, "me");
+        try
+        {
+            using HttpResponseMessage response = await _http.SendAsync(request);
+            return response.IsSuccessStatusCode ? TestCopies.Deleted : TestCopies.Failed;
+        }
+        catch (HttpRequestException)
+        {
+            return TestCopies.Failed;
+        }
+    }
+
+    /// <summary>Whether the address is the develop environment's API (<c>ca-motifflab-api-dev.…</c>, infra/dev-env.bicep).</summary>
+    public static bool IsDevelopApi(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps
+        && uri.Host.StartsWith("ca-motifflab-api-dev.", StringComparison.OrdinalIgnoreCase);
+
     public void Dispose()
     {
         foreach ((_, CancellationTokenSource wait) in _queued.Values)
@@ -407,6 +441,15 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
         _ => "online.problem",
     };
 
+}
+
+/// <summary>What became of the player's copies in the test database (<see cref="OnlineProjects.DeleteTestCopiesAsync"/>).</summary>
+public enum TestCopies
+{
+    SignedOut,
+    Deleted,
+    Failed,
+    NotDevelop,
 }
 
 /// <summary>A row of the API's list of the player's projects, with when it was saved online (the server's clock).</summary>

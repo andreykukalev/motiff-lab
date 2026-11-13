@@ -147,5 +147,13 @@
   "recognition.whereOwn": "The PDFs go to your recognition server at {0}.",
   "recognition.withoutNotes": "Without notes",
   "settings.planChecking": "Checking…",
-  "settings.planRetry": "Try again"
+  "settings.planRetry": "Try again",
+  "testLibrary.busy": "An import or a recognition is running: stop it first. Nothing was deleted.",
+  "testLibrary.cleared.many": "{0} pieces deleted: the test library on this iPad is empty.",
+  "testLibrary.cleared.one": "{0} piece deleted: the test library on this iPad is empty.",
+  "testLibrary.clearedFailed.many": "{0} files could not be deleted; try again.",
+  "testLibrary.clearedFailed.one": "{0} file could not be deleted; try again.",
+  "testLibrary.confirmMessage": "All pieces of the test environment on this iPad are deleted: their project files, marks and sync records, the folders added for import and the copies kept for playlists. Signed in, your copies in the test database go too. Your original files (PDFs, recordings, folders added by link) are never touched, and the Main library stays as it is. This cannot be undone.",
+  "testLibrary.hint": "Only in the test environment: an empty library on this iPad for a new testing cycle. Empty the test database first.",
+  "testLibrary.notTest": "The iPad is not working in the test environment: nothing was deleted."
 }

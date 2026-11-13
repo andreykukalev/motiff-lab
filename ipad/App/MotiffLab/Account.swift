@@ -161,6 +161,8 @@ final class Account: ObservableObject {
     /// The server environment the app works in now, and whether writing to Main was allowed for this build.
     @Published private(set) var environment: ServerEnvironment
     @Published private(set) var mainWritesAllowed: Bool
+    /// Grows each time the Test library is cleared on this iPad (`TestLibrary`), so the library reads its pieces again.
+    @Published private(set) var libraryCleared = 0
 
     /// The environments this build knows; nil in a build without sign-in.
     let setup: EnvironmentSetup?
@@ -225,6 +227,25 @@ final class Account: ObservableObject {
             defaults.removeObject(forKey: EnvironmentSetup.mainWritesKey)
         }
         mainWritesAllowed = allowed
+    }
+
+    /// The signed-in player's copies in the Test database deleted with the API's DELETE /me (the profile kept there goes
+    /// too), for «Очистить тестовую библиотеку». Only in Test and only on develop's own API (`TestLibrary.deletesOnline`):
+    /// nothing is ever asked of Main's database.
+    func deleteTestCopies() async -> TestLibrary.Online {
+        guard player != nil else { return .signedOut }
+        guard TestLibrary.deletesOnline(setup, in: environment) else { return .notDevelop }
+        guard var request = await apiRequest("me", in: .test) else { return .failed }
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = Self.coldStartTimeout
+        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return .failed }
+        if environment == .test { profile = nil }
+        return .deleted
+    }
+
+    /// Tells the library that the Test library was cleared.
+    func libraryWasCleared() {
+        libraryCleared += 1
     }
 
     /// The name to show: the one the player chose, else the sign-in's; nil when nobody is signed in.
@@ -415,7 +436,8 @@ final class Account: ObservableObject {
     }
 
     /// The projects the player saved online in the environment the app works in now, with their token on any plan (0014):
-    /// listed, fetched and sent by the sync (version 0.2, `CloudSync`), never deleted from the iPad. Its requests stop once
+    /// listed, fetched and sent by the sync (version 0.2, `CloudSync`), never deleted from the iPad (but for clearing the test
+    /// library in Test, `deleteTestCopies`). Its requests stop once
     /// the app switches environment, and it sends nothing where the app may not write (Main in a version build).
     var online: OnlineProjects {
         let environment = self.environment
