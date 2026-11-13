@@ -28,6 +28,8 @@ public static class NotesReading
             return (null, result.Problem);
         }
 
+        // A PDF read in one request has not been through ScanJoin: its engine's mistakes are put right here (#495 BUG-03).
+        musicXml = ScanRepair.Repair(musicXml);
         string name = Path.ChangeExtension(project.FileName, ".musicxml");
         PieceImportResult imported = PieceImporter.Import(name, musicXml);
         if (imported.Piece is not { } piece)

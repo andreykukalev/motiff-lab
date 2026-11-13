@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
@@ -132,6 +133,8 @@ public partial class PlaybackLab
             return result.Problem;
         }
 
+        // The engine's mistakes put right, as in document.read and sources.documentNotes (#495 BUG-03).
+        musicXml = ScanRepair.Repair(musicXml);
         string fileName = Path.ChangeExtension(project.DocumentFileName, ".musicxml");
         if (PieceImporter.Import(fileName, musicXml).Piece is not { } read)
         {
