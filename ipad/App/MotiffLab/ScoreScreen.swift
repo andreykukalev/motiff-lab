@@ -390,11 +390,11 @@ struct ScoreScreen: View {
             if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
-        // The modes (version 0.5): a tap on a beat moves the one playback position there (v0.5.2), playing on from there when
-        // it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
+        // The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
+        // on from there when it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
         score.placeTapped = { [weak heard, weak shown] beat in
-            guard let heard else { return }
-            heard.go(to: shown?.onePosition == true ? beat.lowerBound : Player.place(beat.lowerBound, inside: heard.loop), play: false)
+            guard let heard, let shown else { return }
+            if shown.onePosition { heard.go(to: beat.lowerBound, play: false) } else { heard.seek(to: Player.place(beat.lowerBound, inside: heard.loop)) }
         }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
@@ -488,11 +488,11 @@ struct ScoreScreen: View {
                 }
             }
             .onChange(of: score.focused) { _, focused in
-                // Focus covers the page: the drawer goes, and comes back when the player opens it again. Out of focus the one
-                // playback position takes the loop back to Цикл's choice (v0.5.2).
+                // Focus covers the page: the drawer goes, and comes back when the player opens it again. Out of focus the
+                // playback model takes the selection and the loop back (v0.5.2).
                 if focused { contentsOpen = false }
                 syncPlayheads()
-                if score.onePosition { player.holdLoop(selection: score.playRange?.range) }
+                if score.onePosition { player.hold(selection: score.playRange?.range) }
                 // Back from the roll in focus opens the roll drawer again when it was open before.
                 if !focused && rollBeforeFocus {
                     rollBeforeFocus = false
@@ -757,10 +757,11 @@ extension ScoreScreen {
         let shown = score
         roll.spacePressed = { [weak heard, weak shown] in
             guard let heard, let shown else { return }
-            if shown.onePosition { heard.space(selection: shown.playRange?.range) } else { heard.toggle() }
+            if shown.onePosition { heard.apply(.press) } else { heard.toggle() }
         }
         // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops
-        // it. Under the one playback position (v0.5.2) it goes anywhere: the loop strip and the whole piece move it too.
+        // it. Under the playback model (v0.5.2) it goes anywhere, as a tap on a beat does (T12): the loop strip and the whole piece
+        // move it too, and Цикл turns off when it leaves the selection (the loop strip only moves it inside, T13).
         roll.playheadMoved = { [weak heard, weak shown] tick, play in
             guard let heard, let shown else { return }
             if shown.onePosition {
@@ -778,10 +779,11 @@ extension ScoreScreen {
     }
 
     /// What plays for the selection changed. A loop follows it, as on the web: Lead-in, or going back to the page with it on,
-    /// loops the wider or the narrower span; a new selection stops the old loop. Under the one playback position, Цикл decides.
+    /// loops the wider or the narrower span; a new selection stops the old loop. Under the playback model (v0.5.2) the player
+    /// takes the selection, and Цикл decides (T9–T11).
     private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
         if score.onePosition {
-            selectionChanged(from: old?.range, to: new?.range)
+            player.apply(.select(new?.range))
             return
         }
         guard let loop = player.loop, loop == old?.range else { return }
@@ -790,13 +792,6 @@ extension ScoreScreen {
         } else {
             player.setLoop(nil)
         }
-    }
-
-    /// Another selection, or none, under the one playback position: Цикл turns on when a selection appears, and the engine
-    /// loops it while Цикл is on; removed, nothing loops and the position stays where it is.
-    private func selectionChanged(from old: Range<Double>?, to new: Range<Double>?) {
-        player.cycle = PlaybackPosition.cycle(after: old, new, was: player.cycle)
-        player.holdLoop(selection: new)
     }
 
     /// The experiments as Settings has them: selecting by beats (#349) snaps the score's selection to the piece's beat
@@ -809,7 +804,7 @@ extension ScoreScreen {
             score.mode = playheads ? .navigate : nil
         }
         syncPlayheads()
-        if score.onePosition { player.holdLoop(selection: score.playRange?.range) }
+        if score.onePosition { player.hold(selection: score.playRange?.range) }
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
     }
 
@@ -1157,9 +1152,9 @@ struct Pill: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            // Under the one playback position (v0.5.2, #479 item 22): the selection's cobalt Play, Цикл and the piece's ink Play.
+            // Under the playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span.
             if score.onePosition {
-                PositionTransport(player: player, score: score, text: text)
+                PositionTransport(player: player, text: text)
             } else {
                 Button {
                     player.toggle()

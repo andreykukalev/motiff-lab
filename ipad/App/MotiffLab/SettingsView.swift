@@ -297,8 +297,8 @@ struct SettingsSheet: View {
             switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
             switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])
             switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
-            // Version 0.5: the modes and, since 0.5.2, one playback position (#479 items 19, 22, 25); no fade of the other bars.
-            switchRow("experimental.playheads", text["settings.playPosition"], hint: text["settings.playPositionHint"])
+            // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
+            switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)
