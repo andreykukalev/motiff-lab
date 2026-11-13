@@ -51,8 +51,9 @@ struct ScoreScreen: View {
     @State private var dnaFromMore = false
     /// The questions asked about the piece (testing item 23): one conversation, shown by every Ask popover and in Insights.
     @StateObject private var conversation = AskConversation()
-    /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files.
-    @StateObject private var originals = OriginalsController()
+    /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files; known
+    /// from the piece's opening, so PDF | Notes is whole from the first frame (#495 BUG-02).
+    @StateObject private var originals: OriginalsController
     /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
     @State private var resumeId: String?
 
@@ -60,6 +61,12 @@ struct ScoreScreen: View {
     static let sheetWidth: CGFloat = 380
     /// The Contents drawer's width over the left of the page in landscape (ds.css `.sheet.left`).
     static let contentsWidth: CGFloat = 320
+
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil) {
+        self.piece = piece
+        self.switchView = switchView
+        _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
+    }
 
     var body: some View {
         GeometryReader { screen in

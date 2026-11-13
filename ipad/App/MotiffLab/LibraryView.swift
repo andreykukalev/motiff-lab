@@ -571,7 +571,7 @@ struct LibraryView: View {
             }
             await reload()
             if let saved = opened.file {
-                opened.other = OtherView.of(saved, in: summaries)
+                opened.other = OtherView.of(saved, own: opened.own, in: summaries)
                 opened.family = PieceFamily.of(saved, in: summaries)
             }
             opened.landing = landing

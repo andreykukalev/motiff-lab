@@ -113,9 +113,14 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         if let projectId { UserDefaults.standard.set(first, forKey: Self.pageKey(projectId)) }
     }
 
+    /// Brings a page to the top of the view, just under the bar (#495 UX-12), as the notes bring theirs.
     func go(to page: Int) {
         guard let view, let document, let target = document.page(at: max(0, min(page, document.pageCount) - 1)) else { return }
-        view.go(to: target)
+        if let pages = view as? BarPdfView {
+            pages.rest(on: target)
+        } else {
+            view.go(to: target)
+        }
     }
 
     /// The bookmark in the bar: marks the page under it, or takes its bookmark away.
@@ -223,14 +228,15 @@ final class BookmarkTab: PDFAnnotation {
 struct PdfPages: UIViewRepresentable {
     let document: PDFDocument
     let twoUp: Bool
-    /// The room the floating bar takes over the first page.
-    let top: CGFloat
+    /// Where the floating bar ends, from the top of the pages' view, as it is laid out: the pages rest below it (#495 UX-12).
+    let barBottom: CGFloat
     let controller: PdfController
 
     func makeCoordinator() -> Coordinator { Coordinator(controller: controller) }
 
-    func makeUIView(context: Context) -> PDFView {
-        let view = PDFView()
+    func makeUIView(context: Context) -> BarPdfView {
+        let view = BarPdfView()
+        view.barBottom = barBottom
         view.displayDirection = .vertical
         view.displayMode = twoUp ? .twoUpContinuous : .singlePageContinuous
         view.displaysPageBreaks = true
@@ -241,32 +247,24 @@ struct PdfPages: UIViewRepresentable {
         view.autoScales = true
         controller.view = view
         context.coordinator.watch(view)
-        inset(view)
         controller.attach(to: view)
-        if let start = document.page(at: controller.startPage - 1) {
-            DispatchQueue.main.async { view.go(to: start) }
-        }
+        // The page PDF | Notes landed on, or the one the player left: under the bar once the pages are laid out.
+        if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
         return view
     }
 
-    func updateUIView(_ view: PDFView, context: Context) {
+    func updateUIView(_ view: BarPdfView, context: Context) {
         let mode: PDFDisplayMode = twoUp ? .twoUpContinuous : .singlePageContinuous
         if view.displayMode != mode {
             let at = view.currentPage
             view.displayMode = mode
             view.autoScales = true
-            if let at { view.go(to: at) }
+            if let at { view.rest(on: at) }
         }
-        inset(view)
+        view.barBottom = barBottom
         // The tabs of pages bookmarked since are drawn with the pages again.
         view.setNeedsDisplay()
         view.documentView?.setNeedsDisplay()
-    }
-
-    /// The first page starts below the bar, which floats over the pages as it does over the score.
-    private func inset(_ view: PDFView) {
-        guard let scroll = view.subviews.compactMap({ $0 as? UIScrollView }).first, scroll.contentInset.top != top else { return }
-        scroll.contentInset.top = top
     }
 
     @MainActor
@@ -293,6 +291,9 @@ struct PdfPages: UIViewRepresentable {
         }
     }
 }
+
+/// The PDF screen's space, from the top of the pages' view, in which the floating bar is measured (#495 UX-12).
+private let pdfScreenSpace = "pdf.screen"
 
 /// A PDF piece's screen (0023, the web app's `/pdf`): the score's paper with the printed pages on it, the bar over the top
 /// with the way back, the title, which opens the bookmarked pages, the page under the bar, the PDF tag, the bookmark for
@@ -325,19 +326,16 @@ struct PdfScreen: View {
     @State private var more = false
     @State private var metronomeOpen = false
     @State private var referenceOpen = false
+    /// The floating bar's bottom edge as laid out, in the screen's space; nil before it is.
+    @State private var measuredBarBottom: CGFloat?
 
     var body: some View {
         GeometryReader { screen in
             ZStack(alignment: .top) {
                 Color.ds("desk").ignoresSafeArea()
                 if let document = pdf.document {
-                    PdfPages(
-                        document: document,
-                        twoUp: screen.size.width > screen.size.height,
-                        top: CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"),
-                        controller: pdf
-                    )
-                    .ignoresSafeArea(edges: .bottom)
+                    PdfPages(document: document, twoUp: screen.size.width > screen.size.height, barBottom: barBottom, controller: pdf)
+                        .ignoresSafeArea(edges: .bottom)
                 } else if pdf.problem == nil {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -367,6 +365,7 @@ struct PdfScreen: View {
                 }
             }
             .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
+            .coordinateSpace(.named(pdfScreenSpace))
             .overlay(alignment: .bottom) {
                 if metronomeOpen {
                     MetronomePill(metronome: metronome, text: text) {
@@ -429,6 +428,20 @@ struct PdfScreen: View {
             barContent(compact: false)
             barContent(compact: true)
         }
+        // Where it ends, for the pages to rest below it (#495 UX-12).
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(pdfScreenSpace)).maxY } action: { measuredBarBottom = $0 }
+    }
+
+    /// Where the floating bar ends, from the top of the pages: as laid out, and until then its top margin and its height.
+    private var barBottom: CGFloat { measuredBarBottom ?? CGFloat.ds("s-3") + CGFloat.ds("h-touch") }
+
+    /// Notes in PDF | Notes: the notes read from this PDF, in this piece or the one they were read into; for the PDF linked
+    /// in Files, which is only ever shown over its notes, those notes again (#495 BUG-02: it showed a tag in the switch's
+    /// place, so «Ноты» was missing though the notes were right under it). Nil for a PDF with no notes yet.
+    private var toNotes: (() -> Void)? {
+        if linked { return { dismiss() } }
+        guard switchView != nil, piece.other != nil else { return nil }
+        return { Task { await showNotes() } }
     }
 
     /// Laid out as the score's bar (ScoreBar, #479 item 13): Back, the Contents, the title and PDF | Notes in the same places
@@ -436,14 +449,14 @@ struct PdfScreen: View {
     private func barContent(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             barLeading
-            if switchView != nil, piece.other != nil {
-                PdfNotesSwitch(onPdf: true, text: text) { Task { await showNotes() } }
-            } else if linked {
-                Tag(text: text["originals.linkFiles"], kind: .assumed)
+            if let toNotes {
+                PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
             }
             if let pageText { BarPages(text: pageText) }
+            // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
+            if linked { Tag(text: text["originals.linkFiles"], kind: .assumed) }
             Spacer(minLength: CGFloat.ds("s-2"))
             // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
             if let readNotesAction, pdf.pageCount > 0 {

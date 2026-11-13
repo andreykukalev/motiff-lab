@@ -29,11 +29,16 @@ struct OtherView: Equatable, Sendable {
     let file: URL
     let pages: PageMap
 
-    /// The other view of the project at `file`, from the library's summaries: for a piece with notes and a PDF, the same
-    /// file in its other view; for notes read from a PDF piece, that PDF piece; for a PDF piece, the notes read from it most
-    /// recently opened. Nil when there is none on the device.
-    static func of(_ file: URL, in summaries: [URL: PieceSummary]) -> OtherView? {
-        guard let summary = summaries[file] else { return nil }
+    /// The other view of the project at `file`: for a piece with notes and a PDF, the same file in its other view; for notes
+    /// read from a PDF piece, that PDF piece; for a PDF piece, the notes read from it most recently opened. Nil when there is
+    /// none on the device. `own` is what music-core said of the piece as it opened it (`OpenPiece.own`): a file that holds
+    /// both views is known from it, whatever the library's summaries hold for that path (#495 BUG-02: the PDF view showed
+    /// only «PDF» where the library had no line for the file under that URL); the summaries find the other piece of a pair.
+    static func of(_ file: URL, own: PieceSummary? = nil, in summaries: [URL: PieceSummary]) -> OtherView? {
+        if let own, own.hasNotes && own.document {
+            return OtherView(file: file, pages: PageMap(starts: own.documentPages))
+        }
+        guard let summary = summaries[file] ?? own else { return nil }
         if summary.hasNotes && summary.document {
             return OtherView(file: file, pages: PageMap(starts: summary.documentPages))
         }
