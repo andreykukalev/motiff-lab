@@ -37,9 +37,11 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     @Published var penOn = false { didSet { applyInput() } }
     /// Whether the pages take ink: not on a PDF linked in Files, whose marks would be kept nowhere (version 0.3).
     var inkable = true
-    @Published var tool = ScoreController.Tool.pen(.graphite) {
+    /// The tool, as last chosen on this device (PenMemory): the same as on the score, after PDF | Notes too.
+    @Published var tool = PenMemory.savedTool() {
         didSet {
             if oldValue != tool { previousTool = oldValue }
+            PenMemory.keep(tool: tool, previous: previousTool)
             applyTool()
         }
     }
@@ -51,9 +53,10 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     private(set) var startPage = 1
     weak var view: PDFView?
     let canvas = PKCanvasView()
-    var previousTool = ScoreController.Tool.eraser
-    @Published var penWidth = PenSizes.defaultWidth { didSet { applyTool() } }
-    @Published var highlighterWidth = PenSizes.defaultWidth { didSet { applyTool() } }
+    var previousTool = PenMemory.savedPrevious()
+    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
+    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths(); applyTool() } }
+    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths(); applyTool() } }
     var clearing = false
     /// The strokes added here, newest last, for Undo.
     var added: [String] = []
@@ -153,8 +156,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
             for annotation in page.annotations where annotation is BookmarkTab || annotation is InkMark {
                 page.removeAnnotation(annotation)
             }
-            for stroke in inked[index + 1] ?? [] {
-                page.addAnnotation(InkMark(stroke, on: page))
+            for mark in InkMark.marks(inked[index + 1] ?? [], on: page) {
+                page.addAnnotation(mark)
             }
             if marked.contains(index + 1) {
                 page.addAnnotation(BookmarkTab(on: page))
@@ -325,7 +328,7 @@ struct PdfScreen: View {
                     PdfPages(
                         document: document,
                         twoUp: screen.size.width > screen.size.height,
-                        top: CGFloat.ds("h-touch") + CGFloat.ds("s-3"),
+                        top: CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"),
                         controller: pdf
                     )
                     .ignoresSafeArea(edges: .bottom)
@@ -348,8 +351,9 @@ struct PdfScreen: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .padding(.top, CGFloat.ds("s-2"))
+                // Where the score's bar floats (ds.css `.bar`), so PDF | Notes leaves it in place (#479 item 13).
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .padding(.top, CGFloat.ds("s-3"))
                 .animation(.easeOut(duration: 0.16), value: pdf.penOn)
             }
             .overlay(alignment: .bottom) {
@@ -404,23 +408,26 @@ struct PdfScreen: View {
     }
 
     private var bar: some View {
-        // Recognise notes with its word and Original PDF | Notes where the whole bar fits, else the icon and PDF | Notes.
+        // Recognise notes with its word where the whole bar fits, else its icon alone.
         ViewThatFits(in: .horizontal) {
             barContent(compact: false)
             barContent(compact: true)
         }
     }
 
+    /// Laid out as the score's bar (ScoreBar, #479 item 13): Back, the Contents, the title and PDF | Notes in the same places
+    /// in both views, then the pages in view, and this view's own actions at the right.
     private func barContent(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             barLeading
             if switchView != nil, piece.other != nil {
-                PdfNotesSwitch(onPdf: true, text: text, compact: compact) { Task { await showNotes() } }
+                PdfNotesSwitch(onPdf: true, text: text) { Task { await showNotes() } }
             } else if linked {
                 Tag(text: text["originals.linkFiles"], kind: .assumed)
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
             }
+            if let pageText { BarPages(text: pageText) }
             Spacer(minLength: CGFloat.ds("s-2"))
             // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
             if let readNotesAction, pdf.pageCount > 0 {
@@ -447,41 +454,15 @@ struct PdfScreen: View {
         .modifier(FloatingSurface())
     }
 
-    /// Back, the title, which opens the Contents, and the pages in view.
-    @ViewBuilder private var barLeading: some View {
-        Button {
-            dismiss()
-        } label: {
-            Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-        }
-        .buttonStyle(BarActionStyle())
-        .accessibilityLabel(text["nav.library"])
-        Button {
-            contentsOpen.toggle()
-        } label: {
-            Text(piece.title)
-                .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                .lineLimit(1)
-                .padding(.horizontal, CGFloat.ds("s-2"))
-                .frame(height: 40)
-        }
-        .buttonStyle(BarActionStyle(on: contentsOpen))
-        .accessibilityLabel(text.format("contents.open", piece.title))
-        .accessibilityAddTraits(.isHeader)
-        .popover(isPresented: $contentsOpen) {
-            PdfContents(pdf: pdf, text: text, parts: openParts) { page in
-                contentsOpen = false
-                pdf.go(to: page)
+    /// Back, the Contents and the title, which opens them too, as on the score.
+    private var barLeading: some View {
+        BarLeading(title: piece.title, contentsOpen: $contentsOpen, text: text) { dismiss() }
+            .popover(isPresented: $contentsOpen) {
+                PdfContents(pdf: pdf, text: text, parts: openParts) { page in
+                    contentsOpen = false
+                    pdf.go(to: page)
+                }
             }
-        }
-        if let pageText {
-            Text(pageText)
-                .dsType(.label)
-                .foregroundStyle(Color.ds("ink-2"))
-                .lineLimit(1)
-                .padding(.leading, CGFloat.ds("s-2"))
-        }
     }
 
     /// Bookmark the page, the metronome, the pen and More.

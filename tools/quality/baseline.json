@@ -125,7 +125,6 @@
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/score/score-timeline.ts","symbol":"highlightedIds","value":19,"why":"existing before #332"},
     {"tool":"eslint","rule":"max-lines","file":"src/MotiffLab.Web/Scripts/score/score-view.ts","symbol":"","value":1555,"why":"existing before #332"},
     {"tool":"eslint","rule":"max-lines-per-function","file":"src/MotiffLab.Web/Scripts/score/score-view.ts","symbol":"ScoreView.placeMarks","value":149,"why":"existing before #332"},
-    {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/score/score-view.ts","symbol":"ScoreView.placePhrases","value":22,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/score/selection-layer.ts","symbol":"SelectionLayer.draw","value":17,"why":"existing before #332"},
     {"tool":"eslint","rule":"max-lines","file":"src/MotiffLab.Web/Scripts/score/svg-to-pdf.ts","symbol":"","value":666,"why":"existing before #332"},
     {"tool":"eslint","rule":"max-lines-per-function","file":"src/MotiffLab.Web/Scripts/score/svg-to-pdf.ts","symbol":"draw","value":104,"why":"existing before #332"},

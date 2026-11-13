@@ -16,10 +16,9 @@ test("the Settings sheet opens over the library, and its presets and switches ar
     // A preset sets the switches; changing one of them makes the mix the player's own.
     await sheet.getByRole("radio", { name: "Clean" }).click();
     await expect(sheet.getByText("Just the music", { exact: false })).toBeVisible();
-    await expect(sheet.getByRole("switch", { name: "Phrase brackets" })).not.toBeChecked();
     await expect(sheet.getByRole("switch", { name: "Pill appears with a selection" })).not.toBeChecked();
     await expect(sheet.getByRole("radio", { name: "1 s" })).toHaveAttribute("aria-checked", "true");
-    await sheet.getByRole("switch", { name: "Phrase brackets" }).check();
+    await sheet.getByRole("switch", { name: "Pill appears with a selection" }).check();
     await expect(sheet.getByText("Your own mix of switches", { exact: false })).toBeVisible();
     await expect(sheet.getByRole("radio", { name: "Clean" })).toHaveAttribute("aria-checked", "false");
 
@@ -39,7 +38,7 @@ test("the Settings sheet opens over the library, and its presets and switches ar
     // Kept on the device.
     await page.reload();
     await page.locator(".lib-head").getByRole("button", { name: "Settings" }).click();
-    await expect(sheet.getByRole("switch", { name: "Phrase brackets" })).toBeChecked();
+    await expect(sheet.getByRole("switch", { name: "Pill appears with a selection" })).toBeChecked();
     await expect(sheet.getByRole("radio", { name: "1 s" })).toHaveAttribute("aria-checked", "true");
     await sheet.getByRole("tab", { name: "Appearance" }).click();
     await sheet.getByRole("radio", { name: "Русский" }).click();
@@ -52,25 +51,27 @@ test("the Settings sheet opens over the library, and its presets and switches ar
 
 test("over the score, the sheet's changes show on the score at once", async ({ page }) => {
     const errors = await openFurElise(page);
-    const brackets = page.locator(".score button.bracket[aria-label]");
-    await expect(brackets.first()).toBeVisible();
+    const score = page.locator(".score[role=figure]");
+    await expect(score).not.toHaveClass(/hide-notes/);
 
     const more = await openMore(page);
     await more.getByRole("button", { name: "Settings" }).click();
     const sheet = page.getByRole("dialog", { name: "Settings" });
+    // Clean leaves the score, the ink and the bookmarks: the notes and highlights go at once.
     await sheet.getByRole("radio", { name: "Clean" }).click();
-    await expect(brackets).toHaveCount(0);
+    await expect(score).toHaveClass(/hide-notes/);
 
     await sheet.getByRole("radio", { name: "Practising" }).click();
-    await expect(brackets.first()).toBeVisible();
+    await expect(score).not.toHaveClass(/hide-notes/);
 
     // A piece without a level of its own opens in the one the sheet sets.
     await sheet.getByRole("tab", { name: "Score" }).click();
     await sheet.getByRole("radio", { name: "Sentences" }).click();
-    await expect(brackets.first()).toHaveAttribute("aria-label", /^Sentence 1/);
     expect(await violations(page)).toEqual([]);
     await sheet.getByRole("button", { name: "Close Settings" }).click();
     await expect(sheet).toHaveCount(0);
+    await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
+    await expect(page.getByRole("dialog", { name: "Phrases" })).toContainText("4 sentences in the piece");
     expect(errors).toEqual([]);
 });
 

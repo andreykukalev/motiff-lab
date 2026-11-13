@@ -76,28 +76,45 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
     }
 }
 
-/// A stroke drawn by PDFKit with its page, kept only in memory: the PDF is never written back, the strokes live in the
-/// project. The pen in its ink at its thickness, the highlighter a wide translucent amber band.
+/// Strokes drawn by PDFKit with their page, kept only in memory: the PDF is never written back, the strokes live in the
+/// project. A pen stroke is one mark in its ink at its thickness. All the highlighter's strokes on a page are one mark, a
+/// single layer: drawn opaque together, then laid on the page once at the highlighter's alpha, so where strokes overlap
+/// the amber is as light as anywhere else (#479 item 9: each stroke translucent on its own darkened the overlaps).
 final class InkMark: PDFAnnotation {
-    private var line: [CGPoint] = []
-    private var width: CGFloat = 1
+    private var lines: [(points: [CGPoint], width: CGFloat)] = []
     private var colour = UIColor.black.cgColor
+    /// The alpha the layer is laid at: 1 for the pen, the highlighter's for its layer.
+    private var layerAlpha: CGFloat = 1
 
-    init(_ stroke: DocumentStroke, on page: PDFPage) {
+    /// The marks a page's strokes are drawn as: each pen stroke on its own, the highlighter's strokes as one layer.
+    static func marks(_ strokes: [DocumentStroke], on page: PDFPage) -> [InkMark] {
+        let highlights = strokes.filter { $0.tool == "highlighter" }
+        let pens = strokes.filter { $0.tool != "highlighter" }.map { InkMark([$0], on: page) }
+        return highlights.isEmpty ? pens : [InkMark(highlights, on: page)] + pens
+    }
+
+    /// The strokes as one mark, in the first one's tool and ink.
+    init(_ strokes: [DocumentStroke], on page: PDFPage) {
         let box = page.bounds(for: .cropBox)
-        let points = stroke.path(in: box)
-        let width = max(0.5, stroke.size * box.width / DocumentStroke.spacesAcross)
-        let xs = points.map(\.x)
-        let ys = points.map(\.y)
-        let bounds = CGRect(x: (xs.min() ?? 0) - width, y: (ys.min() ?? 0) - width, width: (xs.max() ?? 0) - (xs.min() ?? 0) + 2 * width, height: (ys.max() ?? 0) - (ys.min() ?? 0) + 2 * width)
-        super.init(bounds: bounds, forType: .square, withProperties: nil)
-        line = points
-        self.width = width
+        let lines: [(points: [CGPoint], width: CGFloat)] = strokes.map { stroke in
+            (points: stroke.path(in: box), width: max(0.5, CGFloat(stroke.size) * box.width / CGFloat(DocumentStroke.spacesAcross)))
+        }
+        let bounds = lines.reduce(CGRect.null) { union, line in
+            let xs = line.points.map(\.x)
+            let ys = line.points.map(\.y)
+            let extent = CGRect(x: (xs.min() ?? 0) - line.width, y: (ys.min() ?? 0) - line.width, width: (xs.max() ?? 0) - (xs.min() ?? 0) + 2 * line.width, height: (ys.max() ?? 0) - (ys.min() ?? 0) + 2 * line.width)
+            return union.union(extent)
+        }
+        super.init(bounds: bounds.isNull ? .zero : bounds, forType: .square, withProperties: nil)
+        self.lines = lines
         let light = UITraitCollection(userInterfaceStyle: .light)
         // The page is paper in both appearances, so the inks are the daylight ones.
-        colour = stroke.tool == "highlighter"
-            ? DesignTokens.dynamicColor("amber").resolvedColor(with: light).withAlphaComponent(0.38).cgColor
-            : DesignTokens.dynamicColor("ink-\(stroke.colour)").resolvedColor(with: light).cgColor
+        if strokes.first?.tool == "highlighter" {
+            colour = DesignTokens.dynamicColor("amber").resolvedColor(with: light).cgColor
+            layerAlpha = PenSizes.highlighterAlpha
+        } else {
+            colour = DesignTokens.dynamicColor("ink-\(strokes.first?.colour ?? "graphite")").resolvedColor(with: light).cgColor
+        }
         shouldDisplay = true
         shouldPrint = false
     }
@@ -107,19 +124,26 @@ final class InkMark: PDFAnnotation {
     }
 
     override func draw(with box: PDFDisplayBox, in context: CGContext) {
-        guard let first = line.first else { return }
+        guard !lines.isEmpty else { return }
         context.saveGState()
+        // The strokes are drawn opaque into one transparency layer, which is composited once at the layer's alpha.
+        context.setAlpha(layerAlpha)
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
         context.setStrokeColor(colour)
-        context.setLineWidth(width)
         context.setLineCap(.round)
         context.setLineJoin(.round)
-        context.move(to: first)
-        if line.count == 1 {
-            context.addLine(to: first)
-        } else {
-            for point in line.dropFirst() { context.addLine(to: point) }
+        for line in lines {
+            guard let first = line.points.first else { continue }
+            context.setLineWidth(line.width)
+            context.move(to: first)
+            if line.points.count == 1 {
+                context.addLine(to: first)
+            } else {
+                for point in line.points.dropFirst() { context.addLine(to: point) }
+            }
+            context.strokePath()
         }
-        context.strokePath()
+        context.endTransparencyLayer()
         context.restoreGState()
     }
 }
@@ -171,14 +195,17 @@ extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
         #endif
     }
 
-    /// PencilKit draws the live stroke as the tool will look on the page at its size on the screen now.
+    /// PencilKit draws the live stroke as the tool will look on the page at its size on the screen now. The highlighter
+    /// draws opaque amber on a canvas laid at the highlighter's alpha, so a stroke crossing itself stays one flat band, as
+    /// the page draws the kept ones (#479 item 9).
     func applyTool() {
         let width = (view?.currentPage?.bounds(for: .cropBox).width ?? 595) / DocumentStroke.spacesAcross * (view?.scaleFactor ?? 1)
+        canvas.alpha = tool == .highlighter ? PenSizes.highlighterAlpha : 1
         switch tool {
         case .pen(let ink):
             canvas.tool = PKInkingTool(.pen, color: ink.color, width: max(1, PenSizes.pen[penWidth] * width * 1.6))
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: PenSizes.highlighter[highlighterWidth] * width)
+            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber"), width: PenSizes.highlighter[highlighterWidth] * width)
         case .eraser:
             canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
         }

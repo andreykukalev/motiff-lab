@@ -46,8 +46,8 @@
 @* The score page (decision record 0018, sections 1 and 2): the score is the whole screen, one continuously scrolling document of
    A4 pages, with nothing docked. A floating bar carries the title, the page under the top of the view and five actions (Phrases,
    Pen, Piano roll, Insights, Play) and fades while the player reads; the transport pill appears with a selection or playback;
-   the piano roll is a drawer and the Insights sheet slides over the right. The phrases are brackets on the score at the level
-   the player chose. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
+   the piano roll is a drawer and the Insights sheet slides over the right. The phrases, at the level the player chose, are not
+   drawn on the score (#479 item 14); a selection steps and snaps by them. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
 @* The shared workspace state (decision record 0013): one snapshot per render, which the sheet reads; the page is its only writer. *@
 <CascadingValue Value="State">
     <main class="lab app workspace @WorkspaceClass @(_assembling ? "assembling" : null)" @ref="_main" @onkeydown="WorkspaceKeys">
@@ -103,9 +103,9 @@
             else if (ShownScore is { } shown)
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-                <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
+                <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
-                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
+                           PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
@@ -195,7 +195,8 @@
             @switch (_popover)
             {
                 case Popover.Phrases:
-                    @* The Phrases popover (0018 section 3): the level, the brackets on or off, and Reset to detected. It never lists the phrases. *@
+                    @* The Phrases popover (0018 section 3): the level and Reset to detected. It never lists the phrases. The brackets it
+                       showed on the score are gone (Andrei, 2026-11-13, #479 item 14); the level still sets what a selection steps and snaps by. *@
                     <div class="popover phrases-popover" role="dialog" aria-label="@Text["bar.phrases"]" data-keeps-selection>
                         <p class="overline">@Text["phrases.levelTitle"]</p>
                         <div class="seg" role="radiogroup" aria-label="@Text["phrases.levelTitle"]">
@@ -206,10 +207,6 @@
                             }
                         </div>
                         <p class="caption">@LevelCount</p>
-                        <label class="switch-row">
-                            <span>@Text["phrases.showBrackets"]</span>
-                            <input type="checkbox" role="switch" class="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
-                        </label>
                         <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(Levels is null || Levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
                         @PopoverScope([GranularitySetting], "score")
                     </div>

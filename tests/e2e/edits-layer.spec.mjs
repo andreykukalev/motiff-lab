@@ -3,7 +3,7 @@
 // piece remembers it on this device through a reload; on again, the corrections are back.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openInsights, openMoreTools, violations } from "./steps.mjs";
+import { openInsights, openMoreTools, violations, selectPhrase } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
@@ -32,7 +32,7 @@ test("my corrections turn off and on again for a piece, and off lasts through a 
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
-    await page.locator(".score button.bracket[aria-label]").nth(0).click();
+    await selectPhrase(page);
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     let section = await corrections(page);
     await section.getByTitle("A semitone higher").first().click();

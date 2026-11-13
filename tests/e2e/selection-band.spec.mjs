@@ -3,7 +3,7 @@
 // draws (#419), so a stale place shows here as a band shifted off its staves.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openRoll } from "./steps.mjs";
+import { closePopover, openRoll } from "./steps.mjs";
 
 const piece = fileURLToPath(new URL("./fixtures/large-score.mid", import.meta.url));
 
@@ -46,7 +46,10 @@ test("the selection's band stays on its bar's staves far down a long score", asy
     await page.locator(".lib-head").getByRole("button", { name: /^(Add piece|Добавить пьесу)$/ }).click();
     await page.getByRole("dialog").locator("input[type=file]").setInputFiles(piece);
     await expect(page).toHaveURL(/\/playback\?project=/);
-    await expect(page.locator(".score button.bracket").first()).toBeAttached({ timeout: 120_000 });
+    // The phrases are read after the score shows: the Phrases popover counts them once they are.
+    await page.locator(".bar").getByRole("button", { name: /^(Phrases|Фразы)$/ }).click();
+    await expect(page.locator(".phrases-popover .caption")).not.toBeEmpty({ timeout: 120_000 });
+    await closePopover(page);
 
     // A bar in the middle of a page more than half way down, once that page is drawn (pages away from the view are drawn
     // after the first, #419).

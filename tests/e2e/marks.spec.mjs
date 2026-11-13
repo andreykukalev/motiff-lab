@@ -104,10 +104,10 @@ test("the layers hide the notes, the bookmarks and the analysis, one by one or a
     await layers.getByRole("button", { name: "Hide all marks" }).click();
     await expect(page.locator(".score[role=figure]")).toHaveClass(/hide-ink/);
     await expect(page.locator(".score[role=figure]")).toHaveClass(/hide-bookmarks/);
-    await expect(page.locator(".score button.bracket").first()).toBeHidden();
+    await expect(page.locator(".score[role=figure]")).toHaveClass(/hide-analysis/);
     await layers.getByRole("button", { name: "Show all marks" }).click();
     await expect(page.locator(".score .marker")).toBeVisible();
-    await expect(layers.getByRole("switch", { name: "Analysis: phrase brackets and facts" })).toBeChecked();
+    await expect(layers.getByRole("switch", { name: "Analysis: facts" })).toBeChecked();
     await closePopover(page);
     expect(errors).toEqual([]);
 });

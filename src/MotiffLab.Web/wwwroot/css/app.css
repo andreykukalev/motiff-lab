@@ -3288,7 +3288,7 @@ h1:focus {
     border-top: 1px solid var(--hairline);
 }
 
-/* Saved ideas are the app's composition: plum, as on the brackets and the focus card's chips. */
+/* Saved ideas are the app's composition: plum, as on the focus card's chips. */
 .lab.workspace .stream .chip.idea {
     background: var(--plum-tint);
     border-color: transparent;
@@ -3573,89 +3573,6 @@ h1:focus {
 
 .lab.workspace .pen-palette .close:hover {
     background: var(--accent-tint);
-}
-
-/* Phrase brackets (0018 section 3, design/kit/ds.css .bracket): pencil over the top staff, numbered at the left end, the
-   selected one in the accent, a plum dot where ideas were kept. Each is a button with a hit area taller than its line. */
-.lab .score button.bracket {
-    position: absolute;
-    z-index: 1;
-    height: 9px;
-    min-height: 0;
-    padding: 0;
-    box-sizing: border-box;
-    background: transparent;
-    border: 1.25px solid var(--ink-graphite);
-    border-bottom: 0;
-    border-radius: 2px 2px 0 0;
-    opacity: 0.75;
-    cursor: pointer;
-}
-
-.lab .score button.bracket::before {
-    content: "";
-    position: absolute;
-    inset: -16px -2px -3px;
-}
-
-.lab .score button.bracket:hover:not(:disabled) {
-    opacity: 1;
-    border-color: var(--ink-graphite);
-}
-
-.lab .score button.bracket.on {
-    opacity: 1;
-    border-width: 1.5px;
-    border-bottom: 0;
-    border-color: var(--accent);
-}
-
-.lab .score button.bracket.from {
-    border-left: 0;
-    border-top-left-radius: 0;
-}
-
-.lab .score button.bracket.on-to {
-    border-right: 0;
-    border-top-right-radius: 0;
-}
-
-/* On the Slate page the graphite pencil is all but lost on the dark paper: the brackets and their numbers take the page's
-   own ink at the same weight. */
-[data-theme="dark"][data-page="slate"] .lab .score button.bracket:not(.on) {
-    border-color: var(--notation);
-}
-
-[data-theme="dark"][data-page="slate"] .score .bracket:not(.on) .n {
-    color: var(--notation);
-}
-
-.score .bracket .n {
-    position: absolute;
-    left: -2px;
-    top: -16px;
-    font: 600 11px/14px var(--font-ui);
-    color: var(--ink-graphite);
-}
-
-.score .bracket.on .n {
-    color: var(--accent);
-}
-
-.score .bracket .dot {
-    position: absolute;
-    right: -3px;
-    top: -8px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--plum);
-}
-
-.lab .score button.bracket:focus-visible {
-    box-shadow: none;
-    outline: 2px dotted var(--accent);
-    outline-offset: 3px;
 }
 
 /* The selection (0018 section 3, design/kit/ds.css .band, .handle): a cobalt band over the selected bars on each
@@ -4143,7 +4060,7 @@ h1:focus {
 .workspace .ink-graphite { --mark: var(--ink-graphite); }
 .workspace .ink-ochre { --mark: var(--ink-ochre); }
 
-/* Bookmarks on the score (design/kit/ds.css .bmb): a bracket in the category's ink above the phrase brackets, the title
+/* Bookmarks on the score (design/kit/ds.css .bmb): a bracket in the category's ink above the top staff, the title
    in italic serif at its left end; overlapping ones stack. Each is a button with a hit area over its title and line. */
 .lab .score button.bmb {
     position: absolute;
@@ -4743,7 +4660,7 @@ h1:focus {
 .lab .score.hide-ink .pencil-layer,
 .lab .score.hide-notes :is(button.marker, div.hl),
 .lab .score.hide-bookmarks button.bmb,
-.lab .score.hide-analysis :is(button.bracket, .highlight-mark),
+.lab .score.hide-analysis .highlight-mark,
 .lab .score.hide-check button.check-flag {
     display: none;
 }

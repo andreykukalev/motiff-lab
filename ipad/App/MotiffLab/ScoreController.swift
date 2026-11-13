@@ -35,9 +35,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var color: UIColor { DesignTokens.color("ink-\(rawValue)") }
     }
 
-    @Published var tool = Tool.pen(.graphite) {
+    /// The tool, as last chosen on this device (PenMemory): the same after PDF | Notes and when the piece opens again.
+    @Published var tool = PenMemory.savedTool() {
         didSet {
             if oldValue != tool { previousTool = oldValue }
+            PenMemory.keep(tool: tool, previous: previousTool)
             applyTool()
         }
     }
@@ -66,9 +68,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The two playheads as the page last had them (TwoPlayheads.page), or nil for the one playhead.
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
-    /// The phrases at the level shown, drawn as brackets on the score (0018 section 3).
+    /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
     @Published private(set) var phrases: PhraseLevelsShown?
-    /// The passage selected on the score: a bracket tapped, a bar tapped, or bars chosen by a long press and a drag.
+    /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
     /// nothing is selected or a drag is on.
@@ -255,10 +257,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var pageReady = false
     private var shown = false
     private var clearing = false
-    private(set) var previousTool = Tool.eraser
-    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes).
-    @Published var penWidth = PenSizes.defaultWidth { didSet { applyTool() } }
-    @Published var highlighterWidth = PenSizes.defaultWidth { didSet { applyTool() } }
+    private(set) var previousTool = PenMemory.savedPrevious()
+    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
+    @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths(); applyTool() } }
+    @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths(); applyTool() } }
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
@@ -368,16 +370,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             }
         }
         // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
-        // choice (a bracket, a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
+        // choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
             if selection == nil {
                 Task { await select(start, end) }
             } else {
                 blankTapped?()
             }
-        }
-        if let bracket = number(message["bracket"]) {
-            selectPhrase(Int(bracket))
         }
         if let bookmark = message["bookmark"] as? String {
             goToBookmark(bookmark)
@@ -423,8 +422,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Phrases and the selection
 
-    /// Shows another level: the brackets are drawn again, and the selection moves to the unit that is, encloses or starts
-    /// it at the new level.
+    /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
+    /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
         guard let piece, level != phrases?.level else { return }
         let request = "{\"level\": \"\(level)\"}"
@@ -438,7 +437,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// A bracket tapped: its unit is selected; a second tap on the selected one lifts it into focus.
+    /// A unit chosen by its number (the screenshot walk, ScreensHook): it is selected; chosen again, it lifts into focus.
     func selectPhrase(_ number: Int) {
         guard let unit = phrases?.unit(number) else { return }
         if let selection, selection.onset == unit.selectableOnset, selection.end == unit.selectableEnd {
@@ -492,7 +491,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Bookmarks and the Contents
 
-    /// Draws the bookmarks as brackets in their categories' inks above the phrase brackets (0018 section 5).
+    /// Draws the bookmarks as brackets in their categories' inks above the top staff (0018 section 5).
     func showBookmarks(_ shelf: BookmarkShelf?) {
         let bookmarks = shelf?.bookmarks ?? []
         bookmarkSpans = Dictionary(bookmarks.map { ($0.id, $0.onset..<max($0.end, $0.onset + 1)) }, uniquingKeysWith: { first, _ in first })
@@ -693,12 +692,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return Set(Self.layerIds.filter { values["layers.\($0)"] == "off" })
     }
 
-    /// What the page hides: the layers hidden, and the phrase brackets when Settings turns them off.
+    /// What the page hides: the layers hidden, and Check while neither extra information nor the Check drawer shows it.
     private func applyLayers() async {
         guard shown else { return }
         var hidden = Self.layers.filter(hiddenLayers.contains)
         if !extraShown("check") && !checkDrawerOpen { hidden.append("check") }
-        if DeviceSettings.shared["guidance.brackets"] == "off" { hidden.append("brackets") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
         _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": hidden, "slate": slate]], contentWorld: .page)
     }
@@ -1744,14 +1742,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await showSelection()
     }
 
-    /// Draws the brackets, the selected one in the accent, and the band over the selection.
+    /// Draws the band over the selection. The phrases are not drawn as brackets (Andrei, 2026-11-13, #479 item 14).
     private func showSelection() async {
         guard shown else { return }
-        let units: [[String: Any]] = (phrases?.units ?? []).map { unit in
-            let current = selection.map { $0.onset == unit.selectableOnset && $0.end == unit.selectableEnd } ?? false
-            return ["start": unit.onset, "end": unit.end, "number": unit.number, "kind": unit.kind, "current": current, "label": label(of: unit)]
-        }
-        _ = try? await webView.callAsyncJavaScript("return motiff.phrases(data)", arguments: ["data": ["units": units]], contentWorld: .page)
         var band: Any = NSNull()
         if let selection {
             band = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]] as [String: Any]
@@ -1759,7 +1752,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
     }
 
-    /// What a screen reader says for a bracket: "Phrase 3, bars 9–12".
+    /// What a unit is called, as a screen reader and the assistant say it: "Phrase 3, bars 9–12".
     private func label(of unit: PhraseUnit) -> String {
         let name = unit.name.prefix(1).uppercased() + unit.name.dropFirst()
         let bars = unit.firstBar == unit.lastBar
@@ -1927,14 +1920,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.playheads(data)", arguments: ["data": value], contentWorld: .page)
     }
 
-    /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom.
+    /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom. The
+    /// highlighter draws opaque amber on a canvas laid at the highlighter's alpha, so a stroke crossing itself stays one
+    /// flat band, as the page draws the kept ones (#479 item 9).
     private func applyTool() {
         let zoom = webView.scrollView.zoomScale
+        canvas.alpha = tool == .highlighter ? PenSizes.highlighterAlpha : 1
         switch tool {
         case .pen(let ink):
             canvas.tool = PKInkingTool(.pen, color: ink.color, width: PenSizes.pen[penWidth] * staffSpace * zoom * 1.6)
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: PenSizes.highlighter[highlighterWidth] * staffSpace * zoom)
+            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber"), width: PenSizes.highlighter[highlighterWidth] * staffSpace * zoom)
         case .eraser:
             canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
         }

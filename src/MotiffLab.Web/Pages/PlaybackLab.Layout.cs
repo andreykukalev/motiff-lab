@@ -16,17 +16,14 @@ namespace MotiffLab.Web.Pages;
 /// <summary>
 /// The score page (decision record 0018, sections 1 to 3): the score fills the screen and everything else
 /// floats over it. The bar with its page count and five actions, which fades while the player reads
-/// (<c>Scripts/layout/bar-fade.ts</c>); the Phrases popover with the level (Short, Phrases, Sentences),
-/// the brackets on or off and Reset to detected; the piano roll drawer and the Insights sheet, which leave
+/// (<c>Scripts/layout/bar-fade.ts</c>); the Phrases popover with the level (Short, Phrases, Sentences)
+/// and Reset to detected; the piano roll drawer and the Insights sheet, which leave
 /// the selection as it is; and the transport pill, shown with a selection or while playing. The phrases
 /// are read at three levels from one analysis (<see cref="PhraseLevels"/>); the level is kept with the
 /// piece as its "phrases.granularity" setting, and the edits of every level with the project.
 /// </summary>
 public partial class PlaybackLab : IAsyncDisposable
 {
-    /// <summary>The device preference for showing the phrase brackets (the setting "guidance.brackets").</summary>
-    private const string BracketsPreference = "guidance.brackets";
-
     /// <summary>The tempo steps the pill offers, as a share of the written tempo.</summary>
     private static readonly int[] s_tempoSteps = [50, 60, 75, 90, 100];
 
@@ -62,10 +59,9 @@ public partial class PlaybackLab : IAsyncDisposable
     /// <summary>The piece at the three levels; its <see cref="PhraseLevels.Phrases"/> and <see cref="PhraseLevels.Sentences"/> are <see cref="_phrases"/> and <see cref="_sentences"/>.</summary>
     private PhraseLevels? Levels => _pieceStructure?.Levels;
 
-    /// <summary>The level the brackets show and a tap selects at.</summary>
+    /// <summary>The level a selection steps and snaps by.</summary>
     private PhraseLevel _level = PhraseLevel.Phrase;
 
-    private bool _showBrackets = true;
     private Popover _popover;
     private PillMenu _pillMenu;
     private bool _rollOpen;
@@ -135,17 +131,12 @@ public partial class PlaybackLab : IAsyncDisposable
         }
     }
 
-    /// <summary>Reads the player's settings on this device: whether the brackets show, and the rest as the page asks for them.</summary>
-    private async Task ReadLayoutPreferencesAsync()
-    {
-        await SettingsStore.LoadAsync();
-        _showBrackets = SettingsStore.IsOn(BracketsPreference);
-    }
+    /// <summary>Reads the player's settings on this device, which the page asks for as it needs them.</summary>
+    private Task ReadLayoutPreferencesAsync() => SettingsStore.LoadAsync();
 
     /// <summary>A setting changed, in the Settings sheet over the score or by a control on the page: the score shows it at once.</summary>
     private void OnSettingsChanged() => _ = InvokeAsync(async () =>
     {
-        _showBrackets = SettingsStore.IsOn(BracketsPreference);
         ReadingMarksChanged();
         // A piece without its own level opens at the setting's.
         if (Levels is not null && _project?.SettingOverrides.ContainsKey(GranularitySetting) != true)
@@ -293,13 +284,6 @@ public partial class PlaybackLab : IAsyncDisposable
         _ => "phrases.levelPhrases",
     }];
 
-    /// <summary>"Short phrase", "Phrase" or "Sentence" in the player's language, as a bracket is named.</summary>
-    private string UnitName(PhraseLevel level)
-    {
-        string name = PhraseLevels.Describe(level, Words);
-        return name.Length == 0 ? name : char.ToUpper(name[0], Text.Culture) + name[1..];
-    }
-
     /// <summary>How many units the piece has at the level shown, as the popover says it.</summary>
     private string LevelCount => Levels is null ? "" : Text.Count(_level switch
     {
@@ -308,84 +292,11 @@ public partial class PlaybackLab : IAsyncDisposable
         _ => "phrases.countPhrases",
     }, Levels.Units(_level).Count);
 
-    /// <summary>The unit of the level shown that the selection is (<see cref="SelectedUnit"/>): its bracket is drawn in the accent.</summary>
+    /// <summary>The unit of the level shown that the selection is (<see cref="SelectedUnit"/>).</summary>
     private PhraseUnit? CurrentUnit => SelectedUnit;
 
-    /// <summary>The brackets of the level shown, the selected one in the accent and a dot on those the player kept ideas from.</summary>
-    private IReadOnlyList<ScorePhrase>? ScorePhrases
-    {
-        get
-        {
-            if (Levels is null || !_showBrackets)
-            {
-                return null;
-            }
-
-            PhraseUnit? current = CurrentUnit;
-            IReadOnlyList<Observation> kept = Kept;
-            if (!ReferenceEquals(Levels, _scorePhrasesFor) || _level != _scorePhrasesLevel || current != _scorePhrasesCurrent || !ReferenceEquals(kept, _scorePhrasesKept))
-            {
-                (_scorePhrasesFor, _scorePhrasesLevel, _scorePhrasesCurrent, _scorePhrasesKept) = (Levels, _level, current, kept);
-                _scorePhrases = [.. Levels.Units(_level).Select(unit =>
-                {
-                    int ideas = kept.Count(observation => observation.IsAbout(unit.Span));
-                    string label = Text.Format("phrases.bracketLabel", UnitName(unit.Level), unit.Number, Bars(unit));
-                    return new ScorePhrase(
-                        unit.Span.Onset.Value,
-                        unit.Span.End.Value,
-                        unit.Number,
-                        KindClass(unit),
-                        unit == current,
-                        ideas > 0,
-                        ideas == 0 ? label : label + ", " + Text.Format("phrases.keptShort", ideas));
-                })];
-            }
-
-            return _scorePhrases;
-        }
-    }
-
-    private PhraseLevels? _scorePhrasesFor;
-    private PhraseLevel _scorePhrasesLevel;
-    private PhraseUnit? _scorePhrasesCurrent;
-    private IReadOnlyList<Observation>? _scorePhrasesKept;
-    private IReadOnlyList<ScorePhrase>? _scorePhrases;
-
-    /// <summary>How a unit's start was found, as the bracket's class: the start of the piece, the player's own, inferred, or imported from the file.</summary>
-    private static string KindClass(PhraseUnit unit) => unit.Number == 1 ? "start" : unit.Start.Provenance switch
-    {
-        Provenance.UserEdited or Provenance.UserConfirmed => "yours",
-        Provenance.Inferred or Provenance.Detected => "inferred",
-        _ => "imported",
-    };
-
-    private string Bars(PhraseUnit unit) =>
-        unit.FirstBar == unit.LastBar ? Text.Format("bars.one", unit.FirstBar) : Text.Format("bars.range", unit.FirstBar, unit.LastBar);
-
-    /// <summary>A tap on a bracket selects its unit; a tap on the selected one lifts it into focus (0018 section 4).</summary>
-    private Task OnBracketPickedAsync(int number)
-    {
-        _popover = Popover.None;
-        if (Levels is null || number < 1 || number > Levels.Units(_level).Count)
-        {
-            return Task.CompletedTask;
-        }
-
-        PhraseUnit unit = Levels.Units(_level)[number - 1];
-        if (unit == CurrentUnit)
-        {
-            // The second tap lifts the phrase into focus.
-            EnterFocus();
-            return Task.CompletedTask;
-        }
-
-        TickSpan span = Levels.Selectable(unit);
-        string? note = span == unit.Span ? null : Text.Format("selection.unitCapped", UnitName(unit.Level), unit.Number, unit.BarCount, MotifSelection.MaxStructureBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
-        return SelectAsync(span, note);
-    }
-
     /// <summary>
-    /// Shows the piece at another level: the brackets are drawn again and renumbered, and the selection moves to
+    /// Shows the piece at another level: the selection moves to
     /// the unit that is it, encloses it or holds its start (0018 section 3). The level is kept with the piece.
     /// </summary>
     private async Task SetLevelAsync(PhraseLevel level)
@@ -420,12 +331,6 @@ public partial class PlaybackLab : IAsyncDisposable
     /// <summary>The level's own edits go; the other levels keep theirs.</summary>
     private Task ResetLevelAsync() =>
         Levels is { } levels ? ChangePhrasesAsync(levels.Reset(_level), around: null) : Task.CompletedTask;
-
-    private async Task ToggleBracketsAsync()
-    {
-        _showBrackets = !_showBrackets;
-        await SettingsStore.SetAsync(BracketsPreference, _showBrackets);
-    }
 
     private void TogglePopover(Popover popover)
     {

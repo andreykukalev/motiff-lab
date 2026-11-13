@@ -42,7 +42,6 @@
                     }
                 </div>
                 <p class="caption preset-hint" role="status">@(Store.State.Preset == Preset.Custom ? Text["settings.presetHint.custom"] : PresetHint(Store.State.Preset))</p>
-                <SettingSwitch Id="guidance.brackets" Label="@Text["settings.brackets"]" />
                 <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" />
                 <SettingChoice Id="guidance.barFade" Label="@Text["settings.barFade"]" Name="@(choice => Text[$"settings.barFade.{choice}"])" />
                 break;

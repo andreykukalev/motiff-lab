@@ -226,7 +226,7 @@ struct ScoreScreen: View {
             .background(Color.ds("desk").ignoresSafeArea())
             #if DEBUG
             .overlay(alignment: .bottomLeading) {
-                // The screenshot walk chooses a phrase here, as a tap on its bracket would (ScreensHook).
+                // The screenshot walk chooses a phrase here by its number (ScreensHook).
                 if ScreensHook.active {
                     Button { score.selectPhrase(ScreensHook.nextPhrase()) } label: {
                         Color.clear.frame(width: 8, height: 8).contentShape(Rectangle())
@@ -823,20 +823,15 @@ struct ScoreBar: View {
     @State private var extraOpen = false
     @EnvironmentObject private var account: Account
 
+    /// The bar is laid out as the PDF's (PdfScreen's bar, #479 item 13): Back, the Contents, the title and PDF | Notes in
+    /// the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        // Original PDF | Notes where the whole bar fits, else PDF | Notes (Andrei, 2026-11-11).
-        ViewThatFits(in: .horizontal) {
-            content(compact: false)
-            content(compact: true)
-        }
-    }
-
-    private func content(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            leading
+            BarLeading(title: title, contentsOpen: $contentsOpen, text: text, back: back)
             if let pdf {
-                PdfNotesSwitch(onPdf: false, text: text, compact: compact) { pdf() }
+                PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
+            if let pageText { BarPages(text: pageText) }
             Spacer(minLength: CGFloat.ds("s-2"))
             actions
         }
@@ -844,45 +839,6 @@ struct ScoreBar: View {
         .padding(.trailing, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
-    }
-
-    /// Back, the Contents, the title and the pages in view.
-    @ViewBuilder private var leading: some View {
-        Button(action: back) {
-            Icon(name: "back", size: CGFloat.ds("icon-l"))
-                .frame(width: 40, height: 40)
-        }
-        .buttonStyle(BarActionStyle())
-        .accessibilityLabel(text["nav.library"])
-        // The Contents at the left, by the way back, as in a reader (testing item 21); the title opens them too.
-        Button {
-            contentsOpen.toggle()
-        } label: {
-            Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-        }
-        .buttonStyle(BarActionStyle(on: contentsOpen))
-        .accessibilityLabel(text["bar.contents"])
-        .accessibilityAddTraits(contentsOpen ? .isSelected : [])
-        Button {
-            contentsOpen.toggle()
-        } label: {
-            Text(title)
-                .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                .lineLimit(1)
-                .padding(.horizontal, CGFloat.ds("s-2"))
-                .frame(height: 40)
-        }
-        .buttonStyle(BarActionStyle(on: contentsOpen))
-        .accessibilityLabel(text.format("contents.open", title))
-        .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
-        if let pageText {
-            Text(pageText)
-                .dsType(.label)
-                .foregroundStyle(Color.ds("ink-2"))
-                .lineLimit(1)
-                .padding(.leading, CGFloat.ds("s-2"))
-        }
     }
 
     /// Phrases, Pen, the piano roll, Insights, the extra information, Play and More.
@@ -1041,6 +997,61 @@ struct ScoreBar: View {
         return pages.first == pages.last
             ? text.format("bar.page", String(pages.first), String(pages.count))
             : text.format("bar.pages", String(pages.first), String(pages.last), String(pages.count))
+    }
+}
+
+/// The start of the bar on the score and on a PDF alike (#479 item 13): Back, the Contents at the left by the way back, as
+/// in a reader (testing item 21), and the title, which opens the Contents too.
+struct BarLeading: View {
+    let title: String
+    @Binding var contentsOpen: Bool
+    let text: UIText
+    let back: () -> Void
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Button(action: back) {
+                Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text["nav.library"])
+            Button {
+                contentsOpen.toggle()
+            } label: {
+                Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: contentsOpen))
+            .accessibilityLabel(text["bar.contents"])
+            .accessibilityAddTraits(contentsOpen ? .isSelected : [])
+            Button {
+                contentsOpen.toggle()
+            } label: {
+                Text(title)
+                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
+                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
+                    .lineLimit(1)
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .frame(height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: contentsOpen))
+            .accessibilityLabel(text.format("contents.open", title))
+            .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
+        }
+    }
+}
+
+/// The pages in view, after PDF | Notes in the bar: the first to give way where the bar is short of room, so the places
+/// the two views share do not move (#479 item 13).
+struct BarPages: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .dsType(.label)
+            .foregroundStyle(Color.ds("ink-2"))
+            .lineLimit(1)
+            .padding(.leading, CGFloat.ds("s-2"))
+            .layoutPriority(-1)
     }
 }
 
@@ -1550,8 +1561,8 @@ struct FocusSteps: View {
     }
 }
 
-/// Phrases, from the bar (0018 section 3): the level the brackets show, Short, Phrases or Sentences, and how many units
-/// the piece has at it. It never lists the phrases.
+/// Phrases, from the bar (0018 section 3): the level focus steps by, Short, Phrases or Sentences, and
+/// how many units the piece has at it. It never lists the phrases, and since #479 item 14 the score does not draw them.
 struct PhrasesPanel: View {
     @ObservedObject var score: ScoreController
     let text: UIText

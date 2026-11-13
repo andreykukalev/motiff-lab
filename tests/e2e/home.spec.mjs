@@ -2,7 +2,7 @@
 // action with the routes in; the resume points of a piece listed, named and removed in a sheet.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { pageErrors, violations, librarySessions } from "./steps.mjs";
+import { pageErrors, violations, librarySessions, selectPhrase } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
@@ -41,8 +41,7 @@ test("a card resumes the piece where it was left, opens page 1 afresh, and lists
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
-    const phrases = page.locator(".score button.bracket[aria-label]");
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     await page.locator(".bar").getByRole("link", { name: "Library" }).click();
     await librarySessions(page);

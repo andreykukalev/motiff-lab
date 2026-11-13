@@ -1,20 +1,19 @@
 // Phrase focus (decision record 0018, section 4): the phrase lifted into a card across the screen over the dimmed page,
-// entered by a second tap on its bracket or Focus in the menu, left by Back, a tap on the page or Escape; previous and next
+// entered by Focus in the menu, left by Back, a tap on the page or Escape; previous and next
 // walk the piece; a variation is engraved as an ossia above the original, with Original / Variation / Alternate in the
 // focus bar and the kept variations as chips; Lead-in on the pill.
 import { expect, test } from "@playwright/test";
-import { openFurElise, openInsights, tryWay } from "./steps.mjs";
+import { focusSelection, openFurElise, openInsights, selectPhrase, tryWay } from "./steps.mjs";
 
 const card = page => page.locator(".focus-card");
 const bar = page => page.locator(".bar");
 
-test("a second tap on the selected bracket lifts the phrase; Back, the dimmed page and Escape put it back", async ({ page }) => {
+test("Focus lifts the selected phrase; Back, the dimmed page and Escape put it back", async ({ page }) => {
     const errors = await openFurElise(page);
-    const bracket = page.locator(".score button.bracket[aria-label]").first();
-    await bracket.click();
+    await selectPhrase(page);
     await expect(card(page)).toHaveCount(0);
 
-    await bracket.click();
+    await focusSelection(page);
     await expect(card(page).locator(".phrase-card-score > .card-page > svg")).toBeVisible();
     await expect(page.locator(".workspace")).toHaveClass(/focused/);
     await expect(bar(page).locator(".crumb")).toHaveText("the pickup and bars 1–4 · phrase 1 of 21");
@@ -28,14 +27,12 @@ test("a second tap on the selected bracket lifts the phrase; Back, the dimmed pa
     await expect(page.locator(".selection-status")).toContainText("bars 0–4");
     await expect(page.locator(".ctx .menu")).toBeVisible();
 
-    // Focus from the contextual menu; a tap on the dimmed page leaves.
-    await page.locator(".ctx .menu").getByRole("button", { name: "Focus" }).click();
-    await expect(card(page)).toBeVisible();
+    // Again from the contextual menu; a tap on the dimmed page leaves.
+    await focusSelection(page);
     await page.locator(".focus-layer .veil").click({ position: { x: 6, y: 300 } });
     await expect(card(page)).toHaveCount(0);
 
-    await bracket.click();
-    await expect(card(page)).toBeVisible();
+    await focusSelection(page);
     await page.keyboard.press("Escape");
     await expect(card(page)).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -46,9 +43,8 @@ test("previous and next walk the phrases, and the card follows", async ({ page }
     // every engine (#309).
     test.slow(true, "walks all twenty-one phrases");
     await openFurElise(page);
-    const bracket = page.locator(".score button.bracket[aria-label]").first();
-    await bracket.click();
-    await bracket.click();
+    await selectPhrase(page);
+    await focusSelection(page);
     const previous = card(page).getByRole("button", { name: "Previous phrase" });
     const next = card(page).getByRole("button", { name: "Next phrase" });
     await expect(previous).toBeDisabled();
@@ -67,15 +63,13 @@ test("previous and next walk the phrases, and the card follows", async ({ page }
 
 test("a variation is the ossia above the phrase, heard with Original, Variation or Alternate; kept ones are chips", async ({ page }) => {
     await openFurElise(page);
-    const bracket = page.locator(".score button.bracket[aria-label]").first();
-    await bracket.click();
+    await selectPhrase(page);
     await openInsights(page);
     await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await bar(page).getByRole("button", { name: "Insights" }).click();
 
-    await bracket.click();
-    await expect(card(page)).toBeVisible();
+    await focusSelection(page);
     const frame = card(page).locator(".ossia-frame").first();
     await expect(frame).toBeVisible();
     await expect(frame).toContainText(/^Ossia · Held chord/);
