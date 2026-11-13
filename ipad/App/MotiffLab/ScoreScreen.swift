@@ -636,7 +636,6 @@ struct ScoreScreen: View {
                 // A new Play follows the music again, even after the player scrolled away by hand.
                 score.playhead(player.tick, playing: state == .playing, follow: old != .playing && state == .playing)
                 if rollShown { showRollPosition() }
-                if score.onePosition { syncPlayheads() }
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
@@ -660,19 +659,8 @@ struct ScoreScreen: View {
                 roll.showEditor(editor)
             }
             .onChange(of: score.playRange) { old, new in
-                defer { syncPlayheads() }
-                if score.onePosition {
-                    selectionChanged(from: old?.range, to: new?.range)
-                    return
-                }
-                // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page
-                // with it on, loops the wider or the narrower span; a new selection stops the old loop.
-                guard let loop = player.loop, loop == old?.range else { return }
-                if let new, new.selection == old?.selection {
-                    player.setLoop(new.range)
-                } else {
-                    player.setLoop(nil)
-                }
+                playRangeChanged(from: old, to: new)
+                syncPlayheads()
             }
     }
 
@@ -760,6 +748,21 @@ extension ScoreScreen {
     private func showRollPosition() {
         let on = score.onePosition
         roll.position(player.tick, playing: player.state == .playing, label: on ? player.placeLabel : "", looping: on && player.loop != nil)
+    }
+
+    /// What plays for the selection changed. A loop follows it, as on the web: Lead-in, or going back to the page with it on,
+    /// loops the wider or the narrower span; a new selection stops the old loop. Under the one playback position, Цикл decides.
+    private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
+        if score.onePosition {
+            selectionChanged(from: old?.range, to: new?.range)
+            return
+        }
+        guard let loop = player.loop, loop == old?.range else { return }
+        if let new, new.selection == old?.selection {
+            player.setLoop(new.range)
+        } else {
+            player.setLoop(nil)
+        }
     }
 
     /// Another selection, or none, under the one playback position: Цикл turns on when a selection appears, and the engine
