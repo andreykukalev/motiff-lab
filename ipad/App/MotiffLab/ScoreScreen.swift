@@ -1292,27 +1292,37 @@ struct LoopButton: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
     let text: UIText
+    /// Its icon alone, as in the selection menu (#495 UX-11); the pill keeps its word.
+    var iconOnly = false
 
     var body: some View {
         let range = score.playRange?.range
         let looping = range != nil && player.loop == range
-        Button {
+        let button = Button {
             player.setLoop(looping ? nil : range)
         } label: {
             HStack(spacing: 6) {
                 Icon(name: "loop")
-                Text(text["focus.loop"])
+                if !iconOnly { Text(text["focus.loop"]) }
             }
         }
-        .buttonStyle(DSItemStyle(on: looping))
+        Group {
+            if iconOnly {
+                button.buttonStyle(DSIconItemStyle(on: looping)).help(text["focus.loop"])
+            } else {
+                button.buttonStyle(DSItemStyle(on: looping))
+            }
+        }
         .disabled(!player.ready)
+        .accessibilityLabel(text["focus.loop"])
         .accessibilityAddTraits(looping ? .isSelected : [])
     }
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
 /// what applies and what the iPad has so far: Loop, Focus, Bookmark and Note, then the piano roll and Insights (none for a
-/// passage without notes), and More with Highlight. Bookmark and Note turn the menu into their cards, as on the web.
+/// passage without notes), and More with Highlight. Bookmark and Note turn the menu into their cards, as on the web. Its
+/// actions show their icons alone (v0.5.2, #495 UX-11), each at a fingertip's square, with its word for VoiceOver.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
@@ -1414,19 +1424,11 @@ struct SelectionMenu: View {
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             }
             if !score.onePosition {
-                LoopButton(score: score, player: player, text: text)
+                LoopButton(score: score, player: player, text: text, iconOnly: true)
             }
             if !score.penOn {
-                Button {
-                    score.enterFocus()
-                } label: {
-                    HStack(spacing: 6) {
-                        Icon(name: "search")
-                        Text(text["focus.enter"])
-                    }
-                }
-                .buttonStyle(DSItemStyle())
-                .accessibilityHint(text["focus.enterHint"])
+                item("search", text["focus.enter"], on: false) { score.enterFocus() }
+                    .accessibilityHint(text["focus.enterHint"])
             }
             item("bookmark", text["menu.bookmark"], on: false) {
                 score.noteDraft = nil
@@ -1441,27 +1443,20 @@ struct SelectionMenu: View {
             if !(score.selection?.noteIds.isEmpty ?? true) {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
-            Button {
-                more.toggle()
-            } label: {
-                Icon(name: "more").frame(width: 32, height: 32)
-            }
-            .buttonStyle(DSItemStyle(on: more || score.selectedHighlight != nil))
-            .accessibilityLabel(text["menu.more"])
-            .accessibilityAddTraits(more ? .isSelected : [])
-            ClearSelectionButton(score: score, text: text)
+            item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
+            ClearSelectionButton(score: score, text: text, iconOnly: true)
         }
     }
 
+    /// An action of the menu as its icon alone (#495 UX-11): the word for VoiceOver and the pointer's tip.
     private func item(_ icon: String, _ label: String, on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Icon(name: icon)
-                Text(label)
-            }
+            Icon(name: icon)
         }
-        .buttonStyle(DSItemStyle(on: on))
+        .buttonStyle(DSIconItemStyle(on: on))
+        .accessibilityLabel(label)
         .accessibilityAddTraits(on ? .isSelected : [])
+        .help(label)
     }
 }
 
@@ -1469,14 +1464,22 @@ struct SelectionMenu: View {
 struct ClearSelectionButton: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    /// At a fingertip's square, as the selection menu's other icons (#495 UX-11); the roll's head keeps its size.
+    var iconOnly = false
 
     var body: some View {
-        Button {
+        let button = Button {
             score.clearSelection()
         } label: {
-            Icon(name: "close").frame(width: 32, height: 32)
+            Icon(name: "close").frame(width: iconOnly ? nil : 32, height: iconOnly ? nil : 32)
         }
-        .buttonStyle(DSItemStyle())
+        Group {
+            if iconOnly {
+                button.buttonStyle(DSIconItemStyle())
+            } else {
+                button.buttonStyle(DSItemStyle())
+            }
+        }
         // Under the modes of version 0.5, Escape removes the selection too.
         .keyboardShortcut(score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["menu.clearSelection"])

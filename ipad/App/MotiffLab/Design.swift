@@ -297,6 +297,23 @@ struct DSItemStyle: ButtonStyle {
     }
 }
 
+/// An item of the pill or the menu as its icon alone (ds.css `.pill .it`, v0.5.2 #495 UX-11): a fingertip's square,
+/// quiet ink, and the accent with its tint while it is on. Its words stay for VoiceOver (`accessibilityLabel`) and as
+/// the pointer's tip (`help`), given by the button.
+struct DSIconItemStyle: ButtonStyle {
+    var on = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
+            .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Circle())
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(Circle())
+    }
+}
+
 /// A chip (ds.css `.chip`): a filter, a place, a way to try; the accent's tint and border while it is on.
 struct DSChipStyle: ButtonStyle {
     var on = false
