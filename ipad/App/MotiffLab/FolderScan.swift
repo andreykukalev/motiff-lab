@@ -59,7 +59,16 @@ enum FolderScan {
             files = walk(folder)
         }
         if failure != nil && files.isEmpty { files = walk(root) }
-        return files.sorted { $0.path < $1.path }
+        return unique(files)
+    }
+
+    /// The files by path, each path once: a file iCloud Drive is downloading can be listed both as «.name.icloud» and as
+    /// itself, and two names that differ only in how a letter is composed are one path; music-core refuses a plan with a
+    /// path twice. The larger one stays (a placeholder's size is 1).
+    static func unique(_ files: [FolderFile]) -> [FolderFile] {
+        var kept: [String: FolderFile] = [:]
+        for file in files where (kept[file.path]?.bytes ?? -1) < file.bytes { kept[file.path] = file }
+        return kept.values.sorted { $0.path < $1.path }
     }
 
     private static func walk(_ root: URL) -> [FolderFile] {

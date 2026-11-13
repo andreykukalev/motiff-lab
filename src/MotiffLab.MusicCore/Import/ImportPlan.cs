@@ -26,10 +26,10 @@ public sealed record FoundFile(string Path, long Bytes)
     /// <summary>A PDF's pages; null when not known.</summary>
     public int? Pages { get; init => field = value is null or > 0 ? value : throw new ArgumentOutOfRangeException(nameof(Pages)); }
 
-    /// <summary>The Title in the PDF's own information, as written; null when it has none.</summary>
+    /// <summary>The Title in the PDF's own information, as written; null when it has none. Not suggested (version 0.5.1).</summary>
     public string? PdfTitle { get; init; }
 
-    /// <summary>The Author in the PDF's own information, as written; null when it has none.</summary>
+    /// <summary>The Author in the PDF's own information, as written; null when it has none. Not suggested (version 0.5.1).</summary>
     public string? PdfAuthor { get; init; }
 
     /// <summary>The title and composer a MusicXML score is headed with (<see cref="ScoreHeader.Read"/>); none for other files.</summary>
@@ -146,7 +146,7 @@ public enum SuggestionSource
     /// <summary>The MusicXML score's own header.</summary>
     ScoreHeader,
 
-    /// <summary>The PDF's own information, Title or Author.</summary>
+    /// <summary>The PDF's own information, Title or Author. No longer suggested (version 0.5.1); kept so the facade's names stay.</summary>
     PdfInfo,
 
     /// <summary>The file's name.</summary>
@@ -188,7 +188,10 @@ public sealed record PlannedFile(FoundFile File, ImportStatus Status)
     /// <summary>The tags the piece gets (folders as tags), its duplicates' folders included.</summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
 
-    /// <summary>A PDF of more than <see cref="LibraryImport.CollectionPages"/> pages: perhaps several pieces in one score.</summary>
+    /// <summary>
+    /// A PDF that is perhaps several pieces in one score, a guess: more than <see cref="LibraryImport.CollectionPages"/>
+    /// pages, or a name that says so (<see cref="FileNameDetails.NamesCollection"/>).
+    /// </summary>
     public bool PossibleCollection { get; init; }
 
     /// <summary>Other files of the plan with the same title and composer, by path: possibly the same piece, never merged.</summary>

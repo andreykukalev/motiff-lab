@@ -93,7 +93,7 @@ public class LibraryImportTests
     }
 
     [Fact]
-    public void Suggestions_come_from_the_header_then_the_pdf_information_then_the_name_then_the_folder_and_are_guesses()
+    public void Suggestions_come_from_the_header_then_the_name_then_the_folder_and_are_guesses()
     {
         ImportPlan plan = Plan(
             [
@@ -109,8 +109,8 @@ public class LibraryImportTests
         Assert.Equal(Provenance.Inferred, header.Title!.Attribution.Provenance);
 
         PlannedFile pdf = In(plan, "Scores/scan0001.pdf");
-        Assert.Equal(("Nocturne in E-flat major", SuggestionSource.PdfInfo), (pdf.Title!.Value, pdf.Title.Source));
-        Assert.Equal(("Frédéric Chopin", SuggestionSource.PdfInfo), (pdf.Composer!.Value, pdf.Composer.Source));
+        Assert.Equal(("scan0001", SuggestionSource.FileName), (pdf.Title!.Value, pdf.Title.Source));
+        Assert.Null(pdf.Composer);
 
         PlannedFile named = In(plan, "Scores/Bach - Prelude in C.pdf");
         Assert.Equal(("Prelude in C", SuggestionSource.FileName), (named.Title!.Value, named.Title.Source));
@@ -149,10 +149,44 @@ public class LibraryImportTests
     [Fact]
     public void A_long_pdf_is_a_possible_collection()
     {
-        ImportPlan plan = Plan([File("Album.pdf", 1) with { Pages = LibraryImport.CollectionPages + 1 }, File("Piece.pdf", 2) with { Pages = LibraryImport.CollectionPages }]);
+        ImportPlan plan = Plan([File("Album/Long.pdf", 1) with { Pages = LibraryImport.CollectionPages + 1 }, File("Album/Piece.pdf", 2) with { Pages = LibraryImport.CollectionPages }]);
 
-        Assert.True(In(plan, "Album.pdf").PossibleCollection);
-        Assert.False(In(plan, "Piece.pdf").PossibleCollection);
+        Assert.True(In(plan, "Album/Long.pdf").PossibleCollection);
+        Assert.False(In(plan, "Album/Piece.pdf").PossibleCollection);
+    }
+
+    [Fact]
+    public void Pdfs_cut_from_one_book_are_not_one_piece_by_the_book_s_title()
+    {
+        ImportPlan plan = Plan(
+            [
+                File("Book/01 Prelude.pdf", 1) with { PdfTitle = "Chopin - Complete Preludes", PdfAuthor = "Frédéric Chopin" },
+                File("Book/02 Etude.pdf", 2) with { PdfTitle = "Chopin - Complete Preludes", PdfAuthor = "Frédéric Chopin" },
+            ]);
+
+        Assert.All(plan.Files, file => Assert.Empty(file.PossiblySameFiles));
+        Assert.All(plan.Files, file => Assert.False(file.PossibleCollection));
+        Assert.DoesNotContain(plan.Files, file => file.Title?.Source == SuggestionSource.PdfInfo || file.Composer?.Source == SuggestionSource.PdfInfo);
+    }
+
+    [Fact]
+    public void A_pdf_whose_name_or_lone_folder_says_several_pieces_is_a_possible_collection()
+    {
+        ImportPlan plan = Plan(
+            [
+                File("Шопен/Этюды соч. 10.pdf", 1) with { Pages = 3 },
+                File("Шопен/Ноктюрн соч. 9 № 2.pdf", 2) with { Pages = 3 },
+                File("Детский альбом/scan.pdf", 3) with { Pages = 3 },
+                File("Сонаты/Соната № 1.pdf", 4),
+                File("Сонаты/Соната № 2.pdf", 5),
+                File("Etudes.mid", 6),
+            ]);
+
+        Assert.True(In(plan, "Шопен/Этюды соч. 10.pdf").PossibleCollection);
+        Assert.False(In(plan, "Шопен/Ноктюрн соч. 9 № 2.pdf").PossibleCollection);
+        Assert.True(In(plan, "Детский альбом/scan.pdf").PossibleCollection);
+        Assert.False(In(plan, "Сонаты/Соната № 1.pdf").PossibleCollection);
+        Assert.False(In(plan, "Etudes.mid").PossibleCollection);
     }
 
     [Fact]

@@ -105,11 +105,25 @@ final class RecognitionTests: XCTestCase {
     func testTheWordsOfTheBatchAreInBothLanguages() {
         var keys = ["queued", "reading", "done", "failed"].map { "recognition.state." + $0 }
         keys += ["limit", "offline", "signIn", "needsPro", "unreachable"].map { "recognition.stopped." + $0 }
+        keys += ["recognition.selectAll", "folderImport.selectAll"]
         for language in ["en", "ru"] {
             let text = UIText(language: language)
             for key in keys { XCTAssertNotEqual(text[key], key, "\(language): \(key)") }
         }
         XCTAssertEqual(UIText(language: "ru").count("recognition.send", 41), "Отправить 41 страницу")
         XCTAssertEqual(UIText(language: "ru").count("recognition.pieces", 8), "8 пьес")
+    }
+
+    func testSelectAllPicksEveryPieceShownWithoutNotesOrNone() {
+        func entry(_ name: String, withoutNotes: Bool) -> LibraryEntry {
+            var entry = LibraryEntry(url: URL(fileURLWithPath: "/p/\(name)"), title: name, composer: nil, tags: [], modified: Date())
+            entry.withoutNotes = withoutNotes
+            return entry
+        }
+        let shown = [entry("a", withoutNotes: true), entry("b", withoutNotes: true), entry("c", withoutNotes: false)]
+        let a = shown[0].url, b = shown[1].url, other = URL(fileURLWithPath: "/p/other")
+
+        XCTAssertEqual(LibraryMarks.all([a, other], shown: shown), [a, b, other])
+        XCTAssertEqual(LibraryMarks.all([a, b, other], shown: shown), [other])
     }
 }

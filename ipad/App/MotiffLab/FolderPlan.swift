@@ -6,7 +6,7 @@ enum FolderMapping: String, CaseIterable, Codable, Sendable {
 }
 
 /// A suggested title or composer: a guess until the player adds the piece with it, and where it comes from ("fileName",
-/// "folder", "pdfInfo", "scoreHeader", "folderChoice").
+/// "folder", "scoreHeader", "folderChoice").
 struct Suggested: Equatable, Sendable {
     let value: String
     let from: String
@@ -24,7 +24,7 @@ struct PlannedFile: Identifiable, Equatable, Sendable {
     let composer: Suggested?
     let playlists: [String]
     let tags: [String]
-    /// A PDF of more than 20 pages: perhaps several pieces in one score.
+    /// A PDF that is perhaps several pieces in one score: more than 20 pages, or a name that says so.
     let collection: Bool
     /// Another file or a piece of the library with the same title and composer: possibly the same piece, never merged.
     let possiblySame: Bool

@@ -2181,7 +2181,6 @@
   "folder.top": "the folder itself",
   "folder.fromFileName": "from the file name",
   "folder.fromFolder": "from the folder",
-  "folder.fromPdf": "from the PDF's properties",
   "folder.fromScore": "from the file",
   "folder.adding": "Adding {0} of {1}",
   "folder.added": "Added {0} of {1}",

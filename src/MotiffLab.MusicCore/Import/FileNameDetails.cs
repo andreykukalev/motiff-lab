@@ -9,8 +9,7 @@ namespace MotiffLab.MusicCore.Import;
 /// people name their sheet music by: "Composer - Title", "Title - Composer", "Title (Composer)", "Composer_Op28_No4",
 /// "Composer Title", with Russian and Latin names, track numbers, IMSLP prefixes and "(1)" or "copy" endings left out.
 /// Catalogue numbers are written one way: "BWV 846", "Op. 28", "No. 4", "K. 331", "D. 899", "Hob. XVI:52", "соч. 10",
-/// "№ 3". Everything here is a guess for the player to confirm, never a fact; no AI. Also the PDF's own Title and Author
-/// when they are worth suggesting: not "Microsoft Word - …", "Untitled", a file name or "Administrator".
+/// "№ 3". Everything here is a guess for the player to confirm, never a fact; no AI.
 /// </summary>
 /// <param name="Title">The piece's title as the name gives it, catalogue numbers included; null when the name gives none (a scan's "IMG_0042").</param>
 /// <param name="Composer">As written in the name; null when no part of it reads as a composer.</param>
@@ -26,7 +25,7 @@ public sealed partial record FileNameDetails(string? Title, string? Composer, st
         return OfText(PieceDetails.TitleOf(NameText.Composed(fileName)));
     }
 
-    /// <summary>What a title written somewhere else suggests, such as the PDF's own Title: no extension is taken off.</summary>
+    /// <summary>What a title written somewhere else suggests: no extension is taken off.</summary>
     public static FileNameDetails OfText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -60,29 +59,19 @@ public sealed partial record FileNameDetails(string? Title, string? Composer, st
         return OfText(folderName).Composer is { } composer && ComposerNames.IsKnown(composer) ? composer : null;
     }
 
-    /// <summary>The PDF's Title as a suggestion, cleaned; null when it is empty or junk: an editor's own text, a file name, "Untitled".</summary>
-    public static string? PdfTitle(string? title)
+    /// <summary>
+    /// Whether a name says it holds several pieces, a guess (version 0.5.1, «несколько пьес?»): a collection's word
+    /// ("Сборник", "Album", "Sammlung", "Selected", "Complete"), a volume ("Vol. 2", "Том 1", "Heft 3"), a range of
+    /// numbers ("Op. 10-12", "Nos. 1–6"), or a plural genre ("Etudes", "Сонаты", "Klavierstücke") with no single number
+    /// after it ("Nocturnes Op. 9 No. 2" is one piece).
+    /// </summary>
+    public static bool NamesCollection(string name)
     {
-        string? cleaned = title is null ? null : PieceMetadata.Clean(NameText.Composed(title));
-        return cleaned is null || EditorTitle().IsMatch(cleaned) || HasFileExtension().IsMatch(cleaned) || IsJunk(cleaned) ? null : cleaned;
+        ArgumentNullException.ThrowIfNull(name);
+        string text = NameText.Composed(name);
+        string folded = NameText.Folded(text);
+        return CollectionWord().IsMatch(folded) || NumberRange().IsMatch(text) || (PluralGenre().IsMatch(folded) && !SingleNumber().IsMatch(text));
     }
-
-    /// <summary>The PDF's Author as a suggested composer, cleaned; null when it is empty or is a computer's user, a program or an address.</summary>
-    public static string? PdfAuthor(string? author)
-    {
-        string? cleaned = author is null ? null : PieceMetadata.Clean(NameText.Composed(author));
-        return cleaned is null || !cleaned.Any(char.IsLetter) || cleaned.Contains('@', StringComparison.Ordinal) || cleaned.Contains("://", StringComparison.Ordinal)
-            || s_junkAuthors.Contains(NameText.Folded(cleaned))
-            ? null
-            : cleaned;
-    }
-
-    private static readonly HashSet<string> s_junkAuthors = new(StringComparer.Ordinal)
-    {
-        "administrator", "admin", "user", "owner", "unknown", "author", "windows user", "microsoft office user", "customer", "home",
-        "pc", "imslp", "musescore", "finale", "sibelius", "dorico", "lilypond", "noteflight", "flat", "пользователь", "администратор",
-        "автор", "неизвестен", "неизвестный",
-    };
 
     /// <summary>
     /// The name without what is not the piece's: underscores as spaces, an IMSLP prefix, a track number at the start, a
@@ -137,11 +126,19 @@ public sealed partial record FileNameDetails(string? Title, string? Composer, st
     [GeneratedRegex(@"(?:BWV \d+[a-z]?|Hob\. [IVXL]+[a-z]?:\d+|Op\. \d+[a-z]?|соч\. \d+[a-z]?|No\. \d+[a-z]?|№ \d+[a-z]?|K\. \d+[a-z]?|D\. \d+[a-z]?)", RegexOptions.CultureInvariant)]
     private static partial Regex Canonical();
 
-    [GeneratedRegex(@"^(?:microsoft (?:word|powerpoint|excel|publisher)|finale(?: \d+)?|sibelius|musescore|libreoffice|openoffice)\b.*-|^\s*-\s*\[", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    private static partial Regex EditorTitle();
 
-    [GeneratedRegex(@"\.(?:docx?|rtf|txt|odt|pdf|mus|musx|sib|mscz|mscx|tiff?|jpe?g|png|indd|ai|eps|ps|dvi|ly|xml|musicxml|mid|midi)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    private static partial Regex HasFileExtension();
+
+    [GeneratedRegex(@"\b(?:сборник\w*|альбом\w*|album|albums|collection|collected|sammlung|anthology|антологи\w*|хрестомати\w*|selected|ausgewahlte\w*|избранн\w*|complete|samtliche\w*|собрани\w*|(?:vol|volume|volumes|том|вып|выпуск|band|heft|book|livre|тетрадь)\s+(?:\d+|[ivx]{1,4}))\b", RegexOptions.CultureInvariant)]
+    private static partial Regex CollectionWord();
+
+    [GeneratedRegex(@"\b(?:sonatas|sonatinas|etudes|studies|pieces|preludes|nocturnes|waltzes|mazurkas|polonaises|inventions|partitas|suites|fugues|songs|dances|impromptus|ballades|bagatelles|intermezzi|works|exercises|сонаты|сонатины|этюды|пьесы|прелюдии|ноктюрны|вальсы|мазурки|полонезы|инвенции|партиты|сюиты|фуги|песни|танцы|экспромты|баллады|багатели|романсы|упражнения|произведения|сочинения|sonaten|sonatinen|etuden|\w*stucke|praludien|mazurken|polonaisen|inventionen|partiten|suiten|fugen|lieder|tanze|balladen|bagatellen|werke|ubungen)\b", RegexOptions.CultureInvariant)]
+    private static partial Regex PluralGenre();
+
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])(?:Opus|Op|соч|Nos|No|Nr|№|BWV)\.?\s*\d+[a-z]?\s*[-–—]\s*\d+", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex NumberRange();
+
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])(?:No|Nr|Nº|N°|№)\.?\s*\d+[a-z]?(?!\s*[-–—]\s*\d)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex SingleNumber();
 
     [GeneratedRegex(@"^(?:untitled|document|doc|scan|scanned|img|image|dsc|dscn|photo|page|pages|title|pdf|score|sheet music|new document|безымянный|без названия|документ|новый документ|скан|сканирование|фото|изображение|ноты|страница|\d+)?(?: ?\d+)*$", RegexOptions.CultureInvariant)]
     private static partial Regex JunkTitle();
