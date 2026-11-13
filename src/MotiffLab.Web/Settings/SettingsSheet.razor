@@ -125,6 +125,10 @@
                 <SettingSwitch Id="experimental.photoPages" Label="@Text["settings.photoPages"]" Hint="@Text["settings.photoPagesWebHint"]" />
                 <SettingSwitch Id="experimental.libraryImport" Label="@Text["settings.libraryImport"]" Hint="@Text["settings.libraryImportHint"]" />
                 break;
+
+            case SheetSection.About:
+                <AboutPanel />
+                break;
         }
 
         @if (PieceOverrides is { Count: > 0 } overrides)
@@ -148,6 +152,7 @@
         Appearance,
         Account,
         Experimental,
+        About,
     }
 
     private static readonly Preset[] s_presets = [Preset.Learning, Preset.Practising, Preset.Clean];
@@ -274,6 +279,7 @@
         SheetSection.Roll => "settings.section.roll",
         SheetSection.Appearance => "settings.appearance",
         SheetSection.Experimental => "settings.section.experimental",
+        SheetSection.About => "settings.section.about",
         _ => "settings.section.account",
     }];
 

@@ -18,6 +18,12 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Motiff Lab sends a PDF you choose to read its notes to the scan server you set on your own computer.</string>
+	<key>MotiffBuildVersion</key>
+	<string>$(MOTIFF_BUILD_VERSION)</string>
+	<key>MotiffBuildCommit</key>
+	<string>$(MOTIFF_BUILD_COMMIT)</string>
+	<key>MotiffBuildDate</key>
+	<string>$(MOTIFF_BUILD_DATE)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>msauthv2</string>

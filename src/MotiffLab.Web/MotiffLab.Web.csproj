@@ -40,6 +40,71 @@
     <EmbeddedResource Include="Playback\FurElise.musicxml" LogicalName="MotiffLab.Web.Playback.FurElise.musicxml" />
   </ItemGroup>
 
+  <!--
+    Which build this is, for Settings · About (Settings/AboutPanel.razor): the repository's VERSION, the tag when the
+    commit is one, the branch (CI's GITHUB_REF_NAME, else git's), the short commit and its date, written into
+    obj/BuildInfo.g.cs. Without git (or tags, in CI's shallow checkout) those parts stay empty and About says less;
+    the file is written only when it changes, so a build of the same commit compiles nothing again.
+  -->
+  <PropertyGroup>
+    <_MotiffPercent>%25</_MotiffPercent>
+    <_MotiffPercent Condition="$([MSBuild]::IsOSPlatform('Windows'))">%25%25</_MotiffPercent>
+  </PropertyGroup>
+
+  <Target Name="MotiffBuildInfo" BeforeTargets="BeforeCompile;CoreCompile">
+    <Exec Command="git rev-parse --short=7 HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" IgnoreStandardErrorWarningFormat="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MotiffCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="_MotiffCommitExit" />
+    </Exec>
+    <Exec Command="git describe --tags --exact-match HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" IgnoreStandardErrorWarningFormat="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MotiffTag" />
+      <Output TaskParameter="ExitCode" PropertyName="_MotiffTagExit" />
+    </Exec>
+    <Exec Command="git log -1 --format=$(_MotiffPercent)cI" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" IgnoreStandardErrorWarningFormat="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MotiffDate" />
+      <Output TaskParameter="ExitCode" PropertyName="_MotiffDateExit" />
+    </Exec>
+    <Exec Command="git rev-parse --abbrev-ref HEAD" Condition="'$(GITHUB_REF_NAME)' == ''" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" IgnoreStandardErrorWarningFormat="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MotiffBranch" />
+      <Output TaskParameter="ExitCode" PropertyName="_MotiffBranchExit" />
+    </Exec>
+    <PropertyGroup>
+      <_MotiffBuildInfo>$(IntermediateOutputPath)BuildInfo.g.cs</_MotiffBuildInfo>
+      <_MotiffVersion Condition="Exists('$(MSBuildProjectDirectory)/../../VERSION')">$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../VERSION').Trim())</_MotiffVersion>
+      <_MotiffCommit Condition="'$(_MotiffCommitExit)' != '0'"></_MotiffCommit>
+      <_MotiffTag Condition="'$(_MotiffTagExit)' != '0'"></_MotiffTag>
+      <_MotiffDate Condition="'$(_MotiffDateExit)' != '0'"></_MotiffDate>
+      <_MotiffBranch Condition="'$(GITHUB_REF_NAME)' != ''">$(GITHUB_REF_NAME)</_MotiffBranch>
+      <_MotiffBranch Condition="'$(GITHUB_REF_NAME)' == '' and '$(_MotiffBranchExit)' != '0'"></_MotiffBranch>
+      <_MotiffVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_MotiffVersion)', '[^0-9A-Za-z.+-]', ''))</_MotiffVersion>
+      <_MotiffCommit>$([System.Text.RegularExpressions.Regex]::Replace('$(_MotiffCommit)', '[^0-9a-f]', ''))</_MotiffCommit>
+      <_MotiffTag>$([System.Text.RegularExpressions.Regex]::Replace('$(_MotiffTag)', '[^0-9A-Za-z._+-]', ''))</_MotiffTag>
+      <_MotiffDate>$([System.Text.RegularExpressions.Regex]::Replace('$(_MotiffDate)', '[^0-9T:+-]', ''))</_MotiffDate>
+      <_MotiffBranch>$([System.Text.RegularExpressions.Regex]::Replace('$(_MotiffBranch)', '[^0-9A-Za-z._/-]', ''))</_MotiffBranch>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MotiffBuildLine Include="// &lt;auto-generated/&gt;" />
+      <_MotiffBuildLine Include="namespace MotiffLab.Web.Settings%3B" />
+      <_MotiffBuildLine Include="internal static class BuildInfo" />
+      <_MotiffBuildLine Include="{" />
+      <_MotiffBuildLine Include="%20%20%20%20internal static readonly string Version = &quot;$(_MotiffVersion)&quot;%3B" />
+      <_MotiffBuildLine Include="%20%20%20%20internal static readonly string Tag = &quot;$(_MotiffTag)&quot;%3B" />
+      <_MotiffBuildLine Include="%20%20%20%20internal static readonly string Branch = &quot;$(_MotiffBranch)&quot;%3B" />
+      <_MotiffBuildLine Include="%20%20%20%20internal static readonly string Commit = &quot;$(_MotiffCommit)&quot;%3B" />
+      <_MotiffBuildLine Include="%20%20%20%20internal static readonly string Date = &quot;$(_MotiffDate)&quot;%3B" />
+      <_MotiffBuildLine Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(_MotiffBuildInfo)" Lines="@(_MotiffBuildLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(_MotiffBuildInfo)" Exclude="@(Compile)" />
+      <FileWrites Include="$(_MotiffBuildInfo)" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <ProjectReference Include="..\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>

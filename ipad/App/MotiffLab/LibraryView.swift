@@ -235,6 +235,8 @@ struct LibraryView: View {
             .onChange(of: online.isEmpty) { _, none in
                 tab = tab.shown(online: !none)
             }
+            // The Test library cleared (Settings · About, `TestLibrary`): read again from what is left, nothing.
+            .onChange(of: account.libraryCleared) { _, _ in online = []; overQuota = 0; picked = nil; folderImport.load(); Task { await reload(); await refreshOnline() } }
             // Recent lists the last opened first; the other lists start from A.
             .onChange(of: tab) { _, shown in
                 picked = nil

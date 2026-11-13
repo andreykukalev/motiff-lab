@@ -6346,6 +6346,29 @@ body:has(> #app > .library) {
     color: var(--ink-2);
 }
 
+/* Settings · About: which build this is, selectable to copy; the test site's mark as the iPad shows it. */
+.lab .settings-sheet .about-value {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    user-select: text;
+}
+
+.lab .settings-sheet .env-mark {
+    padding: var(--s-1) var(--s-2);
+    border: 1px solid var(--danger);
+    border-radius: var(--r-xs);
+    font: var(--t-label);
+    color: var(--danger);
+}
+
+.lab .settings-sheet .test-library .problem {
+    color: var(--danger);
+}
+
 .lab :is(.settings-sheet, .popover) .set-row .row-hint {
     flex: 1 0 100%;
     margin-top: calc(-1 * var(--s-2));
