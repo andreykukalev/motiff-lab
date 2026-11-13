@@ -1,6 +1,6 @@
 # 0028 · Reworking bars in words: the assistant edits notes through music-core tools
 
-Status: accepted, 2026-11-13, for the direction (Andrei, 18:18 and 18:21 UTC, thread «Заменить вариации правкой тактов через ИИ»). The parts marked **Open** are still to be decided. Supersedes the variation catalogue as a feature the player sees ([0009](0009-exploration-layer-and-notebook.md), [0010](0010-explore-experiments.md), the Try chips and Adjust of [0018](0018-redesign.md) section 7 and `design/kit/docs/01-ux-concept.md`) and the request shape of [0003](0003-ai-integration.md) (one request with a fixed schema, no tool use). Answers the open question of [0027](0027-product-concept-v1.md) section 6 on which AI rules the assistant's capabilities change.
+Status: accepted, 2026-11-13, as the direction for the future assistant, with nothing built or changed yet (Andrei, 18:18 and 18:21 UTC, thread «Заменить вариации правкой тактов через ИИ»). The parts marked **Open** are still to be decided. Supersedes the variation catalogue as a feature the player sees ([0009](0009-exploration-layer-and-notebook.md), [0010](0010-explore-experiments.md), the Try chips and Adjust of [0018](0018-redesign.md) section 7 and `design/kit/docs/01-ux-concept.md`) and the request shape of [0003](0003-ai-integration.md) (one request with a fixed schema, no tool use). Answers the open question of [0027](0027-product-concept-v1.md) section 6 on which AI rules the assistant's capabilities change.
 
 Notes behind it (project folder): `product/architecture/ai-bar-edits-2026-11-13.md` (feasibility, read on `develop` `1d8ca4d`) and `product/architecture/ai-variations-2026-11-13.md` (architecture draft).
 
@@ -52,7 +52,7 @@ Reworking a bar in words needs the model and is unavailable with AI off or offli
 
 ## Consequences
 
-- `CLAUDE.md`, Conventions, the AI rule and the privacy rule change with this record (decision 6, merged by Andrei).
+- This record plans the product's future assistant; nothing changes today. The AI and privacy rules of `CLAUDE.md` (Conventions) stay as they are until the assistant is built; they are changed then, with the first code of this record (decision 6, merged by Andrei; Andrei 18:25: «это просто на будущее, когда будет ассистент»).
 - music-core: a tool registry in the facade (names, JSON schemas, ranges) over the existing operations and new low-level note tools; repair candidates per Check reason; addressing notes by bar, beat, hand and voice. Still no AI or Azure dependency: music-core only describes and runs tools.
 - API: a conversation endpoint with tool use, the key as a secret, limits and a budget; the service and its cost are Andrei's decision 4.
 - UI, both apps: the variation catalogue, Try chips and Adjust go; the ossia stays as the place of a proposal; Ask on a selection gains the draft, Listen before / after and Accept.
@@ -62,7 +62,7 @@ Reworking a bar in words needs the model and is unavailable with AI off or offli
 
 ## Order
 
-1. This record and the rule change in `CLAUDE.md`.
+1. This record (now). The rule change in `CLAUDE.md` comes with step 2, when the assistant is built.
 2. music-core: the tool registry, the note tools, the operations as tools; Check repair candidates (useful at once, with AI off).
 3. API: the conversation relay with tool use and limits (after decision 4).
 4. UI: the draft over the bars, before / after, Accept, on the web and the iPad; the catalogue removed.
