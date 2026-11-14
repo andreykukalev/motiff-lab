@@ -28,7 +28,7 @@ import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import { drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, selectsOnRoll, type RollGesture } from "./roll-modes.js";
+import { actsOnRoll, drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, selectsOnRoll, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
@@ -41,6 +41,7 @@ import {
     easing,
     edgeScroll,
     fitFrame,
+    fitZoom,
     followPlayhead,
     frameOf,
     glideFrame,
@@ -48,6 +49,7 @@ import {
     overviewSpan,
     paddedPitches,
     revealSelection,
+    scrollLimits,
     selectionShift,
     viewAlong,
     viewOnLoad,
@@ -129,6 +131,8 @@ const TICKS_PER_QUARTER = 480;
 const DEFAULT_ZOOM = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 480;
+/** How near the least zoom counts as at it, so a zoom laid there by Fit offers no further step out. */
+const ZOOM_SLACK = 1e-6;
 
 /**
  * Down the left (0018 section 4; testing item 13): a band naming each octave once, in words, then a key per row with its
@@ -385,6 +389,16 @@ export class PianoRoll {
      * through laneDrag); anywhere else the frame round the bars on screen, `offset` ticks right of the view's left edge.
      */
     private overviewPress: { pointer: number; position: boolean; offset: number } | null = null;
+    /**
+     * The passage Expand is bound to (#521 19), or null: while it is, the roll shows only it, fitted across its width; the
+     * view moves only within it and its margin, not at all when it fits, the zoom never shows more than it, playback is
+     * followed no further than its end, and no pointer changes the selection.
+     */
+    private passage: Span | null = null;
+    /** The zoom and the view before the passage was bound, given back when it goes, so Collapse returns to them (#521 17). */
+    private beforePassage: ViewFrame | null = null;
+    /** Whether the passage is shown as fitted, with no zoom by hand since: a new size (Expand's card, a turn) fits it again. */
+    private passageFitted = false;
     /** Pointers down on the roll or its whole-piece strip (#521 16): while any is, playback does not move the view. */
     private readonly holding = new Set<number>();
     /** A playhead dragged on the roll, by which pointer and where across: held at an edge, the view goes that way (#521 1.2). */
@@ -664,7 +678,7 @@ export class PianoRoll {
         this.boxPicked.clear();
         this.keptSpan = view.span;
         this.pitchTop = view.pitchTop;
-        this.scroll = Math.min(this.maxScroll(), view.scroll);
+        this.scroll = this.clampScroll(view.scroll);
         if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
             this.editId = null;
         }
@@ -859,11 +873,56 @@ export class PianoRoll {
         }
         this.pendingFit = false;
         const motif = this.motif;
-        if (motif === null) {
+        if (this.passage !== null) {
+            this.fitPassage(model, this.passage);
+        } else if (motif === null) {
             this.fitStretch(model, this.overviewStretch(model), "overview");
         } else {
             this.fitStretch(model, motif, "fitSelection");
         }
+    }
+
+    /**
+     * Binds the roll to the passage Expand shows (#521 19), its [start, end) in ticks, or lets it go (null). Bound, the roll
+     * lays the passage across its width at once, the zoom and the view before it kept; let go, they come back as they were
+     * (#521 17), so the drawer's roll is where the player left it. The selection is the host's, as always.
+     */
+    setPassage(span: Span | null): void {
+        if (span === null) {
+            if (this.passage === null) {
+                return;
+            }
+            this.passage = null;
+            this.passageFitted = false;
+            const before = this.beforePassage;
+            this.beforePassage = null;
+            this.glide = null;
+            this.following = null;
+            this.drag = null;
+            this.setZoomOut(this.zoomOutShown);
+            if (before !== null) {
+                this.setFrame(before);
+            }
+            return;
+        }
+        if (this.passage === null) {
+            this.beforePassage = this.currentFrame();
+        }
+        this.passage = { start: span.start, end: Math.max(span.end, span.start + 1) };
+        this.drag = null;
+        this.strip.cancel();
+        this.setZoomOut(this.zoomOutShown);
+        this.fit();
+    }
+
+    /** Lays the passage of Expand across the roll at once, its notes' rows in its height: what the passage shows by itself. */
+    private fitPassage(model: RollModel, passage: Span): void {
+        const to = this.stretchFrame(model, passage);
+        this.handUntil = 0;
+        this.glide = null;
+        this.following = null;
+        this.passageFitted = true;
+        this.setFrame(to);
     }
 
     /**
@@ -872,7 +931,8 @@ export class PianoRoll {
      */
     zoomOutToOverview(): void {
         const model = this.model;
-        if (model === null || this.host.clientWidth === 0) {
+        // Bound to a passage there is nothing to see round it (#521 19.2): Zoom Out is not offered.
+        if (model === null || this.host.clientWidth === 0 || this.passage !== null) {
             return;
         }
         this.fitStretch(model, this.overviewStretch(model), "overview");
@@ -885,6 +945,15 @@ export class PianoRoll {
 
     /** Glides to a stretch laid across the roll with its notes' rows in its height; Zoom Out shows after a selection's. */
     private fitStretch(model: RollModel, span: Span, event: ZoomOutEvent): void {
+        const from = this.currentFrame();
+        const to = this.stretchFrame(model, span);
+        this.setZoomOut(zoomOutAfter(event));
+        this.handUntil = 0;
+        this.glideTo(from, to);
+    }
+
+    /** The frame that lays a stretch across the roll as it is now, with its notes' rows in its height (fitFrame). */
+    private stretchFrame(model: RollModel, span: Span): ViewFrame {
         let lowest = Number.POSITIVE_INFINITY;
         let highest = Number.NEGATIVE_INFINITY;
         for (const index of model.inRange(Math.max(0, span.start), Math.min(model.end, span.end))) {
@@ -892,8 +961,7 @@ export class PianoRoll {
             lowest = Math.min(lowest, pitch);
             highest = Math.max(highest, pitch);
         }
-        const from = this.currentFrame();
-        const to = fitFrame({
+        return fitFrame({
             start: span.start,
             end: span.end,
             pitches: Number.isFinite(lowest) ? { lowest, highest } : null,
@@ -903,17 +971,14 @@ export class PianoRoll {
             zoomLimits: [MIN_ZOOM, MAX_ZOOM],
             rowLimits: [this.touchReading ? READING_MIN_ROW : MIN_ROW, MAX_ROW],
             rowAt100: ROW_AT_100,
-            before: from,
+            before: this.currentFrame(),
         });
-        this.setZoomOut(zoomOutAfter(event));
-        this.handUntil = 0;
-        this.glideTo(from, to);
     }
 
     /** Shows or hides Zoom Out: the web's button in the floating zoom, and the iPad's in what the roll reports (OnRollZoom). */
     private setZoomOut(shown: boolean): void {
         this.zoomOutShown = shown;
-        this.overviewButton.hidden = !shown;
+        this.overviewButton.hidden = !shown || this.passage !== null;
         this.invalidate();
     }
 
@@ -936,9 +1001,9 @@ export class PianoRoll {
 
     /** Sets the zoom and the view to a frame, within the zoom's limits and the scroll's. */
     private setFrame(frame: ViewFrame): void {
-        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, frame.zoom));
+        this.zoom = Math.min(MAX_ZOOM, Math.max(this.minZoom(), frame.zoom));
         this.rowScale = frame.rowScale;
-        this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, frame.scroll)));
+        this.scroll = this.clampScroll(frame.scroll);
         this.pitchTop = Math.round(frame.pitchTop);
         this.showZoom();
         this.invalidate();
@@ -1034,10 +1099,10 @@ export class PianoRoll {
             bars: barsInView(model.bars, this.scroll, this.scroll + this.visibleTicks()),
             octaves,
             timeIn: this.zoom < MAX_ZOOM,
-            timeOut: this.zoom > MIN_ZOOM,
+            timeOut: this.zoom > this.minZoom() + ZOOM_SLACK,
             pitchIn: octaves > 1 && row < MAX_ROW,
             pitchOut: row > READING_MIN_ROW,
-            zoomOut: this.zoomOutShown,
+            zoomOut: this.zoomOutShown && this.passage === null,
         };
         if (!sameZoom(this.zoomReported, now)) {
             this.zoomReported = now;
@@ -1048,12 +1113,18 @@ export class PianoRoll {
     /** Whether a pointer of this type edits with the editor on, under the iPad's rules; every pointer without them. */
     private editsWith(type: string): boolean {
         const rules = this.pointerRules;
-        return rules === null || (type === "touch" ? rules.touch : rules.pen);
+        // Expand inspects a passage; it edits no notes (#521 19.3).
+        return this.passage === null && (rules === null || (type === "touch" ? rules.touch : rules.pen));
     }
 
-    /** Whether a press of this pointer type may change the selection: not the stylus while the Pen is on (#511 4.1). */
+    /** Whether a press of this pointer type may change the selection: not the stylus while the Pen is on (#511 4.1), none in Expand (#521 19.3). */
     private selectsWith(type: string): boolean {
-        return selectsOnRoll(type, this.mode === "pen" || this.pointerRules?.penSelects === false);
+        return selectsOnRoll(type, this.penHolds(), this.passage !== null);
+    }
+
+    /** Whether the bar's Pen holds the stylus, which then does nothing on the roll (#511 4.1, #521 10). */
+    private penHolds(): boolean {
+        return this.mode === "pen" || this.pointerRules?.penSelects === false;
     }
 
     /** Whether a finger's tap in the editor waits to be lifted: two fingers move the roll, so a second may still come. */
@@ -1350,8 +1421,10 @@ export class PianoRoll {
             return;
         }
         const play = this.playRange;
-        const end = play !== null && tick >= play.start && tick < play.end ? play.end : (this.model?.end ?? 0);
-        this.following = followPlayhead({ scroll: this.scroll, visible: this.visibleTicks(), tick, playing, jumped, end, maxScroll: this.maxScroll() }) ?? this.following;
+        const passage = this.passage;
+        const end = passage !== null ? passage.end : play !== null && tick >= play.start && tick < play.end ? play.end : (this.model?.end ?? 0);
+        const { min, max } = this.scrollLimits();
+        this.following = followPlayhead({ scroll: this.scroll, visible: this.visibleTicks(), tick, playing, jumped, end, maxScroll: max, minScroll: min }) ?? this.following;
     }
 
     /** One frame of the view easing to where following takes it, in the kit's base time (at once with less motion). */
@@ -1373,11 +1446,20 @@ export class PianoRoll {
 
     /** The roll changed size (a turn of the iPad, the drawer, Expand): the zoom and the view stay; more or less of the music shows. */
     private onResize(): void {
+        // Bound to a passage, it stays laid across the roll as long as the player has not zoomed it, and within it anyway.
+        if (this.passage !== null && this.model !== null) {
+            if (this.passageFitted) {
+                this.fit();
+            } else {
+                this.setFrame(this.currentFrame());
+            }
+        }
         this.invalidate();
     }
 
     /** The player moved or zoomed the view by hand: a glide or a follow stops, and playback leaves the view for a while. */
     private byHand(): void {
+        this.passageFitted = false;
         this.glide = null;
         this.following = null;
         this.handUntil = performance.now() + HAND_PAUSE_MS;
@@ -1470,7 +1552,7 @@ export class PianoRoll {
     /** The zoom as a percentage of 100 % (DEFAULT_ZOOM), with − and + off at the limits. */
     private showZoom(): void {
         this.zoomLevel.textContent = fill(this.labels.zoomLevel, Math.round((this.zoom / DEFAULT_ZOOM) * 100));
-        this.zoomOut.disabled = this.zoom <= MIN_ZOOM;
+        this.zoomOut.disabled = this.zoom <= this.minZoom() + ZOOM_SLACK;
         this.zoomIn.disabled = this.zoom >= MAX_ZOOM;
     }
 
@@ -1479,7 +1561,7 @@ export class PianoRoll {
         const width = this.timeWidth();
         const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.tickNow) - GUTTER, 0), width);
         const anchorTick = this.scroll + (anchor * TICKS_PER_QUARTER) / this.zoom;
-        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+        this.zoom = Math.min(MAX_ZOOM, Math.max(this.minZoom(), zoom));
         this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max((this.touchReading ? READING_MIN_ROW : MIN_ROW) / ROW_AT_100, rowScale));
         this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
         this.showZoom();
@@ -1504,15 +1586,36 @@ export class PianoRoll {
         return (this.timeWidth() * TICKS_PER_QUARTER) / this.zoom;
     }
 
+    /** How far the view's left edge goes: the whole piece, or only within the passage of Expand (roll-view.ts scrollLimits). */
+    private scrollLimits(): { min: number; max: number } {
+        return scrollLimits({
+            end: this.model?.end ?? 0,
+            visible: this.visibleTicks(),
+            passage: this.passage,
+            margin: (FIT_MARGIN * TICKS_PER_QUARTER) / this.zoom,
+        });
+    }
+
     private maxScroll(): number {
-        return Math.max(0, (this.model?.end ?? 0) - this.visibleTicks() * 0.5);
+        return this.scrollLimits().max;
+    }
+
+    /** A left edge within the scroll's limits, in whole ticks. */
+    private clampScroll(tick: number): number {
+        const { min, max } = this.scrollLimits();
+        return Math.round(Math.min(max, Math.max(min, tick)));
+    }
+
+    /** The least zoom: the kit's, or bound to a passage the one that lays it across the roll, so no more than it shows (#521 19.1). */
+    private minZoom(): number {
+        return this.passage === null ? MIN_ZOOM : fitZoom(this.passage, this.timeWidth(), FIT_MARGIN, [MIN_ZOOM, MAX_ZOOM]);
     }
 
     /** Moves the view to a left edge; a glide or a follow under way gives way to it. */
     private scrollTo(tick: number): void {
         this.glide = null;
         this.following = null;
-        this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, tick)));
+        this.scroll = this.clampScroll(tick);
         this.invalidate();
     }
 
@@ -1521,6 +1624,9 @@ export class PianoRoll {
      * extend adds it to the selection: a click or Shift-click on its number, by keyboard (WCAG 2.1.1).
      */
     private stepBar(model: RollModel, step: 1 | -1, extend: boolean): void {
+        if (this.passage !== null) {
+            return;
+        }
         const motif = this.motif;
         let index = 0;
         if (motif !== null) {
@@ -1602,7 +1708,8 @@ export class PianoRoll {
             this.fit();
         }
         const { low, high, row } = this.pitchRange();
-        if (this.model !== null) {
+        // The frame of Expand is not the player's (#521 17): the drawer's roll opened again starts from the one before it.
+        if (this.model !== null && this.passage === null) {
             keptFrame = { key: this.notesKey, frame: { zoom: this.zoom, rowScale: this.rowScale, scroll: this.scroll, pitchTop: this.pitchTop ?? high } };
         }
         const height = this.header + (high - low + 1) * row;
@@ -2645,7 +2752,7 @@ export class PianoRoll {
 
     /** While the Pen is on, the stylus is the Pen's: a gesture belongs to one tool, so on the roll it does nothing (#521 10). */
     private pensOwn(event: PointerEvent): boolean {
-        if (this.selectsWith(event.pointerType)) {
+        if (actsOnRoll(event.pointerType, this.penHolds())) {
             return false;
         }
         event.preventDefault();
@@ -2800,8 +2907,8 @@ export class PianoRoll {
                 }
                 return;
             }
-            // A press on the notes area that moves becomes a range drag, as on the bar numbers.
-            if (Math.abs(x - press.x) >= CLICK_SLOP) {
+            // A press on the notes area that moves becomes a range drag, as on the bar numbers; not in Expand (#521 19.3).
+            if (Math.abs(x - press.x) >= CLICK_SLOP && this.passage === null) {
                 this.release(press.sounding);
                 this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick, edge: false };
                 this.press = null;
@@ -2946,7 +3053,7 @@ export class PianoRoll {
     private pinchOnAxes(pinch: Pinch, a: { x: number; y: number }, b: { x: number; y: number }): void {
         const step = pinchStep({ dx: pinch.dx, dy: pinch.dy }, { dx: a.x - b.x, dy: a.y - b.y });
         // Within the zoom's limits, so a pinch back from a limit zooms at once.
-        pinch.time = Math.min(MAX_ZOOM / pinch.zoom, Math.max(MIN_ZOOM / pinch.zoom, pinch.time * step.time));
+        pinch.time = Math.min(MAX_ZOOM / pinch.zoom, Math.max(this.minZoom() / pinch.zoom, pinch.time * step.time));
         pinch.pitch = Math.min(MAX_ROW / ROW_AT_100 / pinch.rowScale, Math.max(READING_MIN_ROW / ROW_AT_100 / pinch.rowScale, pinch.pitch * step.pitch));
         pinch.dx = step.spread.dx;
         pinch.dy = step.spread.dy;
@@ -3138,6 +3245,10 @@ export class PianoRoll {
 
     /** Clears the selected notes and asks the page to clear the motif selection, when there is any. */
     private clearAll(): void {
+        // In Expand the selection is the passage shown: nothing here takes it away (#521 19.3).
+        if (this.passage !== null) {
+            return;
+        }
         if (this.selected.size > 0) {
             this.selectIndex(undefined, false);
         }

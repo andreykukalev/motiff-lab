@@ -246,10 +246,18 @@ function zoom({ axis, direction }) {
     }
 }
 
+/**
+ * Expand (#521 19): the roll bound to the passage it shows, { start, end } in ticks, laid across it, moving only within
+ * it and changing no selection; null lets it go, back to the zoom and the view before (#521 17).
+ */
+function passage(span) {
+    view.setPassage(span ? { start: span.start, end: span.end } : null);
+}
+
 /** The zoom and the view the roll shows now, for Swift to keep while the PDF is shown (#511 section 10); null before a load. */
 function frame() {
     return keptRollFrame();
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom, frame };
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom, frame, passage };
 post("ready");

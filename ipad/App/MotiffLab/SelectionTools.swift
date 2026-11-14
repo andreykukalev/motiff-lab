@@ -107,19 +107,19 @@ extension ScoreController {
         return RingModes(
             chosen: chosen,
             choose: { [weak self] tool in self?.chooseMode(tool) },
-            controls: StylusRules.ringControls(chosen),
+            controls: ExpandRules.ringControls(focused: focused, otherwise: StylusRules.ringControls(chosen)),
             canUndo: ink ? canUndo : selectionSteps.canUndo,
             canRedo: ink ? canRedo : selectionSteps.canRedo,
-            canClear: selection != nil,
+            canClear: selection != nil && !focused,
             undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
             redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
             clear: { [weak self] in self?.clearSelection() }
         )
     }
 
-    /// The history Undo and Redo act on now (#521 9): the tool's in force; none in Navigate.
+    /// The history Undo and Redo act on now (#521 9): the tool's in force; none in Navigate, nor in Expand (#521 19.3).
     var undoOwner: StylusRules.UndoOwner {
-        StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false)
+        ExpandRules.undoOwner(focused: focused, otherwise: StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false))
     }
 
     /// ⌘Z: Undo of the tool in force; nothing in Navigate.
@@ -224,7 +224,10 @@ struct SelectionToastView: View {
     var body: some View {
         ZStack {
             UndoKeys(score: score)
-            if score.selectionToast != nil && score.selectionSteps.canUndo {
+            if let notice = score.notice {
+                // A word of guidance, such as why Expand waits for a selection (#521 19.1).
+                Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
+            } else if score.selectionToast != nil && score.selectionSteps.canUndo && !score.focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
                     Text(text["selection.clearedToast"]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }
@@ -237,6 +240,7 @@ struct SelectionToastView: View {
         }
         .animation(.easeOut(duration: 0.16), value: score.selectionToast)
         .animation(.easeOut(duration: 0.16), value: score.holdHint)
+        .animation(.easeOut(duration: 0.16), value: score.notice)
     }
 }
 

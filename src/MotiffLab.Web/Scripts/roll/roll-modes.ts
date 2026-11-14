@@ -37,8 +37,17 @@ export function gestureFor(mode: InteractionMode, insideSelection: boolean): Rol
  * the Pen, which draws nothing here, so on the roll it neither selects (bar numbers, loop strip, handles), nor moves the
  * roll, nor edits notes, nor takes a playhead; a finger and the mouse act as before.
  */
-export function selectsOnRoll(pointerType: string, penOn: boolean): boolean {
+export function actsOnRoll(pointerType: string, penOn: boolean): boolean {
     return pointerType !== "pen" || !penOn;
+}
+
+/**
+ * Whether a press of this pointer type may change the selection on the roll: one that acts on it (actsOnRoll), and never
+ * while the roll is bound to the passage Expand shows (#521 19.3), where no pointer creates, resizes or clears a selection
+ * and the roll only moves within the passage.
+ */
+export function selectsOnRoll(pointerType: string, penOn: boolean, bound = false): boolean {
+    return !bound && actsOnRoll(pointerType, penOn);
 }
 
 /** A box drawn across the roll, in ticks and keys: from one corner to the other, either way round. */

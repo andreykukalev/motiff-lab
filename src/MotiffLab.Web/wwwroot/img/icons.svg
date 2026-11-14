@@ -6,6 +6,7 @@
   <symbol id="ic-check" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></symbol>
   <symbol id="ic-chevd" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></symbol>
   <symbol id="ic-close" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
+  <symbol id="ic-collapse" viewBox="0 0 20 20"><path d="M11 4v5h5M11 9l5.5-5.5M9 16v-5H4M9 11l-5.5 5.5"/></symbol>
   <symbol id="ic-count" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></symbol>
   <symbol id="ic-dial" viewBox="0 0 20 20"><path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/></symbol>
   <symbol id="ic-dot" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3" fill="currentColor"/></symbol>

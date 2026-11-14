@@ -110,7 +110,7 @@ button.sel-handle.dragging { background: var(--accent); }
 #menu-place { position: fixed; visibility: hidden; pointer-events: none; }
 
 /* Phrase focus (0018 section 4, as the web app's app.css draws it): the page under the dim veil, the phrase lifted into
-   a card across the screen between the bar and the pill. Previous and next are Swift's, on the card's edges. */
+   a card across the screen between the bar and the pill, bound to the passage it was opened on (#521 19): no arrows to another phrase. */
 #focus { position: fixed; inset: 0; z-index: 3; }
 #focus[hidden] { display: none; }
 #focus .veil { position: absolute; inset: 0; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: var(--dim); animation: veil-in var(--t-slow) var(--ease); }
@@ -120,7 +120,7 @@ button.sel-handle.dragging { background: var(--accent); }
 @keyframes card-lift { from { transform: scale(0.96); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #focus .veil, #focus .card { animation: none; } }
 /* Room for the step buttons inside the card's edges; a long phrase scrolls inside the card. */
-#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(var(--h-touch) + var(--s-2)); min-height: 120px; }
+#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 var(--s-3); min-height: 120px; }
 #focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
 #focus .card-score svg use { fill: currentColor; }
 #focus .card-score svg [color]:not(.playing) { color: inherit !important; }
