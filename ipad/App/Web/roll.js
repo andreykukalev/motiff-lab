@@ -84,8 +84,9 @@ const state = { payload: null, modes: [], colourBy: "hand" };
 const view = createPianoRoll(document.getElementById("roll"), host);
 view.follow(player);
 // The iPad reads the roll by touch (#338): a finger moves through the music, two fingers zoom the time, a tap never clears
-// the selection or sounds a note, and each selection is fitted to the roll, again when the iPad turns. A finger on the
-// playhead drags it, and a tap inside the loop or the selection plays from there (v0.2).
+// the selection or sounds a note. The zoom is the player's (#511 section 5): a selection, a turn of the iPad, the drawer's
+// height and Expand leave it, and only Fit lays the selection across the roll. A finger on the playhead drags it, and a tap
+// inside the loop or the selection plays from there (v0.2).
 view.setTouchReading(true);
 // The zoom on each axis (v0.5.2, #479 item 23): Swift draws "− 9 bars +" with Fit and "+ 3 octaves −" from what the roll
 // reports, and a pinch zooms the axis it spreads along while two fingers move the roll.
@@ -204,11 +205,6 @@ function colour(by) {
     return state.colourBy;
 }
 
-/** In phrase focus the roll lays every selection across itself, as Fit does (testing item 12); off in the drawer. */
-function fits(on) {
-    view.setFitsSelection(Boolean(on));
-}
-
 /** The note editor on or off with its tool ("move", "add" or "delete"), and the note it acts on, such as one just added. */
 function edit({ on, tool, picked }) {
     view.setEditing(Boolean(on), tool ?? "move");
@@ -235,5 +231,5 @@ function zoom({ axis, direction }) {
     }
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit, lanes, input, zoom };
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom };
 post("ready");

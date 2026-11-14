@@ -2126,7 +2126,6 @@
   "tempo.oddMetersLine": "Looks like {0} in bars {1}–{2}",
   "tempo.oddMetersNone": "No stretch reads better in 5/8, 7/8, 9/8, 5/4 or 12/8.",
   "tempo.oddMetersHow": "A preview worked out from where the bass falls, eight bars at a time: the bars stay as they are and nothing is saved.",
-  "pill.from": "From {0}",
   "pill.pauseAt": "Pause · {0}",
   "pill.play": "Play from {0}",
   "pill.playPieceHint": "Space. Plays the piece from the position.",

@@ -5,6 +5,31 @@ import XCTest
 /// The piano roll as a place to edit notes (#479 item 23, the approved mockup v0.5.2): its own two modes and who edits in
 /// them, the zoom's values in words, and the one selection a pick on the roll makes.
 final class RollTests: XCTestCase {
+    /// The drawer's handle (#511 section 7.1): taller up, shorter down, within a fifth and most of the screen, away when
+    /// dragged nearly off, and kept on the device for each orientation.
+    func testTheDrawersHandleSetsItsHeightWithinItsLimitsAndKeepsIt() throws {
+        XCTAssertEqual(RollDrawerHeight.share(from: 0.4, dragged: -100, height: 1000) ?? 0, 0.5, accuracy: 1e-9, "up is taller")
+        XCTAssertEqual(RollDrawerHeight.share(from: 0.4, dragged: 100, height: 1000) ?? 0, 0.3, accuracy: 1e-9, "down is shorter")
+        XCTAssertEqual(RollDrawerHeight.share(from: 0.4, dragged: -900, height: 1000), RollDrawerHeight.maxShare, "most of the screen, never all")
+        XCTAssertLessThan(RollDrawerHeight.maxShare, 1)
+        XCTAssertGreaterThanOrEqual(RollDrawerHeight.maxShare, 0.5, "at least half the screen")
+        XCTAssertEqual(RollDrawerHeight.share(from: 0.4, dragged: 250, height: 1000), RollDrawerHeight.minShare)
+        XCTAssertNil(RollDrawerHeight.share(from: 0.4, dragged: 1000 * (0.4 - RollDrawerHeight.closeShare) + 1, height: 1000), "dragged nearly away it closes")
+        XCTAssertEqual(RollDrawerHeight.share(from: 0.4, dragged: 0, height: 0), 0.4, "no height divides by nothing")
+
+        let suite = "RollTests.drawer"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(RollDrawerHeight.saved(landscape: true, in: defaults), 0.4, "40% in landscape the first time")
+        XCTAssertEqual(RollDrawerHeight.saved(landscape: false, in: defaults), 0.3, "30% in portrait")
+        RollDrawerHeight.keep(0.7, landscape: true, in: defaults)
+        XCTAssertEqual(RollDrawerHeight.saved(landscape: true, in: defaults), 0.7, accuracy: 1e-9)
+        XCTAssertEqual(RollDrawerHeight.saved(landscape: false, in: defaults), 0.3, "each orientation keeps its own")
+        RollDrawerHeight.keep(2, landscape: false, in: defaults)
+        XCTAssertEqual(RollDrawerHeight.saved(landscape: false, in: defaults), RollDrawerHeight.maxShare)
+    }
+
     func testEditNotesLeavesTheBarForTheRoll() {
         XCTAssertEqual(InteractionMode.inBar, [.navigate, .select, .pen], "the bar has no Edit notes on the iPad")
         XCTAssertEqual(RollMode.allCases, [.navigate, .edit])

@@ -323,22 +323,22 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
         let zoom = try await view.evaluateJavaScript("document.querySelector('#roll > .roll-zoom')?.textContent ?? ''") as? String
         XCTAssertEqual(zoom?.contains("100 %"), true, "the floating zoom over the notes")
-        // In phrase focus the roll lays each selection across itself (testing item 12).
-        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+        // The zoom is the player's (#511 section 5): a new selection leaves it at 100 %, and only Fit lays the selection
+        // across the roll; a selection after Fit leaves Fit's zoom as it is.
         let firstBar: [String: Any] = ["selected": ["start": 0, "end": 1440, "ids": Array((roll["ids"] as? [String] ?? []).prefix(4))]]
         _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": firstBar], contentWorld: .page)
-        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": false], contentWorld: .page)
-        // Read by touch (#338), the drawer's roll fits each new selection too: the zoom leaves 100 %, and the same
-        // selection sent again (as a loop starting does) leaves it where it is.
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let selected = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        XCTAssertEqual(selected?.contains("100 %"), true, "a new selection never fits the roll")
+        _ = try await view.callAsyncJavaScript("return roll.zoom(data)", arguments: ["data": ["axis": "fit", "direction": 1]], contentWorld: .page)
+        try await Task.sleep(nanoseconds: 700_000_000)
+        let fitted = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        XCTAssertNotEqual(fitted?.contains("100 %"), true, "Fit lays the selection across the roll")
         let twoBars: [String: Any] = ["selected": ["start": 0, "end": 2880, "ids": Array((roll["ids"] as? [String] ?? []).prefix(8))]]
         _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": twoBars], contentWorld: .page)
         try await Task.sleep(nanoseconds: 300_000_000)
-        let fitted = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
-        XCTAssertNotEqual(fitted?.contains("100 %"), true, "a new selection is fitted on the roll")
-        _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": twoBars], contentWorld: .page)
-        try await Task.sleep(nanoseconds: 300_000_000)
         let kept = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
-        XCTAssertEqual(kept, fitted, "the same selection again leaves the roll as it is")
+        XCTAssertEqual(kept, fitted, "a selection after Fit keeps Fit's zoom")
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
 

@@ -57,7 +57,7 @@ else
     @if (Expanded.HasDelegate)
     {
         @* Into phrase focus with the phrase as a roll (testing item 12). *@
-        <button class="chip" title="@Text["roll.expandHint"]" @onclick="() => Expanded.InvokeAsync()"><Icon Name="search" /> @Text["roll.expand"]</button>
+        <button class="chip" title="@Text["roll.expandHint"]" @onclick="() => Expanded.InvokeAsync()"><Icon Name="expand" /> @Text["roll.expand"]</button>
     }
     <button class="chip icon @(_menuOpen ? "on" : null)" aria-expanded="@(_menuOpen ? "true" : "false")" aria-label="@Text["roll.more"]" title="@Text["roll.more"]"
             @onclick="() => _menuOpen = !_menuOpen"><Icon Name="more" /></button>
@@ -214,12 +214,6 @@ else
     [Parameter]
     public EventCallback Expanded { get; set; }
 
-    /// <summary>Whether every selection is laid across the roll as Fit does: the roll in phrase focus (testing item 12).</summary>
-    [Parameter]
-    public bool FitsSelection { get; set; }
-
-    private bool? _shownFits;
-
     /// <summary>Another version's notes as dashed plum outlines, for the bar the player writes in a merge (testing item 34).</summary>
     [Parameter]
     public IReadOnlyList<Note>? Ghosts { get; set; }
@@ -306,7 +300,6 @@ else
                 await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score), notesKey, keepView);
             }
 
-            _shownFits = null;
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowMotifAsync(_view);
@@ -315,7 +308,7 @@ else
         }
         else
         {
-            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone || FitsSelection != _shownFits)
+            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
             {
                 await ShowMotifAsync(_view);
             }
@@ -471,12 +464,6 @@ else
 
     private async Task ShowMotifAsync(IJSObjectReference view)
     {
-        if (FitsSelection != _shownFits)
-        {
-            _shownFits = FitsSelection;
-            await view.InvokeVoidAsync("setFitsSelection", FitsSelection);
-        }
-
         _shownMotif = Motif;
         _shownAlone = MotifPlaysAlone;
         if (Motif is { } motif)
