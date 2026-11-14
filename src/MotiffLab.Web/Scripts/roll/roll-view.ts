@@ -105,9 +105,7 @@ export interface FitInput {
  * thinnest cannot), and the view on it. What it gives becomes the player's zoom: nothing fits again afterwards.
  */
 export function fitFrame(input: FitInput): ViewFrame {
-    const [minZoom, maxZoom] = input.zoomLimits;
-    const ticks = Math.max(1, input.end - input.start);
-    const zoom = Math.min(maxZoom, Math.max(minZoom, (Math.max(1, input.width - 2 * input.margin) * TICKS_PER_QUARTER) / ticks));
+    const zoom = fitZoom(input, input.width, input.margin, input.zoomLimits);
     const scroll = Math.round(Math.max(0, input.start - (input.margin * TICKS_PER_QUARTER) / zoom));
     if (input.pitches === null) {
         return { ...input.before, zoom, scroll };
@@ -118,6 +116,41 @@ export function fitFrame(input: FitInput): ViewFrame {
     const row = Math.min(maxRow, Math.max(minRow, Math.floor(input.height / rows)));
     const spare = Math.floor(input.height / row) - rows;
     return { zoom, rowScale: row / input.rowAt100, scroll, pitchTop: high + Math.floor(spare / 2) };
+}
+
+/** The zoom that lays a stretch across a width with a margin either side, within the zoom's limits (Fit's). */
+export function fitZoom(span: Span, width: number, margin: number, limits: [number, number]): number {
+    const ticks = Math.max(1, span.end - span.start);
+    return Math.min(limits[1], Math.max(limits[0], (Math.max(1, width - 2 * margin) * TICKS_PER_QUARTER) / ticks));
+}
+
+/** What bounds the view's left edge: the piece's end, the ticks in view, and the passage Expand is bound to with its margin in ticks. */
+export interface ScrollInput {
+    end: number;
+    visible: number;
+    /** The passage of Expand (#521 19); null for the whole piece. */
+    passage: Span | null;
+    /** The free room either side of the passage, in ticks (Fit's margin at the zoom now). */
+    margin: number;
+}
+
+/**
+ * How far the view's left edge goes (#521 19.2): over the whole piece from its start to where half the view is past its
+ * end; bound to a passage, only within it and its margin, and not at all when it fits, the passage then in the middle.
+ */
+export function scrollLimits(input: ScrollInput): { min: number; max: number } {
+    const passage = input.passage;
+    if (passage === null) {
+        return { min: 0, max: Math.max(0, input.end - input.visible * 0.5) };
+    }
+    const start = Math.max(0, passage.start - input.margin);
+    const end = Math.max(start, passage.end + input.margin);
+    // Within a tick of the width it fits: rounding the zoom never makes a passage that Fit laid across the roll scroll.
+    if (end - start <= input.visible + 1) {
+        const still = Math.round(Math.max(0, start - (input.visible - (end - start)) / 2));
+        return { min: still, max: still };
+    }
+    return { min: Math.round(start), max: Math.round(end - input.visible) };
 }
 
 /** Where a new selection sits in the view: the view, its rows shown, and the selection's stretch and pitches. */
@@ -167,6 +200,8 @@ export interface FollowInput {
     /** The end of what plays (the loop's end while it loops, else the piece's end): the view does not go past it to follow. */
     end: number;
     maxScroll: number;
+    /** The nearest left edge the view goes to: 0, or the start of the passage Expand is bound to (#521 19.2). */
+    minScroll?: number;
 }
 
 /** Where following the playhead takes the view: along with it (glue), or once to it after a jump (reveal). */
@@ -186,8 +221,10 @@ export function followPlayhead(input: FollowInput): Follow | null {
         return null;
     }
     const offset = input.tick - input.scroll;
+    const min = input.minScroll ?? 0;
     if (offset < 0 || offset > input.visible) {
-        return { kind: "reveal", scroll: Math.round(Math.min(input.maxScroll, Math.max(0, input.tick - input.visible * REVEAL_AT))) };
+        const scroll = Math.round(Math.min(input.maxScroll, Math.max(min, input.tick - input.visible * REVEAL_AT)));
+        return scroll === input.scroll ? null : { kind: "reveal", scroll };
     }
     if (!input.playing || offset <= input.visible * FOLLOW_AT) {
         return null;

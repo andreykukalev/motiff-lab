@@ -86,6 +86,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var selectionToast: SelectionToast?
     /// «Задержите касание…» for a moment after a pointer that cannot scroll moved off the selection (#511 2.1, C).
     @Published private(set) var holdHint: UUID?
+    /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
+    @Published private(set) var notice: Notice?
+
+    struct Notice: Equatable {
+        var key: String
+        var id = UUID()
+    }
     /// Select's «По тактам / По долям» (#511 4.2), and the beat lines and the experiment it chooses between (SelectionTools.swift).
     @Published var selectsByBeats = SelectBy.saved()
     var pieceBeatLines: [Double] = []
@@ -98,8 +105,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// A tap on the page that selects nothing: away from the bars, or anywhere while a passage is selected. The Insights
     /// sheet goes away; the selection stays (#338).
     var blankTapped: (@MainActor () -> Void)?
-    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it.
+    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
+    /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back.
     @Published private(set) var focused = false
+    /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
+    @Published private(set) var expandEntry = ExpandEntry.notes
     /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
     @Published var leadIn = false {
         didSet { if oldValue != leadIn { Task { await updatePlayRange() } } }
@@ -1596,13 +1606,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Phrase focus
 
-    /// Lifts the selection into focus: the page dims, the card shows the selection's bars on their own, and the page
-    /// neither scrolls nor takes the Pencil until Back.
-    func enterFocus() {
-        guard shown, selection != nil, !penOn, !focused else { return }
+    /// Lifts the selection into focus (Expand, #521 19): the page dims, the card shows the selection's bars on their own, and
+    /// the page neither scrolls nor takes the Pencil until the way back, which `entry` names (#521 17).
+    func enterFocus(from entry: ExpandEntry = .notes) {
+        guard shown, ExpandRules.opens(selected: selection != nil, penOn: penOn), !focused else { return }
+        expandEntry = entry
         focused = true
         setPageStill(true)
-        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text["focus.back"]]
+        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text[entry.backKey]]
         Task {
             let answer = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             if let options = answer?["options"] as? [String: Any] { cardOptions = Self.json(options) }
@@ -1616,18 +1627,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// the piece is open.
     @Published var focusRoll = false
 
-    /// Expand on the roll drawer: the selection, or with none the phrase the playhead is in (the first before any playing),
-    /// in focus as a roll.
-    func expandRoll(at tick: Double) {
+    /// Expand on the roll drawer: the selection in focus as a roll, its way back Collapse (#521 17). Only with a selection
+    /// (#521 19.1): without one the button says so instead (showNotice).
+    func expandRoll() {
+        guard selection != nil else { return }
         focusRoll = true
-        if selection != nil {
-            enterFocus()
-            return
-        }
-        guard let units = phrases?.units, let unit = units.first(where: { $0.onset <= tick && tick < $0.end }) ?? units.first else { return }
-        Task {
-            await select(unit.selectableOnset, unit.selectableEnd)
-            enterFocus()
+        enterFocus(from: .roll)
+    }
+
+    /// Shows a word of guidance over the pill for a moment, as the hint to hold.
+    func showNotice(_ key: String) {
+        let shown = Notice(key: key)
+        notice = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
+            if self?.notice == shown { self?.notice = nil }
         }
     }
 
@@ -1709,24 +1723,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The tick at the top of the pages in view: where the player was when nothing is selected.
     func tickInView() async -> Double? {
         await firstTick(onPage: pages.first)
-    }
-
-    /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
-    private var turningToPlaying = false
-
-    /// While the piece plays on past the phrase in focus (nothing loops), the card in Notes turns to the unit now sounding, as
-    /// Next would (testing item 27). The roll in focus keeps the selection: its view moves on with the playhead, continuously
-    /// (#511 section 6.1). A variation in the card keeps it where it is.
-    func followPlaying(_ tick: Double) {
-        guard focused, !focusRoll, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
-              let shown = focusUnit,
-              let sounding = phrases?.units.last(where: { $0.onset <= tick }), sounding.number != shown.number
-        else { return }
-        turningToPlaying = true
-        Task {
-            await select(sounding.selectableOnset, sounding.selectableEnd)
-            turningToPlaying = false
-        }
     }
 
     /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.

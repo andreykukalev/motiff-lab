@@ -21,8 +21,10 @@ final class RollController: NSObject, ObservableObject {
     }
     /// The bars and the octaves in view, as the roll last reported them; nil until it has.
     @Published private(set) var zoom: RollZoom?
-    /// The mode the roll is in: Edit notes only while the editor is open.
-    var shownMode: RollMode { RollMode.shown(chosen: mode, editorOpen: editorState != nil) }
+    /// The mode the roll is in: Edit notes only while the editor is open, and never in Expand.
+    var shownMode: RollMode { RollMode.shown(chosen: mode, editorOpen: editorState != nil, bound: passage != nil) }
+    /// The passage Expand shows (#521 19), which the roll is bound to while it is shown there; nil in the drawer.
+    private(set) var passage: Range<Double>?
     /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
     @Published var noteNames = true {
         didSet {
@@ -144,6 +146,22 @@ final class RollController: NSObject, ObservableObject {
         shownSelection = data
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// Binds the roll to the passage Expand shows (#521 19), or lets it go (nil): bound, it lays the passage across itself,
+    /// moves only within it, changes no selection and edits no notes; let go, its zoom, its view and Edit notes are as they
+    /// were before (#521 17).
+    func bind(_ span: Range<Double>?) {
+        guard span != passage else { return }
+        passage = span
+        sendEditor()
+        guard loaded else { return }
+        Task { await sendPassage() }
+    }
+
+    private func sendPassage() async {
+        let data: Any = passage.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
+        _ = try? await webView.callAsyncJavaScript("return roll.passage(span)", arguments: ["span": data], contentWorld: .page)
     }
 
     /// The note editor open, with its tool and the note picked, or closed (nil), when the roll goes back to Navigate. A press
@@ -288,6 +306,9 @@ final class RollController: NSObject, ObservableObject {
             }
             input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn).page
             _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
+            if passage != nil {
+                await sendPassage()
+            }
         } catch {
             problem = error.localizedDescription
         }

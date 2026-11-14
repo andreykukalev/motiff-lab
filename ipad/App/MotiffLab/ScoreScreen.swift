@@ -32,6 +32,9 @@ struct ScoreScreen: View {
     @State var rollOpen = false
     /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
     @State private var rollBeforeFocus = false
+    /// The Contents drawer and the loop as they were when Expand opened, given back with the workspace (#521 17).
+    @State private var contentsBeforeFocus = false
+    @State private var loopBeforeFocus: Range<Double>?
     /// The roll drawer's share of the screen's height in landscape (true) and portrait, as the player left it with its handle
     /// (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
     @State private var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
@@ -170,6 +173,19 @@ struct ScoreScreen: View {
         }
     }
 
+    /// The drawer's Expand: only with a selection (#521 19.1), without one the dimmed button says why. Expand inspects the
+    /// passage, so the Pen, which would write nothing there, is put away first.
+    private func expandFromDrawer() {
+        guard score.selection != nil else {
+            score.showNotice("roll.expandNeedsSelection")
+            return
+        }
+        if score.penOn { score.penOn = false }
+        rollBeforeFocus = true
+        rollOpen = false
+        score.expandRoll()
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
@@ -217,11 +233,6 @@ struct ScoreScreen: View {
                     FocusRollCard(roll: roll, score: score, text: text)
                 }
             }
-            .overlay {
-                if score.focused {
-                    FocusSteps(score: score, text: text)
-                }
-            }
             .ignoresSafeArea(edges: .bottom)
             .background(Color.ds("desk").ignoresSafeArea())
             #if DEBUG
@@ -258,11 +269,7 @@ struct ScoreScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if rollOpen {
-                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: {
-                        rollBeforeFocus = true
-                        rollOpen = false
-                        score.expandRoll(at: player.tick)
-                    }, resize: { dy, ended in
+                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: expandFromDrawer, resize: { dy, ended in
                         resizeDrawer(by: dy, ended: ended, screen: screen)
                     }, step: { direction in
                         stepDrawer(direction, screen: screen)
@@ -478,30 +485,10 @@ struct ScoreScreen: View {
                 }
             }
             .onChange(of: score.focused) { _, focused in
-                // Focus covers the page: the drawer goes, and comes back when the player opens it again. Out of focus the
-                // playback model takes the selection and the loop back (v0.5.2).
-                if focused { contentsOpen = false }
-                syncPlayheads()
-                if score.onePosition { player.hold(selection: score.playRange?.range) }
-                // Back from the roll in focus opens the roll drawer again when it was open before.
-                if !focused && rollBeforeFocus {
-                    rollBeforeFocus = false
-                    rollOpen = true
-                }
+                expandChanged(focused)
             }
             .onChange(of: score.focused && score.focusRoll) { _, shown in
-                // The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5).
-                if shown {
-                    if rollOpen {
-                        rollBeforeFocus = true
-                        rollOpen = false
-                    }
-                    roll.show(piece, dark: colorScheme == .dark)
-                    roll.showSelection(score.selection, loop: player.loop)
-                } else if !rollOpen && !rollBeforeFocus {
-                    // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
-                    score.cancelNoteEdit()
-                }
+                expandRollShown(shown)
             }
             .onChange(of: rollOpen) { _, open in
                 if open {
@@ -645,7 +632,6 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.tick) { _, tick in
                 score.playhead(tick, playing: player.state == .playing)
-                if player.state == .playing && player.loop == nil && player.hearing == .original { score.followPlaying(tick) }
                 if rollShown { showRollPosition() }
             }
             .onChange(of: player.state) { old, state in
@@ -818,14 +804,23 @@ extension ScoreScreen {
         let shown = score
         roll.spacePressed = { [weak heard, weak shown] in
             guard let heard, let shown else { return }
-            if shown.onePosition { heard.apply(.press) } else { heard.toggle() }
+            if shown.focused, let passage = shown.playRange?.range {
+                heard.playPassage(passage)
+            } else if shown.onePosition {
+                heard.apply(.press)
+            } else {
+                heard.toggle()
+            }
         }
         // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops
         // it. Under the playback model (v0.5.2) it goes anywhere, as a tap on a beat does (T12): the loop strip and the whole piece
         // move it too, and Цикл turns off when it leaves the selection (the loop strip only moves it inside, T13).
         roll.playheadMoved = { [weak heard, weak shown] tick, play in
             guard let heard, let shown else { return }
-            if shown.onePosition {
+            if shown.focused, let passage = shown.playRange?.range {
+                // In Expand within the passage, playing it once from there (#521 19.4).
+                heard.move(to: tick, play: play, within: passage)
+            } else if shown.onePosition {
                 heard.go(to: tick, play: play)
             } else {
                 heard.move(to: tick, play: play, selection: shown.playRange?.range)
@@ -847,6 +842,11 @@ extension ScoreScreen {
     /// loops the wider or the narrower span; a new selection stops the old loop. Under the playback model (v0.5.2) the player
     /// takes the selection, and Цикл decides (T9–T11).
     private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
+        // Expand plays its passage once (#521 19.4): Lead-in widens or narrows what plays on, and nothing loops round.
+        if score.focused {
+            if let new, player.state != .stopped { player.keepWithin(new.range) }
+            return
+        }
         if score.onePosition {
             player.apply(.select(new?.range))
             return
@@ -1224,7 +1224,8 @@ struct Pill: View {
                 PositionTransport(player: player, text: text)
             } else {
                 Button {
-                    player.toggle()
+                    // In Expand Play plays the passage once, from the playhead inside it or its start (#521 19.4).
+                    if score.focused, let passage = score.playRange?.range { player.playPassage(passage) } else { player.toggle() }
                 } label: {
                     Icon(name: player.state == .stopped ? "playf" : "pause")
                         .foregroundStyle(Color.ds("on-accent"))
@@ -1233,7 +1234,8 @@ struct Pill: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
-                if score.selection != nil {
+                // No loop in Expand (#521 19.3): its passage plays once.
+                if score.selection != nil && !score.focused {
                     LoopButton(score: score, player: player, text: text)
                 }
             }
@@ -1527,46 +1529,23 @@ struct ClearSelectionButton: View {
 /// with another version over the phrase and no variation, Notes / Version / Alternate, and Take into the score or
 /// Restore these notes for the phrase's bars (0022, section 5). Reading / As played comes with transcriptions on the iPad.
 /// The phrase as a roll in focus (testing item 12): a card over the page's card, as wide and as tall as the stage between the bar
-/// and the pill, with the roll inside between previous and next. Its head has only the roll's mode switch (the approved mockup
-/// v0.5.2, #479 item 23), with the note editor's tools while notes are edited, and the zoom on each axis floats over the notes.
+/// and the pill, with the roll inside and the zoom on each axis floating over the notes. Expand inspects the passage (#521
+/// 19.3): no mode switch and no note editor here, no arrows to another phrase; a draft of note edits waits in the drawer.
 struct FocusRollCard: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
     let text: UIText
 
     var body: some View {
-        VStack(spacing: CGFloat.ds("s-2")) {
-            ViewThatFits(in: .horizontal) {
-                head(compact: false)
-                head(compact: true)
-            }
-            RollSurface(roll: roll, place: .focus, text: text)
-        }
-        .padding(.vertical, CGFloat.ds("s-3"))
-        .padding(.horizontal, CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
-        .dsShadow("shadow-sheet")
-        // The stage's insets, as FocusSteps and Web/score.css `#focus .stage` have them.
-        .padding(.horizontal, CGFloat.ds("s-4"))
-        .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
-        .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
-    }
-
-    private func head(compact: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Spacer(minLength: 0)
-            RollModeSwitch(chosen: roll.shownMode, text: text) { roll.chooseTool($0, score: score) }
-            if let editor = score.noteEditor {
-                if roll.shownMode == .edit {
-                    RollEditTools(score: score, editor: editor, text: text, compact: compact)
-                }
-                Spacer(minLength: CGFloat.ds("s-2"))
-                RollEditFinish(score: score, editor: editor, text: text)
-            } else {
-                Spacer(minLength: 0)
-            }
-        }
+        RollSurface(roll: roll, place: .focus, text: text)
+            .padding(CGFloat.ds("s-3"))
+            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
+            .dsShadow("shadow-sheet")
+            // The stage's insets, as Web/score.css `#focus .stage` has them.
+            .padding(.horizontal, CGFloat.ds("s-4"))
+            .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
+            .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
     }
 }
 
@@ -1620,12 +1599,14 @@ struct FocusBar: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
+            // The way back by the way in (#521 17): «К странице» from the score, «Свернуть» from the roll; Escape too.
+            let entry = score.expandEntry
             Button {
                 score.leaveFocus()
             } label: {
                 HStack(spacing: CGFloat.ds("s-1")) {
-                    Icon(name: "back", size: CGFloat.ds("icon-l"))
-                    Text(text["focus.back"]).dsType(.label)
+                    Icon(name: entry.backIcon, size: CGFloat.ds("icon-l"))
+                    Text(text[entry.backKey]).dsType(.label)
                 }
                 .padding(.leading, CGFloat.ds("s-1"))
                 .padding(.trailing, CGFloat.ds("s-3"))
@@ -1633,7 +1614,8 @@ struct FocusBar: View {
             }
             .buttonStyle(BarActionStyle())
             .keyboardShortcut(.cancelAction)
-            .help(text["focus.backHint"])
+            .help(text[entry.backHintKey])
+            .accessibilityHint(text[entry.backHintKey])
             Text(score.focusPosition)
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink-2"))
@@ -1672,41 +1654,6 @@ struct FocusBar: View {
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
-    }
-}
-
-/// Previous and next on the edges of the card in focus (the web app's `.focus-card .step`): 44 pt round buttons, centred
-/// on the card, which the page centres between the bar and the pill (Web/score.css `#focus .stage`).
-struct FocusSteps: View {
-    @ObservedObject var score: ScoreController
-    let text: UIText
-
-    var body: some View {
-        HStack {
-            step("back", text["focus.previous"], enabled: score.canStepBack) { score.step(-1) }
-            Spacer()
-            step("fwd", text["focus.next"], enabled: score.canStepOn) { score.step(1) }
-        }
-        // The stage's inset, the card's 2 pt border and the button's own inset inside it.
-        .padding(.horizontal, CGFloat.ds("s-4") + 2 + CGFloat.ds("s-1"))
-        .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
-        .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
-        .frame(maxHeight: .infinity)
-    }
-
-    private func step(_ icon: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(name: icon, size: CGFloat.ds("icon-l"))
-                .foregroundStyle(Color.ds("ink"))
-                .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                .background(Color.ds("surface-2"), in: Circle())
-                .overlay(Circle().strokeBorder(Color.ds("hairline-strong")))
-                .dsShadow("shadow-menu")
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.4)
-        .accessibilityLabel(label)
     }
 }
 
@@ -1874,5 +1821,62 @@ struct ScoreWebView: UIViewRepresentable {
         score.show(piece, dark: dark)
         // The stylus menu opens where the Pencil is over any part of the screen, the roll's too (#521 7).
         score.watchStylus(in: view.window)
+    }
+}
+
+/// Expand as a focused practice view (#521 17, 19): what goes and comes back with it.
+extension ScoreScreen {
+    /// Expand covers the page (#521 17, 19): the drawers go, and come back with the way back as they were, and so does the
+    /// loop. Opened while the music plays, it plays on within the passage. Out of it the playback model takes the selection
+    /// and the loop back (v0.5.2).
+    private func expandChanged(_ focused: Bool) {
+        if focused {
+            contentsBeforeFocus = contentsOpen
+            contentsOpen = false
+            loopBeforeFocus = player.loop
+        } else if player.loop != nil {
+            // Expand's passage played once: the loop it left goes, so the one before comes back as it was.
+            player.setLoop(nil)
+        }
+        syncPlayheads()
+        if score.onePosition {
+            player.hold(selection: score.playRange?.range)
+        } else if focused, player.state != .stopped, let passage = score.playRange?.range {
+            player.keepWithin(passage)
+        } else if !focused, let loop = loopBeforeFocus {
+            player.setLoop(loop, play: false)
+        }
+        guard !focused else { return }
+        loopBeforeFocus = nil
+        // Collapse opens the roll drawer again, as Expand found it; Back to page the Contents.
+        if rollBeforeFocus {
+            rollBeforeFocus = false
+            rollOpen = true
+        }
+        if contentsBeforeFocus {
+            contentsBeforeFocus = false
+            contentsOpen = true
+        }
+    }
+
+    /// The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5), bound to the passage
+    /// Expand was opened on (#521 19): only it, laid across the card. Back, or Notes chosen, lets the passage go: its zoom and
+    /// view are as before Expand (#521 17).
+    private func expandRollShown(_ shown: Bool) {
+        if shown {
+            if rollOpen {
+                rollBeforeFocus = true
+                rollOpen = false
+            }
+            roll.show(piece, dark: colorScheme == .dark)
+            roll.showSelection(score.selection, loop: player.loop)
+            roll.bind(score.selection.map { $0.onset..<max($0.end, $0.onset + 1) })
+            return
+        }
+        roll.bind(nil)
+        if !rollOpen && !rollBeforeFocus {
+            // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
+            score.cancelNoteEdit()
+        }
     }
 }

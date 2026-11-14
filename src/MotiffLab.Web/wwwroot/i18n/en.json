@@ -982,6 +982,8 @@
   "focus.asNotes": "Notes",
   "focus.asRoll": "Piano roll",
   "focus.backHint": "Back to the page, where the phrase is (Escape)",
+  "focus.collapse": "Collapse",
+  "focus.collapseHint": "Back to the piano roll as you left it (Escape)",
   "focus.position": "{0} · {1} {2} of {3}",
   "focus.cardLabel": "In focus: {0}",
   "focus.ossia": "Ossia · {0}",
@@ -1542,7 +1544,8 @@
   "roll.js.playhead": "Playhead",
   "roll.js.playheadAt": "Bar {0}, beat {1}",
   "roll.expand": "Expand",
-  "roll.expandHint": "Open the phrase in focus as a piano roll",
+  "roll.expandHint": "Open the selected passage as a piano roll across the screen",
+  "roll.expandNeedsSelection": "Select a passage first, then expand it",
 
   "pdf.title": "PDF",
   "pdf.pageLabel": "Page {0} of {1}",

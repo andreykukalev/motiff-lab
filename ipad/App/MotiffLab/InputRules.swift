@@ -138,9 +138,11 @@ enum RollMode: String, CaseIterable, Sendable {
     var label: String { "rollMode.\(rawValue)" }
     var hint: String { "rollMode.\(rawValue)Hint" }
 
-    /// The mode the roll is in: Edit notes while the editor is open and chosen, else Navigate.
-    static func shown(chosen: RollMode, editorOpen: Bool) -> RollMode {
-        chosen == .edit && editorOpen ? .edit : .navigate
+    /// The mode the roll is in: Edit notes while the editor is open and chosen, else Navigate. Expanded (`bound` to the
+    /// passage of Expand) always Navigate: Expand inspects a passage and edits no notes (#521 19.3); a draft waits for the
+    /// drawer, where Edit notes comes back as it was.
+    static func shown(chosen: RollMode, editorOpen: Bool, bound: Bool = false) -> RollMode {
+        chosen == .edit && editorOpen && !bound ? .edit : .navigate
     }
 
     /// What choosing a mode does to the note editor: Edit notes opens it when it is closed; Navigate closes it when nothing

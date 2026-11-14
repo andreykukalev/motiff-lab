@@ -10,7 +10,8 @@ struct RollDrawer: View {
     let text: UIText
     /// The selection's span as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); nil for its bars.
     var span: String?
-    /// Expand: the phrase in focus as a roll (testing item 12).
+    /// Expand: the selection in focus as a roll (testing item 12), only with a selection (#521 19.1); without one the screen
+    /// says why.
     let expand: () -> Void
     /// The handle dragged by a distance down (true when let go), and a step of its height up (+1) or down (−1).
     let resize: (_ dy: CGFloat, _ ended: Bool) -> Void
@@ -178,14 +179,17 @@ struct RollDrawer: View {
         .buttonStyle(RollHeadStyle())
         .disabled(!roll.canChangeColour)
         .help(text["roll.colourHint"])
+        // Without a selection it stays where it is, dimmed, and a tap says to select a passage first (#521 19.1).
+        let can = score.selection != nil
         Button(action: expand) {
             HStack(spacing: 6) {
                 Icon(name: "expand", size: CGFloat.ds("icon-s"))
                 Text(text["roll.expand"])
             }
         }
-        .buttonStyle(RollHeadStyle(outlined: true))
-        .help(text["roll.expandHint"])
+        .buttonStyle(RollHeadStyle(outlined: true, dimmed: !can))
+        .help(text[can ? "roll.expandHint" : "roll.expandNeedsSelection"])
+        .accessibilityHint(text[can ? "roll.expandHint" : "roll.expandNeedsSelection"])
     }
 
     /// The same in More where the head is narrow, with Clear selection.
@@ -198,6 +202,7 @@ struct RollDrawer: View {
             Button(text["roll.colour.\(roll.colourBy)"]) { roll.nextColour() }
                 .disabled(!roll.canChangeColour)
             Button(text["roll.expand"], action: expand)
+                .disabled(score.selection == nil)
         } label: {
             Icon(name: "more")
         }
@@ -223,6 +228,8 @@ struct RollHeadStyle: ButtonStyle {
     var on = false
     var outlined = false
     var round = false
+    /// Drawn as unavailable while it still takes a tap, which says why (Expand without a selection, #521 19.1).
+    var dimmed = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -238,7 +245,7 @@ struct RollHeadStyle: ButtonStyle {
                     Capsule().strokeBorder(Color.ds("hairline-strong"))
                 }
             }
-            .opacity(isEnabled ? 1 : 0.38)
+            .opacity(isEnabled && !dimmed ? 1 : 0.38)
             .contentShape(Capsule())
     }
 

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { drawPlayheads, drawPositionLine, gestureFor, notesInBox, selectsOnRoll } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
+import { actsOnRoll, drawPlayheads, drawPositionLine, gestureFor, notesInBox, selectsOnRoll } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
 
 test("each mode begins its own gesture, and a press inside the selection only places a playhead in Select", () => {
     assert.equal(gestureFor("navigate", false), "pan");
@@ -76,4 +76,13 @@ test("while the Pen is on the stylus changes no selection on the roll; a finger 
     assert.equal(selectsOnRoll("touch", true), true);
     assert.equal(selectsOnRoll("mouse", true), true);
     assert.equal(selectsOnRoll("pen", false), true, "out of the Pen the stylus selects as before");
+});
+
+test("in Expand no pointer changes the selection on the roll, while each still moves it as before (#521 19.3)", () => {
+    for (const pointer of ["pen", "touch", "mouse"]) {
+        assert.equal(selectsOnRoll(pointer, false, true), false, `${pointer} selects nothing in Expand`);
+        assert.equal(actsOnRoll(pointer, false), true, `${pointer} still moves the roll in Expand`);
+    }
+    assert.equal(actsOnRoll("pen", true), false, "the Pen's stylus does nothing on the roll, in Expand or not");
+    assert.equal(actsOnRoll("touch", true), true);
 });

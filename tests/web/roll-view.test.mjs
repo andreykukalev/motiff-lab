@@ -13,11 +13,13 @@ import {
     edgeScroll,
     easing,
     fitFrame,
+    fitZoom,
     followPlayhead,
     glideFrame,
     milliseconds,
     overviewSpan,
     revealSelection,
+    scrollLimits,
     selectionShift,
     ticksIn,
     viewAlong,
@@ -212,4 +214,36 @@ test("a playhead held at an edge of the roll takes the view that way, faster nea
     assert.equal(edgeScroll(1040, edges, 9600, 1000), 4800, "half way into the zone, half as fast");
     assert.equal(edgeScroll(40, edges, 9600, 500), -4800, "to the left, past the edge as fast as at it");
     assert.equal(edgeScroll(1062, { ...edges, right: 100 }, 9600, 16), 0, "a roll narrower than both zones does not run");
+});
+
+test("bound to the passage of Expand the view stays still when it fits and moves only within it otherwise (#521 19.2)", () => {
+    const end = 100 * 1440;
+    assert.deepEqual(scrollLimits({ end, visible: 9600, passage: null, margin: 100 }), { min: 0, max: end - 4800 }, "the whole piece without one");
+    // Fit's zoom lays the passage and its margin exactly across the view: it stays where Fit put it.
+    const passage = { start: 14400, end: 20160 };
+    const fitted = scrollLimits({ end, visible: 20160 - 14400 + 200, passage, margin: 100 });
+    assert.deepEqual(fitted, { min: 14300, max: 14300 }, "a passage that fits does not scroll");
+    const wide = scrollLimits({ end, visible: 20000, passage, margin: 100 });
+    assert.equal(wide.min, wide.max, "nor one with room to spare");
+    assert.equal(wide.min, Math.round(14300 - (20000 - 5960) / 2), "which stands in the middle");
+    // Zoomed in, the view goes from the passage's start to its end, its margin either side, and no further.
+    assert.deepEqual(scrollLimits({ end, visible: 2000, passage, margin: 50 }), { min: 14350, max: 20210 - 2000 });
+    assert.deepEqual(scrollLimits({ end, visible: 2000, passage: { start: 0, end: 5760 }, margin: 50 }), { min: 0, max: 5810 - 2000 }, "never before the piece");
+});
+
+test("the least zoom in Expand is the one that lays the passage across the roll (#521 19.1)", () => {
+    const passage = { start: 14400, end: 20160 };
+    const zoom = fitZoom(passage, 1032, 16, [6, 480]);
+    assert.equal(zoom, (1000 * 480) / 5760);
+    assert.equal(fitFrame({ ...passage, pitches: null, width: 1032, height: 300, margin: 16, zoomLimits: [6, 480], rowLimits: [5, 44], rowAt100: 22, before: { zoom: 40, rowScale: 1, scroll: 0, pitchTop: 80 } }).zoom, zoom, "Fit's zoom");
+    assert.equal(fitZoom({ start: 0, end: 10 }, 1032, 16, [6, 480]), 480, "within the zoom's limits");
+});
+
+test("following in Expand goes no further than the passage's end and brings the playhead back no further than its start (#521 19.2)", () => {
+    const base = { scroll: 14300, visible: 2000, playing: true, jumped: false, end: 20160, maxScroll: 18210, minScroll: 14350 };
+    assert.equal(followPlayhead({ ...base, tick: 17000, jumped: true }).scroll, Math.round(17000 - 2000 * REVEAL_AT));
+    assert.equal(followPlayhead({ ...base, scroll: 15000, tick: 14000, jumped: true }).scroll, 14350, "a lead-in bar before it: back to its start");
+    assert.equal(followPlayhead({ ...base, scroll: 14350, tick: 14000, jumped: true }), null, "already there: the view stays");
+    assert.deepEqual(followPlayhead({ ...base, scroll: 18000, tick: 19900 }), { kind: "glue", scroll: 20160 - 2000 }, "along until its end is in view");
+    assert.equal(followPlayhead({ ...base, scroll: 18160, tick: 20000 }), null, "its end in view: the view stays");
 });
