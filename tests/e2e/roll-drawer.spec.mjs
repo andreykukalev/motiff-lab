@@ -44,6 +44,9 @@ test("the roll's zoom is the player's: a selection, Expand, a step and Back keep
     await selectBar(page, 3);
     const level = (scope) => page.locator(`${scope} .roll-zoom-level`);
     await expect(level(".roll-drawer")).toContainText("100 %");
+    // A tap outside the selection leaves it as it is (#511 section 2, scenario C): Escape lets it go first.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".selection-status")).not.toContainText(/(bar|такт) 3(?!\d)/i);
     await selectBar(page, 2);
     await expect(level(".roll-drawer")).toContainText("100 %");
     await page.locator(".roll-drawer .roll").getByRole("button", { name: "Zoom in" }).click();
