@@ -16,7 +16,10 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class PhotosAndPartsFormatTests
 {
-    private const string Golden = "v15-photos-parts.motiff.json";
+    private const string Golden = "v16-photos-parts.motiff.json";
+
+    /// <summary>The same project as version 0.4 wrote it, in version 15.</summary>
+    private const string Earlier = "v15-photos-parts.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 10, 0, 0, TimeSpan.Zero);
 
@@ -66,25 +69,11 @@ public class PhotosAndPartsFormatTests
     /// <summary>A note without how sure it is.</summary>
     private static (string Id, int Pitch, TickSpan Span) Unsure(Note note) => (note.Id, note.Pitch.MidiNumber, note.Span);
 
-    private static string Text(byte[] bytes) => Encoding.UTF8.GetString(bytes).ReplaceLineEndings("\n");
-
-    private static string GoldenFolder([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(source))!, "Golden");
+    private static JsonObject Workspace(JsonObject file) => file["workspace"]!.AsObject();
 
     [Fact]
-    public void The_file_version_0_4_writes_is_the_golden_and_reads_back_unchanged()
-    {
-        byte[] written = ProjectFile.Write(Waltz());
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
-        {
-            File.WriteAllBytes(Path.Combine(GoldenFolder(), Golden), written);
-            return;
-        }
-
-        byte[] kept = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", Golden));
-        Assert.Equal(Text(kept), Text(written));
-        Assert.Equal(Text(kept), Text(ProjectFile.Write(ProjectFile.Read(kept))));
-    }
+    public void The_file_written_is_the_golden_reads_back_unchanged_and_is_what_the_file_of_version_0_4_becomes() =>
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Waltz()), Earlier);
 
     [Fact]
     public void The_golden_holds_each_new_field()
@@ -103,7 +92,7 @@ public class PhotosAndPartsFormatTests
     }
 
     /// <summary>
-    /// What versions 0.2 and 0.3 do with the file, short of running them (the PR runs both builds): it is version 15, and
+    /// What versions 0.2 and 0.3 did with the file version 0.4 wrote, short of running them (the PR ran both builds): it was version 15, and
     /// without the new fields it is the same piece, so they open it and lose only those fields; the PageQuality flag they
     /// keep whole as an unknown flag (S6).
     /// </summary>
@@ -111,7 +100,7 @@ public class PhotosAndPartsFormatTests
     public void Without_the_new_fields_the_file_is_the_same_piece()
     {
         Project project = Waltz();
-        JsonObject file = JsonNode.Parse(ProjectFile.Write(project))!.AsObject();
+        JsonObject file = JsonNode.Parse(LegacyFile.Bytes(ProjectFile.Write(project), 15))!.AsObject();
         _ = file.Remove("partOf");
         _ = file["scan"]!.AsObject().Remove("pages");
         _ = file["marks"]!["ink"]![0]!.AsObject().Remove("margin");
@@ -137,7 +126,7 @@ public class PhotosAndPartsFormatTests
         Assert.Null(RoundTrip(heard).PartOf!.Pages);
 
         JsonObject file = JsonNode.Parse(ProjectFile.Write(heard))!.AsObject();
-        file["partOf"] = new JsonObject { ["original"] = "src_concert", ["bars"] = new JsonArray(3, 40) };
+        Workspace(file)["partOf"] = new JsonObject { ["original"] = "src_concert", ["bars"] = new JsonArray(3, 40) };
         Assert.Null(ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString())).PartOf);
 
         foreach (JsonNode broken in new JsonNode[]
@@ -150,7 +139,7 @@ public class PhotosAndPartsFormatTests
             new JsonObject { ["pages"] = new JsonArray(6, 7) },
         })
         {
-            file["partOf"] = broken;
+            Workspace(file)["partOf"] = broken;
             Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString())));
         }
     }
@@ -159,13 +148,13 @@ public class PhotosAndPartsFormatTests
     public void A_margin_this_build_does_not_know_keeps_its_stroke_whole_and_thinning_keeps_the_margin()
     {
         JsonObject file = JsonNode.Parse(ProjectFile.Write(Waltz()))!.AsObject();
-        file["marks"]!["ink"]![0]!["margin"] = "top";
+        Workspace(file)["marks"]!["ink"]![0]!["margin"] = "top";
         byte[] future = Encoding.UTF8.GetBytes(file.ToJsonString());
 
         Project project = ProjectFile.Read(future);
         Assert.Empty(project.Marks.Ink);
         Assert.Equal("marks.ink", Assert.Single(project.Marks.Unknown).List);
-        Assert.Equal("top", JsonNode.Parse(ProjectFile.Write(project))!["marks"]!["ink"]![0]!["margin"]!.GetValue<string>());
+        Assert.Equal("top", JsonNode.Parse(ProjectFile.Write(project))!["workspace"]!["marks"]!["ink"]![0]!["margin"]!.GetValue<string>());
 
         var stroke = new InkStroke("m2", InkTool.Pen, InkColour.Graphite, 0.16, Tick.Zero, 1.2, 0, [0.5, 0, 0.5, 1, 0, 0.5, 1.5, 0, 0.5], 0.5) { Margin = StrokeMargin.Right };
         Assert.Equal(StrokeMargin.Right, stroke.Thinned().Margin);

@@ -2,8 +2,6 @@
 
 The project file is what a player keeps of a piece. Since version 16 ([0030](decisions/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
-> Version 16 is being built in version 0.6 ([0030](decisions/0030-originals-notes-piece.md), section 7): until its music-core step lands on `develop`, the code still writes version 15, as this file's history describes.
-
 Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`) unless a section says lower case; the facade answers them in lower camel case.
 
 ## The document
@@ -137,9 +135,14 @@ The working notes and everything the player made on them, in their ticks.
   "bookmarks": { … },
   "resumePoints": [ … ],
   "assembly": { … },                // absent while the piece has no assembly
-  "settings": { … }
+  "settings": { … },
+  "hiddenViews": ["src_pdf_2", "perf_1"]   // optional: the views hidden from the switch, only while the player hid one
 }
 ```
+
+### Views hidden from the switch (`hiddenViews`)
+
+The switch at the top of the score lists every view of the piece: each PDF original with the Notes read from it, each other Notes, and each recording with its sound as a Performance view (Andrei, 2026-11-14). The player can hide any of them from the switch in the Sources sheet, except the working notes. `hiddenViews` is the ids hidden, originals' or Notes', distinct and in the order of their ids; written only while one is hidden. An id this build does not know is kept, so a view a later build shows stays hidden; an id that names the working notes is kept and not applied while they are the working ones. A value that is not a list of distinct texts is damage. In the sync it is the player's data, as the rest of the workspace: the copy saved last says it.
 
 ### Title, composer, tags and playlists (`metadata`)
 

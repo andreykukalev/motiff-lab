@@ -243,9 +243,9 @@ public class PdfPieceTests
         Assert.Equal(pages.Starts.Select(start => start.Value), card.GetProperty("readFromPages").EnumerateArray().Select(start => start.GetInt64()));
 
         string json = Encoding.UTF8.GetString(ProjectFile.Write(notes));
-        Assert.Contains("\"readFrom\":{\"project\":\"p_pdf\",\"pages\":[0,", json.Replace(" ", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Contains("\"pageMap\":{\"original\":\"src_pdf\",\"project\":\"p_pdf\",\"starts\":[0,", json.Replace(" ", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"p_pdf\"", "\"\"", StringComparison.Ordinal))));
-        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"pages\"", "\"pagez\"", StringComparison.Ordinal))));
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"starts\"", "\"startz\"", StringComparison.Ordinal))));
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public class PdfPieceTests
             DocumentPages = new PageMap([Tick.Zero, new Tick(15360)]),
         };
         string json = Encoding.UTF8.GetString(ProjectFile.Write(recognised));
-        Assert.Contains("\"documentPages\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"pageMap\"", json, StringComparison.Ordinal);
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("15360", "-1", StringComparison.Ordinal))));
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("15360", "0", StringComparison.Ordinal))));
     }

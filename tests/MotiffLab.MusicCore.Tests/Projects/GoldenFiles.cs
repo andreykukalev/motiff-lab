@@ -15,9 +15,11 @@ internal static class GoldenFiles
 
     /// <summary>
     /// That <paramref name="written"/> is the golden and that the golden reads back and is written unchanged; with
-    /// MOTIFF_UPDATE_SNAPSHOTS=1 it writes the golden instead, when the format changes on purpose.
+    /// MOTIFF_UPDATE_SNAPSHOTS=1 it writes the golden instead, when the format changes on purpose. With
+    /// <paramref name="earlier"/>, the golden an earlier version wrote of the same project, that it reads and is written as
+    /// this golden: the conversion to today's version changes nothing of the project.
     /// </summary>
-    public static void AssertIs(string name, byte[] written, [System.Runtime.CompilerServices.CallerFilePath] string source = "")
+    public static void AssertIs(string name, byte[] written, string? earlier = null, [System.Runtime.CompilerServices.CallerFilePath] string source = "")
     {
         if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
         {
@@ -28,5 +30,9 @@ internal static class GoldenFiles
         byte[] kept = Kept(name);
         Assert.Equal(Text(kept), Text(written));
         Assert.Equal(Text(kept), Text(ProjectFile.Write(ProjectFile.Read(kept))));
+        if (earlier is not null)
+        {
+            Assert.Equal(Text(kept), Text(ProjectFile.Write(ProjectFile.Read(Kept(earlier)))));
+        }
     }
 }

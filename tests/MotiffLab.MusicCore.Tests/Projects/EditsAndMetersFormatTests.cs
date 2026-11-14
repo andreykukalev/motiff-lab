@@ -18,7 +18,10 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class EditsAndMetersFormatTests
 {
-    private const string Golden = "v15-edits-meters.motiff.json";
+    private const string Golden = "v16-edits-meters.motiff.json";
+
+    /// <summary>The same project as version 0.5 wrote it, in version 15.</summary>
+    private const string Earlier = "v15-edits-meters.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 10, 0, 0, TimeSpan.Zero);
 
@@ -67,27 +70,14 @@ public class EditsAndMetersFormatTests
 
     private static Project Read(JsonNode file) => ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()));
 
-    private static string Text(byte[] bytes) => Encoding.UTF8.GetString(bytes).ReplaceLineEndings("\n");
-
-    private static string GoldenFolder([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(source))!, "Golden");
+    /// <summary>The working notes of a version 16 file: the first Notes.</summary>
+    private static JsonObject Working(JsonObject file) => file["notes"]![0]!.AsObject();
 
     private static byte[] Kept(string name) => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", name));
 
     [Fact]
-    public void The_file_version_0_5_writes_is_the_golden_and_reads_back_unchanged()
-    {
-        byte[] written = ProjectFile.Write(Heard());
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
-        {
-            File.WriteAllBytes(Path.Combine(GoldenFolder(), Golden), written);
-            return;
-        }
-
-        byte[] kept = Kept(Golden);
-        Assert.Equal(Text(kept), Text(written));
-        Assert.Equal(Text(kept), Text(ProjectFile.Write(ProjectFile.Read(kept))));
-    }
+    public void The_file_written_is_the_golden_reads_back_unchanged_and_is_what_the_file_of_version_0_5_becomes() =>
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Heard()), Earlier);
 
     [Fact]
     public void The_golden_holds_each_new_field_and_opens_with_its_bars_and_without_its_corrections()
@@ -109,14 +99,15 @@ public class EditsAndMetersFormatTests
     }
 
     /// <summary>
-    /// What versions 0.2 to 0.4 do with the file, short of running them: it is version 15, and without the new fields it is
-    /// the same notes at the same ticks, on bars laid from the same starts in the grid's one signature, the corrections on.
+    /// What versions 0.2 to 0.4 did with the file version 0.5 wrote, short of running them: it was version 15, and without the
+    /// new fields it is the same notes at the same ticks, on bars laid from the same starts in the grid's one signature, the
+    /// corrections on.
     /// </summary>
     [Fact]
     public void Without_the_new_fields_the_file_is_the_same_notes_on_bars_from_the_same_starts()
     {
         Project project = Heard();
-        JsonObject file = JsonNode.Parse(ProjectFile.Write(project))!.AsObject();
+        JsonObject file = JsonNode.Parse(LegacyFile.Bytes(ProjectFile.Write(project), 15))!.AsObject();
         _ = file.Remove("editsOff");
         _ = file["transcription"]!["bars"]!.AsObject().Remove("meters");
         _ = file["transcription"]!.AsObject().Remove("sentFromMs");
@@ -137,15 +128,16 @@ public class EditsAndMetersFormatTests
     public void Edits_off_is_written_only_when_true_and_a_value_of_another_kind_is_damage()
     {
         Project on = Heard() with { EditsOff = false };
-        Assert.False(JsonNode.Parse(ProjectFile.Write(on))!.AsObject().ContainsKey("editsOff"));
+        Assert.False(JsonNode.Parse(ProjectFile.Write(on))!["workspace"]!.AsObject().ContainsKey("editsOff"));
         Assert.True(RoundTrip(on with { EditsOff = true }).EditsOff);
 
         JsonObject file = JsonNode.Parse(ProjectFile.Write(on))!.AsObject();
-        file["editsOff"] = false;
+        JsonObject workspace = file["workspace"]!.AsObject();
+        workspace["editsOff"] = false;
         Assert.False(Read(file).EditsOff);
         foreach (JsonNode? broken in new JsonNode?[] { "true", 1, null, new JsonObject() })
         {
-            file["editsOff"] = broken;
+            workspace["editsOff"] = broken;
             Assert.Contains("editsOff", Assert.Throws<ProjectFileException>(() => Read(file)).Message, StringComparison.Ordinal);
         }
     }
@@ -156,7 +148,7 @@ public class EditsAndMetersFormatTests
         Project heard = Heard();
         Assert.Equal(0, RoundTrip(heard with { Transcription = heard.Transcription! with { SentFromMilliseconds = 0 } }).Transcription!.SentFromMilliseconds);
         Project unknown = heard with { Transcription = heard.Transcription! with { SentFromMilliseconds = null } };
-        Assert.False(JsonNode.Parse(ProjectFile.Write(unknown))!["transcription"]!.AsObject().ContainsKey("sentFromMs"));
+        Assert.False(Working(JsonNode.Parse(ProjectFile.Write(unknown))!.AsObject())["transcription"]!.AsObject().ContainsKey("sentFromMs"));
         Assert.Null(RoundTrip(unknown).Transcription!.SentFromMilliseconds);
         Assert.Throws<ArgumentOutOfRangeException>(() => heard.Transcription! with { SentFromMilliseconds = -1 });
         Assert.NotEqual(heard.Transcription, unknown.Transcription);
@@ -164,7 +156,7 @@ public class EditsAndMetersFormatTests
         JsonObject file = JsonNode.Parse(ProjectFile.Write(heard))!.AsObject();
         foreach (JsonNode? broken in new JsonNode?[] { -1, 1.5, "754000", null })
         {
-            file["transcription"]!["sentFromMs"] = broken;
+            Working(file)["transcription"]!["sentFromMs"] = broken;
             Assert.Contains("sentFromMs", Assert.Throws<ProjectFileException>(() => Read(file)).Message, StringComparison.Ordinal);
         }
     }
@@ -173,7 +165,7 @@ public class EditsAndMetersFormatTests
     public void A_change_of_signature_that_is_not_well_formed_is_damage()
     {
         JsonObject file = JsonNode.Parse(ProjectFile.Write(Heard()))!.AsObject();
-        JsonObject bars = file["transcription"]!["bars"]!.AsObject();
+        JsonObject bars = Working(file)["transcription"]!["bars"]!.AsObject();
         static JsonObject Meter(int at, string signature) => new() { ["at"] = at, ["signature"] = signature };
         foreach (JsonNode broken in new JsonNode[]
         {
@@ -240,27 +232,35 @@ public class EditsAndMetersFormatTests
 
     /// <summary>
     /// Every field a project file holds has its class for the merge (0026 S8): the top-level fields of every golden this
-    /// build reads and of the files it writes, and the fields within one that a version added on its own.
+    /// build reads and of the files it writes, the fields of a version 16 file's workspace and Notes, and the fields within
+    /// one that a version added on its own.
     /// </summary>
     [Fact]
     public void Every_field_of_the_file_has_a_class_for_the_merge()
     {
         string[] goldens = [.. Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Golden"), "v1*.motiff.json")
-            .Select(path => Path.GetFileName(path)).Where(name => !name.StartsWith("v16-", StringComparison.Ordinal))];
+            .Select(path => Path.GetFileName(path)).Where(name => !name.Contains("-future", StringComparison.Ordinal))];
         Assert.Contains(Golden, goldens);
+        Assert.Contains(Earlier, goldens);
         IEnumerable<JsonObject> files = goldens.Select(name => JsonNode.Parse(Kept(name))!.AsObject())
             .Append(JsonNode.Parse(ProjectFile.Write(Heard()))!.AsObject());
         foreach (JsonObject file in files)
         {
-            foreach (string field in file.Select(entry => entry.Key))
+            IEnumerable<string> fields = file.Select(entry => entry.Key)
+                .Concat(file["workspace"] is JsonObject workspace ? workspace.Select(entry => "workspace." + entry.Key) : [])
+                .Concat(file["notes"] is JsonArray notes ? notes.SelectMany(entry => entry!.AsObject().Select(field => "notes." + field.Key)) : []);
+            foreach (string field in fields)
             {
                 Assert.True(ProjectSync.Fields.ContainsKey(field), $"\"{field}\" has no class in ProjectSync.Fields.");
             }
         }
 
-        Assert.Equal(FieldClass.Import, ProjectSync.Fields["transcription.bars.meters"]);
-        Assert.Equal(FieldClass.Import, ProjectSync.Fields["transcription.sentFromMs"]);
-        Assert.Equal(FieldClass.Import, ProjectSync.Fields["scan.pages"]);
+        Assert.Equal(FieldClass.Import, ProjectSync.Fields["notes.transcription.bars.meters"]);
+        Assert.Equal(FieldClass.Import, ProjectSync.Fields["notes.transcription.sentFromMs"]);
+        Assert.Equal(FieldClass.Import, ProjectSync.Fields["notes.scan.pages"]);
+        Assert.Equal(FieldClass.Bookkeeping, ProjectSync.Fields["workspace.editsOff"]);
+        Assert.Equal(FieldClass.Player, ProjectSync.Fields["notes.edits"]);
+        Assert.Equal(FieldClass.Derived, ProjectSync.Fields["notes.check"]);
         Assert.Equal(FieldClass.Bookkeeping, ProjectSync.Fields["editsOff"]);
     }
 }
