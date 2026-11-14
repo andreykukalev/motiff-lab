@@ -6,7 +6,8 @@
 //
 // Other owners of the engine's loop (hearing in turn, the answer, the circle's scale, the DNA map) set their own loop: while
 // one holds it (`take`), the model's loop steps change the model but not the engine, and `hold` gives the engine the
-// model's loop again once they end.
+// model's loop again once they end. In Expand the model lets go, and the playhead on its roll is held over the passage
+// (PassageGrip, #533 2).
 
 import { engineLoop, next, playingOf, viewOf, type Context, type Handle, type ModelEvent, type ModelState, type Span, type Step, type Transport } from "./playback-model.js";
 import type { DragMessage } from "./playhead-drag.js";
@@ -159,4 +160,60 @@ export class PlaybackOwner {
  * reported either yet. */
 function standing(held: Held): EnginePlace {
     return { tick: held.last, transport: "stopped" };
+}
+
+/** The model as Expand holds a drag (#533 2): the passage as a selection that always loops, so the playhead is the blue one. */
+export function passageState(passage: Span, engine: EnginePlace): ModelState {
+    return { selection: { start: passage.start, end: passage.end }, loop: true, tick: engine.tick, transport: engine.transport };
+}
+
+/**
+ * The playhead on Expand's roll held (#533 2, ExpandRules.gesture on the iPad): the model's T14–T16 over the passage, the
+ * blue playhead of a selection that always loops. Taken, playback stands; dragged, the position goes there inside the
+ * passage and the notes it passes sound; let go, they fade and it plays on when it played. The passage's loop is never
+ * touched, and the model outside Expand is left as it is (T18).
+ */
+export class PassageGrip {
+    private gripped: Held | null = null;
+
+    constructor(private readonly perform: (step: Step) => void) {}
+
+    /** Whether the playhead is held now. */
+    get dragging(): boolean {
+        return this.gripped !== null;
+    }
+
+    /** A message of the drag over the passage; where the engine will be once it has the steps, null with nothing held. */
+    gesture(message: DragMessage, passage: Span, engine: EnginePlace): EnginePlace | null {
+        const held = this.gripped;
+        switch (message.phase) {
+            case "grab": {
+                const before = held === null ? engine : (this.gesture({ phase: "release", handle: "blue" }, passage, engine) ?? engine);
+                this.gripped = { handle: "blue", resume: playingOf(before.transport), last: before.tick };
+                return this.run(passageState(passage, before), { type: "grab" });
+            }
+            case "move": {
+                if (held === null) {
+                    return null;
+                }
+                const moved = this.run(passageState(passage, standing(held)), { type: "drag", handle: "blue", at: message.tick });
+                held.last = moved.tick;
+                return moved;
+            }
+            case "release":
+                if (held === null) {
+                    return null;
+                }
+                this.gripped = null;
+                return this.run(passageState(passage, standing(held)), { type: "release", handle: "blue", resume: held.resume });
+        }
+    }
+
+    private run(state: ModelState, event: ModelEvent): EnginePlace {
+        const decided = next(state, event);
+        for (const step of decided.steps) {
+            this.perform(step);
+        }
+        return { tick: decided.state.tick, transport: decided.state.transport };
+    }
 }

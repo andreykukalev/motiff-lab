@@ -818,7 +818,7 @@ extension ScoreScreen {
         roll.playheadMoved = { [weak heard, weak shown] tick, play in
             guard let heard, let shown else { return }
             if shown.focused, let passage = shown.playRange?.range {
-                // In Expand within the passage, playing it once from there (#521 19.4).
+                // In Expand within the passage, playing it round from there (#533 2).
                 heard.move(to: tick, play: play, within: passage)
             } else if shown.onePosition {
                 heard.go(to: tick, play: play)
@@ -827,9 +827,17 @@ extension ScoreScreen {
             }
         }
         // A playhead dragged by its handle on the score or the roll (#495 UX-08, T14–T16): the player runs the model. The pages
-        // send it only under the playback model, and a gesture that ends after the model went is still let go.
+        // send it only under the playback model, and a gesture that ends after the model went is still let go. On Expand's
+        // roll it is held inside the passage, which goes on looping (#533 2).
         score.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
-        roll.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
+        roll.playheadGestured = { [weak heard, weak shown] gesture in
+            guard let heard else { return }
+            if shown?.focused == true, let passage = shown?.playRange?.range {
+                heard.handle(gesture, within: passage)
+            } else {
+                heard.handle(gesture)
+            }
+        }
     }
 
     /// Where the player is, for the roll: with the lanes, also the place as bar.beat and whether the selection loops.
@@ -838,11 +846,10 @@ extension ScoreScreen {
         roll.position(player.tick, playing: player.state == .playing, label: on ? player.placeLabel : "", looping: on && player.loop != nil)
     }
 
-    /// What plays for the selection changed. A loop follows it, as on the web: Lead-in, or going back to the page with it on,
-    /// loops the wider or the narrower span; a new selection stops the old loop. Under the playback model (v0.5.2) the player
-    /// takes the selection, and Цикл decides (T9–T11).
+    /// What plays for the selection changed. A loop follows it, as on the web; a new selection stops the old loop. Under the
+    /// playback model (v0.5.2) the player takes the selection, and Цикл decides (T9–T11).
     private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
-        // Expand plays its passage once (#521 19.4): Lead-in widens or narrows what plays on, and nothing loops round.
+        // Expand loops its passage (#533 2): what plays for it plays on round it.
         if score.focused {
             if let new, player.state != .stopped { player.keepWithin(new.range) }
             return
@@ -1224,7 +1231,7 @@ struct Pill: View {
                 PositionTransport(player: player, text: text)
             } else {
                 Button {
-                    // In Expand Play plays the passage once, from the playhead inside it or its start (#521 19.4).
+                    // In Expand Play loops the passage, from the playhead inside it or its start (#533 2).
                     if score.focused, let passage = score.playRange?.range { player.playPassage(passage) } else { player.toggle() }
                 } label: {
                     Icon(name: player.state == .stopped ? "playf" : "pause")
@@ -1234,23 +1241,10 @@ struct Pill: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
-                // No loop in Expand (#521 19.3): its passage plays once.
+                // No Loop in Expand (#533 2): its passage always loops.
                 if score.selection != nil && !score.focused {
                     LoopButton(score: score, player: player, text: text)
                 }
-            }
-            if score.focused {
-                Button {
-                    score.leadIn.toggle()
-                } label: {
-                    HStack(spacing: 6) {
-                        Icon(name: "leadin")
-                        Text(text["focus.leadIn"])
-                    }
-                }
-                .buttonStyle(DSItemStyle(on: score.leadIn))
-                .accessibilityHint(text["focus.leadInHint"])
-                .accessibilityAddTraits(score.leadIn ? .isSelected : [])
             }
             // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
             TempoControl(tempo: player.tempo, text: text) { [weak score] perMinute in
@@ -1835,7 +1829,7 @@ extension ScoreScreen {
             contentsOpen = false
             loopBeforeFocus = player.loop
         } else if player.loop != nil {
-            // Expand's passage played once: the loop it left goes, so the one before comes back as it was.
+            // Expand's passage looped: the loop it left goes, so the one before comes back as it was.
             player.setLoop(nil)
         }
         syncPlayheads()

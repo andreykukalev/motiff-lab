@@ -110,11 +110,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var focused = false
     /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
     @Published private(set) var expandEntry = ExpandEntry.notes
-    /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
-    @Published var leadIn = false {
-        didSet { if oldValue != leadIn { Task { await updatePlayRange() } } }
-    }
-    /// What Play and Loop take for the selection: its span, with a bar either side while leading in.
+    /// What Play and Loop take for the selection: its span (Lead-in went in v0.5.6, #533 3).
     @Published private(set) var playRange: PlayRange?
     /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
     var ossia: String? {
@@ -1765,20 +1761,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// What play takes for the selection now: its span, with the bar before and the bar after while leading in.
+    /// What play takes for the selection now: its span.
     private func updatePlayRange() async {
         guard let selection else {
             playRange = nil
             return
         }
-        var range = selection.onset..<selection.end
-        if focused && leadIn,
-           let wider = try? await webView.callAsyncJavaScript("return motiff.lead(data)", arguments: ["data": ["start": selection.onset, "end": selection.end]], contentWorld: .page) as? [String: Any],
-           let start = (wider["start"] as? NSNumber)?.doubleValue, let end = (wider["end"] as? NSNumber)?.doubleValue, start < end {
-            range = start..<end
-        }
-        guard self.selection == selection else { return }
-        playRange = PlayRange(selection: selection, range: range)
+        playRange = PlayRange(selection: selection, range: selection.onset..<selection.end)
     }
 
     /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.

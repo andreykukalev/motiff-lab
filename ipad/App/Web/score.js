@@ -1151,14 +1151,6 @@ function keepInView(note) {
     return top;
 }
 
-/** A passage with the bar before it and the bar after it, within the piece: what Lead-in plays (0018 section 4). */
-function lead({ start, end }) {
-    const geometry = state.geometry;
-    const before = start > 0 ? geometry?.barAt(start - 1)?.tick : undefined;
-    const after = geometry?.barAt(end)?.end;
-    return { start: before ?? start, end: after ?? end };
-}
-
 /**
  * The places of a fact chosen in the Insights stream, each { onset, end, noteIds }, as music-core gives them: their
  * engraved notes turn cobalt with a box round each notehead, and with `scroll` the first is brought into view. A place
@@ -1347,5 +1339,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, writing };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

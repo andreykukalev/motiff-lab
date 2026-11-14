@@ -19,23 +19,18 @@ namespace MotiffLab.Web.Pages;
 /// A variation is engraved as an ossia above the original, bar for bar, from music-core's excerpt (<see cref="NotationGenerator"/>);
 /// the variations kept for the phrase are chips above the card that pick the one heard and shown. Expand is a focused
 /// practice view bound to the exact selection it was opened on (#521 19): nothing in it steps to another phrase or changes
-/// the selection, and Play plays the passage once, from the playhead inside it or from its start, stopping at its end; Lead-in
-/// on the pill plays a bar before and after. Enter with Focus in the contextual menu (only with a selection); leave with
-/// Back, a tap on the dimmed page or Escape, and the loop is as it was before.
+/// the selection, and Play loops the passage, from the playhead inside it or from its start, with no Loop to turn off; the
+/// roll's playhead is taken and dragged inside the passage, heard, and playback goes on from where it is let go (#533 2).
+/// Enter with Focus in the contextual menu (only with a selection); leave with Back, a tap on the dimmed page or Escape, and
+/// the loop is as it was before.
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The engine source of the bars around the selection that Lead-in adds.</summary>
-    private const string LeadSource = "lead-in";
-
     /// <summary>Whether the selected phrase is lifted into focus.</summary>
     private bool _focus;
 
     /// <summary>The passage focus was entered on or stepped to; a kept variation opened on part of it keeps the card on the whole.</summary>
     private TickSpan? _focusSpan;
-
-    /// <summary>Whether play in focus starts a bar early and ends a bar late (0018 section 4, "Hear the transition").</summary>
-    private bool _leadIn;
 
     private PhraseCardSource? _focusCard;
     private object? _focusCardKey;
@@ -137,7 +132,7 @@ public partial class PlaybackLab
 
     /// <summary>
     /// Lifts the selection into focus, from the score or (<paramref name="fromRoll"/>) from the roll, bound to it (#521 19):
-    /// playing, the music plays on within the passage, from its start when it was elsewhere, and stops at its end.
+    /// playing, the music plays on round the passage, from its start when it was elsewhere (#533 2).
     /// </summary>
     private async Task EnterFocusAsync(bool fromRoll = false)
     {
@@ -158,12 +153,12 @@ public partial class PlaybackLab
             return;
         }
 
-        // The playback model lets go in focus (v0.5.2): the passage is the loop here, played once.
+        // The playback model lets go in focus (v0.5.2): the passage is the loop here (#533 2).
         await SyncModelAsync();
         await KeepWithinPassageAsync();
     }
 
-    /// <summary>The passage as what plays (#521 19.4): once, from the playhead while it is inside, else from its start.</summary>
+    /// <summary>The passage as what plays (#533 2): round and round, from the playhead while it is inside, else from its start.</summary>
     private async Task KeepWithinPassageAsync()
     {
         if (_answerLoop is not null || _selection is not { } selection)
@@ -178,8 +173,8 @@ public partial class PlaybackLab
             return;
         }
 
-        TickSpan range = WithLead(selection.Span);
-        await Player.SetLoopAsync(range, once: true);
+        TickSpan range = selection.Span;
+        await Player.SetLoopAsync(range);
         if (!range.Contains(Player.Position))
         {
             await Player.SeekAsync(range.Onset);
@@ -187,8 +182,8 @@ public partial class PlaybackLab
     }
 
     /// <summary>
-    /// Play in Expand (#521 19.4): the passage once, from the playhead inside it or from its start, stopping at its end and
-    /// waiting at its start; while it plays, a pause.
+    /// Play in Expand (#533 2): the passage round and round, from the playhead inside it or from its start; while it plays, a
+    /// pause.
     /// </summary>
     private async Task PlayPassageAsync()
     {
@@ -202,7 +197,7 @@ public partial class PlaybackLab
         await PlayAsync();
     }
 
-    /// <summary>The pill's Play: in Expand the passage once, elsewhere play or pause.</summary>
+    /// <summary>The pill's Play: in Expand the passage in a loop, elsewhere play or pause.</summary>
     private Task PillPlayAsync() => Focused ? PlayPassageAsync() : TogglePlayAsync();
 
     /// <summary>Back to the page, with the selection as it is; a loop that led in plays the selection alone again.</summary>
@@ -229,7 +224,7 @@ public partial class PlaybackLab
 
         if (!_loopingBeforeFocus && _answerLoop is null && !_scaleHeard && (_looping || Player.Loop is not null))
         {
-            // Expand's passage played once: the loop that was not there before goes (#521 17).
+            // Expand's passage looped: the loop that was not there before goes (#521 17).
             _looping = false;
             _alternating = false;
             await Player.SetLoopAsync(null);
@@ -261,54 +256,4 @@ public partial class PlaybackLab
     /// <summary>A kept variation's chip: it is heard and shown as the ossia.</summary>
     private Task ShowKeptVariationAsync(Observation observation) =>
         observation.Id == HeardKeptId ? Task.CompletedTask : OpenObservationAsync(observation);
-
-    /// <summary>Lead-in on the pill: the loop takes in the bar before and the bar after, or lets them go.</summary>
-    private async Task ToggleLeadInAsync()
-    {
-        _leadIn = !_leadIn;
-        if (Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
-        {
-            await LoopSelectionAsync(selection);
-        }
-    }
-
-    /// <summary>Whether play takes in the bars around the selection now: Lead-in is on and the phrase is in focus.</summary>
-    private bool LeadingIn => _leadIn && Focused;
-
-    /// <summary>A range with the bar before and the bar after it while leading in, within the piece.</summary>
-    private TickSpan WithLead(TickSpan range)
-    {
-        if (!LeadingIn || _meter is null || _score is null)
-        {
-            return range;
-        }
-
-        Tick start = range.Onset.Value > 0 ? _meter.BarAt(new Tick(range.Onset.Value - 1)).Span.Onset : range.Onset;
-        Tick end = range.End < _score.End ? _meter.BarAt(range.End).Span.End : range.End;
-        return TickSpan.FromBounds(start, end > _score.End ? _score.End : end);
-    }
-
-    /// <summary>
-    /// Gives the engine the notes Lead-in adds: the piece's notes before the selection and after what plays for it,
-    /// for the hand or layer the player listens to; none when not leading in.
-    /// </summary>
-    private async Task SetLeadSourceAsync(MotifSelection selection)
-    {
-        if (!LeadingIn)
-        {
-            await Player.SetSourceAsync(LeadSource, _score!.WithNotes([]));
-            return;
-        }
-
-        Tick after = selection.Span.End;
-        if (_variation is { Notes.Count: > 0 } && PlayRange(selection, [VariationSource]).End > after)
-        {
-            after = PlayRange(selection, [VariationSource]).End;
-        }
-
-        await Player.SetSourceAsync(LeadSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => note.Span.Onset < selection.Span.Onset || note.Span.Onset >= after)])));
-    }
-
-    /// <summary>The sources to hear with the lead-in's added while leading in.</summary>
-    private string[] WithLeadSource(IEnumerable<string> sources) => LeadingIn ? [.. sources, LeadSource] : [.. sources];
 }

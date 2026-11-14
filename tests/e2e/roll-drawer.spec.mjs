@@ -149,7 +149,7 @@ test("Expand takes the selection into focus as a roll; Notes | Piano roll switch
     expect(errors).toEqual([]);
 });
 
-test("Expand while the music plays: it plays on within the passage, stops at its end, and the selection stays (#521 19.4)", async ({ page }) => {
+test("Expand while the music plays: it plays on round the passage, never past it, and the selection stays (#521 19.4, #533 2)", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectPhrase(page);
     await openRoll(page);
@@ -163,12 +163,16 @@ test("Expand while the music plays: it plays on within the passage, stops at its
     await expect(page.locator(".bar").getByRole("button", { name: /^(Play|Pause)$/ })).toHaveCount(0);
     await expect(pill.getByRole("button", { name: "Loop" })).toHaveCount(0);
 
-    // The passage ends and the music stops there, the roll's playhead never past it; the selection stays as it was.
+    // The passage ends and the music goes round it again, the roll's playhead never past it; the selection stays as it was.
     const playhead = page.locator(".focus-roll .roll-playhead");
-    await expect(pill.getByRole("button", { name: "Play", exact: true })).toBeVisible({ timeout: 30_000 });
-    const atBar = Number((/Bar (\d+)/.exec((await playhead.getAttribute("aria-valuetext")) ?? "") ?? [])[1] ?? 0);
-    expect(atBar).toBeLessThanOrEqual(4);
+    for (let look = 0; look < 6; look++) {
+        await page.waitForTimeout(2_000);
+        await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+        const atBar = Number((/Bar (\d+)/.exec((await playhead.getAttribute("aria-valuetext")) ?? "") ?? [])[1] ?? 0);
+        expect(atBar).toBeLessThanOrEqual(4);
+    }
     await expect(crumb).toHaveText(text);
+    await pill.getByRole("button", { name: "Pause", exact: true }).click();
     expect(errors).toEqual([]);
 });
 
