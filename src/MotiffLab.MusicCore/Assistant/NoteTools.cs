@@ -51,6 +51,14 @@ internal static class NoteTools
                 ("keep", ToolSchema.List(ToolSchema.Choice<KeepProperty>(), 0, Enum.GetValues<KeepProperty>().Length, unique: true), "What must be kept.")),
             static (piece, parameters) => Checked(piece, parameters));
         yield return new AssistantTool(
+            "draft.diff",
+            ToolKind.Check,
+            "The difference note edits (as notes.edit takes them) would make, without making a draft: each edit by address with the values before and after, and what changes, written by the engine from the diff.",
+            ToolSchema.Object(
+                ("bars", BarsSchema, "The bars the edits lie in, at most 32."),
+                ("edits", EditsSchema, "The edits to compare.")),
+            static (piece, parameters) => Diffed(piece, parameters));
+        yield return new AssistantTool(
             "practice.suggest",
             ToolKind.SuggestAction,
             "Suggests a practice action the player can take with one tap: loop bars, at a tempo (25-150 % of the piece's), with one hand or both. The player decides; nothing changes until they tap it.",
@@ -97,6 +105,12 @@ internal static class NoteTools
             json.WriteEndArray();
             json.WriteEndObject();
         });
+    }
+
+    private static ToolResult Diffed(AssistantPiece piece, JsonElement parameters)
+    {
+        (AssistantDraft? draft, string? refusal) = Edited(piece, parameters, new HashSet<KeepProperty>());
+        return draft is null ? ToolResult.Refused(refusal!) : ToolResult.Read(json => (draft with { Tool = "draft.diff" }).Write(json, piece));
     }
 
     /// <summary>The range's notes with the edits made, as a draft, or why it cannot be made.</summary>

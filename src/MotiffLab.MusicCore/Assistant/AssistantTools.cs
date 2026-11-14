@@ -118,11 +118,14 @@ public static class AssistantTools
     }
 
     /// <summary>Writes the catalogue: {"tools": [{name, kind, description, parameters}]}, the same for every piece and request.</summary>
-    public static void WriteCatalogue(Utf8JsonWriter json)
+    public static void WriteCatalogue(Utf8JsonWriter json) => WriteTools(json, All);
+
+    /// <summary>Writes these tools as the catalogue does: {"tools": [{name, kind, description, parameters}]}.</summary>
+    internal static void WriteTools(Utf8JsonWriter json, IEnumerable<AssistantTool> tools)
     {
         ArgumentNullException.ThrowIfNull(json);
         json.WriteStartArray("tools");
-        foreach (AssistantTool tool in All)
+        foreach (AssistantTool tool in tools)
         {
             json.WriteStartObject();
             json.WriteString("name", tool.Name);

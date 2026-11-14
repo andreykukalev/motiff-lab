@@ -50,7 +50,7 @@ internal static class ReadingTools
             static (piece, parameters) => Ranged(piece, parameters, (from, to) => ToolResult.Read(json => WriteFlags(json, piece, from, to))));
     }
 
-    private static void WriteNotes(Utf8JsonWriter json, AssistantPiece piece, RangeReading reading)
+    internal static void WriteNotes(Utf8JsonWriter json, AssistantPiece piece, RangeReading reading)
     {
         json.WriteStartObject();
         json.WriteStartArray("notes");
