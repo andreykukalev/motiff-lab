@@ -33,8 +33,9 @@ export function gestureFor(mode: InteractionMode, insideSelection: boolean): Rol
 }
 
 /**
- * Whether a press of this pointer type may change the selection on the roll, its bar numbers, its loop strip and its
- * handles (#511 4.1): while the Pen is on the stylus writes on the score and never selects here; a finger and the mouse do.
+ * Whether a press of this pointer type acts on the roll at all (#511 4.1, #521 10): while the Pen is on the stylus belongs to
+ * the Pen, which draws nothing here, so on the roll it neither selects (bar numbers, loop strip, handles), nor moves the
+ * roll, nor edits notes, nor takes a playhead; a finger and the mouse act as before.
  */
 export function selectsOnRoll(pointerType: string, penOn: boolean): boolean {
     return pointerType !== "pen" || !penOn;

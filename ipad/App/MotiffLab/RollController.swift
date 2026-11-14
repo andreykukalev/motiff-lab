@@ -439,7 +439,7 @@ struct RollDrawer: View {
             if !compact, mode == .navigate, score.selection != nil {
                 ClearSelectionButton(score: score, text: text)
             }
-            RollModeSwitch(chosen: mode, text: text) { roll.choose($0, score: score) }
+            RollModeSwitch(chosen: mode, text: text) { roll.chooseTool($0, score: score) }
             if mode == .edit, let editor = score.noteEditor {
                 RollEditTools(score: score, editor: editor, text: text, compact: compact)
                 Spacer(minLength: CGFloat.ds("s-2"))

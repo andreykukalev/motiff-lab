@@ -333,6 +333,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.handles = { [weak self] in self.map { $0.inView($0.handleSpots) } ?? [] }
         ink.heads = { [weak self] in self.map { $0.inView($0.headSpots) } ?? [] }
         ink.pencil.perform = { [weak self] action, point in self?.scorePencilGesture(action, at: point) }
+        ink.penDown = { [weak self] down in self?.penDown(down) }
         applyInput()
 
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
@@ -2014,6 +2015,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.apply(rules)
         guard shown else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
+    }
+
+    /// A stroke of the pen began or ended (#521 10): while it is written playback does not move the page under it, and it
+    /// follows again as long after as after a scroll by hand.
+    private func penDown(_ down: Bool) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.writing(data)", arguments: ["data": ["on": down]], contentWorld: .page) }
     }
 
     /// Handles, given in the document's pixels, where they are on the screen now, in the web view's coordinates.

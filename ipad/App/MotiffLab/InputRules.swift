@@ -159,13 +159,13 @@ enum RollMode: String, CaseIterable, Sendable {
 struct RollInput: Equatable, Sendable {
     var stylus: Bool
     var mode: RollMode
-    /// Whether the bar's Pen is on (#511 4.1): then the stylus writes on the score and never changes the selection on the
-    /// roll, its bar numbers, loop strip and handles; a finger still does.
+    /// Whether the bar's Pen is on (#511 4.1, #521 10): then the stylus is the Pen's, which draws nothing on the roll, so
+    /// there it neither selects (bar numbers, loop strip, handles), nor moves the roll, nor edits; a finger still does all.
     var penOn = false
 
     /// Whether a press of the pointer on the notes edits them; otherwise it moves the roll.
     func edits(_ pointer: InputRules.Pointer) -> Bool {
-        guard mode == .edit else { return false }
+        guard mode == .edit, acts(pointer) else { return false }
         return stylus ? pointer == .stylus : true
     }
 
@@ -174,13 +174,29 @@ struct RollInput: Equatable, Sendable {
         !stylus && mode == .edit ? 2 : 1
     }
 
-    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection.
-    func selects(_ pointer: InputRules.Pointer) -> Bool {
+    /// Whether a press of the pointer acts on the roll at all: not the stylus while the Pen is on (#521 10).
+    func acts(_ pointer: InputRules.Pointer) -> Bool {
         pointer == .finger || !penOn
     }
 
-    /// What the roll is told (`roll.input`).
+    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection.
+    func selects(_ pointer: InputRules.Pointer) -> Bool {
+        acts(pointer)
+    }
+
+    /// What the roll is told (`roll.input`): `penSelects` false makes the stylus do nothing there (roll-modes.ts selectsOnRoll).
     var page: [String: Any] {
-        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers, "penSelects": selects(.stylus)]
+        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers, "penSelects": acts(.stylus)]
+    }
+
+    /// One tool at a time (#521 10): Edit notes on the roll and the bar's Pen are both tools that write, so choosing one puts
+    /// the other away: Edit notes turns the Pen off, the Pen takes the roll back to Navigate (a draft with changes waits
+    /// there for Cancel or Save, RollMode.choose).
+    static func penOff(choosing mode: RollMode) -> Bool {
+        mode == .edit
+    }
+
+    static func rollNavigates(penOn: Bool, mode: RollMode) -> Bool {
+        penOn && mode == .edit
     }
 }

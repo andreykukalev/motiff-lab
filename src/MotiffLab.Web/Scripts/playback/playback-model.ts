@@ -174,12 +174,16 @@ function sameSpan(a: Span | null, b: Span | null): boolean {
 }
 
 /** T9 a selection appears: Цикл turns on (design question В2); T10 it changes: Цикл as it was; T11 it goes: nothing loops,
- * Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not. */
+ * Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not. Playing
+ * already past the new selection's end, the loop can never catch the position, and the engine plays on through the piece:
+ * Цикл is off then, so it shows as off (#521 5); before the selection it waits to catch it and stays on. */
 function select(state: ModelState, selection: Span | null): Decision {
     if (sameSpan(state.selection, selection)) {
         return { state, steps: [] };
     }
-    const loop = state.selection === null && selection !== null ? true : state.loop;
+    const cycles = state.selection === null && selection !== null ? true : state.loop;
+    const passed = selection !== null && playingOf(state.transport) && state.tick >= selection.end;
+    const loop = cycles && !passed;
     const after: ModelState = { ...state, selection: selection === null ? null : { ...selection }, loop };
     const was = engineLoop(state);
     const wanted = engineLoop(after);

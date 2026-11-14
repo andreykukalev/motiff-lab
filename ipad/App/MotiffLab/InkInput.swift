@@ -32,6 +32,8 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     /// The playheads' handles' centres in the host's coordinates (#495 UX-08): a finger there drags the playhead and never
     /// writes; the Pencil writes there in the Pen, as the design has it (playback-model-v0.5.2, «Жест»).
     var heads: () -> [CGPoint] = { [] }
+    /// A stroke began (true) or ended (false), by the Pencil or a finger: the host keeps the music still under it (#521 10).
+    var penDown: (Bool) -> Void = { _ in }
     /// While the page is still (phrase focus), nothing writes on it.
     var still = false {
         didSet { apply(rules) }
@@ -40,6 +42,9 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     /// The eraser is down, and how many of its points have gone to `rubbed`.
     private var rubbing = false
     private var rubbedCount = 0
+    /// A stroke is being written, and whether the scroll view's pan and pinch were let go for it (and how they were).
+    private var down = false
+    private var heldStill: (pan: Bool, pinch: Bool)?
 
     /// Whether this iPad is used with a stylus: the iPad's setting «Only draw with Apple Pencil», read when asked, so a
     /// change in Settings counts from the next tool chosen or the next time the piece is shown.
@@ -77,6 +82,10 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     }
 
     @objc private func drew(_ recognizer: InkGesture) {
+        if recognizer.state == .began { hold(true, pencil: recognizer.byPencil) }
+        defer {
+            if recognizer.state != .began && recognizer.state != .changed { hold(false, pencil: recognizer.byPencil) }
+        }
         switch recognizer.state {
         case .began, .changed:
             if writing == nil, !rubbing, let first = recognizer.samples.first {
@@ -109,6 +118,30 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
             writing = nil
             live.clear()
         }
+    }
+
+    /// A gesture belongs to one tool (#521 10): while the Pencil writes or rubs out, the music under it stays still. The
+    /// scroll view's pan and pinch let go of a palm or a finger beside the Pencil and take none until it lifts, and a scroll
+    /// still gliding stops, so a stroke never moves the score (the cause of the scroll while drawing: the pan was allowed
+    /// beside the pen's gesture, and a resting palm is a finger to it). A finger writing (an iPad without a stylus) keeps
+    /// the rule of before: a second finger lets its stroke go and two fingers scroll. The host hears every stroke begin and
+    /// end, so playback does not move the page under the pen either.
+    private func hold(_ on: Bool, pencil: Bool) {
+        guard on != down else { return }
+        down = on
+        if on, pencil, let pan {
+            let scroll = pan.view as? UIScrollView
+            if let scroll, scroll.isDecelerating { scroll.setContentOffset(scroll.contentOffset, animated: false) }
+            let pinch = scroll?.pinchGestureRecognizer
+            heldStill = (pan.isEnabled, pinch?.isEnabled ?? false)
+            pan.isEnabled = false
+            pinch?.isEnabled = false
+        } else if !on, let held = heldStill {
+            heldStill = nil
+            pan?.isEnabled = held.pan
+            (pan?.view as? UIScrollView)?.pinchGestureRecognizer?.isEnabled = held.pinch
+        }
+        penDown(on)
     }
 
     /// Hands the eraser's points not handed yet to `rubbed`, and, when it lifts, ends the press.
@@ -157,14 +190,24 @@ final class InkQueue {
 
 /// One stroke of the pen as it is written: the touch it began with, every point the iPad reports for it (the Pencil's
 /// coalesced touches, up to 240 a second) with its pressure, and the points the iPad predicts, drawn ahead to cut the
-/// lag. A second touch lets the stroke go: two fingers scroll.
+/// lag. A second touch lets a finger's stroke go: two fingers scroll. Beside the Pencil writing, a palm or a finger is not
+/// heeded: the stroke goes on (#521 10).
 final class InkGesture: UIGestureRecognizer {
     private(set) var samples: [InkSample] = []
     private(set) var predicted: [InkSample] = []
     private var tracked: UITouch?
 
+    /// Whether the stroke is the Pencil's.
+    var byPencil: Bool { tracked?.type == .pencil }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         super.touchesBegan(touches, with: event)
+        if let tracked, tracked.type == .pencil {
+            for touch in touches where touch !== tracked {
+                ignore(touch, for: event)
+            }
+            return
+        }
         guard tracked == nil, touches.count == 1, let touch = touches.first else {
             state = state == .began || state == .changed ? .cancelled : .failed
             return

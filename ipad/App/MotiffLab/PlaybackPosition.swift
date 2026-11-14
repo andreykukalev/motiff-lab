@@ -161,12 +161,17 @@ enum PlaybackModel {
 
     /// T9 a selection appears: Цикл turns on (design question В2); T10 it changes: Цикл as it was; T11 it goes: nothing
     /// loops, Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not.
+    /// Playing already past the new selection's end, the loop can never catch the position and the engine plays on through
+    /// the piece: Цикл is off then, so it shows as off (#521 5); before the selection it waits to catch it and stays on.
     private static func select(_ state: State, _ selection: Range<Double>?) -> Decision {
         guard selection != state.selection else { return (state, []) }
         var after = state
         after.selection = selection
         if state.selection == nil && selection != nil {
             after.loop = true
+        }
+        if let selection, playing(state.transport), state.tick >= selection.upperBound {
+            after.loop = false
         }
         if let wanted = engineLoop(after) {
             return (after, [.loop(wanted)])
