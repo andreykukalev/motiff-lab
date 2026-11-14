@@ -586,6 +586,9 @@ else if (_loading && !HoldHeight)
     /// <summary>Turns the pen on or off: on, one finger draws and two scroll (0018 section 5).</summary>
     public Task TogglePencilAsync() => PencilAsync("setOn", !_pencilState.On);
 
+    /// <summary>The pen palette's Undo, from ⌘Z while the pen is on (#511 11): the last mark goes.</summary>
+    public Task UndoInkAsync() => _pencilState.CanUndo ? PencilAsync("undoLast") : Task.CompletedTask;
+
     private async Task PencilAsync(string method, params object?[] args)
     {
         if (_pencil is not null)

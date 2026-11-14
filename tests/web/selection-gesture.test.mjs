@@ -147,3 +147,29 @@ test("⌘Z undoes the selection and ⇧⌘Z or Ctrl+Y redoes it, outside a field
     const field = { closest: () => ({}) };
     assert.equal(undoFor(key("KeyZ", { metaKey: true, target: field })), null, "a field keeps its own Undo");
 });
+
+test("under the modes, in Navigate, the strips wait for the hold as the score does; a move before it moves the roll", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        const none = stripHost(null);
+        const creating = new RollStripGesture(none);
+        creating.begin(press("mouse"), 400, 10, 8000, "longPress");
+        assert.deepEqual(none.calls, [], "no selection at once");
+        mock.timers.tick(HOLD_MS);
+        assert.deepEqual(none.calls[0].slice(0, 3), ["range", 8000, "create"]);
+
+        const moved = stripHost(selection);
+        const panning = new RollStripGesture(moved);
+        panning.begin(press("mouse"), 100, 10, 5000, "longPress");
+        panning.move(1, 140, 10);
+        assert.deepEqual(moved.calls.map((call) => call[0]), ["pan"], "inside too, a move before the hold moves the roll");
+
+        const held = stripHost(selection);
+        const editing = new RollStripGesture(held);
+        editing.begin(press("touch"), 100, 10, 5000, "longPress");
+        mock.timers.tick(HOLD_MS);
+        assert.deepEqual(held.calls.map((call) => call[0]), ["edge"], "held inside, the edge follows");
+    } finally {
+        mock.timers.reset();
+    }
+});

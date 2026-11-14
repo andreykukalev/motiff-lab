@@ -2494,7 +2494,10 @@ export class PianoRoll {
             void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
             return;
         }
-        if (this.beginRulePress(event, x, y, tick, pitch) || !this.selectsWith(event.pointerType)) {
+        // The strips follow the one selection gesture under the modes too (#511 2.1, 6.3); Edit notes and the Pen keep their rules.
+        const stripRule = this.mode === "navigate" ? "longPress" : "now";
+        const ruled = this.mode !== null && this.mode !== "navigate" && this.mode !== "select";
+        if ((ruled && this.beginRulePress(event, x, y, tick, pitch)) || !this.selectsWith(event.pointerType)) {
             return;
         }
         // Shift-click on a bar number extends the selection to that bar.
@@ -2503,7 +2506,7 @@ export class PianoRoll {
             return;
         }
         // Inside the selection a move edits it, outside a hold clears it; without one a press selects at once (#511 2.1).
-        this.strip.begin(event, x, y, tick);
+        this.strip.begin(event, x, y, tick, stripRule);
         this.invalidate();
     }
 
@@ -2821,9 +2824,13 @@ export class PianoRoll {
             cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnRollGestureCancelled", gesture),
             hint: () => void this.dotnet.invokeMethodAsync("OnRollHoldHint"),
             tap: (tick, y, inside) => {
-                // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection.
-                if (inside) {
-                    this.pressLoopLane(y, tick);
+                // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection,
+                // and under the modes places the playhead on the beat, as a click there always has.
+                if (inside && this.pressLoopLane(y, tick)) {
+                    return;
+                }
+                if (this.mode !== null) {
+                    this.clickUnderRules({ tick, pitch: -1, shift: false });
                 }
             },
         };
