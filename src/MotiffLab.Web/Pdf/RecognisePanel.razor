@@ -7,7 +7,7 @@
    and the notes it reads go into the same piece (testing item 16, Andrei, 2026-11-06), or become another version of a
    piece that has notes. What leaves the device is one line naming the server set in Settings, and Recognise notes sends
    it: pressing the button is the player's yes, with no switch to turn on each time (v0.5, issue #479 item 17). A PDF
-   longer than the server reads at once goes in parts, up to 100 pages (ScoreScan), with a bar while it is read. On Motiff
+   of more pages goes a page a request, up to 100 pages (ScoreScan), with a segment a page while it is read. On Motiff
    Lab's server it needs an account and Pro, offered here. *@
 <div class="@(Inline ? "recognise-inline" : "popover recognise-popover")" role="@(Inline ? "group" : "dialog")" aria-label="@(Heading ?? Text["pdf.readNotes"])">
     <p class="overline">@(Heading ?? Text["pdf.readNotes"])</p>
@@ -35,7 +35,7 @@
 
 @code {
     private bool _reading;
-    private ScanProgress? _progress;
+    private MotiffLab.MusicCore.Import.Scan.PageProgress? _progress;
     private string? _problem;
 
     /// <summary>The PDF, exactly as the player added it.</summary>

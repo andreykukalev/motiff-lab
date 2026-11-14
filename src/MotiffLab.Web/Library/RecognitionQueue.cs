@@ -78,6 +78,7 @@ public sealed class RecognitionQueue(
 
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web);
 
+    private readonly List<long> _measured = [];
     private bool _running;
     private bool _stop;
     private bool _loaded;
@@ -86,6 +87,12 @@ public sealed class RecognitionQueue(
 
     /// <summary>Whether a piece is being read now; else the batch, if any, waits for the player or is done.</summary>
     public bool Running => _running;
+
+    /// <summary>
+    /// About how many minutes the pages left take (v0.5.6, #533 section 1), from the pages this batch has read here, timed
+    /// from send to answer; null before the first page is back.
+    /// </summary>
+    public int? MinutesLeft => Batch is { } batch ? PageProgress.MinutesFor(_measured, batch.PagesLeft) : null;
 
     /// <summary>After each page, each piece and each change of state.</summary>
     public event Action? Changed;
@@ -139,6 +146,11 @@ public sealed class RecognitionQueue(
         }
 
         RecognitionBatch? under = Batch is { Finished: false } kept ? kept : null;
+        if (under is null)
+        {
+            _measured.Clear();
+        }
+
         HashSet<string> already = [.. under?.Items.Select(static item => item.Project) ?? []];
         RecognitionItem[] added = [.. pieces.Where(piece => already.Add(piece.Project)).Select(static piece => new RecognitionItem(piece.Project, piece.Title, Math.Max(1, piece.Pages)))];
         Batch = new RecognitionBatch(address.ToString(), scans.IsHosted, [.. under?.Items ?? [], .. added]);
@@ -187,6 +199,7 @@ public sealed class RecognitionQueue(
     {
         _stop = true;
         Batch = null;
+        _measured.Clear();
         await folders.SaveStateAsync(Key, null);
         Changed?.Invoke();
     }
@@ -324,6 +337,7 @@ public sealed class RecognitionQueue(
                 return (RecognitionState.Failed, text.Format("recognition.failPage", number, text["pdf.unreadable"]), null);
             }
 
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             ScanResult result = await scans.RecogniseAsync($"{name} {number}.png", image);
             if (result.Stop is { } stop)
             {
@@ -335,6 +349,7 @@ public sealed class RecognitionQueue(
                 return (RecognitionState.Failed, text.Format("recognition.failPage", number, result.Problem ?? text["pdf.readNone"]), null);
             }
 
+            _measured.Add(watch.ElapsedMilliseconds);
             if (onHosted)
             {
                 await hosted.AddAsync(1);

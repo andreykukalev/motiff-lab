@@ -236,13 +236,14 @@ struct RecordingProblem: Error, Sendable {
     init(_ message: String) { self.message = message }
 }
 
-/// Choosing a recording to be heard: what it needs first (Motiff Lab's scan server, an account, Pro, offered here),
-/// the switch that lets the sound go, and the button that picks the recording. Used to add a piece from a recording
-/// (the library's Add piece) and another version from one (Other versions, 0022).
+/// Choosing a recording to be heard: what it needs first (Motiff Lab's scan server, an account, Pro, offered here), where
+/// the sound goes, and the button that picks the recording; picking it is the player's yes to sending its sound, with no
+/// switch to turn on first (v0.5.6, #533 section 8). Used to add another version from a recording (Other versions, 0022);
+/// the library's Add piece makes its whole card the button, with the same `blocker`.
 struct RecordingChooser: View {
     @EnvironmentObject private var account: Account
     let text: UIText
-    /// What the scan server does with the recording, said before the switch.
+    /// What the scan server does with the recording, said above the button.
     let line: String
     let button: String
     let hint: String
@@ -250,30 +251,34 @@ struct RecordingChooser: View {
     /// Why the last recording was not heard, under the button.
     var problem: String?
     let picked: (URL) -> Void
-    @State private var send = false
     @State private var choosing = false
+
+    /// What hearing a recording needs before it works here, in the player's words, and whether that is Pro; nil when it
+    /// works: Motiff Lab's scan server in this build, an account, then Pro.
+    @MainActor
+    static func blocker(_ account: Account, _ text: UIText) -> (words: String, pro: Bool)? {
+        if account.options.map({ URL(string: $0.scan)?.host == nil }) ?? true { return (text["version.recordingNoServer"], false) }
+        if account.player == nil { return (text["transcribe.signInPrompt"], false) }
+        if !account.allows(.transcribe) { return (text["transcribe.proPrompt"], true) }
+        return nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            if account.options.map({ URL(string: $0.scan)?.host == nil }) ?? true {
-                caption(text["version.recordingNoServer"])
-            } else if account.player == nil {
-                caption(text["transcribe.signInPrompt"])
-            } else if !account.allows(.transcribe) {
-                HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                    ProTag()
-                    caption(text["transcribe.proPrompt"])
+            if let blocked = Self.blocker(account, text) {
+                if blocked.pro {
+                    HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
+                        ProTag()
+                        caption(blocked.words)
+                    }
+                } else {
+                    caption(blocked.words)
                 }
             } else {
                 caption(line)
-                Toggle(text["transcribe.sendHosted"], isOn: $send)
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink"))
-                    .tint(Color.ds("accent"))
-                    .disabled(progress != nil)
                 Button(progress ?? button) { choosing = true }
                     .buttonStyle(DSButtonStyle(kind: .secondary))
-                    .disabled(!send || progress != nil)
+                    .disabled(progress != nil)
                     .accessibilityHint(hint)
             }
             if let problem {
@@ -310,7 +315,7 @@ struct ProTag: View {
 
 /// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
 /// Motiff Lab's scan server, however long, in parts of about two minutes; the notes heard become another version. It
-/// needs an account and Pro, offered here, and a switch to let the sound go.
+/// needs an account and Pro, offered here; choosing the recording sends its sound.
 struct RecordingVersionSection: View {
     @ObservedObject var score: ScoreController
     @EnvironmentObject private var account: Account

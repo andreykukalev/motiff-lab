@@ -137,7 +137,6 @@
   "recognition.finished": "Notes recognised: {0} of {1}",
   "recognition.howLong": "How long",
   "recognition.howLongLine": "About {0} min. The pieces done can be opened while the rest wait.",
-  "recognition.minutesLeft": "about {0} min left",
   "recognition.overLimit": "{0} pages are left today: the rest wait until tomorrow.",
   "recognition.pages.many": "{0} pages",
   "recognition.pages.one": "{0} page",

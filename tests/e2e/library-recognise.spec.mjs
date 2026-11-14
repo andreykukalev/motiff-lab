@@ -82,6 +82,8 @@ test("PDF pieces are picked in the list and read after one consent, page by page
 
     // Each page goes as an image, one at a time; each piece has its notes, and its line says so.
     await expect(page.locator(".run-bar")).toContainText("Notes read: 2 of 2", { timeout: 30000 });
+    // A segment a piece, each filled once its notes are back (#533 section 1).
+    await expect(page.locator(".recognition-bar .pages .page.done")).toHaveCount(2);
     expect(uploads).toHaveLength(3);
     for (const upload of uploads) {
         expect(upload.includes(Buffer.from("\x89PNG", "latin1"))).toBe(true);

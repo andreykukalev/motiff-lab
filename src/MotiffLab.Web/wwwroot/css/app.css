@@ -2719,29 +2719,70 @@ h1:focus {
     width: min(22rem, calc(100% - 2 * var(--s-4)));
 }
 
-/* While a score's notes are read (v0.5, issue #479): the bar, the part or pages being read and the time left. */
+/* While a score's notes are read (v0.5.6, #533 section 1): a segment a page (or a piece, in the library's batch), filled
+   when its notes are back, marked as going on while it is read, empty while it waits; nothing fills by time alone. The
+   current segment of a batch fills by the pages of its piece read (--done). */
 .scan-progress {
     display: grid;
     gap: var(--s-1);
 }
 
-.scan-progress .track {
-    position: relative;
-    display: block;
+.scan-progress .pages, .recognition-bar .pages {
+    display: flex;
+    gap: 2px;
     height: var(--s-1);
+}
+
+.scan-progress .pages.dense, .recognition-bar .pages.dense {
+    gap: 0;
+}
+
+.scan-progress .page, .recognition-bar .page {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
     overflow: hidden;
     border-radius: var(--r-pill);
     background: var(--hairline);
 }
 
-.scan-progress .fill {
+.scan-progress .pages.dense .page, .recognition-bar .pages.dense .page {
+    border-radius: 0;
+}
+
+.scan-progress .page.done, .recognition-bar .page.done {
+    background: var(--ink-2);
+}
+
+.scan-progress .page.current, .recognition-bar .page.current {
+    background: var(--hairline-strong);
+    animation: page-reading calc(4 * var(--t-slow)) var(--ease) infinite alternate;
+}
+
+.recognition-bar .page.current::before {
+    content: "";
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
     width: var(--done, 0%);
     background: var(--ink-2);
-    transition: width var(--t-slow) var(--ease);
+}
+
+@keyframes page-reading {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0.45;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scan-progress .page.current, .recognition-bar .page.current {
+        animation: none;
+    }
 }
 
 .scan-progress .caption {
@@ -11219,6 +11260,19 @@ body:has(> #app > .library) {
     width: var(--done, 0%);
     background: var(--ink-2);
     transition: width var(--t-base) var(--ease);
+}
+
+/* The batch's segments (v0.5.6, #533 section 1), a piece each, where the import's track runs. */
+.library .recognition-bar .pages {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+}
+
+.library .recognition-bar .page {
+    border-radius: 0;
 }
 
 .library .run-details {

@@ -27,6 +27,13 @@ public static class ScanParts
     public const int SafePages = 4;
 
     /// <summary>
+    /// The pages the apps send a request (v0.5.6, #533 section 1): one, so a score's progress is its pages' real answers
+    /// (<see cref="PageProgress"/>). Any server reads a one-page PDF, an older one on the player's own computer too, and
+    /// homr reads a page at a time whatever the request holds, so only the upload's small overhead is added a page.
+    /// </summary>
+    public const int PagesARequest = 1;
+
+    /// <summary>
     /// The parts a PDF of <paramref name="pages"/> pages goes in, for a server that reads <paramref name="maxPages"/> pages a
     /// request (fewer than 1 counts as <see cref="SafePages"/>): consecutive, in order, each as full as it can be, the last
     /// with what is left. One part when the PDF fits.

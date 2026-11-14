@@ -1,26 +1,38 @@
-@implements IDisposable
+@using MotiffLab.MusicCore.Import.Scan
 @inject MotiffLab.Web.Localization.UiText Text
 
-@* While a score's notes are read (v0.5, issue #479 item 10): a bar, the part or the pages being read and about how long is
-   left, moving every few seconds by the rough time a page takes; the bar never shows the score done before it is. *@
+@* While a score's notes are read (v0.5.6, #533 section 1): a segment a page, the pages read filled, the page being read
+   marked as going on, the pages waiting empty, «Страница 3 из 8», and about how long is left only once a page has been
+   measured. Nothing moves by time alone: the bar changes when a page's notes come back. *@
 <div class="scan-progress" role="status">
-    <span class="track" role="progressbar" aria-label="@Text["scan.progressLabel"]" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent">
-        <span class="fill" style="--done: @(Percent)%"></span>
+    <span class="pages @(Progress.Pages > ScanProgressBar.DensePages ? "dense" : null)" role="progressbar" aria-label="@Text["scan.progressLabel"]"
+          aria-valuemin="0" aria-valuemax="@Progress.Pages" aria-valuenow="@Progress.Done" aria-valuetext="@Line">
+        @foreach (PageState state in Progress.States)
+        {
+            <span class="page @Class(state)"></span>
+        }
     </span>
-    <span class="caption">@Progress.Line(Text) · @Text.Format("recognition.left", Progress.MinutesLeft(DateTimeOffset.Now))</span>
+    <span class="caption">@Caption</span>
 </div>
 
 @code {
+    /// <summary>More pages than this and the segments touch, so each stays wide enough to see.</summary>
+    public const int DensePages = 40;
+
     /// <summary>The score being read.</summary>
     [Parameter, EditorRequired]
-    public ScanProgress Progress { get; set; } = default!;
+    public PageProgress Progress { get; set; } = default!;
 
-    private Timer? _timer;
+    /// <summary>The page being read, or that all are read.</summary>
+    private string Line => Progress.Current is { } page ? Text.Format("scan.pageOf", page, Progress.Pages) : Text.Format("scan.allRead", Progress.Pages);
 
-    private int Percent => Progress.Percent(DateTimeOffset.Now);
+    private string Caption => Progress.MinutesLeft is { } minutes ? $"{Line} · {Text.Format("recognition.left", minutes)}" : Line;
 
-    protected override void OnInitialized() =>
-        _timer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
-
-    public void Dispose() => _timer?.Dispose();
+    /// <summary>A segment's class: done, current or waiting.</summary>
+    public static string Class(PageState state) => state switch
+    {
+        PageState.Done => "done",
+        PageState.Current => "current",
+        _ => "waiting",
+    };
 }
