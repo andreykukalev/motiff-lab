@@ -26,7 +26,10 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// split moments turn a 4/4 piece into 5/4. A bar is re-timed only when that gives it the length most bars have (counting
 /// each bar as it was read and as it would be re-timed), so music where the hands really take turns keeps its reading.
 /// The upper number of each time signature becomes that length when at least three bars, and half of those it governs,
-/// have it; a signature over fewer bars is kept as written.
+/// have it; a signature over fewer bars is kept as written. The engine reads each page on its own, so a signature it wrote
+/// at the start of a page with the lower number already in force is judged with the bars before it, unless that page's
+/// own bars agree on another length: a page of few bars, or of many split moments, takes its piece's meter, and a real
+/// change of meter keeps its own (v0.5.7, issue #543; <see cref="Stretches"/>).
 /// </para>
 /// <para>
 /// What is changed is inferred, not read: the score says so in its <c>encoding-description</c>, and its notes stay
@@ -59,10 +62,9 @@ public static partial class ScanRepair
         var changes = new Changes();
         foreach (XElement part in root.Elements("part"))
         {
-            List<Bar> bars = Bars(part);
-            foreach (List<Bar> range in Ranges(bars))
+            foreach (List<Bar> stretch in Stretches(Ranges(Bars(part))))
             {
-                Mend(range, changes);
+                Mend(stretch, changes);
             }
         }
 
@@ -75,29 +77,40 @@ public static partial class ScanRepair
         return Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n" + root.ToString(SaveOptions.DisableFormatting));
     }
 
-    /// <summary>One range of bars under one written time signature (or none, before the first): re-timed bars, then the signature.</summary>
-    private static void Mend(List<Bar> range, Changes changes)
+    /// <summary>
+    /// One stretch of bars judged together (<see cref="Stretches"/>): a range under one written time signature (or none,
+    /// before the first), with the pages that continue it. Re-timed bars, then each signature written in it.
+    /// </summary>
+    private static void Mend(List<Bar> stretch, Changes changes)
     {
-        XElement? time = range[0].Time;
-        QuarterFraction? written = time is null ? null : Written(time);
-        if (Most(range, written) is not { } most)
+        XElement? time = stretch[0].Time;
+        if (Most(stretch, time is null ? null : Written(time)) is not { } most)
         {
             return;
         }
 
-        foreach (Bar bar in range.Where(bar => bar.Retimed is not null && bar.RetimedLength == most && bar.Length != most))
+        foreach (Bar bar in stretch.Where(bar => bar.Retimed is not null && bar.RetimedLength == most && bar.Length != most))
         {
             Retime(bar);
             changes.Retimed++;
         }
 
-        int count = range.Count(bar => bar.Length == most);
-        if (time is null || written is null || written == most || count < FewestBarsForMeter || count * 2 < range.Count)
+        int count = stretch.Count(bar => bar.Length == most);
+        if (count < FewestBarsForMeter || count * 2 < stretch.Count)
         {
             return;
         }
 
-        int beatType = int.Parse(time.Element("beat-type")!.Value.Trim(), CultureInfo.InvariantCulture);
+        foreach (XElement signature in stretch.Select(bar => bar.Time).OfType<XElement>().Where(signature => Written(signature) is { } written && written != most))
+        {
+            Rewrite(signature, most, changes);
+        }
+    }
+
+    /// <summary>The upper number of the signature from the bar length, when that is a whole number of its beats.</summary>
+    private static void Rewrite(XElement time, QuarterFraction most, Changes changes)
+    {
+        int beatType = int.Parse(BeatType(time), CultureInfo.InvariantCulture);
         QuarterFraction beats = new(most.Numerator * beatType, most.Denominator * 4);
         if (beats.Denominator == 1 && beats.Numerator is >= 1 and <= TimeSignature.MaxNumerator)
         {
@@ -235,7 +248,7 @@ public static partial class ScanRepair
             said.Add($"{changes.Retimed} bars re-timed where the engine wrote notes that sound together one after the other");
         }
 
-        said.AddRange(changes.Meters.Select(meter => $"time signature {meter}, inferred from the bar contents"));
+        said.AddRange(changes.Meters.Distinct().Select(meter => $"time signature {meter}, inferred from the bar contents"));
         encoding.Add(new XElement("encoding-description", "Motiff Lab scan repair: " + string.Join("; ", said) + "."));
     }
 
@@ -274,6 +287,9 @@ public static partial class ScanRepair
         public long Divisions { get; private set; }
 
         public XElement? Time { get; private set; }
+
+        /// <summary>Whether the measure is the first of a page after the first (<see cref="ScanJoin"/>'s page mark).</summary>
+        public bool StartsPage => Measure.Elements("print").Any(print => (string?)print.Attribute("new-page") == "yes");
 
         public List<Sound> Sounds { get; } = [];
 
