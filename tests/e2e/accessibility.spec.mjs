@@ -134,7 +134,7 @@ test("marks: the note card, a marker, the highlight swatches, the Contents' note
     expect(await violations(page)).toEqual([]);
 });
 
-test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {
+test("phrase focus: the card with its ossia, the variation chips and the focus bar, in both themes", async ({ page }) => {
     await openFurElise(page);
     await selectPhrase(page);
     await openInsights(page);
@@ -143,7 +143,6 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
     await focusSelection(page);
     await expect(page.locator(".focus-card .ossia-frame").first()).toBeVisible();
-    await page.locator(".pill").getByRole("button", { name: "Lead-in" }).click();
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     for (const theme of ["daylight", "night"]) {
         await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);

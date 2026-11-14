@@ -179,3 +179,50 @@ test("on the roll the black dot is dragged across the piece onto the sixteenth g
     expect(heard.at(-1)).toBe("scrubEnd");
     expect(errors).toEqual([]);
 });
+
+test("on the roll, playing, the black dot is taken at Fit and zoomed in: the music stands, the drag is heard, it plays on (#533 4)", async ({ page }) => {
+    await withExperiment(page);
+    const errors = await openFurElise(page);
+    await expect(page.locator(".score svg g.measure").first()).toBeVisible();
+    await openRoll(page);
+    const control = page.locator(".roll .roll-playhead");
+    await expect(control).toBeAttached();
+    const play = page.locator(".pill .play-at");
+    for (const zoom of ["Fit", "Zoom in"]) {
+        for (let step = 0; step < (zoom === "Fit" ? 1 : 4); step++) {
+            await page.locator(".roll").getByRole("button", { name: zoom, exact: true }).click();
+        }
+        await play.click();
+        await withAudioDiagnostic(page, test.info(), async () => {
+            await expect(play).toHaveAccessibleName(/^Pause · \d+\.\d+$/);
+        });
+        await page.waitForTimeout(600);
+        await posted(page);
+        // Held, playback stands at once, before the dot moves. The test's own round trips can take longer than a hand, so
+        // the dot may have run on past the press: then again.
+        let from = null;
+        await expect(async () => {
+            const box = await control.boundingBox();
+            from = { x: box.x + box.width / 2, y: box.y };
+            await page.mouse.move(from.x, from.y);
+            await page.mouse.down();
+            try {
+                await expect(play).toHaveAccessibleName(/^Play from \d+\.\d+$/, { timeout: 1_500 });
+            } catch (missed) {
+                await page.mouse.up();
+                throw missed;
+            }
+        }).toPass({ timeout: 20_000 });
+        await page.mouse.move(from.x + 60, from.y, { steps: 6 });
+        await page.mouse.move(from.x - 30, from.y, { steps: 6 });
+        await page.mouse.up();
+        await expect(play).toHaveAccessibleName(/^Pause · \d+\.\d+$/);
+        const heard = await posted(page);
+        expect(heard[0]).toBe("pause");
+        expect(heard).toContain("scrub");
+        expect(heard.slice(-2)).toEqual(["scrubEnd", "play"]);
+        await play.click();
+        await expect(play).toHaveAccessibleName(/^Play from \d+\.\d+$/);
+    }
+    expect(errors).toEqual([]);
+});

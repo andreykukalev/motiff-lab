@@ -109,8 +109,11 @@ interface PlayerHandle {
     noteOff?(pitch: number): void;
     /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
     model?(): ModelState | null;
-    /** A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll. */
-    drag?(message: DragMessage): void;
+    /**
+     * A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll;
+     * with the passage Expand is bound to, it is held inside it (#533 2).
+     */
+    drag?(message: DragMessage, passage?: Span | null): void;
 }
 
 /** A note of the variation drawn over the roll, with where it came from in the motif. */
@@ -395,7 +398,8 @@ export class PianoRoll {
     /**
      * The passage Expand is bound to (#521 19), or null: while it is, the roll shows only it, fitted across its width; the
      * view moves only within it and its margin, not at all when it fits, the zoom never shows more than it, playback is
-     * followed no further than its end, and no pointer changes the selection.
+     * followed no further than its end, and no pointer changes the selection. Its playhead is taken and dragged inside it,
+     * as the model's blue one (#533 2), and no band shades it: the passage is all there is to work on (#533 3).
      */
     private passage: Span | null = null;
     /** The zoom and the view before the passage was bound, given back when it goes, so Collapse returns to them (#521 17). */
@@ -412,7 +416,7 @@ export class PianoRoll {
      */
     private readonly laneDrag = new PlayheadDrag((message) => {
         if (this.player?.drag !== undefined) {
-            this.player.drag(message);
+            this.player.drag(message, this.passage);
             return;
         }
         void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, message.phase === "move" ? message.tick : null);
@@ -1804,8 +1808,9 @@ export class PianoRoll {
         }
 
         // The selected range, or the range being dragged, shaded and marked on the bar numbers.
+        // Not in Expand (#533 3): the passage on screen is the selection already, and nothing there changes it.
         const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.motif;
-        if (band !== null) {
+        if (band !== null && this.passage === null) {
             const left = Math.max(GUTTER, this.xOf(band.start));
             const right = Math.min(width, this.xOf(band.end));
             if (right > left) {
@@ -1829,7 +1834,7 @@ export class PianoRoll {
         }
 
         // The range that plays, which a variation can make longer or shorter than the selection.
-        const play = this.drag === null && !this.lanes ? this.playRange : null;
+        const play = this.drag === null && !this.lanes && this.passage === null ? this.playRange : null;
         if (play !== null) {
             const left = Math.max(GUTTER, this.xOf(play.start));
             const right = Math.min(width, this.xOf(play.end));
@@ -2131,6 +2136,9 @@ export class PianoRoll {
         if (this.editing || this.player === null) {
             return false;
         }
+        if (this.passage !== null) {
+            return this.pressPassageHead(event, x, y, finger ? TOUCH : KNOB_MOUSE, line);
+        }
         if (this.lanes) {
             return this.pressLaneHead(event, x, y);
         }
@@ -2218,6 +2226,18 @@ export class PianoRoll {
         return true;
     }
 
+    /**
+     * In Expand (#533 2) the playhead is the model's blue one over the passage: taken by its handle, or with a finger in touch
+     * reading anywhere down its line, a touch target wide (found where it was drawn a moment ago while playing), and dragged
+     * inside the passage on the sixteenth grid, heard; playing, it stands while held and plays on from where it is let go.
+     */
+    private pressPassageHead(event: PointerEvent, x: number, y: number, touch: number, line: boolean): boolean {
+        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, touch, line)) {
+            return false;
+        }
+        return this.grabHead("blue", event.pointerId, x);
+    }
+
     /** The web's playback model while the player holds it under the modes, which the roll draws and drags; else null. */
     private heldModel(): ModelState | null {
         return this.mode === null || this.model === null ? null : (this.player?.model?.() ?? null);
@@ -2248,7 +2268,7 @@ export class PianoRoll {
             return;
         }
         const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
-        const selection = this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif);
+        const selection = this.passage ?? (this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif));
         const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end);
         if (tick !== undefined) {
             this.laneDrag.move(pointer, tick);

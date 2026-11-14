@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { PlaybackOwner } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-owner.js";
+import { PassageGrip, PlaybackOwner } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-owner.js";
 
 const root = new URL("../../", import.meta.url);
 const { cases } = JSON.parse(readFileSync(new URL("ipad/App/MotiffLabTests/Golden/playback-model.json", root), "utf8"));
@@ -143,4 +143,33 @@ test("a move or a letting go with nothing held does nothing; a new piece or a se
 
     owner.reset();
     assert.equal(owner.dragging, false);
+});
+
+test("in Expand the playhead is held over the passage: it stands, scrubs inside it either way and plays on, the loop untouched (#533 2)", () => {
+    const sent = [];
+    const grip = new PassageGrip((step) => sent.push(step));
+    const passage = { start: 1920, end: 3840 };
+    assert.deepEqual(grip.gesture({ phase: "grab", handle: "blue" }, passage, { tick: 2400, transport: "playing" }), { tick: 2400, transport: "stopped" });
+    assert.equal(grip.dragging, true);
+    grip.gesture({ phase: "move", handle: "blue", tick: 2040 }, passage, { tick: 2400, transport: "stopped" });
+    grip.gesture({ phase: "move", handle: "blue", tick: 9000 }, passage, { tick: 2040, transport: "stopped" });
+    grip.gesture({ phase: "move", handle: "blue", tick: 0 }, passage, { tick: 3839, transport: "stopped" });
+    const after = grip.gesture({ phase: "release", handle: "blue" }, passage, { tick: 1920, transport: "stopped" });
+    assert.deepEqual(after, { tick: 1920, transport: "playing" });
+    assert.equal(grip.dragging, false);
+    assert.deepEqual(sent, [
+        { type: "pause" },
+        { type: "scrub", from: 2400, to: 2040 },
+        { type: "scrub", from: 2040, to: 3839 },
+        { type: "scrub", from: 3839, to: 1920 },
+        { type: "scrubEnd" },
+        { type: "play" },
+    ]);
+
+    sent.length = 0;
+    grip.gesture({ phase: "grab", handle: "blue" }, passage, { tick: 2400, transport: "stopped" });
+    grip.gesture({ phase: "move", handle: "blue", tick: 2880 }, passage, { tick: 2400, transport: "stopped" });
+    grip.gesture({ phase: "release", handle: "blue" }, passage, { tick: 2880, transport: "stopped" });
+    assert.deepEqual(sent, [{ type: "scrub", from: 2400, to: 2880 }, { type: "scrubEnd" }], "stopped, it stays stopped (T16)");
+    assert.equal(grip.gesture({ phase: "release", handle: "blue" }, passage, { tick: 2880, transport: "stopped" }), null, "nothing held");
 });

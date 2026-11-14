@@ -240,7 +240,7 @@ final class Player: ObservableObject {
     }
 
     /// The model's steps to the engine; its loop goes through applyLoop, so `loop` says what the engine loops.
-    private func perform(_ steps: [TransportStep]) {
+    func perform(_ steps: [TransportStep]) {
         for step in steps {
             switch step {
             case .pause:

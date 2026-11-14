@@ -4,7 +4,8 @@
 
 import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
 import type { ModelEvent, ModelState, Step } from "./playback-model.js";
-import { PlaybackOwner, type Applied, type EnginePlace, type LoopAfter } from "./playback-owner.js";
+import { PassageGrip, PlaybackOwner, type Applied, type EnginePlace, type LoopAfter } from "./playback-owner.js";
+import type { Span } from "./playback-model.js";
 import type { DragMessage } from "./playhead-drag.js";
 import { SAMPLE_RATE, decodeMono, peaksOf } from "../import/recording.js";
 import { openRecording } from "../storage/recording-store.js";
@@ -62,6 +63,8 @@ export class Player {
     private recordingSound: RecordingSound | null = null;
     /** The playback model of v0.5.2 (#495 UX-10, playback-owner.ts): the selection and Цикл, while it holds. */
     private readonly owner = new PlaybackOwner((step) => this.perform(step));
+    /** The playhead on Expand's roll held over its passage (#533 2), while the model lets go there. */
+    private readonly passageGrip = new PassageGrip((step) => this.perform(step));
     /** What Blazor was last told of the model, so it hears again only when that changes. */
     private modelReported = "";
 
@@ -206,7 +209,11 @@ export class Player {
      * stands; dragged, the engine scrubs there; let go, the release rules run and it plays on when it played. Blazor hears
      * the gesture's start and its end only (OnPlayheadGesture), with the engine's loop after it; the moves stay here.
      */
-    drag(message: DragMessage): void {
+    drag(message: DragMessage, passage: Span | null = null): void {
+        if (passage !== null || this.passageGrip.dragging) {
+            this.dragInPassage(message, passage);
+            return;
+        }
         if (!this.owner.held) {
             return;
         }
@@ -221,6 +228,18 @@ export class Player {
         this.modelReported = "";
         this.reportModel(decided.engine);
         void this.dotnet.invokeMethodAsync("OnPlayheadGesture", loopOf(decided.loop));
+    }
+
+    /**
+     * The playhead on Expand's roll (#533 2): held over the passage, which goes on looping; Blazor hears the transport from
+     * the engine's reports. A gesture whose roll let the passage go mid-drag is still let go.
+     */
+    private dragInPassage(message: DragMessage, passage: Span | null): void {
+        if (message.phase === "grab") {
+            void this.resume();
+        }
+        const over = passage ?? { start: 0, end: Number.MAX_SAFE_INTEGER };
+        this.passageGrip.gesture(message, over, this.place());
     }
 
     /** The model's state now, the position as heard; null while it does not hold. */
@@ -453,7 +472,7 @@ export class Player {
             void this.dotnet.invokeMethodAsync("OnPlaybackPosition", tick, report.state, report.pass);
         }
         // While a playhead is held, Blazor hears of it at the gesture's end (drag): the views draw the moves themselves.
-        if (!this.owner.dragging) {
+        if (!this.owner.dragging && !this.passageGrip.dragging) {
             this.reportModel();
         }
     }
@@ -468,7 +487,7 @@ export class Player {
         if (report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass) {
             return true;
         }
-        if (this.owner.dragging) {
+        if (this.owner.dragging || this.passageGrip.dragging) {
             return false;
         }
         return this.dotnetStale || (tick !== this.lastDotnetTick && now - this.lastDotnetReport >= DOTNET_REPORT_MS);

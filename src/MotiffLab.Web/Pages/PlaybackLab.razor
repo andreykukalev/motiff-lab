@@ -711,15 +711,11 @@
                         <button class="play" @onclick="PillPlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                             <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
                         </button>
-                        @* Expand plays its passage once, so it has no Loop (#521 19). *@
+                        @* Expand always loops its passage, so it has no Loop (#533 2). *@
                         @if (_selection is { NoteIds.Count: > 0 } && !Focused)
                         {
                             <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
                         }
-                    }
-                    @if (Focused)
-                    {
-                        <button class="it @(_leadIn ? "on" : null)" aria-pressed="@(_leadIn ? "true" : "false")" title="@Text["focus.leadInHint"]" @onclick="ToggleLeadInAsync"><Icon Name="leadin" /> @Text["focus.leadIn"]</button>
                     }
                     @* Tempo and Hands open their popovers over themselves, with the pointer at them (design/kit/ds.css .popover). *@
                     <span class="anchor">
@@ -3810,7 +3806,6 @@
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
-        await SetLeadSourceAsync(selection);
         // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
         _alternating = _alternating && CanAlternate(selection);
         // The other version is heard only in focus, while it is shown (0022, section 5).
@@ -3823,8 +3818,7 @@
         {
             await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(selection.Span))));
         }
-        // In focus, Lead-in takes in the bar before and the bar after.
-        TickSpan range = WithLead(PlayRange(selection));
+        TickSpan range = PlayRange(selection);
         if (ModelHolds)
         {
             // The playback model (v0.5.2) loops the selection with Цикл on; the position stays where it is (T9, T10).
@@ -3836,14 +3830,14 @@
             return await AlternateAsync(selection);
         }
 
-        await Player.SelectSourcesAsync(WithLeadSource(_hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)));
+        await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
         if (ModelHolds)
         {
             return range;
         }
 
-        // Expand plays its passage once and stops at its end (#521 19).
-        await Player.SetLoopAsync(range, once: Focused);
+        // Expand loops its passage too (#533 2).
+        await Player.SetLoopAsync(range);
         if (!range.Contains(Player.Position))
         {
             await Player.SeekAsync(range.Onset);

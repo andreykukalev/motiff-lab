@@ -295,12 +295,6 @@ final class PencilTests: XCTestCase {
         XCTAssertGreaterThan(frames?.intValue ?? 0, 0)
         _ = MusicCore.call(piece: piece.id, "variation.clear")
 
-        // Lead-in takes in the bar before and the bar after.
-        let led = try await call(view, "lead", ["start": second.onset, "end": second.end])
-        let wider = try XCTUnwrap(led as? [String: Any])
-        XCTAssertLessThan((wider["start"] as? NSNumber)?.doubleValue ?? .infinity, second.onset)
-        XCTAssertGreaterThan((wider["end"] as? NSNumber)?.doubleValue ?? 0, second.end)
-
         _ = try await call(view, "focus", ["open": false])
         let gone = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
         XCTAssertEqual(gone, true)
