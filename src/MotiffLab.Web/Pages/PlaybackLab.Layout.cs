@@ -517,18 +517,18 @@ public partial class PlaybackLab : IAsyncDisposable
     }
 
     /// <summary>
-    /// The unit before or after the selection at the level shown; the first when nothing is selected. In focus, the one
-    /// before or after the phrase in focus, and the card moves to it.
+    /// The unit before or after the selection at the level shown; the first when nothing is selected. Not in Expand, which
+    /// stays on its passage (#521 19).
     /// </summary>
     private async Task StepUnitAsync(int direction)
     {
-        if (Levels is null)
+        if (Levels is null || Focused)
         {
             return;
         }
 
         IReadOnlyList<PhraseUnit> units = Levels.Units(_level);
-        PhraseUnit? from = Focused ? FocusUnit : _selection is { } selection ? CurrentUnit ?? Levels.At(_level, selection.Span.Onset) : null;
+        PhraseUnit? from = _selection is { } selection ? CurrentUnit ?? Levels.At(_level, selection.Span.Onset) : null;
         int index = from is not null ? from.Number - 1 + Math.Sign(direction) : direction > 0 ? 0 : -1;
         if (index < 0 || index >= units.Count)
         {
@@ -536,10 +536,6 @@ public partial class PlaybackLab : IAsyncDisposable
         }
 
         await SelectAsync(Levels.Selectable(units[index]), note: null);
-        if (_focus)
-        {
-            _focusSpan = _selection?.Span;
-        }
     }
 
     /// <summary>A click on a bar in the score selects it, and a Shift-click extends the selection to it, as on the roll (S1-M1).</summary>

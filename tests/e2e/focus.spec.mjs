@@ -1,7 +1,7 @@
 // Phrase focus (decision record 0018, section 4): the phrase lifted into a card across the screen over the dimmed page,
-// entered by Focus in the menu, left by Back, a tap on the page or Escape; previous and next
-// walk the piece; a variation is engraved as an ossia above the original, with Original / Variation / Alternate in the
-// focus bar and the kept variations as chips; Lead-in on the pill.
+// entered by Focus in the menu, left by Back, a tap on the page or Escape; it stays on its passage and plays it once
+// (#521 19); a variation is engraved as an ossia above the original, with Original / Variation / Alternate in the focus
+// bar and the kept variations as chips; Lead-in on the pill.
 import { expect, test } from "@playwright/test";
 import { focusSelection, openFurElise, openInsights, selectPhrase, tryWay } from "./steps.mjs";
 
@@ -38,27 +38,29 @@ test("Focus lifts the selected phrase; Back, the dimmed page and Escape put it b
     expect(errors).toEqual([]);
 });
 
-test("previous and next walk the phrases, and the card follows", async ({ page }) => {
-    // Twenty-one phrases, each engraved in the card: two to three seconds a phrase on a CI runner, near the minute in
-    // every engine (#309).
-    test.slow(true, "walks all twenty-one phrases");
-    await openFurElise(page);
+test("Expand stays on its passage: no arrows to another phrase, the keys step nowhere, Play plays it once and stops (#521 19)", async ({ page }) => {
+    const errors = await openFurElise(page);
     await selectPhrase(page);
     await focusSelection(page);
-    const previous = card(page).getByRole("button", { name: "Previous phrase" });
-    const next = card(page).getByRole("button", { name: "Next phrase" });
-    await expect(previous).toBeDisabled();
-    await next.click();
-    await expect(bar(page).locator(".crumb")).toContainText("phrase 2 of 21");
-    await expect(page.locator(".selection-status")).toContainText("bars 4–8");
-    await page.keyboard.press("PageUp");
-    await expect(bar(page).locator(".crumb")).toContainText("phrase 1 of 21");
-    // The last phrase of the piece has no next one.
-    for (let phrase = 2; phrase <= 21; phrase++) {
-        await page.keyboard.press("PageDown");
-        await expect(bar(page).locator(".crumb")).toContainText(`phrase ${phrase} of 21`);
-    }
-    await expect(next).toBeDisabled();
+    const crumb = bar(page).locator(".crumb");
+    await expect(crumb).toContainText("phrase 1 of 21");
+    await expect(card(page).getByRole("button", { name: /^(Previous|Next) phrase$/ })).toHaveCount(0);
+    await page.keyboard.press("PageDown");
+    await expect(crumb).toContainText("phrase 1 of 21");
+    await expect(page.locator(".selection-status")).toContainText("bars 0–4");
+
+    // One Play, no Loop: the passage plays once and stops at its end, ready at its start.
+    const pill = page.locator(".pill");
+    await expect(pill.getByRole("button", { name: "Loop" })).toHaveCount(0);
+    await pill.getByRole("button", { name: "Play", exact: true }).click();
+    await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    await expect(pill.getByRole("button", { name: "Play", exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(crumb).toContainText("phrase 1 of 21");
+
+    // Back to the page, the loop as it was: none.
+    await bar(page).getByRole("button", { name: "Back to page" }).click();
+    await expect(page.locator(".pill").getByRole("button", { name: "Loop" })).toHaveAttribute("aria-pressed", "false");
+    expect(errors).toEqual([]);
 });
 
 test("a variation is the ossia above the phrase, heard with Original, Variation or Alternate; kept ones are chips", async ({ page }) => {

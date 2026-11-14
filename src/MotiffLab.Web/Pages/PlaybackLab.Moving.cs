@@ -10,9 +10,8 @@ public partial class PlaybackLab
     /// <summary>The bar and beat the page last drew itself again for.</summary>
     private (int Bar, int Beat)? _beatShown;
 
-    private void OnPlayerMoved() => _ = InvokeAsync(async () =>
+    private void OnPlayerMoved() => _ = InvokeAsync(() =>
     {
-        await FollowPlayingInFocusAsync();
         (int Bar, int Beat)? beat = _meter?.ToPosition(Player.Position) is { } at ? (at.Bar, at.Beat) : null;
         if (beat != _beatShown || FollowsEveryMove)
         {

@@ -361,7 +361,7 @@
             {
                 @* Phrase focus (0018 section 4): the page dimmed behind the phrase lifted into a card; a tap on the page goes back to it. *@
                 <div class="focus-layer" data-keeps-selection>
-                    <button class="veil" aria-label="@Text["focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
+                    <button class="veil" aria-label="@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
                     <div class="focus-stage">
                         <section class="focus-card @(FocusVariations is { Count: > 0 } ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
                             @if (FocusVariations is { Count: > 0 } variations)
@@ -375,22 +375,20 @@
                                     }
                                 </div>
                             }
-                            <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
                             @if (_focusRoll)
                             {
-                                @* The phrase as a roll over the card (testing item 12), at the player's zoom (#511 section 5); the zoom and Fit float over it. *@
+                                @* The passage as a roll over the card (testing item 12), bound to it (#521 19): laid across the card, moved
+                                   only within it, nothing on it selects or edits; the zoom and Fit float over it. *@
                                 <div class="focus-roll" data-fill="true">
-                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" Passage="FocusSpan"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" SelectionGesture="OnSelectionGestureAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
-                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor" />
+                                               PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" />
                                 </div>
                             }
                             else
                             {
                                 <PhraseCard Source="card" Sounding="@FocusSounding" />
                             }
-                            <button class="step next" aria-label="@Text["focus.next"]" title="@Text["focus.next"]" disabled="@(!CanStepOn)" @onclick="() => StepUnitAsync(1)"><Icon Name="fwd" Size="IconSize.Large" /></button>
                         </section>
                     </div>
                 </div>
@@ -710,10 +708,11 @@
                     }
                     else
                     {
-                        <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                        <button class="play" @onclick="PillPlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                             <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
                         </button>
-                        @if (_selection is { NoteIds.Count: > 0 })
+                        @* Expand plays its passage once, so it has no Loop (#521 19). *@
+                        @if (_selection is { NoteIds.Count: > 0 } && !Focused)
                         {
                             <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
                         }
@@ -840,7 +839,7 @@
                 @* Under the playback model (v0.5.2) Play and Цикл are in the pill only. *@
                 <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
             }
-            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="expand" /><span class="lbl">@Text["focus.enter"]</span></button>
+            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocusAsync"><Icon Name="expand" /><span class="lbl">@Text["focus.enter"]</span></button>
             <button class="it" aria-label="@Text["menu.note"]" @onclick="StartNote"><Icon Name="note" /><span class="lbl">@Text["menu.note"]</span></button>
             <button class="it" aria-label="@Text["menu.bookmark"]" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /><span class="lbl">@Text["menu.bookmark"]</span></button>
             <span class="div" aria-hidden="true"></span>
@@ -1857,7 +1856,8 @@
     /// Original / Variation / Alternate when the phrase has a variation, then the piano roll, Insights and Play.
     /// </summary>
     private RenderFragment FocusBar => @<text>
-        <button class="back-to-page" title="@Text["focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="back" Size="IconSize.Large" /> <span>@Text["focus.back"]</span></button>
+        @* The way back is the way in (#521 17): from the score «К странице», from the roll «Свернуть». *@
+        <button class="back-to-page" title="@Text[_focusFromRoll ? "focus.collapseHint" : "focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="@(_focusFromRoll ? "collapse" : "back")" Size="IconSize.Large" /> <span>@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]</span></button>
         <span class="crumb">@FocusPosition</span>
         @* The phrase as notes or as a roll (testing item 12). *@
         <div class="seg" role="radiogroup" aria-label="@Text["focus.showAs"]">
@@ -2417,7 +2417,6 @@
     private void OnPlayerChanged() => _ = InvokeAsync(async () =>
     {
         await FollowScaleAsync();
-        await FollowPlayingInFocusAsync();
         await FollowCycleAsync();
         StateHasChanged();
     });
@@ -2697,6 +2696,12 @@
         if (ModelHolds)
         {
             await PressAsync();
+            return;
+        }
+
+        if (Focused)
+        {
+            await PlayPassageAsync();
             return;
         }
 
@@ -3837,7 +3842,8 @@
             return range;
         }
 
-        await Player.SetLoopAsync(range);
+        // Expand plays its passage once and stops at its end (#521 19).
+        await Player.SetLoopAsync(range, once: Focused);
         if (!range.Contains(Player.Position))
         {
             await Player.SeekAsync(range.Onset);

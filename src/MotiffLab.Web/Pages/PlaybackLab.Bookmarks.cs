@@ -237,7 +237,7 @@ public partial class PlaybackLab
         if (_shownBookmark == bookmark.Id && _selection?.Span == SelectedSpanOf(bookmark))
         {
             _contentsOpen = false;
-            EnterFocus();
+            await EnterFocusAsync();
             return;
         }
 

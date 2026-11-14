@@ -56,8 +56,8 @@ else
     <button class="chip" title="@Text["roll.colourHint"]" @onclick="NextColourAsync" disabled="@(AvailableModes.Count() < 2)">@Text[$"roll.colour.{_colourBy}"]</button>
     @if (Expanded.HasDelegate)
     {
-        @* Into phrase focus with the phrase as a roll (testing item 12). *@
-        <button class="chip" title="@Text["roll.expandHint"]" @onclick="() => Expanded.InvokeAsync()"><Icon Name="expand" /> @Text["roll.expand"]</button>
+        @* Into phrase focus with the selection as a roll (testing item 12), only with a selection (#521 19.1). *@
+        <button class="chip" title="@Text[Motif is null ? "roll.expandNeedsSelection" : "roll.expandHint"]" disabled="@(Motif is null)" @onclick="() => Expanded.InvokeAsync()"><Icon Name="expand" /> @Text["roll.expand"]</button>
     }
     <button class="chip icon @(_menuOpen ? "on" : null)" aria-expanded="@(_menuOpen ? "true" : "false")" aria-label="@Text["roll.more"]" title="@Text["roll.more"]"
             @onclick="() => _menuOpen = !_menuOpen"><Icon Name="more" /></button>
@@ -218,6 +218,15 @@ else
     [Parameter]
     public EventCallback Expanded { get; set; }
 
+    /// <summary>
+    /// The passage Expand shows (#521 19): the roll is laid across it and moves only within it, and nothing on it selects or
+    /// edits; null for a roll that shows the whole piece.
+    /// </summary>
+    [Parameter]
+    public TickSpan? Passage { get; set; }
+
+    private TickSpan? _shownPassage;
+
     /// <summary>Another version's notes as dashed plum outlines, for the bar the player writes in a merge (testing item 34).</summary>
     [Parameter]
     public IReadOnlyList<Note>? Ghosts { get; set; }
@@ -283,6 +292,7 @@ else
             _shownKept = null;
             _shownVariation = null;
             _shownPlayRange = null;
+            _shownPassage = null;
             _shownPhrases = null;
             _shownHighlight = null;
             _shownKeys = null;
@@ -367,6 +377,13 @@ else
             {
                 await view.InvokeVoidAsync("clearPlayRange");
             }
+        }
+
+        if (Passage != _shownPassage)
+        {
+            _shownPassage = Passage;
+            object? passage = Passage is { } bound ? new { start = bound.Onset.Value, end = bound.End.Value } : null;
+            await view.InvokeVoidAsync("setPassage", passage);
         }
 
         if (!ReferenceEquals(Phrases, _shownPhrases))

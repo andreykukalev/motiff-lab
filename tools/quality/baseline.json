@@ -98,7 +98,6 @@
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.Web/Pages/PlaybackLab.Assembly.cs","symbol":"get_Work","value":18,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1506","file":"src/MotiffLab.Web/Pages/PlaybackLab.Assembly.cs","symbol":"PlaybackLab","value":371,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.Web/Pages/PlaybackLab.Focus.cs","symbol":"get_FocusCard","value":18,"why":"existing before #332"},
-    {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.Web/Pages/PlaybackLab.FocusRoll.cs","symbol":"FollowPlayingInFocusAsync","value":16,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.Web/Pages/PlaybackLab.Layout.cs","symbol":"get_WorkspaceClass","value":17,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.Web/Pages/PlaybackLab.Resume.cs","symbol":"ArriveAtResumePointAsync","value":20,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1506","file":"tests/MotiffLab.MusicCore.Tests/Projects/ProjectFileTests.cs","symbol":"Every_saved_operation_round_trips_with_its_parameters_and_scope","value":41,"why":"existing before #332"},
