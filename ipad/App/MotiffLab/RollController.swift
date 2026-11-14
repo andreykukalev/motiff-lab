@@ -263,9 +263,9 @@ final class RollController: NSObject, ObservableObject {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
-        // The same piece's notes again (a note edited, a version taken in, another naming) keep the zoom and the view (BUG-04).
+        // The same piece's notes again (a note edited, a version taken in, another naming) keep the zoom and the view (BUG-04); back from the PDF, the roll's first load takes the frame the player left (#511 10).
         let request: [String: Any] = [
-            "roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"], "keep": shownPiece == id,
+            "roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"], "keep": shownPiece == id, "frame": RollFrameHandoff.take(for: id),
         ]
         do {
             let shown = try await webView.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]

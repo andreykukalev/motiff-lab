@@ -38,10 +38,12 @@ final class BarPdfView: PDFView {
         }
     }
 
-    /// The page to bring under the bar once the pages are laid out.
-    private var waiting: PDFPage?
-    /// The page last brought under the bar, and the view's size then.
-    private var placed: (page: PDFPage, size: CGSize)?
+    /// The page to bring under the bar once the pages are laid out, and how far down it the bar is to rest (0 at its top).
+    private var waiting: (page: PDFPage, fraction: CGFloat)?
+    /// The page last brought under the bar, how far down it, and the view's size then.
+    private var placed: (page: PDFPage, fraction: CGFloat, size: CGSize)?
+    /// The zoom and the place across the pages to come back to with the page (PDF | Notes, #511 section 10); nil for none.
+    private var returning: (zoom: Double?, left: Double)?
 
     private var scroll: UIScrollView? { subviews.compactMap { $0 as? UIScrollView }.first }
 
@@ -50,8 +52,32 @@ final class BarPdfView: PDFView {
     /// Brings the page's top to rest under the bar, once the pages are laid out: on opening, after PDF | Notes, after a
     /// turn of the iPad and from the Contents.
     func rest(on page: PDFPage) {
-        waiting = page
+        waiting = (page, 0)
         setNeedsLayout()
+    }
+
+    /// Comes back to where the player left the pages (PDF | Notes, #511 section 10): the zoom they chose, then the page and the
+    /// place on it under the bar, once the pages are laid out.
+    func comeBack(to state: PdfViewState) {
+        guard let page = document?.page(at: state.page - 1) else { return }
+        returning = (state.zoom, state.left)
+        waiting = (page, CGFloat(state.place.fraction))
+        setNeedsLayout()
+    }
+
+    /// Where the pages are now: the page under the bar and how far down it, how far across, and the zoom as a share of the
+    /// zoom that fits them (nil while they fit); nil before they are laid out.
+    func viewState() -> PdfViewState? {
+        guard let scroll, let document, scroll.contentSize.height > 0 else { return nil }
+        let spans = (0..<document.pageCount).compactMap { index -> AnchorSpan? in
+            guard let page = document.page(at: index) else { return nil }
+            let box = pageFrame(page, in: scroll)
+            return AnchorSpan(key: Double(index + 1), top: Double(box.minY), bottom: Double(box.maxY))
+        }
+        guard let place = ViewAnchor.at(Double(scroll.contentOffset.y + pageTop), in: spans) else { return nil }
+        let fit = scaleFactorForSizeToFit
+        let zoom: Double? = autoScales || fit <= 0 ? nil : Double(scaleFactor / fit)
+        return PdfViewState(place: place, left: Double(scroll.contentOffset.x / max(scroll.contentSize.width, 1)), zoom: zoom)
     }
 
     override func layoutSubviews() {
@@ -61,17 +87,35 @@ final class BarPdfView: PDFView {
         // A new size (PDFKit fitting the pages as the screen settles, a turn of the iPad) keeps the page brought under the
         // bar there while it is still the page in view.
         if waiting == nil, let placed, placed.size != bounds.size, currentPage == placed.page {
-            waiting = placed.page
+            waiting = (placed.page, placed.fraction)
         }
-        guard let page = waiting else { return }
+        guard let next = waiting else { return }
         waiting = nil
+        let (page, fraction) = (next.page, next.fraction)
+        // The zoom the player left first, so the page is placed at that zoom on the next pass.
+        if let zoom = returning?.zoom {
+            returning?.zoom = nil
+            let fit = scaleFactorForSizeToFit
+            if fit > 0 {
+                autoScales = false
+                scaleFactor = min(max(fit * CGFloat(zoom), minScaleFactor), maxScaleFactor)
+            }
+            waiting = (page, fraction)
+            setNeedsLayout()
+            return
+        }
         // After this pass: PDFKit scrolls to its current page as it lays out.
-        DispatchQueue.main.async { [weak self] in self?.place(page) }
+        DispatchQueue.main.async { [weak self] in self?.place(page, fraction: fraction) }
+    }
+
+    /// A page's frame in the scroll view's content.
+    private func pageFrame(_ page: PDFPage, in scroll: UIScrollView) -> CGRect {
+        scroll.convert(convert(page.bounds(for: displayBox), from: page), from: self)
     }
 
     /// A page's top in the scroll view's content.
     private func top(of page: PDFPage, in scroll: UIScrollView) -> CGFloat {
-        scroll.convert(convert(page.bounds(for: displayBox), from: page), from: self).minY
+        pageFrame(page, in: scroll).minY
     }
 
     /// The room above the first page, as the zoom and the page break above it are now; a view resting at the top stays there.
@@ -86,15 +130,21 @@ final class BarPdfView: PDFView {
         }
     }
 
-    private func place(_ page: PDFPage) {
+    private func place(_ page: PDFPage, fraction: CGFloat) {
         guard let scroll else {
             go(to: page)
             return
         }
         let lowest = -scroll.adjustedContentInset.top
         let highest = scroll.contentSize.height + scroll.adjustedContentInset.bottom - scroll.bounds.height
-        let y = PageRest.offset(page: top(of: page, in: scroll), pageTop: pageTop, lowest: lowest, highest: highest)
-        scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: y), animated: false)
-        placed = (page, bounds.size)
+        let box = pageFrame(page, in: scroll)
+        let y = PageRest.offset(page: box.minY + fraction * box.height, pageTop: pageTop, lowest: lowest, highest: highest)
+        var x = scroll.contentOffset.x
+        if let left = returning?.left {
+            returning = nil
+            x = min(max(CGFloat(left) * scroll.contentSize.width, 0), max(0, scroll.contentSize.width - scroll.bounds.width))
+        }
+        scroll.setContentOffset(CGPoint(x: x, y: y), animated: false)
+        placed = (page, fraction, bounds.size)
     }
 }

@@ -59,6 +59,7 @@ import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab } from "../score/playhead-grab.js";
 import { viewOf } from "../playback/playback-model.js";
 import { PlayheadDrag } from "../playback/playhead-drag.js";
+import { anchorAt, anchorOf, lineOf, systemSpans } from "../score/view-anchor.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -1316,10 +1317,27 @@ function showTick({ tick }) {
     return bar === undefined ? false : showPage({ page: bar.page });
 }
 
+/**
+ * Where the view is, as a place in the notes that survives a new layout (PDF | Notes, #511 section 10): the system a line of
+ * the document crosses, by the tick of its first bar, and how far into it the line is. Swift reads the line from its scroll
+ * view (`y`, in the document's pixels) and keeps the place while the PDF is shown; null before the pages are laid out.
+ */
+function placeAt({ y }) {
+    const geometry = state.geometry;
+    return geometry ? anchorAt(systemSpans(geometry.systems, geometry.bars), y) : null;
+}
+
+/** The line of the document a place kept by `placeAt` lies at now, in the document's pixels, for Swift to scroll to; or null. */
+function lineAt(place) {
+    const geometry = state.geometry;
+    const anchor = anchorOf(place);
+    return geometry && anchor ? lineOf(systemSpans(geometry.systems, geometry.bars), anchor) : null;
+}
+
 /** Where each bar is now, in the document's pixels: for the tests. */
 function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

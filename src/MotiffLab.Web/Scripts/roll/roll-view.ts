@@ -48,6 +48,23 @@ export interface ViewFrame {
     pitchTop: number;
 }
 
+/**
+ * A frame read back from the device (PDF | Notes, #511 section 10): four finite numbers, the zoom and the rows' scale above
+ * zero; null for anything else, so a frame kept by an older build or changed by hand is not drawn from.
+ */
+export function frameOf(value: unknown): ViewFrame | null {
+    if (typeof value !== "object" || value === null) {
+        return null;
+    }
+    const { zoom, rowScale, scroll, pitchTop } = value as Record<string, unknown>;
+    const numbers = [zoom, rowScale, scroll, pitchTop];
+    if (!numbers.every((number) => typeof number === "number" && Number.isFinite(number))) {
+        return null;
+    }
+    const frame = { zoom, rowScale, scroll, pitchTop } as ViewFrame;
+    return frame.zoom > 0 && frame.rowScale > 0 ? frame : null;
+}
+
 const TICKS_PER_QUARTER = 480;
 
 /** The ticks a width of pixels shows at a zoom. */

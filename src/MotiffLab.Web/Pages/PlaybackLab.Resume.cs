@@ -114,6 +114,9 @@ public partial class PlaybackLab
             OpenAddSource();
         }
 
+        // Back from the PDF, the "Notes" view as the player left it (#511 section 10).
+        await ReturnToNotesViewAsync();
+
         if (fresh || idea is { Length: > 0 } || View is { Length: > 0 })
         {
             // The address names the resume point and no longer asks for the idea, so a reload comes back here as it is.

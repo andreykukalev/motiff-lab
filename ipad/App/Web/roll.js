@@ -5,7 +5,7 @@
 // the player's position every frame; Swift sends it about 30 times a second (`position`). Since v0.5.2 (#479 item 23) the
 // roll is also where notes are edited: Swift says which pointer edits (`input`), draws the zoom on each axis from what the
 // roll reports (`zoom` both ways), and takes a drag across the bar numbers by its ticks, to select by beats.
-import { createPianoRoll } from "../roll/piano-roll.js";
+import { createPianoRoll, keptRollFrame, restoreRollFrame } from "../roll/piano-roll.js";
 import { THEME_CHANGED } from "../layout/theme.js";
 
 const MODES = ["hand", "track", "voice"];
@@ -127,10 +127,14 @@ function modesOf(payload) {
 /**
  * Shows a piece: the roll's data from music-core (`roll`), its labels in the interface's language, whether the notes
  * carry their names, and the appearance. With `keep`, the same piece's notes again (a note edited, a version taken in, another
- * naming): the zoom, the stretch in view and the selection stay as they are (#495 BUG-04). Returns the colour scheme shown
- * and those the piece allows.
+ * naming): the zoom, the stretch in view and the selection stay as they are (#495 BUG-04). With `frame`, the zoom and the
+ * view the player left the roll at before PDF | Notes (#511 section 10, `frame()`), which the roll starts from. Returns the
+ * colour scheme shown and those the piece allows.
  */
-function load({ roll, labels, noteNames, dark, colourBy, keep }) {
+function load({ roll, labels, noteNames, dark, colourBy, keep, frame }) {
+    if (frame) {
+        restoreRollFrame(frame);
+    }
     theme(dark);
     view.setLabels(labels);
     state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
@@ -239,5 +243,10 @@ function zoom({ axis, direction }) {
     }
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom };
+/** The zoom and the view the roll shows now, for Swift to keep while the PDF is shown (#511 section 10); null before a load. */
+function frame() {
+    return keptRollFrame();
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom, frame };
 post("ready");

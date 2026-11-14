@@ -48,8 +48,9 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// The strokes on the pages, as music-core answered the last call.
     @Published private(set) var strokes: [DocumentStroke] = []
 
-    /// The page to open at once the pages are laid out.
+    /// The page to open at once the pages are laid out, or the place the player left the pages at (#511 section 10).
     private(set) var startPage = 1
+    private(set) var startState: PdfViewState?
     weak var view: PDFView?
     /// The pen over the pages, and who writes and who scrolls (#479 items 7 and 18).
     let ink = InkInput()
@@ -68,7 +69,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     var currentBookmark: PageBookmarkEntry? { bookmarks.first { $0.page == page } }
 
     /// The page the player was last on in this PDF, kept on the device as the web app keeps it (`pdf.page.<id>`).
-    static func pageKey(_ id: String) -> String { "motiff.pdf.page.\(id)" }
+    static func pageKey(_ id: String) -> String { ViewStates.pdfPageKey(id) }
 
     /// Loads the PDF piece's pages and marks; it opens at `page` when given (from PDF | Notes), else where the player left it.
     func load(piece: Int32, text: UIText, page: Int? = nil) async {
@@ -84,6 +85,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         if let projectId {
             let kept = UserDefaults.standard.integer(forKey: Self.pageKey(projectId))
             startPage = kept > 0 ? min(kept, read.pageCount) : 1
+            startState = page == nil ? ViewStates.pdf(projectId, shownPage: kept).flatMap { $0.page <= read.pageCount ? $0 : nil } : nil
         }
         if let page, page > 0 { startPage = min(page, read.pageCount) }
         bookmarks = Self.bookmarks(object["marks"])
@@ -242,8 +244,8 @@ struct PdfPages: UIViewRepresentable {
         controller.view = view
         context.coordinator.watch(view)
         controller.attach(to: view)
-        // The page PDF | Notes landed on, or the one the player left: under the bar once the pages are laid out.
-        if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
+        // The place the player left the pages at, or the page PDF | Notes landed on: under the bar once the pages are laid out.
+        if let state = controller.startState { view.comeBack(to: state) } else if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
         return view
     }
 
@@ -407,10 +409,16 @@ struct PdfScreen: View {
         }
         .onDisappear {
             metronome.stop()
+            // Handed to the notes, the piece was saved and closed already (#511 section 10).
+            guard !ClosedPieces.take(piece.id) else { return }
+            pdf.keepView()
             save()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { save() }
+            if phase == .background {
+                pdf.keepView()
+                save()
+            }
             // The iPad's setting «Only draw with Apple Pencil» may have changed meanwhile.
             if phase == .active { pdf.applyInput() }
         }
@@ -583,6 +591,7 @@ struct PdfScreen: View {
         guard let switchView else { return nil }
         return { [pdf] in
             partsOpen = false
+            pdf.keepView()
             await switchView(.page(max(1, pdf.page)))
         }
     }
@@ -658,11 +667,12 @@ struct PdfScreen: View {
         return nil
     }
 
-    /// The notes read from the PDF, where the page under the bar starts in them, once the piece is saved (the web app's
-    /// `ShowNotesAsync`).
+    /// The notes read from the PDF as the player left them (#511 section 10), or the first time where the page under the bar
+    /// starts in them, once the piece is saved and the PDF's place kept (the web app's `ShowNotesAsync`).
     private func showNotes() async {
         guard let other = piece.other, let switchView else { return }
         metronome.stop()
+        pdf.keepView()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
     }

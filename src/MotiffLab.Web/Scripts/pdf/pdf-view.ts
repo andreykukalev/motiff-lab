@@ -6,6 +6,7 @@ import { PencilLayer, type PencilState } from "../score/pencil-layer.js";
 import type { BarFrame } from "../score/pencil-marks.js";
 import { saveCover } from "../storage/project-store.js";
 import { openPdf, type PdfDocumentProxy, type PdfLoadingTask, type PdfRenderTask } from "./pdfjs.js";
+import { anchorAt, anchorOf, lineOf, type AnchorSpan, type ViewAnchor } from "../score/view-anchor.js";
 
 interface DotNetRef {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -76,8 +77,11 @@ export class PdfView {
         }
     }
 
-    /** Opens the PDF and lays out a sheet for each page, scrolled to the page given; the number of pages, or 0 when it cannot be read. */
-    async open(data: Uint8Array, startPage: number): Promise<number> {
+    /**
+     * Opens the PDF and lays out a sheet for each page, scrolled to the place the player left it at (PDF | Notes, #511
+     * section 10), else to the page given; the number of pages, or 0 when it cannot be read.
+     */
+    async open(data: Uint8Array, startPage: number, place: unknown = null): Promise<number> {
         this.close();
         let document: PdfDocumentProxy;
         try {
@@ -121,7 +125,9 @@ export class PdfView {
         this.resize.observe(this.host);
 
         this.pencil.relayout();
-        this.showPage(startPage);
+        if (!this.showPlace(place)) {
+            this.showPage(startPage);
+        }
         this.reportPages();
         return document.numPages;
     }
@@ -141,6 +147,30 @@ export class PdfView {
         }
         const top = page.element.offsetTop - parseFloat(getComputedStyle(this.host).paddingTop || "0");
         this.host.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    }
+
+    /**
+     * Where the pages are scrolled to, as a place a new width keeps (#511 section 10): the page under the reading line, by its
+     * number, and how far down it the line is; null before the pages are laid out.
+     */
+    viewPlace(): ViewAnchor | null {
+        return anchorAt(this.pageSpans(), this.host.scrollTop + READING_LINE_PX);
+    }
+
+    /** Scrolls back to a place `viewPlace` gave, at once; false when there is none to go to. */
+    showPlace(place: unknown): boolean {
+        const anchor = anchorOf(place);
+        const line = anchor === null ? null : lineOf(this.pageSpans(), anchor);
+        if (line === null) {
+            return false;
+        }
+        this.host.scrollTo({ top: Math.max(0, line - READING_LINE_PX), behavior: "instant" });
+        return true;
+    }
+
+    /** Each page from top to bottom in the view's content pixels, by its number. */
+    private pageSpans(): AnchorSpan[] {
+        return this.pageFrames().map((frame) => ({ key: frame.tick, top: frame.top, bottom: frame.bottom }));
     }
 
     /** Keeps page 1 as the piece's cover in the library, as the score keeps its first page. */

@@ -556,7 +556,7 @@ struct LibraryView: View {
         switch await opener() {
         case .success(var opened):
             if let earlier = piece {
-                _ = await MusicCore.run { MusicCore.close(piece: earlier.id) }
+                await ClosedPieces.close(earlier.id)
             }
             if let file {
                 opened.file = file
@@ -574,7 +574,7 @@ struct LibraryView: View {
                 opened.other = OtherView.of(saved, own: opened.own, in: summaries)
                 opened.family = PieceFamily.of(saved, in: summaries)
             }
-            opened.landing = landing
+            opened.landing = ViewStates.landing(landing, for: opened)
             piece = opened
         case .failure(let error):
             problem = error.message

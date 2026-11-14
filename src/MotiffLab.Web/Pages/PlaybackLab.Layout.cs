@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.Web.Playback;
+using MotiffLab.Web.Projects;
 using MotiffLab.Web.Roll;
 using MotiffLab.Web.Score;
 
@@ -406,6 +407,8 @@ public partial class PlaybackLab : IAsyncDisposable
             await _scoreView.ShowTickAsync(at);
         }
 
+        await ShowKeptPlaceAsync(last: true);
+
         await SaveCoverAsync();
     }
 
@@ -417,8 +420,9 @@ public partial class PlaybackLab : IAsyncDisposable
     private long? _shownAt;
 
     /// <summary>
-    /// The "PDF" view of the PDF these notes were read from (0023), at the page the scan read the bar at the top of this page from: the link
-    /// is rough, by the pages the scan read.
+    /// The "PDF" view of the PDF these notes were read from (0023), where the player left it (#511 section 10); the first time, at
+    /// the page the scan read the bar at the top of this page from: the link is rough, by the pages the scan read. The "Notes"
+    /// view is kept as the page goes (PlaybackLab.Views.cs).
     /// </summary>
     private async Task ShowPdfAsync()
     {
@@ -431,7 +435,8 @@ public partial class PlaybackLab : IAsyncDisposable
         long? tick = _scoreView is null || _pages.First < 1 ? null : await _scoreView.FirstTickOnAsync(_pages.First);
         int page = (project.ReadFrom?.Pages ?? project.DocumentPages)?.PageOf(new Tick(tick ?? 0)) ?? 1;
         string pdf = project.ReadFrom?.ProjectId ?? project.Id;
-        Navigation.NavigateTo($"pdf?project={Uri.EscapeDataString(pdf)}&page={page}");
+        string left = await Preferences.PdfPlaceAsync(pdf) is null ? $"&page={page}" : "";
+        Navigation.NavigateTo($"pdf?project={Uri.EscapeDataString(pdf)}{left}");
     }
 
     /// <summary>The project, phrases and pages the library's cover was last saved for.</summary>
@@ -638,6 +643,7 @@ public partial class PlaybackLab : IAsyncDisposable
         try
         {
             await DetachLayoutAsync();
+            await DisposeViewsAsync();
             if (_chromeModule is not null)
             {
                 await _chromeModule.DisposeAsync();
