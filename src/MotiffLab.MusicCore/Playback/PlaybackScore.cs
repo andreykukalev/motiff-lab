@@ -251,7 +251,25 @@ public sealed class PlaybackScore
         PlaybackScore score = piece.AssembledTempos is { } tempos ? Create(piece.Notes, tempos, piece.Meter, piece.End)
             : piece.Midi is { } midi ? FromMidi(midi)
             : FromMusicXml(piece.MusicXml!);
-        return OwnTempoOf(piece, score).WithPlayerTempo(piece.PlayerTempo);
+        return DefaultTempoOf(piece, OwnTempoOf(piece, score)).WithPlayerTempo(piece.PlayerTempo);
+    }
+
+    /// <summary>
+    /// A piece whose tempo nothing states, neither its file, its scan nor a recording, plays at the piece's default
+    /// (<see cref="TempoSource.Default"/>, Andrei, version 0.5.5) rather than a file format's 120. A recording's own clock
+    /// stays as it is: its notes keep the time they were heard in.
+    /// </summary>
+    public static PlaybackScore DefaultTempoOf(ImportedPiece piece, PlaybackScore score)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        ArgumentNullException.ThrowIfNull(score);
+        if (score.PieceTempos[0].Source != TempoSource.Assumed || Import.Transcription.Transcribed.IsHeard(piece))
+        {
+            return score;
+        }
+
+        PlaybackTempo[] tempos = [new PlaybackTempo(Tick.Zero, PlaybackTempo.PieceDefaultMicrosecondsPerQuarter, TempoSource.Default), .. score.PieceTempos.Skip(1)];
+        return new PlaybackScore(score.Notes, tempos, score.Beats, score.Bars, score.Meter, score.End, score.Pedal);
     }
 
     /// <summary>
@@ -286,6 +304,12 @@ public readonly record struct PlaybackTempo
 {
     /// <summary>120 BPM, the MIDI default.</summary>
     public const int DefaultMicrosecondsPerQuarter = 500_000;
+
+    /// <summary>The tempo a piece plays at when nothing states one, in quarter notes a minute (<see cref="TempoSource.Default"/>).</summary>
+    public const int PieceDefaultPerMinute = 80;
+
+    /// <summary><see cref="PieceDefaultPerMinute"/> as microseconds a quarter note.</summary>
+    public const int PieceDefaultMicrosecondsPerQuarter = 750_000;
 
     /// <param name="source">Where the tempo comes from (version 0.5.4); assumed unless something states it.</param>
     public PlaybackTempo(Tick at, int microsecondsPerQuarter, TempoSource source = TempoSource.Assumed)

@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>What character facts need beyond the notes and bars: the tempo map and the kind of file.</summary>
 /// <param name="Tempos">Tempo changes in order, the first at tick 0, as <see cref="PlaybackScore.Tempos"/> gives them; empty means 120 BPM throughout.</param>
-/// <param name="TempoAssumed">True when the file states no tempo at its start, so the first tempo is the 120 BPM default.</param>
+/// <param name="TempoAssumed">True when nothing states the tempo at the start, so the first tempo is a default (the piece's 80 BPM).</param>
 /// <param name="FromNotation">
 /// True for a notation file (MusicXML): its lengths are written note values and its velocities come
 /// from dynamics marks or a default, not from playing.
@@ -26,7 +26,7 @@ public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool 
         // The tempo at the start as played says where it comes from (version 0.5.4): the player's own is neither assumed nor estimated.
         PlaybackScore score = PlaybackScore.FromPiece(piece);
         TempoSource source = score.StartTempo.Source;
-        return new CharacterContext(score.Tempos, source == TempoSource.Assumed, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null && source != TempoSource.Player);
+        return new CharacterContext(score.Tempos, source is TempoSource.Assumed or TempoSource.Default, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null && source != TempoSource.Player);
     }
 }
 
@@ -174,8 +174,8 @@ public static partial class MotifAnalyzer
                 "Выведено из нот, услышанных в записи, вместе с тактами: доля, к которой лучше всего подходят их атаки, в четвертях в минуту, с округлением до десятых для показа."))
             : assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
-                $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM is assumed. {basis}",
-                $"В начале файла темп не указан, поэтому взят темп по умолчанию, {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM. {basis}"))
+                $"The file states no tempo at its start, so the default of {start} BPM is assumed. {basis}",
+                $"В начале файла темп не указан, поэтому взят темп по умолчанию, {start} BPM. {basis}"))
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, basis);
         return fact with { Places = places, Brief = brief };
     }

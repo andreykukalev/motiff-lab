@@ -3,12 +3,15 @@ namespace MotiffLab.MusicCore.Playback;
 /// <summary>
 /// Where a tempo comes from (version 0.5.4, #511 section 17): the tempo printed in the notes, one worked out from a
 /// recording, the default taken when nothing states one, or the one the player set for the piece. They are not
-/// interchangeable: only a notated or the player's tempo is written on the score as "♩ = N", an inferred one as
-/// "♩ ≈ N", and an assumed one nowhere.
+/// interchangeable: a notated tempo, the player's and the piece's default are written on the score as "♩ = N", an
+/// inferred one as "♩ ≈ N", and an assumed one nowhere.
 /// </summary>
 public enum TempoSource
 {
-    /// <summary>Nothing states a tempo, so the default of 120 quarter notes a minute is taken (MusicXML and MIDI alike).</summary>
+    /// <summary>
+    /// Nothing states a tempo, so a file format's default of 120 quarter notes a minute is taken (MusicXML and MIDI alike);
+    /// a piece plays at its default (<see cref="Default"/>) instead, except a recording's own clock.
+    /// </summary>
     Assumed,
 
     /// <summary>The file states it: a MusicXML <c>&lt;sound tempo&gt;</c> or metronome mark, a MIDI tempo event.</summary>
@@ -19,17 +22,25 @@ public enum TempoSource
 
     /// <summary>The player set it for the piece, such as "♩ = 92" read from the printed notes (project file "tempo").</summary>
     Player,
+
+    /// <summary>
+    /// Nothing states the piece's tempo, neither the file, the scan nor a recording, so it plays at the piece's default of
+    /// <see cref="PlaybackTempo.PieceDefaultPerMinute"/> quarter notes a minute (Andrei, version 0.5.5, #521 section 12),
+    /// which the score marks "♩ = 80" like any piece tempo until the player sets one. The project file does not keep it.
+    /// </summary>
+    Default,
 }
 
 /// <summary>The facade's and the apps' names of the sources.</summary>
 public static class TempoSources
 {
-    /// <summary>"assumed", "notated", "inferred" or "player".</summary>
+    /// <summary>"assumed", "notated", "inferred", "player" or "default".</summary>
     public static string Name(this TempoSource source) => source switch
     {
         TempoSource.Notated => "notated",
         TempoSource.Inferred => "inferred",
         TempoSource.Player => "player",
+        TempoSource.Default => "default",
         _ => "assumed",
     };
 

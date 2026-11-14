@@ -1372,14 +1372,15 @@ h1, h2, .app-title strong {
     font-weight: 600;
 }
 
-/* Verovio's header is hidden: it keeps the top margin the bar sits in, and the app sets the title in its own type. */
+/* Verovio's header is hidden: it keeps its room above the first system, and the app sets the title in its own type there,
+   a little higher as its type is larger, so a tempo mark over the first system stays clear of it (#521 section 13). */
 .score svg .pgHead {
     display: none;
 }
 
 .score-page .title-block {
     position: absolute;
-    top: 4.8%;
+    top: 3.6%;
     left: 8%;
     right: 8%;
     text-align: center;

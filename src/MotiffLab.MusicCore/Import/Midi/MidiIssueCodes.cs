@@ -52,8 +52,8 @@ public static class MidiIssueCodes
             $"{Plural(count, "tempo, time or key signature change", "tempo, time or key signature changes")} rounded to the 480-per-quarter grid.",
             $"Смен темпа, размера или тональности, округлённых до сетки 480 на четверть: {count}."),
         TempoDefault => words.T(
-            "The file sets no tempo at its start, so 120 BPM is assumed until the first tempo change.",
-            "В начале файла не задан темп, поэтому до первой смены темпа принято 120 ударов в минуту."),
+            "The file sets no tempo at its start, so the piece plays at 80 BPM until the first tempo change or until you set its tempo.",
+            "В начале файла не задан темп, поэтому до первой смены темпа пьеса играется в темпе 80 ударов в минуту, пока вы не зададите свой."),
         MeterDefault => words.T(
             "The file has no time signature at its start, so 4/4 is assumed.",
             "В начале файла нет размера, поэтому принят размер 4/4."),
