@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DRAG_GRID, PlayheadDrag, barOf, snapTick } from "../../src/MotiffLab.Web/wwwroot/js/playback/playhead-drag.js";
-import { knobHeadAt, laneDragTick, laneHeadAt } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-head-drag.js";
 import { playheadKnobs } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
 import { placeInBar, tickInBar } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 import { ScoreGrab, scoreDragTick } from "../../src/MotiffLab.Web/wwwroot/js/score/playhead-grab.js";
@@ -91,6 +91,20 @@ test("on the roll the blue playhead is taken in the loop strip and the black one
     assert.equal(laneHeadAt(300, 200, heads), null, "away from both");
 });
 
+test("playing, a press finds the playhead where it was drawn a moment ago, a touch target behind it at most (#533 4)", () => {
+    // The line ran from 100 to 160 across the last moments; it is at 170 now.
+    const drawn = [{ at: 0, x: 60 }, { at: 700, x: 100 }, { at: 800, x: 130 }, { at: 900, x: 160 }];
+    assert.equal(reachedFrom(110, 170, drawn, 650, 44), 126, "behind it, within a touch target: from that place");
+    assert.equal(reachedFrom(140, 170, drawn, 650, 44), 140, "where it was drawn");
+    assert.equal(reachedFrom(70, 170, drawn, 650, 44), 126, "older places and more than a touch target back do not count");
+    assert.equal(reachedFrom(200, 170, drawn, 650, 44), 170, "ahead of it: from where it is");
+    assert.equal(reachedFrom(110, 170, [], 650, 44), 170, "standing, nothing drawn lately: where it is");
+    // So a finger 50 px behind a line that runs on is on it, one 100 px behind is not.
+    const heads = { black: reachedFrom(120, 170, drawn, 650, 44), blue: null, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(120, 200, heads), "black");
+    assert.equal(laneHeadAt(70, 200, { ...heads, black: reachedFrom(70, 170, drawn, 650, 44) }), null);
+});
+
 test("on the roll the black playhead goes across the piece and the blue one inside the selection, on the grid", () => {
     const bars = [{ start: 0, end: 1920 }, { start: 1920, end: 3840 }];
     assert.equal(laneDragTick("black", 2930, bars, null, 3840), 2880, "into another bar");
@@ -133,6 +147,25 @@ test("a drag is taken by its first move, sends the newest place once a frame and
         { phase: "move", handle: "black", tick: 840 },
         { phase: "release", handle: "black" },
     ]);
+});
+
+test("taken at once while the music plays, the press tells the host at the start and a tap lets go (#533 4)", () => {
+    const { drag, sent, frame } = fakeDrag();
+    assert.equal(drag.grab("black", 1, true), true);
+    assert.deepEqual(sent, [{ phase: "grab", handle: "black" }], "playback stands as soon as it is held");
+    assert.equal(drag.heard(480), 480, "the place the player stood at, until it moves");
+    drag.release(1);
+    assert.deepEqual(sent.at(-1), { phase: "release", handle: "black" }, "a tap plays on");
+    sent.length = 0;
+    drag.grab("black", 1, true);
+    drag.move(1, 720);
+    frame();
+    drag.release(1);
+    assert.deepEqual(sent, [
+        { phase: "grab", handle: "black" },
+        { phase: "move", handle: "black", tick: 720 },
+        { phase: "release", handle: "black" },
+    ], "taken once: the first move does not take it again");
 });
 
 test("a tap on a handle sends nothing, and after a drag the place shows until the player reports it", () => {

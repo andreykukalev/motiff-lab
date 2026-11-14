@@ -46,6 +46,33 @@ export function knobHeadAt(x: number, y: number, knobs: { black: { x: number; y:
     return blue <= black ? "blue" : "black";
 }
 
+/** Where a playhead was drawn across the roll, in pixels, at a moment, in ms. */
+export interface DrawnAt {
+    at: number;
+    x: number;
+}
+
+/**
+ * The place across a playhead that a press is measured from (#533 4): playing, the line runs on while a finger goes to it,
+ * so the finger lands where the line was a moment ago, and at a fast zoom outside the touch target. The line then reaches
+ * back over the stretch it was drawn across since `since` (ms), never more than `most` pixels behind or ahead of where it is
+ * now (`x`): the point of that stretch nearest the press. Standing still, or with nothing drawn lately, it is where it is.
+ * For laneHeadAt and knobHeadAt, which measure their reach from it.
+ */
+export function reachedFrom(press: number, x: number, drawn: readonly DrawnAt[], since: number, most: number): number {
+    let low = x;
+    let high = x;
+    for (const place of drawn) {
+        if (place.at >= since) {
+            low = Math.min(low, place.x);
+            high = Math.max(high, place.x);
+        }
+    }
+    low = Math.max(low, x - most);
+    high = Math.min(high, x + most);
+    return Math.min(Math.max(press, low), high);
+}
+
 /**
  * Where a roll playhead dragged to a tick goes: the black one anywhere in the piece, the blue one inside the selection, each
  * on the sixteenth grid of the bar it then lies in (bars in time order, each [start, end)); undefined for the blue one
