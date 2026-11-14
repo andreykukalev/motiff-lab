@@ -73,6 +73,8 @@ final class RollController: NSObject, ObservableObject {
     private var shownHighlight: [[String: Any]] = []
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
+    /// Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one.
+    private var practiceOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
     private var editor: [String: Any] = ["on": false]
     /// The note editor's state as the score has it; nil while it is closed.
@@ -132,6 +134,14 @@ final class RollController: NSObject, ObservableObject {
         lanesOn = on
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": on], contentWorld: .page) }
+    }
+
+    /// Practice view on or off (#533 11, PracticeView.swift).
+    func practice(_ on: Bool) {
+        guard on != practiceOn else { return }
+        practiceOn = on
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
     /// The selection, shaded with its notes lit, and the span that loops; nil for none.
@@ -293,6 +303,9 @@ final class RollController: NSObject, ObservableObject {
             shownPiece = id
             if lanesOn {
                 _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": true], contentWorld: .page)
+            }
+            if practiceOn {
+                _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": true], contentWorld: .page)
             }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
