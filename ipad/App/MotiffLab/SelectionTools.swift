@@ -43,7 +43,19 @@ enum StylusRules {
     }
 
     /// A control of the stylus menu, by the tool it belongs to (#521 8, 11).
-    enum RingControl: Equatable { case undo, redo, clearSelection }
+    enum RingControl: Equatable {
+        case undo, redo, clearSelection
+
+        /// The kit's icon (Redo draws Undo's mirrored). Clear selection has its own (#533 5), the selection's frame with a
+        /// cross inside it, wherever the action is (the stylus menu, the selection menu, the roll's head, the web's
+        /// selection menu): the bare cross read as closing the menu.
+        var icon: String {
+            switch self {
+            case .undo, .redo: "undo"
+            case .clearSelection: "deselect"
+            }
+        }
+    }
 
     /// The chosen tool's controls in the stylus menu: Select's Undo, Redo and Clear selection; the Pen's Undo and Redo;
     /// nothing for Navigate, which has no history and no settings.

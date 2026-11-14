@@ -125,4 +125,29 @@ final class PenStateTests: XCTestCase {
         defaults.set(7, forKey: PenMemory.penWidthKey)
         XCTAssertEqual(PenMemory.savedWidth(highlighter: false, in: defaults), PenSizes.defaultWidth, "a thickness out of range is the middle one")
     }
+
+    func testEachToolHasItsOwnIconAndTheSamplesKeepTheTrueProportions() {
+        // #533 9: three drawings of their own, never the bar's Pen or the selection's Highlight.
+        XCTAssertEqual(ActiveTool.allCases.map(\.icon), ["pencil", "marker", "eraser"])
+        // The thickness samples: each a share of the tool's thickest, in the order of the sizes.
+        let pen = PenSizes.shares(PenSizes.pen)
+        XCTAssertEqual(pen.last, 1)
+        XCTAssertEqual(pen[0], PenSizes.pen[0] / PenSizes.pen[2], accuracy: 1e-9)
+        XCTAssertEqual(pen, pen.sorted(), "thin to thick")
+        XCTAssertEqual(PenSizes.shares(PenSizes.highlighter).last, 1)
+        XCTAssertEqual(PenSizes.shares(PenSizes.highlighter)[1], 2.2 / 3.2, accuracy: 1e-9)
+        XCTAssertEqual(PenSizes.shares([]), [])
+        XCTAssertEqual(PenSizes.shares([0, 0]), [0, 0])
+    }
+
+    func testThePdfsPagesUndoAndRedoAsTheScoreDoes() {
+        // #533 9: a PDF's history keeps the strokes it added whole, so Redo brings them back.
+        var ink = InkHistory()
+        ink.record(InkStep(added: ["p1"], strokes: [["id": "p1"]]))
+        let undone = ink.undo()
+        XCTAssertEqual(undone?.strokes.count, 1)
+        XCTAssertTrue(ink.canRedo)
+        XCTAssertEqual(ink.redo()?.added, ["p1"])
+        XCTAssertFalse(ink.canRedo)
+    }
 }

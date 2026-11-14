@@ -235,12 +235,29 @@ extension PdfController {
     /// whole (BUG-05).
     func undo() {
         inkQueue.then { [weak self] in
-            guard let self, let last = self.steps.popLast() else { return }
-            self.canUndo = !self.steps.isEmpty
+            guard let self, let last = self.steps.undo() else { return }
+            self.inkStepsChanged()
             await last.undo(remove: "document.ink.remove", add: "document.ink.add") { call, request, draws in
                 await self.change(call, request, draws: draws)
             }
         }
+    }
+
+    /// Does the step undone last again (#533 9), as on the score: a stroke comes back, a press of the eraser takes again
+    /// what it took.
+    func redo() {
+        inkQueue.then { [weak self] in
+            guard let self, let step = self.steps.redo() else { return }
+            self.inkStepsChanged()
+            await step.redo(remove: "document.ink.remove", add: "document.ink.add") { call, request, draws in
+                await self.change(call, request, draws: draws)
+            }
+        }
+    }
+
+    private func inkStepsChanged() {
+        canUndo = steps.canUndo
+        canRedo = steps.canRedo
     }
 
     /// The strokes as the pages show them: as music-core answered, with what the eraser did and has not saved yet.
@@ -323,8 +340,8 @@ extension PdfController {
         let id = DocumentStroke.newId()
         let points = samples.map { ($0.point, $0.pressure) }
         guard let request = DocumentStroke.request(id: id, tool: tool, colour: colour, size: size, page: page, box: box, points: points) else { return }
-        steps.append(InkStep(added: [id]))
-        canUndo = true
+        steps.record(InkStep(added: [id], strokes: [request]))
+        inkStepsChanged()
         await change("document.ink.add", ["strokes": [request]])
     }
 
@@ -357,8 +374,8 @@ extension PdfController {
             }
             await self.change("document.ink.remove", ["ids": eraser.removed.map(\.id)])
             if !self.closing.isEmpty { self.closing.removeFirst() }
-            self.steps.append(InkStep(added: eraser.pieces.map(\.id), removed: eraser.removed.map(\.fields)))
-            self.canUndo = true
+            self.steps.record(InkStep(added: eraser.pieces.map(\.id), removed: eraser.removed.map(\.fields), strokes: eraser.pieces.map(\.fields)))
+            self.inkStepsChanged()
             self.markPages()
         }
     }

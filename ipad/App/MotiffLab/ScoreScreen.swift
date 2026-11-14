@@ -1508,7 +1508,7 @@ struct ClearSelectionButton: View {
         let button = Button {
             score.clearSelection()
         } label: {
-            Icon(name: "close").frame(width: iconOnly ? nil : 32, height: iconOnly ? nil : 32)
+            Icon(name: StylusRules.RingControl.clearSelection.icon).frame(width: iconOnly ? nil : 32, height: iconOnly ? nil : 32)
         }
         Group {
             if iconOnly {

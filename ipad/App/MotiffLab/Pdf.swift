@@ -43,6 +43,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         didSet { if pen != oldValue { PenMemory.keep(pen) } }
     }
     @Published var canUndo = false
+    /// Whether a step Undo took back can be done again (#533 9), as on the score.
+    @Published var canRedo = false
     /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
     @Published var pencilPalette: PencilPaletteCall?
     /// The strokes on the pages, as music-core answered the last call.
@@ -54,8 +56,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     weak var view: PDFView?
     /// The pen over the pages, and who writes and who scrolls (#479 items 7 and 18).
     let ink = InkInput()
-    /// What the pen and the eraser did here, newest last, for Undo: a stroke kept, or a press of the eraser (BUG-05).
-    var steps: [InkStep] = []
+    /// What the pen and the eraser did here, for Undo and Redo (#533 9): a stroke kept, or a press of the eraser (BUG-05).
+    var steps = InkHistory()
     /// The eraser on a page while it is pressed, and the presses lifted and still being saved, shown as they left the
     /// pages (PdfInk.swift, BUG-05).
     var rubbing: PageEraser?

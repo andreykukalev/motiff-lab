@@ -62,6 +62,22 @@ test("every icon the web app names is in the kit", () => {
     }
 });
 
+// #533 sections 5 and 9: an action has the icon that says it. Clear selection is the selection's frame with a cross in it, never
+// the cross that closes, in both apps; the pen's three tools are three different drawings, the same on the iPad.
+test("Clear selection and the pen's tools have icons of their own, in both apps", () => {
+    const icons = readIcons();
+    for (const name of ["deselect", "pencil", "marker", "eraser"]) assert.ok(name in icons, name);
+    assert.equal(new Set(["pencil", "marker", "eraser", "pen", "highlight"].map((name) => icons[name])).size, 5, "each tool its own drawing");
+    const lab = read("src/MotiffLab.Web/Pages/PlaybackLab.razor").toString();
+    assert.match(lab, /aria-label="@Text\["menu\.clearSelection"\]"[^>]*><Icon Name="deselect" \/>/);
+    const palette = read("src/MotiffLab.Web/Score/PenPalette.razor").toString();
+    assert.match(palette, /\(PenTool, "pencil", "pencil\.pen"\),\s*\(HighlighterTool, "marker", "pencil\.highlighter"\),\s*\(EraserTool, "eraser", "pencil\.eraser"\)/);
+    const tools = read("ipad/App/MotiffLab/PenState.swift").toString();
+    assert.match(tools, /case \.pencil: "pencil"\s*case \.marker: "marker"\s*case \.eraser: "eraser"/);
+    const selection = read("ipad/App/MotiffLab/SelectionTools.swift").toString();
+    assert.match(selection, /case \.clearSelection: "deselect"/);
+});
+
 test("the theme's choices are the setting appearance.theme's, Auto first and the default", () => {
     const catalogue = read("src/MotiffLab.MusicCore/Settings/SettingsCatalogue.cs").toString();
     assert.match(catalogue, /Choice\("appearance\.theme", SettingSection\.Appearance, \["auto", "daylight", "night", "slate"\], "auto"/);

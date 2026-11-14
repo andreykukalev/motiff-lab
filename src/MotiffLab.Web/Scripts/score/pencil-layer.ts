@@ -25,6 +25,7 @@ import {
     type PencilMark,
 } from "./pencil-marks.js";
 import { loadMarks, saveMarks } from "../storage/pencil-store.js";
+import { MarkHistory } from "./pencil-history.js";
 
 export type PencilTool = "pen" | "highlighter" | "eraser";
 
@@ -39,6 +40,8 @@ export interface PencilState {
     /** Marks whose bar is not in the score shown (another engraving of the piece), kept but not drawn. */
     hidden: number;
     canUndo: boolean;
+    /** Whether a step taken back can be done again (#533 section 9). */
+    canRedo: boolean;
     /** The thickness chosen for the tool that draws now (the pen, or the highlighter): 0 thin, 1 medium, 2 thick. */
     width: number;
 }
@@ -52,12 +55,6 @@ export interface PencilHost {
     changed(state: PencilState): void;
     /** The strokes of a project-backed piece after a change, as writeMarks writes them, for the host to keep in the project. */
     marksChanged(text: string): void;
-}
-
-/** One step the player can take back: marks it added and marks it took away. */
-interface Change {
-    added: PencilMark[];
-    removed: PencilMark[];
 }
 
 interface Stroke {
@@ -83,9 +80,6 @@ const CLICK_AFTER_MS = 700;
 const SAVE_DELAY_MS = 500;
 
 const SVG = "http://www.w3.org/2000/svg";
-
-/** The steps kept for Undo. */
-const UNDO_DEPTH = 100;
 
 let nextId = 0;
 
@@ -114,7 +108,7 @@ export class PencilLayer {
     /** Counts keys set, so a load that finishes after the next key is set is dropped. */
     private generation = 0;
     private marks: PencilMark[] = [];
-    private undo: Change[] = [];
+    private readonly history = new MarkHistory<PencilMark>();
     private on = false;
     /** True while the marks are shown only: another device writes them (a PDF's pages the iPad also holds, version 0.4). */
     private readOnly = false;
@@ -167,7 +161,7 @@ export class PencilLayer {
         this.generation += 1;
         const generation = this.generation;
         this.marks = inProject ? readMarks(ink) : [];
-        this.undo = [];
+        this.history.forget();
         this.endStroke();
         this.svg.style.display = key === null ? "none" : "";
         this.draw();
@@ -219,7 +213,7 @@ export class PencilLayer {
             return;
         }
         this.marks = marks;
-        this.undo = [];
+        this.history.forget();
         this.endStroke();
         this.dirty = false;
         clearTimeout(this.saveTimer);
@@ -235,7 +229,7 @@ export class PencilLayer {
         this.readOnly = readOnly;
         if (readOnly) {
             this.endStroke();
-            this.undo = [];
+            this.history.forget();
             this.setOn(false);
         }
     }
@@ -276,15 +270,21 @@ export class PencilLayer {
         this.setOn(true);
     }
 
-    /** Takes back the last mark written, erased or cleared. */
+    /** Takes back the last mark written, erased or cleared; Redo does it again. */
     undoLast(): void {
-        const change = this.undo.pop();
-        if (change === undefined) {
-            return;
+        this.changeTo(this.history.undo(this.marks));
+    }
+
+    /** Does the step taken back last again (#533 section 9): a mark comes back, the eraser or Clear takes again what it took. */
+    redoLast(): void {
+        this.changeTo(this.history.redo(this.marks));
+    }
+
+    private changeTo(marks: PencilMark[] | null): void {
+        if (marks !== null) {
+            this.marks = marks;
+            this.changedMarks();
         }
-        const added = new Set(change.added.map((mark) => mark.id));
-        this.marks = [...this.marks.filter((mark) => !added.has(mark.id)), ...change.removed];
-        this.changedMarks();
     }
 
     /** Takes away every mark on this piece; Undo brings them back. */
@@ -292,7 +292,7 @@ export class PencilLayer {
         if (this.marks.length === 0 || this.readOnly) {
             return;
         }
-        this.remember({ added: [], removed: this.marks });
+        this.history.record({ added: [], removed: this.marks });
         this.marks = [];
         this.changedMarks();
     }
@@ -334,7 +334,8 @@ export class PencilLayer {
             colour: this.colour,
             marks: this.marks.length,
             hidden: this.hidden,
-            canUndo: this.undo.length > 0,
+            canUndo: this.history.canUndo,
+            canRedo: this.history.canRedo,
             width: this.widths[this.drawingTool()],
         };
     }
@@ -371,13 +372,6 @@ export class PencilLayer {
         clearTimeout(this.saveTimer);
         this.saveTimer = window.setTimeout(() => this.flush(), SAVE_DELAY_MS);
         this.notify();
-    }
-
-    private remember(change: Change): void {
-        this.undo.push(change);
-        if (this.undo.length > UNDO_DEPTH) {
-            this.undo.shift();
-        }
     }
 
     /** Saves now what is waiting to be saved: to the project through the host, or to the device. */
@@ -475,7 +469,7 @@ export class PencilLayer {
         this.endStroke();
         if (stroke.erasing) {
             if (stroke.removed.length > 0) {
-                this.remember({ added: [], removed: stroke.removed });
+                this.history.record({ added: [], removed: stroke.removed });
                 this.changedMarks();
             }
             return;
@@ -495,7 +489,7 @@ export class PencilLayer {
         });
         if (mark !== null) {
             this.marks = [...this.marks, mark];
-            this.remember({ added: [mark], removed: [] });
+            this.history.record({ added: [mark], removed: [] });
             // Writing with the Pencil shows the tools, so the eraser and Undo are at hand.
             this.on = true;
             this.host.classList.add("pencil-on");
@@ -512,7 +506,7 @@ export class PencilLayer {
         }
         this.endStroke();
         if (stroke.removed.length > 0) {
-            this.remember({ added: [], removed: stroke.removed });
+            this.history.record({ added: [], removed: stroke.removed });
             this.changedMarks();
         }
     };

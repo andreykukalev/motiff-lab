@@ -216,6 +216,15 @@ test("the iPad app's pen sizes are the web app's, thin to thick", async () => {
     assert.equal(Number(swift.match(/static let defaultWidth = (\d+)/)[1]), DEFAULT_WIDTH);
 });
 
+test("the web palette's thickness samples are drawn from the same sizes (#533 section 9)", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { HIGHLIGHTER_SIZES, PEN_SIZES } = await import("../../src/MotiffLab.Web/wwwroot/js/score/pencil-marks.js");
+    const razor = await readFile(new URL("../../src/MotiffLab.Web/Score/PenPalette.razor", import.meta.url), "utf8");
+    const list = (name) => JSON.parse(razor.match(new RegExp(`double\\[\\] ${name} = (\\[[^\\]]*\\])`))[1]);
+    assert.deepEqual(list("s_penSizes"), [...PEN_SIZES]);
+    assert.deepEqual(list("s_highlighterSizes"), [...HIGHLIGHTER_SIZES]);
+});
+
 test("the line is walked in short steps, its pressure taken along it", () => {
     const walked = densify([{ x: 0, y: 0, pressure: 0 }, { x: 10, y: 0, pressure: 1 }], 2.5);
     assert.deepEqual(walked.map((p) => p.x), [0, 2.5, 5, 7.5, 10]);

@@ -296,7 +296,7 @@ struct PencilPalette<Holder: PenHolder>: View {
                 modes.clear()
                 holder.pencilPalette = nil
             } label: {
-                disc(chosen: false) { Icon(name: "close", size: CGFloat.ds("icon-m")) }
+                disc(chosen: false) { Icon(name: control.icon, size: CGFloat.ds("icon-m")) }
             }
             .buttonStyle(.plain)
             .disabled(!modes.canClear)
@@ -333,14 +333,7 @@ struct PencilPalette<Holder: PenHolder>: View {
         return Button {
             holder.chooseFromPalette(tool)
         } label: {
-            disc(chosen: chosen, tool: true) {
-                if let icon = tool.icon {
-                    Icon(name: icon, size: CGFloat.ds("icon-m"))
-                } else {
-                    // The kit has no eraser icon: its word, as in the palette under the bar.
-                    Text(text[tool.labelKey]).dsType(.label).lineLimit(1).fixedSize()
-                }
-            }
+            disc(chosen: chosen, tool: true) { Icon(name: tool.icon, size: CGFloat.ds("icon-m")) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(text[tool.labelKey])
@@ -364,10 +357,10 @@ struct PencilPalette<Holder: PenHolder>: View {
         return Button {
             holder.chooseFromPalette(width: width)
         } label: {
-            disc(chosen: chosen) { WidthDot(width: width, pen: holder.pen) }
+            disc(chosen: chosen) { LineSample(width: width, pen: holder.pen) }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(text[WidthDot.labelKeys[width]])
+        .accessibilityLabel(text[LineSample.labelKeys[width]])
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 

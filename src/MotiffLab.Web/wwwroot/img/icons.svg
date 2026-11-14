@@ -8,9 +8,11 @@
   <symbol id="ic-close" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
   <symbol id="ic-collapse" viewBox="0 0 20 20"><path d="M11 4v5h5M11 9l5.5-5.5M9 16v-5H4M9 11l-5.5 5.5"/></symbol>
   <symbol id="ic-count" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></symbol>
+  <symbol id="ic-deselect" viewBox="0 0 20 20"><path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/><path d="M7.75 7.75l4.5 4.5M12.25 7.75l-4.5 4.5"/></symbol>
   <symbol id="ic-dial" viewBox="0 0 20 20"><path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/></symbol>
   <symbol id="ic-dot" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3" fill="currentColor"/></symbol>
   <symbol id="ic-editnote" viewBox="0 0 20 20"><ellipse cx="6.6" cy="14.6" rx="3" ry="2.2" transform="rotate(-20 6.6 14.6)"/><path d="M9.4 13.8V3.5c.6 1.6 2.4 2.4 3.6 3.6"/><path d="M12 17l.6-2.4 4-4a1 1 0 0 1 1.4 1.4l-4 4z"/></symbol>
+  <symbol id="ic-eraser" viewBox="0 0 20 20"><path d="M7.3 16.5l-3.8-3.8a1.4 1.4 0 0 1 0-2l7-7a1.4 1.4 0 0 1 2 0l4.3 4.3a1.4 1.4 0 0 1 0 2l-6.5 6.5"/><path d="M6.5 7.5l6 6"/><path d="M7.3 16.5h9.2"/></symbol>
   <symbol id="ic-expand" viewBox="0 0 20 20"><path d="M11.5 3.5h5v5M16.5 3.5L11 9M8.5 16.5h-5v-5M3.5 16.5L9 11"/></symbol>
   <symbol id="ic-export" viewBox="0 0 20 20"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5"/><path d="M4 12v3.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V12"/></symbol>
   <symbol id="ic-file" viewBox="0 0 20 20"><path d="M5 3h6l4 4v9.5A1.5 1.5 0 0 1 13.5 18h-8A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 3"/><path d="M11 3v4h4"/></symbol>
@@ -24,6 +26,7 @@
   <symbol id="ic-layers" viewBox="0 0 20 20"><path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/></symbol>
   <symbol id="ic-leadin" viewBox="0 0 20 20"><path d="M3 10h7.5M8 7l2.5 3L8 13"/><path d="M13.5 4H17v12h-3.5"/></symbol>
   <symbol id="ic-loop" viewBox="0 0 20 20"><path d="M4 9a5 5 0 0 1 5-5h7M16 4l-2.5-2.5M16 4l-2.5 2.5"/><path d="M16 11a5 5 0 0 1-5 5H4M4 16l2.5-2.5M4 16l2.5 2.5"/></symbol>
+  <symbol id="ic-marker" viewBox="0 0 20 20"><path d="M8 10l4.9-4.9a2.1 2.1 0 0 1 3 3L11 13"/><path d="M8 10l3 3"/><path d="M8 10l-3.5 3.5 1.5 1.5L11 13"/><path d="M3 17.5h7.5" stroke-width="2.5"/></symbol>
   <symbol id="ic-metronome" viewBox="0 0 20 20"><path d="M7.5 3.5h5l2.5 13h-10z"/><path d="M10 12V5.5M10 12l4-6"/></symbol>
   <symbol id="ic-mic" viewBox="0 0 20 20"><rect x="7.5" y="3" width="5" height="9" rx="2.5"/><path d="M5 10a5 5 0 0 0 10 0M10 15v2"/></symbol>
   <symbol id="ic-more" viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/></symbol>
@@ -32,6 +35,7 @@
   <symbol id="ic-pages" viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/></symbol>
   <symbol id="ic-pause" viewBox="0 0 20 20"><path d="M7 4.5v11M13 4.5v11"/></symbol>
   <symbol id="ic-pen" viewBox="0 0 20 20"><path d="M4 16l1-4L13.5 3.5a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2L8 15l-4 1z"/><path d="M12 5l3 3"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 20 20"><path d="M6 11l7-7 3 3-7 7"/><path d="M6 11l-2.5 5.5L9 14"/><path d="M7.5 12.5l7-7"/><path d="M11.6 5.4l3 3"/><path d="M3.5 16.5l.7-1.6.9.9z" fill="currentColor"/></symbol>
   <symbol id="ic-phrases" viewBox="0 0 20 20"><path d="M5 4H3.5v12H5M15 4h1.5v12H15"/><path d="M7.5 7.5h5M7.5 10h5M7.5 12.5h3"/></symbol>
   <symbol id="ic-play" viewBox="0 0 20 20"><path d="M6 4.5v11l9-5.5z"/></symbol>
   <symbol id="ic-playf" viewBox="0 0 20 20"><path d="M6 4.5v11l9-5.5z" fill="currentColor"/></symbol>

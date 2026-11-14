@@ -3649,37 +3649,111 @@ h1:focus {
     margin-top: var(--s-5);
 }
 
-/* The pen palette under the bar, while the pen is on: four inks, the highlighter, the eraser, undo and clear. */
+/* The pen palette under the bar, while the pen is on (#533 section 9): one card in two rows. The first stays put whatever
+   the tool: the tools, Undo, Redo, Clear, the layers and the cross; the second holds the chosen tool's colour and thickness,
+   or the eraser's one line, and keeps the room of the widest so the card never changes size under the finger. */
 .workspace .pen-palette {
     position: absolute;
     z-index: 5;
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
     right: var(--s-4);
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: var(--s-1);
     max-width: calc(100% - 2 * var(--s-4));
     padding: var(--s-1) var(--s-2);
     box-sizing: border-box;
-    border-radius: var(--r-pill);
+    border-radius: var(--r-l);
     background: var(--surface-2);
     border: 1px solid var(--hairline);
     box-shadow: var(--shadow-menu);
 }
 
-.lab.workspace .pen-palette .it {
-    display: inline-flex;
+.workspace .pen-palette .pen-row {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    height: 36px;
-    padding: 0 var(--s-3);
+    gap: var(--s-1);
+    margin: 0;
+}
+
+.workspace .pen-palette .pen-gap {
+    flex: 1 0 var(--s-2);
+}
+
+/* The chosen tool's row, under a hairline, as wide as the pencil's: four inks and three thicknesses. */
+.workspace .pen-palette .pen-settings {
+    min-width: calc(7 * var(--h-touch) + 3 * var(--s-1));
+    min-height: var(--h-touch);
+    padding-top: var(--s-1);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .pen-palette .pen-hint {
+    padding-left: var(--s-2);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The tools (ds.css .seg): three icons, the chosen one on the accent's strong tint. */
+.workspace .pen-palette .pen-tools {
+    display: inline-flex;
+    padding: 2px;
     border-radius: var(--r-pill);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+}
+
+.lab.workspace .pen-palette .pen-tool {
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-pill);
+    color: var(--ink-2);
     cursor: pointer;
 }
 
-.lab.workspace .pen-palette .it.on, .lab.workspace .pen-palette .it:hover:not(:disabled) {
+.lab.workspace .pen-palette .pen-tool.on {
+    background: var(--accent-tint-strong);
+    color: var(--ink);
+}
+
+.lab.workspace .pen-palette .pen-tool:hover:not(.on) {
     background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .it {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    border-radius: 50%;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.lab.workspace .pen-palette .it:hover:not(:disabled) {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .it:disabled {
+    opacity: .38;
+    cursor: default;
+}
+
+/* Redo is Undo's icon, mirrored. */
+.workspace .pen-palette .redo .ic {
+    transform: scaleX(-1);
+}
+
+/* The colours: a swatch each, the chosen one ringed in the accent. */
+.workspace .pen-palette .pen-colours {
+    display: inline-flex;
+    align-items: center;
 }
 
 .lab.workspace .pen-palette .ink-swatch {
@@ -3692,9 +3766,13 @@ h1:focus {
     cursor: pointer;
 }
 
+.workspace .pen-palette span.ink-swatch {
+    cursor: default;
+}
+
 .workspace .pen-palette .ink-swatch span {
-    width: 20px;
-    height: 20px;
+    width: var(--icon-l);
+    height: var(--icon-l);
     border-radius: 50%;
     box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px var(--hairline-strong);
 }
@@ -3703,20 +3781,28 @@ h1:focus {
     box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent);
 }
 
-.workspace .pen-palette .graphite span {
-    background: var(--ink-graphite);
+.workspace .pen-palette .graphite {
+    --tool-colour: var(--ink-graphite);
 }
 
-.workspace .pen-palette .carmine span {
-    background: var(--ink-carmine);
+.workspace .pen-palette .carmine {
+    --tool-colour: var(--ink-carmine);
 }
 
-.workspace .pen-palette .forest span {
-    background: var(--ink-forest);
+.workspace .pen-palette .forest {
+    --tool-colour: var(--ink-forest);
 }
 
-.workspace .pen-palette .ochre span {
-    background: var(--ink-ochre);
+.workspace .pen-palette .ochre {
+    --tool-colour: var(--ink-ochre);
+}
+
+.workspace .pen-palette .amber {
+    --tool-colour: var(--amber);
+}
+
+.workspace .pen-palette .ink-swatch span {
+    background: var(--tool-colour);
 }
 
 .workspace .pen-palette .div {
@@ -3726,47 +3812,52 @@ h1:focus {
 }
 
 .workspace .pen-palette .caption {
-    padding: 0 var(--s-2);
+    margin: 0;
+    padding: 0 var(--s-2) var(--s-1);
+    max-width: calc(7 * var(--h-touch));
 }
 
-/* The thickness of the tool that draws: three dots, thin to thick, the chosen one ringed in the accent. */
+/* The thicknesses: a line each, as thick as the tool draws in proportion (the pencil's thickest a few pixels, the marker's
+   band wider), in the tool's colour; the chosen one ringed in the accent. */
 .workspace .pen-palette .widths {
     display: inline-flex;
     align-items: center;
+    --sample-max: var(--s-1);
+}
+
+.workspace .pen-palette .widths.marker {
+    --sample-max: var(--s-4);
 }
 
 .lab.workspace .pen-palette .width {
-    width: var(--h-control);
+    width: var(--h-touch);
     height: var(--h-touch);
     padding: 0;
     display: grid;
     place-items: center;
-    border-radius: var(--r-pill);
+    border-radius: 50%;
     cursor: pointer;
 }
 
-.workspace .pen-palette .width span {
-    border-radius: 50%;
-    background: var(--ink);
+.workspace .pen-palette .width .sample {
+    width: var(--icon-l);
+    height: max(1px, calc(var(--sample-max) * var(--share, 1)));
+    border-radius: var(--r-pill);
+    background: var(--tool-colour);
 }
 
-.workspace .pen-palette .width.w0 span {
-    width: 4px;
-    height: 4px;
+/* The inks keep their colour in the dark (pigment on paper): a hairline round each sample keeps the graphite in sight. */
+[data-theme="dark"] .workspace .pen-palette .width .sample {
+    box-shadow: 0 0 0 1px var(--hairline-strong);
 }
 
-.workspace .pen-palette .width.w1 span {
-    width: 8px;
-    height: 8px;
-}
-
-.workspace .pen-palette .width.w2 span {
-    width: 13px;
-    height: 13px;
-}
-
-.lab.workspace .pen-palette .width.on, .lab.workspace .pen-palette .width:hover {
+.lab.workspace .pen-palette .width:hover {
     background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .width.on {
+    background: var(--accent-tint);
+    box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* The cross puts the tools away, as the bar's Pen action does. */
@@ -3777,6 +3868,7 @@ h1:focus {
     display: grid;
     place-items: center;
     border-radius: 50%;
+    color: var(--ink-2);
     cursor: pointer;
 }
 
