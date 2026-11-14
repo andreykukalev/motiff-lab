@@ -77,6 +77,40 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(InputRules.handleReach * 2, 44, "a handle's target is 44 points across")
     }
 
+    func testInThePenTheStylusWritesOverTheHandlesAndAFingerStillTakesThem() {
+        let pen = InputRules(stylus: true, tool: .pen)
+        XCTAssertFalse(pen.takesHandles(.stylus), "the Pencil writes over a selection's handles in the Pen (#511 4.1)")
+        XCTAssertTrue(pen.takesHandles(.finger))
+        XCTAssertTrue(pen.inkTakes(.stylus, nearHandle: true), "a stroke at a handle is the pen's, so no edge moves")
+        XCTAssertTrue(pen.inkTakes(.stylus, nearHandle: false))
+        XCTAssertFalse(pen.inkTakes(.finger, nearHandle: true), "a finger never writes with a stylus")
+        let page = pen.page
+        XCTAssertEqual((page["pen"] as? [String: Any])?["handles"] as? Bool, false)
+        XCTAssertEqual((page["touch"] as? [String: Any])?["handles"] as? Bool, true)
+
+        let bare = InputRules(stylus: false, tool: .pen)
+        XCTAssertFalse(bare.inkTakes(.finger, nearHandle: true), "without a stylus the finger that writes still takes a handle")
+        XCTAssertTrue(bare.inkTakes(.finger, nearHandle: false))
+        XCTAssertTrue(bare.inkTakes(.stylus, nearHandle: true))
+
+        // Out of the Pen the rules come back as they were: every pointer takes the handles, none writes.
+        for tool in [InputRules.Tool.select, .navigate, .none] {
+            let rules = InputRules(stylus: true, tool: tool)
+            XCTAssertTrue(rules.takesHandles(.stylus))
+            XCTAssertTrue(rules.takesHandles(.finger))
+            XCTAssertFalse(rules.inkTakes(.stylus, nearHandle: false))
+        }
+        XCTAssertEqual(InputRules(stylus: true, tool: .select).selectStart(.stylus), .now, "leaving the Pen restores Select")
+    }
+
+    func testWhileThePenIsOnTheStylusChangesNoSelectionOnTheRoll() {
+        let on = RollInput(stylus: true, mode: .navigate, penOn: true)
+        XCTAssertFalse(on.selects(.stylus))
+        XCTAssertTrue(on.selects(.finger))
+        XCTAssertEqual(on.page["penSelects"] as? Bool, false)
+        XCTAssertEqual(RollInput(stylus: true, mode: .navigate).page["penSelects"] as? Bool, true)
+    }
+
     // MARK: - The stroke's outline
 
     func testThePressureSetsTheThicknessForThePencilOnly() {

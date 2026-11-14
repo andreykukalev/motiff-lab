@@ -500,6 +500,8 @@ const selection = new SelectionLayer(document.body, {
     mode: () => state.mode,
     fingerDrags: () => state.mode === "select",
     dragStart: (pointerType) => (state.focus ? "none" : state.input?.[pointerType]?.select),
+    // A finger takes a handle; the Pencil does where it does not write (#511 4.1): in the Pen it writes over the handles.
+    takesHandle: (pointerType) => state.input?.[pointerType]?.handles,
 });
 
 /** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */

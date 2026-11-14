@@ -401,6 +401,7 @@ struct ScoreScreen: View {
         }
         let id = piece.id
         let rolled = roll
+        score.penChanged = { [weak rolled] on in rolled?.penOn = on }
         let understood = insights
         score.notesChanged = { [weak heard, weak rolled, weak understood] in
             rolled?.notesChanged()

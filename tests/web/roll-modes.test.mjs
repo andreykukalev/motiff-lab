@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { drawPlayheads, drawPositionLine, gestureFor, notesInBox } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
+import { drawPlayheads, drawPositionLine, gestureFor, notesInBox, selectsOnRoll } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
 
 test("each mode begins its own gesture, and a press inside the selection only places a playhead in Select", () => {
     assert.equal(gestureFor("navigate", false), "pan");
@@ -69,4 +69,11 @@ test("a box takes the notes sounding inside its time on its keys, drawn either w
     assert.deepEqual(notesInBox(notes, { fromTick: 100, toTick: 600, fromPitch: 59, toPitch: 65 }), [0, 1]);
     assert.deepEqual(notesInBox(notes, { fromTick: 600, toTick: 100, fromPitch: 73, toPitch: 59 }), [0, 1, 2]);
     assert.deepEqual(notesInBox(notes, { fromTick: 720, toTick: 900, fromPitch: 0, toPitch: 127 }), []);
+});
+
+test("while the Pen is on the stylus changes no selection on the roll; a finger and the mouse still do (#511 4.1)", () => {
+    assert.equal(selectsOnRoll("pen", true), false);
+    assert.equal(selectsOnRoll("touch", true), true);
+    assert.equal(selectsOnRoll("mouse", true), true);
+    assert.equal(selectsOnRoll("pen", false), true, "out of the Pen the stylus selects as before");
 });

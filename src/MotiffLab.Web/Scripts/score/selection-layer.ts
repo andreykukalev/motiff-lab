@@ -9,8 +9,9 @@ import { BRACKET_LIFT, type Run, type ScoreBar, type ScoreGeometry } from "./sco
 import { NUMBER_HEIGHT, menuClear, menuPlace } from "./selection-menu.js";
 import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf, stepEdge } from "./selection-beats.js";
 import { type InteractionMode, inside } from "./score-modes.js";
+import { type DragStart, dragStartOf, handleTakes } from "./selection-gesture.js";
 
-export { menuClear, menuPlace };
+export { menuClear, menuPlace, dragStartOf, handleTakes, type DragStart };
 
 /** How far the mouse moves before a press becomes a drag across bars, in pixels. */
 export const DRAG_DISTANCE = 6;
@@ -45,23 +46,8 @@ export interface SelectionHost extends BeatSource {
      * keeps the rules above.
      */
     dragStart?(pointerType: string): DragStart | undefined;
-}
-
-/** How a press may start a selection: "now" drags at once, "longPress" after a long press, "none" never. */
-export type DragStart = "now" | "longPress" | "none";
-
-/**
- * How a press starts a selection: the host's rule for its pointer where it gives one, else the rules before it: the pen
- * writes and the mouse and a finger write while the pen is on; a finger waits for the long press unless it drags at once.
- */
-export function dragStartOf(pointerType: string, rule: DragStart | undefined, penOn: boolean, fingerDrags: boolean): DragStart {
-    if (rule !== undefined) {
-        return rule;
-    }
-    if (pointerType === "pen" || penOn) {
-        return "none";
-    }
-    return pointerType === "touch" && !fingerDrags ? "longPress" : "now";
+    /** Whether a press of this pointer type on a handle takes it, where the host decides it (the iPad, #511 4.1). */
+    takesHandle?(pointerType: string): boolean | undefined;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -457,6 +443,10 @@ export class SelectionLayer {
         const bars = geometry === null ? null : this.selectedBars(geometry);
         const selection = this.selection;
         if (bars === null || selection === null || (event.pointerType !== "touch" && event.button !== 0)) {
+            return;
+        }
+        // A pointer that writes goes on to the pen's layer, which takes it over the handle.
+        if (!handleTakes(event.pointerType, this.owner.takesHandle?.(event.pointerType), this.owner.penOn())) {
             return;
         }
         event.preventDefault();
