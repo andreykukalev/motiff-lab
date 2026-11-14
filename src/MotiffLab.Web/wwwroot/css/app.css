@@ -2980,8 +2980,8 @@ h1:focus {
     white-space: nowrap;
 }
 
-/* The tempo control (version 0.5.4, #511 section 17, the UX prototype's variant A): big numbers typed by a tap, − slider + by
-   1 %, coarse steps, the piece's tempo with its source, the printed tempo. */
+/* The tempo control (version 0.5.4, #511 section 17; version 0.5.5, #521 section 12): two sections, the piece tempo typed by a
+   tap on its number, and the playback pace with its − slider + by 1 % and coarse steps. */
 .workspace .pill .pill-popover:has(> .tempo-control) {
     width: min(26rem, calc(100vw - 2 * var(--s-4)));
 }
@@ -2993,14 +2993,28 @@ h1:focus {
     white-space: normal;
 }
 
-.workspace .pill .tempo-control :is(.tempo-head, .tempo-row, .tempo-fine, .tempo-steps, .tempo-entry, .tempo-base) {
+.workspace .pill .tempo-control :is(.tempo-head, .tempo-fine, .tempo-steps, .tempo-entry) {
     display: flex;
     align-items: center;
     gap: var(--s-2);
 }
 
-.workspace .pill .tempo-control :is(.tempo-head, .tempo-base) {
+.workspace .pill .tempo-control .tempo-head {
     justify-content: space-between;
+}
+
+.workspace .pill .tempo-control .tempo-section {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .pill .tempo-control .tempo-section + .tempo-section {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-3);
+}
+
+.workspace .pill .tempo-control .reset {
+    justify-self: start;
 }
 
 .workspace .pill .tempo-control .heading {
@@ -3020,31 +3034,26 @@ h1:focus {
     cursor: pointer;
 }
 
-.workspace .pill .tempo-control .tempo-big {
-    display: flex;
-    align-items: stretch;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-m);
-    background: var(--surface);
-}
-
-.workspace .pill .tempo-control .tempo-big .num {
-    flex: 1;
+.workspace .pill .tempo-control .num {
     display: grid;
     gap: var(--s-1);
     padding: var(--s-2) var(--s-3);
-    border: 0;
+    border: 1px solid var(--hairline);
     border-radius: var(--r-m);
-    background: none;
+    background: var(--surface);
     text-align: start;
     cursor: text;
 }
 
-.workspace .pill .tempo-control .tempo-big .num:hover:not(:disabled) {
+.workspace .pill .tempo-control .num:disabled {
+    cursor: default;
+}
+
+.workspace .pill .tempo-control .num:hover:not(:disabled) {
     background: var(--accent-tint);
 }
 
-.workspace .pill .tempo-control .tempo-big b {
+.workspace .pill .tempo-control .num b {
     font: var(--t-display);
     font-family: var(--font-ui);
     font-weight: 600;
@@ -3052,22 +3061,16 @@ h1:focus {
     color: var(--ink);
 }
 
-.workspace .pill .tempo-control .tempo-big b span {
+.workspace .pill .tempo-control .num b span {
     font: var(--t-title);
     color: var(--ink-2);
     margin-inline-start: var(--s-1);
 }
 
-.workspace .pill .tempo-control :is(.tempo-big small, .caption, .unit) {
+.workspace .pill .tempo-control :is(.num small, .unit) {
     font: var(--t-caption);
     color: var(--ink-2);
     margin: 0;
-}
-
-.workspace .pill .tempo-control .tempo-split {
-    width: 1px;
-    margin: var(--s-2) 0;
-    background: var(--hairline);
 }
 
 .workspace .pill .tempo-control .field {
@@ -3148,53 +3151,6 @@ h1:focus {
     background: var(--accent-tint);
     border-color: var(--accent);
     font-weight: 600;
-}
-
-.workspace .pill .tempo-control :is(.tempo-base, .tempo-printed) {
-    border-top: 1px solid var(--hairline);
-    padding-top: var(--s-3);
-    flex-wrap: wrap;
-}
-
-.workspace .pill .tempo-control .tempo-base .tempo-row {
-    flex-wrap: wrap;
-}
-
-.workspace .pill .tempo-control .tempo-printed {
-    display: grid;
-    gap: var(--s-2);
-}
-
-/* The source of the piece's tempo (design/kit/ds.css .tag): from the notes plain, a recording's as detected, the default as
-   assumed, the player's in amber, what the player marked. */
-.workspace .pill .tempo-control .tag {
-    display: inline-flex;
-    align-items: center;
-    height: calc(var(--s-5) + 2px);
-    padding: 0 var(--s-2);
-    border-radius: var(--r-xs);
-    font: var(--t-caption);
-    font-weight: 600;
-}
-
-.workspace .pill .tempo-control .tag.notated {
-    border: 1px solid var(--hairline-strong);
-    color: var(--ink-2);
-}
-
-.workspace .pill .tempo-control .tag.detected {
-    background: var(--accent-tint);
-    color: var(--accent);
-}
-
-.workspace .pill .tempo-control .tag.assumed {
-    background: var(--hairline);
-    color: var(--ink-2);
-}
-
-.workspace .pill .tempo-control .tag.player {
-    background: var(--amber-tint);
-    color: var(--ink);
 }
 
 /* The piano roll drawer: up from the bottom, 40% of the height in landscape and 30% in portrait. The pill rides above it. */

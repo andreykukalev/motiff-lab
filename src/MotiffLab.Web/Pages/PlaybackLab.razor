@@ -723,7 +723,7 @@
                     }
                     @* Tempo and Hands open their popovers over themselves, with the pointer at them (design/kit/ds.css .popover). *@
                     <span class="anchor">
-                        <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
+                        <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoNow?.PieceText ?? "", TempoPercent)"
                                 @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono tempo-label">@TempoPillText</span></button>
                         @if (_pillMenu == PillMenu.Tempo)
                         {
@@ -2734,7 +2734,8 @@
         long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
 
     /// <summary>The pill's tempo: "90 % · ♩ 83", the percentage and the beats a minute heard, "♩ ?" when not recognised (version 0.5.4).</summary>
-    private string TempoPillText => TempoNow is { } reading ? Text.Format("tempoControl.reading", TempoPercent, reading.HeardText(TempoPercent)) : $"{TempoPercent}%";
+    /// <summary>The pill's tempo (#521 section 12): the piece tempo, with the playback pace beside it when it is not 100 %.</summary>
+    private string TempoPillText => TempoNow?.PillText(TempoPercent, Text) ?? $"{TempoPercent}%";
 
     /// <summary>The playback tempo, 25 % to 150 % of the piece's in 1 % steps; the engine changes its rate at once, also while playing.</summary>
     private Task SetTempoPercentAsync(int percent) =>
