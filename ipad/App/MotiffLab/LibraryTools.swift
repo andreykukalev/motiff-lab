@@ -15,6 +15,7 @@ extension LibraryEntry {
             inSession: summary.map { !$0.hasNotes || $0.latest != nil } ?? false
         )
         line.originalAway = OriginalAway.of(summary)
+        line.sources = LibrarySource.of(summary)
         if let summary, !summary.hasNotes, summary.document || AwayPdf.isAway(summary) {
             line.withoutNotes = true
             line.pages = max(1, summary.originals.first(where: \.isDocument)?.pages ?? summary.documentPages.count)
@@ -297,6 +298,7 @@ struct LibraryLine: View {
                             .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
                             .foregroundStyle(Color.ds("ink"))
                             .lineLimit(1)
+                        SourceIcons(sources: entry.sources, text: text)
                         if let item = marks.status(entry.url) { RecognitionTag(item: item, text: text) }
                     }
                     if let away = entry.originalAway {
@@ -329,6 +331,33 @@ struct LibraryLine: View {
         .modifier(PieceActions(text: text, edit: edit, delete: delete, swiped: marks.chosen == nil ? swiped : nil))
         .accessibilityElement(children: .combine)
         .accessibilityAction(named: text["library.properties"], edit)
+    }
+}
+
+/// What a piece holds, at a glance (v0.5.6, #533 section 10): a small neutral icon for each source it really has, in the
+/// fixed order of `LibrarySource`, named for VoiceOver and in a tooltip; nothing for a piece with none.
+struct SourceIcons: View {
+    let sources: [LibrarySource]
+    let text: UIText
+
+    var body: some View {
+        if !sources.isEmpty {
+            HStack(spacing: CGFloat.ds("s-1")) {
+                ForEach(sources, id: \.self) { source in
+                    Icon(name: source.icon, size: CGFloat.ds("icon-s"))
+                        .help(source.label(text))
+                }
+            }
+            .foregroundStyle(Color.ds("ink-2"))
+            .fixedSize()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Self.label(sources, text))
+        }
+    }
+
+    /// «Источники: PDF, ноты, запись».
+    static func label(_ sources: [LibrarySource], _ text: UIText) -> String {
+        text.format("library.sources", sources.map { $0.label(text) }.joined(separator: ", "))
     }
 }
 

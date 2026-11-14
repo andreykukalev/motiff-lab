@@ -86,6 +86,8 @@ struct LibraryEntry: Identifiable, Equatable, Sendable {
     /// A piece that is only a PDF, whose notes can be recognised (version 0.5, «Распознать ноты» for several), and its pages.
     var withoutNotes = false
     var pages = 0
+    /// The sources it really has, for the small icons on its line (v0.5.6, #533 section 10).
+    var sources: [LibrarySource] = []
 
     var id: URL { url }
 
@@ -345,5 +347,55 @@ enum LibraryShelf {
         var seen = Set<String>()
         let unique = texts.filter { seen.insert($0.lowercased()).inserted }
         return unique.sorted { compare($0, $1, locale: locale) == .orderedAscending }
+    }
+}
+
+/// A kind of source a piece really has, in the order the library shows them (v0.5.6, #533 section 10; music-core's
+/// `LibrarySources`, which the web reads): PDF, notes, recording, then the others. A new kind is one more case here, one
+/// more line in `of` and one more icon in `SourceIcons`.
+enum LibrarySource: CaseIterable, Equatable, Sendable {
+    case pdf, notes, recording, photos, midi
+
+    /// The piece's sources from its summary (no change to the project file): only what is there, each once, in order. A
+    /// recording heard into notes keeps no sound, so it shows its notes only; notes read from a PDF piece the library hides
+    /// behind them show that PDF too.
+    static func of(_ summary: PieceSummary?) -> [LibrarySource] {
+        guard let summary else { return [] }
+        var has: Set<LibrarySource> = []
+        if summary.readFrom != nil { has.insert(.pdf) }
+        if summary.hasNotes { has.insert(.notes) }
+        for original in summary.originals {
+            switch original.kind {
+            case "pdf": has.insert(.pdf)
+            case "images": has.insert(.photos)
+            case "audio": has.insert(.recording)
+            // The file the notes were imported from is the notes; another MIDI file is a version of its own.
+            case "midi" where original.id != OriginalEntry.sourceFileId: has.insert(.midi)
+            default: break
+            }
+        }
+        return allCases.filter(has.contains)
+    }
+
+    /// Its icon in the kit.
+    var icon: String {
+        switch self {
+        case .pdf: "pages"
+        case .notes: "notes"
+        case .recording: "mic"
+        case .photos: "camera"
+        case .midi: "roll"
+        }
+    }
+
+    /// Its name, for the tooltip and VoiceOver.
+    func label(_ text: UIText) -> String {
+        switch self {
+        case .pdf: text["library.source.pdf"]
+        case .notes: text["library.source.notes"]
+        case .recording: text["library.source.recording"]
+        case .photos: text["library.source.photos"]
+        case .midi: text["library.source.midi"]
+        }
     }
 }

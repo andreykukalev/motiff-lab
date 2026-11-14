@@ -31,6 +31,7 @@ struct PieceCard: View {
                     Text(meta)
                         .dsType(.label)
                         .foregroundStyle(Color.ds("ink-2"))
+                    SourceIcons(sources: entry.sources, text: text)
                     if let away = entry.originalAway {
                         OriginalPlaceLabel(label: away.text(text), badge: away.badge)
                     }

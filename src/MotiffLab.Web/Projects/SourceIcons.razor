@@ -1,0 +1,38 @@
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Localization
+
+@* What a piece holds, at a glance (v0.5.6, #533 section 10): a small neutral icon for each source it really has, in a fixed
+   order, PDF, notes, recording, then the others (LibrarySources), each named in its tooltip and, together, for a screen
+   reader. Nothing for a source the app could add but the piece does not have. A new kind of source is one more value in
+   LibrarySources and one more line in Of below. *@
+@if (Sources.Count > 0)
+{
+    <span class="sources" role="img" aria-label="@Text.Format("library.sources", string.Join(", ", Sources.Select(source => Of(source).Label)))">
+        @foreach (LibrarySource source in Sources)
+        {
+            (string icon, string label) = Of(source);
+            <span class="source" title="@label"><Icon Name="@icon" Size="IconSize.Small" /></span>
+        }
+    </span>
+}
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    /// <summary>The piece whose sources are shown.</summary>
+    [Parameter, EditorRequired]
+    public ProjectSummary Summary { get; set; } = default!;
+
+    private IReadOnlyList<LibrarySource> Sources => LibrarySources.Of(Summary);
+
+    /// <summary>A source's icon in the kit and its name.</summary>
+    private (string Icon, string Label) Of(LibrarySource source) => source switch
+    {
+        LibrarySource.Pdf => ("pages", Text["library.source.pdf"]),
+        LibrarySource.Notes => ("notes", Text["library.source.notes"]),
+        LibrarySource.Recording => ("mic", Text["library.source.recording"]),
+        LibrarySource.Photos => ("camera", Text["library.source.photos"]),
+        _ => ("roll", Text["library.source.midi"]),
+    };
+}
