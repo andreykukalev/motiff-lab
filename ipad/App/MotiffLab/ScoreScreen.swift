@@ -186,6 +186,36 @@ struct ScoreScreen: View {
         score.expandRoll()
     }
 
+    /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
+    @ViewBuilder private var transport: some View {
+        // Scrolled away from the playing, a chip leads back to it (testing item 4).
+        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.hints, let bar = player.barNumber(at: away) {
+            Button {
+                score.returnToPlayhead()
+            } label: {
+                HStack(spacing: 6) {
+                    Icon(name: "play", size: CGFloat.ds("icon-s"))
+                    Text(text.format("transport.backToPlay", String(bar))).dsType(.label)
+                }
+                .foregroundStyle(Color.ds("accent"))
+                .padding(.horizontal, CGFloat.ds("s-3"))
+                .frame(height: 32)
+                .modifier(FloatingSurface())
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity)
+        }
+        // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
+        if pillShown && score.practiceChrome.transport {
+            Pill(player: player, score: score, text: text)
+                .transition(.opacity)
+        }
+        if score.practiceChrome.controls {
+            PracticeControls(player: player, score: score, text: text)
+                .transition(.opacity)
+        }
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
@@ -308,34 +338,7 @@ struct ScoreScreen: View {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
                 // shows with a selection or while the music plays, or only while it plays (the setting
                 // "guidance.transportPill", 0018 section 10).
-                VStack(spacing: CGFloat.ds("s-2")) {
-                    // Scrolled away from the playing, a chip leads back to it (testing item 4).
-                    if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.hints, let bar = player.barNumber(at: away) {
-                        Button {
-                            score.returnToPlayhead()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Icon(name: "play", size: CGFloat.ds("icon-s"))
-                                Text(text.format("transport.backToPlay", String(bar))).dsType(.label)
-                            }
-                            .foregroundStyle(Color.ds("accent"))
-                            .padding(.horizontal, CGFloat.ds("s-3"))
-                            .frame(height: 32)
-                            .modifier(FloatingSurface())
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.opacity)
-                    }
-                    // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
-                    if pillShown && score.practiceChrome.transport {
-                        Pill(player: player, score: score, text: text)
-                            .transition(.opacity)
-                    }
-                    if score.practiceChrome.controls {
-                        PracticeControls(player: player, score: score, text: text)
-                            .transition(.opacity)
-                    }
-                }
+                VStack(spacing: CGFloat.ds("s-2")) { transport }
                 .padding(.bottom, pillBottom)
                 .padding(.trailing, pillTrailing)
                 .padding(.leading, pillLeading)
