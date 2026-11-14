@@ -10,6 +10,7 @@ using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Localization;
+using MotiffLab.Web.Settings;
 
 namespace MotiffLab.Web.Import;
 
@@ -24,8 +25,18 @@ namespace MotiffLab.Web.Import;
 /// The page goes only to that address, and only when the player picks it for scanning; the server
 /// deletes it as soon as it has been read. MIDI and MusicXML files never leave the browser.
 /// </remarks>
-public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiText text)
+public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiText text, DeviceSettings settings)
 {
+    /// <summary>
+    /// The experiment «Выбор движка распознавания» (Settings · Experimental, v0.5.8): while it is on, each scan names the
+    /// engine chosen in <see cref="EngineChoice"/> (homr or copisteria) to the server, so the two can be compared on the
+    /// player's own pages; off, nothing is named and the server reads with homr, as before.
+    /// </summary>
+    public const string EngineSetting = "experimental.scanEngine";
+
+    /// <summary>The engine the experiment sends, "homr" or "copisteria".</summary>
+    public const string EngineChoice = "scan.engine";
+
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
 
@@ -159,6 +170,12 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         var file = new ByteArrayContent(data);
         file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(file, "file", Path.GetFileName(fileName));
+        string? chosen = await ChosenEngineAsync();
+        if (chosen is not null)
+        {
+            content.Add(new StringContent(chosen), "engine");
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(address, "recognise")) { Content = content };
         // The sign-in goes to Motiff Lab's own server only, never to an address typed in Settings.
         if (IsHosted)
@@ -188,10 +205,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
                 return ScanResult.Failed(text["scan.needsPro"]) with { Stop = ScanStop.NeedsPro };
             }
 
-            string? problem = TextOf(await response.Content.ReadAsByteArrayAsync(cancellation), "message");
-            return problem is { Length: > 0 } message ? ScanResult.Failed(message)
-                : response.StatusCode == HttpStatusCode.NotFound ? ScanResult.Failed(NotAScanServer) with { Stop = ScanStop.Unreachable }
-                : ScanResult.Failed("The scan server could not read this file.");
+            return RefusedAs(response.StatusCode, await response.Content.ReadAsByteArrayAsync(cancellation), chosen);
         }
         catch (TaskCanceledException) when (!cancellation.IsCancellationRequested)
         {
@@ -201,6 +215,27 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         {
             return ScanResult.Failed(Unreachable(address)) with { Stop = ScanStop.Unreachable };
         }
+    }
+
+    /// <summary>Why the server did not read the file, from its answer: its own words, or the engine it lacks in the player's language.</summary>
+    private ScanResult RefusedAs(HttpStatusCode status, byte[] body, string? chosen)
+    {
+        if (chosen is not null && TextOf(body, "code") == "engine")
+        {
+            return ScanResult.Failed(text.Format("scan.engineMissing", chosen));
+        }
+
+        string? problem = TextOf(body, "message");
+        return problem is { Length: > 0 } message ? ScanResult.Failed(message)
+            : status == HttpStatusCode.NotFound ? ScanResult.Failed(NotAScanServer) with { Stop = ScanStop.Unreachable }
+            : ScanResult.Failed("The scan server could not read this file.");
+    }
+
+    /// <summary>The engine to name to the server: the experiment's choice while it is on, else null (the server's own, homr).</summary>
+    private async Task<string?> ChosenEngineAsync()
+    {
+        await settings.LoadAsync();
+        return settings.IsOn(EngineSetting) ? settings[EngineChoice] : null;
     }
 
     /// <summary>

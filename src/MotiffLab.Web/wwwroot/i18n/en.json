@@ -2357,5 +2357,9 @@
   "library.withoutNotes": "Without notes",
   "folder.recognise": "Read the notes",
   "folder.recogniseLater": "later, some of them",
-  "folder.recogniseNow": "now, all of them"
+  "folder.recogniseNow": "now, all of them",
+  "settings.scanEngine": "Choice of scan engine",
+  "settings.scanEngineHint": "Scans and photos of pages are read by the engine chosen here on the scan server: homr, as until now, or copisteria, a new engine that reads the printed time signature. To compare them, read the same pages with one and then the other. The engine that read the notes is kept in the piece.",
+  "settings.scanEngineChoice": "Engine",
+  "scan.engineMissing": "The scan server has no {0} engine. Update the server, or choose homr in Settings, section Experimental."
 }

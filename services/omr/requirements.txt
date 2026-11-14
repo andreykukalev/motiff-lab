@@ -13,3 +13,7 @@ cryptography==46.0.3
 moduleconf==0.1.4
 pretty-midi==0.2.11.post0
 mir-eval==0.8.2
+# copisteria (Apache-2.0), the second engine for scans, is installed by the Dockerfile from its pinned commit, without
+# its own requirements: homr brings NumPy, Pillow and OpenCV's headless build, PyTorch's index torchvision; this is
+# the one it needs besides them.
+scipy==1.18.1
