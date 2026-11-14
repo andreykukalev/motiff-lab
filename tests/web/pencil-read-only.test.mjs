@@ -97,3 +97,24 @@ test("the pen writes again once the marks are this device's", async () => {
     assert.equal(pencil.state().on, true);
     assert.equal(press(host, "pen"), true);
 });
+
+// The pen palette's Redo (#533 section 9): what Undo took back comes again, a new step drops it, and new marks from outside
+// leave nothing to take back or do again.
+test("Redo does again what Undo took back, until a new step", async () => {
+    const { pencil } = layer();
+    await pencil.setKey("pdf:p2", writeMarks([stroke("r1"), stroke("r2")]));
+    assert.equal(pencil.state().canRedo, false);
+    pencil.clear();
+    assert.equal(pencil.state().marks, 0);
+    pencil.undoLast();
+    assert.deepEqual([pencil.state().marks, pencil.state().canUndo, pencil.state().canRedo], [2, false, true]);
+    pencil.redoLast();
+    assert.deepEqual([pencil.state().marks, pencil.state().canUndo, pencil.state().canRedo], [0, true, false]);
+    pencil.undoLast();
+    assert.equal(pencil.state().marks, 2);
+    pencil.clear();
+    assert.equal(pencil.state().canRedo, false, "a new step drops what Redo had");
+    pencil.undoLast();
+    pencil.setInk(writeMarks([stroke("r3")]));
+    assert.deepEqual([pencil.state().canUndo, pencil.state().canRedo], [false, false]);
+});

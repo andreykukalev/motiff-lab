@@ -116,6 +116,14 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(StylusRules.ringControls(.navigate), [], "Navigate has no history and no settings")
     }
 
+    func testClearSelectionHasItsOwnIconAndNotTheCrossThatCloses() {
+        // #533 5: the same icon wherever the action is (tests/web/design.test.mjs checks the catalogue holds every kit icon).
+        XCTAssertEqual(StylusRules.RingControl.clearSelection.icon, "deselect")
+        XCTAssertNotEqual(StylusRules.RingControl.clearSelection.icon, "close")
+        XCTAssertEqual(StylusRules.RingControl.undo.icon, "undo")
+        XCTAssertEqual(StylusRules.RingControl.redo.icon, "undo", "Redo draws Undo's mirrored")
+    }
+
     func testThePensHistoryUndoesAndRedoesAndANewStrokeDropsRedo() {
         var ink = InkHistory()
         XCTAssertFalse(ink.canUndo || ink.canRedo)

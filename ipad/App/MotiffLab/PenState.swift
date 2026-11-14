@@ -13,12 +13,13 @@ enum ActiveTool: String, CaseIterable, Equatable {
         }
     }
 
-    /// The kit's icon (design/kit/icons.js); the kit has none for the eraser, which shows its word.
-    var icon: String? {
+    /// The kit's icon (design/kit/icons.js): three drawings of their own (#533 9), the pencil with its cone and lead, the
+    /// marker with its chisel and its band, the eraser as a block; never the bar's Pen or the selection's Highlight.
+    var icon: String {
         switch self {
-        case .pencil: "pen"
-        case .marker: "highlight"
-        case .eraser: nil
+        case .pencil: "pencil"
+        case .marker: "marker"
+        case .eraser: "eraser"
         }
     }
 }

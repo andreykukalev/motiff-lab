@@ -150,7 +150,7 @@ struct RollDrawer: View {
         return Button {
             score.clearSelection()
         } label: {
-            Icon(name: "close")
+            Icon(name: StylusRules.RingControl.clearSelection.icon)
         }
         .buttonStyle(RollHeadStyle(round: true))
         .keyboardShortcut(live && shown && score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)

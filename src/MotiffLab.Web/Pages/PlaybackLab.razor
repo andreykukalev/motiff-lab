@@ -850,7 +850,7 @@
                 @if (PlayheadsOn)
                 {
                     @* Only ✕ or Escape removes the selection (version 0.5, the experiment Two playheads and modes). *@
-                    <button class="it icon" aria-label="@Text["menu.clearSelection"]" title="@Text["menu.clearSelection"] (Esc)" @onclick="CloseSelectionAsync"><Icon Name="close" /></button>
+                    <button class="it icon" aria-label="@Text["menu.clearSelection"]" title="@Text["menu.clearSelection"] (Esc)" @onclick="CloseSelectionAsync"><Icon Name="deselect" /></button>
                 }
                 @if (MenuMoreOpen)
                 {

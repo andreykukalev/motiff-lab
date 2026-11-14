@@ -135,7 +135,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>
-    /// ⌘Z and ⇧⌘Z (mode-keys.ts): the ink's Undo while the pen is on (it has no Redo), else the selection's; the assembly keeps
+    /// ⌘Z and ⇧⌘Z (mode-keys.ts): the ink's Undo and Redo while the pen is on (#533 9), else the selection's; the assembly keeps
     /// its own. Nothing in Expand, which is bound to its selection and edits nothing (#521 19).
     /// </summary>
     [JSInvokable]
@@ -148,9 +148,9 @@ public partial class PlaybackLab
 
         if (_penOn)
         {
-            if (!redo && _scoreView is not null)
+            if (_scoreView is not null)
             {
-                await _scoreView.UndoInkAsync();
+                await (redo ? _scoreView.RedoInkAsync() : _scoreView.UndoInkAsync());
             }
 
             return;

@@ -108,11 +108,11 @@ enum InkOutline {
 
 /// One step Undo takes back: the strokes a stroke of the pen or a press of the eraser added, by id, and the strokes the
 /// eraser took, whole, as music-core keeps them, to put back. A press of the eraser is one step, however much it took
-/// (BUG-05). Where the step keeps the strokes it added whole too, Redo does it again (#521 9, the score).
+/// (BUG-05). Where the step keeps the strokes it added whole too, Redo does it again (#521 9, #533 9).
 struct InkStep {
     var added: [String]
     var removed: [[String: Any]] = []
-    /// The strokes it added, whole, for Redo; empty where only Undo is kept (a PDF's pages).
+    /// The strokes it added, whole, for Redo (the score's and, since #533 9, a PDF's pages).
     var strokes: [[String: Any]] = []
 
     /// Takes the step back through `change(call, request, draws)`: the strokes it added go, then the strokes it took come
@@ -133,7 +133,7 @@ struct InkStep {
     }
 }
 
-/// The Pen's own history on the score (#521 9): its steps for Undo and the steps undone for Redo, apart from the
+/// The Pen's own history on the score (#521 9) and on a PDF's pages (#533 9): its steps for Undo and the steps undone for Redo, apart from the
 /// selection's. A new step drops what Redo had; switching tools keeps both.
 struct InkHistory {
     private(set) var done: [InkStep] = []

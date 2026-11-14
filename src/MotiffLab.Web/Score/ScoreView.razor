@@ -589,6 +589,9 @@ else if (_loading && !HoldHeight)
     /// <summary>The pen palette's Undo, from ⌘Z while the pen is on (#511 11): the last mark goes.</summary>
     public Task UndoInkAsync() => _pencilState.CanUndo ? PencilAsync("undoLast") : Task.CompletedTask;
 
+    /// <summary>The pen palette's Redo, from ⇧⌘Z while the pen is on (#533 9): the mark taken back last comes back.</summary>
+    public Task RedoInkAsync() => _pencilState.CanRedo ? PencilAsync("redoLast") : Task.CompletedTask;
+
     private async Task PencilAsync(string method, params object?[] args)
     {
         if (_pencil is not null)
@@ -777,5 +780,5 @@ else if (_loading && !HoldHeight)
     /// What the pencil tools show, as the script reports it (Scripts/score/pencil-layer.ts). <paramref name="Width"/> is the drawing
     /// tool's thickness: 0 thin, 1 medium, 2 thick.
     /// </summary>
-    public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo, int Width = 1);
+    public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo, int Width = 1, bool CanRedo = false);
 }

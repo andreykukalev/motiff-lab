@@ -46,6 +46,10 @@ const ICONS = {
   notes: '<ellipse cx="5.9" cy="14.6" rx="2.4" ry="1.8" transform="rotate(-20 5.9 14.6)"/><ellipse cx="13.9" cy="13.1" rx="2.4" ry="1.8" transform="rotate(-20 13.9 13.1)"/><path d="M8.1 14V5.2l8-1.7v9"/><path d="M8.1 8l8-1.7"/>',
   keysig: '<circle cx="10" cy="10" r="7.25"/><path d="M8.6 6.2v8M11.4 5.8v8M6.6 9l6.8-1.3M6.6 12.3l6.8-1.3"/>',
   folder: '<path d="M2.75 15.25V4.75a1 1 0 0 1 1-1h3.9l1.7 2h6.9a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H3.75a1 1 0 0 1-1-1z"/>',
-  recheck: '<path d="M16.25 10a6.25 6.25 0 1 1-1.85-4.45"/><path d="M14.75 2.75v3h-3"/>'
+  recheck: '<path d="M16.25 10a6.25 6.25 0 1 1-1.85-4.45"/><path d="M14.75 2.75v3h-3"/>',
+  deselect: '<path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/><path d="M7.75 7.75l4.5 4.5M12.25 7.75l-4.5 4.5"/>',
+  pencil: '<path d="M6 11l7-7 3 3-7 7"/><path d="M6 11l-2.5 5.5L9 14"/><path d="M7.5 12.5l7-7"/><path d="M11.6 5.4l3 3"/><path d="M3.5 16.5l.7-1.6.9.9z" fill="currentColor"/>',
+  marker: '<path d="M8 10l4.9-4.9a2.1 2.1 0 0 1 3 3L11 13"/><path d="M8 10l3 3"/><path d="M8 10l-3.5 3.5 1.5 1.5L11 13"/><path d="M3 17.5h7.5" stroke-width="2.5"/>',
+  eraser: '<path d="M7.3 16.5l-3.8-3.8a1.4 1.4 0 0 1 0-2l7-7a1.4 1.4 0 0 1 2 0l4.3 4.3a1.4 1.4 0 0 1 0 2l-6.5 6.5"/><path d="M6.5 7.5l6 6"/><path d="M7.3 16.5h9.2"/>'
 };
 function ic(name, cls) { return `<svg class="ic ${cls||''}" viewBox="0 0 20 20" aria-hidden="true">${ICONS[name]}</svg>`; }
