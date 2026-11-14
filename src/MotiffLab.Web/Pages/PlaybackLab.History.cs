@@ -134,12 +134,22 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>⌘Z and ⇧⌘Z (mode-keys.ts): the selection's, unless the assembly has its own or the pen is writing.</summary>
+    /// <summary>⌘Z and ⇧⌘Z (mode-keys.ts): the ink's Undo while the pen is on (it has no Redo), else the selection's; the assembly keeps its own.</summary>
     [JSInvokable]
     public async Task OnUndoKeyAsync(bool redo)
     {
-        if (_assembling || _penOn || _score is null || NoteEditing)
+        if (_assembling || _score is null || NoteEditing)
         {
+            return;
+        }
+
+        if (_penOn)
+        {
+            if (!redo && _scoreView is not null)
+            {
+                await _scoreView.UndoInkAsync();
+            }
+
             return;
         }
 

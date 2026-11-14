@@ -42,6 +42,7 @@ interface StripPress {
     pointer: number;
     x: number;
     y: number;
+    /** Whether a move off the selection before the hold moves the roll: a finger's, and any pointer's in Navigate. */
     finger: boolean;
     gesture: SelectionGesture;
     id: string;
@@ -53,15 +54,20 @@ export class RollStripGesture {
 
     constructor(private readonly host: StripHost) {}
 
-    /** A press on a strip, at a tick across the roll; every pointer selects here at once, as before (#479 item 23). */
-    begin(event: PointerEvent, x: number, y: number, tick: number): void {
+    /**
+     * A press on a strip, at a tick across the roll. Every pointer selects here at once, as before (#479 item 23); in
+     * Navigate under the modes ("longPress", as the score there) a hold begins what a move begins elsewhere, and a move
+     * before it moves the roll.
+     */
+    begin(event: PointerEvent, x: number, y: number, tick: number, rule: "now" | "longPress" = "now"): void {
         this.cancel();
         const selection = this.host.selection();
         const inside = selection !== null && tick >= selection.start && tick < selection.end;
-        const press: StripPress = { pointer: event.pointerId, x, y, finger: event.pointerType === "touch", gesture: pressGesture(selection, tick, inside, "now"), id: nextGestureId(), timer: 0 };
+        const finger = event.pointerType === "touch" || rule === "longPress";
+        const press: StripPress = { pointer: event.pointerId, x, y, finger, gesture: pressGesture(selection, tick, inside, rule), id: nextGestureId(), timer: 0 };
         press.timer = window.setTimeout(() => this.take(press, heldGesture(press.gesture)), HOLD_MS);
         this.press = press;
-        if (selection === null) {
+        if (selection === null && rule === "now") {
             // Without a selection a press selects at once, a tap selecting its bar, as before.
             press.gesture.phase = "creating";
             this.host.beginRange(press.pointer, x, tick, "create", press.id);
