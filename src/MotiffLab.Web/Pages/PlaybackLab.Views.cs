@@ -25,6 +25,53 @@ public partial class PlaybackLab
     /// <summary>The place the score goes back to once its pages are laid out, if they were not yet; null for none.</summary>
     private ViewPlace? _placeToShow;
 
+    /// <summary>
+    /// The score's pages are held out of sight while they land (#533 6): from a PDF's page ("&amp;at=") or back to the view
+    /// kept ("&amp;view=notes"), the place is reached only after the pages are drawn, and the top of the first page used to
+    /// show on the way there.
+    /// </summary>
+    private bool _landing;
+
+    /// <summary>The arrival (the resume point and the "Notes" view kept) is still being put in place.</summary>
+    private bool _arriving;
+
+    /// <summary>The score has told which pages it shows since the piece began to land.</summary>
+    private bool _pagesSeen;
+
+    /// <summary>A piece opens: held out of sight when it opens at a place, shown as drawn when not.</summary>
+    private void StartLanding()
+    {
+        _landing = At is not null || View == ViewStates.NotesAsLeft;
+        _arriving = _landing;
+        _pagesSeen = false;
+    }
+
+    /// <summary>The arrival is in place: a view kept that the pages shown could not take yet is given up rather than waited for.</summary>
+    private async Task EndArrivalAsync()
+    {
+        _arriving = false;
+        if (_pagesSeen)
+        {
+            await ShowKeptPlaceAsync(last: true);
+        }
+
+        Land();
+    }
+
+    /// <summary>
+    /// Shows the pages once nothing is left to bring them to: the arrival done, the view kept shown (or given up), and the
+    /// PDF's page shown, or no page to show it on (the strip).
+    /// </summary>
+    private void Land()
+    {
+        bool placed = At is not { } at || at == _shownAt || (_pagesSeen && _pages.Count == 0);
+        if (_landing && !_arriving && _placeToShow is null && placed)
+        {
+            _landing = false;
+            StateHasChanged();
+        }
+    }
+
     private void WatchLeavingNotes() => _leavingNotes ??= Navigation.RegisterLocationChangingHandler(OnLeavingNotesAsync);
 
     /// <summary>Another page opens (not this one with another address): the "Notes" view is kept before it goes.</summary>

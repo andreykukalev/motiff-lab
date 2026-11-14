@@ -395,7 +395,7 @@ struct PdfScreen: View {
             }
         }
         .sheet(isPresented: $referenceOpen) {
-            ReferenceSheet(text: text, settings: settings)
+            ReferenceSheet(text: text, settings: settings, piece: piece.id)
         }
         .sheet(isPresented: $settingsOpen) {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)

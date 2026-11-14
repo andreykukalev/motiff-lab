@@ -1279,14 +1279,14 @@ async function picture(svg, width, ink, paper) {
     }
 }
 
-/** Brings a page to the top of the view, under the bar. */
-function showPage({ page }) {
+/** Brings a page to the top of the view, under the bar; at once when `instant`, as the notes open there (#533 6). */
+function showPage({ page, instant = false }) {
     const element = document.querySelector(`#pages > .page[data-page="${page}"]`);
     if (element === null) {
         return false;
     }
     const top = element.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(document.body).paddingTop);
-    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, top), behavior: instant ? "instant" : "smooth" });
     return true;
 }
 
@@ -1310,11 +1310,11 @@ function firstTickOn({ page }) {
 }
 
 /** Brings the page a place in the piece is on to the top, under the bar, as the PDF's pages lead to the notes (0023). */
-function showTick({ tick }) {
+function showTick({ tick, instant = false }) {
     const bars = state.geometry?.bars ?? [];
     const before = bars.filter((bar) => bar.tick <= tick);
     const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : bars[0];
-    return bar === undefined ? false : showPage({ page: bar.page });
+    return bar === undefined ? false : showPage({ page: bar.page, instant });
 }
 
 /**

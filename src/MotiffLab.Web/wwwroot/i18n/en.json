@@ -1299,6 +1299,7 @@
   "reference.sectorAria": "{0}, {1}",
   "reference.pieceKey": "Key of the piece: {0}",
   "reference.pieceKeyInferred": "Key of the piece, assumed: {0}",
+  "reference.pieceKeyUnknown": "The piece's key is not known",
   "reference.showPieceKey": "Show",
   "reference.relative": "Relative",
   "reference.parallel": "Parallel",

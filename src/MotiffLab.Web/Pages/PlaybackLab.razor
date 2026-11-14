@@ -104,7 +104,7 @@
             else if (ShownScore is { } shown)
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-                <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
+                <ScoreView @ref="_scoreView" Source="shown" Landing="_landing" Range="ShownRange" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
                            PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" SelectionGesture="OnSelectionGestureAsync" Menu="@(MenuShown ? SelectionMenu : null)"
@@ -542,12 +542,12 @@
 
             @if (_referenceOpen && HandbookOn)
             {
-                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false"
+                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" InPiece="true" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false"
                                                                 PieceTitle="@ScoreTitle.Of(_title)" Transposed="Transposed?.To" Transpose="TransposeAsync" />
             }
             else if (_referenceOpen)
             {
-                <MotiffLab.Web.Reference.ReferenceSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Closed="() => _referenceOpen = false" />
+                <MotiffLab.Web.Reference.ReferenceSheet PieceKey="_referencePieceKey" InPiece="true" Hear="HearReferenceAsync" Closed="() => _referenceOpen = false" />
             }
 
             @if (_settingsOpen)
@@ -2367,6 +2367,7 @@
         if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
         {
             _pieceVersion = CurrentPiece.Version;
+            StartLanding();
             ExpectEngraving();
             await LoadPieceAsync(piece);
             if (_filters.Contains(CurrentPiece.StartWith))
@@ -2405,6 +2406,7 @@
             }
 
             await ArriveAtResumePointAsync();
+            await EndArrivalAsync();
             await CheckOriginalsAsync();
             await ReadPartsMadeAsync();
             StateHasChanged();

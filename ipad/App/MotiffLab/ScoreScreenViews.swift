@@ -42,7 +42,10 @@ extension ScoreScreen {
 
     /// Back from the PDF: the "Notes" view as the player left it, in place of the page the PDF was on. Nothing plays.
     func returnToNotesView() async {
-        guard piece.landing == .kept, let id = viewKey, let kept = ViewStates.notes(id) else { return }
+        guard piece.landing == .kept else { return }
+        // The pages were held out of sight for this (#533 6): they show once they stand where they were left, or now.
+        defer { score.land() }
+        guard let id = viewKey, let kept = ViewStates.notes(id) else { return }
         // The roll takes the frame as it first loads, whenever the drawer opens.
         RollFrameHandoff.give(kept.roll, to: piece.id)
         guard await score.whenRendered() else { return }

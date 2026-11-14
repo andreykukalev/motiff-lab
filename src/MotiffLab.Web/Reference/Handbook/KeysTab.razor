@@ -17,6 +17,10 @@
             {
                 <span class="ref-legend-item"><span class="ref-swatch piece @(piece.Inferred ? "inferred" : null)" aria-hidden="true"></span>@Text.Format(piece.Inferred ? "reference.pieceKeyInferred" : "reference.pieceKey", piece.Key.NameIn(Words))</span>
             }
+            else if (InPiece)
+            {
+                <span class="ref-legend-item ref-key-unknown">@Text["reference.pieceKeyUnknown"]</span>
+            }
             <span class="ref-legend-item"><span class="ref-swatch on" aria-hidden="true"></span>@Text["reference.chosen"]</span>
         </p>
     </div>
@@ -59,6 +63,10 @@
 
     [Parameter]
     public DnaKey? PieceKey { get; set; }
+
+    /// <summary>Opened over a piece: with no key known, the legend says so (#533 7), as the circle shows C major only to be filled.</summary>
+    [Parameter]
+    public bool InPiece { get; set; }
 
     [Parameter]
     public EventCallback<MusicalKey> Pick { get; set; }

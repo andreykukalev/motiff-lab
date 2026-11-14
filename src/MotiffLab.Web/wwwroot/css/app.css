@@ -1160,6 +1160,11 @@ h1, h2, .app-title strong {
 /* Score view (Score/ScoreView.razor, Scripts/score): the whole screen (0018 section 2), A4 sheets of paper on the desk in one
    continuously scrolling document; the notes being heard in the accent. The view is a size container, so a page's width can
    follow the view's height in landscape. */
+/* While it lands on the place it opens at (PDF | Notes, #533 6), the desk shows and the pages wait out of sight. */
+.score[data-landing] > * {
+    visibility: hidden;
+}
+
 .score {
     position: absolute;
     inset: 0;
@@ -10283,6 +10288,11 @@ body:has(> #app > .library) {
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
+}
+
+/* Over a piece whose key is not known, the circle shows C major only to be filled, and says so, small (#533 7). */
+.ref-sheet.handbook .ref-key-unknown {
+    font: var(--t-caption);
 }
 
 .ref-sheet.handbook .ref-swatch {

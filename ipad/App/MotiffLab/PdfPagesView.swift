@@ -52,6 +52,7 @@ final class BarPdfView: PDFView {
     /// Brings the page's top to rest under the bar, once the pages are laid out: on opening, after PDF | Notes, after a
     /// turn of the iPad and from the Contents.
     func rest(on page: PDFPage) {
+        holdUntilPlaced()
         waiting = (page, 0)
         setNeedsLayout()
     }
@@ -60,6 +61,7 @@ final class BarPdfView: PDFView {
     /// place on it under the bar, once the pages are laid out.
     func comeBack(to state: PdfViewState) {
         guard let page = document?.page(at: state.page - 1) else { return }
+        holdUntilPlaced()
         returning = (state.zoom, state.left)
         waiting = (page, CGFloat(state.place.fraction))
         setNeedsLayout()
@@ -130,7 +132,14 @@ final class BarPdfView: PDFView {
         }
     }
 
+    /// The first place is reached a pass after PDFKit lays the pages out, at their first page: until then they stay out of
+    /// sight (#533 6), so PDF | Notes never shows page 1 before the page it opens at.
+    private func holdUntilPlaced() {
+        if placed == nil { alpha = 0 }
+    }
+
     private func place(_ page: PDFPage, fraction: CGFloat) {
+        defer { alpha = 1 }
         guard let scroll else {
             go(to: page)
             return
