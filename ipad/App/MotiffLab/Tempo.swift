@@ -45,7 +45,7 @@ struct TempoReading: Equatable, Sendable {
 
     /// Quarter notes a minute at the start as played, exact (from the first tempo's microseconds a quarter).
     var perMinute: Double
-    /// "notated", "inferred", "assumed" or "player".
+    /// "notated", "inferred", "player", "default" (nothing states one: 80, version 0.5.5) or "assumed" (a recording's clock).
     var source: String
     /// The piece's own tempo at the start, before the player's, in quarter notes rounded, and where it comes from.
     var piecePerMinute: Int
@@ -88,24 +88,53 @@ struct TempoReading: Equatable, Sendable {
     /// The player's tempo for the piece in beats a minute, or nil.
     var playerBeats: Int? { player == nil ? nil : startBeats }
 
-    /// Beats a minute heard at `percent`, rounded: the "♩ 83" beside "90 %".
+    /// Whether the piece's tempo is known (version 0.5.5): only a recording's own clock, before its bars are worked out,
+    /// is not; a piece without any tempo plays at its default of 80 ("default"), which is known and marked.
+    var known: Bool { source != "assumed" }
+
+    /// The piece tempo (#521 section 12), the one source of truth the score's mark shows: "♩ = 92" from the notes, the
+    /// player or the default, "♩ ≈ 92" from a recording, "♩ ?" for a recording's own clock. Playback pace never changes it.
+    var pieceText: String {
+        switch source {
+        case "assumed": return "\(note) ?"
+        case "inferred": return "\(note) ≈ \(startBeats)"
+        default: return "\(note) = \(startBeats)"
+        }
+    }
+
+    /// Beats a minute heard at `percent`, rounded: the effective speed, the piece tempo × the pace (120 at 80 % is 96).
     func heard(at percent: Int) -> Int {
         Int((beatsPerMinute * Double(percent) / 100).rounded())
     }
 
-    /// The pill's beats: "♩ 83" from the notes or the player, "♩ ≈ 83" from a recording, "♩ ?" when not recognised.
-    func heardText(at percent: Int) -> String {
+    /// The effective speed as the pace section says it: "♩ 96", "♩ ≈ 96" from a recording, nil for a recording's own clock.
+    func heardText(at percent: Int) -> String? {
         switch source {
-        case "assumed": return "\(note) ?"
+        case "assumed": return nil
         case "inferred": return "\(note) ≈ \(heard(at: percent))"
         default: return "\(note) \(heard(at: percent))"
         }
     }
 
-    /// The percentage that plays `beats` a minute, to the nearest whole one (not clamped).
-    func percent(for beats: Int) -> Int {
-        Int((Double(beats) * 100 / beatsPerMinute).rounded())
+    /// The pill: the piece tempo, and the pace beside it when it is not 100 % ("♩ = 92 · 80%").
+    func pillText(at percent: Int, _ text: UIText) -> String {
+        percent == 100 ? pieceText : text.format("tempoControl.reading", pieceText, String(percent))
     }
+
+    /// What the piece tempo is, under its number: the music's own tempo, a default taken because nothing states one (an
+    /// assumption, said so), worked out from a recording, or not known before a recording's bars.
+    func pieceCaption(_ text: UIText) -> String {
+        switch source {
+        case "default": return text.format("tempoControl.pieceDefault", note, String(startBeats))
+        case "inferred": return text["tempoControl.pieceInferred"]
+        case "assumed": return text["tempoControl.pieceUnknown"]
+        default: return text["tempoControl.pieceCaption"]
+        }
+    }
+
+    /// The tempo the piece goes back to when the player's is cleared, in beats a minute: its own from the notes, a
+    /// recording or the default; nil when the player set none.
+    var ownBeats: Int? { player == nil ? nil : pieceStartBeats }
 
     /// Quarter notes a minute of `beats` a minute, as music-core keeps them: a dotted quarter's 61 is 92 (half up).
     func quarterNotes(_ beats: Int) -> Int {
@@ -124,39 +153,17 @@ struct TempoReading: Equatable, Sendable {
     func beatsCaption(_ text: UIText) -> String {
         text[dotted ? "tempoControl.dottedQuarters" : "tempoControl.quarters"]
     }
-
-    /// Where the piece's tempo comes from, as a tag: from the notes, from the recording, not recognised, set by you.
-    func sourceTag(_ text: UIText) -> (String, Tag.Kind) {
-        switch source {
-        case "inferred": return (text["tempoControl.tagInferred"], .detected)
-        case "assumed": return (text["tempoControl.tagAssumed"], .assumed)
-        case "player": return (text["tempoControl.tagPlayer"], .player)
-        default: return (text["tempoControl.tagNotated"], .plain)
-        }
-    }
-
-    /// The piece's tempo as its source has it, so the printed tempo, an estimate and the player's are never mixed up.
-    func sourceLine(_ text: UIText) -> String {
-        let start = String(startBeats)
-        switch source {
-        case "inferred": return text.format("tempoControl.lineInferred", note, start)
-        case "assumed": return text.format("tempoControl.lineAssumed", note, start)
-        case "player" where pieceSource == "notated":
-            return text.format("tempoControl.linePlayerOver", note, start, String(pieceStartBeats))
-        case "player": return text.format("tempoControl.linePlayer", note, start)
-        default: return text.format("tempoControl.lineNotated", note, start)
-        }
-    }
 }
 
-/// The pill's tempo (#511 section 17, the UX prototype's variant A that Andrei approved): "90 % · ♩ 83", and in its
-/// popover the big numbers typed by a tap, − slider + by 1 % held to repeat, coarse steps, the piece's tempo with its
-/// source and the tempo printed in the notes. It observes only the tempo, so it stays open and works while playing; it
-/// closes with ✕ or a tap on the notes.
+/// The pill's tempo (#511 section 17; version 0.5.5, #521 section 12): the piece tempo, with the playback pace beside it
+/// when it is not 100 % ("♩ = 92 · 80%"), and in its popover two separate sections: the piece tempo, typed by a tap on its
+/// number, which the score's mark shows; and the playback pace, a percentage with its own − slider + (by 1 %, held to
+/// repeat) and coarse steps, which changes only the speed heard (tempo × pace). It observes only the tempo, so it stays
+/// open and works while playing; it closes with ✕ or a tap on the notes.
 struct TempoControl: View, Equatable {
     @ObservedObject private var tempo: TempoSetting
     private let text: UIText
-    /// The piece's tempo the player read in the printed notes, in quarter notes a minute, or nil to clear it.
+    /// The piece tempo the player typed, in quarter notes a minute, or nil to clear theirs.
     private let setPiece: (Int?) -> Void
     /// What the pill's drawing compares (`.equatable()`): the same tempo in the same language is not drawn again.
     private let identity: ObjectIdentifier
@@ -185,7 +192,7 @@ struct TempoControl: View, Equatable {
             }
         }
         .buttonStyle(DSItemStyle(on: open || tempo.percent != 100))
-        .accessibilityLabel(text.format("pill.tempoLabel", String(tempo.percent)))
+        .accessibilityLabel(text.format("pill.tempoLabel", tempo.reading?.pieceText ?? "", String(tempo.percent)))
         .popover(isPresented: $open) {
             TempoPanel(tempo: tempo, text: text, setPiece: setPiece) { open = false }
                 .padding(CGFloat.ds("s-4"))
@@ -195,14 +202,13 @@ struct TempoControl: View, Equatable {
     }
 
     private var label: String {
-        guard let reading = tempo.reading else { return "\(tempo.percent)%" }
-        return text.format("tempoControl.reading", String(tempo.percent), reading.heardText(at: tempo.percent))
+        tempo.reading?.pillText(at: tempo.percent, text) ?? "\(tempo.percent)%"
     }
 }
 
-/// The popover's content, top to bottom as the prototype has it.
+/// The popover's content: the piece tempo, then the playback pace, each a section of its own.
 private struct TempoPanel: View {
-    private enum Typing { case percent, beats }
+    private enum Typing { case piece, pace }
 
     @ObservedObject var tempo: TempoSetting
     let text: UIText
@@ -210,8 +216,6 @@ private struct TempoPanel: View {
     let close: () -> Void
     @State private var typing: Typing?
     @State private var typed = ""
-    @State private var printing = false
-    @State private var printed = ""
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -223,32 +227,42 @@ private struct TempoPanel: View {
                     .buttonStyle(DSIconItemStyle())
                     .accessibilityLabel(text["tempoControl.close"])
             }
-            if let typing { entry(typing) } else { bigNumbers }
-            fine
-            coarse
             if let reading = tempo.reading {
+                pieceSection(reading)
                 Divider().overlay(Color.ds("hairline"))
-                if printing { printedForm(reading) } else { pieceRow(reading) }
+            }
+            paceSection
+        }
+    }
+
+    /// «Темп пьесы»: the musical tempo, the score's mark; a tap on the number types a new one.
+    private func pieceSection(_ reading: TempoReading) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["tempoControl.pieceTempo"]).overline()
+            if typing == .piece {
+                pieceEntry(reading)
+            } else {
+                bigNumber(Text(verbatim: reading.pieceText), caption: reading.pieceCaption(text),
+                          label: text["tempoControl.typePiece"]) { start(.piece) }
             }
         }
     }
 
-    /// The percentage and the beats a minute, each typed by a tap.
-    private var bigNumbers: some View {
-        HStack(spacing: 0) {
-            bigNumber(Text(verbatim: String(tempo.percent)) + Text(verbatim: "%").font(DSType.title.token.font).foregroundStyle(Color.ds("ink-2")),
-                      caption: text["tempoControl.percentCaption"], label: text["tempoControl.typePercent"]) { start(.percent) }
-            if let reading = tempo.reading {
-                Rectangle().fill(Color.ds("hairline")).frame(width: 1).padding(.vertical, CGFloat.ds("s-2"))
-                bigNumber(Text(verbatim: "\(reading.note) \(reading.heard(at: tempo.percent))"),
-                          caption: reading.source == "assumed"
-                              ? text.format("tempoControl.ofTaken", reading.note, String(reading.startBeats))
-                              : reading.beatsCaption(text),
-                          label: text["tempoControl.typeBeat"]) { start(.beats) }
+    /// «Скорость игры»: the percentage of the piece tempo heard, with its slider and steps; the piece tempo stays.
+    private var paceSection: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["tempoControl.pace"]).overline()
+            if typing == .pace {
+                paceEntry
+            } else {
+                bigNumber(Text(verbatim: String(tempo.percent)) + Text(verbatim: "%").font(DSType.title.token.font).foregroundStyle(Color.ds("ink-2")),
+                          caption: tempo.reading?.heardText(at: tempo.percent).map { text.format("tempoControl.paceHeard", $0) }
+                              ?? text["tempoControl.percentCaption"],
+                          label: text["tempoControl.typePercent"]) { start(.pace) }
             }
+            fine
+            coarse
         }
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
     }
 
     private func bigNumber(_ value: Text, caption: String, label: String, action: @escaping () -> Void) -> some View {
@@ -256,38 +270,67 @@ private struct TempoPanel: View {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                 value.font(DesignTokens.font(weight: 600, size: DSType.display.token.size, relativeTo: .largeTitle))
                     .monospacedDigit().foregroundStyle(Color.ds("ink"))
-                Text(caption).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                Text(caption).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, CGFloat.ds("s-3"))
             .padding(.vertical, CGFloat.ds("s-2"))
+            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityValue(caption)
     }
 
-    /// A percentage or beats a minute typed: the beats as the percentage that plays them, kept within 25 to 150.
-    private func entry(_ kind: Typing) -> some View {
+    private func field(_ label: String) -> some View {
+        TextField("", text: $typed)
+            .keyboardType(.numberPad)
+            .font(DSType.title.token.font)
+            .monospacedDigit()
+            .focused($focused)
+            .onSubmit(enter)
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .frame(height: CGFloat.ds("h-control"))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
+            .accessibilityLabel(label)
+            .onAppear { focused = true }
+    }
+
+    /// The piece tempo typed in beats a minute ("♩ = 92"; dotted quarters in 6/8), kept with the piece and marked on the
+    /// score; the pace stays, so the speed heard follows it. The player's own can be cleared back to the piece's.
+    private func pieceEntry(_ reading: TempoReading) -> some View {
+        let value = Int(typed.trimmingCharacters(in: .whitespaces))
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text("\(reading.note) =").foregroundStyle(Color.ds("ink-2"))
+                field(reading.beatsCaption(text))
+                Button(text["tempoControl.done"], action: enter)
+                    .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                    .disabled(value.map { !reading.canSet($0) } ?? true)
+                Button(text["tempoControl.cancel"]) { typing = nil }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
+            if let own = reading.ownBeats {
+                Button(text.format("tempoControl.resetTo", reading.note, String(own))) {
+                    typing = nil
+                    setPiece(nil)
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
+        }
+    }
+
+    private var paceEntry: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            if kind == .beats, let reading = tempo.reading { Text("\(reading.note) =").foregroundStyle(Color.ds("ink-2")) }
-            TextField("", text: $typed)
-                .keyboardType(.numberPad)
-                .font(DSType.title.token.font)
-                .monospacedDigit()
-                .focused($focused)
-                .onSubmit(enter)
-                .padding(.horizontal, CGFloat.ds("s-2"))
-                .frame(height: CGFloat.ds("h-control"))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
-                .accessibilityLabel(kind == .percent ? text["tempoControl.percent"] : tempo.reading?.beatsCaption(text) ?? "")
-            Text(kind == .percent ? "%" : tempo.reading?.beatsCaption(text) ?? "").dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            field(text["tempoControl.percent"])
+            Text(verbatim: "%").dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             Button(text["tempoControl.done"], action: enter).buttonStyle(DSButtonStyle(kind: .primary, compact: true))
         }
-        .onAppear { focused = true }
     }
 
-    /// − slider + in 1 % steps; a held − or + steps again and again.
+    /// − slider + in 1 % steps; a held − or + steps again and again. Only the pace.
     private var fine: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             stepButton("−", by: -1, label: text["tempoControl.slower"],
@@ -331,76 +374,26 @@ private struct TempoPanel: View {
         .accessibilityLabel(text["tempoControl.steps"])
     }
 
-    /// «Темп пьесы»: where the piece's tempo comes from, and the way to give the printed one.
-    private func pieceRow(_ reading: TempoReading) -> some View {
-        let (tag, kind) = reading.sourceTag(text)
-        let unknown = reading.source == "assumed"
-        return HStack(spacing: CGFloat.ds("s-2")) {
-            Text(text["tempoControl.pieceTempo"]).overline()
-            Tag(text: tag, kind: kind)
-            Text(reading.sourceLine(text)).dsType(.label).monospacedDigit().foregroundStyle(Color.ds("ink"))
-            Spacer(minLength: 0)
-            Button(text[unknown ? "tempoControl.printedUnknown" : "tempoControl.printed"]) {
-                printed = reading.playerBeats.map(String.init) ?? ""
-                typing = nil
-                printing = true
-            }
-            .buttonStyle(DSButtonStyle(kind: unknown ? .secondary : .quiet, compact: true))
-        }
-    }
-
-    /// The tempo printed in the notes: kept with the piece and written over the first bar; the percentage stays.
-    private func printedForm(_ reading: TempoReading) -> some View {
-        let value = Int(printed.trimmingCharacters(in: .whitespaces))
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["tempoControl.printedTitle"]).overline()
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Text("\(reading.note) =").foregroundStyle(Color.ds("ink-2"))
-                TextField(String(reading.pieceStartBeats), text: $printed)
-                    .keyboardType(.numberPad)
-                    .font(DSType.title.token.font)
-                    .monospacedDigit()
-                    .focused($focused)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: CGFloat.ds("h-control"))
-                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
-                    .accessibilityLabel(reading.beatsCaption(text))
-                Button(text["tempoControl.save"]) {
-                    if let value, reading.canSet(value) {
-                        printing = false
-                        setPiece(reading.quarterNotes(value))
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                .disabled(value.map { !reading.canSet($0) || $0 == reading.playerBeats } ?? true)
-                Button(text["tempoControl.cancel"]) { printing = false }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                if reading.player != nil {
-                    Button(text["tempoControl.clear"]) {
-                        printing = false
-                        setPiece(nil)
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                }
-            }
-            Text(text.format("tempoControl.printedHint", String(tempo.percent))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-        }
-        .onAppear { focused = true }
-    }
-
     private func start(_ kind: Typing) {
-        printing = false
-        typed = kind == .percent ? String(tempo.percent) : tempo.reading.map { String($0.heard(at: tempo.percent)) } ?? ""
+        typed = kind == .pace ? String(tempo.percent) : tempo.reading.map { String($0.startBeats) } ?? ""
         typing = kind
     }
 
+    /// The pace typed is kept within 25 to 150 %; the piece tempo typed is set when music-core takes it (20 to 300
+    /// quarter notes a minute) and differs from the one in force.
     private func enter() {
-        defer { typing = nil }
+        let kind = typing
         guard let value = Int(typed.trimmingCharacters(in: .whitespaces)), value > 0 else { return }
-        if typing == .beats, let reading = tempo.reading {
-            tempo.percent = reading.percent(for: value)
-        } else {
+        switch kind {
+        case .piece:
+            guard let reading = tempo.reading, reading.canSet(value) else { return }
+            typing = nil
+            if value != reading.startBeats { setPiece(reading.quarterNotes(value)) }
+        case .pace:
+            typing = nil
             tempo.percent = value
+        case nil:
+            break
         }
     }
 }

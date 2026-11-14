@@ -74,9 +74,9 @@ test("the score fills the screen, draws no phrase brackets, and the selection st
     // The pill loops the selection and slows it down.
     await pill.getByRole("button", { name: "Loop" }).click();
     await expect(pill.getByRole("button", { name: "Loop" })).toHaveAttribute("aria-pressed", "true");
-    await pill.getByRole("button", { name: "Tempo 100%" }).click();
+    await pill.getByRole("button", { name: /^Tempo .*, playback pace 100%$/ }).click();
     await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "80", exact: true }).click();
-    await expect(pill.locator(".tempo-label")).toHaveText(/^80% · ♩\.? (≈ )?(\d+|\?)$/);
+    await expect(pill.locator(".tempo-label")).toHaveText(/^♩\.? (= \d+|≈ \d+|\?) · 80%$/);
     await pill.getByRole("button", { name: "Play", exact: true }).click();
     await pill.getByRole("button", { name: "Pause", exact: true }).click();
     expect(errors).toEqual([]);

@@ -3,11 +3,11 @@
 @implements IAsyncDisposable
 @using MotiffLab.MusicCore.Playback
 
-@* The tempo control (version 0.5.4, #511 section 17, the UX prototype's variant A that Andrei approved): the playback tempo
-   as a percentage of the piece's with the beats a minute heard beside it, either typed; − slider + in 1 % steps, held to
-   repeat (Scripts/layout/hold-repeat.ts); coarse steps; the piece's tempo with where it comes from; and the tempo printed
-   in the notes, which changes the piece's tempo and keeps the percentage. It works while playing: only the rate changes,
-   the place and the loop stay. It closes with ✕ or a tap on the notes. *@
+@* The tempo control (version 0.5.4, #511 section 17; version 0.5.5, #521 section 12): two separate sections. The piece tempo
+   (BPM), the one source of truth the score's mark shows, typed by a tap on its number and kept with the piece; and the
+   playback pace, a percentage with its own − slider + in 1 % steps, held to repeat (Scripts/layout/hold-repeat.ts), and
+   coarse steps, which changes only the speed heard (tempo × pace), never the piece tempo or its mark. It works while
+   playing: only the rate changes, the place and the loop stay. It closes with ✕ or a tap on the notes. *@
 <div class="tempo-control" @ref="_root">
     <div class="tempo-head">
         <span class="heading">@Text["tempoControl.title"]</span>
@@ -16,90 +16,68 @@
             <button class="close" aria-label="@Text["tempoControl.close"]" title="@Text["tempoControl.close"]" @onclick="() => Close.InvokeAsync()"><Icon Name="close" Size="IconSize.Small" /></button>
         }
     </div>
-    @if (_typing is { } typing)
+    @if (Reading is { } reading)
     {
-        <form class="tempo-entry" @onsubmit="EnterAsync" @onsubmit:preventDefault>
-            <label class="field">
-                @if (typing == Typing.Beats && Reading is { } beat)
-                {
-                    <span class="pre">@beat.Note =</span>
-                }
-                <input @ref="_entry" class="mono" inputmode="numeric" autocomplete="off" value="@_typed" @oninput="args => _typed = args.Value?.ToString()"
-                       aria-label="@(typing == Typing.Percent ? Text["tempoControl.percent"] : BeatsCaption)" />
-                <span class="post">@(typing == Typing.Percent ? "%" : BeatsCaption)</span>
-            </label>
-            <button class="btn primary compact" type="submit">@Text["tempoControl.done"]</button>
-        </form>
-    }
-    else
-    {
-        <div class="tempo-big">
-            <button class="num" aria-label="@Text["tempoControl.typePercent"]" disabled="@Disabled" @onclick="() => StartTyping(Typing.Percent)">
-                <b class="mono">@Percent<span>%</span></b>
-                <small>@Text["tempoControl.percentCaption"]</small>
-            </button>
-            @if (Reading is { } reading)
+        <section class="tempo-section" aria-label="@Text["tempoControl.pieceTempo"]">
+            <span class="overline">@Text["tempoControl.pieceTempo"]</span>
+            @if (_typing == Typing.Piece && CanSetPiece)
             {
-                <span class="tempo-split" aria-hidden="true"></span>
-                <button class="num" aria-label="@Text["tempoControl.typeBeat"]" disabled="@Disabled" @onclick="() => StartTyping(Typing.Beats)">
-                    <b class="mono">@reading.Note @reading.HeardAt(Percent)</b>
-                    <small>@(reading.Played.Source == TempoSource.Assumed ? Text.Format("tempoControl.ofTaken", reading.Note, reading.PlayedPerMinute) : BeatsCaption)</small>
+                <form class="tempo-entry" @onsubmit="EnterAsync" @onsubmit:preventDefault>
+                    <label class="field">
+                        <span class="pre">@reading.Note =</span>
+                        <input @ref="_entry" class="mono" inputmode="numeric" autocomplete="off" value="@_typed" @oninput="args => _typed = args.Value?.ToString()" aria-label="@BeatsCaption" />
+                    </label>
+                    <button class="btn primary compact" type="submit" disabled="@(!PieceValid(reading))">@Text["tempoControl.done"]</button>
+                    <button class="btn quiet compact" type="button" @onclick="() => _typing = null">@Text["tempoControl.cancel"]</button>
+                </form>
+                @if (reading.Own is { } own)
+                {
+                    <button class="btn quiet compact reset" type="button" @onclick="ClearPieceAsync">@Text.Format("tempoControl.resetTo", reading.Note, own)</button>
+                }
+            }
+            else
+            {
+                <button class="num" aria-label="@Text["tempoControl.typePiece"]" disabled="@(!CanSetPiece)" @onclick="() => StartTyping(Typing.Piece)">
+                    <b class="mono">@reading.PieceText</b>
+                    <small>@Text.Format(reading.CaptionKey, reading.Note, reading.PlayedPerMinute)</small>
                 </button>
             }
-        </div>
+        </section>
     }
-    <div class="tempo-fine">
-        <button class="step" data-hold-repeat aria-label="@Text["tempoControl.slower"]" title="@Text["tempoControl.slower"]" disabled="@(Disabled || Percent <= Min)"
-                @onclick="() => SetPercentAsync(Percent - 1)">−</button>
-        <input type="range" min="@Min" max="@Max" step="1" value="@Percent" disabled="@Disabled" aria-label="@Text["tempoControl.percent"]" @oninput="SlideAsync" />
-        <button class="step" data-hold-repeat aria-label="@Text["tempoControl.faster"]" title="@Text["tempoControl.faster"]" disabled="@(Disabled || Percent >= Max)"
-                @onclick="() => SetPercentAsync(Percent + 1)">+</button>
-    </div>
-    <div class="tempo-steps" role="group" aria-label="@Text["tempoControl.steps"]">
-        @foreach (int step in Steps)
+    <section class="tempo-section" aria-label="@Text["tempoControl.pace"]">
+        <span class="overline">@Text["tempoControl.pace"]</span>
+        @if (_typing == Typing.Pace)
         {
-            <button class="chip @(Percent == step ? "on" : null)" aria-pressed="@(Percent == step ? "true" : "false")" disabled="@Disabled" @onclick="() => SetPercentAsync(step)">@step</button>
-        }
-        <span class="unit" aria-hidden="true">%</span>
-    </div>
-    @if (Reading is { } shown)
-    {
-        @if (_printing && CanPrint)
-        {
-            <form class="tempo-printed" @onsubmit="SavePrintedAsync" @onsubmit:preventDefault>
-                <span class="overline">@Text["tempoControl.printedTitle"]</span>
-                <div class="tempo-row">
-                    <label class="field">
-                        <span class="pre">@shown.Note =</span>
-                        <input @ref="_entry" class="mono" inputmode="numeric" autocomplete="off" value="@_printed" placeholder="@shown.PiecePerMinute"
-                               aria-label="@BeatsCaption" @oninput="args => _printed = args.Value?.ToString()" />
-                    </label>
-                    <button class="btn primary compact" type="submit" disabled="@(!PrintedValid(shown))">@Text["tempoControl.save"]</button>
-                    <button class="btn quiet compact" type="button" @onclick="() => _printing = false">@Text["tempoControl.cancel"]</button>
-                    @if (shown.Player is not null)
-                    {
-                        <button class="btn quiet compact" type="button" @onclick="ClearPrintedAsync">@Text["tempoControl.clear"]</button>
-                    }
-                </div>
-                <p class="caption">@Text.Format("tempoControl.printedHint", Percent)</p>
+            <form class="tempo-entry" @onsubmit="EnterAsync" @onsubmit:preventDefault>
+                <label class="field">
+                    <input @ref="_entry" class="mono" inputmode="numeric" autocomplete="off" value="@_typed" @oninput="args => _typed = args.Value?.ToString()" aria-label="@Text["tempoControl.percent"]" />
+                    <span class="post">%</span>
+                </label>
+                <button class="btn primary compact" type="submit">@Text["tempoControl.done"]</button>
             </form>
         }
         else
         {
-            <div class="tempo-base">
-                <div class="tempo-row">
-                    <span class="overline">@Text["tempoControl.pieceTempo"]</span>
-                    <span class="tag @SourceClass(shown.Played.Source)">@SourceTag(shown.Played.Source)</span>
-                    <span class="mono">@SourceLine(shown)</span>
-                </div>
-                @if (CanPrint)
-                {
-                    bool unknown = shown.Played.Source == TempoSource.Assumed;
-                    <button class="btn @(unknown ? "secondary" : "quiet") compact" @onclick="StartPrinting">@Text[unknown ? "tempoControl.printedUnknown" : "tempoControl.printed"]</button>
-                }
-            </div>
+            <button class="num" aria-label="@Text["tempoControl.typePercent"]" disabled="@Disabled" @onclick="() => StartTyping(Typing.Pace)">
+                <b class="mono">@Percent<span>%</span></b>
+                <small>@(Reading?.HeardText(Percent) is { } heard ? Text.Format("tempoControl.paceHeard", heard) : Text["tempoControl.percentCaption"])</small>
+            </button>
         }
-    }
+        <div class="tempo-fine">
+            <button class="step" data-hold-repeat aria-label="@Text["tempoControl.slower"]" title="@Text["tempoControl.slower"]" disabled="@(Disabled || Percent <= Min)"
+                    @onclick="() => SetPercentAsync(Percent - 1)">−</button>
+            <input type="range" min="@Min" max="@Max" step="1" value="@Percent" disabled="@Disabled" aria-label="@Text["tempoControl.percent"]" @oninput="SlideAsync" />
+            <button class="step" data-hold-repeat aria-label="@Text["tempoControl.faster"]" title="@Text["tempoControl.faster"]" disabled="@(Disabled || Percent >= Max)"
+                    @onclick="() => SetPercentAsync(Percent + 1)">+</button>
+        </div>
+        <div class="tempo-steps" role="group" aria-label="@Text["tempoControl.steps"]">
+            @foreach (int step in Steps)
+            {
+                <button class="chip @(Percent == step ? "on" : null)" aria-pressed="@(Percent == step ? "true" : "false")" disabled="@Disabled" @onclick="() => SetPercentAsync(step)">@step</button>
+            }
+            <span class="unit" aria-hidden="true">%</span>
+        </div>
+    </section>
 </div>
 
 @code {
@@ -113,8 +91,8 @@
 
     private enum Typing
     {
-        Percent,
-        Beats,
+        Piece,
+        Pace,
     }
 
     private ElementReference _root;
@@ -122,15 +100,13 @@
     private IJSObjectReference? _holdRepeat;
     private Typing? _typing;
     private string? _typed;
-    private bool _printing;
-    private string? _printed;
     private bool _focusEntry;
 
     /// <summary>The playback tempo, as a percentage of the piece's.</summary>
     [Parameter]
     public int Percent { get; set; } = 100;
 
-    /// <summary>The piece's tempo and where it comes from; null before a piece is loaded.</summary>
+    /// <summary>The piece tempo and where it comes from; null before a piece is loaded.</summary>
     [Parameter]
     public TempoReading? Reading { get; set; }
 
@@ -138,7 +114,7 @@
     [Parameter]
     public EventCallback<int> SetPercent { get; set; }
 
-    /// <summary>The piece's tempo the player read in the printed notes, in quarter notes a minute, or null to clear it; without it the control does not offer it.</summary>
+    /// <summary>The piece tempo the player typed, in quarter notes a minute, or null to clear theirs; without it the piece tempo is shown, not typed.</summary>
     [Parameter]
     public EventCallback<int?> SetPlayerTempo { get; set; }
 
@@ -149,7 +125,7 @@
     [Parameter]
     public bool Disabled { get; set; }
 
-    private bool CanPrint => Reading is { CanSet: true } && SetPlayerTempo.HasDelegate && !Disabled;
+    private bool CanSetPiece => Reading is { CanSet: true } && SetPlayerTempo.HasDelegate && !Disabled;
 
     private string BeatsCaption => Text[Reading?.Beat == TempoBeat.DottedQuarter ? "tempoControl.dottedQuarters" : "tempoControl.quarters"];
 
@@ -207,76 +183,50 @@
     private void StartTyping(Typing typing)
     {
         _typing = typing;
-        _printing = false;
-        _typed = typing == Typing.Percent ? Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            : Reading?.HeardAt(Percent).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _typed = typing == Typing.Pace ? Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : Reading?.PlayedPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _focusEntry = true;
     }
 
-    /// <summary>The percentage typed, or the beats a minute as the percentage that plays them, kept within 25 to 150.</summary>
+    private int? Typed => int.TryParse(_typed?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int value) && value > 0 ? value : null;
+
+    private bool PieceValid(TempoReading reading) => Typed is { } perMinute && reading.CanSetTo(perMinute);
+
+    /// <summary>
+    /// The pace typed, kept within 25 to 150 %; or the piece tempo typed in beats a minute, kept in quarter notes with the
+    /// piece and marked on the score; the pace stays, so the speed heard follows it.
+    /// </summary>
     private async Task EnterAsync()
     {
         Typing? typing = _typing;
-        _typing = null;
-        if (!int.TryParse(_typed?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int value) || value <= 0)
+        if (Typed is not { } value)
         {
             return;
         }
 
-        await SetPercentAsync(typing == Typing.Beats && Reading is { } reading ? reading.PercentFor(value) : value);
-    }
-
-    private void StartPrinting()
-    {
-        _printing = true;
-        _typing = null;
-        _printed = Reading?.Player?.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _focusEntry = true;
-    }
-
-    private bool PrintedValid(TempoReading reading) =>
-        int.TryParse(_printed?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int perMinute)
-        && reading.CanSetTo(perMinute) && perMinute != reading.Player;
-
-    /// <summary>The printed tempo, kept in quarter notes a minute; the percentage stays, so the playback speed follows it.</summary>
-    private async Task SavePrintedAsync()
-    {
-        if (Reading is { } reading && PrintedValid(reading))
+        if (typing == Typing.Piece)
         {
-            _printing = false;
-            await SetPlayerTempo.InvokeAsync(reading.Beat.QuarterNotes(int.Parse(_printed!.Trim(), System.Globalization.CultureInfo.InvariantCulture)));
+            if (Reading is not { } reading || !reading.CanSetTo(value))
+            {
+                return;
+            }
+
+            _typing = null;
+            if (value != reading.PlayedPerMinute)
+            {
+                await SetPlayerTempo.InvokeAsync(reading.Beat.QuarterNotes(value));
+            }
+
+            return;
         }
+
+        _typing = null;
+        await SetPercentAsync(value);
     }
 
-    private async Task ClearPrintedAsync()
+    private async Task ClearPieceAsync()
     {
-        _printing = false;
+        _typing = null;
         await SetPlayerTempo.InvokeAsync(null);
     }
-
-    private static string SourceClass(TempoSource source) => source switch
-    {
-        TempoSource.Inferred => "detected",
-        TempoSource.Assumed => "assumed",
-        TempoSource.Player => "player",
-        _ => "notated",
-    };
-
-    private string SourceTag(TempoSource source) => Text[source switch
-    {
-        TempoSource.Inferred => "tempoControl.tagInferred",
-        TempoSource.Assumed => "tempoControl.tagAssumed",
-        TempoSource.Player => "tempoControl.tagPlayer",
-        _ => "tempoControl.tagNotated",
-    }];
-
-    /// <summary>The piece's tempo as its source has it, so the printed tempo, an estimate and the player's are never mixed up.</summary>
-    private string SourceLine(TempoReading reading) => reading.Played.Source switch
-    {
-        TempoSource.Inferred => Text.Format("tempoControl.lineInferred", reading.Note, reading.PlayedPerMinute),
-        TempoSource.Assumed => Text.Format("tempoControl.lineAssumed", reading.Note, reading.PlayedPerMinute),
-        TempoSource.Player when reading.Piece.Source == TempoSource.Notated => Text.Format("tempoControl.linePlayerOver", reading.Note, reading.PlayedPerMinute, reading.PiecePerMinute),
-        TempoSource.Player => Text.Format("tempoControl.linePlayer", reading.Note, reading.PlayedPerMinute),
-        _ => Text.Format("tempoControl.lineNotated", reading.Note, reading.PlayedPerMinute),
-    };
 }

@@ -34,8 +34,8 @@
     else
     {
         <span class="anchor">
-            <button class="it @(_tempoOpen ? "on" : null)" aria-expanded="@(_tempoOpen ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
-                    @onclick="() => _tempoOpen = !_tempoOpen"><Icon Name="dial" /> <span class="mono tempo-label">@(Tempo is { } reading ? Text.Format("tempoControl.reading", TempoPercent, reading.HeardText(TempoPercent)) : $"{TempoPercent}%")</span></button>
+            <button class="it @(_tempoOpen ? "on" : null)" aria-expanded="@(_tempoOpen ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", Tempo?.PieceText ?? "", TempoPercent)"
+                    @onclick="() => _tempoOpen = !_tempoOpen"><Icon Name="dial" /> <span class="mono tempo-label">@(Tempo?.PillText(TempoPercent, Text) ?? $"{TempoPercent}%")</span></button>
             @if (_tempoOpen)
             {
                 <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
