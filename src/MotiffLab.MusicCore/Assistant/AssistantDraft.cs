@@ -47,6 +47,9 @@ public sealed record AssistantDraft(string Tool, IReadOnlyList<Note> Before, Var
     /// <summary>The draft as corrections: removed notes first, then changed notes, then added ones, each in time order.</summary>
     public IReadOnlyList<DraftEdit> Edits { get; } = EditsOf(Variation);
 
+    /// <summary>A title for the draft's button, such as «Убрать повторную E5»; null when the tool gives none.</summary>
+    public string? Title { get; init; }
+
     /// <summary>True when the draft changes nothing.</summary>
     public bool IsEmpty => Edits.Count == 0;
 
@@ -67,6 +70,11 @@ public sealed record AssistantDraft(string Tool, IReadOnlyList<Note> Before, Var
         json.WriteStartObject();
         json.WriteString("tool", Tool);
         json.WriteBoolean("applied", false);
+        if (Title is not null)
+        {
+            json.WriteString("title", Title);
+        }
+
         json.WriteString("explanation", Variation.Explanation);
         json.WriteStartArray("edits");
         foreach (DraftEdit edit in Edits)
