@@ -33,9 +33,9 @@ export const NORMAL: PracticeState = { on: false, revealUntil: 0 };
 
 /**
  * What changes the view: entering or leaving it (the bar, the menu's Hide, the controls' Leave, F or Escape), a tap on the
- * page (it shows the controls), and a touch on the shown controls (they stay a while longer).
+ * page (it shows the controls), a touch on the shown controls (they stay a while longer), and their time over (they hide).
  */
-export type PracticeEvent = "enter" | "leave" | "toggle" | "tap" | "touch";
+export type PracticeEvent = "enter" | "leave" | "toggle" | "tap" | "touch" | "hide";
 
 /** The view after `event` at the time `now`, in milliseconds. */
 export function practiceStep(state: PracticeState, event: PracticeEvent, now: number): PracticeState {
@@ -50,6 +50,8 @@ export function practiceStep(state: PracticeState, event: PracticeEvent, now: nu
             return state.on ? { on: true, revealUntil: now + REVEAL_MS } : state;
         case "touch":
             return state.on && now < state.revealUntil ? { on: true, revealUntil: now + REVEAL_MS } : state;
+        case "hide":
+            return state.on ? { on: true, revealUntil: 0 } : state;
         default:
             return state;
     }
@@ -183,7 +185,7 @@ export class PracticeView {
         clearTimeout(this.timer);
         const left = revealLeft(this.state, now);
         if (left > 0) {
-            this.timer = window.setTimeout(() => this.show(), left);
+            this.timer = window.setTimeout(() => this.step("hide"), left);
         }
         this.show();
     }

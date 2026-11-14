@@ -48,6 +48,13 @@ test("a touch on the shown controls keeps them a while longer, and brings back n
     assert.equal(practiceShown(hidden, REVEAL_MS + 1), "on");
 });
 
+test("when their time is over the controls hide, and practice view stays", () => {
+    const tapped = practiceStep(practiceStep(NORMAL, "enter", 0), "tap", 0);
+    // The timer may fire a moment early: hiding does not depend on the clock.
+    assert.deepEqual(practiceStep(tapped, "hide", REVEAL_MS - 1), { on: true, revealUntil: 0 });
+    assert.equal(practiceStep(NORMAL, "hide", 0), NORMAL);
+});
+
 test("outside practice view a tap or a touch changes nothing: the normal workspace stays", () => {
     assert.equal(practiceStep(NORMAL, "tap", 10), NORMAL);
     assert.equal(practiceStep(NORMAL, "touch", 10), NORMAL);

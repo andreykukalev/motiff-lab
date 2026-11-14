@@ -8,6 +8,7 @@
 import { createPianoRoll, keptRollFrame, restoreRollFrame } from "../roll/piano-roll.js";
 import { rangeBars } from "../roll/roll-strip-gesture.js";
 import { THEME_CHANGED } from "../layout/theme.js";
+import { PRACTICE_ATTRIBUTE, PRACTICE_EVENT } from "../layout/practice-view.js";
 
 const MODES = ["hand", "track", "voice"];
 const NOTE_FIELDS = 7;
@@ -181,6 +182,12 @@ function lanes(on) {
     view.setLanes(Boolean(on));
 }
 
+/** Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one (piano-roll.ts). */
+function practice(on) {
+    document.body.setAttribute(PRACTICE_ATTRIBUTE, on ? "on" : "off");
+    document.dispatchEvent(new Event(PRACTICE_EVENT));
+}
+
 /** The selection, its span shaded and its notes lit, or none; and the span that loops, or none. */
 function selection({ selected, loop }) {
     if (selected) {
@@ -259,5 +266,5 @@ function frame() {
     return keptRollFrame();
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, zoom, frame, passage };
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, zoom, frame, passage };
 post("ready");

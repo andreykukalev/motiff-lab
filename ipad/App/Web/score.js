@@ -57,6 +57,7 @@ import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
 import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab } from "../score/playhead-grab.js";
+import { PRACTICE_ATTRIBUTE } from "../layout/practice-view.js";
 import { viewOf } from "../playback/playback-model.js";
 import { PlayheadDrag } from "../playback/playhead-drag.js";
 import { anchorAt, anchorOf, lineOf, systemSpans } from "../score/view-anchor.js";
@@ -95,7 +96,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -1035,12 +1036,24 @@ function reportGrips() {
         return;
     }
     gripsAt = performance.now();
-    const grips = state.heads === null || state.focus ? [] : heads.grips().map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
+    // In practice view the blue playhead is hidden, so the Pencil is not kept from writing where it is (#533 11).
+    const grips = state.heads === null || state.focus ? [] : heads.grips().filter(({ handle }) => !state.practice || handle !== "blue").map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
     const key = grips.map(({ handle, x, y }) => `${handle} ${Math.round(x / 2)} ${Math.round(y / 2)}`).join(",");
     if (key !== gripsReported) {
         gripsReported = key;
         post({ heads: grips });
     }
+}
+
+/**
+ * Practice view (#533 11, PracticeView.swift): "on" hides the blue playhead of the selection (score.css), "off" shows it again;
+ * the black playhead of the piece stays, dragged and placed by a tap as ever.
+ */
+function practice(shown) {
+    state.practice = shown === "on";
+    document.body.setAttribute(PRACTICE_ATTRIBUTE, state.practice ? "on" : "off");
+    gripsAt = -Infinity;
+    reportGrips();
 }
 
 /** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
@@ -1339,5 +1352,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, writing };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

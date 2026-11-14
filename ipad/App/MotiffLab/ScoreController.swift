@@ -108,6 +108,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
     /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back.
     @Published private(set) var focused = false
+    /// Practice view (#533 11, PracticeView.swift): view state only, changed by `practise`; and the time its controls hide.
+    @Published var practice = PracticeView()
+    var practiceTimer: Task<Void, Never>?
     /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
     @Published private(set) var expandEntry = ExpandEntry.notes
     /// What Play and Loop take for the selection: its span (Lead-in went in v0.5.6, #533 3).

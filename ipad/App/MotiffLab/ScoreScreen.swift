@@ -195,8 +195,8 @@ struct ScoreScreen: View {
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
-                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338).
-                if score.selection != nil, !score.focused, !rollOpen, let place = score.menuPlace {
+                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Practice view hides it (#533 11).
+                if score.selection != nil, !score.focused, !rollOpen, !score.practicing, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .offset(x: place.x, y: place.y)
                 }
@@ -219,8 +219,8 @@ struct ScoreScreen: View {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
-                } else {
-                    // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z.
+                } else if score.practiceChrome.hints {
+                    // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     SelectionToastView(score: score, text: text).padding(.bottom, pillBottom + 56)
                 }
             }
@@ -310,7 +310,7 @@ struct ScoreScreen: View {
                 // "guidance.transportPill", 0018 section 10).
                 VStack(spacing: CGFloat.ds("s-2")) {
                     // Scrolled away from the playing, a chip leads back to it (testing item 4).
-                    if let away = score.playheadAway, player.state != .stopped, !score.focused, let bar = player.barNumber(at: away) {
+                    if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.hints, let bar = player.barNumber(at: away) {
                         Button {
                             score.returnToPlayhead()
                         } label: {
@@ -326,8 +326,13 @@ struct ScoreScreen: View {
                         .buttonStyle(.plain)
                         .transition(.opacity)
                     }
-                    if pillShown {
+                    // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
+                    if pillShown && score.practiceChrome.transport {
                         Pill(player: player, score: score, text: text)
+                            .transition(.opacity)
+                    }
+                    if score.practiceChrome.controls {
+                        PracticeControls(player: player, score: score, text: text)
                             .transition(.opacity)
                     }
                 }
@@ -394,12 +399,15 @@ struct ScoreScreen: View {
             // With nothing selected, nothing playing and the metronome still, the tap puts away the pill kept after playback.
             if let heard, heard.state == .stopped, shown?.selection == nil, !Metronome.shared.running { heard.transportKept = false }
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
+            // In practice view the tap shows Play/Pause and Leave for a few seconds too (#533 11).
+            shown?.practise(.tap)
         }
         // The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
         // on from there when it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
         score.placeTapped = { [weak heard, weak shown] beat in
             guard let heard, let shown else { return }
             if shown.onePosition { heard.go(to: beat.lowerBound, play: false) } else { heard.seek(to: Player.place(beat.lowerBound, inside: heard.loop)) }
+            shown.practise(.tap)
         }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
@@ -486,6 +494,11 @@ struct ScoreScreen: View {
             }
             .onChange(of: score.focused) { _, focused in
                 expandChanged(focused)
+            }
+            .onChange(of: score.practicing) { _, on in
+                // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
+                score.sendPractice()
+                roll.practice(on)
             }
             .onChange(of: score.focused && score.focusRoll) { _, shown in
                 expandRollShown(shown)
@@ -1016,6 +1029,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: insightsOpen))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(insightsOpen ? .isSelected : [])
+        PracticeButton(score: score, text: text)
         PaletteDivider()
         playAndMore
     }
@@ -1475,6 +1489,8 @@ struct SelectionMenu: View {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
             item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
+            // Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it.
+            item("practice", text["menu.hide"], on: false) { score.practise(.enter) }
             ClearSelectionButton(score: score, text: text, iconOnly: true)
         }
     }
@@ -1511,8 +1527,8 @@ struct ClearSelectionButton: View {
                 button.buttonStyle(DSItemStyle())
             }
         }
-        // Under the modes of version 0.5, Escape removes the selection too.
-        .keyboardShortcut(score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)
+        // Under the modes of version 0.5, Escape removes the selection too; in practice view it leaves that view (#533 11).
+        .keyboardShortcut(score.mode != nil && !score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["menu.clearSelection"])
         .help(text["menu.clearSelection"])
     }

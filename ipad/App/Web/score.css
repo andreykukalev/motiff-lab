@@ -153,6 +153,8 @@ button.sel-handle.dragging { background: var(--accent); }
 /* The playheads' handles (#495 UX-08): the black dot and the cobalt knob take the pen or a finger within a touch target,
    and the page does not scroll from there, so a drag moves the playhead and selects no bar. */
 :is(.gtrack .dot, .ph-sel .knob).grip { pointer-events: auto; touch-action: none; }
+/* Practice view (#533 11): the blue playhead of the selection goes; the black one of the piece stays, still taken. */
+body[data-practice="on"] .ph-sel { visibility: hidden; }
 :is(.gtrack .dot, .ph-sel .knob).grip::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--h-touch); height: var(--h-touch); border-radius: 50%; transform: translate(-50%, -50%); }
 /* Under the modes the notes sounding stay in the notation's ink, drawn heavier: cobalt is the selection's colour only. */
 body[data-mode] .page :is(g.note, g.chord).playing { fill: var(--notation); stroke: var(--notation); color: var(--notation); }
