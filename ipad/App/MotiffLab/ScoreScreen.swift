@@ -805,6 +805,7 @@ extension ScoreScreen {
             roll.penOn = on
             if let score, RollInput.rollNavigates(penOn: on, mode: roll.mode) { roll.choose(.navigate, score: score) }
         }
+        score.rollEditing = { [weak roll] in roll?.shownMode == .edit }
     }
 
     /// Space and the playhead on the roll. The playhead moved there (v0.2) stays inside the loop, and a tap in a selection that
@@ -1878,5 +1879,7 @@ struct ScoreWebView: UIViewRepresentable {
 
     func updateUIView(_ view: WKWebView, context: Context) {
         score.show(piece, dark: dark)
+        // The stylus menu opens where the Pencil is over any part of the screen, the roll's too (#521 7).
+        score.watchStylus(in: view.window)
     }
 }

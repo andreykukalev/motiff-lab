@@ -294,6 +294,16 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(PaletteLayout.arc(count: 1, radius: 10, upward: true)[0].y, -10, accuracy: 1e-9)
         XCTAssertTrue(PaletteLayout.arc(count: 0, radius: 10, upward: true).isEmpty)
 
+        // One tool's controls side by side about the top, left to right, a spacing apart (#521 11).
+        let fan = PaletteLayout.fan(count: 3, radius: 100, spacing: 50, upward: true)
+        XCTAssertEqual(fan[1].x, 0, accuracy: 1e-9)
+        XCTAssertEqual(fan[1].y, -100, accuracy: 1e-9)
+        XCTAssertLessThan(fan[0].x, 0)
+        XCTAssertGreaterThan(fan[2].x, 0)
+        XCTAssertEqual(hypot(fan[1].x - fan[0].x, fan[1].y - fan[0].y), 50, accuracy: 1e-6)
+        XCTAssertEqual(PaletteLayout.fan(count: 1, radius: 100, spacing: 50, upward: false)[0].y, 100, accuracy: 1e-9)
+        XCTAssertTrue(PaletteLayout.fan(count: 0, radius: 100, spacing: 50, upward: true).isEmpty)
+
         let size = CGSize(width: 1000, height: 800)
         let top = PaletteLayout.centre(CGPoint(x: 500, y: 50), in: size, reach: 100)
         XCTAssertFalse(top.upward, "no room above: it opens downward")

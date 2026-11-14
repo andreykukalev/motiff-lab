@@ -100,9 +100,37 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(StylusRules.previous(penOn: false, mode: nil).penOn, true, "outside the Pen it comes on")
     }
 
-    func testUndoKeysAreTheInksWhileThePenIsOnElseTheSelections() {
-        XCTAssertEqual(StylusRules.undoOwner(penOn: true), .ink)
-        XCTAssertEqual(StylusRules.undoOwner(penOn: false), .selection)
+    func testUndoIsTheHistoryOfTheToolInForceAndNavigateHasNone() {
+        // #521 9: each editing tool its own history; Navigate none, so ⌘Z there takes back no selection step.
+        XCTAssertEqual(StylusRules.undoOwner(penOn: true, mode: .select, rollEditing: false), .ink)
+        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .select, rollEditing: false), .selection)
+        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: false), .nothing)
+        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: true), .noteEdits, "the roll in Edit notes")
+        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: nil, rollEditing: false), .selection, "before the modes, as before")
+    }
+
+    func testTheStylusMenuShowsOnlyTheChosenToolsControls() {
+        // #521 8, 11.
+        XCTAssertEqual(StylusRules.ringControls(.select), [.undo, .redo, .clearSelection])
+        XCTAssertEqual(StylusRules.ringControls(.pen), [.undo, .redo])
+        XCTAssertEqual(StylusRules.ringControls(.navigate), [], "Navigate has no history and no settings")
+    }
+
+    func testThePensHistoryUndoesAndRedoesAndANewStrokeDropsRedo() {
+        var ink = InkHistory()
+        XCTAssertFalse(ink.canUndo || ink.canRedo)
+        ink.record(InkStep(added: ["a"], strokes: [["id": "a"]]))
+        ink.record(InkStep(added: ["b"], strokes: [["id": "b"]]))
+        let undone = ink.undo()
+        XCTAssertEqual(undone?.added, ["b"])
+        XCTAssertTrue(ink.canRedo)
+        let redone = ink.redo()
+        XCTAssertEqual(redone?.added, ["b"])
+        XCTAssertFalse(ink.canRedo)
+        _ = ink.undo()
+        ink.record(InkStep(added: ["c"]))
+        XCTAssertFalse(ink.canRedo, "a new stroke drops what Redo had")
+        XCTAssertEqual(ink.done.map(\.added), [["a"], ["c"]])
     }
 
     func testSelectsOptionsChooseBarsOrBeatsUnderTheModes() {
