@@ -4,7 +4,7 @@ import XCTest
 
 /// A tempo changed while playing (version 0.5.4, #511 section 17), held to the web engine's own tests
 /// (tests/web/playback-processor.test.mjs): the place heard stays, nothing restarts, the next note comes at the new rate,
-/// the loop stays, and the count-in counts each click at the tempo then. The helpers are the engine tests' own.
+/// and the loop stays. The helpers are the engine tests' own.
 extension PlaybackEngineTests {
     /// The engine's last position report, after `takeReports` was emptied before the step.
     private func lastPosition(_ engine: PlaybackEngine) -> PositionReport? {
@@ -58,24 +58,5 @@ extension PlaybackEngineTests {
         let round = first.count + Int(((960 - at) * 50 / 1.5).rounded())
         XCTAssertEqual(Array(noteStarts(rest).map { $0 + first.count }.prefix(2)), [round, round + Int((Double(quarter) / 1.5).rounded())])
         XCTAssertEqual(e.transportState, .playing)
-    }
-
-    @objc func testTheCountInCountsEachClickAtTheTempoThenSoATempoChangedWhileItCountsAppliesToTheNextClick() {
-        let e = engine()
-        source(e, "a", [(0, 240)])
-        e.handle(.activeSources(["a"]))
-        e.handle(.countIn(1))
-        e.handle(.play)
-        let first = e.render(frames: frames(Double(quarter) * 1.5))
-        // Half a beat in at full speed, then half the rate: the rest of the beat lasts twice as long.
-        e.handle(.rate(0.5))
-        let rest = e.render(frames: frames(Double(quarter * 8)), startFrame: first.count)
-
-        let second = first.count + (quarter * 2 - first.count) * 2
-        let clicks = (onsets(first) + onsets(rest).map { $0 + first.count }).filter { $0 < second + quarter * 3 }
-        XCTAssertEqual(clicks, [1, quarter + 1, second + 1, second + quarter * 2 + 1])
-        XCTAssertEqual(e.transportState, .playing)
-        let note = rest.indices.first { $0 + first.count > second + quarter * 4 - 10 && abs(rest[$0]) > 0.01 }
-        XCTAssertEqual(note.map { $0 + first.count - spike }, second + quarter * 4)
     }
 }

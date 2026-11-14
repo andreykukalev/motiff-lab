@@ -147,25 +147,6 @@ test("a tempo changed while looping keeps the loop and plays round it at the new
     assert.equal(e.transportState, "playing");
 });
 
-test("the count-in counts each click at the tempo then, so a tempo changed while it counts applies to the next click", () => {
-    const e = engine();
-    source(e, "a", [[0, 240]]);
-    e.handle({ type: "activeSources", ids: ["a"] });
-    e.handle({ type: "countIn", bars: 1 });
-    e.handle({ type: "play" });
-    const first = run(e, frames(QUARTER * 1.5));
-    // Half a beat in at full speed, then half the rate: the rest of the beat lasts twice as long.
-    e.handle({ type: "rate", value: 0.5 });
-    const rest = run(e, frames(QUARTER * 8), first.length);
-
-    const second = first.length + (QUARTER * 2 - first.length) * 2;
-    const clicks = [...onsets(first), ...onsets(rest).map((frame) => frame + first.length)].filter((frame) => frame < second + QUARTER * 3);
-    assert.deepEqual(clicks, [1, QUARTER + 1, second + 1, second + QUARTER * 2 + 1]);
-    assert.equal(e.transportState, "playing");
-    const spike = rest.findIndex((value, i) => i + first.length > second + QUARTER * 4 - 10 && Math.abs(value) > 0.01);
-    assert.equal(spike + first.length - SPIKE, second + QUARTER * 4);
-});
-
 test("tempo changes apply at their tick", () => {
     // 120 BPM, then 240 BPM from beat 2: tick 960 is one quarter at 120 and one at 240.
     const e = engine({ tempos: [0, 500_000, 480, 250_000] });
@@ -233,24 +214,6 @@ test("the metronome clicks every beat", () => {
 
     // A click is a sine starting at phase 0, so it is first heard one frame after its beat.
     assert.deepEqual(onsets(out), [1, QUARTER + 1, QUARTER * 2 + 1, QUARTER * 3 + 1, QUARTER * 4 + 1]);
-});
-
-test("count-in plays one bar of clicks, then the music", () => {
-    const e = engine({ bars: [0, 1440, 480, 3, 1440, 1440, 480, 3] });
-    source(e, "a", [[1440, 240]]);
-    e.handle({ type: "activeSources", ids: ["a"] });
-    e.handle({ type: "countIn", bars: 1 });
-    e.handle({ type: "seek", tick: 1440 });
-    e.handle({ type: "play" });
-    assert.equal(e.transportState, "countingIn");
-
-    const out = run(e, frames(QUARTER * 3 + 1000));
-
-    const clicks = onsets(out).filter((frame) => frame < QUARTER * 3);
-    assert.deepEqual(clicks, [1, QUARTER + 1, QUARTER * 2 + 1]);
-    assert.equal(e.transportState, "playing");
-    const spike = out.findIndex((value, i) => i > QUARTER * 3 && Math.abs(value) > 0.01);
-    assert.equal(spike - SPIKE, QUARTER * 3);
 });
 
 test("mute and solo per track", () => {

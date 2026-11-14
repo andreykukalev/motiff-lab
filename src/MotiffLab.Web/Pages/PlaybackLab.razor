@@ -32,6 +32,7 @@
 @implements IDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject PieceMetronome Metronome
 @inject Preferences Preferences
 @inject DeviceSettings SettingsStore
 @inject CurrentPiece CurrentPiece
@@ -754,8 +755,11 @@
                     @* Where playback is, for a screen reader: the score shows it with the notes being heard. *@
                     <span class="visually-hidden state" role="status">@StateText</span>
                     <span class="visually-hidden position" aria-live="off">@PositionText</span>
-                    <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
-                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" title="@Text["transport.countInHint"]" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
+                    @* The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). *@
+                    <span class="metronome-button">
+                        <button class="it @(Metronome.Running ? "on" : null)" aria-pressed="@(Metronome.Running ? "true" : "false")" title="@Text["metronome.holdHint"]" data-metronome-hold @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
+                        <MetronomeHeld />
+                    </span>
                     @if (_pillMenu == PillMenu.Settings)
                     {
                         @* The pill's own settings (0018 section 10), from a long press on it: over the pill's middle. *@
@@ -2284,7 +2288,6 @@
 
     private string StateText => Player.State switch
     {
-        PlaybackState.CountingIn => Text["transport.countIn"],
         PlaybackState.Playing => Text["transport.playing"],
         _ => Text["transport.stopped"],
     };
@@ -2293,6 +2296,7 @@
     {
         Player.Changed += OnPlayerChanged;
         Player.Moved += OnPlayerMoved;
+        Metronome.Changed += OnMetronomeChanged;
         Text.Changed += OnLanguageChanged;
         SettingsStore.Changed += OnSettingsChanged;
         WatchLeavingNotes();
@@ -2396,14 +2400,18 @@
         await SyncLayoutAsync();
         await SyncModeKeysAsync();
         await SyncModelAsync();
+        await SyncMetronomeAsync();
     }
 
     public void Dispose()
     {
         Player.Changed -= OnPlayerChanged;
         Player.Moved -= OnPlayerMoved;
+        Metronome.Changed -= OnMetronomeChanged;
         Text.Changed -= OnLanguageChanged;
         SettingsStore.Changed -= OnSettingsChanged;
+        // The metronome is the page's: it stops as the page goes (#521 section 15).
+        _ = Metronome.StopAsync();
     }
 
     private void OnPlayerChanged() => _ = InvokeAsync(async () =>
@@ -2799,10 +2807,6 @@
             return [.. _notes!.Where(note => ids.Contains(note.Id))];
         }
     }
-
-    private Task ToggleMetronomeAsync() => Player.SetMetronomeAsync(!Player.Metronome);
-
-    private Task ToggleCountInAsync() => Player.SetCountInAsync(!Player.CountIn);
 
     /// <summary>
     /// What playback, the roll and a selection can be limited to (S1-M2): a hand when the piece has

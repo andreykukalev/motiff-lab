@@ -1356,6 +1356,41 @@ h1, h2, .app-title strong {
     border-color: var(--ink);
 }
 
+/* The metronome's button (#521 section 15): a tap starts or stops it; held, a slide sets its tempo, shown over the
+   button while it is held. The press is the button's own: no scrolling, no system menu, no text selected. */
+.metronome-button {
+    position: relative;
+    display: inline-flex;
+}
+
+[data-metronome-hold] {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.metronome-held {
+    position: absolute;
+    bottom: calc(100% + var(--s-2));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-pill);
+    color: var(--ink);
+    font: var(--t-label);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.bar .metronome-held {
+    bottom: auto;
+    top: calc(100% + var(--s-2));
+}
+
 /* "PDF" beside the page: what is open is the printed pages, not notes the app can play. */
 .pdf-reader .bar .pdf-tag {
     flex: none;

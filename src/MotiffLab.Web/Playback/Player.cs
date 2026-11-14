@@ -56,8 +56,6 @@ public sealed partial class Player(IJSRuntime js) : IAsyncDisposable
 
     public bool Metronome { get; private set; }
 
-    public bool CountIn { get; private set; }
-
     public IReadOnlySet<int> Muted { get; private set; } = new HashSet<int>();
 
     public IReadOnlySet<int> Soloed { get; private set; } = new HashSet<int>();
@@ -232,15 +230,6 @@ public sealed partial class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 
-    /// <summary>When on, play starts after one bar of clicks in the meter and tempo where playback starts.</summary>
-    public async Task SetCountInAsync(bool on)
-    {
-        IJSObjectReference engine = await EngineAsync();
-        CountIn = on;
-        await engine.InvokeVoidAsync("setCountIn", on ? 1 : 0);
-        Changed?.Invoke();
-    }
-
     /// <summary>
     /// Mutes and solos tracks. A track sounds when it is not muted and, if any track is soloed,
     /// it is one of them.
@@ -272,7 +261,6 @@ public sealed partial class Player(IJSRuntime js) : IAsyncDisposable
         PlaybackState now = state switch
         {
             "playing" => PlaybackState.Playing,
-            "countingIn" => PlaybackState.CountingIn,
             _ => PlaybackState.Stopped,
         };
         moved &= now == State;
@@ -342,9 +330,6 @@ public sealed record RecordingSound(long Milliseconds, IReadOnlyList<double> Pea
 public enum PlaybackState
 {
     Stopped,
-
-    /// <summary>Playing the count-in bar before the music starts.</summary>
-    CountingIn,
 
     Playing,
 }

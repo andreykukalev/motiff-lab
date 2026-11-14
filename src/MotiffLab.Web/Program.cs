@@ -15,6 +15,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<Player>();
+builder.Services.AddScoped<PieceMetronome>();
 builder.Services.AddScoped<CurrentPiece>();
 builder.Services.AddScoped<ProjectStore>();
 builder.Services.AddScoped<UsageAnalytics>();

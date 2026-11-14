@@ -315,7 +315,7 @@ struct PdfScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var pdf = PdfController()
     @StateObject private var photos = PhotoReader()
-    @StateObject private var metronome = Metronome()
+    @ObservedObject private var metronome = Metronome.shared
     @State private var contentsOpen = false
     /// «Пьесы в этом файле» (v0.4, experiment «Пьесы в файле»), opened from the Contents.
     @State private var partsOpen = false
@@ -405,12 +405,14 @@ struct PdfScreen: View {
             pdf.inkable = !linked
             pdf.family = piece.family
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
-            if let id = pdf.projectId { metronome.load(piece: id) }
+            metronome.load(piece: pdf.projectId)
+            // Handed from the notes, the metronome may click already (#521 section 15): its pill shows with it.
+            if metronome.running { metronomeOpen = true }
         }
         .onDisappear {
-            metronome.stop()
-            // Handed to the notes, the piece was saved and closed already (#511 section 10).
+            // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
+            metronome.stop()
             pdf.keepView()
             save()
         }
@@ -496,6 +498,11 @@ struct PdfScreen: View {
             }
     }
 
+    private func toggleMetronome() {
+        metronome.toggle()
+        metronomeOpen = metronome.running
+    }
+
     /// Bookmark the page and the metronome, then how the pages are used (the modes, or the Pen before them), then the
     /// Circle and More: the modes, the Circle and More where the score's bar has them (the approved mockup v0.5.2, #479
     /// item 21).
@@ -511,15 +518,15 @@ struct PdfScreen: View {
             .accessibilityLabel(text["pdf.bookmarkPage"])
             .accessibilityAddTraits(pdf.currentBookmark != nil ? .isSelected : [])
         }
-        Button {
-            metronomeOpen.toggle()
-            if !metronomeOpen { metronome.stop() }
-        } label: {
+        // The metronome starts at once with its pill for the beats and the tapped tempo, and stops with the pill put away;
+        // held, a slide sets its tempo (#521 section 15).
+        Button(action: toggleMetronome) {
             Icon(name: "metronome", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
         }
-        .buttonStyle(BarActionStyle(on: metronomeOpen))
+        .buttonStyle(BarActionStyle(on: metronome.running))
         .accessibilityLabel(text["metronome.label"])
-        .accessibilityAddTraits(metronomeOpen ? .isSelected : [])
+        .accessibilityAddTraits(metronome.running ? .isSelected : [])
+        .modifier(MetronomeHold(metronome: metronome, text: text, below: true, toggle: toggleMetronome))
         if !linked {
             PaletteDivider()
             if settings.isOn("experimental.playheads") {
@@ -661,7 +668,6 @@ struct PdfScreen: View {
         } catch {
             return error.localizedDescription
         }
-        metronome.stop()
         readingOpen = false
         await openRead(url, .tick(PageMap(starts: starts).start(of: max(1, pdf.page))))
         return nil
@@ -671,7 +677,6 @@ struct PdfScreen: View {
     /// starts in them, once the piece is saved and the PDF's place kept (the web app's `ShowNotesAsync`).
     private func showNotes() async {
         guard let other = piece.other, let switchView else { return }
-        metronome.stop()
         pdf.keepView()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))

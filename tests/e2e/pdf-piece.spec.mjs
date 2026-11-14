@@ -123,7 +123,7 @@ test("the pen writes on a PDF's pages and the bookmarks mark pages; both stay wi
     expect(errors).toEqual([]);
 });
 
-test("the metronome clicks at a tempo the player sets, shows the beat, and keeps the tempo for the piece", async ({ page }) => {
+test("the metronome clicks at once, at a tempo the player sets, shows the beat, and keeps the tempo for the piece", async ({ page }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(String(error)));
     await page.goto("/");
@@ -131,11 +131,16 @@ test("the metronome clicks at a tempo the player sets, shows the beat, and keeps
     await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles({ name: "Waltz.pdf", mimeType: "application/pdf", buffer: pdf(1) });
     await expect(page.locator(".pdf-view .score-page canvas")).toHaveCount(1);
 
+    // The bar's button clicks at once (#521 section 15), its pill with it.
     await page.locator(".bar").getByRole("button", { name: "Metronome" }).click();
     const pill = page.getByRole("toolbar", { name: "Metronome" });
     await expect(pill).toBeVisible();
     await expect(pill.locator(".beat")).toHaveCount(4);
+    await expect(pill.getByRole("button", { name: "Stop the metronome" })).toBeVisible();
+    await expect(pill.locator(".beat.now")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
+    await pill.getByRole("button", { name: "Stop the metronome" }).click();
+    await expect(pill.locator(".beat.now")).toHaveCount(0);
 
     // Faster twice, and three beats to the bar: a waltz.
     await pill.getByRole("button", { name: "Faster" }).click();
@@ -169,11 +174,14 @@ test("the metronome clicks at a tempo the player sets, shows the beat, and keeps
     }
     await expect(pill.locator(".bpm .mono")).toHaveText(/^1[01]\d$/);
 
-    // The piece keeps its tempo and beats.
+    // The piece keeps its tempo and beats; the bar's button stops the metronome and puts the pill away.
     const kept = await pill.locator(".bpm .mono").textContent();
     await page.reload();
     await page.locator(".bar").getByRole("button", { name: "Metronome" }).click();
+    await expect(pill.getByRole("button", { name: "Stop the metronome" })).toBeVisible();
     await expect(pill.locator(".bpm .mono")).toHaveText(kept);
     await expect(pill.locator(".beat")).toHaveCount(3);
+    await page.locator(".bar").getByRole("button", { name: "Metronome" }).click();
+    await expect(pill).toBeHidden();
     expect(errors).toEqual([]);
 });
