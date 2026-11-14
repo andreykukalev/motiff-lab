@@ -1,0 +1,104 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Assistant.Repairs
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Compare
+@using MotiffLab.Web.Score
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Починка по флажку» (an experiment, Settings · Experimental, version 0.6; the AI companion study, section 2.2): under a
+   flagged bar in the Check drawer, the ways music-core works out from the flag's reason (CheckRepairs, no AI), one chosen;
+   the bar engraved with the chosen draft as a plum ossia above it; As read / Draft / One after the other to hear; what
+   changes, written by the engine from the notes; Accept and Dismiss. A reason with no safe way says why. Nothing changes
+   until Accept, and Accept never resolves the flag: the player does. The page does the hearing and the corrections. *@
+<section class="repair-draft" aria-labelledby="@TitleId">
+    <p class="overline" id="@TitleId">@Text.Format("repair.overline", Bar)</p>
+    @if (Candidates.Count > 0)
+    {
+        <fieldset class="repair-ways">
+            <legend class="visually-hidden">@Text["repair.ways"]</legend>
+            @foreach (RepairCandidate candidate in Candidates)
+            {
+                bool on = candidate.Id == Chosen?.Id;
+                <label class="repair-way @(on ? "on" : null)">
+                    <input type="radio" name="@($"repair-{Bar}")" checked="@on" @onchange="() => Choose.InvokeAsync(candidate)" />
+                    <span>@candidate.Title</span>
+                </label>
+            }
+        </fieldset>
+        <p class="caption">@Text["repair.byEngine"]</p>
+    }
+    @foreach (RepairOptions none in Options.Where(options => options.NoneReason is not null))
+    {
+        <p class="caption repair-none"><strong>@CheckFlag.NameOf(none.Flag.Reason, Words.For(Text.Language))</strong>: @none.NoneReason</p>
+    }
+    @if (Chosen is { } chosen)
+    {
+        @if (Card is { } card)
+        {
+            <div class="repair-card" role="figure" aria-label="@Text.Format("repair.cardLabel", Bar)">
+                <PhraseCard Source="card" Sounding="@Sounding" />
+            </div>
+        }
+        <CompareSwitch View="Compare" Choose="Hear" OneAfterTheOther="Alternate" />
+        <div class="repair-changes">
+            <p class="overline">@Text["repair.changes"]</p>
+            <p>@chosen.Draft.Variation.Explanation</p>
+        </div>
+        <div class="row">
+            <button class="btn primary compact" @onclick="Accept">@Text["repair.accept"]</button>
+            <button class="btn quiet compact" @onclick="Dismiss">@Text["repair.dismiss"]</button>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <button class="btn quiet compact" @onclick="Dismiss">@Text["repair.close"]</button>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The flagged bar.</summary>
+    [Parameter, EditorRequired]
+    public int Bar { get; set; }
+
+    /// <summary>The repairs for each of the bar's open flags, as music-core works them out.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RepairOptions> Options { get; set; } = [];
+
+    /// <summary>The way chosen; null when the bar has none.</summary>
+    [Parameter]
+    public RepairCandidate? Chosen { get; set; }
+
+    /// <summary>The bar engraved with the chosen draft as an ossia above it.</summary>
+    [Parameter]
+    public PhraseCardSource? Card { get; set; }
+
+    /// <summary>What sounds, for the card: "original", "variation" or "both".</summary>
+    [Parameter]
+    public string Sounding { get; set; } = "original";
+
+    /// <summary>What the switch shows: As read or Draft heard, or the two in turn.</summary>
+    [Parameter, EditorRequired]
+    public CompareView Compare { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<RepairCandidate> Choose { get; set; }
+
+    /// <summary>Hear the bar as read (false) or as the draft has it (true).</summary>
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Alternate { get; set; }
+
+    [Parameter]
+    public EventCallback Accept { get; set; }
+
+    [Parameter]
+    public EventCallback Dismiss { get; set; }
+
+    private IReadOnlyList<RepairCandidate> Candidates => [.. Options.SelectMany(options => options.Candidates)];
+
+    private string TitleId => $"repair-{Bar}-title";
+}

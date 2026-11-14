@@ -13,7 +13,11 @@ public sealed record RepairCandidate(string Id, string Title, AssistantDraft Dra
 
 /// <summary>The repairs music-core offers for one Check flag, best first, or why it offers none.</summary>
 /// <param name="NoneReason">Why there is no safe candidate, in the player's language; null when there are candidates.</param>
-public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason);
+public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason)
+{
+    /// <summary>The bars a repair reads and changes: the flagged bar, with the short bar the importer split off after it when the scan read it too long; empty for a bar outside the piece.</summary>
+    public TickSpan Measure { get; init; }
+}
 
 /// <summary>
 /// Repairs by Check reason, with no AI (0028 section 6; the AI companion study, section 2.2): for a flagged bar, the
@@ -66,7 +70,8 @@ public static partial class CheckRepairs
                 "Какая рука звучит на октаву иначе и в какую сторону, знает запись: используйте «Исправить по записи» в «Проверить».")),
             _ => throw new ArgumentOutOfRangeException(nameof(flag), flag.Reason, "Unknown Check reason."),
         };
-        return candidates.Count > 0 ? new RepairOptions(flag, [.. candidates.Take(MostCandidates)], null) : None(flag, none!);
+        RepairOptions options = candidates.Count > 0 ? new RepairOptions(flag, [.. candidates.Take(MostCandidates)], null) : None(flag, none!);
+        return options with { Measure = context.Measure };
     }
 
     private static RepairOptions None(CheckFlag flag, string reason) => new(flag, [], reason);

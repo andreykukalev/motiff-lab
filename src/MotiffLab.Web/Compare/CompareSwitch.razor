@@ -1,6 +1,7 @@
 @* Return to the original and compare (#43, step 6 of docs/08-central-product-model.md): in the inspector head on
    every tab while a variation exists. Original and Variation switch what is heard and what the score shows;
-   One after the other loops the original, then the variation. The page does the switching; this only shows the workspace state (0013). *@
+   One after the other loops the original, then the variation. The page does the switching; this only shows the workspace state (0013).
+   A repair draft in the Check drawer (version 0.6) gives its own View, naming the two «As read» and «Draft». *@
 @using MotiffLab.Web.Localization
 @inject UiText Text
 
@@ -8,11 +9,11 @@
     <div class="ab" role="group" aria-label="@Text["compare.hearAndShow"]">
         <button class="@ButtonClass(Original, sounding: Sounding == false)" aria-pressed="@(Original ? "true" : "false")" aria-current="@(Sounding == false ? "true" : null)"
                 title="@Text["compare.originalHint"]" @onclick="() => Choose.InvokeAsync(false)">
-            @Text["term.original"]
+            @(View?.OriginalLabel ?? Text["term.original"])
         </button>
         <button class="@ButtonClass(Variation, sounding: Sounding == true)" aria-pressed="@(Variation ? "true" : "false")" aria-current="@(Sounding == true ? "true" : null)"
                 title="@Text["compare.variationHint"]" @onclick="() => Choose.InvokeAsync(true)">
-            @Text["term.variation"]
+            @(View?.VariationLabel ?? Text["term.variation"])
         </button>
     </div>
     <button class="alternate @(Alternating ? "on" : null)" aria-pressed="@(Alternating ? "true" : "false")"
@@ -26,17 +27,21 @@
     [CascadingParameter]
     public WorkspaceState State { get; set; } = null!;
 
+    /// <summary>What the switch shows instead of the workspace's variation, such as a repair draft; null for the variation.</summary>
+    [Parameter]
+    public CompareView? View { get; set; }
+
     /// <summary>Whether the original phrase is what the player chose to hear.</summary>
-    private bool Original => State.Playback.OriginalHeard;
+    private bool Original => View?.Original ?? State.Playback.OriginalHeard;
 
     /// <summary>Whether the variation is what the player chose to hear.</summary>
-    private bool Variation => State.Playback.VariationHeard;
+    private bool Variation => View?.Variation ?? State.Playback.VariationHeard;
 
     /// <summary>Whether the original and the variation loop one after the other.</summary>
-    private bool Alternating => State.Playback.Alternating;
+    private bool Alternating => View?.Alternating ?? State.Playback.Alternating;
 
     /// <summary>While they loop one after the other: true while the variation sounds, false while the original does; otherwise null.</summary>
-    private bool? Sounding => State.Playback.SoundingVariation;
+    private bool? Sounding => View is { } view ? view.Sounding : State.Playback.SoundingVariation;
 
     /// <summary>Hear and show the original (false) or the variation (true).</summary>
     [Parameter]

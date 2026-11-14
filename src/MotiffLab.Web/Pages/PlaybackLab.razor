@@ -1342,12 +1342,29 @@
                 <div class="row">
                     <button class="btn secondary compact" @onclick="() => ShowCheckBarAsync(bar.Key)">@Text["scanCheck.show"]</button>
                     <button class="btn quiet compact @(fixing ? "on" : null)" aria-expanded="@(fixing ? "true" : "false")" @onclick="() => FixCheckBarAsync(bar.Key)">@Text["check.fix"]</button>
+                    @if (RepairsShown)
+                    {
+                        bool repairing = _repairBar == bar.Key;
+                        <button class="btn quiet compact repair-open @(repairing ? "on" : null)" aria-expanded="@(repairing ? "true" : "false")" @onclick="() => ToggleRepairAsync(bar.Key)">@Text["repair.open"]</button>
+                    }
                     <button class="btn primary compact" @onclick="() => ResolveCheckAsync(bar.Key, true)">@Text["scanCheck.looksRight"]</button>
                 </div>
                 @if (fixing)
                 {
                     <div class="check-fix corrections" aria-label="@Text["correct.label"]">
                         @NoteCorrections
+                    </div>
+                }
+                @if (RepairsShown && _repairBar == bar.Key)
+                {
+                    <RepairDraft Bar="bar.Key" Options="RepairOptionsOf(bar.Key)" Chosen="RepairChosen" Card="RepairCard" Sounding="@RepairSounding" Compare="RepairCompare"
+                                 Choose="ChooseRepairAsync" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync" Accept="AcceptRepairAsync" Dismiss="DismissRepairAsync" />
+                }
+                @if (RepairUndoable == bar.Key)
+                {
+                    <div class="repair-accepted" role="status">
+                        <p class="caption">@Text.Format("repair.acceptedHint", bar.Key)</p>
+                        <button class="btn quiet compact" @onclick="UndoRepairAsync">@Text["repair.undo"]</button>
                     </div>
                 }
             </li>
@@ -3219,7 +3236,8 @@
 
     private Task RevertNoteAsync(Note note) => ApplyEditsAsync(_edits.Revert(note.Id));
 
-    private Task UndoCorrectionAsync() => _edits.IsEmpty ? Task.CompletedTask : ApplyEditsAsync(_edits.Undo());
+    /// <summary>Undo: the last correction goes, or every correction of a repair accepted just before (<see cref="UndoRepairAsync"/>).</summary>
+    private Task UndoCorrectionAsync() => RepairUndoable is not null ? UndoRepairAsync() : _edits.IsEmpty ? Task.CompletedTask : ApplyEditsAsync(_edits.Undo());
 
     /// <summary>
     /// Plays, draws, engraves and analyses the imported notes with <paramref name="edits"/> applied
