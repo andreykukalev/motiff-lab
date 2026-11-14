@@ -12,8 +12,6 @@ import {
     ROW_AT_100,
     RollModel,
     fill,
-    fitRow,
-    fitZoom,
     isBlackKey,
     keyIndexAt,
     laneKey,
@@ -36,7 +34,19 @@ import { viewOf, type Handle, type ModelState } from "../playback/playback-model
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { knobHeadAt, laneDragTick, laneHeadAt } from "./roll-head-drag.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
-import { fitsWhenTurned, selectionShift, viewOnLoad } from "./roll-view.js";
+import {
+    chase,
+    easing,
+    fitFrame,
+    followPlayhead,
+    glideFrame,
+    milliseconds,
+    paddedPitches,
+    revealSelection,
+    selectionShift,
+    viewOnLoad,
+    type ViewFrame,
+} from "./roll-view.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -119,11 +129,9 @@ const KNOB_MOUSE = 20;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
-/** The fewest semitones the rows show when they fit a selection. */
-const MIN_PITCH_SPAN = 12;
 const KEYBOARD_HEIGHT = 64;
 
-/** While playing, the view pages on when the playhead passes this share of its width. */
+/** A note or a bar brought into view by the keyboard or a pointer pages on when it passes this share of the width. */
 const FOLLOW_RIGHT = 0.85;
 const FOLLOW_LEFT = 0.15;
 
@@ -133,7 +141,7 @@ const EDGE_GRAB = 6;
 /** A press that moves less than this many pixels is a click, not a drag. */
 const CLICK_SLOP = 4;
 
-/** After the player moves or zooms the roll by hand in touch reading, playback leaves the view there this long (ms). */
+/** After the player moves or zooms the roll by hand, playback leaves the view there this long (ms). */
 const HAND_PAUSE_MS = 4000;
 /**
  * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer (four octaves in the iPad
@@ -207,6 +215,12 @@ let LANE_COLOURS: string[] = [];
 /** What a finger needs (`--h-touch`) and the handle's corners (`--r-xs`), in pixels. */
 let TOUCH = 44;
 let KNOB_RADIUS = 4;
+/** The free room either side of what Fit lays across the roll (`--s-4`), in pixels. */
+let FIT_MARGIN = 16;
+/** The kit's motion (`--t-slow` for Fit and a selection brought into view, `--t-base` for following the playhead, `--ease`). */
+let GLIDE_MS = 320;
+let FOLLOW_MS = 200;
+let EASE: (share: number) => number = (share) => share;
 /** The tokens the palette was last read from, so patterns are made again when the theme changes. */
 let paletteKey = "";
 
@@ -250,6 +264,10 @@ function readPalette(element: Element): boolean {
     LANE_COLOURS = [ACCENT, t("teal"), plum, t("ink-carmine"), t("ink-ochre"), t("ink-forest")];
     TOUCH = Number.parseFloat(t("h-touch")) || TOUCH;
     KNOB_RADIUS = Number.parseFloat(t("r-xs")) || KNOB_RADIUS;
+    FIT_MARGIN = Number.parseFloat(t("s-4")) || FIT_MARGIN;
+    GLIDE_MS = milliseconds(t("t-slow"), GLIDE_MS);
+    FOLLOW_MS = milliseconds(t("t-base"), FOLLOW_MS);
+    EASE = easing(t("ease"));
     return true;
 }
 
@@ -263,6 +281,17 @@ type RollNamesArgs = [notes: string[], keyTicks: number[], rows: string[][], sho
  */
 let keptModel: { key: string; model: RollModel } | null = null;
 let keptNames: { key: string; names: RollNamesArgs } | null = null;
+/**
+ * The player's zoom and view as the last roll drew them (#511 section 5.2), by the key of its notes: the web's roll in focus
+ * that Expand opens, and the drawer's opened again, start from the zoom the player left, and on the same notes from the
+ * same place, so going into and out of Expand changes neither.
+ */
+let keptFrame: { key: string | null; frame: ViewFrame } | null = null;
+
+/** Whether the player asked for less motion: glides and following then go at once. */
+function reducedMotion(): boolean {
+    return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 /** Patterns go with colours so that lanes differ by more than colour (WCAG 2.2 AA, 1.4.1). */
 type PatternKind = "solid" | "rising" | "falling" | "horizontal" | "vertical" | "dots";
@@ -325,16 +354,23 @@ export class PianoRoll {
     private octaveNames: string[] = [];
     /** The bars Check flags, drawn on the bar numbers. */
     private checks: { tick: number; bar: number; label: string }[] = [];
-    /** The lowest and highest pitch of the selection's notes, which the rows fit; null for the piece's. */
+    /** The lowest and highest pitch of the selection's notes, brought into view with a new selection out of it; null for none. */
     private motifPitches: { lowest: number; highest: number } | null = null;
     private laneIndex = new Map<number, number>();
+    /** The player's zoom (#511 section 5): only the zoom controls, a pinch, the wheel and Fit change it. */
     private zoom = DEFAULT_ZOOM;
     /** The rows' height as a share of 100 % (ROW_AT_100), zoomed with the time: one zoom for both (testing item 13). */
     private rowScale = 1;
-    /** Fit the next selection shown, or what is in view, once the roll has its width (Fit, and the roll in phrase focus). */
+    /** Fit pressed before the roll had its width: it fits once it has. */
     private pendingFit = false;
-    /** Whether every new selection is fitted to the roll: the roll in phrase focus (testing item 12). */
-    private fitsSelection = false;
+    /** The key of the notes shown, under which the player's zoom and view are kept for the next roll (keptFrame). */
+    private notesKey: string | null = null;
+    /** A glide of the zoom and the view to where Fit or a new selection takes them: from, to, and when it began (ms). */
+    private glide: { from: ViewFrame; to: ViewFrame; began: number } | null = null;
+    /** Where following the playhead is taking the view, eased to frame by frame; a reveal holds until it is there. */
+    private following: { kind: "glue" | "reveal"; scroll: number } | null = null;
+    /** When the last frame was drawn, for easing the view by the time that passed. */
+    private lastFrame = 0;
     /** Fingers on the notes, for a pinch, and the zoom when the pinch started. */
     private readonly touches = new Map<number, { x: number; y: number }>();
     /** A pinch: the fingers' spread, the zoom and the rows when it started, the fingers' middle and the view then. */
@@ -356,15 +392,12 @@ export class PianoRoll {
     private editTap: { pointer: number; x: number; y: number; tick: number; pitch: number } | null = null;
     /**
      * Touch reading (the iPad's roll, #338): a finger on the notes moves through the music instead of selecting, two
-     * fingers zoom the time only, a tap never clears the selection or sounds a note, and every new selection is fitted.
-     * Off by default, as the web app has it.
+     * fingers zoom the time only, and a tap never clears the selection or sounds a note. Off by default, as the web app has it.
      */
     private touchReading = false;
     /** A finger moving the roll in touch reading: where it went down, and the scroll and top row then. */
     private pan: { pointer: number; x: number; y: number; scroll: number; top: number; moving: boolean } | null = null;
-    /** Whether the view is what Fit made of it, so a new size fits it again (touch reading). */
-    private fitted = false;
-    /** Until when, after a move or zoom by hand, playback does not move the view (touch reading). */
+    /** Until when, after a move or zoom by hand, playback does not move the view. */
     private handUntil = 0;
     private scroll = 0;
     private selected = new Set<number>();
@@ -511,7 +544,7 @@ export class PianoRoll {
         if (key !== undefined) {
             keptModel = { key, model };
         }
-        this.show(model, keepView);
+        this.show(model, keepView, key ?? null);
     }
 
     /** Shows the piece kept under the key, as load does; false when another is kept, so Blazor sends this one. */
@@ -519,14 +552,27 @@ export class PianoRoll {
         if (keptModel?.key !== key) {
             return false;
         }
-        this.show(keptModel.model, keepView);
+        this.show(keptModel.model, keepView, key);
         return true;
     }
 
-    private show(model: RollModel, keepView: boolean): void {
+    private show(model: RollModel, keepView: boolean, key: string | null): void {
         const motif = this.motif;
         const span = motif === null ? this.keptSpan : { start: motif.start, end: motif.end };
-        const view = viewOnLoad({ scroll: this.scroll, pitchTop: this.pitchTop, fitted: this.fitted, span }, keepView, this.editing);
+        let view = viewOnLoad({ scroll: this.scroll, pitchTop: this.pitchTop, span }, keepView, this.editing);
+        // A roll made anew (Expand on the web, the drawer opened again) takes the player's zoom, and on the same notes the view too.
+        const kept = this.model === null ? keptFrame : null;
+        if (kept !== null) {
+            this.zoom = kept.frame.zoom;
+            this.rowScale = kept.frame.rowScale;
+            if (key !== null && kept.key === key) {
+                view = { ...view, scroll: kept.frame.scroll, pitchTop: kept.frame.pitchTop };
+            }
+            this.showZoom();
+        }
+        this.notesKey = key;
+        this.glide = null;
+        this.following = null;
         this.model = model;
         this.selected = new Set();
         this.focusIndex = undefined;
@@ -544,7 +590,6 @@ export class PianoRoll {
         this.editDrag = null;
         this.rulePress = null;
         this.boxPicked.clear();
-        this.fitted = view.fitted;
         this.keptSpan = view.span;
         this.pitchTop = view.pitchTop;
         this.scroll = Math.min(this.maxScroll(), view.scroll);
@@ -717,9 +762,9 @@ export class PianoRoll {
      * left edge, where it is.
      */
     zoomBy(factor: number, anchorX?: number): void {
+        this.byHand();
         if (this.touchReading) {
             // Touch reading zooms the time only, round the middle of the view unless an anchor is given.
-            this.byHand();
             this.zoomTo(this.zoom * factor, this.rowScale, anchorX ?? this.timeWidth() / 2);
             return;
         }
@@ -727,8 +772,10 @@ export class PianoRoll {
     }
 
     /**
-     * Fit (testing item 13): lays the selection, or else the phrase in the middle of the view, across the roll's width, its
-     * rows in the roll's height as far as the rows' limits allow. Before the roll has its width, it fits once it has.
+     * Fit (testing item 13, #511 section 5.1), only when the player asks: lays the selection, or else the phrase in the middle
+     * of the view, across the roll's width as it is now with a margin either side, its rows in the roll's height as far as
+     * the rows' limits allow, and glides there. What it made is then the player's zoom: nothing fits again by itself.
+     * Before the roll has its width, it fits once it has.
      */
     fit(): void {
         const model = this.model;
@@ -739,9 +786,6 @@ export class PianoRoll {
         }
         this.pendingFit = false;
         const span = this.motif ?? this.phraseAt(this.scroll + this.visibleTicks() / 2) ?? { start: 0, end: model.end };
-        const margin = 8;
-        this.zoom = fitZoom(span.end - span.start, this.timeWidth() - 2 * margin, MIN_ZOOM, MAX_ZOOM);
-        // The rows of the notes in the stretch, an octave at least, with one free row above and below.
         let lowest = Number.POSITIVE_INFINITY;
         let highest = Number.NEGATIVE_INFINITY;
         for (const index of model.inRange(span.start, span.end)) {
@@ -749,29 +793,68 @@ export class PianoRoll {
             lowest = Math.min(lowest, pitch);
             highest = Math.max(highest, pitch);
         }
-        if (Number.isFinite(lowest)) {
-            const { low, high } = this.paddedPitches(lowest, highest);
-            const rows = high - low + 1;
-            const fitted = this.touchReading
-                ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.floor(this.rollHeight() / rows)))
-                : fitRow(rows, this.rollHeight());
-            this.rowScale = fitted / ROW_AT_100;
-            // Touch reading shows the whole piece's rows: the selection's sit in the middle of those in view, and when even
-            // the thinnest rows cannot hold them all, the middle of the selection is what shows.
-            const spare = Math.floor(this.rollHeight() / this.rowHeight()) - rows;
-            this.pitchTop = this.touchReading ? high + Math.floor(spare / 2) : high;
-        }
-        this.scroll = Math.round(Math.max(0, span.start - (margin * TICKS_PER_QUARTER) / this.zoom));
-        this.fitted = true;
+        const from = this.currentFrame();
+        const to = fitFrame({
+            start: span.start,
+            end: span.end,
+            pitches: Number.isFinite(lowest) ? { lowest, highest } : null,
+            width: this.timeWidth(),
+            height: this.rollHeight(),
+            margin: FIT_MARGIN,
+            zoomLimits: [MIN_ZOOM, MAX_ZOOM],
+            rowLimits: [this.touchReading ? READING_MIN_ROW : MIN_ROW, MAX_ROW],
+            rowAt100: ROW_AT_100,
+            before: from,
+        });
         this.handUntil = 0;
+        this.glideTo(from, to);
+    }
+
+    /** The player's zoom and the view as they are now, the highest row shown resolved. */
+    private currentFrame(): ViewFrame {
+        return { zoom: this.zoom, rowScale: this.rowScale, scroll: this.scroll, pitchTop: this.pitchTop ?? this.pitchRange().high };
+    }
+
+    /** Glides the zoom and the view from one frame to another in the kit's slow time, at once with less motion. */
+    private glideTo(from: ViewFrame, to: ViewFrame): void {
+        this.following = null;
+        if (reducedMotion() || GLIDE_MS <= 0) {
+            this.glide = null;
+            this.setFrame(to);
+            return;
+        }
+        this.glide = { from, to, began: performance.now() };
+        this.invalidate();
+    }
+
+    /** Sets the zoom and the view to a frame, within the zoom's limits and the scroll's. */
+    private setFrame(frame: ViewFrame): void {
+        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, frame.zoom));
+        this.rowScale = frame.rowScale;
+        this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, frame.scroll)));
+        this.pitchTop = Math.round(frame.pitchTop);
         this.showZoom();
         this.invalidate();
     }
 
+    /** One frame of a glide; true while it goes on. */
+    private stepGlide(now: number): boolean {
+        const glide = this.glide;
+        if (glide === null) {
+            return false;
+        }
+        const share = Math.min(1, (now - glide.began) / GLIDE_MS);
+        this.setFrame(glideFrame(glide.from, glide.to, EASE(share)));
+        if (share >= 1) {
+            this.glide = null;
+        }
+        return true;
+    }
+
     /**
      * Touch reading (#338), for the iPad's roll: a finger on the notes moves through the music sideways and through the rows
-     * up and down, never selecting; two fingers zoom the time only; a tap on the notes neither selects, clears nor sounds;
-     * every new selection is fitted, and fitted again when the roll changes size. The bar numbers still select bars.
+     * up and down, never selecting; two fingers zoom the time only; a tap on the notes neither selects, clears nor sounds.
+     * The bar numbers still select bars.
      */
     setTouchReading(on: boolean): void {
         this.touchReading = on;
@@ -913,18 +996,6 @@ export class PianoRoll {
         }
     }
 
-    /**
-     * In phrase focus the roll fits every selection it is given (testing item 12). Turned on it fits at once, but not again
-     * when it is only sent again, and not when read by touch, which keeps the player's zoom on Expand (BUG-04).
-     */
-    setFitsSelection(on: boolean): void {
-        const fits = fitsWhenTurned(this.fitsSelection, on, this.touchReading);
-        this.fitsSelection = on;
-        if (fits) {
-            this.fit();
-        }
-    }
-
     /** Selects the notes with these ids, for a selection made elsewhere. Unknown ids are ignored. */
     setSelection(ids: string[]): void {
         const model = this.model;
@@ -946,19 +1017,27 @@ export class PianoRoll {
             return;
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
-        const { moved, changed } = selectionShift(this.motif ?? this.keptSpan, start, end);
+        const { moved } = selectionShift(this.motif ?? this.keptSpan, start, end);
         this.keptSpan = null;
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
         this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
         this.drag = null;
-        // A selection made elsewhere (a phrase chip, the score) scrolls into view, as the score does (0012).
-        if (moved) {
-            this.keepInView(start);
-            this.pitchTop = null;
-        }
-        if (this.touchReading ? changed : this.fitsSelection && moved) {
-            this.fit();
+        // The zoom is the player's (#511 section 5.1): a selection never fits. Only a new one wholly out of view (made on the
+        // score far away, a phrase stepped to) is brought into it; one whose edge moved stays where it is.
+        if (moved && this.host.clientWidth > 0) {
+            const reveal = revealSelection({
+                scroll: this.scroll,
+                visible: this.visibleTicks(),
+                rows: this.pitchRange(),
+                span: { start, end },
+                pitches: this.motifPitches,
+                maxScroll: this.maxScroll(),
+            });
+            if (reveal !== null) {
+                const from = this.currentFrame();
+                this.glideTo(from, { ...from, scroll: reveal.scroll, pitchTop: reveal.pitchTop ?? from.pitchTop });
+            }
         }
         this.invalidate();
     }
@@ -968,8 +1047,6 @@ export class PianoRoll {
         this.keptSpan = null;
         this.motifPitches = null;
         this.drag = null;
-        // With no selection there is nothing to fit again: a new size keeps the left edge and the zoom.
-        this.fitted = false;
         this.invalidate();
     }
 
@@ -1109,6 +1186,9 @@ export class PianoRoll {
         if (this.disposed) {
             return;
         }
+        const time = performance.now();
+        const elapsed = this.lastFrame === 0 ? 0 : time - this.lastFrame;
+        this.lastFrame = time;
         const player = this.player;
         if (player !== null) {
             const now = this.laneDrag.heard(this.playhead.heard(player.currentTick()));
@@ -1116,13 +1196,12 @@ export class PianoRoll {
                 const jumped = Math.abs(now - this.tickNow) > TICKS_PER_QUARTER;
                 this.tickNow = now;
                 this.dirty = true;
-                if (this.touchReading) {
-                    this.followReading(now, jumped);
-                } else if (player.state() !== "stopped" || jumped) {
-                    this.keepInView(now);
-                }
+                this.followPlayer(now, jumped, player.state() === "playing");
             }
             this.dirty ||= this.modelChanged(player);
+        }
+        if (!this.stepGlide(time)) {
+            this.stepFollow(elapsed);
         }
         if (this.dirty) {
             this.dirty = false;
@@ -1141,30 +1220,47 @@ export class PianoRoll {
     }
 
     /**
-     * Touch reading follows the playhead only when it leaves the view, so a fitted selection on a loop stays still, and not
-     * for a while after the player moved the view by hand.
+     * Where the playhead takes the view (#511 section 6.1, roll-view.ts followPlayhead): along with it past FOLLOW_AT of the
+     * width while playing, no further than the end of what plays, and back to it once after a jump out of view; not while a
+     * playhead is held (its drag and scrub stay as they are, #495), during a glide, or for a while after the player moved the
+     * view by hand. A reveal under way holds until another jump.
      */
-    private followReading(tick: number, jumped: boolean): void {
-        const offset = tick - this.scroll;
-        const away = offset < 0 || offset > this.visibleTicks();
-        if (away && (this.player?.state() !== "stopped" || jumped) && performance.now() >= this.handUntil) {
-            this.keepInView(tick);
-            // The view has left what Fit made: a new size keeps it, rather than jumping back to the selection.
-            this.fitted = false;
+    private followPlayer(tick: number, jumped: boolean, playing: boolean): void {
+        if (this.glide !== null || this.playhead.dragging || this.laneDrag.handle !== null || performance.now() < this.handUntil
+            || this.host.clientWidth === 0 || (this.following?.kind === "reveal" && !jumped)) {
+            return;
         }
+        const play = this.playRange;
+        const end = play !== null && tick >= play.start && tick < play.end ? play.end : (this.model?.end ?? 0);
+        this.following = followPlayhead({ scroll: this.scroll, visible: this.visibleTicks(), tick, playing, jumped, end, maxScroll: this.maxScroll() }) ?? this.following;
     }
 
-    /** The roll changed size (a turn of the iPad, the drawer): in touch reading a fitted view is fitted again. */
-    private onResize(): void {
-        if (this.touchReading && this.fitted) {
-            this.pendingFit = true;
+    /** One frame of the view easing to where following takes it, in the kit's base time (at once with less motion). */
+    private stepFollow(elapsed: number): void {
+        const following = this.following;
+        if (following === null) {
+            return;
+        }
+        const tau = reducedMotion() ? 0 : FOLLOW_MS / 3;
+        const next = chase(this.scroll, following.scroll, elapsed, tau);
+        // Within half a pixel it is there.
+        const there = Math.abs(next - following.scroll) * this.zoom < TICKS_PER_QUARTER / 2;
+        this.scroll = there ? following.scroll : next;
+        if (there) {
+            this.following = null;
         }
         this.invalidate();
     }
 
-    /** The player moved or zoomed the view by hand: it is no longer what Fit made, and playback leaves it for a while. */
+    /** The roll changed size (a turn of the iPad, the drawer, Expand): the zoom and the view stay; more or less of the music shows. */
+    private onResize(): void {
+        this.invalidate();
+    }
+
+    /** The player moved or zoomed the view by hand: a glide or a follow stops, and playback leaves the view for a while. */
     private byHand(): void {
-        this.fitted = false;
+        this.glide = null;
+        this.following = null;
         this.handUntil = performance.now() + HAND_PAUSE_MS;
     }
 
@@ -1245,7 +1341,10 @@ export class PianoRoll {
         return Math.max(0, (this.model?.end ?? 0) - this.visibleTicks() * 0.5);
     }
 
+    /** Moves the view to a left edge; a glide or a follow under way gives way to it. */
     private scrollTo(tick: number): void {
+        this.glide = null;
+        this.following = null;
         this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, tick)));
         this.invalidate();
     }
@@ -1278,16 +1377,14 @@ export class PianoRoll {
     }
 
     /**
-     * Rows from one below the lowest note to one above the highest: of the selection when there is one, so the drawer shows
-     * the selected phrase large enough for note names (0018 section 4), at least an octave; else of the piece.
+     * Rows from one below the piece's lowest note to one above its highest, at least an octave: all of them where they fit,
+     * else a window of the zoom's rows from the highest row shown (0018 section 4; #511 section 5.1).
      */
     private pitchRange(): { low: number; high: number; row: number; above: boolean; below: boolean } {
         const model = this.model;
-        // In touch reading the rows reach the whole piece, so moving on through the music finds every note; Fit puts the
-        // selection's rows in view.
-        const piece = { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
-        const span = this.touchReading ? piece : this.motifPitches ?? piece;
-        const { low, high } = this.paddedPitches(span.lowest, span.highest);
+        // The rows reach the whole piece, so moving on through the music finds every note and a new selection never moves
+        // them (#511 section 5.1); Fit puts the selection's rows in view.
+        const { low, high } = paddedPitches(model?.lowest ?? 60, model?.highest ?? 72);
         // Rows of the zoom's height (testing item 11): as many as fit, widened round the notes when they take fewer, else a
         // window from the top of the notes (where the tune usually is) until scrolled.
         const row = this.rowHeight();
@@ -1298,14 +1395,6 @@ export class PianoRoll {
     /** The height of a row: the zoom's, down to thinner rows in touch reading. */
     private rowHeight(): number {
         return this.touchReading ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.round(ROW_AT_100 * this.rowScale))) : rowFor(this.rowScale);
-    }
-
-    /** The rows of notes from lowest to highest: an octave at least, with one free row above and below. */
-    private paddedPitches(lowest: number, highest: number): { low: number; high: number } {
-        const middle = (lowest + highest) / 2;
-        const low = Math.min(lowest, Math.floor(middle - MIN_PITCH_SPAN / 2));
-        const high = Math.max(highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
-        return { low: Math.max(0, low - 1), high: Math.min(127, high + 1) };
     }
 
     /** Scrolls the rows by whole rows, up for a positive count, when they do not all fit. */
@@ -1346,6 +1435,9 @@ export class PianoRoll {
             this.fit();
         }
         const { low, high, row } = this.pitchRange();
+        if (this.model !== null) {
+            keptFrame = { key: this.notesKey, frame: { zoom: this.zoom, rowScale: this.rowScale, scroll: this.scroll, pitchTop: this.pitchTop ?? high } };
+        }
         const height = this.header + (high - low + 1) * row;
         this.drawRoll(width, height, low, high, row);
         this.drawKeyboard(width);
@@ -1700,9 +1792,8 @@ export class PianoRoll {
         }
         const tick = overviewTick(event.clientX - this.overview.getBoundingClientRect().left, this.host.clientWidth, model.end);
         this.playhead.go(tick, false);
+        this.byHand();
         this.scrollTo(tick - this.visibleTicks() / 2);
-        this.handUntil = performance.now() + HAND_PAUSE_MS;
-        this.fitted = false;
     }
 
     /** Where the playhead stays: the loop, else the selection; null for neither, and with the lanes, where it goes anywhere. */
@@ -2926,12 +3017,14 @@ export class PianoRoll {
             if ((event.deltaY < 0 && !above) || (event.deltaY > 0 && !below)) {
                 return;
             }
+            this.byHand();
             this.scrollPitch(-Math.sign(event.deltaY) * Math.max(1, Math.round(Math.abs(event.deltaY) / row)));
         } else {
             const delta = event.shiftKey ? event.deltaY : event.deltaX;
             if (delta === 0) {
                 return;
             }
+            this.byHand();
             this.scrollTo(this.scroll + (delta * TICKS_PER_QUARTER) / this.zoom);
         }
         event.preventDefault();

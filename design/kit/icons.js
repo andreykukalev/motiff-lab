@@ -23,6 +23,7 @@ const ICONS = {
   user: '<circle cx="10" cy="7" r="3.5"/><path d="M3.5 17a6.5 6.5 0 0 1 13 0"/>',
   close: '<path d="M5 5l10 10M15 5L5 15"/>',
   search: '<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>',
+  expand: '<path d="M11.5 3.5h5v5M16.5 3.5L11 9M8.5 16.5h-5v-5M3.5 16.5L9 11"/>',
   info: '<circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.5"/>',
   layers: '<path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/>',
   trash: '<path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L14 6"/>',

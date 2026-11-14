@@ -80,8 +80,13 @@ test("one Play button whose colour follows the place, and Цикл that loops th
         await expect(play).toHaveAccessibleName(/^Pause · \d+\.\d+$/);
     });
     await expect.poll(async () => barOf(bars, await across(track))).toBeGreaterThanOrEqual(4);
+    // The label is the place alone, bar.beat, at one width whether it plays or not (#511 section 8.2).
+    await expect(play.locator(".lbl")).toHaveText(/^\d+\.\d+$/);
+    const playingWidth = (await play.boundingBox()).width;
     await page.keyboard.press("Space");
     await expect(play).toHaveAccessibleName(/^Play from \d+\.\d+$/);
+    await expect(play.locator(".lbl")).toHaveText(/^\d+\.\d+$/);
+    expect(Math.abs((await play.boundingBox()).width - playingWidth)).toBeLessThan(1);
     await expect(play).not.toHaveClass(/\bpiece\b/);
     const inside = barOf(bars, await across(track));
     expect(inside === 4 || inside === 5).toBe(true);

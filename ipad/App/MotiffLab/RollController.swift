@@ -66,7 +66,6 @@ final class RollController: NSObject, ObservableObject {
     private var dark = false
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
-    private var fits = false
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
@@ -138,13 +137,6 @@ final class RollController: NSObject, ObservableObject {
         shownSelection = data
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
-    }
-
-    /// Whether every selection is laid across the roll, as its Fit does: the roll in phrase focus (testing item 12).
-    func fitsSelection(_ on: Bool) {
-        fits = on
-        guard loaded else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
     /// The note editor open, with its tool and the note picked, or closed (nil), when the roll goes back to Navigate. A press
@@ -271,9 +263,6 @@ final class RollController: NSObject, ObservableObject {
             if lanesOn {
                 _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": true], contentWorld: .page)
             }
-            if fits {
-                _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
-            }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
             }
@@ -348,8 +337,9 @@ private final class RollMessageRelay: NSObject, WKScriptMessageHandler {
 }
 
 /// The piano roll's drawer (ds.css `.drawer`, the web app's roll drawer): up from the bottom, 40% of the height in
-/// landscape and 30% in portrait, with its head (where it is, its mode switch and its settings, or the note editor's tools)
-/// over the roll and the zoom on each axis over the notes (#479 item 23).
+/// landscape and 30% in portrait until the player drags its handle (RollDrawerHeight, #511 section 7.1), with its head
+/// (where it is, its mode switch and its settings, or the note editor's tools) over the roll and the zoom on each axis over
+/// the notes (#479 item 23).
 struct RollDrawer: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
@@ -358,7 +348,12 @@ struct RollDrawer: View {
     var span: String?
     /// Expand: the phrase in focus as a roll (testing item 12).
     let expand: () -> Void
+    /// The handle dragged by a distance down (true when let go), and a step of its height up (+1) or down (−1).
+    let resize: (_ dy: CGFloat, _ ended: Bool) -> Void
+    let step: (_ direction: CGFloat) -> Void
     let close: () -> Void
+    /// Whether the press on the handle has moved past a tap, so it resizes rather than puts the drawer away.
+    @State private var handleMoved = false
 
     var body: some View {
         VStack(spacing: CGFloat.ds("s-2")) {
@@ -373,12 +368,50 @@ struct RollDrawer: View {
         .padding(.horizontal, CGFloat.ds("s-3"))
         .padding(.bottom, CGFloat.ds("s-2"))
         .background(Color.ds("surface"), in: UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
-        .overlay(alignment: .top) {
-            Capsule().fill(Color.ds("hairline-strong")).frame(width: 36, height: 4).padding(.top, CGFloat.ds("s-2"))
-        }
+        .overlay(alignment: .top) { handle }
         .dsShadow("shadow-sheet")
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["bar.roll"])
+    }
+
+    /// The handle over the top of the drawer (#511 section 7.1, the web's `.drawer > .grab`): dragged up the drawer grows,
+    /// down it shrinks, dragged nearly away it goes, and a tap puts it away. It is the drawer's own, over no score, so it
+    /// never takes a stroke of the Pencil or a selection; it reads the drag on the screen, as the drawer moves under it.
+    private var handle: some View {
+        Capsule().fill(Color.ds("hairline-strong")).frame(width: 36, height: 4)
+            .padding(.top, CGFloat.ds("s-2"))
+            .frame(width: CGFloat.ds("h-touch") * 3, height: CGFloat.ds("s-6"), alignment: .top)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { drag in
+                        let dy = drag.translation.height
+                        if handleMoved || abs(dy) >= RollDrawerHeight.tapDistance {
+                            handleMoved = true
+                            resize(dy, false)
+                        }
+                    }
+                    .onEnded { drag in
+                        let moved = handleMoved
+                        handleMoved = false
+                        if moved {
+                            resize(drag.translation.height, true)
+                        } else {
+                            close()
+                        }
+                    }
+            )
+            .accessibilityElement()
+            .accessibilityLabel(text["drawer.resize"])
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { close() }
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: step(1)
+                case .decrement: step(-1)
+                @unknown default: break
+                }
+            }
     }
 
     /// The head (the approved mockup v0.5.2, #479 item 23): where it is, the roll's mode switch, and then in Navigate Clear
@@ -438,7 +471,7 @@ struct RollDrawer: View {
         .help(text["roll.colourHint"])
         Button(action: expand) {
             HStack(spacing: 6) {
-                Icon(name: "search", size: CGFloat.ds("icon-s"))
+                Icon(name: "expand", size: CGFloat.ds("icon-s"))
                 Text(text["roll.expand"])
             }
         }

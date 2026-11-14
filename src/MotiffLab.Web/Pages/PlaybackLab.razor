@@ -372,9 +372,9 @@
                             <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
                             @if (_focusRoll)
                             {
-                                @* The phrase as a roll laid across the card whole (testing item 12); the zoom and Fit float over it. *@
+                                @* The phrase as a roll over the card (testing item 12), at the player's zoom (#511 section 5); the zoom and Fit float over it. *@
                                 <div class="focus-roll" data-fill="true">
-                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
+                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor" />
@@ -790,7 +790,7 @@
     /// <summary>
     /// The pill's transport under the playback model (v0.5.2, #495 UX-10, PlaybackLab.Playheads.cs), as on the iPad: one Play
     /// whose colour follows the place, cobalt where the selection plays (or, stopped, will play) and ink where the piece goes
-    /// on, with the place as bar.beat; with a selection, Цикл with its span.
+    /// on, with the place as bar.beat alone at a width that does not change (#511 section 8.2); with a selection, Цикл with its span.
     /// </summary>
     private RenderFragment ModelTransport => @<text>
         @{
@@ -800,7 +800,7 @@
         }
         <button class="play-at @(cobalt ? null : "piece")" @onclick="PressAsync" aria-label="@Text.Format(playing ? "pill.pauseAt" : "pill.play", place)"
                 title="@Text[cobalt ? "pill.playSelectionHint" : "pill.playPieceHint"]">
-            <span class="pb" aria-hidden="true"><Icon Name="@(playing ? "pause" : "playf")" /></span><span class="lbl" aria-hidden="true">@Text.Format(playing ? "pill.pauseAt" : "pill.from", place)</span>
+            <span class="pb" aria-hidden="true"><Icon Name="@(playing ? "pause" : "playf")" /></span><span class="lbl" aria-hidden="true"><span>@place</span></span>
         </button>
         @if (CycleSpan is { } span)
         {
@@ -827,7 +827,7 @@
                 @* Under the playback model (v0.5.2) Play and Цикл are in the pill only. *@
                 <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
             }
-            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /><span class="lbl">@Text["focus.enter"]</span></button>
+            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="expand" /><span class="lbl">@Text["focus.enter"]</span></button>
             <button class="it" aria-label="@Text["menu.note"]" @onclick="StartNote"><Icon Name="note" /><span class="lbl">@Text["menu.note"]</span></button>
             <button class="it" aria-label="@Text["menu.bookmark"]" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /><span class="lbl">@Text["menu.bookmark"]</span></button>
             <span class="div" aria-hidden="true"></span>
@@ -1896,9 +1896,7 @@
         }
         <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                 @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State != PlaybackState.Stopped ? Text["transport.pause"] : Text["transport.play"])">
-            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
-        </button>
+        @* No Play here (#511 section 8.1): the pill's is the one, and it always shows in focus (PillShown). *@
     </text>;
 
     private const string VariationSource = "variation";

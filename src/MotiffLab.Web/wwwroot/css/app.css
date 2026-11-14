@@ -10552,6 +10552,23 @@ body:has(> #app > .library) {
     color: var(--ink);
 }
 
+/* The place alone, bar.beat (#511 section 8.2): figures of one width, over a hidden «888.88» that holds the widest place, so
+   the pill keeps its size as the place moves and as it plays and pauses. */
+.lab.workspace .pill .play-at .lbl {
+    display: inline-grid;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab.workspace .pill .play-at .lbl::before {
+    content: "888.88";
+    grid-area: 1 / 1;
+    visibility: hidden;
+}
+
+.lab.workspace .pill .play-at .lbl > span {
+    grid-area: 1 / 1;
+}
+
 .lab.workspace .pill .play-at.piece .pb {
     background: var(--ink);
     color: var(--surface);

@@ -1647,10 +1647,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
     private var turningToPlaying = false
 
-    /// While the piece plays on past the phrase in focus (nothing loops), the card turns to the unit now sounding, as Next
-    /// would, so Notes and Piano roll show the same place (testing item 27). A variation in the card keeps it where it is.
+    /// While the piece plays on past the phrase in focus (nothing loops), the card in Notes turns to the unit now sounding, as
+    /// Next would (testing item 27). The roll in focus keeps the selection: its view moves on with the playhead, continuously
+    /// (#511 section 6.1). A variation in the card keeps it where it is.
     func followPlaying(_ tick: Double) {
-        guard focused, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
+        guard focused, !focusRoll, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
               let shown = focusUnit,
               let sounding = phrases?.units.last(where: { $0.onset <= tick }), sounding.number != shown.number
         else { return }

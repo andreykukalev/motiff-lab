@@ -6,7 +6,7 @@ namespace MotiffLab.Web.Pages;
 
 /// <summary>
 /// The roll in phrase focus (testing item 12): Notes | Piano roll in the focus bar shows the phrase in the card as notation or as
-/// a roll laid across the card whole. It is a way of focusing, not another view: previous and next walk the phrases, the
+/// a roll at the player's zoom (#511 section 5: only Fit lays it across the card). It is a way of focusing, not another view: previous and next walk the phrases, the
 /// loop, the tempo and the hands stay as they are, Back goes to the page. Expand on the roll drawer's head goes there, with
 /// the phrase under the playhead when nothing is selected; the choice of Piano roll is kept for the session.
 /// </summary>
@@ -56,13 +56,13 @@ public partial class PlaybackLab
     private bool _turningFocus;
 
     /// <summary>
-    /// While the piece plays on past the passage in focus (nothing loops), the card turns to the unit now sounding, as Next
-    /// would, so Notes and Piano roll show the same place and the switch between them never goes back (testing item 27).
-    /// A variation or another version heard in the card keeps it where it is.
+    /// While the piece plays on past the passage in focus (nothing loops), the card in Notes turns to the unit now sounding, as
+    /// Next would (testing item 27). The roll keeps the selection and its view moves on with the playhead, continuously (#511
+    /// section 6.1). A variation or another version heard in the card keeps it where it is.
     /// </summary>
     private async Task FollowPlayingInFocusAsync()
     {
-        if (!Focused || _turningFocus || Player.State != PlaybackState.Playing || _looping || _alternating || Player.Loop is not null
+        if (!Focused || FocusShowsRoll || _turningFocus || Player.State != PlaybackState.Playing || _looping || _alternating || Player.Loop is not null
             || FocusHasVariation || VersionChosen || Levels is null || FocusSpan is not { } span || FocusUnit is not { } shown)
         {
             return;

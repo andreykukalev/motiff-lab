@@ -121,7 +121,6 @@
   "phrases.hideHint": "The phrases are not named, in the contents nor for the selection, until you choose a level again. Kept on this iPad.",
   "pill.cycle": "Loop {0} – {1}",
   "pill.cycleHint": "Turn it on and the position goes to the selection's start and the selection repeats; off, playback goes on through the piece.",
-  "pill.from": "From {0}",
   "pill.pauseAt": "Pause · {0}",
   "pill.play": "Play from {0}",
   "pill.playPieceHint": "Space. Plays the piece from the position.",

@@ -48,6 +48,54 @@ struct RollZoom: Equatable, Sendable {
     }
 }
 
+/// The roll drawer's height (#511 section 7.1), as the web app's drawer has it (Scripts/layout/drawer-resize.ts): its handle
+/// drags it taller, up to most of the screen (the iPad's bar stays above it), or shorter, down to a fifth; dragged nearly
+/// away it closes. The height is a share of the screen's, kept on the device for each orientation, as the player left it;
+/// 40% in landscape and 30% in portrait until then. A new height changes neither the roll's zoom nor its view.
+enum RollDrawerHeight {
+    /// The tallest and shortest the drawer goes, as shares of the screen's height.
+    static let maxShare: CGFloat = 0.85
+    static let minShare: CGFloat = 0.2
+    /// Dragged below this share, the drawer goes away (the web's).
+    static let closeShare: CGFloat = 0.12
+    /// A press that moves less than this is a tap, which puts the drawer away (the web's).
+    static let tapDistance: CGFloat = 6
+    /// What an accessibility step moves the drawer by (the web's arrow keys).
+    static let step: CGFloat = 0.05
+
+    /// The share before the player has set one: 40% of the screen in landscape and 30% in portrait.
+    static func standard(landscape: Bool) -> CGFloat {
+        landscape ? 0.4 : 0.3
+    }
+
+    /// The drawer's share after a drag of `dy` points (down is positive) from `start` on a screen `height` tall; nil when it
+    /// closes.
+    static func share(from start: CGFloat, dragged dy: CGFloat, height: CGFloat) -> CGFloat? {
+        let share = start - dy / max(1, height)
+        if share < closeShare { return nil }
+        return clamped(share)
+    }
+
+    /// A share within the drawer's limits.
+    static func clamped(_ share: CGFloat) -> CGFloat {
+        min(maxShare, max(minShare, share))
+    }
+
+    static func key(landscape: Bool) -> String {
+        landscape ? "roll.drawerShare.landscape" : "roll.drawerShare.portrait"
+    }
+
+    /// The share kept for an orientation, or the standard one.
+    static func saved(landscape: Bool, in defaults: UserDefaults = .standard) -> CGFloat {
+        let kept = defaults.double(forKey: key(landscape: landscape))
+        return kept >= Double(minShare) && kept <= Double(maxShare) ? CGFloat(kept) : standard(landscape: landscape)
+    }
+
+    static func keep(_ share: CGFloat, landscape: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(Double(clamped(share)), forKey: key(landscape: landscape))
+    }
+}
+
 /// Where the roll is on screen (#495 BUG-01): in its drawer, or over the card in focus (Expand). The roll has one web view,
 /// so one holder has it: of the place shown, the newest, never one that is going or of another place.
 enum RollPlace: Equatable, Sendable {

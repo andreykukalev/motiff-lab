@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The pill's transport under the playback model (v0.5.2, #495 UX-10, PlaybackModel): one Play button whose look follows
 /// the place, cobalt while it plays inside the selection (or, stopped, where Play will play the selection) and ink once
-/// playback goes on through the piece, with the place as bar.beat («С 10.3», «Пауза · 10.3»); with a selection, Цикл with
+/// playback goes on through the piece, with the place as bar.beat alone («10.3», #511 section 8.2: no words that come and go,
+/// at a width that does not change; VoiceOver still hears play or pause); with a selection, Цикл with
 /// its span («Цикл 9.1 – 12.3»): turned on, the position goes to the selection's start and the selection repeats. Space is
 /// the Play button. The model decides; this only shows it and sends the presses to the player.
 struct PositionTransport: View {
@@ -33,10 +34,17 @@ struct PositionTransport: View {
                     .foregroundStyle(Color.ds(cobalt ? "on-accent" : "surface"))
                     .frame(width: CGFloat.ds("h-control"), height: CGFloat.ds("h-control"))
                     .background(Color.ds(cobalt ? "accent" : "ink"), in: Circle())
-                Text(text.format(view.playing ? "pill.pauseAt" : "pill.from", place))
+                // The widest place a piece has, «888.88», holds the width, so the pill never changes size as the place moves.
+                Text(verbatim: "888.88")
                     .monospacedDigit()
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.ds(cobalt ? "accent" : "ink"))
+                    .hidden()
+                    .overlay(alignment: .leading) {
+                        Text(place)
+                            .monospacedDigit()
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.ds(cobalt ? "accent" : "ink"))
+                    }
                     .padding(.trailing, CGFloat.ds("s-2"))
             }
             .animation(.ds("t-fast"), value: cobalt)

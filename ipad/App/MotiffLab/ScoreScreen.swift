@@ -32,6 +32,10 @@ struct ScoreScreen: View {
     @State private var rollOpen = false
     /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
     @State private var rollBeforeFocus = false
+    /// The roll drawer's share of the screen's height in landscape (true) and portrait, as the player left it with its handle
+    /// (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
+    @State private var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
+    @State private var drawerDrag: CGFloat?
     /// The Insights sheet (0018 section 6), from the bar or the selection menu.
     @State private var insightsOpen = false
     @StateObject private var contents = ContentsController()
@@ -65,8 +69,11 @@ struct ScoreScreen: View {
     var body: some View {
         GeometryReader { screen in
             let landscape = screen.size.width > screen.size.height
+            let kept = drawerShare(landscape) * screen.size.height
             page(
-                drawer: rollOpen ? drawerHeight(screen.size) : 0,
+                drawer: rollOpen ? (drawerDrag.map { $0 * screen.size.height } ?? kept) : 0,
+                inset: rollOpen ? kept : 0,
+                screen: screen.size,
                 sheet: insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
@@ -90,27 +97,11 @@ struct ScoreScreen: View {
         return range.lowerBound..<max(range.upperBound, insights.trial?.end ?? 0)
     }
 
-    /// The drawer's height: 40% of the screen in landscape and 30% in portrait, as the web app's.
-    private func drawerHeight(_ size: CGSize) -> CGFloat {
-        (size.width > size.height ? 0.4 : 0.3) * size.height
-    }
-
-    /// Where the roll is on screen: in its drawer, or over the card in focus; the one place its web view is in (#495 BUG-01).
-    private var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: rollOpen, focused: score.focused, focusRoll: score.focusRoll) }
-
-    /// Whether the roll is on screen.
-    private var rollShown: Bool { rollPlace != nil }
-
-    /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
-    private var rollSpan: String? {
-        guard score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
-        return text.format("pill.span", span.first, span.last)
-    }
-
     private var pillShown: Bool {
         // Under the one playback position (v0.5.2, #479 item 22) the pill always shows: it is where the music plays.
-        // The roll's drawer never hides Play either (#479 item 23): the pill rides over it.
-        if score.onePosition || rollOpen { return true }
+        // The roll's drawer never hides Play either (#479 item 23): the pill rides over it; nor does focus, whose bar has no
+        // Play of its own (#511 section 8.1).
+        if score.onePosition || rollOpen || score.focused { return true }
         return ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
@@ -179,15 +170,8 @@ struct ScoreScreen: View {
         }
     }
 
-    private func page(drawer: CGFloat, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
-        // The chain is cut into parts so the compiler type-checks each on its own.
-        let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
-        let laid = layers(drawer: drawer, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
-        return following(checking(watching(wired(laid), covered: covered, contentsSide: contentsPlace == .side)))
-    }
-
     /// The score and everything that floats over it.
-    private func layers(drawer: CGFloat, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
+    private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
         let pillBottom = covered > 0 ? covered + gap : CGFloat.ds("s-4")
         let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : 0
@@ -275,6 +259,10 @@ struct ScoreScreen: View {
                         rollBeforeFocus = true
                         rollOpen = false
                         score.expandRoll(at: player.tick)
+                    }, resize: { dy, ended in
+                        resizeDrawer(by: dy, ended: ended, screen: screen)
+                    }, step: { direction in
+                        stepDrawer(direction, screen: screen)
                     }) { rollOpen = false }
                         .frame(height: drawer)
                         .padding(.horizontal, CGFloat.ds("s-3"))
@@ -501,8 +489,7 @@ struct ScoreScreen: View {
                 }
             }
             .onChange(of: score.focused && score.focusRoll) { _, shown in
-                // The roll in focus is the drawer's roll laid over the card, fitted to each phrase.
-                roll.fitsSelection(shown)
+                // The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5).
                 if shown {
                     if rollOpen {
                         rollBeforeFocus = true
@@ -739,6 +726,66 @@ extension ScoreScreen {
         self.piece = piece
         self.switchView = switchView
         _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
+    }
+}
+
+/// The roll on the score's screen: its drawer's height (#511 section 7.1) and where the roll is shown.
+extension ScoreScreen {
+    /// `drawer` is the roll drawer's height as shown, following its handle while dragged; `inset`, the height it was left at,
+    /// is the room the page keeps under its last page, so the score is not laid out again on every move of the handle.
+    private func page(drawer: CGFloat, inset: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
+        // The chain is cut into parts so the compiler type-checks each on its own.
+        let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
+        let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
+        let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
+        return following(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side)))
+    }
+
+    /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in
+    /// portrait until then.
+    private func drawerShare(_ landscape: Bool) -> CGFloat {
+        drawerShares[landscape] ?? RollDrawerHeight.standard(landscape: landscape)
+    }
+
+    /// The drawer's handle dragged by `dy` points (#511 section 7.1): the drawer follows it, and when let go keeps that
+    /// height on the device, or goes away when dragged nearly off. The roll keeps its zoom, view and selection, and the
+    /// music plays on.
+    private func resizeDrawer(by dy: CGFloat, ended: Bool, screen: CGSize) {
+        let landscape = screen.width > screen.height
+        let share = RollDrawerHeight.share(from: drawerShare(landscape), dragged: dy, height: screen.height)
+        guard ended else {
+            drawerDrag = share ?? RollDrawerHeight.minShare
+            return
+        }
+        withAnimation(.ds("t-fast")) {
+            drawerDrag = nil
+            if let share {
+                drawerShares[landscape] = share
+                RollDrawerHeight.keep(share, landscape: landscape)
+            } else {
+                rollOpen = false
+            }
+        }
+    }
+
+    /// A step of the drawer's height from VoiceOver's adjust (the web's arrow keys on the handle).
+    private func stepDrawer(_ direction: CGFloat, screen: CGSize) {
+        let landscape = screen.width > screen.height
+        let share = RollDrawerHeight.clamped(drawerShare(landscape) + direction * RollDrawerHeight.step)
+        withAnimation(.ds("t-fast")) { drawerShares[landscape] = share }
+        RollDrawerHeight.keep(share, landscape: landscape)
+    }
+
+    /// Where the roll is on screen: in its drawer, or over the card in focus; the one place its web view is in (#495 BUG-01).
+    private var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: rollOpen, focused: score.focused, focusRoll: score.focusRoll) }
+
+    /// Whether the roll is on screen.
+    private var rollShown: Bool { rollPlace != nil }
+
+    /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
+    private var rollSpan: String? {
+        guard score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
+        return text.format("pill.span", span.first, span.last)
     }
 }
 
@@ -1427,7 +1474,8 @@ struct SelectionMenu: View {
                 LoopButton(score: score, player: player, text: text, iconOnly: true)
             }
             if !score.penOn {
-                item("search", text["focus.enter"], on: false) { score.enterFocus() }
+                // Expand into focus: two arrows to the corners, unlike Insights' magnifier (#511 section 9).
+                item("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
             }
             item("bookmark", text["menu.bookmark"], on: false) {
@@ -1632,14 +1680,7 @@ struct FocusBar: View {
                     close: { asking = false }
                 )
             }
-            Button {
-                player.toggle()
-            } label: {
-                Icon(name: player.state == .stopped ? "play" : "pause", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .disabled(!player.ready)
-            .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+            // No Play here (#511 section 8.1): the pill's blue Play is the one, and the pill always shows in focus.
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))

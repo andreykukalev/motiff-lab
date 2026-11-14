@@ -1,7 +1,7 @@
 // The piano roll drawer (decision record 0018, section 4): its head names the passage and carries Note names, the colour
 // and the overflow; its handle drags it taller or shorter, remembered on the device, and a tap on the handle puts it away.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { openFurElise, selectBar, selectPhrase } from "./steps.mjs";
 
 const drawer = page => page.locator(".roll-drawer");
 
@@ -36,6 +36,35 @@ test("the roll's head: Note names, the colour by hand, the overflow with Colour 
     // Fit lays the phrase in view across the roll: the zoom changes from where it was.
     await zoom.getByRole("button", { name: "Fit" }).click();
     await expect(zoom).not.toContainText("80 %");
+    expect(errors).toEqual([]);
+});
+
+test("the roll's zoom is the player's: a selection, Expand, a step and Back keep it, and Fit's zoom stays (#511 section 5)", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await selectBar(page, 3);
+    const level = (scope) => page.locator(`${scope} .roll-zoom-level`);
+    await expect(level(".roll-drawer")).toContainText("100 %");
+    await selectBar(page, 2);
+    await expect(level(".roll-drawer")).toContainText("100 %");
+    await page.locator(".roll-drawer .roll").getByRole("button", { name: "Zoom in" }).click();
+    await expect(level(".roll-drawer")).toContainText("125 %");
+    await selectPhrase(page, 2);
+    await expect(level(".roll-drawer")).toContainText("125 %");
+
+    // Expand opens the roll in focus at the same zoom; Fit there glides to its own, which a step to the next phrase keeps.
+    await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
+    await expect(level(".focus-roll")).toContainText("125 %");
+    await page.locator(".focus-roll .roll").getByRole("button", { name: "Fit" }).click();
+    await expect(level(".focus-roll")).not.toContainText("125 %");
+    await page.waitForTimeout(600);
+    const fitted = await level(".focus-roll").innerText();
+    await page.locator(".focus-card").getByRole("button", { name: "Next phrase" }).click();
+    await page.waitForTimeout(600);
+    await expect(level(".focus-roll")).toHaveText(fitted, { useInnerText: true });
+
+    // Back in the drawer, the zoom is the one the player left.
+    await page.locator(".bar").getByRole("button", { name: "Back to page" }).click();
+    await expect(level(".roll-drawer")).toHaveText(fitted, { useInnerText: true });
     expect(errors).toEqual([]);
 });
 
@@ -95,7 +124,7 @@ test("Expand takes the phrase into focus as a roll; Notes | Piano roll switches 
     const showAs = page.locator(".bar").getByRole("radiogroup", { name: "Show the phrase as" });
     await expect(showAs.getByRole("radio", { name: "Piano roll" })).toHaveAttribute("aria-checked", "true");
 
-    // Next walks the phrases with the roll fitted to each.
+    // Next walks the phrases, the roll at the player's zoom (#511 section 5).
     await card.getByRole("button", { name: "Next phrase" }).click();
     await expect(page.locator(".bar .crumb")).toContainText("phrase 2 of");
     await expect(card.locator(".focus-roll canvas.roll-notes")).toBeVisible();
@@ -112,33 +141,37 @@ test("Expand takes the phrase into focus as a roll; Notes | Piano roll switches 
     expect(errors).toEqual([]);
 });
 
-test("playing on past the phrase in focus turns the card, so Notes shows where the roll is (testing item 27)", async ({ page }) => {
+test("playing on past the phrase in focus: the roll keeps the selection and moves on, the card in Notes turns (#511 6.1, testing item 27)", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
     await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
     await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
     const crumb = page.locator(".bar .crumb");
-    const play = page.locator(".bar").getByRole("button", { name: "Play", exact: true });
-    const pause = page.locator(".bar").getByRole("button", { name: "Pause", exact: true });
-    // The card holds the phrase being played. Which one that is when the card opens depends on how fast the runner is
-    // (a slow one had already played into phrase 4, #401), so playing is paused and the card read, then goes on.
+    // Focus has one Play, the pill's (#511 8.1).
+    await expect(page.locator(".bar").getByRole("button", { name: /^(Play|Pause)$/ })).toHaveCount(0);
+    const play = page.locator(".pill").getByRole("button", { name: "Play", exact: true });
+    const pause = page.locator(".pill").getByRole("button", { name: "Pause", exact: true });
+    // Which phrase the card holds when it opens depends on how fast the runner is (#401): paused, it is read, then it goes on.
     await pause.click();
     await expect(play).toBeVisible();
-    await expect(crumb).toContainText(/phrase \d+ of/);
-    const focused = Number(/phrase (\d+) of/.exec(await crumb.textContent())[1]);
+    await expect(crumb).toContainText(/bars? (\d+)(–\d+)? · phrase \d+ of/);
+    const text = await crumb.textContent();
+    const last = Number((/bars? (?:\d+–)?(\d+)/.exec(text) ?? [])[1]);
+    const focused = Number(/phrase (\d+) of/.exec(text)[1]);
 
-    // The piece plays on into the next phrase: the card turns with it, as the roll does.
+    // The piece plays on past the selection: the roll's playhead goes on and the selection stays as it was.
     await play.click();
-    await expect(crumb).toContainText(`phrase ${focused + 1} of`, { timeout: 20_000 });
-    // Paused again, so the card stays where the roll is while Notes is checked.
-    await pause.click();
-    await expect(play).toBeVisible();
-    const turned = await crumb.textContent();
+    const playhead = page.locator(".focus-roll .roll-playhead");
+    await expect.poll(async () => Number((/Bar (\d+)/.exec((await playhead.getAttribute("aria-valuetext")) ?? "") ?? [])[1] ?? 0), { timeout: 20_000 })
+        .toBeGreaterThan(last);
+    await expect(crumb).toHaveText(text);
+
+    // In Notes the card turns to the phrase that sounds, as before.
     const showAs = page.locator(".bar").getByRole("radiogroup", { name: "Show the phrase as" });
     await showAs.getByRole("radio", { name: "Notes" }).click();
     await expect(page.locator(".focus-card .phrase-card-score")).toBeVisible();
-    await expect(crumb).toHaveText(turned);
-    expect(turned).not.toContain(`phrase ${focused} of`);
+    await expect(crumb).not.toContainText(`phrase ${focused} of`, { timeout: 20_000 });
+    await pause.click();
     expect(errors).toEqual([]);
 });
 
