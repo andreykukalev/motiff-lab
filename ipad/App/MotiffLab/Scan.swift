@@ -38,9 +38,15 @@ final class ScanServer: ObservableObject {
     static let engineSetting = "experimental.scanEngine"
     static let engineChoice = "scan.engine"
 
-    /// The engine to name to the server: the experiment's choice while it is on, else nil (the server's own, homr).
+    /// The engine to name to the server: the experiment's choice while it is on, else nil (the server's own, homr). «Авто»
+    /// is never named: the pages it sends go to the server's own engine (`VectorPages.swift`).
     static func chosenEngine(_ settings: DeviceSettings) -> String? {
-        settings.isOn(engineSetting) ? settings[engineChoice] : nil
+        settings.isOn(engineSetting) && settings[engineChoice] != auto ? settings[engineChoice] : nil
+    }
+
+    /// True when the player chose «Авто» in the experiment: the pages a notation program drew are read on the device.
+    static func choseAuto(_ settings: DeviceSettings) -> Bool {
+        settings.isOn(engineSetting) && settings[engineChoice] == auto
     }
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.
@@ -115,7 +121,8 @@ final class ScanServer: ObservableObject {
     /// Sends the PDF to be read: the MusicXML and engine, or why it could not be read. To the hosted server it goes with
     /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's. A PDF of
     /// more than one page, up to 100, goes a page a request and their notes are joined (v0.5.6, #533 section 1,
-    /// `ScanParts.swift`); `progress`, or the task's `ScanProgress.listener`, hears as each page is sent and read.
+    /// `ScanParts.swift`); with «Авто», the pages a notation program drew are read on the device and only the rest are sent
+    /// (decision record 0029, `VectorPages.swift`); `progress`, or the task's `ScanProgress.listener`, hears as each page is sent and read.
     static func recognise(fileName: String, data: Data, address: URL, account: Account, progress: ScanProgressListener? = nil) async -> Result<ScanResult, ScanProblem> {
         let report = progress ?? ScanProgress.listener
         // A file PDFKit cannot open goes whole, as before: the server says what is wrong with it.
@@ -124,6 +131,9 @@ final class ScanServer: ObservableObject {
         }
         let pages = document.pageCount
         guard pages <= ScanParts.mostPages else { return .failure(.tooManyPages(pages)) }
+        if choseAuto(DeviceSettings.shared), let vector = await vectorPages(data) {
+            return await recogniseAuto(fileName: fileName, document: document, vector: vector, address: address, account: account, report: report)
+        }
         guard pages > 1 else { return await whole(fileName: fileName, data: data, address: address, account: account, report: report) }
         return await recognisePages(fileName: fileName, document: document, address: address, account: account, report: report)
     }

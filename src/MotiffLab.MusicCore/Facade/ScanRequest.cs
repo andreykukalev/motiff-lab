@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Vector;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -56,6 +57,73 @@ internal static class ScanRequest
 
             json.WriteEndArray();
         });
+    }
+
+    /// <summary>
+    /// scan.vector on piece 0 (within contract 12, a call added; decision record 0029, «Авто»): {"pdf": base64} → {"engine":
+    /// "vector 1", "pages": [{"page" (from 1), "kind": "read", "scan" or "blank", "notes", "bars", "issues": [English],
+    /// "musicxml" (a page read here, the scan server's shape, for scan.join), "report" (its page report as the server writes
+    /// one)}]}. A page of kind "scan" goes to the scan server; a blank one has no music. Pure: nothing is kept or sent.
+    /// </summary>
+    public static string Vector(Request fields)
+    {
+        byte[] pdf;
+        IReadOnlyList<VectorPageReading> pages;
+        try
+        {
+            pdf = Convert.FromBase64String(fields.Required("pdf"));
+            pages = VectorReader.Read(pdf);
+        }
+        catch (Exception exception) when (exception is FormatException or ArgumentException)
+        {
+            throw FacadeException.BadRequest(exception is FormatException ? "\"pdf\" is not base64." : exception.Message);
+        }
+
+        return Answer.Write(json =>
+        {
+            json.WriteString("engine", VectorReader.EngineAndVersion);
+            json.WriteStartArray("pages");
+            foreach (VectorPageReading page in pages)
+            {
+                json.WriteStartObject();
+                json.WriteNumber("page", page.Number);
+                json.WriteString("kind", JsonNamingPolicy.CamelCase.ConvertName(page.Kind.ToString()));
+                json.WriteNumber("notes", page.Notes);
+                json.WriteNumber("bars", page.Bars);
+                json.WriteStartArray("issues");
+                foreach (string issue in page.Issues)
+                {
+                    json.WriteStringValue(issue);
+                }
+
+                json.WriteEndArray();
+                if (page.MusicXml is { } musicXml)
+                {
+                    json.WriteString("musicxml", Encoding.UTF8.GetString(musicXml));
+                    Report(json, page.Report);
+                }
+
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+        });
+    }
+
+    /// <summary>A page report with the keys of the scan server's X-Page-Report header.</summary>
+    private static void Report(Utf8JsonWriter json, PageReport report)
+    {
+        json.WriteStartObject("report");
+        json.WriteNumber("page", report.Page);
+        json.WriteNumber("rotation", report.Rotation);
+        json.WriteNumber("sharpness", report.Sharpness);
+        json.WriteNumber("contrast", report.Contrast);
+        json.WriteNumber("staves", report.Staves);
+        json.WriteNumber("noteheads", report.Noteheads);
+        json.WriteNumber("barLines", report.BarLines);
+        json.WriteNumber("spacePx", report.SpacePx);
+        json.WriteNumber("measures", report.Measures);
+        json.WriteEndObject();
     }
 
     private static byte[] Score(Request fields)

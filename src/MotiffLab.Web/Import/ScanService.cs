@@ -37,6 +37,12 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
     /// <summary>The engine the experiment sends, "homr" or "copisteria".</summary>
     public const string EngineChoice = "scan.engine";
 
+    /// <summary>
+    /// The engine choice «Авто» (decision record 0029): a PDF's pages a notation program drew are read on this device, the
+    /// others go to the server, which reads them with its own engine. Never named to the server.
+    /// </summary>
+    public const string Auto = "auto";
+
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
 
@@ -170,7 +176,8 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         var file = new ByteArrayContent(data);
         file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(file, "file", Path.GetFileName(fileName));
-        string? chosen = await ChosenEngineAsync();
+        string? chosen = await EngineChoiceAsync();
+        chosen = chosen == Auto ? null : chosen;
         if (chosen is not null)
         {
             content.Add(new StringContent(chosen), "engine");
@@ -231,8 +238,8 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
             : ScanResult.Failed("The scan server could not read this file.");
     }
 
-    /// <summary>The engine to name to the server: the experiment's choice while it is on, else null (the server's own, homr).</summary>
-    private async Task<string?> ChosenEngineAsync()
+    /// <summary>The engine chosen while the experiment is on (homr, copisteria or <see cref="Auto"/>), else null: the server's own, homr.</summary>
+    public async Task<string?> EngineChoiceAsync()
     {
         await settings.LoadAsync();
         return settings.IsOn(EngineSetting) ? settings[EngineChoice] : null;

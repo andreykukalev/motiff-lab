@@ -55,6 +55,8 @@ public sealed class MusicCoreFacade
     /// whose PDF is away (it answered "originalAway" before), and answers "otherFile" when the fingerprint differs.
     /// Also within 12 (version 0.5.2, the iPad's one playback position), playback's beats answer "bar" and "beat" and its
     /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
+    /// Also within 12 (decision record 0029, the scan engine «Авто»), scan.vector on piece 0 reads a born-digital PDF's pages
+    /// on the device and says which pages go to the scan server (<see cref="ScanRequest.Vector"/>), a call added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -215,6 +217,7 @@ public sealed class MusicCoreFacade
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),
+                    "scan.vector" => ScanRequest.Vector(fields),
                     "parts.split" => PartsRequest.Split(fields),
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),

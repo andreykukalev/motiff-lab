@@ -1,6 +1,7 @@
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Vector;
 using MotiffLab.Web.Import;
 using MotiffLab.Web.Localization;
 
@@ -23,6 +24,11 @@ public sealed class ScoreScan(IJSRuntime js, ScanService scans, UiText text)
     {
         ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(progress);
+        if (await scans.EngineChoiceAsync() == ScanService.Auto && await VectorAsync(pdf) is { } read)
+        {
+            return await AutoAsync(fileName, pdf, read, progress);
+        }
+
         int pages = await (await ModuleAsync()).InvokeAsync<int>("openParts", pdf);
         try
         {
@@ -84,6 +90,111 @@ public sealed class ScoreScan(IJSRuntime js, ScanService scans, UiText text)
         catch (ArgumentException)
         {
             return ScanResult.Failed(text["import.scanPagesNotJoined"]);
+        }
+    }
+
+    /// <summary>The PDF's pages as the vector reader reads them on this device; null when it cannot open the file.</summary>
+    private static async Task<IReadOnlyList<VectorPageReading>?> VectorAsync(byte[] pdf)
+    {
+        // Let the page draw its progress before the reading, which runs on this thread.
+        await Task.Yield();
+        try
+        {
+            return VectorReader.Read(pdf);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// «Авто» (decision record 0029): the pages read on this device are kept as read; the others go to the server one a request,
+    /// with its own engine; a page with no music is left out. The pages are joined in their order, and the engines that read
+    /// them are named together ("vector 1 + homr 0.7.1").
+    /// </summary>
+    private async Task<ScanResult> AutoAsync(string fileName, byte[] pdf, IReadOnlyList<VectorPageReading> read, Action<PageProgress> progress)
+    {
+        List<VectorPageReading> toServer = [.. read.Where(page => page.Kind == VectorPageKind.Scan)];
+        var musicXml = new SortedDictionary<int, (byte[] Score, PageReport? Report)>();
+        foreach (VectorPageReading page in read.Where(page => page.MusicXml is not null))
+        {
+            musicXml[page.Number] = (page.MusicXml!, page.Report);
+        }
+
+        var engines = new List<string>();
+        if (musicXml.Count > 0)
+        {
+            engines.Add(VectorReader.EngineAndVersion);
+        }
+
+        if (toServer.Count > 0)
+        {
+            (ScanResult? failed, IReadOnlyList<string> serverEngines) = await ServerPagesAsync(fileName, pdf, toServer, musicXml, progress);
+            if (failed is not null)
+            {
+                return failed;
+            }
+
+            engines.AddRange(serverEngines);
+        }
+
+        if (musicXml.Count == 0)
+        {
+            return ScanResult.Failed(text["pdf.readNone"]);
+        }
+
+        List<PageReport?> reports = [.. musicXml.Values.Select(page => page.Report)];
+        try
+        {
+            return new ScanResult(ScanJoin.Join([.. musicXml.Values.Select(page => page.Score)]), string.Join(" + ", engines.Distinct()), read.Count, null)
+            {
+                Reports = reports.All(report => report is not null) ? [.. reports.Select(report => report!)] : [],
+            };
+        }
+        catch (ArgumentException)
+        {
+            return ScanResult.Failed(text["import.scanPagesNotJoined"]);
+        }
+    }
+
+    /// <summary>Sends the pages the device could not read to the server, one a request.</summary>
+    /// <returns>Why not, when a page did not come back; the engines that read them.</returns>
+    private async Task<(ScanResult? Failed, IReadOnlyList<string> Engines)> ServerPagesAsync(string fileName, byte[] pdf, List<VectorPageReading> pages, SortedDictionary<int, (byte[] Score, PageReport? Report)> read, Action<PageProgress> progress)
+    {
+        var engines = new List<string>();
+        int count = await (await ModuleAsync()).InvokeAsync<int>("openParts", pdf);
+        try
+        {
+            string name = Path.GetFileNameWithoutExtension(fileName);
+            var state = new PageProgress(pages.Count);
+            foreach (VectorPageReading page in pages)
+            {
+                progress(state);
+                byte[]? bytes = count <= 1 ? pdf : await (await ModuleAsync()).InvokeAsync<byte[]?>("partOf", page.Number, page.Number);
+                if (bytes is null)
+                {
+                    return (ScanResult.Failed(text["pdf.unreadable"]), engines);
+                }
+
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                ScanResult result = await scans.RecogniseAsync($"{name} {page.Number}.pdf", bytes);
+                if (result.MusicXml is not { } musicXml)
+                {
+                    return (result with { Problem = text.Format("scan.pageFailed", page.Number, result.Problem ?? text["pdf.readNone"]) }, engines);
+                }
+
+                state = state.Read(watch.ElapsedMilliseconds);
+                read[page.Number] = (musicXml, result.Reports.Count == 1 ? result.Reports[0] : null);
+                engines.Add(result.Engine);
+            }
+
+            progress(state);
+            return (null, engines);
+        }
+        finally
+        {
+            await (await ModuleAsync()).InvokeVoidAsync("closeParts");
         }
     }
 

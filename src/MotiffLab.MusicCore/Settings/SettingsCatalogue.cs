@@ -129,9 +129,11 @@ public static class SettingsCatalogue
 
         // Choice of scan engine (v0.5.8): while it is on, a scan names the engine chosen here to the scan server, homr or
         // copisteria, so the two can be compared on the player's own pages; off, the server reads with homr as before. The
-        // engine that read a scan is kept in its origin (ScanOrigin.Engine), as it always was.
+        // engine that read a scan is kept in its origin (ScanOrigin.Engine), as it always was. "auto" (decision record 0029)
+        // reads a born-digital PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with
+        // the server's own engine; photos always go to the server.
         Switch("experimental.scanEngine", SettingSection.Experimental, null, SettingScope.Device),
-        Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria"], "homr", null, SettingScope.Device),
+        Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
