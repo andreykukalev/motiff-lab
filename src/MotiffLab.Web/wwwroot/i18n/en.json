@@ -2359,7 +2359,8 @@
   "folder.recogniseLater": "later, some of them",
   "folder.recogniseNow": "now, all of them",
   "settings.scanEngine": "Choice of scan engine",
-  "settings.scanEngineHint": "Scans and photos of pages are read by the engine chosen here on the scan server: homr, as until now, or copisteria, a new engine that reads the printed time signature. To compare them, read the same pages with one and then the other. The engine that read the notes is kept in the piece.",
+  "settings.scanEngineHint": "Scans and photos of pages are read by the engine chosen here on the scan server: homr, as until now, or copisteria, a new engine that reads the printed time signature. Auto reads the pages of a PDF made in a notation program right on this device, exactly as printed, and sends only the others to the server: scans, and pages that fail its checks. To compare engines, read the same pages with one and then the other. The engine that read the notes is kept in the piece.",
+  "settings.scanEngineAuto": "Auto",
   "settings.scanEngineChoice": "Engine",
   "scan.engineMissing": "The scan server has no {0} engine. Update the server, or choose homr in Settings, section Experimental."
 }

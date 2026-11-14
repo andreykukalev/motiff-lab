@@ -122,8 +122,9 @@
                 <SettingSwitch Id="@MotiffLab.Web.Import.ScanService.EngineSetting" Label="@Text["settings.scanEngine"]" Hint="@Text["settings.scanEngineHint"]" />
                 @if (Store.IsOn(MotiffLab.Web.Import.ScanService.EngineSetting))
                 {
-                    @* The engine is named as the server names it, in both languages. *@
-                    <SettingChoice Id="@MotiffLab.Web.Import.ScanService.EngineChoice" Label="@Text["settings.scanEngineChoice"]" Name="@(choice => choice)" />
+                    @* An engine is named as the server names it, in both languages; «Авто» is said in the player's. *@
+                    <SettingChoice Id="@MotiffLab.Web.Import.ScanService.EngineChoice" Label="@Text["settings.scanEngineChoice"]"
+                                   Name="@(choice => choice == MotiffLab.Web.Import.ScanService.Auto ? Text["settings.scanEngineAuto"] : choice)" />
                 }
                 break;
 

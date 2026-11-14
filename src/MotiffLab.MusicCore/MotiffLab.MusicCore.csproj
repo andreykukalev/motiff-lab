@@ -10,4 +10,9 @@
     <InternalsVisibleTo Include="MotiffLab.MusicCore.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Reading born-digital PDFs on the device (decision record 0029): Apache-2.0, pure C#, trims and compiles with NativeAOT. -->
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+  </ItemGroup>
+
 </Project>
