@@ -69,6 +69,19 @@ struct PracticeView: Equatable {
         return .reveal
     }
 
+    /// What the score's page shows at `now`, in Expand or not: Expand has its own bar and pill, so in it the page is the
+    /// normal workspace and leaving it shows practice view again if it was on.
+    func shown(at now: Date, focused: Bool) -> Shown {
+        focused ? .off : shown(at: now)
+    }
+
+    /// Whether the bar's «Практика» is lit, the kit's active state (#543 7): while the selection menu and the controls show,
+    /// that is practice view off; not in practice view. It is read from the same state as what the page shows, so every way
+    /// in and out (the button, the menu's Hide, «Выйти из практики», Expand left) moves the two together.
+    static func lit(_ shown: Shown) -> Bool {
+        chrome(shown).menu
+    }
+
     /// How long from `now` until the controls hide again; 0 when they are not shown.
     func revealLeft(at now: Date) -> TimeInterval {
         guard on, let until = revealUntil else { return 0 }
@@ -87,7 +100,7 @@ extension ScoreController {
     var practicing: Bool { practice.on && !focused }
 
     /// What the page shows now.
-    var practiceShown: PracticeView.Shown { focused ? .off : practice.shown(at: Date()) }
+    var practiceShown: PracticeView.Shown { practice.shown(at: Date(), focused: focused) }
 
     var practiceChrome: PracticeView.Chrome { PracticeView.chrome(practiceShown) }
 
@@ -157,22 +170,24 @@ struct PracticeControls: View {
     }
 }
 
-/// The bar's «Практика» (#533 11): in and out of practice view by one press.
+/// The bar's «Практика» (#533 11): in and out of practice view by one press. Lit while the selection menu and the controls
+/// show, dark in practice view (#543 7, PracticeView.lit); VoiceOver names it by what it shows, selected while they show.
 struct PracticeButton: View {
     @ObservedObject var score: ScoreController
     let text: UIText
 
     var body: some View {
+        let lit = PracticeView.lit(score.practiceShown)
         Button {
             score.practise(.toggle)
         } label: {
             Icon(name: "practice", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
         }
-        .buttonStyle(BarActionStyle(on: score.practicing))
+        .buttonStyle(BarActionStyle(on: lit))
         // With a keyboard, Escape leaves practice view before it would clear the selection.
         .keyboardShortcut(score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["bar.practice"])
         .accessibilityHint(text["practice.hint"])
-        .accessibilityAddTraits(score.practicing ? .isSelected : [])
+        .accessibilityAddTraits(lit ? .isSelected : [])
     }
 }

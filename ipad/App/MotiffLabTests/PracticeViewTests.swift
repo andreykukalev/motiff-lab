@@ -46,6 +46,33 @@ final class PracticeViewTests: XCTestCase {
         XCTAssertEqual(PracticeView().revealLeft(at: start), 0)
     }
 
+    func testTheBarsButtonIsLitWhileTheMenuAndTheControlsShowAndDarkInPracticeView() {
+        XCTAssertTrue(PracticeView.lit(.off), "lit: the selection menu and the controls show")
+        XCTAssertFalse(PracticeView.lit(.on), "dark: practice view, they are hidden")
+        XCTAssertFalse(PracticeView.lit(.reveal), "dark: practice view's own controls are not the menu")
+    }
+
+    func testEveryWayInAndOutMovesTheButtonWithWhatShows() {
+        // The bar's button and the controls' Leave (toggle), the menu's Hide (enter), «Выйти из практики» (leave), a tap
+        // and the controls' time: the button follows the one state, never a flag of its own.
+        var view = PracticeView()
+        let ways: [(PracticeView.Event, Bool)] = [(.toggle, false), (.tap, false), (.hide, false), (.toggle, true), (.enter, false), (.touch, false), (.leave, true), (.tap, true)]
+        for (event, lit) in ways {
+            view = view.after(event, at: start)
+            XCTAssertEqual(PracticeView.lit(view.shown(at: start, focused: false)), lit, "after \(event)")
+            XCTAssertEqual(PracticeView.lit(view.shown(at: start, focused: false)), PracticeView.chrome(view.shown(at: start, focused: false)).menu)
+        }
+    }
+
+    func testExpandShowsTheNormalWorkspaceAndLeavingItShowsPracticeViewAgain() {
+        let on = PracticeView(on: true)
+        XCTAssertEqual(on.shown(at: start, focused: true), .off, "Expand has its own bar and pill")
+        XCTAssertTrue(PracticeView.lit(on.shown(at: start, focused: true)))
+        XCTAssertEqual(on.shown(at: start, focused: false), .on, "left, practice view is as it was")
+        XCTAssertFalse(PracticeView.lit(on.shown(at: start, focused: false)))
+        XCTAssertEqual(PracticeView().shown(at: start, focused: false), .off)
+    }
+
     func testPracticeViewHidesTheMenuThePillTheBluePlayheadAndTheHintsAndKeepsTheBlackPlayhead() {
         let normal = PracticeView.chrome(.off)
         XCTAssertEqual(normal, PracticeView.Chrome(menu: true, transport: true, selectionHead: true, pieceHead: true, loopStrip: true, hints: true, controls: false))
