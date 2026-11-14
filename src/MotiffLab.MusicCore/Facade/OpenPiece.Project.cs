@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
@@ -67,6 +68,7 @@ internal sealed partial class OpenPiece
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
+        _ when name.StartsWith("assistant.", StringComparison.Ordinal) => AssistantRequest.Call(name, request, new AssistantPiece(Piece, Notes, Project.Check ?? [], Words, Structure)),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
