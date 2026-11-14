@@ -108,10 +108,12 @@ enum InkOutline {
 
 /// One step Undo takes back: the strokes a stroke of the pen or a press of the eraser added, by id, and the strokes the
 /// eraser took, whole, as music-core keeps them, to put back. A press of the eraser is one step, however much it took
-/// (BUG-05).
+/// (BUG-05). Where the step keeps the strokes it added whole too, Redo does it again (#521 9, the score).
 struct InkStep {
     var added: [String]
     var removed: [[String: Any]] = []
+    /// The strokes it added, whole, for Redo; empty where only Undo is kept (a PDF's pages).
+    var strokes: [[String: Any]] = []
 
     /// Takes the step back through `change(call, request, draws)`: the strokes it added go, then the strokes it took come
     /// back, the answer drawn only at the last call, so a press of the eraser comes back whole at once.
@@ -119,6 +121,44 @@ struct InkStep {
     func undo(remove: String, add: String, through change: (String, [String: Any], Bool) async -> Void) async {
         if !added.isEmpty { await change(remove, ["ids": added], removed.isEmpty) }
         if !removed.isEmpty { await change(add, ["strokes": removed], true) }
+    }
+
+    /// Does the step again through `change(call, request, draws)`: the strokes it took go again, then the strokes it added
+    /// come back, the answer drawn only at the last call.
+    @MainActor
+    func redo(remove: String, add: String, through change: (String, [String: Any], Bool) async -> Void) async {
+        let taken = removed.compactMap { $0["id"] as? String }
+        if !taken.isEmpty { await change(remove, ["ids": taken], strokes.isEmpty) }
+        if !strokes.isEmpty { await change(add, ["strokes": strokes], true) }
+    }
+}
+
+/// The Pen's own history on the score (#521 9): its steps for Undo and the steps undone for Redo, apart from the
+/// selection's. A new step drops what Redo had; switching tools keeps both.
+struct InkHistory {
+    private(set) var done: [InkStep] = []
+    private(set) var undone: [InkStep] = []
+
+    var canUndo: Bool { !done.isEmpty }
+    var canRedo: Bool { !undone.isEmpty }
+
+    mutating func record(_ step: InkStep) {
+        done.append(step)
+        undone.removeAll()
+    }
+
+    /// The last step, to take back; it waits for Redo.
+    mutating func undo() -> InkStep? {
+        guard let step = done.popLast() else { return nil }
+        undone.append(step)
+        return step
+    }
+
+    /// The step undone last, to do again.
+    mutating func redo() -> InkStep? {
+        guard let step = undone.popLast() else { return nil }
+        done.append(step)
+        return step
     }
 }
 

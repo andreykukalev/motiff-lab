@@ -1,16 +1,18 @@
 import SwiftUI
 
-/// What the Pencil's ring offers with the modes (#511 4.2, option B of the evaluation): the modes on its innermost circle,
-/// and around them the chosen one's options, as the row under the bar has them.
+/// What the stylus menu offers with the modes (#521 11): the tools on its inner circle, and above them, together, only the
+/// chosen tool's own controls (StylusRules.ringControls), which act on that tool's history; the tools' settings (the
+/// Pen's inks and thicknesses, Select's bars or beats) stay in the palettes under the bar.
 struct RingModes {
     var chosen: InteractionMode
     var choose: (InteractionMode) -> Void
+    var controls: [StylusRules.RingControl]
     var canUndo: Bool
     var canRedo: Bool
+    var canClear: Bool
     var undo: () -> Void
     var redo: () -> Void
-    var byBeats: Bool
-    var setByBeats: (Bool) -> Void
+    var clear: () -> Void
 }
 
 /// The stylus menu's rules (#511 4.2), apart from the views so that they are tested.
@@ -22,11 +24,35 @@ enum StylusRules {
         return penOn ? (false, .select, false) : (true, mode, false)
     }
 
-    /// Whose Undo ⌘Z and ⇧⌘Z are: the ink's while the Pen is on, else the selection's.
-    enum UndoOwner: Equatable { case ink, selection }
+    /// Whose history Undo and Redo act on (#521 9): each tool that edits has its own, and Navigate, which only moves the
+    /// music, has none.
+    enum UndoOwner: Equatable { case ink, selection, noteEdits, nothing }
 
-    static func undoOwner(penOn: Bool) -> UndoOwner {
-        penOn ? .ink : .selection
+    /// The history of the tool in force: the Pen's ink while the Pen is on; the roll's note edits while the roll is in Edit
+    /// notes (the two never at once, RollInput.penOff); else the bar's mode: Select's selection, nothing in Navigate. Before
+    /// the modes the score selects as it did, so the selection's.
+    static func undoOwner(penOn: Bool, mode: InteractionMode?, rollEditing: Bool) -> UndoOwner {
+        if penOn { return .ink }
+        if rollEditing { return .noteEdits }
+        switch mode {
+        case .navigate: return .nothing
+        case .select, nil: return .selection
+        case .edit: return .noteEdits
+        case .pen: return .ink
+        }
+    }
+
+    /// A control of the stylus menu, by the tool it belongs to (#521 8, 11).
+    enum RingControl: Equatable { case undo, redo, clearSelection }
+
+    /// The chosen tool's controls in the stylus menu: Select's Undo, Redo and Clear selection; the Pen's Undo and Redo;
+    /// nothing for Navigate, which has no history and no settings.
+    static func ringControls(_ tool: InteractionMode) -> [RingControl] {
+        switch tool {
+        case .select: [.undo, .redo, .clearSelection]
+        case .pen: [.undo, .redo]
+        case .navigate, .edit: []
+        }
     }
 
     /// Whether the selection under the modes goes by beats: as Select's options say; without the modes, as the
@@ -72,32 +98,47 @@ extension ScoreController {
         }
     }
 
-    /// The ring's modes and options, while the modes are on.
+    /// The stylus menu's tools and the chosen one's controls, while the modes are on: the Pen's on its ink, Select's on the
+    /// selection; Navigate's none.
     var ringModes: RingModes? {
         guard let mode else { return nil }
+        let chosen = penOn ? InteractionMode.pen : mode
+        let ink = chosen == .pen
         return RingModes(
-            chosen: penOn ? .pen : mode,
-            choose: { [weak self] chosen in self?.chooseMode(chosen) },
-            canUndo: selectionSteps.canUndo,
-            canRedo: selectionSteps.canRedo,
-            undo: { [weak self] in self?.undoSelection() },
-            redo: { [weak self] in self?.redoSelection() },
-            byBeats: selectsByBeats,
-            setByBeats: { [weak self] beats in self?.chooseSelectBy(beats: beats) }
+            chosen: chosen,
+            choose: { [weak self] tool in self?.chooseMode(tool) },
+            controls: StylusRules.ringControls(chosen),
+            canUndo: ink ? canUndo : selectionSteps.canUndo,
+            canRedo: ink ? canRedo : selectionSteps.canRedo,
+            canClear: selection != nil,
+            undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
+            redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
+            clear: { [weak self] in self?.clearSelection() }
         )
     }
 
-    /// ⌘Z: the ink's Undo while the Pen is on, else the selection's.
+    /// The history Undo and Redo act on now (#521 9): the tool's in force; none in Navigate.
+    var undoOwner: StylusRules.UndoOwner {
+        StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false)
+    }
+
+    /// ⌘Z: Undo of the tool in force; nothing in Navigate.
     func undoKey() {
-        switch StylusRules.undoOwner(penOn: penOn) {
+        switch undoOwner {
         case .ink: undo()
         case .selection: undoSelection()
+        case .noteEdits: if noteEditor?.canUndo == true { undoNoteEdit() }
+        case .nothing: break
         }
     }
 
-    /// ⇧⌘Z: the selection's Redo; the ink has none.
+    /// ⇧⌘Z: Redo of the tool in force; the note edits have none, nor has Navigate.
     func redoKey() {
-        if StylusRules.undoOwner(penOn: penOn) == .selection { redoSelection() }
+        switch undoOwner {
+        case .ink: redo()
+        case .selection: redoSelection()
+        case .noteEdits, .nothing: break
+        }
     }
 
     /// «По тактам / По долям» chosen: kept on the device, and the score snaps to the beats or to the bars from now on.
@@ -199,7 +240,8 @@ struct SelectionToastView: View {
     }
 }
 
-/// ⌘Z and ⇧⌘Z on a keyboard: the ink's Undo while the Pen is on, else the selection's (#511 11); not while a merge has its own.
+/// ⌘Z and ⇧⌘Z on a keyboard: Undo and Redo of the tool in force (#521 9, ScoreController.undoOwner), nothing in Navigate;
+/// not while a merge has its own.
 struct UndoKeys: View {
     @ObservedObject var score: ScoreController
 

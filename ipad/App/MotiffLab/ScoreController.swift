@@ -61,6 +61,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
     var penChanged: (@MainActor (Bool) -> Void)?
+    /// Whether the roll is in Edit notes: then Undo is the note edits' (#521 9).
+    var rollEditing: (@MainActor () -> Bool)?
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
     var placeTapped: (@MainActor (Range<Double>) -> Void)?
     /// A playhead's handle taken, dragged or let go on the page (#495 UX-08): the player runs the model (PlayheadDrag.swift).
@@ -251,6 +253,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var text: String
     }
     @Published private(set) var canUndo = false
+    /// Whether the Pen's Redo has a step (#521 9).
+    @Published private(set) var canRedo = false
     @Published private(set) var problem: String?
     /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
     @Published private(set) var noteEditor: NoteEditorState?
@@ -284,8 +288,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
-    /// What the pen and the eraser did here, newest last, for Undo: a stroke kept, or a press of the eraser (BUG-05).
-    private var steps: [InkStep] = []
+    /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, or a press of the eraser (BUG-05).
+    private var steps = InkHistory()
     /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
     private let inkQueue = InkQueue()
     /// The eraser's points not yet sent to the page, in the page's pixels, and whether a send is waiting in the queue.
@@ -369,12 +373,28 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05).
     func undo() {
         inkQueue.then { [weak self] in
-            guard let self, let piece = self.piece, let last = self.steps.popLast() else { return }
-            self.canUndo = !self.steps.isEmpty
+            guard let self, let piece = self.piece, let last = self.steps.undo() else { return }
+            self.inkStepsChanged()
             await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
                 await self.change(piece.id, call, request, draws: draws)
             }
         }
+    }
+
+    /// Does the step undone last again (#521 9): a stroke comes back, a press of the eraser takes again what it took.
+    func redo() {
+        inkQueue.then { [weak self] in
+            guard let self, let piece = self.piece, let step = self.steps.redo() else { return }
+            self.inkStepsChanged()
+            await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+                await self.change(piece.id, call, request, draws: draws)
+            }
+        }
+    }
+
+    private func inkStepsChanged() {
+        canUndo = steps.canUndo
+        canRedo = steps.canRedo
     }
 
     // MARK: - The page
@@ -1992,8 +2012,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await change(piece, "ink.add", ["strokes": pieces], draws: false)
         }
         await change(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }])
-        steps.append(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed))
-        canUndo = true
+        steps.record(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces))
+        inkStepsChanged()
     }
 
     /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
@@ -2002,8 +2022,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
-        steps.append(InkStep(added: [id]))
-        canUndo = true
+        steps.record(InkStep(added: [id], strokes: [mark]))
+        inkStepsChanged()
         await change(piece, "ink.add", ["strokes": [mark]])
     }
 
@@ -2015,6 +2035,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.apply(rules)
         guard shown else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
+    }
+
+    /// Where the Pencil hovers over the window, for the stylus menu's place over the roll and the rest of the screen (#521 7).
+    func watchStylus(in window: UIWindow?) {
+        ink.pencil.watch(window)
     }
 
     /// A stroke of the pen began or ended (#521 10): while it is written playback does not move the page under it, and it
