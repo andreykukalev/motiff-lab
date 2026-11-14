@@ -5,8 +5,8 @@
 // editor, which is not a selection; Pen draws nothing here. In every mode a drag that starts inside the selection leaves it
 // alone, a click places a playhead on the beat under it (inside the selection its own, else the global one) and never
 // changes the selection, and the edges still resize it. The playheads are the playback model's (v0.5.2, #495 UX-10,
-// playback-model.ts viewOf): the black one an ink line with a dot on the bar numbers, the blue one a cobalt line with a knob;
-// no grey column. Nothing here touches the DOM.
+// playback-model.ts viewOf), shown on the roll as one (#543 6, rollPlaces): at the position, a cobalt line with a knob inside
+// the selection, an ink line with a dot outside it; no grey column. Nothing here touches the DOM.
 
 import type { InteractionMode } from "../score/score-modes.js";
 import type { ModelPlaces } from "../score/playheads.js";
@@ -102,15 +102,26 @@ export interface PositionMark {
 }
 
 /**
- * The two playheads of the playback model over the roll (v0.5.2, #495 UX-10, viewOf): the black one an ink line with a dot on
- * the bar numbers, solid while it plays and hollow when it stands, always; with a selection the blue one a cobalt line with its
- * knob, at the selection's end once playback passed it. Where they meet, the black dot hangs under the blue knob, so both show.
+ * The one playhead the roll shows (#543 6, lead decision 5): at the position P always, playing or stopped, as the blue one
+ * (`blue` at P) while P is inside the selection and the selection's playhead shows (not in practice view, practiced), else
+ * as the black one (`blue` null). The blue playhead waiting at the selection's edge while P is outside it (viewOf) is not
+ * drawn on the roll, nor taken: there are never two indicators of two places, and the marker is where the line is.
+ */
+export function rollPlaces(view: ModelPlaces & { inside: boolean }): ModelPlaces {
+    return { black: view.black, blue: view.inside && view.blue !== null ? view.black : null, playing: view.playing };
+}
+
+/**
+ * The roll's playhead from rollPlaces on the web (#495 UX-10, #543 6): one line at P with one marker on the bar numbers'
+ * edge, a cobalt line with its knob while P is inside the selection, else an ink line with its dot, solid while it plays
+ * and hollow when it stands.
  */
 export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, view: ModelPlaces, inks: PlayheadInks): void {
     const knobs = playheadKnobs(frame, view);
-    drawPositionLine(context, frame, knobs.black.x, { colour: inks.ink, knobY: knobs.black.y, radius: DOT_RADIUS, solid: view.playing }, inks);
     if (knobs.blue !== null) {
         drawPositionLine(context, frame, knobs.blue.x, { colour: inks.accent, knobY: knobs.blue.y, radius: KNOB_RADIUS, solid: true }, inks);
+    } else if (knobs.black !== null) {
+        drawPositionLine(context, frame, knobs.black.x, { colour: inks.ink, knobY: knobs.black.y, radius: DOT_RADIUS, solid: view.playing }, inks);
     }
 }
 
@@ -121,17 +132,14 @@ export interface Knob {
 }
 
 /**
- * Where drawPlayheads puts the black dot and the blue knob, the handles a press takes (#495 UX-08): both on the bar
- * numbers' lower edge, the dot under the knob where the two playheads meet.
+ * Where drawPlayheads puts the marker, the handle a press takes (#495 UX-08, #543 6): on the bar numbers' lower edge at P,
+ * the blue knob while rollPlaces gives the blue one, else the black dot; never both.
  */
-export function playheadKnobs(frame: Pick<RollFrame, "xOf" | "header">, view: Pick<ModelPlaces, "black" | "blue">): { black: Knob; blue: Knob | null } {
-    const black = frame.xOf(view.black);
-    const blue = view.blue === null ? null : frame.xOf(view.blue);
-    const together = blue !== null && Math.round(blue) === Math.round(black);
-    return {
-        black: { x: black, y: together ? frame.header + KNOB_RADIUS + RING + DOT_RADIUS : frame.header },
-        blue: blue === null ? null : { x: blue, y: frame.header },
-    };
+export function playheadKnobs(frame: Pick<RollFrame, "xOf" | "header">, view: Pick<ModelPlaces, "black" | "blue">): { black: Knob | null; blue: Knob | null } {
+    if (view.blue !== null) {
+        return { black: null, blue: { x: frame.xOf(view.blue), y: frame.header } };
+    }
+    return { black: { x: frame.xOf(view.black), y: frame.header }, blue: null };
 }
 
 /** A playback line down the notes from the bar numbers, with its knob ringed in the surface; hollow when it stands. */

@@ -1,16 +1,16 @@
 // The roll's two playheads dragged (v0.5.2, #495 UX-08 and UX-10, the architect's design playback-model-v0.5.2, slice I3),
-// on the iPad's roll with the lanes: the blue playhead by its handle in the loop strip, inside the selection; the black one
-// by its line down the notes, across the whole piece (design question В5). Both go to the sixteenth grid of the bar they lie
+// on the iPad's roll with the lanes: the marker in the loop strip, the blue playhead inside the selection and the black one
+// outside it (#543 6); the black one also by its line down the notes, across the whole piece (design question В5). Both go to the sixteenth grid of the bar they lie
 // in (snapTick), as on the score; the roll sends them through PlayheadDrag. On the web's roll (slice W3) both are taken by
 // their dot or knob on the bar numbers' edge instead (knobHeadAt). Pure, so Node tests it.
 
 import type { Handle, Span } from "../playback/playback-model.js";
 import { barOf, snapTick } from "../playback/playhead-drag.js";
 
-/** Where the roll's playheads are across it, and the loop strip between the bar numbers and the notes, in pixels. */
+/** Where the roll's playhead is across it (rollPlaces), and the loop strip between the bar numbers and the notes, in pixels. */
 export interface LaneHeads {
     black: number;
-    /** Null without a selection. */
+    /** At the black one's place while it is inside the selection, the marker then the blue one's; else null. */
     blue: number | null;
     /** The loop strip's top and its bottom, where the notes begin. */
     stripTop: number;
@@ -19,12 +19,16 @@ export interface LaneHeads {
     reach: number;
 }
 
-/** The playhead a press takes: the blue one by its handle in the loop strip, the black one down its line; null for neither. */
+/**
+ * The playhead a press takes (#543 6): by its marker in the loop strip, the blue one while it is blue and else the black
+ * one, whatever its colour; down its line under the strip the black one; null for neither.
+ */
 export function laneHeadAt(x: number, y: number, heads: LaneHeads): Handle | null {
-    if (heads.blue !== null && y >= heads.stripTop && y < heads.stripBottom && Math.abs(x - heads.blue) <= heads.reach) {
+    const inStrip = y >= heads.stripTop && y < heads.stripBottom;
+    if (inStrip && heads.blue !== null && Math.abs(x - heads.blue) <= heads.reach) {
         return "blue";
     }
-    if (y >= heads.stripBottom && Math.abs(x - heads.black) <= heads.reach) {
+    if ((inStrip || y >= heads.stripBottom) && Math.abs(x - heads.black) <= heads.reach) {
         return "black";
     }
     return null;
@@ -32,10 +36,10 @@ export function laneHeadAt(x: number, y: number, heads: LaneHeads): Handle | nul
 
 /**
  * On the web's roll, without the lanes (#495 UX-08, slice W3): the playhead a press takes by its dot or knob on the bar
- * numbers' lower edge (roll-modes.ts, playheadKnobs), the nearer one when it is within `reach` of both, the blue one where
- * they lie as near; null for neither.
+ * numbers' lower edge (roll-modes.ts, playheadKnobs, one of them since #543 6), the nearer one when it is within `reach`
+ * of both, the blue one where they lie as near; null for neither.
  */
-export function knobHeadAt(x: number, y: number, knobs: { black: { x: number; y: number }; blue: { x: number; y: number } | null }, reach: number): Handle | null {
+export function knobHeadAt(x: number, y: number, knobs: { black: { x: number; y: number } | null; blue: { x: number; y: number } | null }, reach: number): Handle | null {
     const near = (knob: { x: number; y: number } | null): number =>
         knob === null || Math.abs(x - knob.x) > reach || Math.abs(y - knob.y) > reach ? Infinity : Math.hypot(x - knob.x, y - knob.y);
     const blue = near(knobs.blue);

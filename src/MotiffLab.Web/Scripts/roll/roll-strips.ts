@@ -1,11 +1,12 @@
 // The strips of the iPad's roll (v0.5.2, #479 item 25, approved mockup; the playback model's two playheads, #495 UX-10):
-// the black playhead, the position, as an ink line down the notes with its dot on the whole-piece strip; with a selection
-// the blue playhead, the position held to it, as a cobalt line with its handle in the loop strip; under the bar numbers
+// the position as one line down the roll with its marker in the loop strip, cobalt inside the selection and ink outside it
+// (#543 6), and its dot on the whole-piece strip; under the bar numbers
 // the loop strip, the selection's bounds with a handle at each end, tinted while it loops (no loop sign inside it, #521 6:
 // it read as a refresh sign and as the playhead's dot), where a tap moves the position; and over everything the whole piece
 // in one line, always shown: the position written as bar.beat, a frame round the bars on screen, the selection in cobalt
 // and the black dot. On that strip the dot and the frame are two things to drag (#521 1): the dot moves the position, the
 // frame moves the view. Pure drawing and arithmetic on what the roll gives; nothing here touches the DOM.
+import { practiceChrome, type PracticeShown } from "../layout/practice-view.js";
 import { drawPositionLine } from "./roll-modes.js";
 
 /** The loop strip's height under the bar numbers, and the whole-piece strip's height over the roll, in pixels. */
@@ -53,6 +54,15 @@ export function insideOf(selection: TickSpan | null, tick: number): boolean {
 }
 
 /**
+ * Whether the loop strip is there, drawn and taking presses (#543, the tail of 0.5.6): with the lanes, and not in practice
+ * view (#533 11), where it is hidden. Hidden, it takes no press at all: neither its handles, nor a tap that moves the
+ * position into the selection, nor a drag that selects; the roll's playhead keeps its marker there and is taken as before.
+ */
+export function laneShown(lanes: boolean, shown: PracticeShown): boolean {
+    return lanes && practiceChrome(shown).loopStrip;
+}
+
+/**
  * The loop strip: the selection's bounds as a rounded strip outlined in cobalt, tinted while it loops, and a handle at each
  * end; nothing without a selection.
  */
@@ -90,7 +100,7 @@ export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame
     }
 }
 
-/** Where the two playheads are, from the playback model's view (playback-model.ts, viewOf). */
+/** Where the roll's playhead is, from the playback model's view through rollPlaces (roll-modes.ts): `blue` at P or null. */
 export interface PositionPlaces {
     black: number;
     blue: number | null;
@@ -98,22 +108,16 @@ export interface PositionPlaces {
 }
 
 /**
- * The two playheads down the roll: the black one an ink line under the loop strip (its dot is on the whole-piece strip),
- * and with a selection the blue one a cobalt line over it with its handle in the loop strip, hollow when it stands. Where
- * they meet the cobalt line covers the ink one, and both handles show, each in its strip.
+ * The roll's one playhead (#543 6, lead decision 5): a line down the roll at the position P with its marker in the loop
+ * strip, at P always, playing or stopped: cobalt while P is inside the selection (rollPlaces gives `blue` there), ink
+ * outside it, hollow when it stands. Crossing the selection's edge only changes its colour; the whole-piece strip keeps the
+ * position's dot on its own scale.
  */
 export function drawPosition(context: CanvasRenderingContext2D, frame: LaneFrame, places: PositionPlaces, inks: StripInks): void {
-    const black = Math.round(frame.xOf(places.black));
-    if (black >= frame.left && black <= frame.right) {
-        context.fillStyle = inks.ink;
-        context.fillRect(black - 1, frame.top + LOOP_LANE, 2, frame.height - frame.top - LOOP_LANE);
-    }
-    if (places.blue === null) {
-        return;
-    }
     const lines = { xOf: frame.xOf, header: frame.top, left: frame.left, right: frame.right, height: frame.height };
-    const mark = { colour: inks.accent, knobY: frame.top + LOOP_LANE / 2, radius: DOT_RADIUS, solid: places.playing };
-    drawPositionLine(context, lines, frame.xOf(places.blue), mark, { ink: inks.ink, accent: inks.accent, surface: inks.surface, paper: inks.surface });
+    const colour = places.blue === null ? inks.ink : inks.accent;
+    const mark = { colour, knobY: frame.top + LOOP_LANE / 2, radius: DOT_RADIUS, solid: places.playing };
+    drawPositionLine(context, lines, frame.xOf(places.blue ?? places.black), mark, { ink: inks.ink, accent: inks.accent, surface: inks.surface, paper: inks.surface });
 }
 
 /** What the whole-piece strip shows: the position and its label, the piece's end and last bar, the bars on screen, the selection. */

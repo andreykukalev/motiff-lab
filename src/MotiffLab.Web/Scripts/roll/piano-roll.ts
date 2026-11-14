@@ -25,12 +25,12 @@ import {
     type RollPayload,
 } from "./roll-model.js";
 import { THEME_CHANGED } from "../layout/theme.js";
-import { PRACTICE_EVENT, practiceChrome, practiced, shownAt } from "../layout/practice-view.js";
+import { PRACTICE_EVENT, practiced, shownAt } from "../layout/practice-view.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import { actsOnRoll, drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, selectsOnRoll, type RollGesture } from "./roll-modes.js";
-import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
+import { actsOnRoll, drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, rollPlaces, selectsOnRoll, type RollGesture } from "./roll-modes.js";
+import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, laneShown, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
@@ -2032,9 +2032,8 @@ export class PianoRoll {
         const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.xOf(tick) };
         const playing = this.player !== null && this.player.state() !== "stopped";
         // Practice view (#533 11): the black playhead alone, without the loop strip and the blue one.
-        const shown = shownAt(this.host);
-        const view = practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shown);
-        if (practiceChrome(shown).loopStrip) {
+        const view = rollPlaces(practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
+        if (this.laneShown()) {
             drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
         }
         drawPosition(context, frame, view, this.stripInks());
@@ -2167,8 +2166,8 @@ export class PianoRoll {
         if (state === null) {
             return { black: this.xOf(this.tickNow), blue: null };
         }
-        // In practice view (#533 11) the blue playhead is neither drawn nor taken.
-        const view = practiced(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host));
+        // In practice view (#533 11) the blue playhead is neither drawn nor taken; outside the selection it is not either (#543 6).
+        const view = rollPlaces(practiced(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
         return { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue) };
     }
 
@@ -2214,10 +2213,13 @@ export class PianoRoll {
      * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
      */
     private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
-        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host)));
-        // Playing, each knob is found where it was drawn a moment ago too (headsNear); its height stays.
+        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))));
+        // Playing, the knob is found where it was drawn a moment ago too (headsNear); its height stays.
         const near = this.headsNear(x);
-        const found = { black: { ...knobs.black, x: near.black }, blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue } };
+        const found = {
+            black: knobs.black === null ? null : { ...knobs.black, x: near.black },
+            blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue },
+        };
         const reach = (event.pointerType === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
         return this.grabHead(knobHeadAt(x, y, found, reach), event.pointerId, x);
     }
@@ -2424,7 +2426,7 @@ export class PianoRoll {
             return false;
         }
         const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, left: GUTTER, right: width, height };
-        drawPlayheads(context, frame, practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host)), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        drawPlayheads(context, frame, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
         return true;
     }
 
@@ -2863,6 +2865,9 @@ export class PianoRoll {
 
     /** A press on the bar numbers: a Check flag opens Check at its bar; else it begins selecting bars, or Shift extends. */
     private pressBarNumbers(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
+        if (this.inHiddenLane(y)) {
+            return;
+        }
         const width = this.host.clientWidth;
         const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
             .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
@@ -3190,7 +3195,8 @@ export class PianoRoll {
     /** Which edge of the selection is under x, if any. */
     private edgeAt(x: number): "start" | "end" | null {
         const motif = this.motif;
-        if (motif === null) {
+        // The lanes' handles are the loop strip's: hidden with it in practice view, they take nothing (#543, 0.5.6 tail).
+        if (motif === null || (this.lanes && !this.laneShown())) {
             return null;
         }
         // The lanes' handles take a finger (WCAG 2.2, 2.5.8).
@@ -3232,10 +3238,20 @@ export class PianoRoll {
         };
     }
 
+    /** Whether the loop strip is shown and takes presses (roll-strips.ts laneShown): with the lanes, not in practice view. */
+    private laneShown(): boolean {
+        return laneShown(this.lanes, shownAt(this.host));
+    }
+
+    /** Whether a point lies in the loop strip's lane while the strip is hidden (laneShown): there no press reaches the strip. */
+    private inHiddenLane(y: number): boolean {
+        return this.lanes && !this.laneShown() && y >= BAR_ROW && y < this.header;
+    }
+
     /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
     private pressLoopLane(y: number, tick: number): boolean {
         const motif = this.motif;
-        if (!this.lanes || (this.editing && this.pointerRules === null) || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
+        if (!this.laneShown() || (this.editing && this.pointerRules === null) || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
             return false;
         }
         this.playhead.go(Math.round(tick), false);

@@ -81,14 +81,18 @@ test("on the score the black playhead keeps to the bar it stood in, the blue one
     assert.equal(second.tick, 1920);
 });
 
-test("on the roll the blue playhead is taken in the loop strip and the black one down its line", () => {
-    const heads = { black: 200, blue: 400, stripTop: 24, stripBottom: 52, reach: 22 };
-    assert.equal(laneHeadAt(410, 30, heads), "blue");
-    assert.equal(laneHeadAt(210, 200, heads), "black");
-    assert.equal(laneHeadAt(210, 30, heads), null, "the black line runs under the loop strip");
-    assert.equal(laneHeadAt(410, 200, heads), null, "the blue handle is in the loop strip only");
-    assert.equal(laneHeadAt(410, 30, { ...heads, blue: null }), null);
-    assert.equal(laneHeadAt(300, 200, heads), null, "away from both");
+test("on the roll the marker in the loop strip takes the playhead whatever its colour, and the line below the black one (#543 6)", () => {
+    // Inside the selection rollPlaces gives the blue one at the black one's place: one marker, blue.
+    const inside = { black: 400, blue: 400, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(410, 30, inside), "blue", "the blue marker in the strip");
+    assert.equal(laneHeadAt(410, 200, inside), "black", "down its line, the black one, as before");
+    // Outside it the marker is black, and taken in the strip too.
+    const outside = { black: 200, blue: null, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(210, 30, outside), "black", "the black marker in the strip");
+    assert.equal(laneHeadAt(210, 200, outside), "black");
+    assert.equal(laneHeadAt(410, 30, outside), null, "no blue one waits at the selection's edge to be taken");
+    assert.equal(laneHeadAt(300, 200, outside), null, "away from it");
+    assert.equal(laneHeadAt(210, 10, outside), null, "the bar numbers above the strip are not the playhead's");
 });
 
 test("playing, a press finds the playhead where it was drawn a moment ago, a touch target behind it at most (#533 4)", () => {
@@ -271,19 +275,15 @@ test("a press on a score handle is the handle's alone: captured, never passed on
     delete globalThis.HTMLElement;
 });
 
-test("on the web's roll a press takes the blue knob or the black dot on the bar numbers' edge, the nearer one (#495 UX-08, W3)", () => {
-    const apart = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 800, blue: 1600 });
-    assert.deepEqual(apart, { black: { x: 200, y: 24 }, blue: { x: 400, y: 24 } });
-    assert.equal(knobHeadAt(205, 28, apart, 10), "black");
-    assert.equal(knobHeadAt(396, 20, apart, 10), "blue");
-    assert.equal(knobHeadAt(300, 24, apart, 10), null, "away from both");
-    assert.equal(knobHeadAt(200, 80, apart, 10), null, "down the line is the notes'");
-    assert.equal(knobHeadAt(200, 24, { black: apart.black, blue: null }, 10), "black", "no blue playhead without a selection");
+test("on the web's roll a press takes the one marker on the bar numbers' edge: blue inside the selection, black outside (#495 UX-08, #543 6)", () => {
+    const outside = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 800, blue: null });
+    assert.deepEqual(outside, { black: { x: 200, y: 24 }, blue: null });
+    assert.equal(knobHeadAt(205, 28, outside, 10), "black");
+    assert.equal(knobHeadAt(400, 24, outside, 10), null, "no blue knob waits at the selection's edge");
+    assert.equal(knobHeadAt(200, 80, outside, 10), null, "down the line is the notes'");
 
-    // Together, the black dot hangs under the blue knob, as drawn: each is taken where it shows.
-    const together = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 1600, blue: 1600 });
-    assert.equal(together.blue.y, 24);
-    assert.ok(together.black.y > together.blue.y);
-    assert.equal(knobHeadAt(400, 24, together, 22), "blue");
-    assert.equal(knobHeadAt(400, together.black.y + 2, together, 22), "black");
+    const inside = playheadKnobs({ xOf: (tick) => tick / 4, header: 24 }, { black: 1600, blue: 1600 });
+    assert.deepEqual(inside, { black: null, blue: { x: 400, y: 24 } }, "one knob, never a dot hanging under it");
+    assert.equal(knobHeadAt(396, 20, inside, 10), "blue");
+    assert.equal(knobHeadAt(300, 24, inside, 10), null, "away from it");
 });
