@@ -32,6 +32,16 @@ final class ScanServer: ObservableObject {
     /// The largest file the scan server reads (services/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
     /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
     static let maxUploadBytes = 50 * 1024 * 1024
+    /// The experiment «Выбор движка распознавания» (v0.5.8), as the web app's `ScanService.EngineSetting`: while it is on,
+    /// each scan names the engine chosen in `engineChoice` (homr or copisteria) to the server, so the two can be compared on
+    /// the player's own pages; off, nothing is named and the server reads with homr, as before.
+    static let engineSetting = "experimental.scanEngine"
+    static let engineChoice = "scan.engine"
+
+    /// The engine to name to the server: the experiment's choice while it is on, else nil (the server's own, homr).
+    static func chosenEngine(_ settings: DeviceSettings) -> String? {
+        settings.isOn(engineSetting) ? settings[engineChoice] : nil
+    }
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.
     @Published private(set) var chosen: String?
@@ -144,6 +154,10 @@ final class ScanServer: ObservableObject {
         }
         let name = fileName.replacingOccurrences(of: "\"", with: "")
         var body = Data()
+        let engine = chosenEngine(DeviceSettings.shared)
+        if let engine {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"engine\"\r\n\r\n\(engine)\r\n".utf8))
+        }
         body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
         body.append(data)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
@@ -161,7 +175,11 @@ final class ScanServer: ObservableObject {
             case 403 where hostedServer:
                 return (.failure(.needsPro), nil)
             case let status:
-                let message = (try? JSONSerialization.jsonObject(with: answer) as? [String: Any])?["message"] as? String
+                let problem = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
+                if let engine, problem?["code"] as? String == "engine" {
+                    return (.failure(.server(UIText.current.format("scan.engineMissing", engine))), report)
+                }
+                let message = problem?["message"] as? String
                 if let message, !message.isEmpty { return (.failure(.server(message)), report) }
                 return (.failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file.")), report)
             }

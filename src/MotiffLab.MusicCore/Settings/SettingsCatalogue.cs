@@ -126,6 +126,12 @@ public static class SettingsCatalogue
         // with repeats by fingerprint, suggested titles and composers, and folders as playlists (LibraryImport); the
         // player's files are only read.
         Switch("experimental.libraryImport", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Choice of scan engine (v0.5.8): while it is on, a scan names the engine chosen here to the scan server, homr or
+        // copisteria, so the two can be compared on the player's own pages; off, the server reads with homr as before. The
+        // engine that read a scan is kept in its origin (ScanOrigin.Engine), as it always was.
+        Switch("experimental.scanEngine", SettingSection.Experimental, null, SettingScope.Device),
+        Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria"], "homr", null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

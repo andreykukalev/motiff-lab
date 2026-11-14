@@ -1,7 +1,8 @@
 """Motiff Lab sheet music recognition: a small HTTP service around homr, run on the player's own computer.
 
 POST /recognise takes one PDF or photo of printed music and returns MusicXML, with a report on each page in
-the X-Page-Report header: numbers only, never the music (see page_report). POST /transcribe takes an
+the X-Page-Report header: numbers only, never the music (see page_report). The form field `engine` picks the
+engine that reads it, homr by default or copisteria where it is installed (engines.py); GET /health lists them. POST /transcribe takes an
 audio or video recording and returns the notes heard in it as MIDI (Transkun, decision record 0014).
 Each upload lives in its own temporary folder for as long as the request, and the folder is deleted when
 it ends. Nothing about the music is logged: the log has the request line and status only.
@@ -16,12 +17,14 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from fastapi import FastAPI, Request, UploadFile
+from typing import Annotated
+
+from fastapi import FastAPI, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, merge, pages, quality, recognise, transcribe
+from app import auth, engines, merge, pages, quality, recognise, transcribe
 
 # A scanned PDF or photo; the app allows the same 50 MB (Andrei, 2026-10-30).
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
@@ -55,7 +58,16 @@ def create_app(
     allowed_origins: list[str] = ALLOWED_ORIGINS,
     allowed_origin_regex: str | None = ALLOWED_ORIGIN_REGEX,
     verify: Callable[[str | None, str | None], None] | None = _verifier_from_environment(),
+    other_engines: list[engines.Engine] | None = None,
 ) -> FastAPI:
+    """other_engines: the engines besides homr (recognise_page), by default those installed (engines.others)."""
+    readers = {
+        engine.name: engine
+        for engine in [
+            engines.Engine(recognise.ENGINE, recognise.engine_version, recognise_page),
+            *(engines.others() if other_engines is None else other_engines),
+        ]
+    }
     app = FastAPI(title="Motiff Lab sheet music recognition", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
         CORSMiddleware,
@@ -67,7 +79,7 @@ def create_app(
         max_age=600,
     )
 
-    # homr and Transkun use every core, so one upload is read at a time and a second waits its turn.
+    # homr, copisteria and Transkun use every core, so one upload is read at a time and a second waits its turn.
     busy = threading.Lock()
 
     @app.middleware("http")
@@ -81,9 +93,11 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, object]:
+        # "engine" and "version" name the engine an upload without an `engine` field gets, for apps before the choice.
         return {
-            "engine": "homr",
-            "version": recognise.engine_version(),
+            "engine": engines.DEFAULT,
+            "version": readers[engines.DEFAULT].version(),
+            "engines": [{"engine": engine.name, "version": engine.version()} for engine in readers.values()],
             "maxPages": MAX_PAGES,
             "signIn": verify is not None,
             "transcribe": {
@@ -107,9 +121,13 @@ def create_app(
         return None
 
     @app.post("/recognise")
-    async def recognise_upload(request: Request, file: UploadFile) -> Response:
+    async def recognise_upload(request: Request, file: UploadFile, engine: Annotated[str | None, Form()] = None) -> Response:
         if (refusal := await refused(request)) is not None:
             return refusal
+
+        reader = readers.get((engine or engines.DEFAULT).strip().lower())
+        if reader is None:
+            return _problem(400, f"This scan server has no engine called “{(engine or '')[:40]}”. It has {', '.join(readers)}.", code="engine")
 
         data = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(data) == 0:
@@ -126,7 +144,7 @@ def create_app(
 
         def read(page: pages.Page, number: int) -> bytes:
             try:
-                reading = recognise_page(page.path, number)
+                reading = reader.read(page.path, number)
             except recognise.RecogniseError as error:
                 reports.append(page_report(number, page.look, error.found, None))
                 raise
@@ -151,7 +169,7 @@ def create_app(
             content=score,
             media_type=MUSICXML_TYPE,
             headers={
-                "X-Engine": f"homr {recognise.engine_version()}",
+                "X-Engine": f"{reader.name} {reader.version()}",
                 "X-Pages": str(count),
                 "Cache-Control": "no-store",
                 **_report_header(reports),
@@ -197,8 +215,8 @@ def create_app(
 
 
 def page_report(number: int, look: quality.Look, found: recognise.Found, musicxml: bytes | None) -> dict[str, int | float]:
-    """One page of X-Page-Report. Only counts and measurements: what was seen of the photo before homr
-    (sharpness, contrast, how far it was turned), what homr found (staves, noteheads, bar lines, the
+    """One page of X-Page-Report. Only counts and measurements: what was seen of the photo before the engine
+    (sharpness, contrast, how far it was turned), what the engine found (staves, noteheads, bar lines, the
     height of a notehead in its working copy, about one staff space) and how many measures came out."""
     return {
         "page": number,

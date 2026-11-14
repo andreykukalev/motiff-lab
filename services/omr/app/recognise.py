@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
 
+ENGINE = "homr"
+
 # A page takes 20 to 40 s on 4 CPU cores; a slow machine gets plenty of room before it is given up.
 PAGE_TIMEOUT_SECONDS = 300
 

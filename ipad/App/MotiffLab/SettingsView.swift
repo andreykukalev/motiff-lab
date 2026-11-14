@@ -299,6 +299,11 @@ struct SettingsSheet: View {
             switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
             // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
             switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
+            // Version 0.5.8: homr or copisteria on the scan server, to compare them on the player's own pages.
+            switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
+            if settings.isOn(ScanServer.engineSetting) {
+                choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"]) { $0 }
+            }
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)
