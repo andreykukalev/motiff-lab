@@ -24,6 +24,7 @@ import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, NOTE_SPACING, pdfFileName, titl
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type Playhead, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
+import { anchorAt, anchorOf, lineOf, systemSpans, type ViewAnchor } from "./view-anchor.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -792,6 +793,31 @@ export class ScoreView {
         if (bar !== undefined) {
             this.showPage(bar.page);
         }
+    }
+
+    /**
+     * Where the view is scrolled to, as a place in the notes that a new engraving keeps (PDF | Notes, #511 section 10): the
+     * system at the top of the view, by the tick of its first bar, and how far into it the top is. Null in the strip or
+     * before the pages are laid out.
+     */
+    viewPlace(): ViewAnchor | null {
+        this.drawAll();
+        const geometry = this.geometry();
+        return geometry === null || !this.paged ? null : anchorAt(systemSpans(geometry.systems, geometry.bars), this.host.scrollTop);
+    }
+
+    /** Scrolls back to a place `viewPlace` gave, at once and with no follow afterwards; false when there is none to go to. */
+    showPlace(place: unknown): boolean {
+        this.drawAll();
+        const geometry = this.geometry();
+        const anchor = anchorOf(place);
+        const line = geometry === null || anchor === null || !this.paged ? null : lineOf(systemSpans(geometry.systems, geometry.bars), anchor);
+        if (line === null) {
+            return false;
+        }
+        this.scrolledByHand = performance.now();
+        this.host.scrollTo({ top: Math.max(0, line), behavior: "instant" });
+        return true;
     }
 
     /**

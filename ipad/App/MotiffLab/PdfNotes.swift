@@ -54,10 +54,12 @@ struct OtherView: Equatable, Sendable {
     }
 }
 
-/// Where the other view opens: a PDF at a page, from 1, or the notes at a place in ticks.
+/// Where the other view opens: a PDF at a page, from 1, or the notes at a place in ticks; or as the player left that view,
+/// when it was kept on the device (ViewStates, #511 section 10).
 enum Landing: Equatable, Sendable {
     case page(Int)
     case tick(Double)
+    case kept
 
     var page: Int? {
         if case .page(let page) = self { return page }

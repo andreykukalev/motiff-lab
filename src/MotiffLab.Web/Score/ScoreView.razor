@@ -680,6 +680,14 @@ else if (_loading && !HoldHeight)
     public async Task<long?> FirstTickOnAsync(int page) =>
         _view is null ? null : await _view.InvokeAsync<long?>("firstTickOn", page);
 
+    /// <summary>Where the view is scrolled to, as a place in the notes a new engraving keeps (#511 section 10); null for none.</summary>
+    public async Task<ViewPlace?> ViewPlaceAsync() =>
+        _view is null ? null : await _view.InvokeAsync<ViewPlace?>("viewPlace");
+
+    /// <summary>Scrolls back to a place <see cref="ViewPlaceAsync"/> gave; false when the score cannot go there yet.</summary>
+    public async Task<bool> ShowPlaceAsync(ViewPlace place) =>
+        _view is not null && await _view.InvokeAsync<bool>("showPlace", place);
+
     /// <summary>Scrolls to the top of the page a place in the piece is on.</summary>
     public async Task ShowTickAsync(long tick)
     {

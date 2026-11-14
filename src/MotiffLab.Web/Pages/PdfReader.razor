@@ -16,6 +16,7 @@
 @inject NavigationManager Navigation
 @inject ScanService Scans
 @inject UiText Text
+@implements IDisposable
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
 
@@ -26,7 +27,7 @@
 <main class="lab app workspace pdf-reader">
     @if (_project?.Document is { } document)
     {
-        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
+        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" StartPlace="_startPlace" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
                  PencilKey="@PencilKey" Ink="@_ink" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
     }
 
@@ -200,6 +201,12 @@
     /// <summary>The bookmark on the page under the bar, if any.</summary>
     private PageBookmark? CurrentBookmark => _pages.First > 0 ? _project?.DocumentMarks.BookmarkOn(_pages.First) : null;
     private int _startPage = 1;
+
+    /// <summary>The place the PDF was left at (PDF | Notes, #511 section 10), opened at when no page is asked for; null for none.</summary>
+    private ViewPlace? _startPlace;
+
+    /// <summary>Keeps where the pages are as the player leaves them, for the PDF or the library (#511 section 10).</summary>
+    private IDisposable? _leaving;
     private (int First, int Last, int Count) _pages;
     private bool _coverSaved;
 
@@ -215,6 +222,20 @@
 
     /// <summary>The page the player was last on in this PDF, kept on this device.</summary>
     private static string PageKey(string id) => $"pdf.page.{id}";
+
+    protected override void OnInitialized() =>
+        _leaving = Navigation.RegisterLocationChangingHandler(async _ => await KeepPlaceAsync());
+
+    public void Dispose() => _leaving?.Dispose();
+
+    /// <summary>The place the pages are at, kept with the piece on this device (PDF | Notes, #511 section 10).</summary>
+    private async Task KeepPlaceAsync()
+    {
+        if (_project is { } project && _view is not null && _pages.Count > 0 && await _view.ViewPlaceAsync() is { } place)
+        {
+            await Preferences.KeepPdfPlaceAsync(project.Id, place);
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -257,6 +278,7 @@
             _notes = await Projects.NotesReadFromAsync(id);
             _startPage = Page is > 0 and int asked ? asked
                 : int.TryParse(await Preferences.GetAsync(PageKey(id)), out int page) && page > 0 ? page : 1;
+            _startPlace = Page is > 0 ? null : await Preferences.PdfPlaceAsync(id);
             Show(project);
         }
         catch (ProjectFileException exception)
@@ -384,7 +406,10 @@
         }
     }
 
-    /// <summary>The "Notes" view at its resume point, scrolled to where the page under the bar starts.</summary>
+    /// <summary>
+    /// The "Notes" view as the player left it (#511 section 10); the first time, at its resume point, scrolled to where the
+    /// page under the bar starts.
+    /// </summary>
     private async Task ShowNotesAsync()
     {
         if (await NotesAsync() is not { } notes)
@@ -393,9 +418,16 @@
             return;
         }
 
+        string url = CurrentPiece.WorkspaceUrl(notes, notes.RecentResumePoints.FirstOrDefault()?.Id);
+        if (await Preferences.NotesViewAsync(notes.Id) is not null)
+        {
+            Navigation.NavigateTo(url + $"&view={ViewStates.NotesAsLeft}");
+            return;
+        }
+
         PageMap? pages = notes.ReadFrom?.Pages ?? notes.DocumentPages;
         Tick at = pages?.StartOf(Math.Max(1, _pages.First)) ?? Tick.Zero;
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(notes, notes.RecentResumePoints.FirstOrDefault()?.Id) + $"&at={at.Value}");
+        Navigation.NavigateTo(url + $"&at={at.Value}");
     }
 
     private void Toggle(Popover popover) => _popover = _popover == popover ? Popover.None : popover;

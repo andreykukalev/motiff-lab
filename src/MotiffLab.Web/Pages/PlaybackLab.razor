@@ -2295,6 +2295,7 @@
         Player.Moved += OnPlayerMoved;
         Text.Changed += OnLanguageChanged;
         SettingsStore.Changed += OnSettingsChanged;
+        WatchLeavingNotes();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

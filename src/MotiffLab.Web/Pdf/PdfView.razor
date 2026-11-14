@@ -38,6 +38,10 @@
     [Parameter]
     public int StartPage { get; set; } = 1;
 
+    /// <summary>The place to open at, as the player left the PDF (#511 section 10), in place of <see cref="StartPage"/>; null for none.</summary>
+    [Parameter]
+    public MotiffLab.Web.Projects.ViewPlace? StartPlace { get; set; }
+
     /// <summary>The pages under the bar and how many there are, as the score reports them.</summary>
     [Parameter]
     public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
@@ -112,7 +116,7 @@
         if (_view is not null && !ReferenceEquals(_shown, Document))
         {
             _shown = Document;
-            int pages = await _view.InvokeAsync<int>("open", Document, StartPage);
+            int pages = await _view.InvokeAsync<int>("open", Document, StartPage, StartPlace);
             if (pages > 0)
             {
                 await _view.InvokeVoidAsync("labelPages", Text["pdf.pageLabel"]);
@@ -130,6 +134,10 @@
             await _view.InvokeVoidAsync("showPage", page);
         }
     }
+
+    /// <summary>Where the pages are scrolled to, as a place a new width keeps (#511 section 10); null before they are laid out.</summary>
+    public async Task<MotiffLab.Web.Projects.ViewPlace?> ViewPlaceAsync() =>
+        _view is null ? null : await _view.InvokeAsync<MotiffLab.Web.Projects.ViewPlace?>("viewPlace");
 
     /// <summary>Keeps page 1 as the piece's cover in the library; false when it could not be drawn.</summary>
     public async Task<bool> SaveCoverAsync(string projectId, string? title) =>

@@ -41,6 +41,7 @@ import {
     easing,
     fitFrame,
     followPlayhead,
+    frameOf,
     glideFrame,
     milliseconds,
     paddedPitches,
@@ -309,6 +310,27 @@ let keptNames: { key: string; names: RollNamesArgs } | null = null;
  * same place, so going into and out of Expand changes neither.
  */
 let keptFrame: { key: string | null; frame: ViewFrame } | null = null;
+
+/** The key of a frame brought back from the device (PDF | Notes, #511 section 10): the next roll takes its view on any notes. */
+const RESTORED_FRAME = "restored";
+
+/**
+ * Brings back the zoom and the view the player left the roll at, kept on the device while the other view of the piece was
+ * shown (PDF | Notes, #511 section 10): the next roll made, on the notes engraved again, starts from them. False for a frame
+ * that is not one.
+ */
+export function restoreRollFrame(value: unknown): boolean {
+    const frame = frameOf(value);
+    if (frame !== null) {
+        keptFrame = { key: RESTORED_FRAME, frame };
+    }
+    return frame !== null;
+}
+
+/** The zoom and the view the last roll drew, or the frame brought back and not yet drawn; null before any. */
+export function keptRollFrame(): ViewFrame | null {
+    return keptFrame === null ? null : { ...keptFrame.frame };
+}
 
 /** Whether the player asked for less motion: glides and following then go at once. */
 function reducedMotion(): boolean {
@@ -592,7 +614,7 @@ export class PianoRoll {
         if (kept !== null) {
             this.zoom = kept.frame.zoom;
             this.rowScale = kept.frame.rowScale;
-            if (key !== null && kept.key === key) {
+            if (kept.key === RESTORED_FRAME || (key !== null && kept.key === key)) {
                 view = { ...view, scroll: kept.frame.scroll, pitchTop: kept.frame.pitchTop };
             }
             this.showZoom();

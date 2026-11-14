@@ -21,15 +21,15 @@ struct ScoreScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
-    @StateObject private var player = Player()
-    @StateObject private var score = ScoreController()
-    @StateObject private var roll = RollController()
+    @StateObject var player = Player()
+    @StateObject var score = ScoreController()
+    @StateObject var roll = RollController()
     @State private var more = false
     /// Whether Check, Other versions or Settings was opened from More, so it shows "‹ More" (testing item 20).
     @State private var fromMore = false
-    @StateObject private var insights = InsightsController()
+    @StateObject var insights = InsightsController()
     /// The piano roll's drawer (0018 section 4), from the bar or the selection menu.
-    @State private var rollOpen = false
+    @State var rollOpen = false
     /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
     @State private var rollBeforeFocus = false
     /// The roll drawer's share of the screen's height in landscape (true) and portrait, as the player left it with its handle
@@ -341,12 +341,16 @@ struct ScoreScreen: View {
             .task { await wire() }
             .onDisappear {
                 let now = resumeNow()
+                let view = notesViewNow()
                 player.shutdown()
+                // Handed to its other view, the piece was saved and closed already (#511 section 10).
+                guard !ClosedPieces.take(piece.id) else { return }
                 // A variation only tried is not kept with the piece: it is left before the project file is written.
                 let file = piece.file
                 let id = piece.id
                 let tried = insights
                 Task {
+                    await keepNotesView(view)
                     await keepResume(now)
                     await tried.leave()
                     if let file { try? await ProjectFiles.save(piece: id, to: file) }
@@ -446,6 +450,7 @@ struct ScoreScreen: View {
         await player.load(piece: piece.id)
         applyExperiments()
         await resume()
+        await returnToNotesView()
     }
 
     /// The drawers and sheets: what covers the page, and one of them at a time.
@@ -675,16 +680,6 @@ struct ScoreScreen: View {
             }
     }
 
-    private func save() {
-        guard let file = piece.file else { return }
-        let id = piece.id
-        let now = resumeNow()
-        Task {
-            await keepResume(now)
-            try? await ProjectFiles.save(piece: id, to: file)
-        }
-    }
-
     /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
     /// else the PDF linked where it lies in Files, over the score (version 0.3).
     private var toPdf: (() -> Void)? {
@@ -700,18 +695,6 @@ struct ScoreScreen: View {
                 if originals.linkedPdf == nil { versionsOpen = true }
             }
         }
-    }
-
-    /// The PDF at the page the notes at the top of the view were read from, once the piece is saved (the web app's
-    /// `ShowPdfAsync`).
-    private func showPdf() async {
-        guard let switchView else { return }
-        let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
-        let tick = await score.firstTick(onPage: score.pages.first) ?? 0
-        player.shutdown()
-        await insights.leave()
-        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-        await switchView(.page(pages.page(of: tick)))
     }
 }
 
@@ -900,7 +883,7 @@ extension ScoreScreen {
     }
 
     /// Where the player is now, taken before the player stops; nil while the resume point is off.
-    private func resumeNow() -> ResumePlace.Now? {
+    func resumeNow() -> ResumePlace.Now? {
         guard settings.isOn("experimental.resume") else { return nil }
         return ResumePlace.Now(
             passage: score.selection.map { $0.onset..<$0.end },
@@ -913,7 +896,7 @@ extension ScoreScreen {
     }
 
     /// Keeps where the player is as the project's resume point (`resume.save`), before the project file is written.
-    private func keepResume(_ now: ResumePlace.Now?) async {
+    func keepResume(_ now: ResumePlace.Now?) async {
         guard let now else { return }
         let id = piece.id
         var at = now.tick

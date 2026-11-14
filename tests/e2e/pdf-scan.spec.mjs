@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { pdf } from "./pdf-fixture.mjs";
-import { violations } from "./steps.mjs";
+import { openRoll, selectPhrase, violations } from "./steps.mjs";
 
 const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const cover = fileURLToPath(new URL("fixtures/fur-elise-cover.mid", import.meta.url));
@@ -83,9 +83,11 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     await expect(views.getByRole("radio", { name: "Notes" })).toHaveAttribute("aria-checked", "true");
     expect(await violations(page)).toEqual([]);
 
-    // Original PDF shows the PDF as it was: its pages, Download hands back the PDF, and no Recognise notes now.
+    // Original PDF shows the PDF as it was: its pages, Download hands back the PDF, and no Recognise notes now. It was left
+    // at page 1 for Recognise notes, so it comes back there (#511 section 10), with no page asked for.
     await views.getByRole("radio", { name: "Original PDF" }).click();
-    await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}&page=1$`));
+    await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}$`));
+    await expect(bar.locator(".pg")).toHaveText(/^pp?\. 1(–2)? of 3$/);
     await expect(page.locator(".pdf-view .score-page.pdf-page").first().locator("canvas")).toHaveCount(1);
     await expect(views.getByRole("radio", { name: "Original PDF" })).toHaveAttribute("aria-checked", "true");
     await expect(bar.getByRole("button", { name: "Recognise notes" })).toHaveCount(0);
@@ -95,15 +97,76 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     expect(download.suggestedFilename()).toBe("Elise.pdf");
     expect(await violations(page)).toEqual([]);
 
-    // From page 3 of the PDF, the notes open where the scan's page 3 starts: two thirds through the bars.
+    // With no "Notes" view kept on the device, from page 3 of the PDF the notes open where the scan's page 3 starts: two
+    // thirds through the bars.
     await page.locator(".pdf-view").evaluate((view) => view.scrollTo({ top: view.scrollHeight }));
     await expect(bar.locator(".pg")).toHaveText("p. 3 of 3");
+    await page.evaluate((id) => localStorage.removeItem(`motiff-lab:notes.view.${id}`), pdfId);
     await views.getByRole("radio", { name: "Notes" }).click();
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&.*at=([1-9]\\d*)$`));
 
     // The library holds one piece.
     await page.goto("/");
     await expect(page.locator(".lib-table tbody tr", { hasText: "Elise" })).toHaveCount(1);
+    await expect(page.locator("#blazor-error-ui")).toBeHidden();
+    expect(errors).toEqual([]);
+});
+
+test("PDF | Notes keeps each view as it was left: the notes' selection, place and roll, the PDF's page and place (#511 10)", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    await scanServer(page);
+    const pdfId = await addPdf(page, pdf(3));
+    const bar = page.locator(".bar");
+    await bar.getByRole("button", { name: "Recognise notes" }).click();
+    await page.getByRole("dialog", { name: "Recognise notes" }).getByRole("button", { name: "Recognise notes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=`));
+    await expect(page.locator(".score .score-page svg").first()).toBeVisible();
+    const views = bar.getByRole("radiogroup", { name: "View" });
+    const notes = views.getByRole("radio", { name: "Notes" });
+    const original = views.getByRole("radio", { name: "Original PDF" });
+
+    // In Notes: a passage selected, the roll's drawer open and zoomed in, and the score scrolled down by hand.
+    const status = await selectPhrase(page, 1);
+    const selected = await status.textContent();
+    await openRoll(page);
+    const zoom = page.locator(".roll-drawer .roll-zoom-level");
+    // The Check sheet of the scan's bars lies over the roll's zoom on this screen.
+    await page.locator(".roll-drawer .roll").getByRole("button", { name: "Zoom in" }).evaluate((button) => button.click());
+    await expect(zoom).toContainText("125 %");
+    const score = page.locator("div.score");
+    const scrolled = await score.evaluate((host) => {
+        host.scrollTop = Math.min(host.scrollHeight - host.clientHeight, 260);
+        return host.scrollTop;
+    });
+    expect(scrolled).toBeGreaterThan(0);
+    // The scroll is read when the view goes, after a frame.
+    await page.waitForTimeout(100);
+
+    await original.click();
+    await expect(page.locator(".pdf-view .score-page.pdf-page").first().locator("canvas")).toHaveCount(1);
+    // In the PDF: a third of the way down the last page (two pages to a row on a wide screen).
+    const pdfTop = await page.locator(".pdf-view").evaluate((view) => {
+        const last = view.querySelector('.pdf-page[data-page="3"]');
+        view.scrollTo({ top: Math.min(view.scrollHeight - view.clientHeight, last.offsetTop + last.offsetHeight / 3), behavior: "instant" });
+        return view.scrollTop;
+    });
+    await expect(bar.locator(".pg")).toHaveText("p. 3 of 3");
+
+    // Back and forth three times: each view comes back as it was left, and nothing drifts.
+    for (let round = 0; round < 3; round++) {
+        await notes.click();
+        await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+$`));
+        await expect(page.locator(".selection-status")).toHaveText(selected ?? "");
+        await expect(zoom).toContainText("125 %");
+        await expect.poll(() => score.evaluate((host) => host.scrollTop)).toBeCloseTo(scrolled, 0);
+
+        await original.click();
+        await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}$`));
+        await expect(bar.locator(".pg")).toHaveText("p. 3 of 3");
+        await expect.poll(() => page.locator(".pdf-view").evaluate((view) => view.scrollTop)).toBeCloseTo(pdfTop, 0);
+    }
+
     await expect(page.locator("#blazor-error-ui")).toBeHidden();
     expect(errors).toEqual([]);
 });
