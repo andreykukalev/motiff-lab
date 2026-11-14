@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import MotiffLab
 
 /// The library's search, filters and order (version 0.2), held to the web app's rules (src/MotiffLab.Web/Projects/
@@ -230,5 +231,38 @@ final class PieceDetailsFileTests: XCTestCase {
         XCTAssertEqual(cleared.playersComposer, "Beethoven")
         XCTAssertEqual(cleared.tags, [])
         XCTAssertEqual(cleared.playlists, [])
+    }
+
+    /// A project summary as music-core answers it, with the fields the source icons read.
+    private func summary(hasNotes: Bool, readFrom: String? = nil, _ originals: [(id: String, kind: String)] = []) throws -> PieceSummary {
+        var project: [String: Any] = ["hasNotes": hasNotes, "originals": originals.map { ["id": $0.id, "kind": $0.kind, "kept": "file"] }]
+        if let readFrom { project["readFrom"] = readFrom }
+        let answer = try JSONSerialization.data(withJSONObject: ["project": project])
+        return try XCTUnwrap(PieceSummary(answer: String(decoding: answer, as: UTF8.self)))
+    }
+
+    func testTheSourceIconsShowOnlyWhatThePieceHasInAFixedOrder() throws {
+        // v0.5.6, #533 section 10, as music-core's LibrarySources (tests/MotiffLab.MusicCore.Tests/Projects).
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: false, [("src_pdf", "pdf")])), [.pdf], "PDF only")
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("src_pdf", "pdf")])), [.pdf, .notes], "PDF and its notes")
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("v_1", "audio"), ("src_pdf", "pdf"), ("v_2", "audio")])), [.pdf, .notes, .recording], "and a recording, once")
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("src_file", "midi")])), [.notes], "the file of the notes is the notes")
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("src_file", "musicxml"), ("v_1", "midi")])), [.notes, .midi])
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: false, [("src_pdf", "images")])), [.photos])
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true)), [.notes], "a heard recording keeps no sound")
+        XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, readFrom: "p_pdf")), [.pdf, .notes])
+        XCTAssertEqual(LibrarySource.of(nil), [])
+    }
+
+    func testEachSourceHasAnIconAndANameInBothLanguages() {
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            for source in LibrarySource.allCases {
+                XCTAssertFalse(source.label(text).hasPrefix("library."), "\(language) \(source)")
+                XCTAssertNotNil(UIImage(named: "ic-\(source.icon)"), source.icon)
+            }
+        }
+        XCTAssertEqual(SourceIcons.label([.pdf, .notes, .recording], UIText(language: "ru")), "Источники: PDF, Ноты, Запись")
+        XCTAssertEqual(SourceIcons.label([.pdf, .notes], UIText(language: "en")), "Sources: PDF, Notes")
     }
 }

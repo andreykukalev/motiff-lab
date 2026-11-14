@@ -3,8 +3,8 @@
 @implements IDisposable
 
 @* The list of pieces (version 0.2, ux-prototype/v2/screens/lib-1-list.png): Title, Composer, Playlists and Opened, a heading
-   ordering the list by its column and again turning the order round; one line a piece, a tap opening it where it was left,
-   and its ••• for the rest. Each line carries its place, for the index at the edge. With the import's experiment (version
+   ordering the list by its column and again turning the order round; one line a piece, its sources as small icons beside
+   its title (v0.5.6, #533 section 10), a tap opening it where it was left, and its ••• for the rest. Each line carries its place, for the index at the edge. With the import's experiment (version
    0.5, ux-prototype/v0.5/screens/import-web-4..5): a box on each PDF piece while picking pieces to read, the bar with what is
    picked, and on each piece of a batch where its notes are. *@
 <div class="lib-list">
@@ -49,6 +49,7 @@
                     }
                     <th scope="row" class="col-title">
                         <button class="ttl" @onclick="() => Opened.InvokeAsync(entry)" @onclick:stopPropagation="true" disabled="@Busy">@entry.Title</button>
+                        <SourceIcons Summary="entry.Summary" />
                         @if (Shelf?.Elsewhere(entry) is { } elsewhere)
                         {
                             <span class="tag held">@elsewhere</span>

@@ -109,9 +109,12 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     await views.getByRole("radio", { name: "Notes" }).click();
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&.*at=([1-9]\\d*)$`));
 
-    // The library holds one piece.
+    // The library holds one piece, and its line shows what it holds: the PDF, then the notes (#533 section 10).
     await page.goto("/");
     await expect(page.locator(".lib-table tbody tr", { hasText: "Elise" })).toHaveCount(1);
+    const sources = page.locator(".lib-table tbody tr", { hasText: "Elise" }).getByRole("img", { name: "Sources: PDF, Notes" });
+    await expect(sources.locator(".source")).toHaveCount(2);
+    await expect(sources.locator(".source").first()).toHaveAttribute("title", "PDF");
     await expect(page.locator("#blazor-error-ui")).toBeHidden();
     expect(errors).toEqual([]);
 });

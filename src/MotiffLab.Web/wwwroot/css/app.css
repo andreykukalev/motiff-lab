@@ -5568,6 +5568,27 @@ body:has(> #app > .library) {
     vertical-align: middle;
 }
 
+/* What a piece holds (v0.5.6, #533 section 10): small neutral icons in a row, PDF, notes, recording, then the others. */
+.library .sources {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    color: var(--ink-2);
+    vertical-align: middle;
+}
+
+.library .sources .source {
+    display: inline-flex;
+}
+
+.library .lib-table .col-title .sources {
+    margin-inline-start: var(--s-2);
+}
+
+.library .card .what .sources {
+    align-self: flex-start;
+}
+
 /* The search in the header (version 0.2, lib-1-list.png): the field shows the focus, once. */
 .library .lib-head .search {
     display: flex;

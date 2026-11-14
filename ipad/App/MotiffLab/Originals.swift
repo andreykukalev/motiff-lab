@@ -27,6 +27,8 @@ struct OriginalEntry: Identifiable, Equatable, Sendable {
 
     /// The PDF kept in the piece (`PieceOriginal.DocumentId` in music-core).
     static let documentId = "src_pdf"
+    /// The MIDI or MusicXML file the notes were imported from (`PieceOriginal.SourceFileId` in music-core).
+    static let sourceFileId = "src_file"
 
     /// What a badge is shown for, as on the web: a PDF, photos or a recording. A MIDI or MusicXML file is the notes.
     var isShown: Bool { kind == "pdf" || kind == "images" || kind == "audio" }
