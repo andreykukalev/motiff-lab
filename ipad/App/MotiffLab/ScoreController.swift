@@ -355,6 +355,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
+            webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             historyKey = SelectionHistories.key(piece)
             selectionSteps = SelectionHistories.history(of: SelectionHistories.key(piece))
             rendered = false
@@ -1871,8 +1873,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             shown = true
             if let tick = piece.landing?.tick {
                 // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
-                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
+                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick, "instant": true]], contentWorld: .page)
             }
+            if Landing.notesShowOnRender(piece.landing) { land() }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
             applyInput()
             await sendModeNow()
@@ -1891,7 +1894,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             rendered = true
         } catch {
             problem = error.localizedDescription
+            land()
         }
+    }
+
+    /// Shows the pages held out of sight while they landed (#533 6), now that they stand where they open.
+    func land() {
+        webView.alpha = 1
     }
 
     /// Draws the marks music-core answered (`marks`, `ink.add`, `ink.remove`).

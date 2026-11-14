@@ -70,6 +70,18 @@ enum Landing: Equatable, Sendable {
         if case .tick(let tick) = self { return tick }
         return nil
     }
+
+    /// Whether the notes stay out of sight until they stand at their place (#533 6): a place in the music or the view kept
+    /// are reached only once the pages are drawn, and the top of the first page is not to show on the way.
+    static func holdsTheNotes(_ landing: Landing?) -> Bool {
+        landing?.tick != nil || landing == .kept
+    }
+
+    /// Whether the score shows its pages as soon as they are drawn and at the place in the music: all but the view kept,
+    /// which shows once the "Notes" view is back (`returnToNotesView`).
+    static func notesShowOnRender(_ landing: Landing?) -> Bool {
+        landing != .kept
+    }
 }
 
 /// The two views of a recognised PDF in the bar (the web app's `ViewSwitch`): the printed pages as they are, and the notes

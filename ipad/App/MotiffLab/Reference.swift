@@ -144,6 +144,20 @@ struct ReferenceCard: Equatable {
     }
 }
 
+/// The key the circle opens on (#533 7): the piece's key when music-core tells it, else C major. C major is only shown, so
+/// the circle is never empty: it is not the piece's key, is never written to the file, and the sheet says the piece's key
+/// is not known.
+enum ReferenceOpening {
+    static func key(_ piece: ReferenceAnswer.PieceKey?) -> (fifths: Int, minor: Bool) {
+        piece.map { ($0.fifths, $0.minor) } ?? (0, false)
+    }
+
+    /// The caption «Тональность пьесы не определена»: over a piece whose key is not known; never from the library.
+    static func saysKeyUnknown(inPiece: Bool, pieceKey: ReferenceAnswer.PieceKey?) -> Bool {
+        inPiece && pieceKey == nil
+    }
+}
+
 /// The Reference's state: the circle and the chosen key's card from music-core, the chords and scales as they sound, the
 /// harmony explorer, and the piano that plays them.
 @MainActor
@@ -181,7 +195,8 @@ final class ReferenceController: ObservableObject {
     }
 
     /// The circle with no key chosen, or the card of a key ("fifths", major or minor). On a piece it also tells the piece's
-    /// key, and the first load opens that key's card, as the web's sheet does, and starts the explorer in it. A key's
+    /// key. The first load opens a key's card, as the web's sheet does, and starts the explorer in it: the piece's key, or
+    /// C major where none is known (`ReferenceOpening`). A key's
     /// card opens with its tonic chord's own card beside it, silent, so the sheet's room holds what the key is made of.
     func load(fifths: Int? = nil, minor: Bool = false, language: String, naming: String) async {
         var request: [String: Any] = ["language": language, "naming": naming]
@@ -197,14 +212,18 @@ final class ReferenceController: ObservableObject {
             text = await MusicCore.run { MusicCore.call(piece: 0, "reference.key", body) }
         }
         guard let next = ReferenceAnswer(answer: text) else { return }
-        let first = answer == nil
+        if answer == nil, fifths == nil {
+            // The circle opens on a key, never empty (#533 7): the bare circle is not shown first.
+            let key = ReferenceOpening.key(next.pieceKey)
+            explorer.start(fifths: key.fifths, minor: key.minor)
+            await load(fifths: key.fifths, minor: key.minor, language: language, naming: naming)
+            if answer == nil { answer = next }
+            return
+        }
         answer = next
         shown = next.card?.scales.first
         detail = nil
-        if first, fifths == nil, let key = next.pieceKey {
-            explorer.start(fifths: key.fifths, minor: key.minor)
-            await load(fifths: key.fifths, minor: key.minor, language: language, naming: naming)
-        } else if let tonic = next.card?.chords.first {
+        if let tonic = next.card?.chords.first {
             await openCard(tonic, language: language, naming: naming)
         }
     }

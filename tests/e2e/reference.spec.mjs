@@ -23,7 +23,9 @@ test("with the experiment on, Circle in the library looks a key up by its signat
     await page.locator(".lib-head").getByRole("button", { name: "Circle", exact: true }).click();
     const sheet = page.getByRole("dialog", { name: "Circle of fifths" });
     await expect(sheet.getByRole("button", { name: "5 sharps", exact: true })).toBeVisible();
-    await expect(sheet).toContainText("Choose a key signature above or a key on the circle.");
+    // No key to go by in the library: C major, only so the circle opens filled (#533 7), and no word on a piece.
+    await expect(sheet.locator(".ref-card .ref-name")).toHaveText("C major");
+    await expect(sheet.locator(".ref-key-unknown")).toHaveCount(0);
 
     await sheet.getByRole("button", { name: "5 sharps", exact: true }).click();
     await expect(sheet.getByRole("button", { name: "5 sharps", exact: true })).toHaveAttribute("aria-pressed", "true");

@@ -20,8 +20,8 @@
 }
 
 @* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
-@* Focusable, so the score can be scrolled by keyboard within its panel. *@
-<div class="score" @ref="_host" role="figure" aria-label="@Text["workspace.score"]" tabindex="0"></div>
+@* Focusable, so the score can be scrolled by keyboard within its panel. While it lands (#533 6) its pages are out of sight. *@
+<div class="score" @ref="_host" role="figure" aria-label="@Text["workspace.score"]" tabindex="0" data-landing="@(Landing ? "" : null)"></div>
 @* The contextual menu over the selection (0018 section 3): drawn here, placed over the band by the script as the score scrolls. *@
 <div class="ctx" @ref="_menu" role="toolbar" aria-label="@Text["menu.label"]" data-keeps-selection hidden>@Menu</div>
 @if (_error is not null)
@@ -76,6 +76,13 @@ else if (_loading && !HoldHeight)
     /// <summary>The selection, drawn as a band with handles over its bars (0018 section 3); null draws none.</summary>
     [Parameter]
     public TickSpan? Selection { get; set; }
+
+    /// <summary>
+    /// The pages are held out of sight while the host brings them to the place they open at (PDF | Notes, #533 6), so the top
+    /// of the first page never shows on the way there.
+    /// </summary>
+    [Parameter]
+    public bool Landing { get; set; }
 
     /// <summary>The lines under the notes carries put in, in their sources' tones (0024, «Происхождение»); null draws none.</summary>
     [Parameter]
@@ -691,12 +698,12 @@ else if (_loading && !HoldHeight)
     public async Task<bool> ShowPlaceAsync(ViewPlace place) =>
         _view is not null && await _view.InvokeAsync<bool>("showPlace", place);
 
-    /// <summary>Scrolls to the top of the page a place in the piece is on.</summary>
-    public async Task ShowTickAsync(long tick)
+    /// <summary>Scrolls to the top of the page a place in the piece is on; at once when <paramref name="instant"/>, as the score opens there.</summary>
+    public async Task ShowTickAsync(long tick, bool instant = false)
     {
         if (_view is not null)
         {
-            await _view.InvokeVoidAsync("showTick", tick);
+            await _view.InvokeVoidAsync("showTick", tick, instant);
         }
     }
 

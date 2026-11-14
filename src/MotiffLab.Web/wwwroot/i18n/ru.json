@@ -1312,6 +1312,7 @@
   "reference.sectorAria": "{0}, {1}",
   "reference.pieceKey": "Тональность пьесы: {0}",
   "reference.pieceKeyInferred": "Тональность пьесы, предположительно: {0}",
+  "reference.pieceKeyUnknown": "Тональность пьесы не определена",
   "reference.showPieceKey": "Показать",
   "reference.relative": "Параллельная",
   "reference.parallel": "Одноимённая",

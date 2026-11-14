@@ -103,6 +103,17 @@ final class ViewStatesTests: XCTestCase {
         XCTAssertNil(Landing.kept.page)
     }
 
+    /// #533 6: the notes stay out of sight until they stand at their place, so the top of the first page never shows first.
+    func testTheNotesWaitOutOfSightForAPlaceAndShowAtOnceWithNone() {
+        XCTAssertTrue(Landing.holdsTheNotes(.tick(7680)), "from a PDF's page: held until the page of the music is shown")
+        XCTAssertTrue(Landing.holdsTheNotes(.kept), "back to the view kept: held until it is back")
+        XCTAssertFalse(Landing.holdsTheNotes(nil), "from the library: shown as drawn")
+        XCTAssertFalse(Landing.holdsTheNotes(.page(2)))
+        XCTAssertTrue(Landing.notesShowOnRender(.tick(7680)), "the render reaches the place itself")
+        XCTAssertFalse(Landing.notesShowOnRender(.kept), "the view kept shows once returnToNotesView has put it back")
+        XCTAssertTrue(Landing.notesShowOnRender(nil))
+    }
+
     @MainActor
     func testAPieceClosedByTheLibraryIsNotSavedAgainAsItsScreenGoes() async {
         XCTAssertFalse(ClosedPieces.take(9_000_001), "a piece still open is saved as its screen goes")

@@ -103,6 +103,25 @@ final class ReferenceTests: XCTestCase {
         XCTAssertFalse(key.inferred)
     }
 
+    /// #533 7: without a known key the circle opens on C major, shown only; a known key is never overridden.
+    func testTheCircleOpensOnThePiecesKeyOrCMajorWhenNoneIsKnown() throws {
+        let known = ReferenceAnswer.PieceKey(fifths: -3, minor: true, name: "C minor", inferred: true)
+        XCTAssertEqual(ReferenceOpening.key(known).fifths, -3)
+        XCTAssertTrue(ReferenceOpening.key(known).minor)
+        XCTAssertEqual(ReferenceOpening.key(nil).fifths, 0)
+        XCTAssertFalse(ReferenceOpening.key(nil).minor)
+
+        XCTAssertTrue(ReferenceOpening.saysKeyUnknown(inPiece: true, pieceKey: nil))
+        XCTAssertFalse(ReferenceOpening.saysKeyUnknown(inPiece: true, pieceKey: known), "a known key needs no caption")
+        XCTAssertFalse(ReferenceOpening.saysKeyUnknown(inPiece: false, pieceKey: nil), "the library has no piece")
+
+        let opening = ReferenceOpening.key(nil)
+        let request = #"{"fifths": \#(opening.fifths), "mode": "major", "language": "en", "naming": "letters"}"#
+        let answer = try XCTUnwrap(ReferenceAnswer(answer: MusicCore.call(piece: 0, "reference.key", request)))
+        XCTAssertEqual(answer.card?.name, "C major")
+        XCTAssertNil(answer.pieceKey, "C major is shown, not the piece's key")
+    }
+
     func testATapOnTheCircleFindsThePlaceAndTheRing() {
         let size = CGSize(width: 236, height: 236)
 

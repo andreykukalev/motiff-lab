@@ -401,13 +401,15 @@ public partial class PlaybackLab : IAsyncDisposable
     private async Task OnPagesShown((int First, int Last, int Count) pages)
     {
         _pages = pages;
+        _pagesSeen = true;
         if (At is { } at && at != _shownAt && pages.Count > 0 && _scoreView is not null)
         {
             _shownAt = at;
-            await _scoreView.ShowTickAsync(at);
+            await _scoreView.ShowTickAsync(at, instant: true);
         }
 
         await ShowKeptPlaceAsync(last: true);
+        Land();
 
         await SaveCoverAsync();
     }

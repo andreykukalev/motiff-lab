@@ -12,6 +12,8 @@ struct ReferenceSheet: View {
     let text: UIText
     @ObservedObject var settings: DeviceSettings
     @StateObject private var reference: ReferenceController
+    /// Opened over a piece (the score or a PDF's pages), where the piece's key may be not known.
+    private let inPiece: Bool
     @Environment(\.dismiss) private var dismiss
 
     /// The content's width from which the sheet lays its parts side by side in three columns, and in two.
@@ -23,6 +25,7 @@ struct ReferenceSheet: View {
         self.text = text
         _settings = ObservedObject(wrappedValue: settings)
         _reference = StateObject(wrappedValue: ReferenceController(piece: piece))
+        inPiece = piece != 0
     }
 
     var body: some View {
@@ -162,7 +165,8 @@ struct ReferenceSheet: View {
         }
     }
 
-    /// The circle, and under it the piece's key with a way to its card.
+    /// The circle, and under it the piece's key with a way to its card, or that it is not known (the circle then shows C
+    /// major, #533 7).
     private func circleColumn(_ answer: ReferenceAnswer) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             circle(answer)
@@ -180,6 +184,10 @@ struct ReferenceSheet: View {
                     }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
+            } else if ReferenceOpening.saysKeyUnknown(inPiece: inPiece, pieceKey: answer.pieceKey) {
+                Text(text["reference.pieceKeyUnknown"])
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
             }
         }
     }

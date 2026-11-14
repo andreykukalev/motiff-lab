@@ -21,6 +21,26 @@ test.use({ serviceWorkers: "block" });
  * Plays the scan server and points the app at it; returns the PDFs it was sent. It reads `maxPages` pages a request, as
  * it says on /health, and `hold` (a promise) keeps the answer to the first upload back until it settles.
  */
+/**
+ * Notes where the notes' score is scrolled to the first moment its pages can be seen (#533 6): it is to stand at its place
+ * already, never at the top of the first page on the way there. Read back with `firstSight`.
+ */
+async function watchFirstSight(page) {
+    await page.evaluate(() => {
+        window.firstSight = null;
+        const observer = new MutationObserver(() => {
+            const score = document.querySelector("div.score:not(.pdf-view)");
+            if (score !== null && !score.hasAttribute("data-landing") && score.querySelector(".score-page svg") !== null) {
+                window.firstSight = score.scrollTop;
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-landing"] });
+    });
+}
+
+const firstSight = (page) => page.evaluate(() => window.firstSight);
+
 async function scanServer(page, { maxPages = 8, hold = null } = {}) {
     const uploads = [];
     const musicXml = await readFile(scanned);
@@ -106,8 +126,13 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     await page.locator(".pdf-view").evaluate((view) => view.scrollTo({ top: view.scrollHeight }));
     await expect(bar.locator(".pg")).toHaveText("p. 3 of 3");
     await page.evaluate((id) => localStorage.removeItem(`motiff-lab:notes.view.${id}`), pdfId);
+    await watchFirstSight(page);
     await views.getByRole("radio", { name: "Notes" }).click();
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&.*at=([1-9]\\d*)$`));
+    // The notes are first seen at that page already, with no scroll after (#533 6).
+    await expect.poll(() => firstSight(page)).not.toBeNull();
+    const landed = await page.locator("div.score:not(.pdf-view)").evaluate((host) => host.scrollTop);
+    expect(await firstSight(page)).toBeCloseTo(landed, 0);
 
     // The library holds one piece, and its line shows what it holds: the PDF, then the notes (#533 section 10).
     await page.goto("/");
@@ -162,11 +187,14 @@ test("PDF | Notes keeps each view as it was left: the notes' selection, place an
 
     // Back and forth three times: each view comes back as it was left, and nothing drifts.
     for (let round = 0; round < 3; round++) {
+        await watchFirstSight(page);
         await notes.click();
         await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+$`));
         await expect(page.locator(".selection-status")).toHaveText(selected ?? "");
         await expect(zoom).toContainText("125 %");
         await expect.poll(() => score.evaluate((host) => host.scrollTop)).toBeCloseTo(scrolled, 0);
+        // First seen where it was left, not at the top of the first page (#533 6).
+        expect(await firstSight(page)).toBeCloseTo(scrolled, 0);
 
         await original.click();
         await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}$`));

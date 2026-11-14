@@ -764,12 +764,12 @@ export class ScoreView {
         return true;
     }
 
-    /** Scrolls to the top of a page, from 1. */
-    showPage(page: number): void {
+    /** Scrolls to the top of a page, from 1; at once when `instant`, as the score opens there (#533 6). */
+    showPage(page: number, instant = false): void {
         const element = this.pageElements().find((candidate) => candidate.dataset.page === String(page));
         if (element !== undefined) {
             this.scrolledByHand = performance.now();
-            this.host.scrollTo({ top: Math.max(0, element.offsetTop - this.pageElements()[0].offsetTop), behavior: "smooth" });
+            this.host.scrollTo({ top: Math.max(0, element.offsetTop - this.pageElements()[0].offsetTop), behavior: instant ? "instant" : "smooth" });
         }
     }
 
@@ -782,7 +782,7 @@ export class ScoreView {
     }
 
     /** Scrolls to the top of the page a place in the piece is on, as the PDF view's pages lead to the notes (0023). */
-    showTick(tick: number): void {
+    showTick(tick: number, instant = false): void {
         this.drawAll();
         const geometry = this.geometry();
         if (geometry === null || !this.paged) {
@@ -791,7 +791,7 @@ export class ScoreView {
         const before = geometry.bars.filter((bar) => bar.tick <= tick);
         const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : geometry.bars[0];
         if (bar !== undefined) {
-            this.showPage(bar.page);
+            this.showPage(bar.page, instant);
         }
     }
 
