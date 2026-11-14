@@ -69,10 +69,10 @@ public class KeepingTheWork
     [Fact(DisplayName = "j. The player opens a project file of a newer version: it is refused with the newer-version message and left as it was")]
     public void A_file_of_a_newer_version_is_neither_damaged_nor_overwritten()
     {
-        byte[] future = Player.Fixture("v16-future.motiff.json");
+        byte[] future = Player.Fixture("v17-future.motiff.json");
         byte[] copy = [.. future];
 
-        (Player player, JsonElement answer) = Player.TriesToOpen("v16-future.motiff.json", future, """{"language": "en"}""");
+        (Player player, JsonElement answer) = Player.TriesToOpen("v17-future.motiff.json", future, """{"language": "en"}""");
 
         Assert.Equal("import", answer.GetProperty("error").GetString());
         Assert.Contains("newer version of Motiff Lab", answer.GetProperty("message").GetString(), StringComparison.Ordinal);
