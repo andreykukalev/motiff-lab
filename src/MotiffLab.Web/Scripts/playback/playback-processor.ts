@@ -73,7 +73,11 @@ export type EngineMessage =
     | { type: "noteOn"; pitch: number; velocity: number }
     | { type: "noteOff"; pitch: number }
     | RecordingMessage
-    | { type: "recordingOn"; on: boolean };
+    | { type: "recordingOn"; on: boolean }
+    /** A playhead dragged while stopped (#495 UX-09): the notes whose starts it passed sound (Engine.scrub). */
+    | { type: "scrub"; from: number; to: number }
+    /** The drag let go: the notes it sounded fade. */
+    | { type: "scrubEnd" };
 
 /**
  * A recording heard as it sounds (decision record 0024, scenario 2): its mono samples, and where the places of the
@@ -93,6 +97,16 @@ export interface RecordingMessage {
  */
 export const LIVE_SOURCE = "live";
 const LIVE_TRACK = -1;
+
+/**
+ * Scrubbing (#495 UX-09, the architect's design playback-model-v0.5.2, slice W3; as the iPad's engine, PlaybackEngine.swift):
+ * the drag's voices are apart from the piece's, so its end, Play or a seek fades them all. One move strikes at most
+ * SCRUB_GROUPS starts, those nearest where it went, so a fast drag never floods the voices; a note it strikes sounds its
+ * length at the tempo, never longer than SCRUB_SECONDS, then fades.
+ */
+export const SCRUB_SOURCE = "scrub";
+export const SCRUB_GROUPS = 6;
+export const SCRUB_SECONDS = 1.5;
 
 export interface PositionReport {
     type: "position";
@@ -319,11 +333,7 @@ export class Engine {
                 this.alternate(message.passes);
                 break;
             case "loopOff":
-                this.stopAlternating();
-                this.loopOnce = false;
-                this.loopStart = 0;
-                this.loopEnd = 0;
-                this.requestReport();
+                this.loopOff();
                 break;
             case "metronome":
                 this.metronome = message.on;
@@ -349,6 +359,12 @@ export class Engine {
                 break;
             case "recordingOn":
                 this.recordingOn = message.on;
+                break;
+            case "scrub":
+                this.scrub(message.from, message.to);
+                break;
+            case "scrubEnd":
+                this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
                 break;
         }
     }
@@ -496,6 +512,8 @@ export class Engine {
         if (this.timeline === null || this.state !== "stopped") {
             return;
         }
+        // What a drag sounded gives way to the piece: playback starts clean.
+        this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
 
         if (this.hasLoop() && (this.position < this.loopStart || this.position >= this.loopEnd)) {
             this.position = this.loopStart;
@@ -541,6 +559,15 @@ export class Engine {
         this.position = Math.min(Math.max(0, tick), end);
         this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
         this.relocate(this.state === "playing");
+        this.requestReport();
+    }
+
+    /** Nothing loops any more, an alternation and a loop played once included. */
+    private loopOff(): void {
+        this.stopAlternating();
+        this.loopOnce = false;
+        this.loopStart = 0;
+        this.loopEnd = 0;
         this.requestReport();
     }
 
@@ -813,7 +840,51 @@ export class Engine {
         }
     }
 
-    private startVoice(sourceId: string, pitch: number, velocity: number, track: number, endTick: number, frame: number): void {
+    /**
+     * A playhead dragged while stopped (#495 UX-09): the position goes to `to` without striking what sounds there (a seek
+     * would) and without fading what the drag already sounds; the starts of the active sources' audible notes it passed
+     * sound, forward those in (from, to], back those in [to, from), each start's notes together, as a chord. A move that
+     * passes more starts than SCRUB_GROUPS strikes only those nearest `to`. Each note sounds its length at the tempo, at
+     * most SCRUB_SECONDS, then fades as a released note does. The metronome stays silent. Ignored while playing.
+     */
+    private scrub(from: number, to: number): void {
+        const timeline = this.timeline;
+        if (timeline === null || this.state !== "stopped") {
+            return;
+        }
+        const start = Math.min(Math.max(0, from), timeline.end);
+        const target = Math.min(Math.max(0, to), timeline.end);
+        this.position = target;
+        this.relocate(false);
+        this.requestReport();
+        // Forward the start itself is behind and the place reached is passed; back the other way round.
+        const passed = (onset: number): boolean => (target > start ? onset > start && onset <= target : onset >= target && onset < start);
+        const chords = new Map<number, { source: Source; index: number }[]>();
+        for (const id of this.active) {
+            const source = this.sources.get(id);
+            for (let index = 0; source !== undefined && index < source.onset.length; index++) {
+                const onset = source.onset[index];
+                if (passed(onset) && this.isAudible(source.track[index])) {
+                    chords.set(onset, [...(chords.get(onset) ?? []), { source, index }]);
+                }
+            }
+        }
+        const longest = Math.round(SCRUB_SECONDS * this.sampleRate);
+        const nearest = [...chords.keys()].sort((a, b) => Math.abs(a - target) - Math.abs(b - target)).slice(0, SCRUB_GROUPS);
+        for (const onset of nearest) {
+            const perFrame = this.ticksPerFrame(this.tempoIndex(onset));
+            for (const { source, index } of chords.get(onset) ?? []) {
+                const frames = Math.round(source.duration[index] / perFrame);
+                this.startVoice(SCRUB_SOURCE, source.pitch[index], source.velocity[index], source.track[index], Infinity, 0, Math.min(longest, Math.max(1, frames)));
+            }
+        }
+    }
+
+    /**
+     * Starts a voice at a frame of the block. It is released at `endTick` while playing, or, with `hold`, that many frames
+     * after it starts, counted down block by block whether or not anything plays (a drag's notes).
+     */
+    private startVoice(sourceId: string, pitch: number, velocity: number, track: number, endTick: number, frame: number, hold = Infinity): void {
         const region = this.regionByPitch[pitch];
         if (region === null) {
             return;
@@ -837,7 +908,7 @@ export class Engine {
             gain: 0.08 + 0.92 * loudness * loudness,
             level: 1,
             startAt: frame,
-            releaseAt: Infinity,
+            releaseAt: frame + hold,
             released: false,
             endTick,
             order: this.voiceOrder++,

@@ -30,11 +30,11 @@ import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
+import { drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
-import { viewOf, type ModelState } from "../playback/playback-model.js";
-import { PlayheadDrag } from "../playback/playhead-drag.js";
-import { laneDragTick, laneHeadAt } from "./roll-head-drag.js";
+import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
+import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt } from "./roll-head-drag.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import { fitsWhenTurned, selectionShift, viewOnLoad } from "./roll-view.js";
 
@@ -64,6 +64,8 @@ interface PlayerHandle {
     noteOff?(pitch: number): void;
     /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
     model?(): ModelState | null;
+    /** A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll. */
+    drag?(message: DragMessage): void;
 }
 
 /** A note of the variation drawn over the roll, with where it came from in the motif. */
@@ -292,11 +294,18 @@ export class PianoRoll {
     private looping = false;
     private placeLabel = "";
     private overviewPointer: number | null = null;
-    /** The lanes' playheads dragged by their handles (#495 UX-08, roll-head-drag.ts): the handle taken, its places, its end. */
+    /**
+     * The model's playheads dragged by their handles (#495 UX-08, roll-head-drag.ts): the handle taken, its places, its end.
+     * The web's player hears them straight from the roll (slice W3); the iPad's page passes them on to Swift (OnRollDrag).
+     */
     private readonly laneDrag = new PlayheadDrag((message) => {
+        if (this.player?.drag !== undefined) {
+            this.player.drag(message);
+            return;
+        }
         void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, message.phase === "move" ? message.tick : null);
     });
-    /** Where the press on a lane's playhead began, until it moves past a tap. */
+    /** Where the press on a playhead's handle began, until it moves past a tap. */
     private lanePress: number | null = null;
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
@@ -573,6 +582,7 @@ export class PianoRoll {
     setRules(mode: string | null): void {
         this.mode = modeOf(mode);
         if (this.mode === null) {
+            this.laneDrag.release();
             delete this.roll.dataset.mode;
         } else {
             this.roll.dataset.mode = this.mode;
@@ -1059,6 +1069,10 @@ export class PianoRoll {
 
     /** Follows the player every animation frame, until called with null. */
     follow(player: PlayerHandle | null): void {
+        if (player !== this.player) {
+            // A playhead held as the roll follows another player, or none, is let go first (#495 UX-08).
+            this.laneDrag.release();
+        }
         this.player = player;
         this.invalidate();
     }
@@ -1712,6 +1726,10 @@ export class PianoRoll {
         if (this.lanes) {
             return this.pressLaneHead(event, x, y);
         }
+        const state = this.heldModel();
+        if (state !== null) {
+            return this.pressModelHead(event, state, x, y);
+        }
         if (!onPlayhead(x, y, this.xOf(this.tickNow), BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
             return false;
         }
@@ -1726,15 +1744,37 @@ export class PianoRoll {
     private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
         const view = viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: "stopped" });
         const heads = { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue), stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
-        const handle = laneHeadAt(x, y, heads);
-        if (handle === null || !this.laneDrag.grab(handle, event.pointerId)) {
+        return this.grabHead(laneHeadAt(x, y, heads), event.pointerId, x);
+    }
+
+    /**
+     * On the web, the model's two playheads (#495 UX-08 and UX-10, slice W3): a press takes the blue one by its knob or the
+     * black one by its dot, on the bar numbers' edge, a touch target wide for a finger. The drag moves the one taken, not
+     * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
+     */
+    private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
+        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, viewOf({ ...state, tick: this.tickNow }));
+        const reach = (event.pointerType === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
+        return this.grabHead(knobHeadAt(x, y, knobs, reach), event.pointerId, x);
+    }
+
+    private grabHead(handle: Handle | null, pointer: number, x: number): boolean {
+        if (handle === null || !this.laneDrag.grab(handle, pointer)) {
             return false;
         }
         this.lanePress = x;
         return true;
     }
 
-    /** A move of the press on a lane's playhead, past a tap: it goes to the tick under it, held as its handle is. */
+    /** The web's playback model while the player holds it under the modes, which the roll draws and drags; else null. */
+    private heldModel(): ModelState | null {
+        return this.mode === null || this.model === null ? null : (this.player?.model?.() ?? null);
+    }
+
+    /**
+     * A move of the press on a playhead's handle, past a tap: it goes to the tick under it, held as its handle is, the blue
+     * one to the selection (the web's from the player's model, the same band).
+     */
     private moveLaneHead(event: PointerEvent, x: number): boolean {
         const handle = this.laneDrag.handle;
         const model = this.model;
@@ -1746,7 +1786,8 @@ export class PianoRoll {
         }
         this.lanePress = null;
         const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
-        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, this.motif, model.end);
+        const selection = this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif);
+        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end);
         if (tick !== undefined) {
             this.laneDrag.move(event.pointerId, tick);
             this.invalidate();
@@ -1889,7 +1930,7 @@ export class PianoRoll {
         if (press !== null && this.box !== null) {
             drawBox(context, press, this.box, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
         }
-        const state = this.mode === null || this.model === null ? null : (this.player?.model?.() ?? null);
+        const state = this.heldModel();
         if (state === null) {
             return false;
         }

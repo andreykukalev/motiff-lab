@@ -15,6 +15,8 @@ import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreRules } from "./score-modes.js";
 import { ScorePlayheadMarks, playheadsOf } from "./playheads.js";
 import { viewOf, type ModelState } from "../playback/playback-model.js";
+import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
+import { ScoreGrab } from "./playhead-grab.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -33,6 +35,8 @@ interface PlayerHandle {
     state(): string;
     /** The playback model's state with the position as heard (v0.5.2, #495 UX-10), or null while it does not hold. */
     model?(): ModelState | null;
+    /** A playhead's handle taken, dragged and let go on the score (#495 UX-08, T14–T16): straight to the player, not Blazor. */
+    drag?(message: DragMessage): void;
 }
 
 /** What Blazor gets back from a load. */
@@ -294,6 +298,12 @@ export class ScoreView {
     private readonly heads: ScorePlayheadMarks;
     /** Whether the two playheads were drawn last frame, so the one playhead goes when they come and they go when it comes back. */
     private headsShown = false;
+    /**
+     * The playheads dragged by their handles (#495 UX-08 and UX-10, playhead-grab.ts): the black one inside the bar it stood
+     * in, the blue one inside the selection, on the sixteenth grid. The player hears the handle taken, its places once a frame
+     * and its letting go, and sounds the notes passed (UX-09).
+     */
+    private readonly grab: ScoreGrab;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
@@ -354,7 +364,24 @@ export class ScoreView {
         this.heads = new ScorePlayheadMarks(host, {
             at: (tick) => this.playheadAt(tick),
             lineBottom: (bar) => this.geometry()?.lineInkBottom(bar.system) ?? bar.bottom,
+            grab: (handle, event) => this.grab.begin(handle, event),
         });
+        this.grab = new ScoreGrab(
+            {
+                geometry: () => this.geometry(),
+                onsetOf: (id) => this.timeline?.onsetOf(id),
+                selection: () => this.player?.model?.()?.selection ?? null,
+                position: () => Math.round(this.player?.currentTick() ?? 0),
+                // While the model holds. With the Pen on the mouse and the pen write over a handle too; a finger takes it.
+                takes: (pointerType) => (this.player?.model?.() ?? null) !== null && (pointerType === "touch" || !this.pencil.state().on),
+                point: (event) => {
+                    const view = this.host.getBoundingClientRect();
+                    return { x: event.clientX - view.left + this.host.scrollLeft, y: event.clientY - view.top + this.host.scrollTop };
+                },
+                moved: () => this.drawHeads(),
+            },
+            new PlayheadDrag((message) => this.player?.drag?.(message)),
+        );
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
@@ -501,6 +528,7 @@ export class ScoreView {
         if (player !== null) {
             this.frame = requestAnimationFrame(this.tick);
         } else {
+            this.grab.cancel();
             this.mark([], false);
             this.placePlayhead(null);
             this.heads.hide();
@@ -889,6 +917,7 @@ export class ScoreView {
         this.pencil.dispose();
         this.selection.dispose();
         this.rules.dispose();
+        this.grab.cancel();
         this.heads.dispose();
         cancelAnimationFrame(this.frame);
         cancelAnimationFrame(this.replaceFrame);
@@ -1574,15 +1603,31 @@ export class ScoreView {
                 this.headsShown = true;
                 this.placePlayhead(null);
             }
-            this.reportPlace(this.heads.place(playheadsOf(viewOf(model), model.selection)), !playing);
+            this.placeModelHeads(model, playing);
             return;
         }
         if (this.headsShown) {
             this.headsShown = false;
+            this.grab.cancel();
             this.heads.hide();
         }
         // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
         this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
+    }
+
+    /** The model's playheads: at the place a held handle was dragged to while it is held, and just after, else the position. */
+    private placeModelHeads(model: ModelState, playing: boolean): void {
+        const view = viewOf({ ...model, tick: this.grab.drag.heard(model.tick) });
+        this.reportPlace(this.heads.place(playheadsOf(view, model.selection)), !playing);
+    }
+
+    /** A held handle moved: its playheads go there now, not a frame later. */
+    private drawHeads(): void {
+        const player = this.player;
+        const model = player?.model?.() ?? null;
+        if (player !== null && model !== null && this.headsShown) {
+            this.placeModelHeads(model, player.state() !== "stopped");
+        }
     }
 
     private mark(ids: string[], scroll: boolean): void {
@@ -1637,6 +1682,10 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        // A press on a playhead's handle is the handle's (#495 UX-08): its click never places the playhead or picks a bar.
+        if (event.target instanceof Element && event.target.closest(".grip") !== null) {
+            return;
+        }
         const performanceMarker = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${PERFORMANCE_CLASS}`) : null;
         if (performanceMarker !== null) {
             const box = performanceMarker.getBoundingClientRect();

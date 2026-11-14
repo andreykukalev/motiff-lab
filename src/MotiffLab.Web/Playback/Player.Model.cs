@@ -90,6 +90,18 @@ public sealed partial class Player
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Called by the script when a playhead's handle on the score or the roll is taken ("grab") or let go ("release"), with
+    /// the engine's loop after it (T14–T16): the views send the drag to the script straight, and the moves between stay
+    /// there (#495 UX-08, slice W3). Let go outside the selection, Цикл may have turned off, so what is heard follows.
+    /// </summary>
+    [JSInvokable]
+    public void OnPlayheadGesture(long[]? loop)
+    {
+        Follow(loop);
+        Changed?.Invoke();
+    }
+
     /// <summary>The engine's loop after an event of the model: null untouched, empty none, else its start and end.</summary>
     private void Follow(long[]? loop)
     {

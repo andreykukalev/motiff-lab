@@ -3,7 +3,8 @@
 // the handle and goes no further, so the selection layer and the tap on a beat never see it and no other bar is selected.
 // The point goes to a tick along the bar's onsets (ScoreGeometry.tickAt, the inverse of the playhead's place), then to the
 // sixteenth grid (snapTick): the black playhead stays in the bar it stood in when the drag began (design question В5,
-// another bar is a tap away), the blue one inside the selection. The page tells Swift through PlayheadDrag.
+// another bar is a tap away), the blue one inside the selection. The page tells its player through PlayheadDrag: Swift on the
+// iPad, the TypeScript Player straight on the web (slice W3).
 
 import type { Handle, Span } from "../playback/playback-model.js";
 import { PlayheadDrag, snapTick } from "../playback/playhead-drag.js";

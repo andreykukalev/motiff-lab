@@ -4,7 +4,8 @@
 
 import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
 import type { ModelEvent, ModelState, Step } from "./playback-model.js";
-import { PlaybackOwner, type EnginePlace, type LoopAfter } from "./playback-owner.js";
+import { PlaybackOwner, type Applied, type EnginePlace, type LoopAfter } from "./playback-owner.js";
+import type { DragMessage } from "./playhead-drag.js";
 import { SAMPLE_RATE, decodeMono, peaksOf } from "../import/recording.js";
 import { openRecording } from "../storage/recording-store.js";
 
@@ -158,6 +159,10 @@ export class Player {
 
     /** Whether the model holds: the experiment on and the page not in focus. Turned on, Blazor hears where it stands. */
     holdModel(on: boolean): void {
+        if (!on && this.owner.dragging) {
+            // A playhead held as the model lets go (focus opens mid-drag) is let go first, so nothing is left sounding.
+            this.drag({ phase: "release", handle: "black" });
+        }
         this.owner.held = on;
         this.modelReported = "";
         this.reportModel();
@@ -194,6 +199,28 @@ export class Player {
     holdLoop(): number[] {
         const loop = this.owner.hold(this.place());
         return loop === null ? [] : [loop.start, loop.end];
+    }
+
+    /**
+     * T14–T16: a playhead's handle dragged on the score or the roll (playhead-drag.ts), straight from the view: taken, playback
+     * stands; dragged, the engine scrubs there; let go, the release rules run and it plays on when it played. Blazor hears
+     * the gesture's start and its end only (OnPlayheadGesture), with the engine's loop after it; the moves stay here.
+     */
+    drag(message: DragMessage): void {
+        if (!this.owner.held) {
+            return;
+        }
+        if (message.phase === "grab") {
+            // A drag while stopped sounds its notes: the browser starts audio on this gesture if it has not yet.
+            void this.resume();
+        }
+        const decided = this.owner.gesture(message, this.place());
+        if (decided === null || message.phase === "move") {
+            return;
+        }
+        this.modelReported = "";
+        this.reportModel(decided.engine);
+        void this.dotnet.invokeMethodAsync("OnPlayheadGesture", loopOf(decided.loop));
     }
 
     /** The model's state now, the position as heard; null while it does not hold. */
@@ -303,10 +330,9 @@ export class Player {
 
     /** An event of the model; Blazor hears at once where the engine will be, before the engine reports it. */
     private apply(event: ModelEvent): number[] | null {
-        const decided: { loop: LoopAfter; engine: EnginePlace } = this.owner.apply(event, this.place());
+        const decided: Applied = this.owner.apply(event, this.place());
         this.reportModel(decided.engine);
-        const loop = decided.loop;
-        return loop === undefined ? null : loop === null ? [] : [loop.start, loop.end];
+        return loopOf(decided.loop);
     }
 
     /** A step of the model to the engine. */
@@ -328,13 +354,16 @@ export class Player {
                 this.post({ type: "loopOff" });
                 break;
             case "scrub":
+                this.post({ type: "scrub", from: step.from, to: step.to });
+                break;
             case "scrubEnd":
+                this.post({ type: "scrubEnd" });
                 break;
         }
     }
 
     /** Blazor hears Цикл, the context and the place Play names when one changes; the views read the playheads themselves. */
-    private reportModel(engine: EnginePlace = this.place()): void {
+    private reportModel(engine = this.place()): void {
         if (!this.owner.held) {
             return;
         }
@@ -419,12 +448,7 @@ export class Player {
 
         const now = performance.now();
         const tick = Math.round(this.currentTick());
-        // A new state or a new pass of an alternating loop goes to Blazor at once, so the views follow what is heard.
-        // A position that has not moved, stopped or paused, is not sent again: each report draws the whole page
-        // over in Blazor, which would keep the page's thread busy and make scrolling stutter on an iPad.
-        const changed = report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass || this.dotnetStale;
-        const moved = tick !== this.lastDotnetTick;
-        if (changed || (moved && now - this.lastDotnetReport >= DOTNET_REPORT_MS)) {
+        if (this.tellsDotnet(report, tick, now)) {
             this.lastDotnetReport = now;
             this.lastDotnetState = report.state;
             this.lastDotnetPass = report.pass;
@@ -432,8 +456,32 @@ export class Player {
             this.dotnetStale = false;
             void this.dotnet.invokeMethodAsync("OnPlaybackPosition", tick, report.state, report.pass);
         }
-        this.reportModel();
+        // While a playhead is held, Blazor hears of it at the gesture's end (drag): the views draw the moves themselves.
+        if (!this.owner.dragging) {
+            this.reportModel();
+        }
     }
+
+    /**
+     * Whether a report goes to Blazor. A new state or a new pass of an alternating loop goes at once, so the views follow
+     * what is heard. A position that has not moved, stopped or paused, is not sent again: each report draws the whole page
+     * over in Blazor, which would keep the page's thread busy and make scrolling stutter on an iPad. While a playhead is
+     * dragged its moves are not sent at all, only a change of state; the release sends where it was let go.
+     */
+    private tellsDotnet(report: PositionReport, tick: number, now: number): boolean {
+        if (report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass) {
+            return true;
+        }
+        if (this.owner.dragging) {
+            return false;
+        }
+        return this.dotnetStale || (tick !== this.lastDotnetTick && now - this.lastDotnetReport >= DOTNET_REPORT_MS);
+    }
+}
+
+/** The engine's loop after an event as Blazor keeps it: null untouched, [] none, [start, end] a passage. */
+function loopOf(loop: LoopAfter): number[] | null {
+    return loop === undefined ? null : loop === null ? [] : [loop.start, loop.end];
 }
 
 /** Mono copy of the decoded sample from just before its attack, so every note starts on time. */

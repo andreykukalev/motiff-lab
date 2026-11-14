@@ -79,3 +79,66 @@ test("a new piece forgets the selection but keeps Цикл", () => {
     owner.reset();
     assert.deepEqual(owner.state({ tick: 0, transport: "stopped" }), { selection: null, loop: false, tick: 0, transport: "stopped" });
 });
+
+// A playhead dragged on the score or the roll (T14–T16, #495 UX-08 and UX-09, slice W3): the views send the drag to the
+// Player straight, and the owner runs it as the iPad's Player does.
+
+test("a playhead taken while playing pauses, dragged scrubs from the last place, and let go plays on from there", () => {
+    const { owner, sent } = ownerOf({ selection: null, loop: true, tick: 1000, transport: "playing" });
+    const engine = { tick: 1000, transport: "playing" };
+
+    owner.gesture({ phase: "grab", handle: "black" }, engine);
+    assert.ok(owner.dragging);
+    assert.deepEqual(sent, [{ type: "pause" }], "T14: playback stands while it is held");
+
+    sent.length = 0;
+    // The engine has not reported the pause or the place yet: the drag goes on from the place it last went to.
+    owner.gesture({ phase: "move", handle: "black", tick: 1200 }, engine);
+    owner.gesture({ phase: "move", handle: "black", tick: 960 }, engine);
+    assert.deepEqual(sent, [{ type: "scrub", from: 1000, to: 1200 }, { type: "scrub", from: 1200, to: 960 }], "T15: forward, then back");
+
+    sent.length = 0;
+    const released = owner.gesture({ phase: "release", handle: "black" }, engine);
+    assert.deepEqual(sent, [{ type: "scrubEnd" }, { type: "play" }], "T16: the drag's notes fade, and it plays on");
+    assert.deepEqual(released.engine, { tick: 960, transport: "playing" });
+    assert.equal(owner.dragging, false);
+});
+
+test("let go outside the selection with Цикл on, the black playhead turns Цикл off; the blue one keeps to the selection", () => {
+    const black = ownerOf({ selection: { start: 1920, end: 3840 }, loop: true, tick: 2400, transport: "stopped" });
+    const engine = { tick: 2400, transport: "stopped" };
+    black.owner.gesture({ phase: "grab", handle: "black" }, engine);
+    black.owner.gesture({ phase: "move", handle: "black", tick: 1800 }, engine);
+    black.sent.length = 0;
+    const released = black.owner.gesture({ phase: "release", handle: "black" }, engine);
+    assert.deepEqual(black.sent, [{ type: "scrubEnd" }, { type: "loopOff" }], "stopped as it was taken, it stays stopped");
+    assert.equal(released.loop, null, "Blazor hears the loop went");
+    assert.equal(black.owner.report(released.engine).loop, false);
+
+    const blue = ownerOf({ selection: { start: 1920, end: 3840 }, loop: true, tick: 2400, transport: "stopped" });
+    blue.owner.gesture({ phase: "grab", handle: "blue" }, engine);
+    blue.owner.gesture({ phase: "move", handle: "blue", tick: 600 }, engine);
+    assert.deepEqual(blue.sent, [{ type: "scrub", from: 2400, to: 1920 }], "held to the selection's start");
+    blue.sent.length = 0;
+    blue.owner.gesture({ phase: "release", handle: "blue" }, engine);
+    assert.deepEqual(blue.sent, [{ type: "scrubEnd" }]);
+    assert.equal(blue.owner.report({ tick: 1920, transport: "stopped" }).loop, true);
+});
+
+test("a move or a letting go with nothing held does nothing; a new piece or a second grab lets the held one go", () => {
+    const { owner, sent } = ownerOf({ selection: null, loop: true, tick: 0, transport: "stopped" });
+    const engine = { tick: 0, transport: "stopped" };
+    assert.equal(owner.gesture({ phase: "move", handle: "black", tick: 480 }, engine), null);
+    assert.equal(owner.gesture({ phase: "release", handle: "black" }, engine), null);
+    assert.deepEqual(sent, []);
+
+    owner.gesture({ phase: "grab", handle: "black" }, engine);
+    owner.gesture({ phase: "move", handle: "black", tick: 480 }, engine);
+    sent.length = 0;
+    owner.gesture({ phase: "grab", handle: "black" }, engine);
+    assert.deepEqual(sent, [{ type: "scrubEnd" }], "the old drag's notes fade before the new one");
+    assert.ok(owner.dragging);
+
+    owner.reset();
+    assert.equal(owner.dragging, false);
+});
