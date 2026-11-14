@@ -79,9 +79,12 @@ extension PenHolder {
         case .palette:
             pencilPalette = pencilPalette == nil ? PencilPaletteCall(at: point) : nil
         case .eraser:
-            pen.toggleEraser()
+            // Outside the Pen the eraser comes on with the Pen, so the switch is seen and the Pencil erases at once (#511 4.2).
+            if penOn || pen.active != .eraser { pen.toggleEraser() }
+            penOn = true
         case .previous:
-            pen.choosePrevious()
+            // The tool before while the Pen is on; outside it the Pen comes on, with the tool it had.
+            if penOn { pen.choosePrevious() } else { penOn = true }
         case .nothing:
             break
         }
@@ -152,22 +155,33 @@ enum PaletteLayout {
 /// pencil, the marker, the eraser) on an inner half circle, exactly one chosen; the active tool's settings on an outer
 /// one (#495 UX-06): the pencil's inks and its thicknesses, the marker's thicknesses in the same places, nothing for the
 /// eraser; Undo in the middle. Whatever is chosen turns the Pen on with it and closes the palette; a tap beside it closes
-/// it.
+/// it. On the score under the modes (#511 4.2, option B) the modes lie innermost, and around them the chosen one's
+/// options: the Pen's tools and settings with the ink's Undo in the middle, or Select's Redo and «По тактам / По долям»
+/// with the selection's Undo in the middle; Navigate has the selection's Undo alone. A mode chosen there closes it too.
 struct PencilPalette<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let call: PencilPaletteCall
     let text: UIText
+    /// The modes on the innermost circle and the chosen one's options around them (#511 4.2, option B), where the view has
+    /// modes (the score under the modes); nil keeps the tools alone (a PDF's pages).
+    var modes: RingModes?
 
     private static var button: CGFloat { CGFloat.ds("h-touch") }
     private static var outer: CGFloat { button * 2.5 }
     private static var inner: CGFloat { button * 1.3 }
+    private static var outermost: CGFloat { button * 3.7 }
+
+    /// The circles' radii: the modes, the tools (or Select's options), the tool's settings.
+    private var radii: (tools: CGFloat, settings: CGFloat) {
+        modes == nil ? (Self.inner, Self.outer) : (Self.outer, Self.outermost)
+    }
 
     var body: some View {
         GeometryReader { proxy in
             let frame = proxy.frame(in: .global)
             let fallback = CGPoint(x: frame.maxX - Self.outer - CGFloat.ds("s-4"), y: frame.minY + Self.outer + CGFloat.ds("h-touch") * 2)
             let at = call.at ?? fallback
-            let placed = PaletteLayout.centre(CGPoint(x: at.x - frame.minX, y: at.y - frame.minY), in: proxy.size, reach: Self.outer + Self.button / 2)
+            let placed = PaletteLayout.centre(CGPoint(x: at.x - frame.minX, y: at.y - frame.minY), in: proxy.size, reach: radii.settings + Self.button / 2)
             ZStack {
                 Color.clear
                     .contentShape(Rectangle())
@@ -181,9 +195,93 @@ struct PencilPalette<Holder: PenHolder>: View {
     }
 
     private func ring(_ upward: Bool) -> some View {
+        ZStack {
+            if let modes {
+                let places = PaletteLayout.arc(count: InteractionMode.inBar.count, radius: Self.inner, upward: upward)
+                ForEach(InteractionMode.inBar.indices, id: \.self) { index in
+                    modeButton(InteractionMode.inBar[index], modes).offset(x: places[index].x, y: places[index].y)
+                }
+            }
+            switch modes?.chosen ?? .pen {
+            case .pen:
+                penRing(upward)
+            case .select:
+                if let modes { selectRing(modes, upward) }
+            default:
+                EmptyView()
+            }
+            if let modes, modes.chosen != .pen {
+                selectionUndoButton(modes)
+            } else {
+                undoButton
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["pencil.palette"])
+    }
+
+    /// A mode on the innermost circle: chosen, it closes the ring, and its options show under the bar.
+    private func modeButton(_ mode: InteractionMode, _ modes: RingModes) -> some View {
+        let chosen = modes.chosen == mode
+        return Button {
+            modes.choose(mode)
+            holder.pencilPalette = nil
+        } label: {
+            disc(chosen: chosen, tool: true) { Icon(name: mode.icon, size: CGFloat.ds("icon-m")) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(text[mode.label])
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+
+    /// Select's options around the modes: Redo, then by bars or by beats; Undo is in the middle.
+    private func selectRing(_ modes: RingModes, _ upward: Bool) -> some View {
+        let places = PaletteLayout.arc(count: 3, radius: radii.tools, upward: upward)
+        return ZStack {
+            Button {
+                modes.redo()
+            } label: {
+                disc(chosen: false) { Icon(name: "undo", size: CGFloat.ds("icon-m")).scaleEffect(x: -1, y: 1) }
+            }
+            .buttonStyle(.plain)
+            .disabled(!modes.canRedo)
+            .accessibilityLabel(text["selection.redo"])
+            .offset(x: places[0].x, y: places[0].y)
+            byButton(beats: false, modes).offset(x: places[1].x, y: places[1].y)
+            byButton(beats: true, modes).offset(x: places[2].x, y: places[2].y)
+        }
+    }
+
+    private func byButton(beats: Bool, _ modes: RingModes) -> some View {
+        let chosen = modes.byBeats == beats
+        let key = beats ? "selection.byBeats" : "selection.byBars"
+        return Button {
+            modes.setByBeats(beats)
+            holder.pencilPalette = nil
+        } label: {
+            disc(chosen: chosen) { Text(text[key]).dsType(.label).lineLimit(1).fixedSize() }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(text[key])
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+
+    private func selectionUndoButton(_ modes: RingModes) -> some View {
+        Button {
+            modes.undo()
+        } label: {
+            disc(chosen: false) { Icon(name: "undo", size: CGFloat.ds("icon-m")) }
+        }
+        .buttonStyle(.plain)
+        .disabled(!modes.canUndo)
+        .accessibilityLabel(text["selection.undo"])
+    }
+
+    /// The Pen's tools and the active tool's settings.
+    private func penRing(_ upward: Bool) -> some View {
         let pen = holder.pen
-        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
-        let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
+        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: radii.tools, upward: upward)
+        let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: radii.settings, upward: upward)
         return ZStack {
             ForEach(ActiveTool.allCases.indices, id: \.self) { index in
                 toolButton(ActiveTool.allCases[index]).offset(x: tools[index].x, y: tools[index].y)
@@ -200,10 +298,7 @@ struct PencilPalette<Holder: PenHolder>: View {
                     widthButton(width).offset(x: slot.x, y: slot.y)
                 }
             }
-            undoButton
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["pencil.palette"])
     }
 
     private func toolButton(_ tool: ActiveTool) -> some View {

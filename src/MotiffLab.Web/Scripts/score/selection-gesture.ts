@@ -26,3 +26,143 @@ export function dragStartOf(pointerType: string, rule: DragStart | undefined, pe
 export function handleTakes(pointerType: string, rule: boolean | undefined, penOn: boolean): boolean {
     return rule ?? (pointerType === "touch" || !penOn);
 }
+
+/** How long a press rests outside the selection before the selection goes, and before a finger selects, in milliseconds. */
+export const HOLD_MS = 450;
+
+/** How far the mouse or the stylus moves before a press is a drag, in pixels. */
+export const DRAG_DISTANCE = 6;
+
+/** How far a pointer that waits for the hold may move and still be held, in pixels; further, it scrolls. */
+export const HOLD_SLOP = 8;
+
+/** A stretch of time in ticks, [start, end). */
+export interface TickRange {
+    start: number;
+    end: number;
+}
+
+/**
+ * What a press means for the selection (#511 2.1): the place it starts decides. Inside the selection a move edits the edge
+ * nearer the press; outside it the press waits, and held still for HOLD_MS it clears the selection, after which a move
+ * makes a new one from the press; a move before that leaves the selection alone. Without a selection a press creates one,
+ * at once ("now") or after the hold ("longPress"), as before.
+ */
+export type GesturePhase = "waiting" | "editing" | "cleared" | "creating" | "passed";
+
+export interface SelectionGesture {
+    /** How this pointer starts a selection. */
+    readonly rule: "now" | "longPress";
+    /** The selection when the press began; null for none. */
+    readonly selection: TickRange | null;
+    /** Where the press began, in ticks, and whether that lies inside the selection. */
+    readonly pressTick: number;
+    readonly inside: boolean;
+    /** The edge an edit moves: the one nearer the press. */
+    readonly edge: "start" | "end";
+    phase: GesturePhase;
+    /** Whether the hold cleared the selection: a selection made after it replaces the one before. */
+    cleared: boolean;
+}
+
+/**
+ * What a step of the gesture asks of the surface: begin a new selection from the press ("create"), begin moving an edge
+ * ("edit"), take the selection away now ("clear"), let the pointer go to what it does without a selection ("pass", a
+ * finger scrolls), say how to begin a new selection ("hint", a pointer that cannot scroll), or nothing.
+ */
+export type GestureStep = "create" | "edit" | "clear" | "pass" | "hint" | "none";
+
+/** How the selection changed when the gesture ended, for the owner's history and its toast. */
+export type SelectionChange = "create" | "edit" | "replace" | "clear" | "none";
+
+/** The edge of the selection nearer a tick: the start for a press in its first half, else the end. */
+export function nearerEdge(selection: TickRange, tick: number): "start" | "end" {
+    return tick - selection.start <= selection.end - tick ? "start" : "end";
+}
+
+/** A press of a pointer that selects, at a tick inside the selection or not. */
+export function pressGesture(selection: TickRange | null, pressTick: number, inside: boolean, rule: "now" | "longPress"): SelectionGesture {
+    const within = selection !== null && inside;
+    return { rule, selection, pressTick, inside: within, edge: selection === null ? "end" : nearerEdge(selection, pressTick), phase: "waiting", cleared: false };
+}
+
+/** The press has been held still for HOLD_MS. */
+export function heldGesture(gesture: SelectionGesture): GestureStep {
+    if (gesture.phase !== "waiting") {
+        return "none";
+    }
+    if (gesture.selection === null) {
+        if (gesture.rule === "longPress") {
+            gesture.phase = "creating";
+            return "create";
+        }
+        return "none";
+    }
+    if (gesture.inside) {
+        if (gesture.rule === "longPress") {
+            gesture.phase = "editing";
+            return "edit";
+        }
+        return "none";
+    }
+    gesture.phase = "cleared";
+    gesture.cleared = true;
+    return "clear";
+}
+
+/** The pointer has moved `distance` pixels from where it was pressed. */
+export function movedGesture(gesture: SelectionGesture, distance: number): GestureStep {
+    const reach = gesture.rule === "now" ? DRAG_DISTANCE : HOLD_SLOP;
+    if (distance < reach || (gesture.phase !== "waiting" && gesture.phase !== "cleared")) {
+        return "none";
+    }
+    if (gesture.phase === "cleared" || (gesture.selection === null && gesture.rule === "now")) {
+        gesture.phase = "creating";
+        return "create";
+    }
+    if (gesture.inside && gesture.rule === "now") {
+        gesture.phase = "editing";
+        return "edit";
+    }
+    gesture.phase = "passed";
+    return gesture.rule === "now" && gesture.selection !== null ? "hint" : "pass";
+}
+
+/** How the selection changed, as the gesture ends now. */
+export function gestureChange(gesture: SelectionGesture): SelectionChange {
+    switch (gesture.phase) {
+        case "editing":
+            return "edit";
+        case "creating":
+            return gesture.cleared ? "replace" : "create";
+        case "cleared":
+            return "clear";
+        default:
+            return "none";
+    }
+}
+
+/**
+ * The selection with its `edge` moved by the pointer from `pressTick` to `tick` (no jump: the edge moves as far as the
+ * pointer), to the nearest of the `lines` (the barlines, or the beat lines while selecting by beats, in time order),
+ * never onto or past the other edge.
+ */
+export function editedRange(selection: TickRange, edge: "start" | "end", pressTick: number, tick: number, lines: readonly number[]): TickRange {
+    const target = selection[edge] + tick - pressTick;
+    const allowed = lines.filter((line) => (edge === "start" ? line < selection.end : line > selection.start));
+    if (allowed.length === 0) {
+        return selection;
+    }
+    const nearest = allowed.reduce((best, line) => (Math.abs(line - target) < Math.abs(best - target) ? line : best));
+    return edge === "start" ? { start: nearest, end: selection.end } : { start: selection.start, end: nearest };
+}
+
+/** A name for a gesture, unique across the web views of one app (the score and the roll on the iPad are two). */
+const REALM = Math.random().toString(36).slice(2, 8);
+let gestures = 0;
+
+/** A new gesture's name: every change of the selection one gesture makes carries it, so the owner keeps them as one step. */
+export function nextGestureId(): string {
+    gestures += 1;
+    return `${REALM}-${gestures}`;
+}

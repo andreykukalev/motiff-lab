@@ -158,6 +158,10 @@ else
     [Parameter]
     public EventCallback Cleared { get; set; }
 
+    /// <summary>Raised by a selection gesture before the change it makes, for the selection's history (#511 11).</summary>
+    [Parameter]
+    public EventCallback<SelectionGestureNote> SelectionGesture { get; set; }
+
     /// <summary>Raised when the player presses Space outside a control, to play or pause.</summary>
     [Parameter]
     public EventCallback PlayPausePressed { get; set; }
@@ -478,12 +482,27 @@ else
 
     /// <summary>Called by the script when a drag across the roll ends, or a bar number is clicked.</summary>
     [JSInvokable]
-    public Task OnRollRange(long anchor, long current, bool click, bool extend) =>
-        RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click, extend));
+    public async Task OnRollRange(long anchor, long current, bool click, bool extend, string? how = null, string? gesture = null)
+    {
+        await SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Change, gesture));
+        await RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click, extend));
+    }
 
-    /// <summary>Called by the script when the player clears the selection.</summary>
+    /// <summary>Called by the script when the player clears the selection: a click on the roll, or a hold outside it (#511 2.1).</summary>
     [JSInvokable]
-    public Task OnRollClear() => Cleared.InvokeAsync();
+    public async Task OnRollClear(string? gesture = null)
+    {
+        await SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Change, gesture));
+        await Cleared.InvokeAsync();
+    }
+
+    /// <summary>Called by the script when a gesture whose hold took the selection away was cancelled.</summary>
+    [JSInvokable]
+    public Task OnRollGestureCancelled(string? gesture) => SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Cancelled, gesture));
+
+    /// <summary>Called by the script when a pointer that cannot scroll moved off the selection before the hold.</summary>
+    [JSInvokable]
+    public Task OnRollHoldHint() => SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Hint, null));
 
     /// <summary>Called by the script when Space is pressed outside a control.</summary>
     [JSInvokable]

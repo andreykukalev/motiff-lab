@@ -106,7 +106,7 @@
                 <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
                            PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
-                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
+                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" SelectionGesture="OnSelectionGestureAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
                            PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" TakenBars="ScoreTakenBars" PerformancePicked="OnPerformancePickedAsync"
@@ -157,6 +157,11 @@
                     @if (PlayheadsOn)
                     {
                         <ModeGroup Mode="Mode" CanDraw="@(_scoreView?.CanDraw == true)" Chosen="ChooseModeAsync" />
+                        @if (Mode == InteractionMode.Select)
+                        {
+                            <SelectionOptions CanUndo="_selectionHistory.CanUndo" CanRedo="_selectionHistory.CanRedo" Undo="UndoSelectionAsync" Redo="RedoSelectionAsync"
+                                              ByBeats="SelectsByBeats" ByBeatsChanged="ChooseSelectByBeatsAsync" />
+                        }
                     }
                     else if (_scoreView?.CanDraw == true)
                     {
@@ -376,7 +381,7 @@
                                 <div class="focus-roll" data-fill="true">
                                     <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
+                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" SelectionGesture="OnSelectionGestureAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor" />
                                 </div>
                             }
@@ -402,7 +407,7 @@
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" SelectionGesture="OnSelectionGestureAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor"
                                Expanded="ExpandRollAsync" Mode="@ScoreMode" Placed="OnRollPlacedAsync" />
                 </section>
@@ -485,6 +490,19 @@
                     <button type="button" class="btn quiet compact" @onclick="HearShownTransposedAsync"><Icon Name="playf" />@Text["reference.hearPiece"]</button>
                     <button type="button" class="btn quiet compact" @onclick="UntransposeAsync">@Text.Format("reference.backTo", moved.From.NameIn(Words))</button>
                 </div>
+            }
+
+            @if (_selectionToast && _selectionHistory.CanUndo)
+            {
+                @* After a clear or a replace (#511 11): one tap brings the selection back; no Redo here. *@
+                <div class="merge-toast selection-toast" role="status" data-keeps-selection>
+                    <span>@Text["selection.clearedToast"]</span>
+                    <button class="btn quiet compact" @onclick="UndoSelectionAsync">@Text["selection.bringBack"]</button>
+                </div>
+            }
+            else if (_holdHint)
+            {
+                <div class="merge-toast selection-toast" role="status"><span>@Text["selection.holdHint"]</span></div>
             }
 
             @if (_mergeToast is { } toast)
@@ -2297,6 +2315,7 @@
         if (firstRender)
         {
             await ReadLayoutPreferencesAsync();
+            await ReadSelectByAsync();
             await WarmEngraverAsync();
             await Player.InitializeAsync();
         }
@@ -2531,6 +2550,7 @@
         _filter = SelectionFilter.All;
         _keptIds = null;
         _selection = null;
+        ForgetSelectionHistory();
         _focus = false;
         _focusSpan = null;
         _highlight = null;
@@ -2942,7 +2962,9 @@
             _noteDraft = null;
         }
 
+        TickSpan? before = _selection?.Span;
         _selection = MotifSelector.Select(_notes!, _meter!, Selectable(span), _filter, SelectionCap(span));
+        NoteSelectionStep(before);
         Analyze(_selection);
         _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
@@ -3039,7 +3061,9 @@
 
     private async Task ClearSelectionAsync()
     {
+        TickSpan? before = _selection?.Span;
         _selection = null;
+        NoteSelectionStep(before);
         if (ModelHolds)
         {
             // T11: nothing loops, the black playhead stays where it is.

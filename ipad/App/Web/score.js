@@ -484,17 +484,24 @@ const selection = new SelectionLayer(document.body, {
     // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars. Once Swift
     // has sent the rules for each pointer (`input`, #479 item 18), they say who selects instead.
     penOn: () => state.focus || (state.input === null && state.pen),
-    chosen: (first, last) => {
+    // How the selection changed and the gesture that changed it go along: Swift keeps a gesture's changes as one step of
+    // the selection's history (#511 11).
+    chosen: (first, last, _byHandle, how, gesture) => {
         const end = state.geometry?.barAt(last)?.end;
         if (end !== undefined) {
-            post({ chosen: { start: first, end } });
+            post({ chosen: { start: first, end, how, gesture } });
         }
     },
     // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
     // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar.
     beats: () => state.beats,
     tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
-    chosenSpan: (start, end) => post({ chosen: { start, end, beats: true } }),
+    chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
+    // The selection gesture (#511 2.1, Scripts/score/selection-gesture.ts): a hold outside the selection takes it away; a
+    // gesture cancelled after that gives it back; a Pencil moved off it before the hold is told to hold.
+    cleared: (gesture) => post({ cleared: { gesture } }),
+    cancelled: (gesture) => post({ gestureCancelled: gesture }),
+    hint: () => post({ holdHint: true }),
     // The modes of version 0.5 (Settings · Experimental): only Select starts a selection with a drag, never from inside it,
     // and there a finger drags at once, as two fingers scroll.
     mode: () => state.mode,

@@ -1,0 +1,34 @@
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* Select's options, beside the modes (#511 4.2, option B of the evaluation): the selection's Undo and Redo, grey and in
+   place when there is nothing to take back, and whether a new selection goes by bars or by beats. *@
+<span class="modes select-options" role="group" aria-label="@Text["selection.options"]">
+    <button type="button" class="mode" aria-label="@Text["selection.undo"]" title="@Text["selection.undo"] (⌘Z)" disabled="@(!CanUndo)" @onclick="Undo"><Icon Name="undo" /></button>
+    <button type="button" class="mode redo" aria-label="@Text["selection.redo"]" title="@Text["selection.redo"] (⇧⌘Z)" disabled="@(!CanRedo)" @onclick="Redo"><Icon Name="undo" /></button>
+    <span class="select-by" role="radiogroup" aria-label="@Text["selection.options"]">
+        <button type="button" role="radio" class="mode @(ByBeats ? null : "on")" aria-checked="@(ByBeats ? "false" : "true")" @onclick="() => ByBeatsChanged.InvokeAsync(false)">@Text["selection.byBars"]</button>
+        <button type="button" role="radio" class="mode @(ByBeats ? "on" : null)" aria-checked="@(ByBeats ? "true" : "false")" @onclick="() => ByBeatsChanged.InvokeAsync(true)">@Text["selection.byBeats"]</button>
+    </span>
+</span>
+
+@code {
+    [Parameter]
+    public bool CanUndo { get; set; }
+
+    [Parameter]
+    public bool CanRedo { get; set; }
+
+    [Parameter]
+    public EventCallback Undo { get; set; }
+
+    [Parameter]
+    public EventCallback Redo { get; set; }
+
+    /// <summary>Whether a selection goes by beats; else by bars.</summary>
+    [Parameter]
+    public bool ByBeats { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ByBeatsChanged { get; set; }
+}

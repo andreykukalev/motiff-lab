@@ -203,6 +203,9 @@ struct ScoreScreen: View {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
+                } else {
+                    // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z.
+                    SelectionToastView(score: score, text: text).padding(.bottom, pillBottom + 56)
                 }
             }
             .fullScreenCover(isPresented: $score.comparing) {
@@ -239,9 +242,9 @@ struct ScoreScreen: View {
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil) { dismiss() }
                     }
-                    if score.penOn && !score.focused {
-                        PenPalette(score: score, text: text)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    if !score.focused {
+                        // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
+                        ModeOptions(score: score, text: text)
                     }
                     if score.merge != nil && !score.focused && !score.comparing {
                         MergeShowSwitch(score: score, text: text)
@@ -352,7 +355,7 @@ struct ScoreScreen: View {
             .overlay {
                 // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8), over everything else.
                 if let call = score.pencilPalette {
-                    PencilPalette(holder: score, call: call, text: text)
+                    PencilPalette(holder: score, call: call, text: text, modes: score.ringModes)
                 }
             }
             .animation(.easeOut(duration: 0.16), value: score.pencilPalette)
@@ -428,16 +431,7 @@ struct ScoreScreen: View {
             // In focus, another version takes the variation's place again.
             if let version = shown?.focusVersion, version.sounds { heard?.setVariation(version.notes, version: true) }
         }
-        // One selection for the score, the roll, the pill and the loop strip (#479 item 23): what the roll picks is the score's
-        // selection, by beats where the score selects by beats, and the roll shows it back with the score.
-        roll.byBeats = { [weak shown] in !(shown?.beatLines.isEmpty ?? true) }
-        roll.picked = { [weak shown] pick in
-            switch pick {
-            case let .bars(first, last, extend): shown?.selectBars(first, last, extend: extend)
-            case let .beats(span): shown?.selectBeats(span.lowerBound, span.upperBound)
-            }
-        }
-        roll.cleared = { [weak shown] in shown?.clearSelection() }
+        wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
         // The note edits saved are written to the project file at once.
@@ -808,6 +802,22 @@ extension ScoreScreen {
         if rollShown { showRollPosition() }
     }
 
+    /// One selection for the score, the roll, the pill and the loop strip (#479 item 23): what the roll picks is the score's
+    /// selection, by beats where the score selects by beats, and the roll shows it back with the score. Each change comes with
+    /// its gesture, for the selection's history (#511 11); the roll's hold and its hint are the score's too.
+    private func wireRollSelection() {
+        roll.byBeats = { [weak score] in !(score?.beatLines.isEmpty ?? true) }
+        roll.picked = { [weak score] pick, gesture in
+            switch pick {
+            case let .bars(first, last, extend): score?.selectBars(first, last, extend: extend, gesture: gesture)
+            case let .beats(span): score?.selectBeats(span.lowerBound, span.upperBound, gesture: gesture)
+            }
+        }
+        roll.cleared = { [weak score] gesture in score?.clearSelection(gesture: gesture) }
+        roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
+        roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
+    }
+
     /// Space and the playhead on the roll. The playhead moved there (v0.2) stays inside the loop, and a tap in a selection that
     /// does not loop yet loops it; under the one playback position (v0.5.2) it goes anywhere, and so do taps on the loop strip
     /// and the whole piece.
@@ -862,10 +872,11 @@ extension ScoreScreen {
     private func applyExperiments() {
         // The modes and the two playheads (version 0.5) take the selection by beats too.
         let playheads = settings.isOn("experimental.playheads")
-        score.beatLines = settings.isOn("experimental.beats") || playheads ? player.beatLines : []
         if playheads != (score.mode != nil) {
             score.mode = playheads ? .navigate : nil
         }
+        // Under the modes, Select's «По тактам / По долям» (#511 4.2); without them, the experiment Select by beats.
+        score.setBeatLines(player.beatLines, experiment: settings.isOn("experimental.beats"))
         syncPlayheads()
         if score.onePosition { player.hold(selection: score.playRange?.range) }
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
