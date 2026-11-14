@@ -269,14 +269,18 @@ final class StylusTests: XCTestCase {
         pdf.chooseFromPalette(.pencil)
         XCTAssertEqual(pdf.tool, .pen(.carmine), "the pencil comes back in its own ink")
         XCTAssertTrue(pdf.penOn, "a tool chosen there writes at once")
-        XCTAssertNil(pdf.pencilPalette)
+        XCTAssertEqual(pdf.pencilPalette, PencilPaletteCall(at: nil), "the palette stays while the player chooses (#543 8)")
         pdf.penOn = false
-        pdf.pencilGesture(.palette, at: nil)
         pdf.chooseFromPalette(width: 2)
         XCTAssertEqual(pdf.pen.active, .pencil, "a thickness chosen there keeps the tool")
         XCTAssertEqual(pdf.pen.pencil.width, 2)
         XCTAssertTrue(pdf.penOn)
-        XCTAssertNil(pdf.pencilPalette)
+        XCTAssertNotNil(pdf.pencilPalette, "a setting chosen there leaves it open")
+        pdf.chooseFromPalette(ink: .forest)
+        XCTAssertEqual(pdf.tool, .pen(.forest))
+        XCTAssertNotNil(pdf.pencilPalette, "an ink chosen there leaves it open")
+        pdf.pencilGesture(.palette, at: nil)
+        XCTAssertNil(pdf.pencilPalette, "the double tap still closes it; a touch outside does too (PaletteOutside)")
         pdf.pencilGesture(.eraser, at: nil)
         XCTAssertEqual(pdf.tool, .eraser)
         pdf.pencilGesture(.eraser, at: nil)
@@ -311,5 +315,18 @@ final class StylusTests: XCTestCase {
         let edge = PaletteLayout.centre(CGPoint(x: 20, y: 400), in: size, reach: 100)
         XCTAssertTrue(edge.upward)
         XCTAssertEqual(edge.point, CGPoint(x: 100, y: 400), "kept inside by its reach")
+    }
+
+    // MARK: - The first touch outside the palette (#543 8)
+
+    func testATouchIsOnThePaletteOnlyOnOneOfItsRoundButtons() {
+        let places = [CGPoint(x: -60, y: 0), CGPoint(x: 0, y: -60), CGPoint(x: 60, y: 0), .zero]
+        XCTAssertTrue(PaletteLayout.onButtons(CGPoint(x: 0, y: -60), places: places, diameter: 44), "on a button's middle")
+        XCTAssertTrue(PaletteLayout.onButtons(CGPoint(x: 60, y: 22), places: places, diameter: 44), "at its edge")
+        XCTAssertTrue(PaletteLayout.onButtons(CGPoint(x: 5, y: 5), places: places, diameter: 44), "on Undo in the middle")
+        XCTAssertFalse(PaletteLayout.onButtons(CGPoint(x: 60 + 20, y: 20), places: places, diameter: 44), "a round button's corner is not it")
+        XCTAssertFalse(PaletteLayout.onButtons(CGPoint(x: -30, y: -30), places: places, diameter: 44), "the gap between two buttons is the workspace")
+        XCTAssertFalse(PaletteLayout.onButtons(CGPoint(x: 400, y: 300), places: places, diameter: 44), "far away is the workspace")
+        XCTAssertFalse(PaletteLayout.onButtons(.zero, places: [], diameter: 44), "no buttons, nothing is the palette")
     }
 }
