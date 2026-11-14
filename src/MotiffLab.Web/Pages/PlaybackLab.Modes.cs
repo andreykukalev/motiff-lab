@@ -93,11 +93,11 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>Escape removes the selection, unless it closes something else first: a popover, a card, focus.</summary>
+    /// <summary>Escape removes the selection, unless it closes something else first: a popover, a card, focus, practice view.</summary>
     [JSInvokable]
     public async Task OnEscapeKeyAsync()
     {
-        if (PlayheadsOn && _selection is not null && !Focused && _popover == Popover.None && _pillMenu == PillMenu.None && _bookmarkDraft is null && _noteDraft is null)
+        if (PlayheadsOn && !_practice && _selection is not null && !Focused && _popover == Popover.None && _pillMenu == PillMenu.None && _bookmarkDraft is null && _noteDraft is null)
         {
             await CloseSelectionAsync();
             StateHasChanged();

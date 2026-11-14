@@ -25,6 +25,7 @@ import {
     type RollPayload,
 } from "./roll-model.js";
 import { THEME_CHANGED } from "../layout/theme.js";
+import { PRACTICE_EVENT, practiceChrome, practiced, shownAt } from "../layout/practice-view.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
@@ -622,6 +623,7 @@ export class PianoRoll {
         document.addEventListener("pointerup", this.onDocumentPointerUp);
         document.addEventListener("keydown", this.onDocumentKeyDown);
         document.addEventListener(THEME_CHANGED, this.onThemeChanged);
+        document.addEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.resizeObserver = new ResizeObserver(() => this.onResize());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
@@ -1377,6 +1379,7 @@ export class PianoRoll {
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
         document.removeEventListener("keydown", this.onDocumentKeyDown);
         document.removeEventListener(THEME_CHANGED, this.onThemeChanged);
+        document.removeEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.host.replaceChildren();
     }
 
@@ -2028,8 +2031,12 @@ export class PianoRoll {
     private drawLanes(context: CanvasRenderingContext2D, width: number, height: number): void {
         const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.xOf(tick) };
         const playing = this.player !== null && this.player.state() !== "stopped";
-        const view = viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" });
-        drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
+        // Practice view (#533 11): the black playhead alone, without the loop strip and the blue one.
+        const shown = shownAt(this.host);
+        const view = practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shown);
+        if (practiceChrome(shown).loopStrip) {
+            drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
+        }
         drawPosition(context, frame, view, this.stripInks());
     }
 
@@ -2160,7 +2167,8 @@ export class PianoRoll {
         if (state === null) {
             return { black: this.xOf(this.tickNow), blue: null };
         }
-        const view = viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" });
+        // In practice view (#533 11) the blue playhead is neither drawn nor taken.
+        const view = practiced(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host));
         return { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue) };
     }
 
@@ -2206,7 +2214,7 @@ export class PianoRoll {
      * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
      */
     private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
-        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, viewOf({ ...state, tick: this.tickNow }));
+        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host)));
         // Playing, each knob is found where it was drawn a moment ago too (headsNear); its height stays.
         const near = this.headsNear(x);
         const found = { black: { ...knobs.black, x: near.black }, blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue } };
@@ -2416,7 +2424,7 @@ export class PianoRoll {
             return false;
         }
         const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, left: GUTTER, right: width, height };
-        drawPlayheads(context, frame, viewOf({ ...state, tick: this.tickNow }), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        drawPlayheads(context, frame, practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host)), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
         return true;
     }
 
@@ -2714,6 +2722,9 @@ export class PianoRoll {
     }
 
     /** A new theme: the roll and its legend are drawn again in its colours. */
+    /** Practice view began, ended or showed its controls (#533 11): the playheads and the strips are drawn again. */
+    private readonly onPracticeChanged = (): void => this.invalidate();
+
     private readonly onThemeChanged = (): void => {
         this.renderLegend();
         this.invalidate();

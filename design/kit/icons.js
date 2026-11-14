@@ -43,6 +43,7 @@ const ICONS = {
   select: '<path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/>',
   editnote: '<ellipse cx="6.6" cy="14.6" rx="3" ry="2.2" transform="rotate(-20 6.6 14.6)"/><path d="M9.4 13.8V3.5c.6 1.6 2.4 2.4 3.6 3.6"/><path d="M12 17l.6-2.4 4-4a1 1 0 0 1 1.4 1.4l-4 4z"/>',
   scroll: '<rect x="4.5" y="2.75" width="11" height="14.5" rx="1.5"/><path d="M10 6.5v7M7.75 8.5 10 6.25l2.25 2.25M7.75 11.5 10 13.75l2.25-2.25"/>',
+  practice: '<rect x="3.75" y="3" width="12.5" height="8" rx="1"/><path d="M6.5 5.75h7M6.5 8.25h7M10 11v5.5M6.5 17.25 10 15l3.5 2.25"/>',
   notes: '<ellipse cx="5.9" cy="14.6" rx="2.4" ry="1.8" transform="rotate(-20 5.9 14.6)"/><ellipse cx="13.9" cy="13.1" rx="2.4" ry="1.8" transform="rotate(-20 13.9 13.1)"/><path d="M8.1 14V5.2l8-1.7v9"/><path d="M8.1 8l8-1.7"/>',
   keysig: '<circle cx="10" cy="10" r="7.25"/><path d="M8.6 6.2v8M11.4 5.8v8M6.6 9l6.8-1.3M6.6 12.3l6.8-1.3"/>',
   folder: '<path d="M2.75 15.25V4.75a1 1 0 0 1 1-1h3.9l1.7 2h6.9a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H3.75a1 1 0 0 1-1-1z"/>',

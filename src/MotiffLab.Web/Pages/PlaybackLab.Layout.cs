@@ -96,8 +96,8 @@ public partial class PlaybackLab : IAsyncDisposable
     /// again, until a tap on the page where there is no music puts it away. Under the playback model (v0.5.2) it holds the one
     /// Play button, so it always shows, as on the iPad; and in focus, whose bar has no Play of its own (#511 section 8.1).
     /// </summary>
-    private bool PillShown => ((_selection is not null || _pillKept) && SettingsStore["guidance.transportPill"] != "playing") || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None
-        || (ModelHolds && _meter is not null) || Focused;
+    private bool PillShown => !Practicing && (((_selection is not null || _pillKept) && SettingsStore["guidance.transportPill"] != "playing") || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None
+        || (ModelHolds && _meter is not null) || Focused);
 
     /// <summary>Playback has run since the page was last tapped where there is no music: the pill stays.</summary>
     private bool _pillKept;
@@ -538,14 +538,18 @@ public partial class PlaybackLab : IAsyncDisposable
         await SelectAsync(Levels.Selectable(units[index]), note: null);
     }
 
-    /// <summary>A click on a bar in the score selects it, and a Shift-click extends the selection to it, as on the roll (S1-M1).</summary>
+    /// <summary>
+    /// A click on a bar in the score selects it, and a Shift-click extends the selection to it, as on the roll (S1-M1); in
+    /// practice view (#533 11) it only shows the controls, so the selection practised stays.
+    /// </summary>
     private Task OnScoreBarPickedAsync((Tick Start, bool Extend) bar) =>
-        OnRangePickedAsync(new RollRange(bar.Start, bar.Start, true, bar.Extend));
+        Practicing ? Task.CompletedTask : OnRangePickedAsync(new RollRange(bar.Start, bar.Start, true, bar.Extend));
 
     /// <summary>A tap on the page where there is no music puts the selection away (0018 section 3), or with none the kept pill; the sheets stay as they are.</summary>
     private Task OnPaperTappedAsync()
     {
-        if (_penOn || Focused)
+        // In practice view (#533 11) the tap only shows the controls: the selection practised and the pill stay as they are.
+        if (_penOn || Focused || Practicing)
         {
             return Task.CompletedTask;
         }
@@ -598,6 +602,9 @@ public partial class PlaybackLab : IAsyncDisposable
             IJSObjectReference press = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/long-press.js");
             _longPress = await press.InvokeAsync<IJSObjectReference>("attach", _main, _self);
             await press.DisposeAsync();
+            IJSObjectReference practice = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/practice-view.js");
+            _practiceView = await practice.InvokeAsync<IJSObjectReference>("attach", _main, _self);
+            await practice.DisposeAsync();
         }
         catch (JSException)
         {
@@ -611,7 +618,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private async Task DetachLayoutAsync()
     {
-        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize, _longPress, _modeKeys })
+        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize, _longPress, _modeKeys, _practiceView })
         {
             if (part is null)
             {
@@ -632,6 +639,7 @@ public partial class PlaybackLab : IAsyncDisposable
         }
 
         (_barFade, _phraseKeys, _drawerResize, _longPress, _modeKeys, _modeKeysOn) = (null, null, null, null, null, null);
+        (_practiceView, _practiceShown) = (null, null);
     }
 
     public async ValueTask DisposeAsync()
