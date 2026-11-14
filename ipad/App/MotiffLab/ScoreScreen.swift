@@ -173,6 +173,19 @@ struct ScoreScreen: View {
         }
     }
 
+    /// The drawer's Expand: only with a selection (#521 19.1), without one the dimmed button says why. Expand inspects the
+    /// passage, so the Pen, which would write nothing there, is put away first.
+    private func expandFromDrawer() {
+        guard score.selection != nil else {
+            score.showNotice("roll.expandNeedsSelection")
+            return
+        }
+        if score.penOn { score.penOn = false }
+        rollBeforeFocus = true
+        rollOpen = false
+        score.expandRoll()
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
@@ -256,18 +269,7 @@ struct ScoreScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if rollOpen {
-                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: {
-                        // Only with a selection (#521 19.1): without one the dimmed button says why.
-                        guard score.selection != nil else {
-                            score.showNotice("roll.expandNeedsSelection")
-                            return
-                        }
-                        // Expand inspects the passage: the Pen, which would write nothing there, is put away first.
-                        if score.penOn { score.penOn = false }
-                        rollBeforeFocus = true
-                        rollOpen = false
-                        score.expandRoll()
-                    }, resize: { dy, ended in
+                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: expandFromDrawer, resize: { dy, ended in
                         resizeDrawer(by: dy, ended: ended, screen: screen)
                     }, step: { direction in
                         stepDrawer(direction, screen: screen)
