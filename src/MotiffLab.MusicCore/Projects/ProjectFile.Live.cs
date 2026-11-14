@@ -32,6 +32,25 @@ public static partial class ProjectFile
             _ => throw Damaged("editsOff"),
         };
 
+    /// <summary>"tempo": {"quarterNotesPerMinute": 92} once the player set the piece's tempo (version 0.5.4); left out otherwise.</summary>
+    private static void WritePlayerTempo(Utf8JsonWriter json, Project project)
+    {
+        if (project.PlayerTempo is { } perMinute)
+        {
+            json.WriteStartObject("tempo");
+            json.WriteNumber("quarterNotesPerMinute", perMinute);
+            json.WriteEndObject();
+        }
+    }
+
+    /// <summary>The project with the player's tempo when its file has one; a "tempo" without a whole number from 20 to 300 is damage.</summary>
+    private static Project WithPlayerTempoIn(this Project project, JsonElement root) =>
+        !root.TryGetProperty("tempo", out JsonElement tempo) ? project
+            : tempo.ValueKind == JsonValueKind.Object && tempo.TryGetProperty("quarterNotesPerMinute", out JsonElement value)
+                && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int perMinute) && Playback.PlayerTempo.IsValid(perMinute)
+                ? project with { PlayerTempo = perMinute }
+                : throw Damaged("tempo");
+
     /// <summary>"sentFromMs" in "transcription": where in the recording file the stretch heard started; left out when not kept.</summary>
     private static void WriteSentFrom(Utf8JsonWriter json, TranscriptionOrigin transcription)
     {

@@ -51,7 +51,7 @@ internal sealed partial class OpenPiece
 
     public Project Project { get; private set; }
 
-    public ImportedPiece Piece { get; }
+    public ImportedPiece Piece { get; private set; }
 
     /// <summary>The imported notes with the project's corrections and the bars taken from performances applied.</summary>
     public IReadOnlyList<Note> Notes { get; private set; }
@@ -183,6 +183,7 @@ internal sealed partial class OpenPiece
         "variation.clear" => Clear(),
         "notation" => Notation(request),
         "playback" => Playback(request),
+        "tempo.set" => SetTempo(request),
         "roll" => Roll(request),
         "project.save" => Save(request),
         "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
@@ -455,7 +456,7 @@ internal sealed partial class OpenPiece
         {
             notation = generated
                 ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias, reading)
-                : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title) : NotationGenerator.FromMidi(Piece.Midi!, title);
+                : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title, PlaybackScore.FromPiece(Piece).Tempos) : NotationGenerator.FromMidi(Piece.Midi!, title, tempos: PlaybackScore.FromPiece(Piece).Tempos);
         }
         else if (of == "variation")
         {
@@ -565,23 +566,24 @@ internal sealed partial class OpenPiece
     private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, bool reading = false)
     {
         IEnumerable<KeyChange> keys = NotationKeys(heard);
+        // The tempo is marked as music-core plays it (version 0.5.4): notated or the player's "♩ = 92", inferred "♩ ≈ 92".
+        PlaybackScore played = PlaybackScore.FromPiece(Piece);
         if (!heard)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias, tempos: played.Tempos);
         }
 
         if (readable && !reading)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias, tempos: played.Tempos);
         }
 
-        PlaybackScore played = PlaybackScore.FromPiece(Piece);
         if (readable)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant, tempos: played.Tempos);
         }
 
-        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
+        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias, tempos: played.Tempos);
     }
 
     /// <summary>The key signatures the score is written in: the piece's, or for notes heard without one the key worked out from them.</summary>

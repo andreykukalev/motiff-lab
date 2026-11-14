@@ -20,6 +20,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "originals": [ … ],           // within version 15 (version 0.3): the descriptions of the piece's originals the piece's own data does not show
   "partOf": { "original": "src_book", "pages": [6, 11] },   // within version 15 (version 0.4): only a piece made from a collection; or "ms": [from, to]
   "editsOff": true,             // within version 15 (version 0.5): only while the player has turned the corrections off
+  "tempo": { "quarterNotesPerMinute": 92 },   // within version 15 (version 0.5.4): only once the player set the piece's tempo
   "createdAt": "…", "lastOpened": "…",
   "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
@@ -110,6 +111,21 @@ Three additions of version 0.5 kept within version 15 as optional fields, as ver
 - **`editsOff`** («Мои правки: вкл / выкл»): the piece opens with the notes as imported, its `edits` kept as they are. Written only when true; `false` reads as left out, any other value is damage. The web app opens a piece so while the experiment is on (and, as a fallback, when an earlier build kept the choice on that device); the facade does when `open` asks for `"edits": "piece"`. A build before 0.5 opens the piece with the corrections on, as it always did. In the sync it is bookkeeping: the copy saved last says it.
 - **`transcription.bars.meters`**: where a recording's bars change signature («Смена размера в записи»). Each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; from it on the bars are of its signature, before the first and without any of `signature`. Left out without a change. A change that is not so is damage. A build before 0.5 lays the same bars from the same starts in `signature`: the notes and their ticks are the same, only the bar lines after a change differ. In the sync it is import data: a pull keeps this device's when the online copy has the same bars without them and the same `source`; bars found again (another grid) drop them.
 - **`transcription.sentFromMs`**: where, in the recording file, the stretch sent to be heard started, in milliseconds, 0 or more; a `partOf` with `ms` counts from it, so `partOf.ms` plus it is the piece's stretch in the file, and another device that has the file (the same `sha256`) finds the piece's sound there. A piece cut from a recording heard keeps the recording's. The web app writes it when it saves a transcription (0 when the file was sent whole); the facade's `open` takes it as `transcription.sentFromMs`. Left out when not kept, as in every file before 0.5; any other value is damage. In the sync it is import data, kept from this device on a pull when the online copy has none and the same `source`.
+
+## The player's tempo (version 0.5.4)
+
+One addition of version 0.5.4 (#511 section 17, «Темп»), kept within version 15 as an optional field like version 0.5's: the tempo the player set for the piece, such as "♩ = 92" read from the printed notes when the scan could not read it (homr reads no tempo, so such a piece played at the default of 120, about 30 % too fast for a piece printed at 92).
+
+```jsonc
+"tempo": { "quarterNotesPerMinute": 92 }   // a whole number from 20 to 300; left out until the player sets one
+```
+
+- **What it does** (`MotiffLab.MusicCore.Playback.PlayerTempo`): it replaces the tempo at the start, whatever its source (notated, inferred from a recording, or the default assumed), and is the player's from then on: played, marked on the score as "♩ = 92" and named as the player's in the tempo control, with the piece's own beside it when the notes state one ("задан вами (в нотах 120)"). A tempo the notes state later on stays as stated; the tempos worked out from a recording follow it in proportion, so the recording's rubato keeps its shape. Nothing the file imported changes: clearing it plays the piece as it states again.
+- **Reading**: an object without a whole `quarterNotesPerMinute` from 20 to 300 is damage. A file without it reads as none, as every file before 0.5.4.
+- **Builds before 0.5.4** open the file and play the piece as it states, and drop the field when they write it (unknown fields are dropped on writing), as with `editsOff`.
+- **In the sync** it is the player's (`FieldClass.Player`): the copy saved last says it.
+
+The playback tempo the player chooses while practising (25 % to 150 %) is not this field: it stays a whole percentage on each resume point (`tempoPercent`).
 
 ## Originals in the player's folder (version 0.5)
 

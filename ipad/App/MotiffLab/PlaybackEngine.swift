@@ -142,8 +142,10 @@ final class PlaybackEngine {
     private var beatCursor = 0
     private var countInTotal = 0
     private var countInDone = 0
-    private var countInElapsed = 0.0
-    private var countInFramesPerBeat = 0.0
+    /// How far the count-in has gone, in beats: each block's frames count at the rate then, so a tempo changed while it
+    /// counts applies to the next click (#511 section 17, as the web's engine).
+    private var countInBeats = 0.0
+    private var countInBeatTicks = 0.0
     private var countInBeatsPerBar = 0
 
     private var voices: [Voice] = []
@@ -363,8 +365,8 @@ final class PlaybackEngine {
             countInBeatsPerBar = max(1, beatsPerBar)
             countInTotal = countInBeatsPerBar * countInBars
             countInDone = 0
-            countInElapsed = 0
-            countInFramesPerBeat = beatTicks / ticksPerFrame(tempoIndex(position))
+            countInBeats = 0
+            countInBeatTicks = beatTicks
             transportState = .countingIn
         } else {
             startPlaying()
@@ -474,25 +476,27 @@ final class PlaybackEngine {
         }
     }
 
+    /// The count-in's clicks for up to `available` frames, each beat as long as the tempo and rate say now; then the music.
     private func advanceCountIn(_ offset: Int, _ available: Int) -> Int {
+        let framesPerBeat = countInBeatTicks / ticksPerFrame(tempoIndex(position))
         while countInDone < countInTotal {
-            let at = max(0, Int((Double(countInDone) * countInFramesPerBeat - countInElapsed - Self.frameEpsilon).rounded(.up)))
+            let at = max(0, Int(((Double(countInDone) - countInBeats) * framesPerBeat - Self.frameEpsilon).rounded(.up)))
             if at >= available { break }
             startClick(offset + at, accent: countInDone % countInBeatsPerBar == 0)
             countInDone += 1
         }
 
-        let remaining = Double(countInTotal) * countInFramesPerBeat - countInElapsed
+        let remaining = (Double(countInTotal) - countInBeats) * framesPerBeat
         let used = max(0, Int((remaining - Self.frameEpsilon).rounded(.up)))
         if used < available {
-            countInElapsed += Double(used)
+            countInBeats = Double(countInTotal)
             startPlaying()
             blockOffset = offset + used
             requestReport()
             return used
         }
 
-        countInElapsed += Double(available)
+        countInBeats += Double(available) / framesPerBeat
         return available
     }
 

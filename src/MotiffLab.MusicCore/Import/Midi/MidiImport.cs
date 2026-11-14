@@ -78,10 +78,16 @@ public enum MidiNoteEnd
 }
 
 /// <param name="At">Canonical position, rounded from <see cref="MidiTick"/> when needed.</param>
-/// <param name="IsAssumed">True for the 120 BPM default when the file sets no tempo at its start.</param>
+/// <param name="IsAssumed">True when the file does not state it: the 120 BPM default when the file sets no tempo at its start, or a tempo the bars of a transcription worked out (<see cref="IsInferred"/>).</param>
 public sealed record MidiTempoChange(Tick At, long MidiTick, int MicrosecondsPerQuarter, bool IsAssumed)
 {
     public const int DefaultMicrosecondsPerQuarter = 500_000;
+
+    /// <summary>Worked out from the playing by a transcription's bars (decision record 0016), not the default (version 0.5.4).</summary>
+    public bool IsInferred { get; init; }
+
+    /// <summary>Notated for a tempo event of the file, inferred for one a transcription's bars worked out, else assumed.</summary>
+    public Playback.TempoSource Source => IsInferred ? Playback.TempoSource.Inferred : IsAssumed ? Playback.TempoSource.Assumed : Playback.TempoSource.Notated;
 }
 
 /// <param name="Denominator">Note value of the beat as a power of two, 1–128.</param>

@@ -24,9 +24,6 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab : IAsyncDisposable
 {
-    /// <summary>The tempo steps the pill offers, as a share of the written tempo.</summary>
-    private static readonly int[] s_tempoSteps = [50, 60, 75, 90, 100];
-
     /// <summary>The bar's small overlays; one at a time.</summary>
     private enum Popover
     {

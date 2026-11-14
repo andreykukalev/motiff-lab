@@ -6,9 +6,9 @@ import XCTest
 /// The playback engine (decision record 0019 section 2.1), held to the web engine's own tests
 /// (tests/web/playback-processor.test.mjs): the same notes start on the same frames.
 final class PlaybackEngineTests: XCTestCase {
-    private let rate = 48_000.0
-    private let quarter = 24_000 // frames per quarter note at 120 BPM
-    private let spike = 40 // the test sample is silent but for one spike, this many frames after its start
+    let rate = 48_000.0
+    let quarter = 24_000 // frames per quarter note at 120 BPM
+    let spike = 40 // the test sample is silent but for one spike, this many frames after its start
 
     /// One sample at middle C: silence with a single spike, so every note shows as one spike in the output.
     private func testRegion() -> SampleRegion {
@@ -17,7 +17,7 @@ final class PlaybackEngineTests: XCTestCase {
         return SampleRegion(pitch: 60, tuneCents: 0, data: data, sampleRate: rate)
     }
 
-    private func engine(
+    func engine(
         tempos: [PlaybackTimeline.Tempo] = [.init(at: 0, microsecondsPerQuarter: 500_000)],
         beats: [PlaybackTimeline.Beat] = [],
         bars: [PlaybackTimeline.Bar] = [.init(start: 0, beatTicks: 480, beatsPerBar: 4)],
@@ -38,17 +38,17 @@ final class PlaybackEngineTests: XCTestCase {
         engine.handle(.source(id: id, notes: notes.map { PlaybackNote(onset: $0.0, duration: $0.1, pitch: 60, velocity: 127, track: $0.2) }))
     }
 
-    private func source(_ engine: PlaybackEngine, _ id: String, _ notes: [(Double, Double)]) {
+    func source(_ engine: PlaybackEngine, _ id: String, _ notes: [(Double, Double)]) {
         source(engine, id, notes.map { ($0.0, $0.1, 0) })
     }
 
     /// Frames where a note's spike lands, given as the note's start frame.
-    private func noteStarts(_ out: [Float]) -> [Int] {
+    func noteStarts(_ out: [Float]) -> [Int] {
         out.indices.filter { abs(out[$0]) > 0.01 }.map { $0 - spike }
     }
 
     /// Frames where a sound starts after at least `gap` frames of silence (for metronome clicks).
-    private func onsets(_ out: [Float], gap: Int = 1000) -> [Int] {
+    func onsets(_ out: [Float], gap: Int = 1000) -> [Int] {
         var found: [Int] = []
         var silent = gap
         for (i, value) in out.enumerated() {
@@ -62,7 +62,7 @@ final class PlaybackEngineTests: XCTestCase {
         return found
     }
 
-    private func frames(_ n: Double) -> Int { Int((n / 128).rounded(.up)) * 128 }
+    func frames(_ n: Double) -> Int { Int((n / 128).rounded(.up)) * 128 }
 
     func testNotesStartOnTheirExactFrame() {
         let e = engine()

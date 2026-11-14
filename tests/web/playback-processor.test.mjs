@@ -102,6 +102,70 @@ test("tempo scales from 25% to 150%, and is clamped to that range", () => {
     }
 });
 
+test("a tempo changed while playing goes on from the place heard, the next note at the new rate (#511 section 17)", () => {
+    const e = engine();
+    source(e, "a", [[0, 240], [480, 240], [960, 240], [1440, 240]]);
+    e.handle({ type: "activeSources", ids: ["a"] });
+    e.handle({ type: "play" });
+    const first = run(e, frames(QUARTER * 1.5));
+    const at = e.tick;
+    e.takeReports();
+
+    e.handle({ type: "rate", value: 0.5 });
+    // No restart: the place and the state stay, and the report says the new speed at once.
+    assert.equal(e.tick, at);
+    assert.equal(e.transportState, "playing");
+    const [report] = e.takeReports().filter((r) => r.type === "position");
+    assert.equal(report.tick, at);
+    assert.equal(report.ticksPerSecond, (480 * 2 * 0.5));
+    const rest = run(e, frames(QUARTER * 5), first.length);
+
+    // At 120 BPM a tick is 50 frames; at half the rate 100: tick 960 comes after (960 - at) ticks of 100 frames.
+    const next = first.length + Math.round((960 - at) * 100);
+    assert.deepEqual(noteStarts(first), [0, QUARTER]);
+    assert.deepEqual(noteStarts(rest).map((frame) => frame + first.length), [next, next + QUARTER * 2]);
+});
+
+test("a tempo changed while looping keeps the loop and plays round it at the new rate", () => {
+    const e = engine();
+    source(e, "a", [[0, 240], [480, 240]]);
+    e.handle({ type: "activeSources", ids: ["a"] });
+    e.handle({ type: "loop", start: 0, end: 960 });
+    e.handle({ type: "play" });
+    const first = run(e, frames(QUARTER * 1.5));
+    const at = e.tick;
+
+    e.takeReports();
+    e.handle({ type: "rate", value: 1.5 });
+    const [report] = e.takeReports().filter((r) => r.type === "position");
+    assert.deepEqual([report.tick, report.loopStart, report.loopEnd], [at, 0, 960]);
+    const rest = run(e, frames(QUARTER * 2), first.length);
+
+    // The loop's end comes after (960 - at) ticks at 50 / 1.5 frames each, then its first note again.
+    const round = first.length + Math.round((960 - at) * 50 / 1.5);
+    assert.deepEqual(noteStarts(rest).map((frame) => frame + first.length).slice(0, 2), [round, round + Math.round(QUARTER / 1.5)]);
+    assert.equal(e.transportState, "playing");
+});
+
+test("the count-in counts each click at the tempo then, so a tempo changed while it counts applies to the next click", () => {
+    const e = engine();
+    source(e, "a", [[0, 240]]);
+    e.handle({ type: "activeSources", ids: ["a"] });
+    e.handle({ type: "countIn", bars: 1 });
+    e.handle({ type: "play" });
+    const first = run(e, frames(QUARTER * 1.5));
+    // Half a beat in at full speed, then half the rate: the rest of the beat lasts twice as long.
+    e.handle({ type: "rate", value: 0.5 });
+    const rest = run(e, frames(QUARTER * 8), first.length);
+
+    const second = first.length + (QUARTER * 2 - first.length) * 2;
+    const clicks = [...onsets(first), ...onsets(rest).map((frame) => frame + first.length)].filter((frame) => frame < second + QUARTER * 3);
+    assert.deepEqual(clicks, [1, QUARTER + 1, second + 1, second + QUARTER * 2 + 1]);
+    assert.equal(e.transportState, "playing");
+    const spike = rest.findIndex((value, i) => i + first.length > second + QUARTER * 4 - 10 && Math.abs(value) > 0.01);
+    assert.equal(spike + first.length - SPIKE, second + QUARTER * 4);
+});
+
 test("tempo changes apply at their tick", () => {
     // 120 BPM, then 240 BPM from beat 2: tick 960 is one quarter at 120 and one at 240.
     const e = engine({ tempos: [0, 500_000, 480, 250_000] });

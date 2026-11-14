@@ -25,7 +25,7 @@ public sealed record SecondFileSource(PlaybackScore Timeline, PlaybackScore Note
         PlaybackScore timeline = original.ExtendedTo(own.End);
         var differences = new List<string>();
 
-        if (!own.Tempos.SequenceEqual(original.Tempos))
+        if (!own.Tempos.Select(static tempo => (tempo.At, tempo.MicrosecondsPerQuarter)).SequenceEqual(original.Tempos.Select(static tempo => (tempo.At, tempo.MicrosecondsPerQuarter))))
         {
             differences.Add("It sets a different tempo; it plays at the original's tempo so the two stay in step.");
         }

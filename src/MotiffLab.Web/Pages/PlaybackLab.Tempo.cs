@@ -1,7 +1,12 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Time;
 using MotiffLab.Web.Insights;
+using MotiffLab.Web.Playback;
+using MotiffLab.Web.Score;
 
 namespace MotiffLab.Web.Pages;
 
@@ -82,6 +87,55 @@ public partial class PlaybackLab
             (false, { } signature) => $"{sections} {Text.Format("tempo.hintNoFit", signature, grid.Signature)}",
             _ => sections,
         };
+    }
+
+    /// <summary>The MusicXML of the piece as its file writes it, before the player's tempo is marked on it; null for other pieces.</summary>
+    private string? _writtenXml;
+
+    /// <summary>What the tempo control shows (version 0.5.4, #511 section 17): the tempo at the start as played and as the piece states it.</summary>
+    private TempoReading? TempoNow => _score is { } score
+        ? new TempoReading(score.StartTempo, score.PieceTempos[0], _project is not null, TempoBeats.At(score.Meter, Tick.Zero))
+        : null;
+
+    /// <summary>
+    /// The piece's tempo the player set ("♩ = 92" read from the printed notes), or null to play it as it states again (version
+    /// 0.5.4): kept in the project ("tempo"), played from the place heard with the loop kept, and marked on the score.
+    /// </summary>
+    private async Task SetPlayerTempoAsync(int? perMinute)
+    {
+        if (_project is not { } project || _score is null || _notes is null || project.PlayerTempo == perMinute
+            || (perMinute is { } given && !PlayerTempo.IsValid(given)))
+        {
+            return;
+        }
+
+        _project = project with { PlayerTempo = perMinute };
+        CurrentPiece.Saved(_project);
+        await Projects.SaveAsync(_project);
+        if (CurrentPiece.Piece is { } opened)
+        {
+            _characterContext = CharacterContext.FromPiece(opened with { PlayerTempo = perMinute });
+        }
+
+        _score = _score.WithPlayerTempo(perMinute);
+        _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
+        if (_writtenXml is { } xml)
+        {
+            _asWritten = ScoreSource.AsWritten(WrittenTempo.With(xml, _score));
+        }
+
+        // The timeline is sent again, so the place and the loop are put back as they were.
+        Tick position = Player.Position;
+        TickSpan? loop = Player.Loop;
+        await Player.LoadAsync(_score);
+        await ApplyFilterAsync();
+        await SetVariationSourcesAsync();
+        if (loop is { } kept)
+        {
+            await Player.SetLoopAsync(kept);
+        }
+
+        await Player.SeekAsync(position);
     }
 
     private bool HasScoreVersion => _project?.Performances.Any(version => version.Source == PerformanceSource.Score) == true;

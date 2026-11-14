@@ -247,8 +247,9 @@ export class Engine {
     private beatCursor = 0;
     private countInTotal = 0;
     private countInDone = 0;
-    private countInElapsed = 0;
-    private countInFramesPerBeat = 0;
+    /** How far the count-in has gone, in beats: each block's frames count at the rate then, so a tempo changed while it counts applies to the next click. */
+    private countInBeats = 0;
+    private countInBeatTicks = 0;
     private countInBeatsPerBar = 0;
 
     private voices: Voice[] = [];
@@ -529,8 +530,8 @@ export class Engine {
             this.countInBeatsPerBar = beatsPerBar;
             this.countInTotal = beatsPerBar * this.countInBars;
             this.countInDone = 0;
-            this.countInElapsed = 0;
-            this.countInFramesPerBeat = beatTicks / this.ticksPerFrame(this.tempoIndex(this.position));
+            this.countInBeats = 0;
+            this.countInBeatTicks = beatTicks;
             this.state = "countingIn";
         } else {
             this.startPlaying();
@@ -714,9 +715,11 @@ export class Engine {
         }
     }
 
+    /** The count-in's clicks for up to `available` frames, each beat as long as the tempo and rate say now; then the music. */
     private advanceCountIn(offset: number, available: number): number {
+        const framesPerBeat = this.countInBeatTicks / this.ticksPerFrame(this.tempoIndex(this.position));
         while (this.countInDone < this.countInTotal) {
-            const at = Math.max(0, Math.ceil(this.countInDone * this.countInFramesPerBeat - this.countInElapsed - FRAME_EPSILON));
+            const at = Math.max(0, Math.ceil((this.countInDone - this.countInBeats) * framesPerBeat - FRAME_EPSILON));
             if (at >= available) {
                 break;
             }
@@ -725,17 +728,17 @@ export class Engine {
             this.countInDone++;
         }
 
-        const remaining = this.countInTotal * this.countInFramesPerBeat - this.countInElapsed;
+        const remaining = (this.countInTotal - this.countInBeats) * framesPerBeat;
         const used = Math.max(0, Math.ceil(remaining - FRAME_EPSILON));
         if (used < available) {
-            this.countInElapsed += used;
+            this.countInBeats = this.countInTotal;
             this.startPlaying();
             this.blockOffset = offset + used;
             this.requestReport();
             return used;
         }
 
-        this.countInElapsed += available;
+        this.countInBeats += available / framesPerBeat;
         return available;
     }
 

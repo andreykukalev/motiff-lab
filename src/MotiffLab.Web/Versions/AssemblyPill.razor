@@ -1,4 +1,5 @@
 @inject MotiffLab.Web.Localization.UiText Text
+@using MotiffLab.Web.Playback
 
 @* The pill while comparing (0024, section 6; mockups 00c and 13a): play, one chip per source (the name shows it, ▶ hears it),
    the loop and the tempo. Nothing over the notes: the chips are the tabs. *@
@@ -25,7 +26,24 @@
     </div>
     <span class="div" aria-hidden="true"></span>
     <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoop"><Icon Name="loop" /> @Text["focus.loop"]</button>
-    <span class="it tempo-read mono" title="@Text["transport.tempo"]"><Icon Name="dial" /> @TempoPercent%</span>
+    @* The tempo changes here too (version 0.5.4), except while the recording itself is heard: it plays at its own speed. *@
+    @if (HearingRecording || !SetTempoPercent.HasDelegate)
+    {
+        <span class="it tempo-read mono" title="@Text["transport.tempo"]"><Icon Name="dial" /> @TempoPercent%</span>
+    }
+    else
+    {
+        <span class="anchor">
+            <button class="it @(_tempoOpen ? "on" : null)" aria-expanded="@(_tempoOpen ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
+                    @onclick="() => _tempoOpen = !_tempoOpen"><Icon Name="dial" /> <span class="mono tempo-label">@(Tempo is { } reading ? Text.Format("tempoControl.reading", TempoPercent, reading.HeardText(TempoPercent)) : $"{TempoPercent}%")</span></button>
+            @if (_tempoOpen)
+            {
+                <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
+                    <TempoControl Percent="TempoPercent" Reading="Tempo" SetPercent="SetTempoPercent" Close="() => _tempoOpen = false" />
+                </div>
+            }
+        </span>
+    }
 </div>
 
 @code {
@@ -40,6 +58,20 @@
 
     [Parameter]
     public int TempoPercent { get; set; } = 100;
+
+    /// <summary>The piece's tempo for the control; null shows the percentage alone.</summary>
+    [Parameter]
+    public MotiffLab.Web.Playback.TempoReading? Tempo { get; set; }
+
+    /// <summary>Whether the recording's own sound plays: its speed is its own, so the tempo is shown, not changed.</summary>
+    [Parameter]
+    public bool HearingRecording { get; set; }
+
+    /// <summary>The playback tempo chosen, 25 % to 150 %.</summary>
+    [Parameter]
+    public EventCallback<int> SetTempoPercent { get; set; }
+
+    private bool _tempoOpen;
 
     [Parameter]
     public EventCallback TogglePlay { get; set; }

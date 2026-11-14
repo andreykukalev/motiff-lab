@@ -106,6 +106,14 @@ public sealed partial record Project(
     /// </summary>
     public bool EditsOff { get; init; }
 
+    /// <summary>
+    /// The tempo the player set for the piece, in quarter notes a minute (version 0.5.4, #511 section 17, within version
+    /// 15), such as "♩ = 92" from the printed notes when the scan could not read it: the piece plays and is marked at it
+    /// from its start (<see cref="Playback.PlayerTempo"/>); null to play as the piece states. A build before 0.5.4 plays
+    /// the piece as it states and drops the field when it writes the file.
+    /// </summary>
+    public int? PlayerTempo { get; init; }
+
     /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
     public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
 

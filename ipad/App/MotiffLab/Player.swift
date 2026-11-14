@@ -19,12 +19,21 @@ final class Player: ObservableObject {
     }
     @Published private(set) var ready = false
     @Published private(set) var problem: String?
-    @Published var tempoPercent = 100 { didSet { send(.rate(Double(tempoPercent) / 100)) } }
+    /// The playback tempo and the piece's (#511 section 17): an object of its own, so that the pill's tempo control observes
+    /// it alone and is not drawn again with every position report while playing; a change applies to the engine at once.
+    let tempo = TempoSetting()
+    /// The playback tempo, 25 % to 150 % of the piece's, as resume points keep it.
+    var tempoPercent: Int {
+        get { tempo.percent }
+        set { tempo.percent = newValue }
+    }
     @Published var metronome = false { didSet { send(.metronome(metronome)) } }
     /// One bar of clicks before the music, as the web app's Count-in.
     @Published var countIn = false { didSet { send(.countIn(countIn ? 1 : 0)) } }
 
-    static let tempoChoices = [25, 50, 75, 90, 100, 110, 125, 150]
+    init() {
+        tempo.changed = { [weak self] percent in self?.send(.rate(Double(percent) / 100)) }
+    }
 
     /// Which hands sound (#328, an experiment): the piece's notes as music-core gives them for both hands or for one
     /// alone. A change applies at once, also while playing, and the loop and the place stay.
@@ -68,6 +77,8 @@ final class Player: ObservableObject {
             }
             renderer.send(.samples(try await piano.value))
             renderer.send(.timeline(score.timeline))
+            renderer.send(.rate(Double(tempo.percent) / 100))
+            tempo.reading = score.tempo
             barNumbers = score.barNumbers
             beatLines = score.timeline.beats.map(\.at)
             barBeats = score.barBeats
@@ -332,6 +343,7 @@ final class Player: ObservableObject {
         let request = Self.handsRequest(hands)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
         guard let score = PlaybackScore.read(answer) else { return }
+        tempo.reading = score.tempo
         barNumbers = score.barNumbers
         beatLines = score.timeline.beats.map(\.at)
         barBeats = score.barBeats
@@ -503,6 +515,8 @@ struct PlaybackScore: Sendable {
     var hands = HandsHeld()
     /// Each beat's bar and beat, for writing a place as bar.beat (v0.5.2).
     var barBeats = BarBeats()
+    /// The tempo at the start and where it comes from (v0.5.4, #511 section 17); nil from a music-core before it.
+    var tempo: TempoReading?
 
     static func read(_ text: String) -> PlaybackScore? {
         guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
@@ -530,70 +544,11 @@ struct PlaybackScore: Sendable {
             return (start, Int(printed))
         }
         let timeline = PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end)
-        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: object), barBeats: BarBeats.read(items("beats")))
+        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: object), barBeats: BarBeats.read(items("beats")),
+                             tempo: TempoReading.read(object))
     }
 
     private static func number(_ value: Any?) -> Double? {
         (value as? NSNumber)?.doubleValue
-    }
-}
-
-/// The piano the web app plays (Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0, tools/piano): its 30 MP3
-/// samples and `piano.json`, copied into the app from the web app's files.
-enum Piano {
-    /// The attack starts where the sample first rises above this share of its peak; encoders add silence before it.
-    private static let onsetThreshold: Float = 0.003
-    private static let onsetLeadSeconds = 0.002
-
-    static func load(bundle: Bundle = .main) throws -> [SampleRegion] {
-        guard let folder = bundle.url(forResource: "piano", withExtension: nil),
-              let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("piano.json"))) as? [String: Any],
-              let samples = manifest["samples"] as? [[String: Any]], !samples.isEmpty
-        else { throw PlayerError(message: "The piano samples are missing from the app.") }
-
-        return try samples.map { sample in
-            guard let file = sample["file"] as? String, let pitch = (sample["pitch"] as? NSNumber)?.intValue else {
-                throw PlayerError(message: "piano.json lists a sample without its file or note.")
-            }
-            let audio = try AVAudioFile(forReading: folder.appendingPathComponent(file))
-            let format = audio.processingFormat
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audio.length)) else {
-                throw PlayerError(message: "The piano sample \(file) could not be read.")
-            }
-            try audio.read(into: buffer)
-            return SampleRegion(
-                pitch: pitch,
-                tuneCents: (sample["tuneCents"] as? NSNumber)?.doubleValue ?? 0,
-                data: trimmedToOnset(buffer),
-                sampleRate: format.sampleRate
-            )
-        }
-    }
-
-    /// A mono copy of the decoded sample from just before its attack, so every note starts on time.
-    static func trimmedToOnset(_ buffer: AVAudioPCMBuffer) -> [Float] {
-        guard let channels = buffer.floatChannelData else { return [] }
-        let count = Int(buffer.frameLength)
-        let channelCount = Int(buffer.format.channelCount)
-        var peak: Float = 0
-        for c in 0..<channelCount {
-            for i in 0..<count { peak = max(peak, abs(channels[c][i])) }
-        }
-
-        let threshold = peak * onsetThreshold
-        var onset = 0
-        search: for i in 0..<count {
-            for c in 0..<channelCount where abs(channels[c][i]) > threshold {
-                onset = i
-                break search
-            }
-        }
-
-        let start = max(0, onset - Int((onsetLeadSeconds * buffer.format.sampleRate).rounded()))
-        var mono = [Float](repeating: 0, count: count - start)
-        for c in 0..<channelCount {
-            for i in 0..<mono.count { mono[i] += channels[c][start + i] / Float(channelCount) }
-        }
-        return mono
     }
 }

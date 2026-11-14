@@ -622,7 +622,7 @@ public sealed partial record BarGrid
             int perQuarter = (int)Math.Clamp((BeatAt(index + 1) - BeatAt(index)) * 4 / StepsPerBeat, 1, int.MaxValue);
             if (tempos.Count == 0 || tempos[^1].MicrosecondsPerQuarter != perQuarter)
             {
-                tempos.Add(new MidiTempoChange(new Tick(index * beatTicks), index * beatTicks, perQuarter, IsAssumed: true));
+                tempos.Add(new MidiTempoChange(new Tick(index * beatTicks), index * beatTicks, perQuarter, IsAssumed: true) { IsInferred = true });
             }
 
             if (!FollowsPlaying)

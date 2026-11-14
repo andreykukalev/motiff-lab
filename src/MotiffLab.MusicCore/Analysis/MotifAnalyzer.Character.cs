@@ -23,10 +23,10 @@ public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool 
     {
         ArgumentNullException.ThrowIfNull(piece);
 
-        bool assumed = piece.Midi is { } midi
-            ? midi.Tempos.Count == 0 || midi.Tempos[0].IsAssumed
-            : piece.MusicXml!.Tempos.Count == 0 || piece.MusicXml.Tempos[0].IsAssumed;
-        return new CharacterContext(PlaybackScore.FromPiece(piece).Tempos, assumed, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null);
+        // The tempo at the start as played says where it comes from (version 0.5.4): the player's own is neither assumed nor estimated.
+        PlaybackScore score = PlaybackScore.FromPiece(piece);
+        TempoSource source = score.StartTempo.Source;
+        return new CharacterContext(score.Tempos, source == TempoSource.Assumed, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null && source != TempoSource.Player);
     }
 }
 
@@ -164,9 +164,10 @@ public static partial class MotifAnalyzer
                 : $"The tempo changes {w.Times(changes.Count)}, from {Bpm(values.Max(), w)} to {Bpm(values.Min(), w)} BPM.";
         }
 
-        string basis = w.T(
-            "Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.",
-            "Прочитано по темповой карте файла, в четвертях в минуту, с округлением до десятых для показа.");
+        string basis = tempos[first].Source == TempoSource.Player
+            ? w.T("The tempo you set for the piece, in quarter notes per minute; tempos the notes state later on stay as stated.", "Темп, который вы задали для пьесы, в четвертях в минуту; темпы, указанные в нотах дальше, остаются как указаны.")
+            : w.T("Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.", "Прочитано по темповой карте файла, в четвертях в минуту, с округлением до десятых для показа.");
+
         MotifFact fact = context.TempoEstimated && first == 0
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
                 "Worked out from the notes heard in the recording, with the bars: the beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.",
