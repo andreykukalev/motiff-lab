@@ -133,6 +133,11 @@ public static class SettingsCatalogue
         // reads a born-digital PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with
         // the server's own engine; photos always go to the server.
         Switch("experimental.scanEngine", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Repairs for the bars to check (v0.6, the assistant's first step, with no AI): Repair under a flagged bar in Check
+        // offers music-core's ways for the flag's reason (Assistant.Repairs.CheckRepairs) as a draft over the bar; Accept adds
+        // them to the corrections. Worked out on the device; nothing is sent anywhere.
+        Switch("experimental.assistantRepairs", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

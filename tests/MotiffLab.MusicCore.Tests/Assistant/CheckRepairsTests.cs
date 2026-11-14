@@ -65,6 +65,7 @@ public class CheckRepairsTests
         Assert.All(fixedNotes.Where(note => note.Span.Onset >= bar.Span.Onset && note.Span.Onset < new Tick(bar.Span.End.Value + 240)), note => Assert.True(note.Span.End <= bar.Span.End));
         Assert.Equal(6, fixedNotes.Count(note => bar.Span.Contains(note.Span.Onset)));
         Assert.Equal(piece.Notes.Count - 1, fixedNotes.Count);
+        Assert.Equal(TickSpan.FromBounds(bar.Span.Onset, piece.Meter.GetBar(3).Span.End), options.Measure);
     }
 
     [Fact]

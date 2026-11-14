@@ -4199,7 +4199,8 @@ h1:focus {
 
 /* The phrase's notation only: the icons in the card's buttons and in the focus roll's head keep their own size and line
    (#432: the Edit notes pen, drawn the card's width and filled, crossed the roll's head as a black stripe). */
-.workspace .focus-card .phrase-card-score svg {
+.workspace .focus-card .phrase-card-score svg,
+.workspace .repair-draft .phrase-card-score svg {
     display: block;
     width: 100%;
     height: auto;
@@ -4207,16 +4208,19 @@ h1:focus {
     fill: currentColor;
 }
 
-.workspace .focus-card .phrase-card-score svg use {
+.workspace .focus-card .phrase-card-score svg use,
+.workspace .repair-draft .phrase-card-score svg use {
     fill: currentColor;
 }
 
-.workspace .focus-card .phrase-card-score svg [color]:not(.playing) {
+.workspace .focus-card .phrase-card-score svg [color]:not(.playing),
+.workspace .repair-draft .phrase-card-score svg [color]:not(.playing) {
     color: inherit !important;
 }
 
 /* The ossia's name is the overline on its frame, not Verovio's label at its left. */
-.workspace .focus-card .phrase-card-score svg g.label {
+.workspace .focus-card .phrase-card-score svg g.label,
+.workspace .repair-draft .phrase-card-score svg g.label {
     display: none;
 }
 
@@ -4224,14 +4228,16 @@ h1:focus {
     cursor: pointer;
 }
 
-.workspace .focus-card g.note.playing, .workspace .focus-card g.chord.playing {
+.workspace .focus-card g.note.playing, .workspace .focus-card g.chord.playing,
+.workspace .repair-draft g.note.playing, .workspace .repair-draft g.chord.playing {
     fill: var(--accent);
     stroke: var(--accent);
     color: var(--accent);
 }
 
 /* The ossia (design/kit/ds.css, Ossia panel): a 1.5 px dashed plum frame round its staves, named by an overline on it. */
-.workspace .focus-card .ossia-frame {
+.workspace .focus-card .ossia-frame,
+.workspace .repair-draft .ossia-frame {
     position: absolute;
     box-sizing: border-box;
     border: 1.5px dashed var(--plum);
@@ -4239,7 +4245,8 @@ h1:focus {
     pointer-events: none;
 }
 
-.workspace .focus-card .ossia-frame .overline {
+.workspace .focus-card .ossia-frame .overline,
+.workspace .repair-draft .ossia-frame .overline {
     position: absolute;
     left: var(--s-3);
     top: -8px;
@@ -5238,6 +5245,110 @@ h1:focus {
 .workspace .check-sheet .check-fix .meta {
     margin: 0;
     font: var(--t-caption);
+}
+
+/* Repairs for the bars to check (an experiment, v0.6; the AI companion study, section 2.2): the engine's proposal under a
+   flagged bar, framed in plum as what the app composed; the bar engraved with the correction as an ossia above it. */
+.workspace .check-sheet .repair-draft {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+}
+
+.workspace .check-sheet .repair-draft > .overline {
+    margin: 0;
+    color: var(--plum);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .check-sheet .repair-ways {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.workspace .check-sheet .repair-way {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    font: var(--t-body);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.workspace .check-sheet .repair-way.on {
+    border-color: var(--plum);
+    background: var(--plum-tint);
+}
+
+.workspace .check-sheet .repair-way input {
+    accent-color: var(--plum);
+}
+
+.workspace .check-sheet .repair-draft .caption {
+    margin: 0;
+}
+
+.workspace .repair-draft .repair-card {
+    position: relative;
+    padding: var(--s-4) var(--s-2) var(--s-2);
+    border-radius: var(--r-s);
+    background: var(--paper);
+}
+
+.workspace .repair-draft .phrase-card-score {
+    position: relative;
+}
+
+/* What the correction keeps stays grey in the ossia, so the eye goes to what it changes (plum, version-added). */
+.workspace .repair-draft g.note.repair-kept {
+    fill: var(--ink-3);
+    stroke: var(--ink-3);
+    color: var(--ink-3);
+}
+
+.workspace .check-sheet .repair-changes {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .repair-changes p {
+    margin: 0;
+}
+
+.workspace .check-sheet .repair-changes .overline {
+    color: var(--ink-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .check-sheet .repair-accepted {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .check-sheet .repair-accepted .caption {
+    flex: 1 1 12em;
+    margin: 0;
 }
 
 .workspace .check-sheet .check-bars {
