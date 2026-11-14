@@ -41,6 +41,7 @@
   <symbol id="ic-play" viewBox="0 0 20 20"><path d="M6 4.5v11l9-5.5z"/></symbol>
   <symbol id="ic-playf" viewBox="0 0 20 20"><path d="M6 4.5v11l9-5.5z" fill="currentColor"/></symbol>
   <symbol id="ic-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
+  <symbol id="ic-practice" viewBox="0 0 20 20"><rect x="3.75" y="3" width="12.5" height="8" rx="1"/><path d="M6.5 5.75h7M6.5 8.25h7M10 11v5.5M6.5 17.25 10 15l3.5 2.25"/></symbol>
   <symbol id="ic-recheck" viewBox="0 0 20 20"><path d="M16.25 10a6.25 6.25 0 1 1-1.85-4.45"/><path d="M14.75 2.75v3h-3"/></symbol>
   <symbol id="ic-roll" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M5 7.5h4M8 10h5M6 12.5h3M12 7.5h3"/></symbol>
   <symbol id="ic-scroll" viewBox="0 0 20 20"><rect x="4.5" y="2.75" width="11" height="14.5" rx="1.5"/><path d="M10 6.5v7M7.75 8.5 10 6.25l2.25 2.25M7.75 11.5 10 13.75l2.25-2.25"/></symbol>

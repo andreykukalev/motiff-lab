@@ -173,6 +173,9 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                    @* Practice view (#533 11): in and out by one press, F too; the selection, playback and the loop go on as they are. *@
+                    <button class="act @(_practice ? "on" : null)" aria-pressed="@(_practice ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
+                            @onclick="TogglePracticeAsync"><Icon Name="practice" Size="IconSize.Large" /></button>
                     @if (ReferenceOn)
                     {
                         @* The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap from the score. *@
@@ -491,7 +494,8 @@
                 </div>
             }
 
-            @if (_selectionToast && _selectionHistory.CanUndo)
+            @* Practice view (#533 11) keeps the page clean of the hints of the selection and of playback. *@
+            @if (_selectionToast && _selectionHistory.CanUndo && !Practicing)
             {
                 @* After a clear or a replace (#511 11): one tap brings the selection back; no Redo here. *@
                 <div class="merge-toast selection-toast" role="status" data-keeps-selection>
@@ -499,7 +503,7 @@
                     <button class="btn quiet compact" @onclick="UndoSelectionAsync">@Text["selection.bringBack"]</button>
                 </div>
             }
-            else if (_holdHint)
+            else if (_holdHint && !Practicing)
             {
                 <div class="merge-toast selection-toast" role="status"><span>@Text["selection.holdHint"]</span></div>
             }
@@ -681,12 +685,23 @@
                 </aside>
             }
 
-            @if (_playheadAway is { } awayAt && Player.State != PlaybackState.Stopped && _meter is not null)
+            @if (_playheadAway is { } awayAt && Player.State != PlaybackState.Stopped && _meter is not null && !Practicing)
             {
                 @* The playhead out of sight while playing (testing item 4): one tap scrolls back to it and the score follows again. *@
                 <button class="chip back-to-play @(PillShown ? "over-pill" : null)" data-keeps-selection @onclick="ReturnToPlayheadAsync">
                     <Icon Name="play" Size="IconSize.Small" /> @Text.Format("transport.backToPlay", _meter.BarAt(awayAt).Number)
                 </button>
+            }
+
+            @if (Practicing)
+            {
+                @* Practice view's controls (#533 11): shown for a few seconds by a tap on the score, as a video player's (practice-view.ts). *@
+                <div class="pill practice-controls" role="toolbar" aria-label="@Text["practice.controls"]" data-keeps-selection>
+                    <button class="play" @onclick="PlayPauseAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
+                    </button>
+                    <button class="it" @onclick="TogglePracticeAsync"><Icon Name="practice" /> @Text["practice.leave"]</button>
+                </div>
             }
 
             @if (_assembling)
@@ -847,6 +862,8 @@
                 <span class="div" aria-hidden="true"></span>
                 <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
                         @onclick="ToggleMenuMore"><Icon Name="more" /></button>
+                @* Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it. *@
+                <button class="it icon" aria-label="@Text["menu.hide"]" title="@Text["menu.hide"] (F)" @onclick="TogglePracticeAsync"><Icon Name="practice" /></button>
                 @if (PlayheadsOn)
                 {
                     @* Only ✕ or Escape removes the selection (version 0.5, the experiment Two playheads and modes). *@
@@ -2395,6 +2412,7 @@
 
         await SyncLayoutAsync();
         await SyncModeKeysAsync();
+        await SyncPracticeAsync();
         await SyncModelAsync();
         await SyncMetronomeAsync();
     }

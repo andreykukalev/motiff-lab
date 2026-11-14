@@ -2944,6 +2944,22 @@ h1:focus {
     transition: bottom var(--t-base) var(--ease);
 }
 
+/* Practice view (#533 11, Scripts/layout/practice-view.ts): the blue playhead of the selection goes, the black one of the piece
+   stays to drag; its own Play/Pause and Leave show for a few seconds after a tap on the score, where the pill sits. */
+.lab.workspace:is([data-practice="on"], [data-practice="reveal"]) .score .ph-sel {
+    visibility: hidden;
+}
+.lab.workspace .practice-controls {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--t-base) var(--ease), visibility 0s linear var(--t-base);
+}
+.lab.workspace[data-practice="reveal"] .practice-controls {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity var(--t-base) var(--ease);
+}
+
 /* Back to the place of playing: shown while the playhead is out of sight, above the pill when the pill is up. */
 .lab.workspace .back-to-play {
     position: absolute;
