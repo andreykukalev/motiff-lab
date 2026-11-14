@@ -1,10 +1,11 @@
 // The modes and the two playheads of version 0.5 on the Piano Roll (the experiment Two playheads and modes, Settings ·
 // Experimental; product spec interaction-modes, «Правила выделения по режимам», and two-playheads). One group in the bar
-// for the score and the roll. On the roll: Navigate moves the roll under the mouse; Select starts a new selection by beats
-// with a drag from outside it (Andrei's exception to mockup a4); Edit notes draws a box round notes to pick them for the
-// editor, which is not a selection; Pen draws nothing here. In every mode a drag that starts inside the selection leaves it
-// alone, a click places a playhead on the beat under it (inside the selection its own, else the global one) and never
-// changes the selection, and the edges still resize it. The playheads are the playback model's (v0.5.2, #495 UX-10,
+// for the score and the roll. On the roll: Navigate moves the roll under the mouse, and a long press puts the black playhead
+// where it is held (#543 3.1); Select starts a new selection by beats with a drag from outside it (Andrei's exception to
+// mockup a4); Edit notes draws a box round notes to pick them for the editor, which is not a selection; Pen draws nothing
+// here. In every mode a drag that starts inside the selection leaves it alone, and a click places a playhead on the beat
+// under it (inside the selection its own, else the global one) and never changes the selection; only Select changes the
+// selection, its edges included (#543 2–4, modeSelects). The playheads are the playback model's (v0.5.2, #495 UX-10,
 // playback-model.ts viewOf), shown on the roll as one (#543 6, rollPlaces): at the position, a cobalt line with a knob inside
 // the selection, an ink line with a dot outside it; no grey column. Nothing here touches the DOM.
 
@@ -42,12 +43,39 @@ export function actsOnRoll(pointerType: string, penOn: boolean): boolean {
 }
 
 /**
- * Whether a press of this pointer type may change the selection on the roll: one that acts on it (actsOnRoll), and never
- * while the roll is bound to the passage Expand shows (#521 19.3), where no pointer creates, resizes or clears a selection
- * and the roll only moves within the passage.
+ * Whether the bar's tool lets a press change the selection on the roll (#543 2–4, lead decisions 1–3): only Select, under
+ * the modes; before them (null) every tool, as before. In Navigate, the Pen and Edit notes no drag on the bar numbers or the
+ * loop strip and no handle creates, replaces, resizes or clears the selection, and the loop strip's handles are not drawn.
  */
-export function selectsOnRoll(pointerType: string, penOn: boolean, bound = false): boolean {
-    return !bound && actsOnRoll(pointerType, penOn);
+export function modeSelects(mode: InteractionMode | null): boolean {
+    return mode === null || mode === "select";
+}
+
+/**
+ * Whether a press of this pointer type may change the selection on the roll: one that acts on it (actsOnRoll), under a tool
+ * that selects (modeSelects), and never while the roll is bound to the passage Expand shows (#521 19.3), where no pointer
+ * creates, resizes or clears a selection and the roll only moves within the passage.
+ */
+export function selectsOnRoll(pointerType: string, penOn: boolean, bound = false, mode: InteractionMode | null = null): boolean {
+    return !bound && modeSelects(mode) && actsOnRoll(pointerType, penOn);
+}
+
+/**
+ * Whether a press of this pointer type navigates on the roll (#543 2–3, lead decision 1): in Navigate every pointer, and
+ * under the Pen a finger, which goes as in Navigate while the stylus is the Pen's. A navigating press moves the roll, a tap
+ * moves the playhead, and a long press puts the black playhead where it is held (HoldToPlace); it never selects.
+ */
+export function navigatesOnRoll(mode: InteractionMode | null, pointerType: string): boolean {
+    return mode === "navigate" || (mode === "pen" && pointerType === "touch");
+}
+
+/**
+ * Whether a hold outside the selection on the roll's strips leaves the selection (#521 16.4): while the music plays, before
+ * the modes, as a hold there may be meant to move the roll. Under the modes only Select's press reaches the strips, and
+ * Select is the player's word that the press selects (#543 3.2, 9): there a hold replaces the selection, playing or not.
+ */
+export function holdKeepsSelection(mode: InteractionMode | null, playing: boolean): boolean {
+    return mode === null && playing;
 }
 
 /** A box drawn across the roll, in ticks and keys: from one corner to the other, either way round. */

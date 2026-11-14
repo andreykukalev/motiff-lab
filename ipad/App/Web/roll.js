@@ -229,11 +229,13 @@ function edit({ on, tool, picked }) {
 
 /**
  * Who edits and who moves the roll (#479 item 23, InputRules.swift `RollInput`): whether a finger ("touch") and the Pencil
- * ("pen") edit while the editor is on, how many fingers move the roll, and whether the Pencil changes the selection (not
- * while the Pen is on, #511 4.1).
+ * ("pen") edit while the editor is on, how many fingers move the roll, whether the Pencil changes the selection (not
+ * while the Pen is on, #511 4.1), and the bar's tool under the modes ("navigate", "select" or "pen"; empty before them):
+ * on the roll too only Select changes the selection, and in Navigate a long press puts the playhead there (#543 2–4).
  */
-function input({ touch, pen, scrollFingers, penSelects }) {
+function input({ touch, pen, scrollFingers, penSelects, mode }) {
     view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1, penSelects: penSelects !== false });
+    view.setRules(mode || null);
 }
 
 /**

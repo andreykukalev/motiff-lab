@@ -43,6 +43,18 @@ function* beatLines(bars: readonly RollBar[]): Generator<number> {
     }
 }
 
+/** The beat a tick lies in: the last beat line at or before it, the first bar's start for a tick before it (a tap's beat, T12). */
+export function beatAt(bars: readonly RollBar[], tick: number): number {
+    let at = bars[0]?.onset ?? 0;
+    for (const beat of beatLines(bars)) {
+        if (beat > tick) {
+            break;
+        }
+        at = beat;
+    }
+    return at;
+}
+
 /** The beat line after (1) or before (-1) a tick, on the bars' beats; the tick itself when there is none that way. */
 export function beatFrom(bars: readonly RollBar[], tick: number, direction: 1 | -1): number {
     let before = tick;

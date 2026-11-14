@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { RollModel, ENGLISH_ROLL_LABELS } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-model.js";
 import {
     PlayheadControl,
+    beatAt,
     beatFrom,
     nudged,
     onPlayhead,
@@ -25,6 +26,15 @@ test("the playhead stays inside the loop, before its end, and inside the piece w
     assert.equal(placeWithin(-50, null, 5280), 0);
     assert.equal(placeWithin(9000, null, 5280), 5280);
     assert.equal(placeWithin(700, { start: 960, end: 960 }, 5280), 700, "an empty span is no span");
+});
+
+test("a tap on the roll's strips in Navigate goes to the beat it lies in (#543 2, T12)", () => {
+    assert.equal(beatAt(bars, 0), 0);
+    assert.equal(beatAt(bars, 479), 0);
+    assert.equal(beatAt(bars, 480), 480, "on a beat line, that beat");
+    assert.equal(beatAt(bars, 4000), 3840, "in the 3/4 bar");
+    assert.equal(beatAt(bars, 6000), 4800, "past the end, the last beat");
+    assert.equal(beatAt([], 700), 0);
 });
 
 test("a beat on or back follows the bars' beats, across a change of metre", () => {

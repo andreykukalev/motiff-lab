@@ -79,6 +79,38 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(rules.page["scrollFingers"] as? Int, 2)
     }
 
+    func testOnTheRollOnlyTheBarsSelectSelectsUnderTheModes() {
+        // #543 2–4: the bar's tool decides on the roll; the roll's own Navigate and Edit notes are about editing notes.
+        for mode in RollMode.allCases {
+            let select = RollInput(stylus: true, mode: mode, tool: .select)
+            XCTAssertTrue(select.selects(.stylus))
+            XCTAssertTrue(select.selects(.finger))
+            XCTAssertEqual(select.page["mode"] as? String, "select")
+            let navigate = RollInput(stylus: true, mode: mode, tool: .navigate)
+            XCTAssertFalse(navigate.selects(.stylus), "Navigate protects the selection")
+            XCTAssertFalse(navigate.selects(.finger))
+            XCTAssertEqual(navigate.page["mode"] as? String, "navigate")
+        }
+        let pen = RollInput(stylus: true, mode: .navigate, penOn: true, tool: .pen)
+        XCTAssertFalse(pen.selects(.finger), "under the Pen a finger goes as in Navigate")
+        XCTAssertFalse(pen.selects(.stylus))
+        XCTAssertEqual(pen.page["mode"] as? String, "pen")
+        XCTAssertEqual(RollInput(stylus: false, mode: .navigate, tool: .select).page["mode"] as? String, "select")
+    }
+
+    func testBeforeTheModesTheRollSelectsAsBefore() {
+        let before = RollInput(stylus: true, mode: .navigate)
+        XCTAssertTrue(before.selects(.stylus))
+        XCTAssertTrue(before.selects(.finger))
+        XCTAssertEqual(before.page["mode"] as? String, "")
+        XCTAssertEqual(RollInput.barTool(mode: nil, penOn: true), InputRules.Tool.none, "the Pen before the modes changes nothing else on the roll")
+        XCTAssertEqual(RollInput.barTool(mode: nil, penOn: false), InputRules.Tool.none)
+        XCTAssertEqual(RollInput.barTool(mode: .select, penOn: false), InputRules.Tool.select)
+        XCTAssertEqual(RollInput.barTool(mode: .select, penOn: true), InputRules.Tool.pen)
+        XCTAssertEqual(RollInput.barTool(mode: .navigate, penOn: false), InputRules.Tool.navigate)
+        XCTAssertEqual(RollInput(stylus: true, mode: .navigate, tool: .edit).page["mode"] as? String, "navigate", "the iPad's bar has no Edit notes")
+    }
+
     func testTheZoomSaysBarsAndOctavesInWords() {
         let ru = UIText(language: "ru")
         XCTAssertEqual(RollZoom.barsText(9, ru), "9 тактов")

@@ -101,3 +101,39 @@ test("in Expand no pointer changes the selection on the roll, while each still m
     assert.equal(actsOnRoll("pen", true), false, "the Pen's stylus does nothing on the roll, in Expand or not");
     assert.equal(actsOnRoll("touch", true), true);
 });
+
+const { holdKeepsSelection, modeSelects, navigatesOnRoll } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js");
+
+test("on the roll only the bar's Select changes the selection under the modes; before them every tool, as before (#543 2–4)", () => {
+    assert.equal(modeSelects("select"), true);
+    for (const mode of ["navigate", "pen", "edit"]) {
+        assert.equal(modeSelects(mode), false, `${mode} protects the selection`);
+        for (const pointer of ["pen", "touch", "mouse"]) {
+            assert.equal(selectsOnRoll(pointer, false, false, mode), false, `${pointer} in ${mode}: no drag or handle selects`);
+        }
+    }
+    for (const pointer of ["pen", "touch", "mouse"]) {
+        assert.equal(selectsOnRoll(pointer, false, false, "select"), true, `${pointer} in Select selects as before`);
+        assert.equal(selectsOnRoll(pointer, false, false, null), true, `${pointer} without the modes selects as before`);
+    }
+    assert.equal(selectsOnRoll("pen", true, false, "select"), false, "the Pen's stylus never selects");
+    assert.equal(selectsOnRoll("touch", false, true, "select"), false, "nor any pointer in Expand");
+});
+
+test("in Navigate every pointer navigates on the roll, and under the Pen a finger does; Select and before the modes do not (#543 2, decision 1)", () => {
+    for (const pointer of ["pen", "touch", "mouse"]) {
+        assert.equal(navigatesOnRoll("navigate", pointer), true);
+        assert.equal(navigatesOnRoll("select", pointer), false);
+        assert.equal(navigatesOnRoll(null, pointer), false, "without the modes nothing changes");
+    }
+    assert.equal(navigatesOnRoll("pen", "touch"), true, "a finger under the Pen goes as in Navigate");
+    assert.equal(navigatesOnRoll("pen", "pen"), false, "the stylus is the Pen's");
+    assert.equal(navigatesOnRoll("edit", "mouse"), false, "Edit notes keeps its box");
+});
+
+test("a hold on the strips keeps the selection while playing only before the modes; in Select it replaces it (#521 16.4, #543 9)", () => {
+    assert.equal(holdKeepsSelection(null, true), true);
+    assert.equal(holdKeepsSelection(null, false), false);
+    assert.equal(holdKeepsSelection("select", true), false, "Select is the player's word that the press selects");
+    assert.equal(holdKeepsSelection("select", false), false);
+});

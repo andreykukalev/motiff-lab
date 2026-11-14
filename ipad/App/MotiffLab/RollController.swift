@@ -85,6 +85,11 @@ final class RollController: NSObject, ObservableObject {
     var penOn = false {
         didSet { if penOn != oldValue { applyInput() } }
     }
+    /// The bar's tool under the modes (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in
+    /// Navigate a long press puts the playhead where it is held; none before the modes.
+    var barTool: InputRules.Tool = .none {
+        didSet { if barTool != oldValue { applyInput() } }
+    }
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -195,7 +200,7 @@ final class RollController: NSObject, ObservableObject {
     /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
     /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn).page
+        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
         guard loaded else { return }
         let data = input
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
@@ -317,7 +322,7 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
-            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn).page
+            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
             _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
             if passage != nil {
                 await sendPassage()
