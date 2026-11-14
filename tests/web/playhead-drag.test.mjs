@@ -67,17 +67,18 @@ function fakeGeometry() {
     };
 }
 
-test("on the score the black playhead keeps to the bar it stood in, the blue one to the selection", () => {
+test("on the score the black playhead follows the pointer across bars (#543 5, B5 gone), the blue one keeps to the selection", () => {
     const geometry = fakeGeometry();
-    const [first, second] = geometry.bars;
+    const [, second] = geometry.bars;
     const none = () => undefined;
-    assert.equal(scoreDragTick(geometry, none, "black", first, { x: 300, y: 40 }, null), 960);
-    assert.equal(scoreDragTick(geometry, none, "black", first, { x: 700, y: 40 }, null), 1800, "over the next bar it stays in its own");
+    assert.equal(scoreDragTick(geometry, none, "black", { x: 300, y: 40 }, null), 960);
+    assert.equal(scoreDragTick(geometry, none, "black", { x: 700, y: 40 }, null), 2880, "over the next bar it goes into that bar");
     const selection = { start: 960, end: 2880 };
-    assert.equal(scoreDragTick(geometry, none, "blue", null, { x: 600, y: 40 }, selection), 2400, "inside the selection, in the bar under it");
-    assert.equal(scoreDragTick(geometry, none, "blue", null, { x: 880, y: 40 }, selection), 2760, "past the selection: its last sixteenth");
-    assert.equal(scoreDragTick(geometry, none, "blue", null, { x: 120, y: 40 }, selection), 960, "before it: its start");
-    assert.equal(scoreDragTick(geometry, none, "blue", null, { x: 300, y: 40 }, null), undefined, "no blue playhead without a selection");
+    assert.equal(scoreDragTick(geometry, none, "black", { x: 880, y: 40 }, selection), 3720, "the black one goes past the selection");
+    assert.equal(scoreDragTick(geometry, none, "blue", { x: 600, y: 40 }, selection), 2400, "inside the selection, in the bar under it");
+    assert.equal(scoreDragTick(geometry, none, "blue", { x: 880, y: 40 }, selection), 2760, "past the selection: its last sixteenth");
+    assert.equal(scoreDragTick(geometry, none, "blue", { x: 120, y: 40 }, selection), 960, "before it: its start");
+    assert.equal(scoreDragTick(geometry, none, "blue", { x: 300, y: 40 }, null), undefined, "no blue playhead without a selection");
     assert.equal(second.tick, 1920);
 });
 
@@ -241,17 +242,19 @@ test("a press on a score handle is the handle's alone: captured, never passed on
         geometry: () => geometry,
         onsetOf: () => undefined,
         selection: () => null,
-        position: () => 480,
         takes: (type) => type !== "pen" || !writes,
         point: (event) => ({ x: event.x, y: event.y }),
-        moved: () => {},
+        moved: () => { moves += 1; },
     }, new PlayheadDrag((message) => sent.push(message), (run) => frames.push(run)));
+    let moves = 0;
     const dot = new FakeElement();
     const down = pointer(dot, { x: 160 });
     grab.begin("black", down);
     assert.equal(down.stopped, true, "the selection layer and the tap on a beat never see it");
     assert.equal(down.prevented, true);
     assert.equal(dot.hasPointerCapture(1), true, "the handle keeps the pointer");
+    assert.equal(grab.held, "black", "held, the black playhead's line shows at once (#543 5)");
+    assert.equal(moves, 1);
     dot.fire("pointermove", pointer(dot, { x: 162 }));
     assert.deepEqual(sent, [], "a tap's wobble moves nothing");
     const move = pointer(dot, { x: 700 });
@@ -259,8 +262,9 @@ test("a press on a score handle is the handle's alone: captured, never passed on
     assert.equal(move.stopped, true);
     frames.splice(0).forEach((run) => run());
     dot.fire("pointerup", pointer(dot, {}));
-    assert.deepEqual(sent, [{ phase: "grab", handle: "black" }, { phase: "move", handle: "black", tick: 1800 }, { phase: "release", handle: "black" }], "the black playhead stays in its bar");
+    assert.deepEqual(sent, [{ phase: "grab", handle: "black" }, { phase: "move", handle: "black", tick: 2880 }, { phase: "release", handle: "black" }], "the black playhead goes into the next bar");
     assert.equal(dot.hasPointerCapture(1), false);
+    assert.equal(grab.held, null, "let go, the line goes");
 
     writes = true;
     const pen = pointer(dot, { x: 160 });
@@ -286,4 +290,29 @@ test("on the web's roll a press takes the one marker on the bar numbers' edge: b
     assert.deepEqual(inside, { black: null, blue: { x: 400, y: 24 } }, "one knob, never a dot hanging under it");
     assert.equal(knobHeadAt(396, 20, inside, 10), "blue");
     assert.equal(knobHeadAt(300, 24, inside, 10), null, "away from it");
+});
+
+test("a handle pressed by a pointer already gone holds nothing, so the next press takes it (#543 9)", () => {
+    globalThis.HTMLElement = FakeElement;
+    const geometry = fakeGeometry();
+    const sent = [];
+    const drag = new PlayheadDrag((message) => sent.push(message), (run) => run());
+    const grab = new ScoreGrab({
+        geometry: () => geometry,
+        onsetOf: () => undefined,
+        selection: () => null,
+        takes: () => true,
+        point: (event) => ({ x: event.x, y: event.y }),
+        moved: () => {},
+    }, drag);
+    const gone = new FakeElement();
+    gone.setPointerCapture = () => { throw new Error("InvalidPointerId"); };
+    grab.begin("black", pointer(gone, { x: 160 }));
+    assert.equal(grab.held, null, "before 0.5.7 the playhead stayed taken and every later press on a handle did nothing");
+    const dot = new FakeElement();
+    grab.begin("black", pointer(dot, { x: 160, pointerId: 2 }));
+    assert.equal(grab.held, "black");
+    dot.fire("pointerup", pointer(dot, { pointerId: 2 }));
+    assert.equal(grab.held, null);
+    delete globalThis.HTMLElement;
 });

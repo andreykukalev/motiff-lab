@@ -158,13 +158,14 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     // MARK: - UIGestureRecognizerDelegate
 
     /// A finger on a selection handle or a playhead's handle (its 44 pt target) moves the handle; the Pencil that writes
-    /// writes there too (#511 4.1, InputRules.inkTakes), so a stroke never moves an edge of the selection.
+    /// writes there too (#511 4.1, InputRules.inkTakes), so a stroke never moves an edge of the selection. The page reports
+    /// selection handles only where it draws them, in Select (#543 4.2), so outside it none takes a touch.
     func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard recognizer === gesture, let host else { return true }
         let at = touch.location(in: host)
         let near = { (spot: CGPoint) in hypot(spot.x - at.x, spot.y - at.y) <= InputRules.handleReach }
         let pointer: InputRules.Pointer = touch.type == .pencil ? .stylus : .finger
-        return rules.inkTakes(pointer, nearHandle: handles().contains(where: near) || heads().contains(where: near))
+        return rules.inkTakes(pointer, nearHandle: handles().contains(where: near), nearPlayhead: heads().contains(where: near))
     }
 
     /// Two fingers scroll and pinch beside a finger writing, which then lets its stroke go.

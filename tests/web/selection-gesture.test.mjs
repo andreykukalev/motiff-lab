@@ -7,6 +7,8 @@ import { mock, test } from "node:test";
 import {
     HOLD_MS,
     editedRange,
+    handlesShown,
+    staleGesture,
     gestureChange,
     heldGesture,
     movedGesture,
@@ -227,4 +229,21 @@ test("while the music plays a hold on the roll's strips never clears the selecti
     } finally {
         mock.timers.reset();
     }
+});
+
+test("under the modes only Select shows the selection's handles; before them they always show (#543 4.2)", () => {
+    assert.equal(handlesShown("select"), true);
+    for (const mode of ["navigate", "edit", "pen"]) {
+        assert.equal(handlesShown(mode), false, mode);
+    }
+    assert.equal(handlesShown(null), true);
+    assert.equal(handlesShown(undefined), true);
+});
+
+test("a primary press of the same pointer type ends a gesture whose end was lost; another kind of pointer does not (#543 9)", () => {
+    assert.equal(staleGesture({ pointerType: "pen" }, { pointerType: "pen", isPrimary: true }), true, "one pen: its new press means the old one lifted");
+    assert.equal(staleGesture({ pointerType: "touch" }, { pointerType: "touch", isPrimary: true }), true, "a first finger with none down");
+    assert.equal(staleGesture({ pointerType: "touch" }, { pointerType: "touch", isPrimary: false }), false, "a second finger beside the first");
+    assert.equal(staleGesture({ pointerType: "pen" }, { pointerType: "touch", isPrimary: true }), false, "a finger beside the pen");
+    assert.equal(staleGesture({ pointerType: "mouse" }, { pointerType: "mouse", isPrimary: true }), true);
 });

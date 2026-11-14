@@ -1,9 +1,9 @@
 // The rules of version 0.5 on the score (the experiment Two playheads and modes, Settings · Experimental; product specs
 // two-playheads and interaction-modes, «Правила выделения по режимам»): one group of modes in the bar, Navigate (H),
-// Select (S), Edit notes (E) and Pen (P), each with its own cursor. The selection goes by beats and changes only by its
-// handles, in any mode; a click never changes it but puts a playhead on the beat under it; a drag that starts inside
-// the selection leaves it alone in every mode; only Select starts a new selection with a drag; in Navigate a drag moves
-// the score under the mouse as a hand would. Which beat is music-core's (the beat lines of the playback score).
+// Select (S), Edit notes (E) and Pen (P), each with its own cursor. The selection goes by beats and changes only in Select,
+// by a drag or its handles, which show only there (v0.5.7, #543 2-4); a click never changes it but puts a playhead on the
+// beat under it; in Navigate a drag moves the score under the mouse as a hand would, and a long press of a finger or the pen
+// puts the black playhead at the place under it (playhead-grab.ts ScorePress). Which beat is music-core's (the beat lines of the playback score).
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import { type Beat, ScoreBeats } from "./selection-beats.js";

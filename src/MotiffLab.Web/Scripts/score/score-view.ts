@@ -16,7 +16,8 @@ import { ScoreRules } from "./score-modes.js";
 import { ScorePlayheadMarks, playheadsOf } from "./playheads.js";
 import { viewOf, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
-import { ScoreGrab } from "./playhead-grab.js";
+import { ScoreGrab, ScorePress } from "./playhead-grab.js";
+import { pressPlaces } from "../playback/playhead-press.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -305,6 +306,8 @@ export class ScoreView {
      * and its letting go, and sounds the notes passed (UX-09).
      */
     private readonly grab: ScoreGrab;
+    /** In Navigate a long press of a finger or the pen puts the black playhead on the music and scrubs on (#543 3, 5). */
+    private readonly press: ScorePress;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
@@ -372,17 +375,20 @@ export class ScoreView {
                 geometry: () => this.geometry(),
                 onsetOf: (id) => this.timeline?.onsetOf(id),
                 selection: () => this.player?.model?.()?.selection ?? null,
-                position: () => Math.round(this.player?.currentTick() ?? 0),
                 // While the model holds. With the Pen on the mouse and the pen write over a handle too; a finger takes it.
                 takes: (pointerType) => (this.player?.model?.() ?? null) !== null && (pointerType === "touch" || !this.pencil.state().on),
-                point: (event) => {
-                    const view = this.host.getBoundingClientRect();
-                    return { x: event.clientX - view.left + this.host.scrollLeft, y: event.clientY - view.top + this.host.scrollTop };
-                },
+                point: (event) => this.contentPoint(event),
                 moved: () => this.drawHeads(),
             },
             new PlayheadDrag((message) => this.player?.drag?.(message)),
         );
+        this.press = new ScorePress(host, {
+            geometry: () => this.geometry(),
+            onsetOf: (id) => this.timeline?.onsetOf(id),
+            places: (event) => (this.player?.model?.() ?? null) !== null && !this.pencil.state().on && pressPlaces(event.pointerType, undefined, this.rules.mode()),
+            point: (event) => this.contentPoint(event),
+            moved: () => this.drawHeads(),
+        }, this.grab.drag);
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
@@ -533,6 +539,7 @@ export class ScoreView {
             this.frame = requestAnimationFrame(this.tick);
         } else {
             this.grab.cancel();
+            this.press.cancel();
             this.mark([], false);
             this.placePlayhead(null);
             this.heads.hide();
@@ -648,6 +655,7 @@ export class ScoreView {
      */
     setRules(mode: string | null, lines: number[] | null): void {
         this.rules.set(mode, lines);
+        this.press.cancel();
         this.selection.place();
     }
 
@@ -947,6 +955,7 @@ export class ScoreView {
         this.selection.dispose();
         this.rules.dispose();
         this.grab.cancel();
+        this.press.dispose();
         this.heads.dispose();
         cancelAnimationFrame(this.frame);
         cancelAnimationFrame(this.replaceFrame);
@@ -1638,6 +1647,7 @@ export class ScoreView {
         if (this.headsShown) {
             this.headsShown = false;
             this.grab.cancel();
+            this.press.cancel();
             this.heads.hide();
         }
         // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
@@ -1647,7 +1657,13 @@ export class ScoreView {
     /** The model's playheads: at the place a held handle was dragged to while it is held, and just after, else the position. */
     private placeModelHeads(model: ModelState, playing: boolean): void {
         const view = viewOf({ ...model, tick: this.grab.drag.heard(model.tick) });
-        this.reportPlace(this.heads.place(playheadsOf(view, model.selection)), !playing);
+        this.reportPlace(this.heads.place({ ...playheadsOf(view, model.selection), held: this.grab.held === "black" }), !playing);
+    }
+
+    /** An event's point in the score's content pixels, as the geometry places the bars. */
+    private contentPoint(event: PointerEvent): { x: number; y: number } {
+        const view = this.host.getBoundingClientRect();
+        return { x: event.clientX - view.left + this.host.scrollLeft, y: event.clientY - view.top + this.host.scrollTop };
     }
 
     /** A held handle moved: its playheads go there now, not a frame later. */
@@ -1737,7 +1753,9 @@ export class ScoreView {
             return;
         }
         // A press the pencil layer took is handled there: a tap comes back through pick. A drag across bars has chosen them already.
-        const dragged = this.selection.swallowsClick();
+        // The release of a long press that took the playhead is no tap on a beat (#543 3.1).
+        const pressed = this.press.swallowsClick();
+        const dragged = this.selection.swallowsClick() || pressed;
         const penned = this.pencil.swallowsClick();
         if (this.rules.click(event, dragged || penned) || dragged) {
             return;

@@ -56,7 +56,8 @@ import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, fr
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
 import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
-import { ScoreGrab } from "../score/playhead-grab.js";
+import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
+import { pressPlaces } from "../playback/playhead-press.js";
 import { PRACTICE_ATTRIBUTE } from "../layout/practice-view.js";
 import { viewOf } from "../playback/playback-model.js";
 import { PlayheadDrag } from "../playback/playhead-drag.js";
@@ -540,7 +541,6 @@ const grabs = new ScoreGrab({
     geometry: () => state.geometry,
     onsetOf: (id) => state.timeline?.onsetOf(id),
     selection: () => state.heads?.selection ?? null,
-    position: () => heard.tick,
     takes: (pointerType) => state.heads !== null && !state.focus && (pointerType !== "pen" || (state.input?.pen?.tap ?? !state.pen)),
     point: (event) => {
         const view = document.body.getBoundingClientRect();
@@ -548,6 +548,23 @@ const grabs = new ScoreGrab({
     },
     moved: () => reportPlace(drawHeads(), !heard.playing),
 }, new PlayheadDrag((message) => post({ drag: message })));
+
+/**
+ * The long press on the music (v0.5.7, #543 3 and 5, Scripts/score/playhead-grab.ts ScorePress): where InputRules let a
+ * pointer hold the playhead (`hold`: Navigate, and with the Pen a finger that does not write), held still on a bar it puts
+ * the black playhead at the place under it and, moved on, scrubs across bars and systems, through the same drag messages
+ * as the dot (T14-T16). It never selects.
+ */
+const press = new ScorePress(document.body, {
+    geometry: () => state.geometry,
+    onsetOf: (id) => state.timeline?.onsetOf(id),
+    places: (event) => state.heads !== null && !state.focus && pressPlaces(event.pointerType, state.input?.[event.pointerType]?.hold, state.mode),
+    point: (event) => {
+        const view = document.body.getBoundingClientRect();
+        return { x: event.clientX - view.left + document.body.scrollLeft, y: event.clientY - view.top + document.body.scrollTop };
+    },
+    moved: () => reportPlace(drawHeads(), !heard.playing),
+}, grabs.drag);
 
 /**
  * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select" or "pen";
@@ -560,6 +577,7 @@ function mode({ name }) {
     } else {
         document.body.dataset.mode = state.mode;
     }
+    press.cancel();
     selection.place();
 }
 
@@ -570,6 +588,7 @@ function mode({ name }) {
  */
 function input(rules) {
     state.input = rules ?? null;
+    press.cancel();
     selection.place();
 }
 
@@ -587,6 +606,7 @@ function playheads(value) {
     state.heads = value ?? null;
     if (state.heads === null) {
         grabs.cancel();
+        press.cancel();
         heads.hide();
         reportGrips();
     } else {
@@ -721,7 +741,9 @@ document.body.addEventListener("click", (event) => {
         return;
     }
     // A press on a playhead's handle is the handle's, a tap on it included: it never places the playhead or selects a bar.
-    if (selection.swallowsClick() || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
+    // The release of a long press that put the playhead is no tap on a beat (#543 3.1).
+    const pressed = press.swallowsClick();
+    if (selection.swallowsClick() || pressed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
     if (state.mode !== null) {
@@ -861,6 +883,7 @@ function focus({ open, label, back }) {
     focusLayer.hidden = !state.focus;
     if (state.focus) {
         grabs.cancel();
+        press.cancel();
     }
     if (!state.focus) {
         cardScore.replaceChildren();
@@ -1016,7 +1039,7 @@ function drawHeads() {
         const chosen = state.heads.selection ?? null;
         const tick = grabs.drag.heard(heard.tick);
         const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: heard.playing ? "playing" : "stopped" });
-        at = heads.place(playheadsOf(view, chosen));
+        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black" });
     }
     reportGrips();
     return at;
