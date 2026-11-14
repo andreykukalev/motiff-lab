@@ -117,27 +117,23 @@ extension PenHolder {
         }
     }
 
-    /// A tool chosen in the pencil palette: the Pen comes on with it, so the Pencil writes with it at once.
+    /// A tool chosen in the pencil palette: the Pen comes on with it, so the Pencil writes with it at once. The palette stays
+    /// while the player chooses (#543 8); the first touch outside it closes it and writes (PaletteOutside).
     func chooseFromPalette(_ tool: ActiveTool) {
         pen.choose(tool)
-        closePaletteWritingOn()
+        penOn = true
     }
 
-    /// A thickness of the active tool chosen in the pencil palette: the tool stays, the Pen comes on.
+    /// A thickness of the active tool chosen in the pencil palette: the tool stays, the Pen comes on, the palette stays.
     func chooseFromPalette(width: Int) {
         pen.setWidth(width)
-        closePaletteWritingOn()
+        penOn = true
     }
 
-    /// An ink of the pencil chosen in the pencil palette: the tool stays, the Pen comes on.
+    /// An ink of the pencil chosen in the pencil palette: the tool stays, the Pen comes on, the palette stays.
     func chooseFromPalette(ink: ScoreController.Ink) {
         pen.setInk(ink)
-        closePaletteWritingOn()
-    }
-
-    private func closePaletteWritingOn() {
         penOn = true
-        pencilPalette = nil
     }
 }
 
@@ -188,16 +184,96 @@ enum PaletteLayout {
     static func slot(width: Int) -> Int {
         settingSlots - PenSizes.pen.count + width
     }
+
+    /// Whether a touch at `point`, from the palette's middle, is on the palette (#543 8): on one of its round buttons, each
+    /// `diameter` across, at `places` from the middle. Anywhere else, the gaps between the buttons too, is the workspace: the
+    /// touch closes the palette and goes on to what is under it, as nothing of the palette is drawn there.
+    static func onButtons(_ point: CGPoint, places: [CGPoint], diameter: CGFloat) -> Bool {
+        places.contains { hypot(point.x - $0.x, point.y - $0.y) <= diameter / 2 }
+    }
+}
+
+/// Closes the pencil palette on the first touch that begins outside it, by the Pencil or a finger, and lets that very touch
+/// go on to whatever is under it (#543 8): the score's and the roll's web views and their pointer events, the pen's
+/// InkInput, a PDF's pages, the bar. The chosen tool so acts at once: Navigate scrolls from that touch, Select begins its
+/// selection, the Pen writes the stroke. The cause it replaces: a layer over the whole screen caught the touch to close the
+/// palette and ate it, so the tool needed a second one. A recognizer on the window is shown every touch as it begins and
+/// only looks: `shouldReceive` answers no, so it never takes, delays or cancels a touch, and nothing waits for it to fail.
+/// Put at the palette's middle with no size, so a touch's place in it is its place from the middle and it catches none.
+struct PaletteOutside: UIViewRepresentable {
+    /// Whether a touch, from the palette's middle, is on the palette's buttons.
+    var inside: (CGPoint) -> Bool
+    var close: () -> Void
+
+    func makeUIView(context: Context) -> OutsideTouchView {
+        OutsideTouchView(frame: .zero)
+    }
+
+    func updateUIView(_ view: OutsideTouchView, context: Context) {
+        view.inside = inside
+        view.close = close
+    }
+
+    static func dismantleUIView(_ view: OutsideTouchView, coordinator: ()) {
+        view.stopWatching()
+    }
+}
+
+/// The palette's middle, watching the window's touches as they begin (PaletteOutside).
+final class OutsideTouchView: UIView, UIGestureRecognizerDelegate {
+    var inside: (CGPoint) -> Bool = { _ in true }
+    var close: () -> Void = {}
+    private let watcher = UIGestureRecognizer(target: nil, action: nil)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        backgroundColor = .clear
+        watcher.cancelsTouchesInView = false
+        watcher.delaysTouchesBegan = false
+        watcher.delaysTouchesEnded = false
+        watcher.delegate = self
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    /// On the window the palette is shown in, beside every other gesture; off it once the palette goes.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        stopWatching()
+        window?.addGestureRecognizer(watcher)
+    }
+
+    func stopWatching() {
+        watcher.view?.removeGestureRecognizer(watcher)
+    }
+
+    /// Every touch beginning in the window: one outside the palette closes it, after UIKit has handed the touch on.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if !inside(touch.location(in: self)) {
+            let close = close
+            DispatchQueue.main.async { close() }
+        }
+        return false
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
+    }
 }
 
 /// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. Without the modes (a
 /// PDF's pages, the score before them) the tools (the pencil, the marker, the eraser) on an inner half circle, exactly one
 /// chosen; the active tool's settings on an outer one (#495 UX-06): the pencil's inks and its thicknesses, the marker's
 /// thicknesses in the same places, nothing for the eraser; Undo in the middle; whatever is chosen turns the Pen on and
-/// closes the palette. On the score under the modes it is the stylus menu (#521 11): Navigate, Select and the Pen on the
-/// inner half circle, and above them, side by side, only the chosen tool's controls (Select: Undo, Redo, Clear selection;
-/// the Pen: Undo, Redo; Navigate: none). A tool chosen there changes the controls in place and the menu stays; Undo and
-/// Redo leave it open; Clear selection closes it. A tap beside it closes it.
+/// leaves the palette open. On the score under the modes it is the stylus menu (#521 11): Navigate, Select and the Pen on
+/// the inner half circle, and above them, side by side, only the chosen tool's controls (Select: Undo, Redo, Clear
+/// selection; the Pen: Undo, Redo; Navigate: none). A tool chosen there changes the controls in place and the menu stays;
+/// Undo and Redo leave it open; Clear selection closes it, as an action. Either stays open while the player chooses tools
+/// and settings (#543 8); the first touch outside it, Pencil or finger, closes it and reaches the view under it as if it
+/// had not been there (PaletteOutside), so the chosen tool acts on that very touch.
 struct PencilPalette<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let call: PencilPaletteCall
@@ -218,11 +294,17 @@ struct PencilPalette<Holder: PenHolder>: View {
             // Kept inside the screen by the reach of its outer circle, whichever tool is chosen, so the menu does not move
             // when a tool chosen in it brings other controls.
             let placed = PaletteLayout.centre(CGPoint(x: at.x - frame.minX, y: at.y - frame.minY), in: proxy.size, reach: Self.outer + Self.button / 2)
+            let places = buttonPlaces(placed.upward)
             ZStack {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { holder.pencilPalette = nil }
-                    .accessibilityHidden(true)
+                // Nothing over the screen catches a touch beside the buttons (#543 8): it closes the palette and goes on.
+                PaletteOutside(
+                    inside: { PaletteLayout.onButtons($0, places: places, diameter: Self.button) },
+                    close: { holder.pencilPalette = nil }
+                )
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .position(placed.point)
                 ring(placed.upward)
                     .position(placed.point)
             }
@@ -243,12 +325,49 @@ struct PencilPalette<Holder: PenHolder>: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["pencil.palette"])
+        .accessibilityAction(.escape) { holder.pencilPalette = nil }
+    }
+
+    /// Where every button now shown sits from the palette's middle, the places the rings draw them at: what a touch must
+    /// land on to stay in the palette (#543 8).
+    private func buttonPlaces(_ upward: Bool) -> [CGPoint] {
+        if let modes {
+            let places = menuPlaces(modes, upward)
+            return places.tools + places.controls
+        }
+        let places = penPlaces(upward)
+        let settings = shownInks.map { places.slots[PaletteLayout.slot(ink: $0)] } + shownWidths.map { places.slots[PaletteLayout.slot(width: $0)] }
+        // Undo in the middle.
+        return places.tools + settings + [.zero]
+    }
+
+    /// The stylus menu's places: the tools on the inner half circle, the chosen tool's controls side by side above them.
+    private func menuPlaces(_ modes: RingModes, _ upward: Bool) -> (tools: [CGPoint], controls: [CGPoint]) {
+        let tools = PaletteLayout.arc(count: InteractionMode.inBar.count, radius: Self.inner, upward: upward)
+        let controls = PaletteLayout.fan(count: modes.controls.count, radius: Self.outer, spacing: Self.button + CGFloat.ds("s-2"), upward: upward)
+        return (tools, controls)
+    }
+
+    /// The pen palette's places: its tools on the inner half circle, the settings' slots on the outer one.
+    private func penPlaces(_ upward: Bool) -> (tools: [CGPoint], slots: [CGPoint]) {
+        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
+        let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
+        return (tools, slots)
+    }
+
+    /// The pencil's inks, shown while the pencil is the tool.
+    private var shownInks: [ScoreController.Ink] {
+        holder.pen.active == .pencil ? ScoreController.Ink.allCases : []
+    }
+
+    /// The thicknesses, shown for a tool that writes (not the eraser).
+    private var shownWidths: [Int] {
+        holder.pen.current != nil ? Array(PenSizes.pen.indices) : []
     }
 
     /// The stylus menu under the modes (#521 11): the tools, and the chosen one's controls together above them.
     private func toolsRing(_ modes: RingModes, _ upward: Bool) -> some View {
-        let places = PaletteLayout.arc(count: InteractionMode.inBar.count, radius: Self.inner, upward: upward)
-        let controls = PaletteLayout.fan(count: modes.controls.count, radius: Self.outer, spacing: Self.button + CGFloat.ds("s-2"), upward: upward)
+        let (places, controls) = menuPlaces(modes, upward)
         return ZStack {
             ForEach(InteractionMode.inBar.indices, id: \.self) { index in
                 modeButton(InteractionMode.inBar[index], modes).offset(x: places[index].x, y: places[index].y)
@@ -306,24 +425,18 @@ struct PencilPalette<Holder: PenHolder>: View {
 
     /// The Pen's tools and the active tool's settings.
     private func penRing(_ upward: Bool) -> some View {
-        let pen = holder.pen
-        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
-        let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
+        let (tools, slots) = penPlaces(upward)
         return ZStack {
             ForEach(ActiveTool.allCases.indices, id: \.self) { index in
                 toolButton(ActiveTool.allCases[index]).offset(x: tools[index].x, y: tools[index].y)
             }
-            if pen.active == .pencil {
-                ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
-                    let slot = slots[PaletteLayout.slot(ink: ink)]
-                    inkButton(ink).offset(x: slot.x, y: slot.y)
-                }
+            ForEach(shownInks, id: \.self) { ink in
+                let slot = slots[PaletteLayout.slot(ink: ink)]
+                inkButton(ink).offset(x: slot.x, y: slot.y)
             }
-            if pen.current != nil {
-                ForEach(PenSizes.pen.indices, id: \.self) { width in
-                    let slot = slots[PaletteLayout.slot(width: width)]
-                    widthButton(width).offset(x: slot.x, y: slot.y)
-                }
+            ForEach(shownWidths, id: \.self) { width in
+                let slot = slots[PaletteLayout.slot(width: width)]
+                widthButton(width).offset(x: slot.x, y: slot.y)
             }
         }
     }
