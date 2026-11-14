@@ -47,17 +47,16 @@ final class Engraver {
         #"{"includeRests": true, "includeMeasures": true}"#.withCString { String(cString: vrvToolkit_renderToTimemap(toolkit, $0)) }
     }
 
-    /// The web app's A4 page in Leland, the redesign's music font, with its paper margins: the options of `A4_PDF_LAYOUT` in
-    /// Scripts/score/score-page.ts (decision record 0017, design/kit/HANDOFF.md section 8). The page holds the same height of
-    /// music as the web's screen page (`A4_LAYOUT`), so a piece breaks into the same systems and pages on both, and a resume
-    /// point, a page bookmark or a page count means the same page. The iPad's pages start below the floating bar already
-    /// (Web/score.css `--pad-top`), so the 50 mm top margin the web keeps for its bar left a band of empty paper above the
-    /// first system (#479 item 12); the music starts 20 mm from the top, as on paper. tests/web/score-pdf.test.mjs keeps the
-    /// two equal.
+    /// The web app's A4 page in Leland, the redesign's music font, with its paper margins: the options of `A4_LAYOUT` in
+    /// Scripts/score/score-page.ts (decision record 0017, design/kit/HANDOFF.md section 8), which the web's screen and PDF
+    /// take too, so a piece breaks into the same systems and pages on both, and a resume point, a page bookmark or a page
+    /// count means the same page. Version 0.5.5 (#521 section 14): 20 mm margins at the top and the bottom and the systems
+    /// spread down each page but the last, as a typeset page has them; the notes keep their size, and the title stands
+    /// clear of a tempo mark over the first system. tests/web/score-pdf.test.mjs keeps the two equal.
     static let a4Leland = """
     {"font": "Leland", "scale": 50, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
-     "pageMarginTop": 200, "pageMarginBottom": 460, "spacingSystem": 20, "spacingStaff": 10, "adjustPageHeight": false,
-     "justifyVertically": false, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
+     "pageMarginTop": 200, "pageMarginBottom": 200, "spacingSystem": 14, "spacingStaff": 10, "bottomMarginHeader": 5,
+     "adjustPageHeight": false, "justifyVertically": true, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
     """
 
     /// Even bars (Settings · Notes, `score.evenBars`; testing item 35): the bars take room by their length, so the playhead

@@ -41,3 +41,20 @@ test("without a mark nothing is engraved over the bar", async () => {
     assert.ok(engraver.loadData(mei("")));
     assert.doesNotMatch(engraver.renderToSVG(1), /class="tempo"/);
 });
+
+test("the mark at the start stands over the start of the first system, its note the size of its words (#521 section 13)", async () => {
+    const engraver = new VerovioToolkit(await createVerovioModule());
+    // As NotationGenerator.WriteTempos writes the start's mark since version 0.5.5.
+    assert.ok(engraver.loadData(mei(`<tempo staff="1" place="above" tstamp="0" mm="92" mm.unit="4" midi.bpm="92"><rend fontsize="x-small" glyph.auth="smufl"></rend> = 92</tempo>`)));
+    const svg = engraver.renderToSVG(1);
+    const mark = svg.match(/<g [^>]*class="tempo"[\s\S]*?<\/g>\s*<\/g>/)?.[0] ?? "";
+    const note = Number(mark.match(/font-size="(\d+)px">/)?.[1]);
+    const words = Number(mark.match(/font-size="(\d+)px">\s*=\s*92/)?.[1]);
+    // Verovio sets a glyph without a size at the music font's (720 against the words' 405): it read as a note of the music.
+    assert.ok(note > 0 && words > 0 && note <= words * 1.1, `the note at ${note}, the words at ${words}`);
+    // It starts where the bar does, after the clef and the time signature, not over the first note.
+    const markX = Number(mark.match(/<text x="(\d+)"/)[1]);
+    const clefX = Number(svg.match(/class="clef"[\s\S]*?<use[^>]*translate\((\d+),/)[1]);
+    const noteX = Number(svg.match(/class="note"[\s\S]*?<use[^>]*translate\((\d+),/)[1]);
+    assert.ok(markX > clefX && markX < noteX, `the mark at ${markX}, the clef at ${clefX}, the note at ${noteX}`);
+});

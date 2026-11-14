@@ -192,8 +192,8 @@ test("Verovio's A4 pages become PDF pages of vector notation", async () => {
     assert.match(text, new RegExp(`/Count ${count} `));
 });
 
-test("the PDF's pages start their title nearer the top, and break like the screen's", async () => {
-    const bars = Array.from({ length: 40 }, (_, bar) =>
+test("a page's systems spread down to a bottom margin as deep as the top one, one more system to a page (#521 section 14)", async () => {
+    const bars = Array.from({ length: 100 }, (_, bar) =>
         `<measure n="${bar + 1}"><staff n="1"><layer n="1"><note pname="c" oct="5" dur="4"/><note pname="e" oct="5" dur="4"/><note pname="g" oct="5" dur="2"/></layer></staff><staff n="2"><layer n="1"><chord dur="1"><note pname="c" oct="3"/><note pname="g" oct="3"/></chord></layer></staff></measure>`,
     ).join("");
     const mei = `<?xml version="1.0" encoding="UTF-8"?><mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><meiHead><fileDesc><titleStmt><title>Santiago</title></titleStmt><pubStmt/></fileDesc></meiHead><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef><section>${bars}</section></score></mdiv></body></music></mei>`;
@@ -201,22 +201,37 @@ test("the PDF's pages start their title nearer the top, and break like the scree
         const engraver = new VerovioToolkit(await createVerovioModule());
         engraver.setOptions({ ...options });
         assert.ok(engraver.loadData(mei));
-        const svgs = Array.from({ length: engraver.getPageCount() }, (_, index) => engraver.renderToSVG(index + 1));
-        // Where each page's first system starts, and the bars on each page.
-        // Verovio draws the music inside a group moved down by the top margin.
-        const firstSystem = (svg) =>
-            Number(svg.match(/class="page-margin" transform="translate\(\d+, (\d+)\)"/)[1]) +
-            Number(svg.match(/class="system"[\s\S]*?<path d="M\d+ (\d+)/)[1]);
-        const barsOn = (svg) => (svg.match(/class="measure"/g) ?? []).length;
-        return { count: svgs.length, top: firstSystem(svgs[0]), bars: svgs.map(barsOn) };
+        return Array.from({ length: engraver.getPageCount() }, (_, index) => engraver.renderToSVG(index + 1));
     };
-    const screen = await engrave(A4_LAYOUT);
-    const paper = await engrave(A4_PDF_LAYOUT);
-    // Testing (2026-11-06): the PDF's first page began a third empty. Now its music starts 30 mm higher...
-    assert.ok(paper.top < screen.top - 100, `the music starts at ${paper.top} on paper, ${screen.top} on screen`);
-    // ...and every page holds the same bars, so a page named on screen is the same page on paper.
-    assert.equal(paper.count, screen.count);
-    assert.deepEqual(paper.bars, screen.bars);
+    // In the page's own units (tenths of a millimetre, ten to a unit of the SVG's inner view box): where each system's
+    // top staff line starts, and the lowest staff line of the page.
+    const systems = (svg) => {
+        const top = Number(svg.match(/class="page-margin" transform="translate\(\d+, (\d+)\)"/)[1]);
+        const parts = svg.split('class="system"').slice(1);
+        const tops = parts.map((part) => (top + Number(part.match(/<path d="M\d+ (\d+)/)[1])) / 10);
+        // Staff lines are horizontal paths: the same height at both ends.
+        const lowest = Math.max(...[...svg.matchAll(/<path d="M\d+ (\d+) L\d+ \1"/g)].map((line) => (top + Number(line[1])) / 10));
+        return { tops, lowest };
+    };
+    const pages = await engrave(A4_LAYOUT);
+    assert.ok(pages.length >= 3, `100 bars of two staves fill pages (${pages.length})`);
+    const full = systems(pages[1]);
+    // The systems are spread evenly down the page...
+    const gaps = full.tops.slice(1).map((at, index) => at - full.tops[index]);
+    assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 2, `even gaps ${gaps}`);
+    // ...to the bottom margin, as deep as the top one (20 mm): the bottom of the page is not left empty.
+    const bottom = 2970 - full.lowest;
+    assert.ok(bottom >= 190 && bottom <= 260, `the page ends ${bottom} below its lowest staff line`);
+    // The last page's systems, fewer, keep about the same distance: they are not spread over the whole page.
+    const last = systems(pages[pages.length - 1]);
+    const lastGaps = last.tops.slice(1).map((at, index) => at - last.tops[index]);
+    assert.ok(last.tops.length < full.tops.length);
+    assert.ok(lastGaps.every((gap) => gap <= Math.min(...gaps) * 1.1), `the last page's gaps ${lastGaps}, a full page's ${gaps}`);
+    // The page the iPad had (20 mm at the top, 46 mm at the bottom, systems at least 20 units apart, not spread) held fewer.
+    const before = await engrave({ ...A4_LAYOUT, pageMarginBottom: 460, spacingSystem: 20, justifyVertically: false, bottomMarginHeader: 2 });
+    assert.ok(systems(before[1]).tops.length < full.tops.length, `${systems(before[1]).tops.length} systems a page before, ${full.tops.length} now`);
+    // The PDF is the screen's page, so a page named on screen is the same page on paper.
+    assert.equal(A4_PDF_LAYOUT, A4_LAYOUT);
 });
 
 test("the iPad app engraves its A4 pages with the web app's Verovio options", async () => {
@@ -224,9 +239,8 @@ test("the iPad app engraves its A4 pages with the web app's Verovio options", as
     const swift = await readFile(new URL("../../ipad/App/MotiffLab/Engraver.swift", import.meta.url), "utf8");
     const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
-    // The iPad's pages start below its floating bar, so they take the paper's margins (#479 item 12), which break a piece
-    // into the same pages as the web's screen (the test above).
-    assert.deepEqual(JSON.parse(literal[1]), { ...A4_PDF_LAYOUT });
+    // The iPad, the web's screen and the PDF lay a piece out on the same pages (#521 section 14).
+    assert.deepEqual(JSON.parse(literal[1]), { ...A4_LAYOUT });
     const even = swift.match(/static let evenSpacing = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(even, "Engraver.evenSpacing is a multi-line string literal");
     assert.deepEqual(JSON.parse(even[1]), { ...EVEN_SPACING });

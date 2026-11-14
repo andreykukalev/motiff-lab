@@ -8,22 +8,23 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Notation;
 
 /// <summary>
-/// A MusicXML score shown as written with the tempo the player set for the piece (version 0.5.4, #511 section 17): its
-/// metronome mark at the start of the first part's first bar, "♩ = 92" ("♩. = 60" in 6/8), in place of one the file marks there. A score
-/// without the player's tempo is left as written: its own marks are its own, and a tempo assumed is marked nowhere.
+/// A MusicXML score shown as written with the tempo the player set for the piece (version 0.5.4, #511 section 17), or the
+/// piece's default when nothing states one (version 0.5.5, #521 section 12): its metronome mark at the start of the first
+/// part's first bar, "♩ = 92" ("♩. = 60" in 6/8), in place of one the file marks there. A score with its own tempo is left
+/// as written: its own marks are its own.
 /// </summary>
 public static class WrittenTempo
 {
     private static readonly XmlReaderSettings Safe = new() { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null };
 
     /// <param name="musicXml">A partwise MusicXML score, as written.</param>
-    /// <param name="played">The score as played; only the player's tempo at the start changes the score.</param>
+    /// <param name="played">The score as played; only the player's tempo or the default at the start changes the score.</param>
     public static string With(string musicXml, PlaybackScore played)
     {
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(played);
         IReadOnlyList<PlaybackTempo> tempos = played.Tempos;
-        if (tempos.Count == 0 || tempos[0].Source != TempoSource.Player)
+        if (tempos.Count == 0 || tempos[0].Source is not (TempoSource.Player or TempoSource.Default))
         {
             return musicXml;
         }

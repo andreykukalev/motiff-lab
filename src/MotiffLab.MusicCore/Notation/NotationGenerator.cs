@@ -1155,7 +1155,10 @@ public static partial class NotationGenerator
 
     /// <summary>
     /// The bar's metronome marks over the original's top staff, as Verovio writes a MusicXML metronome: the SMuFL quarter
-    /// note, then "= 92"; in 6/8 the dotted quarter, "♩. = 60", with "mm.dots".
+    /// note, then "= 92"; in 6/8 the dotted quarter, "♩. = 60", with "mm.dots". As engravers set it (version 0.5.5, #521
+    /// section 13), the mark at the piece's start stands over the start of the first system (tstamp 0, above the clef and
+    /// the time signature, clear of the notes), and its note is the size of the words beside it ("x-small" of the music
+    /// font, as the words are), so it reads as an annotation rather than a note of the music.
     /// </summary>
     private static void WriteTempos(XmlWriter xml, MeasurePlan measure)
     {
@@ -1165,7 +1168,7 @@ public static partial class NotationGenerator
             xml.WriteStartElement("tempo", MeiNamespace);
             xml.WriteAttributeString("staff", Number(measure.TempoStaff));
             xml.WriteAttributeString("place", "above");
-            xml.WriteAttributeString("tstamp", Beat(measure.Bar, Math.Max(mark.At.Value, measure.Bar.Span.Onset.Value)));
+            xml.WriteAttributeString("tstamp", mark.At == Tick.Zero ? "0" : Beat(measure.Bar, Math.Max(mark.At.Value, measure.Bar.Span.Onset.Value)));
             xml.WriteAttributeString("mm", perMinute);
             xml.WriteAttributeString("mm.unit", "4");
             bool dotted = mark.Beat == TempoBeat.DottedQuarter;
@@ -1177,6 +1180,7 @@ public static partial class NotationGenerator
             // MIDI's beats a minute are quarter notes'.
             xml.WriteAttributeString("midi.bpm", Number(mark.Beat.QuarterNotes(mark.PerMinute)));
             xml.WriteStartElement("rend", MeiNamespace);
+            xml.WriteAttributeString("fontsize", MarkNoteSize);
             xml.WriteAttributeString("glyph.auth", "smufl");
             xml.WriteString(dotted ? DottedQuarterNoteGlyph : QuarterNoteGlyph);
             xml.WriteEndElement();
@@ -1184,6 +1188,12 @@ public static partial class NotationGenerator
             xml.WriteEndElement();
         }
     }
+
+    /// <summary>
+    /// The size of a metronome mark's note: Verovio sets a SMuFL glyph in words at the music font's size, nearly twice the
+    /// words' (720 against 405 units on the A4 page), which made "♩ = 92" look like an enlarged note; "x-small" (432) is about the words' size.
+    /// </summary>
+    private const string MarkNoteSize = "x-small";
 
     /// <summary>SMuFL's metNoteQuarterUp, the note of a metronome mark.</summary>
     private const string QuarterNoteGlyph = "\uECA5";

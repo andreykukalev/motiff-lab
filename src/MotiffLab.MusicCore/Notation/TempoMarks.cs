@@ -14,9 +14,9 @@ public sealed record TempoMark(Tick At, int PerMinute, bool Approximate, TempoBe
 }
 
 /// <summary>
-/// Which tempos a score is marked with (version 0.5.4, #511 section 17): the tempo at the start when the notes state it or
-/// the player set it, "≈" when it was worked out from a recording, and nothing when it is only the default; after the
-/// start, only the changes the notes state. A tempo assumed is never written, so a reader does not take it for the printed one.
+/// Which tempos a score is marked with (version 0.5.4, #511 section 17): the tempo at the start when the notes state it,
+/// the player set it or it is the piece's default of 80 (version 0.5.5, #521 section 12), "≈" when it was worked out from
+/// a recording, and nothing for a recording's own clock (assumed); after the start, only the changes the notes state.
 /// A mark counts the beat of the meter where it stands: dotted quarters in 6/8, quarters in 4/4.
 /// </summary>
 public static class TempoMarks

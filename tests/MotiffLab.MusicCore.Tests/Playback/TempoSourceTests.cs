@@ -46,15 +46,30 @@ public class TempoSourceTests
     private static ImportedPiece Piece(byte[] musicXml) => PieceImporter.Import("score.musicxml", musicXml).Piece!;
 
     [Fact]
-    public void A_score_homr_reads_without_a_tempo_plays_at_an_assumed_120_and_says_so()
+    public void A_score_homr_reads_without_a_tempo_plays_at_the_pieces_default_of_80_and_says_so()
     {
         ImportedPiece piece = Piece(Homr());
 
         Assert.Equal(1, piece.Report.CountOf(MusicXmlIssueCodes.TempoDefault));
-        PlaybackTempo start = PlaybackScore.FromPiece(piece).StartTempo;
-        Assert.Equal(TempoSource.Assumed, start.Source);
-        Assert.Equal(120, start.PerMinute);
+        // The importer keeps the format's 120 as assumed; the piece plays at its own default (Andrei, version 0.5.5).
+        Assert.True(piece.MusicXml!.Tempos[0].IsAssumed);
+        PlaybackScore score = PlaybackScore.FromPiece(piece);
+        Assert.Equal((80, TempoSource.Default), (score.StartTempo.PerMinute, score.StartTempo.Source));
+        Assert.Equal(PlaybackTempo.PieceDefaultMicrosecondsPerQuarter, TempoSources.MicrosecondsPerQuarter(PlaybackTempo.PieceDefaultPerMinute));
+        Assert.Same(score.Tempos, score.PieceTempos);
         Assert.True(CharacterContext.FromPiece(piece).TempoAssumed);
+    }
+
+    [Fact]
+    public void A_recordings_own_clock_is_not_the_pieces_default()
+    {
+        PlaybackScore clock = PlaybackScore.Create([], [new PlaybackTempo(Tick.Zero, 500_000)], MeterMap.Default, Tick.Zero);
+        ImportedPiece heard = PieceImporter.Import(
+            "heard.mid", File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "scale-type0.mid"))).Piece!;
+        heard = MotiffLab.MusicCore.Import.Transcription.Transcribed.Mark(heard);
+
+        Assert.Same(clock, PlaybackScore.DefaultTempoOf(heard, clock));
+        Assert.Equal(TempoSource.Default, PlaybackScore.DefaultTempoOf(Piece(Homr()), clock).StartTempo.Source);
     }
 
     [Fact]
@@ -86,7 +101,7 @@ public class TempoSourceTests
 
         Assert.Equal((92, TempoSource.Player), (set.StartTempo.PerMinute, set.StartTempo.Source));
         Assert.Equal(652_174, set.StartTempo.MicrosecondsPerQuarter);
-        Assert.Equal(TempoSource.Assumed, set.PieceTempos[0].Source);
+        Assert.Equal(TempoSource.Default, set.PieceTempos[0].Source);
         Assert.Equal(piece.Notes, set.Notes);
         Assert.Equal(piece.Beats, set.Beats);
         Assert.Equal(piece.Tempos, set.WithPlayerTempo(null).Tempos);
@@ -121,6 +136,7 @@ public class TempoSourceTests
         Assert.Empty(TempoMarks.Of([Start(TempoSource.Assumed)]));
         Assert.Equal("= 92", Assert.Single(TempoMarks.Of([Start(TempoSource.Notated)])).Text);
         Assert.Equal("= 92", Assert.Single(TempoMarks.Of([Start(TempoSource.Player)])).Text);
+        Assert.Equal("= 92", Assert.Single(TempoMarks.Of([Start(TempoSource.Default)])).Text);
         Assert.Equal("≈ 92", Assert.Single(TempoMarks.Of([Start(TempoSource.Inferred)])).Text);
         // After the start only what the notes state: a recording's beat-by-beat tempo is not written.
         Assert.Single(TempoMarks.Of([Start(TempoSource.Inferred), new PlaybackTempo(new Tick(480), 700_000, TempoSource.Inferred)]));
@@ -133,13 +149,15 @@ public class TempoSourceTests
         ImportedPiece notated = Piece(Score(metronome: true, change: true));
         GeneratedNotation written = NotationGenerator.FromMusicXml(notated.MusicXml!, tempos: PlaybackScore.FromPiece(notated).Tempos);
         ImportedPiece scanned = Piece(Homr());
-        GeneratedNotation assumed = NotationGenerator.FromMusicXml(scanned.MusicXml!, tempos: PlaybackScore.FromPiece(scanned).Tempos);
+        GeneratedNotation byDefault = NotationGenerator.FromMusicXml(scanned.MusicXml!, tempos: PlaybackScore.FromPiece(scanned).Tempos);
 
         Assert.Equal(2, written.TempoMarkCount);
-        Assert.Contains("<tempo staff=\"1\" place=\"above\" tstamp=\"1\" mm=\"72\" mm.unit=\"4\" midi.bpm=\"72\"><rend glyph.auth=\"smufl\"></rend> = 72</tempo>", written.Mei, StringComparison.Ordinal);
-        Assert.Contains("mm=\"60\"", written.Mei, StringComparison.Ordinal);
-        Assert.Equal(0, assumed.TempoMarkCount);
-        Assert.DoesNotContain("<tempo", assumed.Mei, StringComparison.Ordinal);
+        // The start's mark stands over the start of the first system, its note the size of its words (#521 section 13).
+        Assert.Contains("<tempo staff=\"1\" place=\"above\" tstamp=\"0\" mm=\"72\" mm.unit=\"4\" midi.bpm=\"72\"><rend fontsize=\"x-small\" glyph.auth=\"smufl\"></rend> = 72</tempo>", written.Mei, StringComparison.Ordinal);
+        Assert.Contains("tstamp=\"1\" mm=\"60\"", written.Mei, StringComparison.Ordinal);
+        // A piece without a tempo is marked with its default, as any piece tempo (Andrei, version 0.5.5).
+        Assert.Equal(1, byDefault.TempoMarkCount);
+        Assert.Contains("mm=\"80\"", byDefault.Mei, StringComparison.Ordinal);
         Assert.DoesNotContain("<tempo", NotationGenerator.FromMusicXml(notated.MusicXml!).Mei, StringComparison.Ordinal);
     }
 
@@ -156,6 +174,7 @@ public class TempoSourceTests
         Assert.Contains("</attributes><direction placement=\"above\"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>92</per-minute></metronome></direction-type><sound tempo=\"92\" /></direction>", marked, StringComparison.Ordinal);
         Assert.Equal(92, PlaybackScore.FromPiece(Piece(Encoding.UTF8.GetBytes(marked))).StartTempo.PerMinute);
         Assert.Contains("<per-minute>92</per-minute>", WrittenTempo.With(Encoding.UTF8.GetString(Homr()), PlaybackScore.FromPiece(Piece(Homr())).WithPlayerTempo(92)), StringComparison.Ordinal);
+        Assert.Contains("<per-minute>80</per-minute>", WrittenTempo.With(Encoding.UTF8.GetString(Homr()), PlaybackScore.FromPiece(Piece(Homr()))), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -195,20 +214,23 @@ public class TempoSourceTests
         Assert.False(Json(facade.Open("scan.musicxml", Homr(), """{"id": "p_scan", "now": "2026-11-14T12:00:00Z"}""")).TryGetProperty("error", out _));
 
         JsonElement before = Call(facade, "playback").GetProperty("tempo");
-        Assert.Equal((120, "assumed"), (before.GetProperty("perMinute").GetInt32(), before.GetProperty("source").GetString()));
+        Assert.Equal((80, "default"), (before.GetProperty("perMinute").GetInt32(), before.GetProperty("source").GetString()));
         Assert.Equal(JsonValueKind.Null, before.GetProperty("player").ValueKind);
-        Assert.Equal("assumed", Call(facade, "playback").GetProperty("tempos")[0].GetProperty("source").GetString());
-        Assert.DoesNotContain("<tempo", Call(facade, "notation").GetProperty("mei").GetString()!, StringComparison.Ordinal);
+        Assert.Equal("default", Call(facade, "playback").GetProperty("tempos")[0].GetProperty("source").GetString());
+        Assert.Equal(750_000, Call(facade, "playback").GetProperty("tempos")[0].GetProperty("microsecondsPerQuarter").GetInt32());
+        Assert.Contains("mm=\"80\"", Call(facade, "notation").GetProperty("mei").GetString()!, StringComparison.Ordinal);
+        // The default is not the player's: the project file does not keep it.
+        Assert.False(Call(facade, "project.save").TryGetProperty("tempo", out _));
 
         JsonElement set = Call(facade, "tempo.set", """{"perMinute": 92}""").GetProperty("tempo");
         Assert.Equal((92, "player", 92), (set.GetProperty("perMinute").GetInt32(), set.GetProperty("source").GetString(), set.GetProperty("player").GetInt32()));
-        Assert.Equal("assumed", set.GetProperty("piece").GetProperty("source").GetString());
+        Assert.Equal("default", set.GetProperty("piece").GetProperty("source").GetString());
         Assert.Equal(652_174, Call(facade, "playback").GetProperty("tempos")[0].GetProperty("microsecondsPerQuarter").GetInt32());
         Assert.Contains("mm=\"92\"", Call(facade, "notation").GetProperty("mei").GetString()!, StringComparison.Ordinal);
         Assert.Equal(92, Call(facade, "project.save").GetProperty("tempo").GetProperty("quarterNotesPerMinute").GetInt32());
         Assert.Equal("badRequest", Error(facade, "tempo.set", """{"perMinute": 400}"""));
 
-        Assert.Equal("assumed", Call(facade, "tempo.set", "{}").GetProperty("tempo").GetProperty("source").GetString());
+        Assert.Equal("default", Call(facade, "tempo.set", "{}").GetProperty("tempo").GetProperty("source").GetString());
         Assert.False(Call(facade, "project.save").TryGetProperty("tempo", out _));
     }
 
@@ -225,7 +247,7 @@ public class TempoSourceTests
         Assert.Equal(TempoBeat.DottedQuarter, TempoBeats.Of(new TimeSignature(12, 8)));
         TempoMark mark = Assert.Single(TempoMarks.Of(score.Tempos, score.Meter));
         Assert.Equal((60, TempoBeat.DottedQuarter, "= 60"), (mark.PerMinute, mark.Beat, mark.Text));
-        Assert.Contains("mm=\"60\" mm.unit=\"4\" mm.dots=\"1\" midi.bpm=\"90\"><rend glyph.auth=\"smufl\">\uECA5 \uECB7</rend> = 60</tempo>", NotationGenerator.FromMusicXml(piece.MusicXml!, tempos: score.Tempos).Mei, StringComparison.Ordinal);
+        Assert.Contains("mm=\"60\" mm.unit=\"4\" mm.dots=\"1\" midi.bpm=\"90\"><rend fontsize=\"x-small\" glyph.auth=\"smufl\">\uECA5 \uECB7</rend> = 60</tempo>", NotationGenerator.FromMusicXml(piece.MusicXml!, tempos: score.Tempos).Mei, StringComparison.Ordinal);
 
         // The player's "♩. = 61" is kept as 92 quarter notes a minute and reads back as 61; every whole number does.
         Assert.Equal(92, TempoBeat.DottedQuarter.QuarterNotes(61));
