@@ -1,9 +1,10 @@
 // The selection gesture on the roll's strips (#511 sections 2 and 6.3): the bar numbers and, with the lanes, the loop strip,
 // in the drawer and in Expand alike, follow the score's rules (score/selection-gesture.ts). A press inside the selection
 // that moves moves the nearer edge as far as the pointer goes; a press outside held still takes the selection away, and a
-// move after that selects anew from the press; a move before the hold leaves the selection alone: a finger moves the roll,
-// another pointer is told to hold. A tap does what it did. Without a selection a press selects at once, as before. The roll
-// draws and sends the range; this decides what the press is.
+// move after that selects anew from the press, except while the music plays, when a hold leaves the selection (#521 16.4);
+// a move before the hold leaves the selection alone: a finger moves the roll, another pointer is told to hold. A tap does
+// what it did. Without a selection a press selects at once, as before. The roll draws and sends the range; this decides
+// what the press is.
 
 import {
     HOLD_MS,
@@ -16,7 +17,46 @@ import {
     movedGesture,
     nextGestureId,
     pressGesture,
+    snapEdge,
 } from "../score/selection-gesture.js";
+
+/** A bar of the roll by its number, [onset, end) in ticks. */
+export interface NumberedBar {
+    onset: number;
+    end: number;
+    number: number;
+}
+
+/**
+ * The bars a range on the roll selects, where the selection takes whole bars (the iPad's roll by bars), from the ticks the
+ * roll sends (`anchor` and `current`, either way round, the later one the last tick in it): a tap selects its bar; a new range
+ * every bar it touches, as before; an edge moved (`edit`, #521 3) goes to the nearer barline, so a bar counts once half of it
+ * or more is covered (snapEdge, as the score's edges), never fewer than one bar. Bars in time order; undefined for none.
+ */
+export function rangeBars(bars: readonly NumberedBar[], anchor: number, current: number, click: boolean, edit: boolean): { first: number; last: number } | undefined {
+    const barAt = (tick: number): NumberedBar | undefined => bars.find((bar) => tick < bar.end) ?? bars.at(-1);
+    const low = Math.min(anchor, current);
+    const high = Math.max(anchor, current);
+    if (click || !edit) {
+        const first = barAt(low);
+        const last = click ? first : barAt(Math.max(low, high - 1));
+        return first === undefined || last === undefined ? undefined : { first: first.number, last: last.number };
+    }
+    const lines = bars.length === 0 ? [] : [...bars.map((bar) => bar.onset), bars[bars.length - 1].end];
+    const start = snapEdge(lines, "start", low);
+    // The later tick is the last one in the range: its edge lies a tick after it.
+    const end = snapEdge(lines, "end", high + 1);
+    if (start === undefined || end === undefined) {
+        return undefined;
+    }
+    const inside = bars.filter((bar) => bar.onset >= start && bar.end <= end);
+    if (inside.length === 0) {
+        // The edges met: the bar that holds most of the range stays.
+        const middle = barAt((low + high) / 2);
+        return middle === undefined ? undefined : { first: middle.number, last: middle.number };
+    }
+    return { first: inside[0].number, last: inside[inside.length - 1].number };
+}
 
 /** What the gesture asks of the roll. */
 export interface StripHost {
@@ -36,6 +76,8 @@ export interface StripHost {
     hint(): void;
     /** A press let go where it was, before the hold, at a tick and a height, inside the selection or not. */
     tap(tick: number, y: number, inside: boolean): void;
+    /** Whether a hold outside the selection leaves it: while the music plays (#521 16.4). */
+    keepsSelection(): boolean;
 }
 
 interface StripPress {
@@ -65,7 +107,7 @@ export class RollStripGesture {
         const inside = selection !== null && tick >= selection.start && tick < selection.end;
         const finger = event.pointerType === "touch" || rule === "longPress";
         const press: StripPress = { pointer: event.pointerId, x, y, finger, gesture: pressGesture(selection, tick, inside, rule), id: nextGestureId(), timer: 0 };
-        press.timer = window.setTimeout(() => this.take(press, heldGesture(press.gesture)), HOLD_MS);
+        press.timer = window.setTimeout(() => this.take(press, heldGesture(press.gesture, this.host.keepsSelection())), HOLD_MS);
         this.press = press;
         if (selection === null && rule === "now") {
             // Without a selection a press selects at once, a tap selecting its bar, as before.

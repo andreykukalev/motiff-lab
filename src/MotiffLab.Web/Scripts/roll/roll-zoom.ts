@@ -1,7 +1,8 @@
 // The zoom of the iPad's roll on each axis (v0.5.2, #479 item 23, approved mockup): the time as bars in view, "− 9 bars +"
-// with Fit along the bottom, and the pitch as octaves in view, "+ 3 octaves −" over the keyboard column. A pinch zooms the
-// axis it spreads along: across the time, up and down the pitch, both on a diagonal. The values are counts the player reads
-// (Andrei chose words over percentages); the iPad writes them in its own words. Pure arithmetic; nothing here touches the DOM.
+// with Fit along the bottom, and the pitch as octaves in view, "+ 3 octaves −" over the keyboard column. A pinch zooms both
+// axes at once through the whole gesture (#521 4): its spread across the time, its spread up and down the pitch, with no
+// axis chosen when it begins. The values are counts the player reads (Andrei chose words over percentages); the iPad writes
+// them in its own words. Pure arithmetic; nothing here touches the DOM.
 
 /** A bar's stretch of time in ticks, [onset, end). */
 export interface BarSpan {
@@ -58,27 +59,32 @@ export function rowForOctaves(octaves: number, height: number, minRow: number, m
     return Math.min(maxRow, Math.max(minRow, Math.floor(height / Math.max(1, octaves * OCTAVE_ROWS))));
 }
 
-/**
- * Which axes a pinch zooms, from how its two fingers lie when it starts: across the time when they lie more side by side
- * than one over the other by two to one, up and down the pitch the other way round, and both on a diagonal.
- */
-export function pinchAxes(dx: number, dy: number): { time: boolean; pitch: boolean } {
-    const across = Math.abs(dx);
-    const up = Math.abs(dy);
-    return { time: across * 2 >= up, pitch: up * 2 >= across };
+/** A pinch's fingers' spread across and up and down, in pixels: one finger's place less the other's. */
+export interface PinchSpread {
+    dx: number;
+    dy: number;
 }
 
+/** Under this spread along an axis, in pixels, a pinch does not zoom that axis: the fingers lie nearly in line across it. */
+export const PINCH_LEAST = 40;
+
 /**
- * How much a pinch has zoomed each axis it zooms: the fingers' spread along it now over its spread when the pinch began; 1 for
- * an axis the pinch does not zoom. A spread under `least` pixels when it began reads as no spread.
+ * How much a move of a pinch zooms each axis (#521 4): the fingers' spread along it now over the spread it was last measured
+ * at, the time across and the pitch up and down, both at once in every move, whatever way the pinch began; and the spread to
+ * measure the next move from. An axis whose spread is under `least` zooms by 1 and keeps the spread it had, so fingers in
+ * line across it leave it until they spread along it, and the zoom then follows them from there without a jump.
  */
-export function pinchFactors(start: { dx: number; dy: number }, now: { dx: number; dy: number }, least = 24): { time: number; pitch: number } {
-    const axes = pinchAxes(start.dx, start.dy);
-    const factor = (from: number, to: number): number => (Math.abs(from) < least ? 1 : Math.max(1, Math.abs(to)) / Math.abs(from));
-    return { time: axes.time ? factor(start.dx, now.dx) : 1, pitch: axes.pitch ? factor(start.dy, now.dy) : 1 };
+export function pinchStep(before: PinchSpread, now: PinchSpread, least = PINCH_LEAST): { time: number; pitch: number; spread: PinchSpread } {
+    const measured = (value: number): boolean => Math.abs(value) >= least;
+    const factor = (from: number, to: number): number => (measured(from) && measured(to) ? Math.abs(to) / Math.abs(from) : 1);
+    return {
+        time: factor(before.dx, now.dx),
+        pitch: factor(before.dy, now.dy),
+        spread: { dx: measured(now.dx) ? now.dx : before.dx, dy: measured(now.dy) ? now.dy : before.dy },
+    };
 }
 
-/** What the roll tells its host about its zoom: the counts on the controls and which steps are left. */
+/** What the roll tells its host about its zoom: the counts on the controls, which steps are left, and whether Zoom Out shows (#521 2.2). */
 export interface AxisZoom {
     bars: number;
     octaves: number;
@@ -86,10 +92,11 @@ export interface AxisZoom {
     timeOut: boolean;
     pitchIn: boolean;
     pitchOut: boolean;
+    zoomOut: boolean;
 }
 
 /** Whether two reports say the same, so the host hears only of a change. */
 export function sameZoom(a: AxisZoom | null, b: AxisZoom): boolean {
     return a !== null && a.bars === b.bars && a.octaves === b.octaves && a.timeIn === b.timeIn && a.timeOut === b.timeOut
-        && a.pitchIn === b.pitchIn && a.pitchOut === b.pitchOut;
+        && a.pitchIn === b.pitchIn && a.pitchOut === b.pitchOut && a.zoomOut === b.zoomOut;
 }

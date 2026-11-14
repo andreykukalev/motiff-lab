@@ -578,14 +578,15 @@ export class ScoreGeometry {
 
     /**
      * The bar a selection's edge goes to when its handle is let go at a point: on the system nearest the point,
-     * the bar whose left barline (for the start) or right barline (for the end) is nearest across.
+     * the bar whose left barline (for the start) or right barline (for the end) is nearest across, so a bar counts once half
+     * of it or more is covered (#521 3); at exactly half it counts (the bars run left to right, so the end takes the later).
      */
     edgeNear(x: number, y: number, edge: "start" | "end"): ScoreBar | undefined {
         let best: ScoreBar | undefined;
         let distance = Infinity;
         for (const bar of this.systemNear(x, y)) {
             const away = Math.abs(x - (edge === "start" ? bar.left : bar.right));
-            if (away < distance) {
+            if (away < distance || (edge === "end" && away === distance)) {
                 distance = away;
                 best = bar;
             }

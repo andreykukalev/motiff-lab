@@ -3,7 +3,8 @@ import SwiftUI
 /// The piano roll as a place to edit notes (#479 item 23, the approved mockup v0.5.2): its own mode switch, the zoom on each
 /// axis, and the selection made on it. The roll is the web app's (RollController); what is drawn over it lives here.
 
-/// The roll's zoom as it reports it (`roll-zoom.ts`): the bars and the octaves in view, and which steps are left.
+/// The roll's zoom as it reports it (`roll-zoom.ts`): the bars and the octaves in view, which steps are left, and whether
+/// Zoom Out shows (#521 2.2: after Fit laid a selection across the roll, until Zoom Out or the selection goes).
 struct RollZoom: Equatable, Sendable {
     var bars: Int
     var octaves: Int
@@ -11,17 +12,19 @@ struct RollZoom: Equatable, Sendable {
     var timeOut = true
     var pitchIn = true
     var pitchOut = true
+    var zoomOut = false
 
-    init(bars: Int, octaves: Int, timeIn: Bool = true, timeOut: Bool = true, pitchIn: Bool = true, pitchOut: Bool = true) {
+    init(bars: Int, octaves: Int, timeIn: Bool = true, timeOut: Bool = true, pitchIn: Bool = true, pitchOut: Bool = true, zoomOut: Bool = false) {
         self.bars = bars
         self.octaves = octaves
         self.timeIn = timeIn
         self.timeOut = timeOut
         self.pitchIn = pitchIn
         self.pitchOut = pitchOut
+        self.zoomOut = zoomOut
     }
 
-    /// From the roll's message: `{ bars, octaves, timeIn, timeOut, pitchIn, pitchOut }`.
+    /// From the roll's message: `{ bars, octaves, timeIn, timeOut, pitchIn, pitchOut, zoomOut }`.
     init?(_ message: [String: Any]) {
         guard let bars = (message["bars"] as? NSNumber)?.intValue, let octaves = (message["octaves"] as? NSNumber)?.intValue else { return nil }
         self.bars = bars
@@ -30,6 +33,7 @@ struct RollZoom: Equatable, Sendable {
         timeOut = message["timeOut"] as? Bool ?? true
         pitchIn = message["pitchIn"] as? Bool ?? true
         pitchOut = message["pitchOut"] as? Bool ?? true
+        zoomOut = message["zoomOut"] as? Bool ?? false
     }
 
     /// The time zoom's value in words, as Andrei chose over a percentage: "9 bars", «9 тактов».
@@ -213,6 +217,13 @@ struct RollZoomControls: View {
                 .buttonStyle(DSItemStyle())
                 .frame(minHeight: CGFloat.ds("h-touch"))
                 .help(text["roll.js.fitHint"])
+            // Zoom Out (#521 2.2): after Fit laid a selection across the roll, back to the overview round the playhead.
+            if zoom.zoomOut {
+                Button(text["roll.js.overview"]) { roll.zoomStep(.overview, 0) }
+                    .buttonStyle(DSItemStyle())
+                    .frame(minHeight: CGFloat.ds("h-touch"))
+                    .help(text["roll.js.overviewHint"])
+            }
         }
         .padding(.horizontal, CGFloat.ds("s-1"))
         .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.94))

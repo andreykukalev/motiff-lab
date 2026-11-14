@@ -29,26 +29,31 @@ import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, selectsOnRoll, type RollGesture } from "./roll-modes.js";
-import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
+import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { knobHeadAt, laneDragTick, laneHeadAt } from "./roll-head-drag.js";
 import { RollStripGesture, type StripHost } from "./roll-strip-gesture.js";
 import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
-import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
+import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
     easing,
+    edgeScroll,
     fitFrame,
     followPlayhead,
     frameOf,
     glideFrame,
     milliseconds,
+    overviewSpan,
     paddedPitches,
     revealSelection,
     selectionShift,
+    viewAlong,
     viewOnLoad,
+    zoomOutAfter,
     type ViewFrame,
+    type ZoomOutEvent,
 } from "./roll-view.js";
 
 /** Who edits and who moves the iPad's roll (InputRules.swift RollInput), and whether the stylus selects (#511 4.1). */
@@ -75,7 +80,10 @@ interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
 }
 
-/** A pinch: the fingers' spread, the zoom and the rows when it started, and the fingers' middle and the view then. */
+/**
+ * A pinch: the fingers' spread (with the zoom on each axis, as last measured, #521 4), the zoom and the rows when it started,
+ * the fingers' middle and the view then, and with the zoom on each axis how much it has zoomed each one since it began.
+ */
 interface Pinch {
     distance: number;
     zoom: number;
@@ -86,6 +94,8 @@ interface Pinch {
     midY: number;
     scroll: number;
     top: number;
+    time: number;
+    pitch: number;
 }
 
 /** The part of the playback player (Scripts/playback/playback.ts) the views read every frame. */
@@ -354,6 +364,10 @@ export class PianoRoll {
     private readonly zoomIn: HTMLButtonElement;
     private readonly zoomLevel: HTMLElement;
     private readonly fitButton: HTMLButtonElement;
+    /** Zoom Out (#521 2.2): back to the general overview, shown after Fit laid a selection across the roll. */
+    private readonly overviewButton: HTMLButtonElement;
+    /** Whether Zoom Out shows (roll-view.ts zoomOutAfter): from Fit of a selection until the overview or the selection goes. */
+    private zoomOutShown = false;
     /** The playhead the player moves (roll-playhead.ts): its control for the keyboard and a screen reader, and its drag. */
     private readonly playhead: PlayheadControl;
     /** The whole piece in one line over the roll (v0.5.2, #479 item 25), shown with the lanes. */
@@ -366,7 +380,15 @@ export class PianoRoll {
     /** Whether the selection loops (Цикл on), and the position written as bar.beat for the whole-piece strip. */
     private looping = false;
     private placeLabel = "";
-    private overviewPointer: number | null = null;
+    /**
+     * A press on the whole-piece strip (#521 1): on the black dot it holds the position (the lanes' black playhead, dragged
+     * through laneDrag); anywhere else the frame round the bars on screen, `offset` ticks right of the view's left edge.
+     */
+    private overviewPress: { pointer: number; position: boolean; offset: number } | null = null;
+    /** Pointers down on the roll or its whole-piece strip (#521 16): while any is, playback does not move the view. */
+    private readonly holding = new Set<number>();
+    /** A playhead dragged on the roll, by which pointer and where across: held at an edge, the view goes that way (#521 1.2). */
+    private headDrag: { pointer: number; x: number } | null = null;
     /**
      * The model's playheads dragged by their handles (#495 UX-08, roll-head-drag.ts): the handle taken, its places, its end.
      * The web's player hears them straight from the roll (slice W3); the iPad's page passes them on to Swift (OnRollDrag).
@@ -529,19 +551,13 @@ export class PianoRoll {
         this.legend = document.createElement("div");
         this.legend.className = "roll-legend";
 
-        this.zoomBar = document.createElement("div");
-        this.zoomBar.className = "roll-zoom";
-        this.zoomBar.setAttribute("role", "group");
-        this.zoomOut = zoomButton("−");
-        this.zoomLevel = document.createElement("span");
-        this.zoomLevel.className = "roll-zoom-level";
-        this.zoomIn = zoomButton("+");
-        this.fitButton = zoomButton("");
-        this.fitButton.classList.add("roll-fit");
-        this.zoomBar.replaceChildren(this.zoomOut, this.zoomLevel, this.zoomIn, this.fitButton);
-        this.zoomOut.addEventListener("click", () => this.zoomBy(1 / ZOOM_STEP));
-        this.zoomIn.addEventListener("click", () => this.zoomBy(ZOOM_STEP));
-        this.fitButton.addEventListener("click", () => this.fit());
+        const zoom = floatingZoom({
+            out: () => this.zoomBy(1 / ZOOM_STEP),
+            in: () => this.zoomBy(ZOOM_STEP),
+            fit: () => this.fit(),
+            overview: () => this.zoomOutToOverview(),
+        });
+        ({ bar: this.zoomBar, out: this.zoomOut, level: this.zoomLevel, in: this.zoomIn, fit: this.fitButton, overview: this.overviewButton } = zoom);
 
         this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
         this.applyLabels();
@@ -559,6 +575,7 @@ export class PianoRoll {
         this.overview.addEventListener("pointermove", this.onOverviewMove);
         this.overview.addEventListener("pointerup", this.onOverviewUp);
         this.overview.addEventListener("pointercancel", this.onOverviewUp);
+        this.overview.addEventListener("lostpointercapture", this.onOverviewUp);
 
         this.host.replaceChildren(this.overview, this.roll, this.scroller, this.keys, this.legend, this.zoomBar, this.playhead.element);
 
@@ -566,8 +583,11 @@ export class PianoRoll {
         this.roll.addEventListener("pointermove", this.onPointerMove);
         this.roll.addEventListener("pointerup", this.onPointerUp);
         this.roll.addEventListener("pointercancel", this.onPointerCancel);
-        // A playhead whose pointer the roll lost is let go, so nothing is left held (#495 UX-08).
-        this.roll.addEventListener("lostpointercapture", (event) => this.laneDrag.release(event.pointerId));
+        // A playhead whose pointer the roll lost is let go, so nothing is left held (#495 UX-08), nor the view (#521 16).
+        this.roll.addEventListener("lostpointercapture", (event) => {
+            this.laneDrag.release(event.pointerId);
+            this.holdEnded(event.pointerId);
+        });
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
         this.keys.addEventListener("pointerdown", this.onKeysDown);
@@ -622,6 +642,9 @@ export class PianoRoll {
         this.notesKey = key;
         this.glide = null;
         this.following = null;
+        if (!keepView) {
+            this.setZoomOut(zoomOutAfter("selectionCleared"));
+        }
         this.model = model;
         this.selected = new Set();
         this.focusIndex = undefined;
@@ -821,9 +844,10 @@ export class PianoRoll {
     }
 
     /**
-     * Fit (testing item 13, #511 section 5.1), only when the player asks: lays the selection, or else the phrase in the middle
-     * of the view, across the roll's width as it is now with a margin either side, its rows in the roll's height as far as
-     * the rows' limits allow, and glides there. What it made is then the player's zoom: nothing fits again by itself.
+     * Fit (testing item 13, #511 section 5.1, #521 2.1), only when the player asks, one action and never a toggle: lays the
+     * selection across the roll's width as it is now with a margin either side, or without a selection the general overview
+     * (overviewSpan: about sixteen bars round the playhead, the playhead in the middle), its rows in the roll's height as far
+     * as the rows' limits allow, and glides there. What it made is then the player's zoom: nothing fits again by itself.
      * Before the roll has its width, it fits once it has.
      */
     fit(): void {
@@ -834,10 +858,36 @@ export class PianoRoll {
             return;
         }
         this.pendingFit = false;
-        const span = this.motif ?? this.phraseAt(this.scroll + this.visibleTicks() / 2) ?? { start: 0, end: model.end };
+        const motif = this.motif;
+        if (motif === null) {
+            this.fitStretch(model, this.overviewStretch(model), "overview");
+        } else {
+            this.fitStretch(model, motif, "fitSelection");
+        }
+    }
+
+    /**
+     * Zoom Out (#521 2.2): the general overview round the playhead, as Fit shows it without a selection; the selection stays
+     * as it is, whichever it is now, and Zoom Out is hidden until Fit lays a selection across the roll again.
+     */
+    zoomOutToOverview(): void {
+        const model = this.model;
+        if (model === null || this.host.clientWidth === 0) {
+            return;
+        }
+        this.fitStretch(model, this.overviewStretch(model), "overview");
+    }
+
+    /** The general overview's stretch round the playhead as it is drawn now (roll-view.ts overviewSpan). */
+    private overviewStretch(model: RollModel): Span {
+        return overviewSpan(model.bars.map((bar) => ({ start: bar.onset, end: bar.end })), this.tickNow, model.end);
+    }
+
+    /** Glides to a stretch laid across the roll with its notes' rows in its height; Zoom Out shows after a selection's. */
+    private fitStretch(model: RollModel, span: Span, event: ZoomOutEvent): void {
         let lowest = Number.POSITIVE_INFINITY;
         let highest = Number.NEGATIVE_INFINITY;
-        for (const index of model.inRange(span.start, span.end)) {
+        for (const index of model.inRange(Math.max(0, span.start), Math.min(model.end, span.end))) {
             const pitch = model.notes[index].pitch;
             lowest = Math.min(lowest, pitch);
             highest = Math.max(highest, pitch);
@@ -855,8 +905,16 @@ export class PianoRoll {
             rowAt100: ROW_AT_100,
             before: from,
         });
+        this.setZoomOut(zoomOutAfter(event));
         this.handUntil = 0;
         this.glideTo(from, to);
+    }
+
+    /** Shows or hides Zoom Out: the web's button in the floating zoom, and the iPad's in what the roll reports (OnRollZoom). */
+    private setZoomOut(shown: boolean): void {
+        this.zoomOutShown = shown;
+        this.overviewButton.hidden = !shown;
+        this.invalidate();
     }
 
     /** The player's zoom and the view as they are now, the highest row shown resolved. */
@@ -979,6 +1037,7 @@ export class PianoRoll {
             timeOut: this.zoom > MIN_ZOOM,
             pitchIn: octaves > 1 && row < MAX_ROW,
             pitchOut: row > READING_MIN_ROW,
+            zoomOut: this.zoomOutShown,
         };
         if (!sameZoom(this.zoomReported, now)) {
             this.zoomReported = now;
@@ -1100,6 +1159,7 @@ export class PianoRoll {
     }
 
     clearMotif(): void {
+        this.setZoomOut(zoomOutAfter("selectionCleared"));
         this.motif = null;
         this.keptSpan = null;
         this.motifPitches = null;
@@ -1220,6 +1280,7 @@ export class PianoRoll {
         this.overview.removeEventListener("pointermove", this.onOverviewMove);
         this.overview.removeEventListener("pointerup", this.onOverviewUp);
         this.overview.removeEventListener("pointercancel", this.onOverviewUp);
+        this.overview.removeEventListener("lostpointercapture", this.onOverviewUp);
         this.roll.removeEventListener("pointermove", this.onPointerMove);
         this.roll.removeEventListener("pointerup", this.onPointerUp);
         this.roll.removeEventListener("pointercancel", this.onPointerCancel);
@@ -1260,6 +1321,7 @@ export class PianoRoll {
         if (!this.stepGlide(time)) {
             this.stepFollow(elapsed);
         }
+        this.stepEdgeScroll(elapsed);
         if (this.dirty) {
             this.dirty = false;
             this.draw();
@@ -1279,11 +1341,11 @@ export class PianoRoll {
     /**
      * Where the playhead takes the view (#511 section 6.1, roll-view.ts followPlayhead): along with it past FOLLOW_AT of the
      * width while playing, no further than the end of what plays, and back to it once after a jump out of view; not while a
-     * playhead is held (its drag and scrub stay as they are, #495), during a glide, or for a while after the player moved the
-     * view by hand. A reveal under way holds until another jump.
+     * playhead is held (its drag and scrub stay as they are, #495), while a finger or the stylus is down on the roll (#521
+     * 16), during a glide, or for a while after the player moved the view by hand. A reveal under way holds until another jump.
      */
     private followPlayer(tick: number, jumped: boolean, playing: boolean): void {
-        if (this.glide !== null || this.playhead.dragging || this.laneDrag.handle !== null || performance.now() < this.handUntil
+        if (this.glide !== null || this.holding.size > 0 || this.playhead.dragging || this.laneDrag.handle !== null || performance.now() < this.handUntil
             || this.host.clientWidth === 0 || (this.following?.kind === "reveal" && !jumped)) {
             return;
         }
@@ -1321,6 +1383,66 @@ export class PianoRoll {
         this.handUntil = performance.now() + HAND_PAUSE_MS;
     }
 
+    /** Whether the music plays now. */
+    private playing(): boolean {
+        return this.player?.state() === "playing";
+    }
+
+    /**
+     * A finger, the stylus or the mouse went down on the roll or its whole-piece strip (#521 16.2), in any mode: while the
+     * music plays, the view stops following the playhead at once and stays while it is down, the music and the playhead going
+     * on. Nothing else changes: what the press does is its own.
+     */
+    private holdBegan(pointer: number): void {
+        this.holding.add(pointer);
+        if (this.playing()) {
+            this.following = null;
+        }
+    }
+
+    /**
+     * The last pointer down on the roll was let go (#521 16.3): while the music plays, the view catches up with the playhead
+     * at once (eased, never a page jump) and follows it again, whatever the press did to the view meanwhile.
+     */
+    private holdEnded(pointer: number): void {
+        if (!this.holding.delete(pointer) || this.holding.size > 0 || !this.playing()) {
+            return;
+        }
+        this.handUntil = 0;
+        this.following = null;
+        this.followPlayer(this.tickNow, true, true);
+    }
+
+    /**
+     * While a playhead is dragged on the roll near its left or right edge, the view goes that way, faster the nearer the
+     * edge, and the playhead stays under the pointer (#521 1.2), so it goes on past what was in view without being let go.
+     */
+    private stepEdgeScroll(elapsed: number): void {
+        const held = this.headDrag;
+        if (held === null || this.model === null) {
+            return;
+        }
+        const lane = this.laneDrag.holds(held.pointer);
+        if (!lane && !this.playhead.dragging) {
+            this.headDrag = null;
+            return;
+        }
+        const delta = edgeScroll(held.x, { left: GUTTER, right: this.host.clientWidth, zone: TOUCH }, this.visibleTicks(), elapsed);
+        if (delta === 0) {
+            return;
+        }
+        const before = this.scroll;
+        this.scrollTo(before + delta);
+        if (this.scroll === before) {
+            return;
+        }
+        if (lane) {
+            this.dragLaneHeadTo(held.pointer, held.x);
+        } else {
+            this.playhead.move(held.pointer, held.x, this.tickAtX(Math.max(GUTTER, held.x)));
+        }
+    }
+
     /** Shows the roll's words in another language (#134): the lanes, the legend, the hand letters and what a screen reader hears. */
     setLabels(labels: RollLabels): void {
         this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
@@ -1340,6 +1462,8 @@ export class PianoRoll {
         this.zoomIn.title = this.labels.zoomIn;
         this.fitButton.textContent = this.labels.fit;
         this.fitButton.title = this.labels.fitHint;
+        this.overviewButton.textContent = this.labels.overview;
+        this.overviewButton.title = this.labels.overviewHint;
         this.showZoom();
     }
 
@@ -1359,20 +1483,6 @@ export class PianoRoll {
         this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max((this.touchReading ? READING_MIN_ROW : MIN_ROW) / ROW_AT_100, rowScale));
         this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
         this.showZoom();
-    }
-
-    /** The phrase whose stretch holds a tick, from the phrase starts (#18): to the next start, or the end of the piece. */
-    private phraseAt(tick: number): { start: number; end: number } | null {
-        const model = this.model;
-        const starts = this.phrases.map((phrase) => phrase.tick).sort((a, b) => a - b);
-        if (model === null || starts.length === 0) {
-            return null;
-        }
-        let at = 0;
-        while (at + 1 < starts.length && starts[at + 1] <= tick) {
-            at++;
-        }
-        return { start: starts[at], end: starts[at + 1] ?? model.end };
     }
 
     private updateLanes(): void {
@@ -1822,35 +1932,72 @@ export class PianoRoll {
         return { ink: INK, accent: ACCENT, tint: SELECTION_BAND, surface: SURFACE, line: STRIP_LINE, muted: STRIP_MUTED };
     }
 
-    /** A press on the whole piece moves the position there and the roll with it; a drag goes on doing so. */
+    /**
+     * A press on the whole piece (#521 1): the black dot and the frame round the bars on screen are two targets. On the dot it
+     * takes the position, the black playhead, as its line down the roll does (laneDrag); anywhere else the frame, which a
+     * drag moves through the piece, the position staying where it is. A press outside the frame brings the frame there.
+     */
     private readonly onOverviewDown = (event: PointerEvent): void => {
+        const model = this.model;
+        if (model === null || this.overviewPress !== null) {
+            return;
+        }
         this.overview.setPointerCapture(event.pointerId);
-        this.overviewPointer = event.pointerId;
         event.preventDefault();
-        this.overviewTo(event);
+        this.holdBegan(event.pointerId);
+        const x = this.overviewX(event);
+        const width = this.host.clientWidth;
+        if (this.player !== null && overviewGrab(x, width, this.tickNow, model.end, TOUCH / 2) === "position" && this.laneDrag.grab("black", event.pointerId)) {
+            this.overviewPress = { pointer: event.pointerId, position: true, offset: 0 };
+            return;
+        }
+        const tick = overviewTick(x, width, model.end);
+        const offset = viewGrabOffset(tick, { start: this.scroll, end: this.scroll + this.visibleTicks() });
+        this.overviewPress = { pointer: event.pointerId, position: false, offset };
+        this.byHand();
+        this.scrollTo(tick - offset);
     };
 
+    /**
+     * A drag on the whole piece: the position goes to the place under the pointer, the view staying while it is inside and
+     * going along past its edge (viewAlong, #521 1.2); or the frame goes with the pointer, the position staying.
+     */
     private readonly onOverviewMove = (event: PointerEvent): void => {
-        if (this.overviewPointer === event.pointerId) {
-            this.overviewTo(event);
+        const press = this.overviewPress;
+        const model = this.model;
+        if (press === null || model === null || press.pointer !== event.pointerId) {
+            return;
+        }
+        const tick = overviewTick(this.overviewX(event), this.host.clientWidth, model.end);
+        if (!press.position) {
+            this.byHand();
+            this.scrollTo(tick - press.offset);
+            return;
+        }
+        const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
+        const place = laneDragTick("black", tick, bars, this.motif, model.end);
+        if (place !== undefined) {
+            this.laneDrag.move(event.pointerId, place);
+            this.scrollTo(viewAlong(this.scroll, this.visibleTicks(), place, this.maxScroll()));
         }
     };
 
     private readonly onOverviewUp = (event: PointerEvent): void => {
-        if (this.overviewPointer === event.pointerId) {
-            this.overviewPointer = null;
-        }
-    };
-
-    private overviewTo(event: PointerEvent): void {
-        const model = this.model;
-        if (model === null) {
+        const press = this.overviewPress;
+        if (press === null || press.pointer !== event.pointerId) {
             return;
         }
-        const tick = overviewTick(event.clientX - this.overview.getBoundingClientRect().left, this.host.clientWidth, model.end);
-        this.playhead.go(tick, false);
-        this.byHand();
-        this.scrollTo(tick - this.visibleTicks() / 2);
+        this.overviewPress = null;
+        if (press.position) {
+            this.laneDrag.release(event.pointerId);
+        }
+        this.holdEnded(event.pointerId);
+        this.invalidate();
+    };
+
+    /** Where a pointer is across the whole-piece strip. */
+    private overviewX(event: PointerEvent): number {
+        return event.clientX - this.overview.getBoundingClientRect().left;
     }
 
     /** Where the playhead stays: the loop, else the selection; null for neither, and with the lanes, where it goes anywhere. */
@@ -1924,23 +2071,32 @@ export class PianoRoll {
      * one to the selection (the web's from the player's model, the same band).
      */
     private moveLaneHead(event: PointerEvent, x: number): boolean {
-        const handle = this.laneDrag.handle;
-        const model = this.model;
-        if (handle === null || model === null || !this.laneDrag.holds(event.pointerId)) {
+        if (this.laneDrag.handle === null || this.model === null || !this.laneDrag.holds(event.pointerId)) {
             return false;
         }
         if (this.lanePress !== null && Math.abs(x - this.lanePress) < CLICK_SLOP) {
             return true;
         }
         this.lanePress = null;
+        this.headDrag = { pointer: event.pointerId, x };
+        this.dragLaneHeadTo(event.pointerId, x);
+        return true;
+    }
+
+    /** The held playhead goes to the place under a point across the roll, on its grid and inside its band. */
+    private dragLaneHeadTo(pointer: number, x: number): void {
+        const handle = this.laneDrag.handle;
+        const model = this.model;
+        if (handle === null || model === null) {
+            return;
+        }
         const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
         const selection = this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif);
         const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end);
         if (tick !== undefined) {
-            this.laneDrag.move(event.pointerId, tick);
+            this.laneDrag.move(pointer, tick);
             this.invalidate();
         }
-        return true;
     }
 
     /** The end of a press on the playhead: a drag has moved it; a tap on it in touch reading plays from there. */
@@ -2437,6 +2593,7 @@ export class PianoRoll {
         if (model === null) {
             return;
         }
+        this.holdBegan(event.pointerId);
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const y = event.clientY - box.top;
@@ -2577,6 +2734,8 @@ export class PianoRoll {
             midY: (a.y + b.y) / 2,
             scroll: this.scroll,
             top: this.pitchRange().high,
+            time: 1,
+            pitch: 1,
         };
         this.invalidate();
         return true;
@@ -2585,7 +2744,11 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x) || this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
+        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x)) {
+            return;
+        }
+        if (this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
+            this.headDrag = this.playhead.dragging ? { pointer: event.pointerId, x } : null;
             return;
         }
         if (this.moveRulePress(event, x, event.clientY - box.top)) {
@@ -2664,6 +2827,12 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
+        this.pointerUp(event);
+        this.headDrag = null;
+        this.holdEnded(event.pointerId);
+    };
+
+    private pointerUp(event: PointerEvent): void {
         if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event) || this.strip.end(event.pointerId)) {
             return;
         }
@@ -2696,7 +2865,7 @@ export class PianoRoll {
         void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false, drag.how ?? "create", drag.gesture ?? nextGestureId());
         this.drag = null;
         this.invalidate();
-    };
+    }
 
     /** The end of a press in the editor: a finger's tap adds or takes out a note, a drag sends where the note went. */
     private endEditPress(event: PointerEvent): boolean {
@@ -2736,6 +2905,8 @@ export class PianoRoll {
         this.strip.cancel();
         this.playhead.cancel();
         this.laneDrag.release();
+        this.headDrag = null;
+        this.holdEnded(event.pointerId);
         this.invalidate();
     };
 
@@ -2768,18 +2939,23 @@ export class PianoRoll {
     }
 
     /**
-     * A pinch with the zoom on each axis (#479 item 23): the time zooms by the fingers' spread across, round where they began,
-     * and the rows by their spread up and down (pinchFactors), and the roll follows the fingers' middle, so two fingers move
-     * it as one finger does.
+     * A pinch with the zoom on each axis (#479 item 23, #521 4): in every move the time zooms by the fingers' spread across,
+     * round where they began, and the rows by their spread up and down (pinchStep), both at once, so the pinch may turn from
+     * one way to the other without lifting; and the roll follows the fingers' middle, so two fingers move it as one does.
      */
     private pinchOnAxes(pinch: Pinch, a: { x: number; y: number }, b: { x: number; y: number }): void {
-        const factors = pinchFactors({ dx: pinch.dx, dy: pinch.dy }, { dx: a.x - b.x, dy: a.y - b.y });
+        const step = pinchStep({ dx: pinch.dx, dy: pinch.dy }, { dx: a.x - b.x, dy: a.y - b.y });
+        // Within the zoom's limits, so a pinch back from a limit zooms at once.
+        pinch.time = Math.min(MAX_ZOOM / pinch.zoom, Math.max(MIN_ZOOM / pinch.zoom, pinch.time * step.time));
+        pinch.pitch = Math.min(MAX_ROW / ROW_AT_100 / pinch.rowScale, Math.max(READING_MIN_ROW / ROW_AT_100 / pinch.rowScale, pinch.pitch * step.pitch));
+        pinch.dx = step.spread.dx;
+        pinch.dy = step.spread.dy;
         this.byHand();
         this.scroll = pinch.scroll;
         this.pitchTop = pinch.top;
-        this.zoomTo(pinch.zoom * factors.time, pinch.rowScale, Math.max(0, pinch.midX - GUTTER));
-        if (factors.pitch !== 1) {
-            this.rowsAround(pinch.rowScale * factors.pitch, pinch.midY);
+        this.zoomTo(pinch.zoom * pinch.time, pinch.rowScale, Math.max(0, pinch.midX - GUTTER));
+        if (pinch.pitch !== 1) {
+            this.rowsAround(pinch.rowScale * pinch.pitch, pinch.midY);
         }
         this.scrollTo(this.scroll - (((a.x + b.x) / 2 - pinch.midX) * TICKS_PER_QUARTER) / this.zoom);
         const { high, row, above, below } = this.pitchRange();
@@ -2854,6 +3030,7 @@ export class PianoRoll {
             clear: (gesture) => void this.dotnet.invokeMethodAsync("OnRollClear", gesture),
             cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnRollGestureCancelled", gesture),
             hint: () => void this.dotnet.invokeMethodAsync("OnRollHoldHint"),
+            keepsSelection: () => this.playing(),
             tap: (tick, y, inside) => {
                 // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection,
                 // and under the modes places the playhead on the beat, as a click there always has.
@@ -3143,6 +3320,34 @@ export class PianoRoll {
 }
 
 /** A button of the floating zoom. */
+/**
+ * The floating zoom (testing item 13): − the percentage + and Fit, and Zoom Out after Fit of a selection (#521 2.2), hidden
+ * until then; each button does what it is given.
+ */
+function floatingZoom(actions: { out: () => void; in: () => void; fit: () => void; overview: () => void }): {
+    bar: HTMLElement;
+    out: HTMLButtonElement;
+    level: HTMLElement;
+    in: HTMLButtonElement;
+    fit: HTMLButtonElement;
+    overview: HTMLButtonElement;
+} {
+    const bar = document.createElement("div");
+    bar.className = "roll-zoom";
+    bar.setAttribute("role", "group");
+    const level = document.createElement("span");
+    level.className = "roll-zoom-level";
+    const buttons = { out: zoomButton("−"), in: zoomButton("+"), fit: zoomButton(""), overview: zoomButton("") };
+    buttons.fit.classList.add("roll-fit");
+    buttons.overview.classList.add("roll-fit");
+    buttons.overview.hidden = true;
+    for (const key of ["out", "in", "fit", "overview"] as const) {
+        buttons[key].addEventListener("click", actions[key]);
+    }
+    bar.replaceChildren(buttons.out, level, buttons.in, buttons.fit, buttons.overview);
+    return { bar, level, ...buttons };
+}
+
 function zoomButton(text: string): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";

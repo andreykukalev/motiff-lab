@@ -254,3 +254,72 @@ export function milliseconds(text: string, fallback: number): number {
     }
     return text.trim().endsWith("ms") ? value : text.trim().endsWith("s") ? value * 1000 : value;
 }
+
+/** How many bars the general overview shows round the playhead (#521 2.1): the whole piece when it has no more. */
+export const OVERVIEW_BARS = 16;
+
+/**
+ * The stretch the general overview shows (#521 2.1, Fit without a selection and Zoom Out): OVERVIEW_BARS bars' worth of time
+ * (those round the playhead's bar, kept inside the piece) with the playhead in its middle, or the whole piece when it has
+ * no more bars. Bars in time order, each [start, end).
+ */
+export function overviewSpan(bars: readonly Span[], tick: number, end: number, count = OVERVIEW_BARS): Span {
+    if (bars.length <= count) {
+        return { start: 0, end: Math.max(1, end) };
+    }
+    const holding = bars.findIndex((bar) => tick >= bar.start && tick < bar.end);
+    const at = holding >= 0 ? holding : tick < bars[0].start ? 0 : bars.length - 1;
+    const first = Math.min(Math.max(0, at - Math.floor(count / 2)), bars.length - count);
+    const ticks = bars[first + count - 1].end - bars[first].start;
+    return { start: tick - ticks / 2, end: tick + ticks / 2 };
+}
+
+/**
+ * What changes whether Zoom Out shows (#521 2.2): Fit laying a selection across the roll, the general overview shown (Fit
+ * without a selection, or Zoom Out itself), and the selection going.
+ */
+export type ZoomOutEvent = "fitSelection" | "overview" | "selectionCleared";
+
+/**
+ * Whether Zoom Out shows after an event (#521 2.2, the spec's table): from Fit of a selection until the general overview is
+ * shown or the selection goes. A selection changed after Fit, and the zoom changed by hand, are no event: it stays.
+ */
+export function zoomOutAfter(event: ZoomOutEvent): boolean {
+    return event === "fitSelection";
+}
+
+/** The share of the view's width a dragged position keeps from its edge before the view goes along with it (#521 1.2). */
+export const EDGE_SHARE = 0.05;
+
+/**
+ * The view's left edge while the position is dragged on the whole-piece strip (#521 1): it stays while the position is
+ * inside it, and past an edge it goes along with the position, which stays EDGE_SHARE of the width inside; within 0 and
+ * `maxScroll`.
+ */
+export function viewAlong(scroll: number, visible: number, tick: number, maxScroll: number): number {
+    const inset = visible * EDGE_SHARE;
+    let next = scroll;
+    if (tick < scroll + inset) {
+        next = tick - inset;
+    } else if (tick > scroll + visible - inset) {
+        next = tick - visible + inset;
+    }
+    return Math.round(Math.min(maxScroll, Math.max(0, next)));
+}
+
+/** How fast the view goes while a playhead is held at an edge of the roll (#521 1.2): widths of the view a second, at the very edge. */
+export const EDGE_SPEED = 1;
+
+/**
+ * How far the view goes in a frame of `elapsed` ms while a playhead is held at `x`, within `zone` pixels of the roll's left
+ * or right edge (#521 1.2), in ticks: to the left negative; the deeper into the zone, the faster, up to EDGE_SPEED at the
+ * edge and past it; 0 elsewhere.
+ */
+export function edgeScroll(x: number, edges: { left: number; right: number; zone: number }, visible: number, elapsed: number): number {
+    const { left, right, zone } = edges;
+    if (zone <= 0 || right - left <= 2 * zone) {
+        return 0;
+    }
+    const depth = x < left + zone ? -(left + zone - x) / zone : x > right - zone ? (x - (right - zone)) / zone : 0;
+    return (Math.max(-1, Math.min(1, depth)) * visible * EDGE_SPEED * Math.max(0, elapsed)) / 1000;
+}

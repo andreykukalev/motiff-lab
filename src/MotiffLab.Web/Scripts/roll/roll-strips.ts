@@ -1,10 +1,11 @@
 // The strips of the iPad's roll (v0.5.2, #479 item 25, approved mockup; the playback model's two playheads, #495 UX-10):
 // the black playhead, the position, as an ink line down the notes with its dot on the whole-piece strip; with a selection
 // the blue playhead, the position held to it, as a cobalt line with its handle in the loop strip; under the bar numbers
-// the loop strip, the selection's bounds with a handle at each end and the loop sign, where a tap moves the position; and
-// over everything the whole piece in one line, always shown: the position written as bar.beat, a frame round the bars on
-// screen, the selection in cobalt and the black dot, where a tap moves the position and the roll. Pure drawing on a
-// context the roll gives; nothing here touches the DOM.
+// the loop strip, the selection's bounds with a handle at each end, tinted while it loops (no loop sign inside it, #521 6:
+// it read as a refresh sign and as the playhead's dot), where a tap moves the position; and over everything the whole piece
+// in one line, always shown: the position written as bar.beat, a frame round the bars on screen, the selection in cobalt
+// and the black dot. On that strip the dot and the frame are two things to drag (#521 1): the dot moves the position, the
+// frame moves the view. Pure drawing and arithmetic on what the roll gives; nothing here touches the DOM.
 import { drawPositionLine } from "./roll-modes.js";
 
 /** The loop strip's height under the bar numbers, and the whole-piece strip's height over the roll, in pixels. */
@@ -52,8 +53,8 @@ export function insideOf(selection: TickSpan | null, tick: number): boolean {
 }
 
 /**
- * The loop strip: the selection's bounds as a rounded strip outlined in cobalt, tinted while it loops, with the loop sign at
- * its start and a handle at each end; nothing without a selection.
+ * The loop strip: the selection's bounds as a rounded strip outlined in cobalt, tinted while it loops, and a handle at each
+ * end; nothing without a selection.
  */
 export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame, selection: TickSpan | null, looping: boolean, inks: StripInks): void {
     if (selection === null) {
@@ -76,9 +77,6 @@ export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame
     context.strokeStyle = inks.accent;
     context.lineWidth = 1.5;
     context.stroke();
-    if (looping && right - left > 4 * HANDLE_RADIUS) {
-        drawLoopSign(context, left + 3 * HANDLE_RADIUS + 2, middle, inks.accent);
-    }
     for (const x of [start, end]) {
         if (x >= frame.left && x <= frame.right) {
             context.beginPath();
@@ -90,25 +88,6 @@ export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame
             context.stroke();
         }
     }
-}
-
-/** The loop sign: a ring almost closed with an arrow at its end, as the kit's loop icon reads. */
-function drawLoopSign(context: CanvasRenderingContext2D, x: number, y: number, colour: string): void {
-    const radius = 4;
-    context.beginPath();
-    context.arc(x, y, radius, 0.25 * Math.PI, 1.85 * Math.PI);
-    context.strokeStyle = colour;
-    context.lineWidth = 1.5;
-    context.stroke();
-    const tipX = x + radius * Math.cos(1.85 * Math.PI);
-    const tipY = y + radius * Math.sin(1.85 * Math.PI);
-    context.beginPath();
-    context.moveTo(tipX + 3, tipY);
-    context.lineTo(tipX - 1, tipY - 3);
-    context.lineTo(tipX - 1, tipY + 3);
-    context.closePath();
-    context.fillStyle = colour;
-    context.fill();
 }
 
 /** Where the two playheads are, from the playback model's view (playback-model.ts, viewOf). */
@@ -160,11 +139,34 @@ export function overviewTick(x: number, width: number, end: number): number {
     return Math.round(share * end);
 }
 
+/** Where a tick lies across the whole-piece strip, on its track, clamped to the piece. */
+export function overviewX(tick: number, width: number, end: number): number {
+    const track = overviewTrack(width);
+    return track.left + (track.right - track.left) * (end > 0 ? Math.min(1, Math.max(0, tick / end)) : 0);
+}
+
+/**
+ * What a press on the whole-piece strip takes (#521 1): the black dot, the position, within `reach` pixels of it; anywhere
+ * else the frame round the bars on screen, the view. They are never the same target.
+ */
+export function overviewGrab(x: number, width: number, tick: number, end: number, reach: number): "position" | "view" {
+    return Math.abs(x - overviewX(tick, width, end)) <= reach ? "position" : "view";
+}
+
+/**
+ * Where the pointer holds the frame on the whole-piece strip, in ticks from the view's left edge (#521 1): where it was
+ * pressed inside the frame, so the frame moves with the pointer without a jump; a press outside it takes the frame by its
+ * middle, so the frame comes to the pointer.
+ */
+export function viewGrabOffset(pressTick: number, view: TickSpan): number {
+    return pressTick >= view.start && pressTick <= view.end ? pressTick - view.start : (view.end - view.start) / 2;
+}
+
 /** The whole-piece strip: label, track, the frame round the bars on screen, the selection in cobalt, the black playhead's dot. */
 export function drawOverview(context: CanvasRenderingContext2D, width: number, state: OverviewState, inks: StripInks): void {
     const track = overviewTrack(width);
     const middle = OVERVIEW_HEIGHT / 2;
-    const xOf = (tick: number): number => track.left + (track.right - track.left) * (state.end > 0 ? Math.min(1, Math.max(0, tick / state.end)) : 0);
+    const xOf = (tick: number): number => overviewX(tick, width, state.end);
     context.fillStyle = inks.surface;
     context.fillRect(0, 0, width, OVERVIEW_HEIGHT);
     context.font = "600 12px \"Source Sans 3\", system-ui, sans-serif";

@@ -5,18 +5,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+    EDGE_SHARE,
     FOLLOW_AT,
+    OVERVIEW_BARS,
     REVEAL_AT,
     chase,
+    edgeScroll,
     easing,
     fitFrame,
     followPlayhead,
     glideFrame,
     milliseconds,
+    overviewSpan,
     revealSelection,
     selectionShift,
     ticksIn,
+    viewAlong,
     viewOnLoad,
+    zoomOutAfter,
 } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-view.js";
 import { barsInView, octavesInView } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-zoom.js";
 
@@ -163,4 +169,47 @@ test("a glide goes from one frame to the other, the zoom by ratio, on the kit's 
     assert.equal(milliseconds("320ms", 0), 320);
     assert.equal(milliseconds("0.2s", 0), 200);
     assert.equal(milliseconds("", 99), 99);
+});
+
+const spans = bars.map((bar) => ({ start: bar.onset, end: bar.end }));
+
+test("the general overview is about sixteen bars with the playhead in the middle, or the whole of a shorter piece (#521 2.1)", () => {
+    assert.equal(OVERVIEW_BARS, 16);
+    assert.deepEqual(overviewSpan(spans, 20 * 720 + 100, 40 * 720), { start: 20 * 720 + 100 - 8 * 720, end: 20 * 720 + 100 + 8 * 720 });
+    const atStart = overviewSpan(spans, 100, 40 * 720);
+    assert.equal(atStart.end - atStart.start, 16 * 720, "near the start it is as long, round the playhead");
+    assert.equal((atStart.start + atStart.end) / 2, 100);
+    assert.deepEqual(overviewSpan(spans.slice(0, 12), 3000, 12 * 720), { start: 0, end: 12 * 720 }, "a piece of twelve bars is shown whole");
+    // Bars of different lengths: the sixteen round the playhead's bar decide how long the stretch is.
+    const mixed = [...spans.slice(0, 10), ...Array.from({ length: 20 }, (_, index) => ({ start: 7200 + index * 1440, end: 7200 + (index + 1) * 1440 }))];
+    const wide = overviewSpan(mixed, 7200 + 10 * 1440, 7200 + 20 * 1440);
+    assert.equal(wide.end - wide.start, 16 * 1440);
+});
+
+test("Zoom Out shows after Fit of a selection, until the overview is shown or the selection goes (#521 2.2, the spec's table)", () => {
+    // No selection: Fit shows the overview, Zoom Out hidden.
+    assert.equal(zoomOutAfter("overview"), false);
+    // A selection fitted: Zoom Out shows; a selection changed afterwards, or the zoom changed by hand, is no event, so it stays.
+    assert.equal(zoomOutAfter("fitSelection"), true);
+    // Zoom Out pressed: the overview, the selection kept, Zoom Out hidden; the selection taken away hides it too.
+    assert.equal(zoomOutAfter("overview"), false);
+    assert.equal(zoomOutAfter("selectionCleared"), false);
+});
+
+test("a position dragged on the whole piece leaves the view while inside it and takes it along past an edge (#521 1)", () => {
+    const visible = 10000;
+    assert.equal(viewAlong(20000, visible, 25000, 90000), 20000, "inside the view, the view stays");
+    assert.equal(viewAlong(20000, visible, 31000, 90000), 31000 - visible + visible * EDGE_SHARE, "past the right edge the view goes along");
+    assert.equal(viewAlong(20000, visible, 15000, 90000), 15000 - visible * EDGE_SHARE, "past the left edge too");
+    assert.equal(viewAlong(20000, visible, 100, 90000), 0, "never before the start");
+    assert.equal(viewAlong(80000, visible, 99000, 85000), 85000, "nor past the furthest left edge");
+});
+
+test("a playhead held at an edge of the roll takes the view that way, faster nearer the edge; elsewhere the view stays (#521 1.2)", () => {
+    const edges = { left: 62, right: 1062, zone: 44 };
+    assert.equal(edgeScroll(500, edges, 9600, 16), 0);
+    assert.equal(edgeScroll(1062, edges, 9600, 1000), 9600, "at the very edge a view's width a second");
+    assert.equal(edgeScroll(1040, edges, 9600, 1000), 4800, "half way into the zone, half as fast");
+    assert.equal(edgeScroll(40, edges, 9600, 500), -4800, "to the left, past the edge as fast as at it");
+    assert.equal(edgeScroll(1062, { ...edges, right: 100 }, 9600, 16), 0, "a roll narrower than both zones does not run");
 });

@@ -171,6 +171,9 @@ export interface RollLabels {
     zoomLevel: string;
     fit: string;
     fitHint: string;
+    /** Zoom Out (#521 2.2): back to the general overview round the playhead, the selection kept. */
+    overview: string;
+    overviewHint: string;
     /** The playhead's control, for the keyboard and a screen reader. */
     playhead: string;
     /** Where the playhead is: "{0}" the bar's number, "{1}" the beat. */
@@ -197,7 +200,9 @@ export const ENGLISH_ROLL_LABELS: RollLabels = {
     zoomOut: "Zoom out",
     zoomLevel: "{0} %",
     fit: "Fit",
-    fitHint: "Fit the selection, or the phrase in view, to the roll",
+    fitHint: "Fit the selection to the roll, or without one about 16 bars round the playhead",
+    overview: "Overview",
+    overviewHint: "Zoom out to about 16 bars round the playhead; the selection stays",
     playhead: "Playhead",
     playheadAt: "Bar {0}, beat {1}",
 };
