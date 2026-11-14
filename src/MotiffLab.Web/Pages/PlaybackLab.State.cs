@@ -1,5 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Experiments;
+using MotiffLab.MusicCore.Invitations;
+using MotiffLab.Web.Explore;
 using MotiffLab.Web.Playback;
 using MotiffLab.Web.Workspace;
 
@@ -17,10 +19,10 @@ public partial class PlaybackLab
     {
         get
         {
-            IReadOnlyList<MotifFact> facts = Facts;
-            // The recommended next step stays on the selection when an offer does; one elsewhere (the motif's return) only otherwise.
-            IReadOnlyList<Experiment> offers = UnderstandOffers;
-            Experiment? recommended = offers.FirstOrDefault(offer => offer.Passage.Span == _selection?.Span) ?? offers.FirstOrDefault();
+            // The facts and offers as they are now, read only when the stream or the card shows them (#419).
+            ExploreTrial? trial = ActiveTrial;
+            SelectionReading? reading = _reading;
+            IReadOnlyList<Experiment> Card() => trial?.Offers ?? reading?.Offers ?? [];
             return new(
                 new WorkspaceSelection(
                     _selection,
@@ -48,8 +50,10 @@ public partial class PlaybackLab
                     Alternating: _alternating,
                     SoundingVariation: SoundingVariation,
                     AnswerLooping: _answerLoop is not null),
-                new WorkspaceVariation(_chain, _variation, ActiveTrial, CardOffers, UnderstandOffers),
-                new WorkspaceFacts(facts, _highlight?.Choice, FactRanking.Main(facts), recommended, _circle),
+                // Understand links its facts only to offers for the same selection: none while an experiment offered for another
+                // selection runs (the motif's return), as its offers rest on other facts.
+                new WorkspaceVariation(_chain, _variation, trial, Card, () => trial is { } tried && !ReferenceEquals(tried.OfferedIn, reading?.Context) ? [] : Card()),
+                new WorkspaceFacts(() => reading?.Facts ?? [], _highlight?.Choice, () => reading?.Analysis.Circle),
                 new WorkspaceIdeas(KeptRows, KeptOnCard, KeptText));
         }
     }

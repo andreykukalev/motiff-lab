@@ -38,15 +38,47 @@ export function pageErrors(page) {
 
 /** Opens the lab with Für Elise loaded, and fails on any script error. */
 export async function openFurElise(page) {
-    // Listens to the engine's reports alongside the app, for startTime.
+    // Listens to the engine's reports alongside the app, for startTime, and keeps what audioDiagnostic tells.
     await page.addInitScript(() => {
+        const trace = { clicks: [], resumes: [], posted: [], lastReport: null };
+        window.__audioTrace = trace;
+        const since = () => Math.round(performance.now());
+        document.addEventListener("click", event => {
+            const button = event.target instanceof Element ? event.target.closest("button") : null;
+            if (button !== null) {
+                trace.clicks.push({ at: since(), label: button.getAttribute("aria-label") ?? button.textContent.trim().slice(0, 40), engine: window.__audio !== undefined });
+            }
+        }, { capture: true });
+        const resume = AudioContext.prototype.resume;
+        AudioContext.prototype.resume = function (...args) {
+            const call = { at: since(), before: this.state, settled: null, after: null };
+            trace.resumes.push(call);
+            return resume.apply(this, args).then(value => {
+                Object.assign(call, { settled: since(), after: this.state });
+                return value;
+            }, error => {
+                Object.assign(call, { settled: since(), after: `${this.state} (${error})` });
+                throw error;
+            });
+        };
         const Node = window.AudioWorkletNode;
         window.AudioWorkletNode = class extends Node {
             constructor(...args) {
                 super(...args);
                 window.__audio = this.context;
+                const port = this.port;
+                const post = port.postMessage;
+                port.postMessage = (message, ...rest) => {
+                    if (typeof message?.type === "string" && !["timeline", "source", "samples", "recording"].includes(message.type)) {
+                        trace.posted.push({ at: since(), type: message.type });
+                    }
+                    return post.call(port, message, ...rest);
+                };
                 let playing = false;
-                this.port.addEventListener("message", event => {
+                port.addEventListener("message", event => {
+                    if (event.data?.type === "position") {
+                        trace.lastReport = { at: since(), state: event.data.state, tick: event.data.tick, frame: event.data.frame };
+                    }
                     const now = event.data?.type === "position" && event.data.state === "playing";
                     if (now && !playing) {
                         window.__engineStarted?.(event.data.frame / this.context.sampleRate);
@@ -67,16 +99,82 @@ export async function openFurElise(page) {
 }
 
 /**
+ * Runs the steps after a press of Play; if they fail, attaches to the test what the audio did before throwing again
+ * (#401): the AudioContext's state and clock, every resume asked of it and how it ended, the buttons clicked (and
+ * whether the engine existed then), the messages the app posted to the engine (a "play" is posted only once the Play
+ * handler has run and the context has resumed) and the engine's last report.
+ */
+export async function withAudioDiagnostic(page, testInfo, steps) {
+    try {
+        await steps();
+    } catch (error) {
+        const diagnostic = await page.evaluate(() => ({
+            context: window.__audio === undefined ? null : { state: window.__audio.state, currentTime: window.__audio.currentTime },
+            ...window.__audioTrace,
+            now: Math.round(performance.now()),
+        })).catch(reason => ({ unavailable: String(reason) }));
+        await testInfo.attach("audio diagnostic", { body: JSON.stringify(diagnostic, null, 2), contentType: "application/json" });
+        console.log(`Audio diagnostic, ${testInfo.project.name}: ${JSON.stringify(diagnostic)}`);
+        throw error;
+    }
+}
+
+/**
  * Clicks a bar number on the roll. By default the bars are Für Elise's: a pickup of one eighth, then
- * bars of 3/8; other pieces give their pickup and bar length in quarters.
+ * bars of 3/8; other pieces give their pickup and bar length in quarters. A selection there is is let go first: a tap
+ * outside it leaves it as it is (#511 section 2.1, scenarios B and C), so the press rests on the bar until the hold takes
+ * it away, and the click then selects the bar. A bar inside the selection cannot be selected so; the spec lets it go first.
  */
 export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } = {}) {
     await openRoll(page);
+    const status = page.locator(".selection-status");
     const roll = page.locator(".roll");
     const box = await roll.boundingBox();
     const quarters = pickup + (bar - 1) * barQuarters + 0.4;
-    await page.mouse.click(box.x + GUTTER + quarters * PIXELS_PER_QUARTER, box.y + HEADER / 2);
-    await expect(page.locator(".selection-status")).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
+    const x = box.x + GUTTER + quarters * PIXELS_PER_QUARTER;
+    const y = box.y + HEADER / 2;
+    if (SELECTED.test(await status.textContent() ?? "")) {
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        try {
+            await expect(status, `bar ${bar} lies outside the selection, so a hold on it lets the selection go`).not.toContainText(SELECTED, { timeout: 5_000 });
+        } finally {
+            await page.mouse.up();
+        }
+    }
+    await page.mouse.click(x, y);
+    await expect(status).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
+}
+
+/** The selection status line once something is selected, in English or Russian (selection.phrase, .sentence, .selected). */
+const SELECTED = /Selected|Выделен|Выбрано/;
+
+/**
+ * Selects a unit of the level shown with Page Down (phrase-keys.ts), as the score draws no phrase brackets to tap
+ * (Andrei, 2026-11-13, #479 item 14): the first unit when nothing is selected, then `steps` units on from it, or from
+ * the selection there is. Returns the selection's status line.
+ */
+export async function selectPhrase(page, steps = 0) {
+    const status = page.locator(".selection-status");
+    // The keys are listened to a moment after the title shows (PlaybackLab.Layout.cs), so a press that came before is pressed again.
+    await expect(async () => {
+        if (!SELECTED.test(await status.textContent() ?? "")) {
+            await page.keyboard.press("PageDown");
+        }
+        await expect(status).toContainText(SELECTED, { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
+    for (let step = 0; step < steps; step++) {
+        const before = await status.textContent();
+        await page.keyboard.press("PageDown");
+        await expect(status).not.toHaveText(before ?? "");
+    }
+    return status;
+}
+
+/** Lifts the selection into focus (0018 section 4) with Focus in its menu. */
+export async function focusSelection(page) {
+    await page.locator(".ctx .menu").getByRole("button", { name: /^(Focus|Фокус)$/ }).click();
+    await expect(page.locator(".focus-card")).toBeVisible();
 }
 
 /** Opens the piano roll drawer from the bar (0018 section 4), if it is not open. */
@@ -219,4 +317,12 @@ export async function clearByPage(page) {
     // The page's left margin, clear of the drawers and the pill.
     await page.mouse.click(box.x + 12, box.y + box.height * 0.3);
     await expect(page.locator(".selection-status")).toContainText(/Nothing selected|Ничего не выделено/);
+}
+
+/**
+ * The library's Sessions tab (version 0.2, lib-3-sessions.png): the pieces with work to come back to, as cards, each resumed
+ * with one tap. The library opens on its list of every piece; the tab picked is kept on the device.
+ */
+export async function librarySessions(page) {
+    await page.getByRole("tab", { name: /^(Sessions|Сессии)$/ }).click();
 }

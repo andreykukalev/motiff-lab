@@ -1,0 +1,50 @@
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* The modes in the bar (version 0.5, the experiment Two playheads and modes; mockup «Указатели и режимы»): one group for the
+   score and the roll, Navigate, Select, Edit notes and Pen, each an icon from the kit; the one chosen names itself in the
+   accent's tint. The keys H, S, E and P choose them too (Scripts/layout/mode-keys.ts). *@
+<span class="modes" role="radiogroup" aria-label="@Text["mode.label"]">
+    @foreach (InteractionMode mode in InteractionModes.All)
+    {
+        if (mode == InteractionMode.Pen && !CanDraw)
+        {
+            continue;
+        }
+
+        bool on = mode == Mode;
+        <button type="button" role="radio" class="mode @(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" aria-label="@Label(mode)" title="@Hint(mode)"
+                data-mode="@mode.Name()" @onclick="() => Chosen.InvokeAsync(mode)">
+            <Icon Name="@IconOf(mode)" />
+            @if (on)
+            {
+                <span class="lbl" aria-hidden="true">@Label(mode)</span>
+            }
+        </button>
+    }
+</span>
+
+@code {
+    /// <summary>The mode chosen now.</summary>
+    [Parameter]
+    public InteractionMode Mode { get; set; }
+
+    /// <summary>Whether the score can be written on: Pen shows only then.</summary>
+    [Parameter]
+    public bool CanDraw { get; set; }
+
+    [Parameter]
+    public EventCallback<InteractionMode> Chosen { get; set; }
+
+    private string Label(InteractionMode mode) => Text["mode." + mode.Name()];
+
+    private string Hint(InteractionMode mode) => Text["mode." + mode.Name() + "Hint"];
+
+    private static string IconOf(InteractionMode mode) => mode switch
+    {
+        InteractionMode.Select => "select",
+        InteractionMode.Edit => "editnote",
+        InteractionMode.Pen => "pen",
+        _ => "move",
+    };
+}

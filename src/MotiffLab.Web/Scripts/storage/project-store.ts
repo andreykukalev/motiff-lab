@@ -3,6 +3,8 @@
 // loads the source files, and a cover: the first page as engraved, with where its pages, phrases and bars
 // start, saved when the score was last shown. Nothing here leaves the device.
 
+import { done, result } from "./idb.js";
+
 export { deleteMarks } from "./pencil-store.js";
 export { deleteRecordings } from "./recording-store.js";
 
@@ -29,6 +31,41 @@ export interface ProjectSummary {
     origin?: string;
     checkBars?: number;
     latest?: { id: string; name: string | null; at: number; from: number | null; to: number | null; lastActive: string } | null;
+    /** The title, composer, tags and playlists the card shows, each with where it comes from (version 0.2); rows saved earlier have none. */
+    title?: string | null;
+    titleFrom?: string | null;
+    composer?: string | null;
+    composerFrom?: string | null;
+    tags?: string[] | null;
+    playlists?: string[] | null;
+    /**
+     * The piece's originals and where their bytes are (version 0.3), with their name, folder, fingerprint, size and pages
+     * (version 0.5, «Импорт папки»); rows saved earlier have less.
+     */
+    originals?: {
+        id: string;
+        kind: string;
+        kept: string;
+        inFile: boolean;
+        held: string[] | null;
+        fileName?: string | null;
+        folder?: string | null;
+        sha256?: string | null;
+        bytes?: number | null;
+        pages?: number | null;
+    }[] | null;
+    /** For a piece made from a collection, the collection's original and the piece's place there (version 0.4); rows saved earlier have none. */
+    part?: {
+        kind: string;
+        fileName: string;
+        name: string | null;
+        addedAt: string;
+        sha256: string | null;
+        firstPage: number | null;
+        lastPage: number | null;
+        from: number | null;
+        to: number | null;
+    } | null;
 }
 
 /**
@@ -96,26 +133,19 @@ function open(): Promise<IDBDatabase> {
     return opening;
 }
 
-function done(transaction: IDBTransaction): Promise<void> {
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onabort = () => reject(transaction.error);
-        transaction.onerror = () => reject(transaction.error);
-    });
-}
-
-function result<T>(request: IDBRequest<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
 /** Saves a project file and its summary in one transaction, replacing any earlier save. */
 export async function saveProject(id: string, file: string, summary: ProjectSummary): Promise<void> {
     const db = await open();
     const transaction = db.transaction([PROJECTS, SUMMARIES], "readwrite");
     transaction.objectStore(PROJECTS).put(file, id);
+    transaction.objectStore(SUMMARIES).put(summary);
+    await done(transaction);
+}
+
+/** Writes a project's summary row again, leaving its file as it is: rows saved before they kept the title, composer and tags. */
+export async function saveSummary(summary: ProjectSummary): Promise<void> {
+    const db = await open();
+    const transaction = db.transaction(SUMMARIES, "readwrite");
     transaction.objectStore(SUMMARIES).put(summary);
     await done(transaction);
 }

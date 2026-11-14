@@ -29,11 +29,16 @@ struct OtherView: Equatable, Sendable {
     let file: URL
     let pages: PageMap
 
-    /// The other view of the project at `file`, from the library's summaries: for a piece with notes and a PDF, the same
-    /// file in its other view; for notes read from a PDF piece, that PDF piece; for a PDF piece, the notes read from it most
-    /// recently opened. Nil when there is none on the device.
-    static func of(_ file: URL, in summaries: [URL: PieceSummary]) -> OtherView? {
-        guard let summary = summaries[file] else { return nil }
+    /// The other view of the project at `file`: for a piece with notes and a PDF, the same file in its other view; for notes
+    /// read from a PDF piece, that PDF piece; for a PDF piece, the notes read from it most recently opened. Nil when there is
+    /// none on the device. `own` is what music-core said of the piece as it opened it (`OpenPiece.own`): a file that holds
+    /// both views is known from it, whatever the library's summaries hold for that path (#495 BUG-02: the PDF view showed
+    /// only «PDF» where the library had no line for the file under that URL); the summaries find the other piece of a pair.
+    static func of(_ file: URL, own: PieceSummary? = nil, in summaries: [URL: PieceSummary]) -> OtherView? {
+        if let own, own.hasNotes && own.document {
+            return OtherView(file: file, pages: PageMap(starts: own.documentPages))
+        }
+        guard let summary = summaries[file] ?? own else { return nil }
         if summary.hasNotes && summary.document {
             return OtherView(file: file, pages: PageMap(starts: summary.documentPages))
         }
@@ -49,10 +54,12 @@ struct OtherView: Equatable, Sendable {
     }
 }
 
-/// Where the other view opens: a PDF at a page, from 1, or the notes at a place in ticks.
+/// Where the other view opens: a PDF at a page, from 1, or the notes at a place in ticks; or as the player left that view,
+/// when it was kept on the device (ViewStates, #511 section 10).
 enum Landing: Equatable, Sendable {
     case page(Int)
     case tick(Double)
+    case kept
 
     var page: Int? {
         if case .page(let page) = self { return page }
@@ -63,17 +70,31 @@ enum Landing: Equatable, Sendable {
         if case .tick(let tick) = self { return tick }
         return nil
     }
+
+    /// Whether the notes stay out of sight until they stand at their place (#533 6): a place in the music or the view kept
+    /// are reached only once the pages are drawn, and the top of the first page is not to show on the way.
+    static func holdsTheNotes(_ landing: Landing?) -> Bool {
+        landing?.tick != nil || landing == .kept
+    }
+
+    /// Whether the score shows its pages as soon as they are drawn and at the place in the music: all but the view kept,
+    /// which shows once the "Notes" view is back (`returnToNotesView`).
+    static func notesShowOnRender(_ landing: Landing?) -> Bool {
+        landing != .kept
+    }
 }
 
 /// The two views of a recognised PDF in the bar (the web app's `ViewSwitch`): the printed pages as they are, and the notes
-/// read from them. Picking the other one calls `other`.
+/// read from them, as PDF | Notes («PDF | Ноты»). The words are the same in both views and on any width, so the switch
+/// keeps its size and place when the view changes (#479 item 11; it said Original PDF where the bar had room, which made
+/// it jump). Picking the other one calls `other`.
 struct PdfNotesSwitch: View {
     let onPdf: Bool
     let text: UIText
     let other: () -> Void
 
     var body: some View {
-        SegmentedChoice(options: [(true, text["pdf.viewPdf"]), (false, text["pdf.viewNotes"])], chosen: onPdf, label: text["pdf.views"]) { pdf in
+        SegmentedChoice(options: [(true, text["pdf.viewPdfShort"]), (false, text["pdf.viewNotes"])], chosen: onPdf, label: text["pdf.views"]) { pdf in
             if pdf != onPdf { other() }
         }
     }

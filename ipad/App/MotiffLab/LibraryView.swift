@@ -1,15 +1,25 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The library (0018 section 9, design/kit/screens/s1_library.png): the screen outside the piece, a shelf of cards, each
-/// resumed with one tap. The pieces are project files in the app's Documents (0019 section 2.3); what a card says comes
-/// from music-core (`project.summary`) without opening the piece. One Add piece action holds the ways in; the overflow
-/// imports a project file. Everything here runs on the device and is free; signed in, the projects saved online that are
-/// not on this iPad are listed under them, to download (0014, #335).
+/// The library (version 0.2, Andrei's approved screens ux-prototype/v2/screens/lib-1-list.png, lib-3-sessions.png and
+/// lib-4-props.png): the screen outside the piece and the way into one, as short as it can be: find a piece and start.
+/// The pieces are a list with Title, Composer, Playlists and Opened columns and an index at the edge, searched, filtered by
+/// composer, tag and playlist, and in tabs: All pieces, Composers, Recent, Playlists, and Sessions, the cards of current
+/// work, each resumed with one tap. A piece's properties (title, composer, tags, playlists) are edited from a long press or a
+/// swipe on its line, which also deletes it (#479).
+/// The pieces are project files in the app's Documents (0019 section 2.3), read by music-core (`project.summary`) without
+/// opening them. One Add piece action holds the ways in; the overflow imports a project file. Everything here runs on the
+/// device and is free; signed in, the pieces sync with the player's other devices by themselves (version 0.2,
+/// `CloudSync`), and a project saved online that is still not here is listed in a tab of its own, to download (0014, #335,
+/// #479). The search's keyboard goes away when the list scrolls or empty space is tapped.
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
+    /// The device's settings, for the experiments' switches (Settings · Experimental).
+    @EnvironmentObject private var deviceSettings: DeviceSettings
     @State private var settings = false
+    /// The Reference's circle of fifths (an experiment), open over the library.
+    @State private var reference = false
     @State private var adding = false
     @State private var opening = false
     @State private var choosing = false
@@ -19,6 +29,35 @@ struct LibraryView: View {
     @State private var summaries: [URL: PieceSummary] = [:]
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
+    /// Saving online and sync, on until the player turns it off in Settings (version 0.2).
+    @AppStorage(CloudSync.onKey) private var syncOn = true
+    @State private var syncing = false
+    /// How many pieces stay on this iPad because the free account's room online is full (0025 section 8).
+    @State private var overQuota = 0
+    @Environment(\.scenePhase) private var phase
+    /// The pieces made from the project files and their summaries, with the library's composers, tags and playlists
+    /// (version 0.2).
+    @State private var entries: [LibraryEntry] = []
+    @State private var composers: [String] = []
+    @State private var tags: [String] = []
+    @State private var playlists: [String] = []
+    @State private var query = LibraryQuery()
+    /// The tab shown last, kept on the device.
+    @AppStorage("library.tab") private var tab = LibraryTab.all
+    /// The composer or playlist picked on its tab.
+    @State private var picked: LibraryGroup?
+    @State private var editing: LibraryEntry?
+    /// Whether the search is typed in: off when the list scrolls or empty space is tapped (#479).
+    @FocusState private var searching: Bool
+    /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
+    @State private var away: AwayPrompt?
+    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    @StateObject private var folderImport = FolderImportModel()
+    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
+    /// «Распознать ноты» for several pieces: those picked while choosing (nil when not), and the batch's consent.
+    @State private var chosen: Set<URL>?
+    @State private var consenting = false
+    @ObservedObject private var recognitionQueue = RecognitionQueue.shared
 
     /// The shelf's columns, for the projects here and those saved online.
     static let columns = [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)]
@@ -35,46 +74,92 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                    header
-                    if let problem {
-                        Text(problem)
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("danger"))
-                            .accessibilityAddTraits(.isStaticText)
-                    }
-                    if projects.isEmpty {
-                        Text(text["home.emptyWhat"])
-                            .dsType(.body)
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .frame(maxWidth: 560, alignment: .leading)
-                    }
-                    Text(text["home.projects"])
-                        .overline()
-                        .accessibilityAddTraits(.isHeader)
-                    LazyVGrid(columns: Self.columns, alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                        ForEach(shelved) { entry in
-                            PieceCard(entry: entry, summary: summaries[entry.url], text: text) {
-                                Task { await openProject(entry.url) }
-                            } delete: {
-                                delete(entry)
+            let page = LibraryPage.of(entries, query, tab: tab, picked: picked, locale: Locale(identifier: text.language))
+            // The header keeps the kit's space below the status bar (v0.5 put it right under the clock): the scroll view
+            // runs up under the bar, and its content starts the bar's height plus the page's padding down, so the space
+            // never depends on whether a scroll view with a hidden navigation bar insets its content by itself.
+            GeometryReader { window in
+            let bar = Self.statusBar(window.safeAreaInsets.top)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
+                        header
+                        MainEnvironmentLine(account: account, text: text)
+                        if importOn {
+                            ImportBanner(runner: ImportRunner.shared, text: text)
+                            RecognitionTop(queue: recognitionQueue, text: text, chosen: $chosen, entries: entries, shown: page.pieces) { consenting = true }
+                        }
+                        if let problem {
+                            Text(problem)
+                                .dsType(.label)
+                                .foregroundStyle(Color.ds("danger"))
+                                .accessibilityAddTraits(.isStaticText)
+                        }
+                        if overQuota > 0 {
+                            Text(text.format("online.overQuota", String(overQuota), String(CloudSync.freeProjectsOnline)))
+                                .dsType(.label)
+                                .foregroundStyle(Color.ds("ink-2"))
+                        }
+                        if projects.isEmpty {
+                            Text(text["home.emptyWhat"])
+                                .dsType(.body)
+                                .foregroundStyle(Color.ds("ink-2"))
+                                .frame(maxWidth: 560, alignment: .leading)
+                            // No tabs without a piece here: the ones saved online are the shelf's cards.
+                            if !online.isEmpty {
+                                OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
+                            }
+                        } else {
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: playlistToggle, marks: importOn ? marks : nil, online: onlineTab) { url in
+                                searching = false
+                                Task { await openProject(url) }
+                            } edit: { entry in
+                                searching = false
+                                editing = entry
+                            } delete: { url in
+                                delete(url)
                             }
                         }
-                        AddCard(text: text) { adding = true }
                     }
-                    if !online.isEmpty {
-                        OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
+                    .padding(.horizontal, CGFloat.ds("s-12"))
+                    .padding(.top, bar + CGFloat.ds("s-10"))
+                    .padding(.bottom, CGFloat.ds("s-10"))
+                    // Empty space down to the screen's foot puts the search's keyboard away; a line's or a button's own
+                    // tap is drawn over it and keeps working.
+                    .frame(maxWidth: .infinity, minHeight: window.size.height + window.safeAreaInsets.top, alignment: .topLeading)
+                    .background {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { searching = false }
+                            .accessibilityHidden(true)
                     }
                 }
-                .padding(.horizontal, CGFloat.ds("s-12"))
-                .padding(.vertical, CGFloat.ds("s-10"))
+                .scrollDismissesKeyboard(.immediately)
+                .ignoresSafeArea(edges: .top)
+                .overlay(alignment: .trailing) {
+                    if page.indexed && !page.isEmpty {
+                        LibraryIndex(letters: LibraryShelf.indexLetters(page.initials), text: text) { letter in
+                            guard let at = LibraryShelf.target(letter, in: page.initials, locale: Locale(identifier: text.language)) else { return }
+                            // Just below the status bar, which the scroll view runs under.
+                            let frame = window.size.height + window.safeAreaInsets.top
+                            proxy.scrollTo(page.id(at: at), anchor: UnitPoint(x: 0, y: frame > 0 ? bar / frame : 0))
+                        }
+                        .padding(.trailing, CGFloat.ds("s-2"))
+                    }
+                }
+            }
             }
             .background(Color.ds("desk").ignoresSafeArea())
             .disabled(opening)
             .overlay { if opening { ProgressView() } }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $settings) { SettingsSheet(settings: DeviceSettings.shared, account: account, text: text) }
+            .sheet(isPresented: $reference) { ReferenceSheet(text: text, settings: deviceSettings) }
+            .sheet(item: $editing) { entry in
+                PiecePropertiesSheet(entry: entry, summary: summaries[entry.url], composers: composers, libraryTags: tags, libraryPlaylists: playlists, text: text) {
+                    await reload()
+                }
+            }
             .sheet(isPresented: $adding) {
                 AddPieceSheet(text: text) { result in
                     adding = false
@@ -85,8 +170,16 @@ struct LibraryView: View {
                 } demo: {
                     adding = false
                     Task { await openExample() }
+                } folder: { result in
+                    adding = false
+                    folderImport.later { folderImport.picked(result, pieces: summaries) }
                 }
                 .environmentObject(account)
+            }
+            .sheet(item: $away) { prompt in
+                AwayPieceSheet(prompt: prompt, text: text, recheck: recheck(prompt)) { found in
+                    await openFound(prompt.url, found, title: prompt.summary.playersTitle)
+                }
             }
             .navigationDestination(item: $piece) { piece in
                 Group {
@@ -101,7 +194,11 @@ struct LibraryView: View {
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
             }
+            .folderImport(folderImport, text: text, summaries: summaries, on: importOn, account: account) { await reload() } open: { url in await openProject(url) }
+            .recognition(chosen: $chosen, consenting: $consenting, account: account, entries: entries, on: importOn, text: text) { settings = true } reload: { await reload() }
             .task {
+                // «Нет на этом iPad» is not kept as the tab to start on: it is there only once the list online has come.
+                if tab == .online { tab = .all }
                 #if DEBUG
                 let screensFile = ScreensHook.start()
                 #endif
@@ -111,28 +208,70 @@ struct LibraryView: View {
                 if let screensFile { await open(.success(screensFile)) }
                 #endif
             }
+            // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
+            .onChange(of: piece?.file) { _, file in recognitionQueue.opened(file) }
             .onChange(of: piece == nil) { _, closed in
                 // Back from a score: its project was saved as the screen closed.
                 if closed { Task { await reload(); await refreshOnline() } }
             }
             // Signed in or out: the projects saved online come or go.
             .onChange(of: account.player) { _, _ in Task { await refreshOnline() } }
+            // Back on the screen: what changed on another device meanwhile comes here (never inside a piece).
+            .onChange(of: phase) { _, now in
+                if now == .active && piece == nil { Task { await refreshOnline() } }
+            }
+            .onChange(of: syncOn) { _, on in
+                if on { Task { await refreshOnline() } }
+            }
+            // Another environment (Settings): its own library and its own pieces online, nothing carried over.
+            .onChange(of: account.environment) { _, _ in
+                online = []
+                overQuota = 0
+                problem = nil
+                picked = nil
+                Task { await reload(); await refreshOnline() }
+            }
+            // The last piece saved online that was not here came: its tab goes, and All pieces is shown.
+            .onChange(of: online.isEmpty) { _, none in
+                tab = tab.shown(online: !none)
+            }
+            // The Test library cleared (Settings · About, `TestLibrary`): read again from what is left, nothing.
+            .onChange(of: account.libraryCleared) { _, _ in online = []; overQuota = 0; picked = nil; folderImport.load(); Task { await reload(); await refreshOnline() } }
+            // Recent lists the last opened first; the other lists start from A.
+            .onChange(of: tab) { _, shown in
+                picked = nil
+                searching = false
+                query.sort = shown == .recent ? .recent : .title
+                query.ascending = true
+            }
         }
     }
 
-    /// The wordmark and tagline, Add piece, the overflow and the account.
+    /// The space the status bar takes at the top: the window's top safe area, and never less than the bar's height on an
+    /// iPad (s-6), for a window whose safe area does not include it.
+    static func statusBar(_ safeTop: CGFloat) -> CGFloat {
+        Swift.max(safeTop, CGFloat.ds("s-6"))
+    }
+
+    /// The library's name, the search, Add piece, the overflow and the account (lib-1).
     private var header: some View {
         HStack(alignment: .center, spacing: CGFloat.ds("s-4")) {
-            HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-4")) {
-                Text("Motiff Lab")
-                    .dsType(.display)
-                    .foregroundStyle(Color.ds("ink"))
-                    .accessibilityAddTraits(.isHeader)
-                Text(text["home.tagline"])
-                    .font(DesignTokens.font(display: true, weight: 400, size: 17).italic())
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
+            Text(text["library.title"])
+                .dsType(.display)
+                .foregroundStyle(Color.ds("ink"))
+                .fixedSize()
+                .accessibilityAddTraits(.isHeader)
+            EnvironmentMark(account: account, text: text)
             Spacer(minLength: CGFloat.ds("s-4"))
+            if !projects.isEmpty {
+                LibrarySearchField(search: $query.search, text: text, focus: $searching)
+            }
+            if deviceSettings.isOn("experimental.reference") {
+                // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
+                Button(text["reference.open"]) { reference = true }
+                    .buttonStyle(DSButtonStyle(kind: .quiet))
+                    .accessibilityHint(text["reference.openHint"])
+            }
             Button {
                 adding = true
             } label: {
@@ -147,6 +286,10 @@ struct LibraryView: View {
                     choosing = true
                 } label: {
                     Text(text["home.importProject"])
+                }
+                if importOn {
+                    Button(text["recognition.choose"]) { chosen = [] }
+                    FolderMenuItems(folders: folderImport.folders, text: text) { folder in folderImport.recheck(folder, pieces: summaries) }
                 }
             } label: {
                 Icon(name: "more", size: CGFloat.ds("icon-l"))
@@ -193,14 +336,71 @@ struct LibraryView: View {
             }
         }
         summaries = read
+        shelve()
     }
 
-    /// The projects saved online whose id is in no project file here (0014); none while signed out, offline or when the
-    /// API cannot be reached, and then nothing is said: the library is about the projects on this iPad.
+    /// The tab «Нет на этом iPad», while a project saved online is not here.
+    private var onlineTab: OnlineTab? {
+        guard !online.isEmpty else { return nil }
+        return OnlineTab(projects: online) { project in Task { await getHere(project) } }
+    }
+
+    /// The pieces made again from the project files and their summaries; a composer, tag or playlist no piece has any more
+    /// stops filtering, and a composer or playlist picked on its tab that has no piece left goes back to the list of them.
+    private func shelve() {
+        let locale = Locale(identifier: text.language)
+        entries = shelved.map { LibraryEntry.of($0, summaries[$0.url]) }
+        composers = LibraryShelf.composers(entries, locale: locale)
+        tags = LibraryShelf.tags(entries, locale: locale)
+        playlists = LibraryShelf.playlists(entries, locale: locale)
+        query = LibraryShelf.kept(query, composers: composers, tags: tags, playlists: playlists)
+        if let shown = picked {
+            let left = tab == .playlists ? LibraryShelf.pieces(on: shown.name ?? "", entries) : LibraryShelf.pieces(by: shown.name, entries)
+            if left.isEmpty { picked = nil }
+        }
+    }
+
+    /// One sync pass (version 0.2), then the projects saved online whose id is still in no project file here (0014),
+    /// such as one deleted here; none while signed out, offline or when the API cannot be reached, and then nothing is
+    /// said: the library is about the projects on this iPad.
     private func refreshOnline() async {
-        var listed: [OnlineProject] = []
-        if account.player != nil { listed = await account.online.list() ?? [] }
+        guard account.player != nil else {
+            online = []
+            return
+        }
+        if syncOn && !syncing {
+            syncing = true
+            let language = text.language
+            let previous = text.format("sync.previousCopy", "{0}", "%@")
+            // One environment for the whole pass: its folder, its records and its servers (the requests stop on a switch).
+            let environment = account.environment
+            let outcome = await CloudSync(online: account.online, folder: environment.projectsFolder, recordsURL: environment.syncRecordsURL) { made in
+                previous.replacingOccurrences(of: "%@", with: Self.when(made, language: language))
+            }.run()
+            syncing = false
+            // Switched meanwhile: the pass stopped, and the environment now chosen gets one of its own.
+            guard environment == account.environment else { return await refreshOnline() }
+            overQuota = outcome.overQuota
+            if outcome.changed { await reload() }
+        }
+        let listing = await account.online.listing()
+        // Everything was cleared from another device (`TestReset`; the pass above then sent nothing): Test's library here
+        // goes too, and the library reads itself again (`account.libraryCleared`).
+        if let stamp = listing?.resetDue, TestLibrary.applyReset(account, stamp: stamp) {
+            problem = text["testLibrary.clearedElsewhere"]
+            return
+        }
+        let listed = listing?.projects ?? []
         online = OnlineProjects.notHere(listed, here: Set(summaries.values.compactMap(\.id)))
+    }
+
+    /// "11.11.2026, 20:40" in the interface's language, for a previous copy's title.
+    private static func when(_ date: Date, language: String) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language)
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     /// Get it here (#335): downloads a project saved online as a new project file and opens it, from then on an ordinary
@@ -235,14 +435,70 @@ struct LibraryView: View {
         }
     }
 
+    /// Opens a project in Documents where it was left, titled as the player titled it in the library, if they did. A piece
+    /// that is only a PDF whose PDF is not in its file (version 0.5) opens with the PDF read where this iPad links it, or
+    /// says why it cannot and what can be done.
     private func openProject(_ url: URL) async {
+        // Open for the batch before its file is read, so notes it writes meanwhile are not lost under the screen.
+        recognitionQueue.opened(url)
+        defer { recognitionQueue.opened(piece?.file) }
+        if let summary = summaries[url], AwayPdf.isAway(summary) {
+            opening = true
+            let read = await AwayPdf.read(url, summary)
+            opening = false
+            switch read {
+            case .success(let found): await openFound(url, found, title: summary.playersTitle)
+            case .failure(let reason): away = AwayPrompt(url: url, summary: summary, title: entries.first { $0.url == url }?.title ?? ProjectFiles.title(of: url.lastPathComponent), reason: reason)
+            }
+            return
+        }
         do {
             let data = try Data(contentsOf: url)
             let language = text.language
-            await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: data, language: language) }
+            let title = summaries[url]?.playersTitle
+            await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: data, language: language, title: title) }
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    private var playlistToggle: ((String) -> AnyView)? {
+        guard importOn else { return nil }
+        return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }
+    }
+
+    /// The pieces picked to recognise, a tap on a PDF-only piece picking or unpicking it, and each piece's recognition.
+    private var marks: LibraryMarks {
+        LibraryMarks(chosen: chosen, toggle: { entry in
+            guard entry.withoutNotes, chosen != nil else { return }
+            if chosen?.contains(entry.url) == true { chosen?.remove(entry.url) } else { chosen?.insert(entry.url) }
+        }, status: { url in recognitionQueue.status(of: url) }, rename: { entry, field, value in
+            Task { await rename(entry, field, to: value) }
+        })
+    }
+
+    /// A title or composer typed on a piece's line while choosing: written into the project file as the properties do.
+    private func rename(_ entry: LibraryEntry, _ field: String, to value: String) async {
+        do {
+            try await PieceDetailsFile.set(entry.url, field, to: LibraryShelf.clean(value))
+            await reload()
+        } catch {
+            problem = (error as? ProjectError)?.message ?? error.localizedDescription
+        }
+    }
+
+    /// «Проверить папку» for a piece whose PDF was not found, when it came from a folder imported here (experiment on).
+    private func recheck(_ prompt: AwayPrompt) -> (() -> Void)? {
+        guard importOn, let folder = folderImport.folder(of: prompt.summary) else { return nil }
+        return { folderImport.later { folderImport.recheck(folder, pieces: summaries, target: prompt.url) } }
+    }
+
+    /// A piece that is only a PDF, opened with its PDF found where it lies; saved to its own file, which never takes a
+    /// linked PDF's bytes.
+    private func openFound(_ url: URL, _ found: AwayFound, title: String?) async {
+        let language = text.language
+        await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: Data(found.project.utf8), language: language, title: title, pdf: found.data) }
     }
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
@@ -255,6 +511,8 @@ struct LibraryView: View {
     /// Opens a project file in Documents in place of the piece shown, at a page or place: at a page, a piece with notes and
     /// a PDF inside it opens in its PDF view.
     private func openFile(_ file: URL, at landing: Landing) async {
+        recognitionQueue.opened(file)
+        defer { recognitionQueue.opened(piece?.file) }
         do {
             let data = try Data(contentsOf: file)
             let language = text.language
@@ -298,7 +556,7 @@ struct LibraryView: View {
         switch await opener() {
         case .success(var opened):
             if let earlier = piece {
-                _ = await MusicCore.run { MusicCore.close(piece: earlier.id) }
+                await ClosedPieces.close(earlier.id)
             }
             if let file {
                 opened.file = file
@@ -312,284 +570,22 @@ struct LibraryView: View {
                 }
             }
             await reload()
-            if let saved = opened.file { opened.other = OtherView.of(saved, in: summaries) }
-            opened.landing = landing
+            if let saved = opened.file {
+                opened.other = OtherView.of(saved, own: opened.own, in: summaries)
+                opened.family = PieceFamily.of(saved, in: summaries)
+            }
+            opened.landing = ViewStates.landing(landing, for: opened)
             piece = opened
         case .failure(let error):
             problem = error.message
         }
     }
 
-    private func delete(_ entry: ProjectFiles.Entry) {
-        try? FileManager.default.removeItem(at: entry.url)
-        projects.removeAll { $0.url == entry.url }
-        summaries[entry.url] = nil
-    }
-}
-
-/// A piece on the shelf (ds.css `.card`): its page, title and what kind of piece it is, the ideas kept and bars to check,
-/// and where work on it stopped, with Resume, or Open for a piece not opened yet. A long press offers Delete, which asks
-/// once more.
-struct PieceCard: View {
-    let entry: ProjectFiles.Entry
-    let summary: PieceSummary?
-    let text: UIText
-    let open: () -> Void
-    let delete: () -> Void
-    @State private var confirming = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            HStack(alignment: .top, spacing: CGFloat.ds("s-4")) {
-                Button(action: open) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.ds("paper"))
-                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.ds("hairline")))
-                        .frame(width: 84, height: 118)
-                        .shadow(color: Color.ds("hairline"), radius: 1, y: 1)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                    Text(entry.title)
-                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                    Text(meta)
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("ink-2"))
-                    if let summary, summary.ideas > 0 || summary.checkBars > 0 {
-                        HStack(spacing: CGFloat.ds("s-2")) {
-                            if summary.ideas > 0 { Tag(text: text.count("library.ideas", summary.ideas), kind: .saved) }
-                            if summary.checkBars > 0 { Tag(text: text.count("library.check", summary.checkBars), kind: .warn) }
-                        }
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-            if let resumeName {
-                Text(text["library.recentWork"]).overline()
-                Text(resumeName)
-                    .dsType(.body)
-                    .foregroundStyle(Color.ds("ink"))
-                Text(text.format("home.lastOpened", entry.modified.formatted(.relative(presentation: .named).locale(Locale(identifier: text.language)))))
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                Button(action: open) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "play")
-                        Text(text["library.resume"])
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .secondary))
-                .accessibilityLabel(text.format("library.resumeLabel", entry.title))
-            } else {
-                // A piece not opened yet has no work to come back to: one Open, as on the web.
-                Button(text["home.open"], action: open)
-                    .buttonStyle(DSButtonStyle(kind: .secondary))
-                    .accessibilityLabel(text.format("library.openLabel", entry.title))
-            }
-        }
-        .padding(CGFloat.ds("s-4"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        .contextMenu {
-            Button(role: .destructive) {
-                confirming = true
-            } label: {
-                Text(text["home.delete"])
-            }
-        }
-        .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
-            Button(text["home.deleteForGood"], role: .destructive, action: delete)
-            Button(text["home.keep"], role: .cancel) {}
-        }
-    }
-
-    /// What kind of piece: scanned, from a recording or a PDF; nothing more for a file the player opened.
-    private var meta: String {
-        guard let summary else { return " " }
-        if !summary.hasNotes { return text["library.pdf"] }
-        return switch summary.origin {
-        case "scanned": text["library.scanned"]
-        case "transcribed": text["library.recorded"]
-        default: text["library.openFile"]
-        }
-    }
-
-    /// Where work on the piece stopped; nil for a piece not opened yet.
-    private var resumeName: String? {
-        guard let summary else { return nil }
-        if !summary.hasNotes { return text["library.pdfAsIs"] }
-        guard let latest = summary.latest else { return nil }
-        return latest.name ?? text["library.page1"]
-    }
-}
-
-/// The last card on the shelf (ds.css `.card.add`): the ways in, and the demo piece.
-struct AddCard: View {
-    let text: UIText
-    let add: () -> Void
-
-    var body: some View {
-        Button(action: add) {
-            VStack(spacing: CGFloat.ds("s-3")) {
-                Icon(name: "plus", size: CGFloat.ds("icon-l"))
-                    .foregroundStyle(Color.ds("accent"))
-                    .frame(width: 56, height: 56)
-                    .background(Color.ds("accent-tint"), in: Circle())
-                Text(text["library.addAPiece"])
-                    .dsType(.heading)
-                    .foregroundStyle(Color.ds("ink"))
-                Text(text["library.openFileHintHere"])
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                    .multilineTextAlignment(.center)
-                Text(text["library.tryDemo"])
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
-            .padding(CGFloat.ds("s-6"))
-            .frame(maxWidth: .infinity, minHeight: 280)
-            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-            .overlay(
-                RoundedRectangle(cornerRadius: CGFloat.ds("r-m"))
-                    .strokeBorder(Color.ds("hairline-strong"), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(text["library.addAPiece"])
-    }
-}
-
-/// Add piece (0018 section 9): opening a file runs on the device and is free. Scanning a page and hearing a recording come
-/// to the iPad in a later step; until then they are on the web app.
-struct AddPieceSheet: View {
-    let text: UIText
-    let picked: (Result<URL, Error>) -> Void
-    /// A recording heard by Motiff Lab's scan server (Pro), to open as a new piece.
-    let heard: (HeardRecording) -> Void
-    let demo: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var account: Account
-    @State private var choosing = false
-    @State private var progress: String?
-    @State private var problem: String?
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
-                HStack {
-                    Text(text["library.addAPiece"])
-                        .dsType(.title)
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Button {
-                        dismiss()
-                    } label: {
-                        Icon(name: "close")
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                    }
-                    .accessibilityLabel(text["library.close"])
-                }
-                Button {
-                    choosing = true
-                } label: {
-                    HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
-                        Icon(name: "file", size: CGFloat.ds("icon-l"))
-                            .foregroundStyle(Color.ds("accent"))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(text["library.openFile"])
-                                .dsType(.bodyStrong)
-                                .foregroundStyle(Color.ds("ink"))
-                            Text(text["library.openFileHintHere"])
-                                .dsType(.caption)
-                                .foregroundStyle(Color.ds("ink-2"))
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(CGFloat.ds("s-4"))
-                    .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-                }
-                .buttonStyle(.plain)
-                // On the button, not the sheet: the recording's chooser below has its own, and a second file importer on a
-                // view that holds another is not shown.
-                .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
-                    picked(result)
-                }
-                if account.isAvailable {
-                    fromRecording
-                }
-                Button(action: demo) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "play")
-                        Text(text["library.demo"])
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .quiet))
-            }
-            .padding(CGFloat.ds("s-6"))
-        }
-        .background(Color.ds("surface").ignoresSafeArea())
-        .presentationDetents([.medium, .large])
-        .interactiveDismissDisabled(progress != nil)
-    }
-
-    /// From a recording (0014): the scan server hears the sound of an audio or video file, up to its first 7 minutes, and
-    /// its notes become a new piece. Pro, as on the web; what it needs first is offered here.
-    private var fromRecording: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
-                Icon(name: "mic", size: CGFloat.ds("icon-l"))
-                    .foregroundStyle(Color.ds("accent"))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Text(text["library.fromRecording"])
-                            .dsType(.bodyStrong)
-                            .foregroundStyle(Color.ds("ink"))
-                        ProTag()
-                    }
-                    Text(text["library.fromRecordingHint"])
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
-                }
-                Spacer(minLength: 0)
-            }
-            RecordingChooser(
-                text: text,
-                line: text["library.fromRecordingLineDevice"],
-                button: text["library.chooseRecording"],
-                hint: text["transcribe.choose"],
-                progress: progress
-            ) { url in
-                Task { await hear(url) }
-            }
-            if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(CGFloat.ds("s-4"))
-        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-    }
-
-    private func hear(_ url: URL) async {
-        problem = nil
-        defer { progress = nil }
-        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
-        case .success(let recording):
-            heard(recording)
-        case .failure(let failure):
-            problem = failure.message
-        }
+    private func delete(_ url: URL) {
+        try? FileManager.default.removeItem(at: url)
+        projects.removeAll { $0.url == url }
+        summaries[url] = nil
+        shelve()
     }
 }
 
@@ -597,33 +593,3 @@ extension OpenPiece: Hashable {
     static func == (lhs: OpenPiece, rhs: OpenPiece) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
-
-#if DEBUG
-/// The way in for the screenshot UI test (`MotiffLabScreens`, the `Screens` scheme), in Debug builds only:
-/// `-ml-screens-reset` removes the projects in Documents before the library first reads them, and
-/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With `-ml-screens`
-/// the score also has a hidden button that chooses the next phrase, as a tap on its bracket would.
-@MainActor
-enum ScreensHook {
-    private static var used = false
-    private static var phrase = 1
-
-    static let active = ProcessInfo.processInfo.arguments.contains("-ml-screens")
-
-    /// Phrase 2, then 3, and so on: each press chooses another phrase, so it never lifts the chosen one into focus.
-    static func nextPhrase() -> Int {
-        phrase += 1
-        return phrase
-    }
-
-    static func start(arguments: [String] = ProcessInfo.processInfo.arguments) -> URL? {
-        guard !used else { return nil }
-        used = true
-        if arguments.contains("-ml-screens-reset") {
-            for entry in ProjectFiles.list() { try? FileManager.default.removeItem(at: entry.url) }
-        }
-        guard let index = arguments.firstIndex(of: "-ml-screens-open"), arguments.indices.contains(index + 1) else { return nil }
-        return URL(fileURLWithPath: arguments[index + 1])
-    }
-}
-#endif

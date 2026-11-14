@@ -1,59 +1,21 @@
 @using MotiffLab.MusicCore.Import.Transcription
 @inject ScanService Scans
-@inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* A recording as another version (0022): its sound goes to the scan server, as on Transcribe a recording, and the notes
-   it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, up to
-   7 minutes. What leaves the device is one line and one switch; on Motiff Lab's server it needs an account and Pro,
-   offered here. *@
+   it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, however
+   long, in parts several at once (0014, version 0.3). What leaves the device is one line, and choosing the recording sends
+   it, with no switch to turn on first (v0.5.6, #533 section 8); on Motiff Lab's server it needs an account and Pro, offered
+   here. *@
 <section class="recording-version" aria-label="@Text["version.recordingHeading"]">
     <p class="overline">@Text["version.recordingHeading"]</p>
-    @if (!_ready)
-    {
-        <p class="caption">@Text["pdf.readChecking"]</p>
-    }
-    else if (Scans.Address is not { } server)
-    {
-        @if (Scans.HostedAddress is not null)
-        {
-            <p class="caption">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
-        }
-        else
-        {
-            <p class="caption">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
-        }
-    }
-    else if (Scans.IsHosted && !_signedIn)
-    {
-        <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
-    }
-    else if (Scans.IsHosted && !_pro)
-    {
-        <p class="pro-offer">
-            <span class="tag pro">Pro</span> @Text["transcribe.proPrompt"]
-            @if (Account.IsAvailable)
-            {
-                <a href="settings#plan">@Text["ask.offerPlan"]</a>
-            }
-        </p>
-    }
-    else
-    {
-        <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : server.Host)</p>
-        @if (!Scans.IsLocal)
-        {
-            <label class="consent">
-                <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_busy" />
-                <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", server.Host))</span>
-            </label>
-        }
-
+    <ScanReady Hearing="true">
+        <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : Scans.Address!.Host)</p>
         <label class="file btn secondary @(_busy ? "busy" : null)">
             @(_busy ? Progress : Text["version.addRecording"])
-            <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_busy || !(Scans.IsLocal || _send))" aria-label="@Text["version.chooseRecording"]" />
+            <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@_busy" aria-label="@Text["version.chooseRecording"]" />
         </label>
-    }
+    </ScanReady>
 
     @if (_note is not null)
     {
@@ -67,14 +29,9 @@
 
 @code {
     private InputFile? _input;
-    private bool _ready;
-    private bool _signedIn;
-    private bool _pro;
-    private bool _send;
     private bool _busy;
     private bool _decoding;
-    private int _part;
-    private int _parts;
+    private HearingProgress? _hearing;
     private string? _note;
     private string? _problem;
 
@@ -82,18 +39,13 @@
     [Parameter, EditorRequired]
     public Func<string, byte[], Task<string?>> Heard { get; set; } = default!;
 
-    private string Progress => _decoding ? Text["transcribe.decoding"]
-        : _parts > 1 ? Text.Format("transcribe.part", _part, _parts)
-        : Text["transcribe.busy"];
+    /// <summary>The file input as a recording is picked, before it is heard: the page takes its fingerprint (version 0.3, local-first originals).</summary>
+    [Parameter]
+    public Func<ElementReference, Task>? Picked { get; set; }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await Scans.LoadAsync();
-        _signedIn = await Account.PlayerAsync() is not null;
-        // Transcription on Motiff Lab's server is Pro (0018 section 12); the server checks it too.
-        _pro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Transcribe);
-        _ready = true;
-    }
+    private string Progress => _decoding ? Text["transcribe.decoding"]
+        : _hearing is { Total: > 1 } hearing ? Text.Format(hearing.Retrying ? "transcribe.retrying" : "transcribe.progress", hearing.Done, hearing.Total)
+        : Text["transcribe.busy"];
 
     private async Task PickAsync(InputFileChangeEventArgs args)
     {
@@ -108,6 +60,11 @@
         _busy = true;
         try
         {
+            if (Picked is not null && _input?.Element is { } picked)
+            {
+                await Picked(picked);
+            }
+
             byte[]? midi = await HearAsync(file);
             if (midi is not null)
             {
@@ -116,14 +73,14 @@
         }
         finally
         {
-            (_busy, _decoding, _part, _parts) = (false, false, 0, 0);
+            (_busy, _decoding, _hearing) = (false, false, null);
             await Scans.ForgetRecordingAsync();
         }
     }
 
     /// <summary>
-    /// The notes heard in the recording: its sound taken out on this device and sent, the first 7 minutes of a longer one;
-    /// or, when this browser cannot take the sound out, the file itself when it is small enough, of which the server hears the start.
+    /// The notes heard in the recording: its sound taken out on this device and sent, all of it, in parts; or, when this
+    /// browser cannot take the sound out, the file itself when it is small enough, of which the server hears the start.
     /// </summary>
     private async Task<byte[]?> HearAsync(IBrowserFile file)
     {
@@ -132,27 +89,25 @@
         LoadedRecording? loaded = _input?.Element is { } input ? await Scans.LoadRecordingAsync(input) : null;
         _decoding = false;
         StateHasChanged();
+        if (loaded is { TooLong: true })
+        {
+            _problem = $"{Text.Format("transcribe.tooLongToDecode", TimeSpan.FromMilliseconds(loaded.Milliseconds).ToString(@"h\:mm\:ss", Text.Culture), loaded.MostMinutes)} {Text["transcribe.tooLongToDecodeTip"]}";
+            return null;
+        }
+
         if (loaded is { Milliseconds: > 0 })
         {
-            long to = Math.Min(loaded.Milliseconds, RecordingRange.MostMilliseconds);
-            if (await Scans.SoundBetweenAsync(0, to) is not { } sound)
+            HeardSound heard = await Scans.HearRangeAsync(loaded, RecordingRange.Start(loaded.Milliseconds), progress =>
             {
-                _problem = Text["transcribe.failed"];
-                return null;
-            }
-
-            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
-            {
-                (_part, _parts) = (part, parts);
+                _hearing = progress;
                 StateHasChanged();
             });
             if (heard.Midi is null)
             {
-                _problem = $"{heard.Problem} {Text["transcribe.notHeardTip"]}".Trim();
+                _problem = $"{heard.Problem} {(heard.Result.NothingHeard ? Text["transcribe.notHeardTip"] : "")}".Trim();
                 return null;
             }
 
-            _note = loaded.Milliseconds > to ? Text.Format("version.recordingCut", RecordingRange.MostMilliseconds / 60_000) : null;
             return heard.Midi;
         }
 

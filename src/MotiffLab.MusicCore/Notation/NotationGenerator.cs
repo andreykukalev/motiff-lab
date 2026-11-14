@@ -34,7 +34,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// same measures (decision record 0021).
 /// </para>
 /// </remarks>
-public static class NotationGenerator
+public static partial class NotationGenerator
 {
     /// <summary>The display grid: a 32nd note.</summary>
     public const long Grid = CanonicalTime.TicksPerQuarter / 8;
@@ -75,21 +75,23 @@ public static class NotationGenerator
 
     /// <summary>Notation for a MIDI import, with its key signatures.</summary>
     /// <param name="asHeard">See <see cref="Generate"/>.</param>
-    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool asHeard = false)
+    /// <param name="tempos">The tempo marked on the score, as <see cref="Generate"/> takes it.</param>
+    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(import);
-        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard);
+        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard, tempos: tempos);
     }
 
     /// <summary>Notation for a MusicXML import, generated from its notes rather than engraved as written. Key signatures come from the first part.</summary>
-    public static GeneratedNotation FromMusicXml(MusicXmlImport import, string? title = null)
+    /// <param name="tempos">The tempo marked on the score, as <see cref="Generate"/> takes it.</param>
+    public static GeneratedNotation FromMusicXml(MusicXmlImport import, string? title = null, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(import);
         int firstTrack = import.KeySignatures.Count == 0 ? 0 : import.KeySignatures.Min(key => key.Track);
         IEnumerable<KeyChange> keys = import.KeySignatures
             .Where(key => key.Track == firstTrack)
             .Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        return Generate(import.Notes, import.Meter, keys, import.End, title);
+        return Generate(import.Notes, import.Meter, keys, import.End, title, tempos: tempos);
     }
 
     /// <param name="notes">The notes to write, in any order.</param>
@@ -100,8 +102,8 @@ public static class NotationGenerator
     /// <param name="asHeard">
     /// For notes heard in a recording, written as a player reads them rather than as they sounded
     /// (decision record 0016): onsets on the nearest 16th (a 32nd where 16ths would merge two
-    /// onsets, and onsets within a 64th are one chord); a note shorter than a 32nd just before the next
-    /// as a grace note; and each note up to the next onset on its staff, so that the pedal or a key let
+    /// onsets, and onsets within a 64th are one chord on every staff, as is a chord spread over a 32nd);
+    /// a note shorter than a 32nd just before the next, or one that leads into a spread chord, as a grace note; and each note up to the next onset on its staff, so that the pedal or a key let
     /// go a little early does not write long ties, extra voices or short rests. A gap of a quarter or
     /// more stays a rest; a chord is written with one length. The notes themselves keep their timing.
     /// </param>
@@ -121,13 +123,26 @@ public static class NotationGenerator
     /// the whole piece when null. Every note is still planned, so voices, ties and the key in force are the same
     /// as in the whole score; the bars keep their numbers.
     /// </param>
+    /// <param name="marks">
+    /// With <paramref name="playedTempos"/>: <see cref="PlayedMarks.Significant"/> for «Для чтения» (version 0.5), only the
+    /// dynamics that change by two steps or more, "rit." and "accel." where the bars grow a fifth longer or shorter, and
+    /// fermatas; no accents, hairpins, slurs or pedal. Usually with <paramref name="asHeard"/>.
+    /// </param>
     /// <param name="ossias">
     /// Staves above the original, bar for bar, at three quarters of the size, each with its label at the left:
     /// a variation in place of the passage it changed, or the same notes written as played (item 10). Their
     /// staves are numbered first; their note ids carry the prefix <c>ossia-</c> (<c>ossia2-</c> for a second),
     /// so a note shown twice has two ids.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
+    /// <param name="spelling">
+    /// For notes moved to another key (#351): each written as the original note was, moved by the interval's letters,
+    /// rather than from the key signature alone.
+    /// </param>
+    /// <param name="tempos">
+    /// The tempo the notes play at, as played (version 0.5.4): marked over the original's top staff as
+    /// <see cref="TempoMarks"/> says, "♩ = 92" at the start and at each change the notes state; none when null.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -167,16 +182,10 @@ public static class NotationGenerator
             nextStaff += part.Staves.Count;
         }
 
-        PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false);
+        PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false, marks);
         parts.Add(main);
 
-        var measures = new List<MeasurePlan>(written.Count);
-        for (int index = firstIndex; index <= lastIndex; index++)
-        {
-            Bar bar = allBars[index];
-            int fifths = KeyAt(keyChanges, bar.Span.Onset);
-            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths))]));
-        }
+        (List<MeasurePlan> measures, int markCount) = PlanMeasures(allBars, firstIndex, lastIndex, keyChanges, parts, spelling, tempos, meter);
 
         string mei = WriteMei(title ?? "Generated notation", parts, above, measures);
         return new GeneratedNotation(mei, main.StaffInfo, input.Length, main.Approximated, main.Shortened.Count, main.Heard.Held, main.Heard.Cut, main.Heard.Graces, asHeard)
@@ -185,12 +194,32 @@ public static class NotationGenerator
             DynamicCount = main.Marks?.Dynamics.Count ?? 0,
             TempoWordCount = main.Marks?.TempoWords.Count ?? 0,
             HairpinCount = main.Marks?.Hairpins.Count ?? 0,
+            FermataCount = main.Marks?.Fermatas.Count ?? 0,
+            TempoMarkCount = markCount,
             TripletCount = main.Staves.Sum(staff => staff.Tuplets.Length),
             SlurCount = main.SlurCount,
             PedalCount = main.PedalCount,
             Excerpt = bars is null ? null : new BarRange(allBars[firstIndex].Number, allBars[lastIndex].Number),
             Ossias = [.. above.Select((ossia, index) => new GeneratedOssia(ossia.Label, parts[index].StaffInfo, ossiaNotes[index].Length, OssiaIdPrefix(index)))],
         };
+    }
+
+    /// <summary>The bars written, each with its key, its parts' measures and its metronome marks over the original's top staff (the last part).</summary>
+    private static (List<MeasurePlan> Measures, int TempoMarks) PlanMeasures(Bar[] allBars, int firstIndex, int lastIndex, KeyChange[] keyChanges, List<PartPlan> parts, TransposedSpelling? spelling, IReadOnlyList<PlaybackTempo>? tempos, MeterMap meter)
+    {
+        IReadOnlyList<TempoMark> tempoMarks = tempos is null ? [] : TempoMarks.Of(tempos, meter);
+        var measures = new List<MeasurePlan>(lastIndex - firstIndex + 1);
+        int markCount = 0;
+        for (int index = firstIndex; index <= lastIndex; index++)
+        {
+            Bar bar = allBars[index];
+            int fifths = KeyAt(keyChanges, bar.Span.Onset);
+            TempoMark[] inBar = [.. tempoMarks.Where(mark => bar.Span.Onset <= mark.At && mark.At < bar.Span.End)];
+            markCount += inBar.Length;
+            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths, spelling))]) { Tempos = inBar, TempoStaff = parts[^1].FirstStaff });
+        }
+
+        return (measures, markCount);
     }
 
     /// <summary>The prefix of an ossia's note ids: the first ossia's "ossia-", the second's "ossia2-".</summary>
@@ -201,7 +230,7 @@ public static class NotationGenerator
     /// and the marks of the playing. Only the bars written get control events that end inside them. An ossia
     /// has only the staves that show notes in the bars written: a variation of the melody is one staff above the grand staff.
     /// </summary>
-    private static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia)
+    private static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia, PlayedMarks kind = PlayedMarks.All)
     {
         Bar[] bars = written.Bars;
         var shown = input.Select(note => new ShownNote(note, Snap(note.Span.Onset.Value), Snap(note.Span.End.Value))).ToArray();
@@ -218,7 +247,8 @@ public static class NotationGenerator
         var heard = new HeardCounts();
         if (asHeard)
         {
-            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard, staff.Tuplets) })];
+            HeardOnsets together = HeardOnsets.Of(input);
+            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard, staff.Tuplets, together) })];
         }
         else
         {
@@ -227,7 +257,8 @@ public static class NotationGenerator
 
         int approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
 
-        PlayingMarks? marks = playedTempos is null ? null : PlayingMarks.Of(input, bars, playedTempos);
+        bool significant = kind == PlayedMarks.Significant;
+        PlayingMarks? marks = playedTempos is null ? null : significant ? PlayingMarks.Significant(input, bars, playedTempos) : PlayingMarks.Of(input, bars, playedTempos);
         var shortened = new HashSet<string>();
         foreach (StaffPlan staff in staves)
         {
@@ -256,7 +287,12 @@ public static class NotationGenerator
                 controls[first].Hairpins.Add(new HairpinPlan(start, crescendo, word ? null : $"{Number(final - first)}m+{Beat(bars[final], stop)}"));
             }
 
-            foreach ((Chord from, Chord to, int staff) in Slurs(staves, bars))
+            foreach (long held in marks.Fermatas.Where(at => at >= written.Start && at < written.End))
+            {
+                controls[BarIndex(bars, held)].Fermatas.Add(held);
+            }
+
+            foreach ((Chord from, Chord to, int staff) in significant ? [] : Slurs(staves, bars))
             {
                 // A slur to a chord beyond the bars written has nowhere to end.
                 if (to.Onset >= written.End)
@@ -269,7 +305,8 @@ public static class NotationGenerator
             }
 
             int bottom = staves.Max(staff => staff.Number);
-            foreach (TickSpan held in (pedal ?? []).OrderBy(span => span.Onset))
+            IEnumerable<TickSpan> pedals = significant || pedal is null ? [] : pedal;
+            foreach (TickSpan held in pedals.OrderBy(span => span.Onset))
             {
                 long down = Snap(held.Onset.Value), up = Math.Min(Snap(held.End.Value), written.End);
                 if (up - down < Grid || down >= written.End)
@@ -362,13 +399,14 @@ public static class NotationGenerator
     private static long SnapTo(long tick, long grid) => (tick + (grid / 2)) / grid * grid;
 
     /// <summary>A staff's notes written as heard (see <see cref="Generate"/>'s <c>asHeard</c>).</summary>
-    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts, TupletSpan[] tuplets)
+    /// <param name="together">Where each note starts for writing, worked out over every staff (<see cref="HeardOnsets"/>).</param>
+    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts, TupletSpan[] tuplets, HeardOnsets together)
     {
         // Onsets that start together are one chord.
         var chords = new List<List<ShownNote>>();
-        foreach (ShownNote note in notes.OrderBy(note => note.Note.Span.Onset).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
+        foreach (ShownNote note in notes.OrderBy(note => together.Onset(note.Note)).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
         {
-            if (chords.Count > 0 && note.Note.Span.Onset.Value - chords[^1][0].Note.Span.Onset.Value < HeardChord)
+            if (chords.Count > 0 && together.Onset(note.Note) - together.Onset(chords[^1][0].Note) < HeardChord)
             {
                 chords[^1].Add(note);
             }
@@ -378,14 +416,15 @@ public static class NotationGenerator
             }
         }
 
-        // A single note shorter than a 32nd, with the next onset within a dotted 32nd, is a grace note.
+        // A single note shorter than a 32nd, with the next onset within a dotted 32nd, is a grace note, as is one that leads
+        // into a spread chord.
         bool[] grace = new bool[chords.Count];
         for (int i = 0; i + 1 < chords.Count; i++)
         {
             Note note = chords[i][0].Note;
+            long next = together.Onset(chords[i + 1][0].Note);
             grace[i] = chords[i].Count == 1
-                && note.Span.Duration < Grid
-                && chords[i + 1][0].Note.Span.Onset.Value - note.Span.Onset.Value < Grid * 3 / 2
+                && ((note.Span.Duration < Grid && next - together.Onset(note) < Grid * 3 / 2) || together.LeadsInto(note, next))
                 && (i == 0 || !grace[i - 1]);
         }
 
@@ -398,7 +437,7 @@ public static class NotationGenerator
                 continue;
             }
 
-            long raw = chords[i][0].Note.Span.Onset.Value;
+            long raw = together.Onset(chords[i][0].Note);
             long onset = SnapIn(raw, tuplets, HeardGrid);
             onset = onset > previous ? onset : SnapIn(raw, tuplets, Grid);
             onset = onset > previous ? onset : previous + StepAt(previous, tuplets);
@@ -600,18 +639,31 @@ public static class NotationGenerator
             if (hasHands || (tracks.Length == 1 && spansBothClefs))
             {
                 static bool IsRight(ShownNote note) => note.Note.Hand?.Value is { } hand ? hand == Hand.Right : note.Note.Pitch.MidiNumber >= MiddleC;
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Treble, Hand.Right, !hasHands, [.. trackNotes.Where(IsRight)]));
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Bass, Hand.Left, !hasHands, [.. trackNotes.Where(note => !IsRight(note))]));
+                ShownNote[] right = [.. trackNotes.Where(IsRight)];
+                ShownNote[] left = [.. trackNotes.Where(note => !IsRight(note))];
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(right, Clef.Treble), Hand.Right, !hasHands, right));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(left, Clef.Bass), Hand.Left, !hasHands, left));
             }
             else
             {
-                int high = trackNotes.Count(note => note.Note.Pitch.MidiNumber >= MiddleC);
-                Clef clef = high >= trackNotes.Length - high ? Clef.Treble : Clef.Bass;
-                staves.Add(new StaffPlan(firstStaff + staves.Count, track, clef, null, false, trackNotes));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, ClefFor(trackNotes, Clef.Treble), null, false, trackNotes));
             }
         }
 
         return staves;
+    }
+
+    /// <summary>
+    /// The clef a staff's notes read best in: treble when most are at or above middle C, bass when most are below, and
+    /// <paramref name="usual"/> on a tie or with no notes. So a right hand written low, as in a piece on two bass clefs
+    /// (v0.5, issue #479, item 15), is not shown on ledger lines under a treble clef. A choice for showing the notes, made
+    /// from their pitches; the notes do not change.
+    /// </summary>
+    private static Clef ClefFor(ShownNote[] notes, Clef usual)
+    {
+        int high = notes.Count(note => note.Note.Pitch.MidiNumber >= MiddleC);
+        int low = notes.Length - high;
+        return high > low ? Clef.Treble : low > high ? Clef.Bass : usual;
     }
 
     /// <summary>Chords in voices that never overlap, the highest voice first.</summary>
@@ -665,7 +717,7 @@ public static class NotationGenerator
         return [.. voices.OrderByDescending(voice => voice.SelectMany(chord => chord.Notes).Average(note => note.Note.Pitch.MidiNumber))];
     }
 
-    private static StaffMeasure LayOutStaff(StaffPlan staff, Bar bar, int fifths)
+    private static StaffMeasure LayOutStaff(StaffPlan staff, Bar bar, int fifths, TransposedSpelling? spelling)
     {
         var grid = new BarGrid(bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value, Pulse(bar.Signature), Middle(bar.Signature));
         long beamGroup = BeamGroup(bar.Signature);
@@ -722,7 +774,7 @@ public static class NotationGenerator
             layers.Add(Group(elements, grid.Origin, beamGroup));
         }
 
-        WriteAccidentals(layers, fifths);
+        WriteAccidentals(layers, fifths, spelling);
         return new StaffMeasure(layers);
     }
 
@@ -892,7 +944,7 @@ public static class NotationGenerator
     }
 
     /// <summary>Accidentals per bar and staff, in time order across voices; tied continuations carry theirs silently.</summary>
-    private static void WriteAccidentals(List<List<Element>> layers, int fifths)
+    private static void WriteAccidentals(List<List<Element>> layers, int fifths, TransposedSpelling? spelling)
     {
         int[] key = PitchSpeller.KeyAlterations(fifths);
         var current = new Dictionary<(int Step, int Octave), int>();
@@ -904,7 +956,7 @@ public static class NotationGenerator
 
         foreach (ChordPiece piece in pieces)
         {
-            piece.Spellings = [.. piece.Chord.Notes.Select(note => PitchSpeller.Spell(note.Note.Pitch.MidiNumber, fifths))];
+            piece.Spellings = [.. piece.Chord.Notes.Select(note => spelling?.Spell(note.Note, fifths) ?? PitchSpeller.Spell(note.Note.Pitch.MidiNumber, fifths))];
             piece.ShowAccidental = new bool[piece.Spellings.Length];
             for (int i = 0; i < piece.Spellings.Length; i++)
             {
@@ -1097,8 +1149,57 @@ public static class NotationGenerator
             WriteDirections(xml, measure.Bar, part);
         }
 
+        WriteTempos(xml, measure);
         xml.WriteEndElement();
     }
+
+    /// <summary>
+    /// The bar's metronome marks over the original's top staff, as Verovio writes a MusicXML metronome: the SMuFL quarter
+    /// note, then "= 92"; in 6/8 the dotted quarter, "♩. = 60", with "mm.dots". As engravers set it (version 0.5.5, #521
+    /// section 13), the mark at the piece's start stands over the start of the first system (tstamp 0, above the clef and
+    /// the time signature, clear of the notes), and its note is the size of the words beside it ("x-small" of the music
+    /// font, as the words are), so it reads as an annotation rather than a note of the music.
+    /// </summary>
+    private static void WriteTempos(XmlWriter xml, MeasurePlan measure)
+    {
+        foreach (TempoMark mark in measure.Tempos)
+        {
+            string perMinute = Number(mark.PerMinute);
+            xml.WriteStartElement("tempo", MeiNamespace);
+            xml.WriteAttributeString("staff", Number(measure.TempoStaff));
+            xml.WriteAttributeString("place", "above");
+            xml.WriteAttributeString("tstamp", mark.At == Tick.Zero ? "0" : Beat(measure.Bar, Math.Max(mark.At.Value, measure.Bar.Span.Onset.Value)));
+            xml.WriteAttributeString("mm", perMinute);
+            xml.WriteAttributeString("mm.unit", "4");
+            bool dotted = mark.Beat == TempoBeat.DottedQuarter;
+            if (dotted)
+            {
+                xml.WriteAttributeString("mm.dots", "1");
+            }
+
+            // MIDI's beats a minute are quarter notes'.
+            xml.WriteAttributeString("midi.bpm", Number(mark.Beat.QuarterNotes(mark.PerMinute)));
+            xml.WriteStartElement("rend", MeiNamespace);
+            xml.WriteAttributeString("fontsize", MarkNoteSize);
+            xml.WriteAttributeString("glyph.auth", "smufl");
+            xml.WriteString(dotted ? DottedQuarterNoteGlyph : QuarterNoteGlyph);
+            xml.WriteEndElement();
+            xml.WriteString(" " + mark.Text);
+            xml.WriteEndElement();
+        }
+    }
+
+    /// <summary>
+    /// The size of a metronome mark's note: Verovio sets a SMuFL glyph in words at the music font's size, nearly twice the
+    /// words' (720 against 405 units on the A4 page), which made "♩ = 92" look like an enlarged note; "x-small" (432) is about the words' size.
+    /// </summary>
+    private const string MarkNoteSize = "x-small";
+
+    /// <summary>SMuFL's metNoteQuarterUp, the note of a metronome mark.</summary>
+    private const string QuarterNoteGlyph = "\uECA5";
+
+    /// <summary>metNoteQuarterUp and metAugmentationDot, as Verovio writes a dotted quarter's mark.</summary>
+    private const string DottedQuarterNoteGlyph = "\uECA5 \uECB7";
 
     /// <summary>A part's words, dynamics, hairpins, slurs and pedal marks in a bar, on the part's own staves.</summary>
     private static void WriteDirections(XmlWriter xml, Bar bar, PartMeasure part)
@@ -1159,6 +1260,15 @@ public static class NotationGenerator
             xml.WriteAttributeString("staff", Number(staff));
             xml.WriteAttributeString("startid", "#" + ChordId(from));
             xml.WriteAttributeString("endid", "#" + ChordId(to));
+            xml.WriteEndElement();
+        }
+
+        foreach (long held in part.Controls.Fermatas)
+        {
+            xml.WriteStartElement("fermata", MeiNamespace);
+            xml.WriteAttributeString("staff", top);
+            xml.WriteAttributeString("place", "above");
+            xml.WriteAttributeString("tstamp", Beat(held));
             xml.WriteEndElement();
         }
 
@@ -1302,9 +1412,11 @@ public static class NotationGenerator
 
     private static string Accidental(int alter) => alter switch
     {
+        -2 => "ff",
         -1 => "f",
         0 => "n",
         1 => "s",
+        2 => "x",
         _ => throw new InvalidOperationException($"No accidental for an alteration of {alter}."),
     };
 
@@ -1384,7 +1496,7 @@ public static class NotationGenerator
         public NotationStaff[] StaffInfo => [.. Staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
 
         /// <summary>The part's staves laid out in a bar, with the marks of the playing that start there.</summary>
-        public PartMeasure Measure(Bar bar, int index, int fifths) => new(FirstStaff, [.. Staves.Select(staff => LayOutStaff(staff, bar, fifths))])
+        public PartMeasure Measure(Bar bar, int index, int fifths, TransposedSpelling? spelling) => new(FirstStaff, [.. Staves.Select(staff => LayOutStaff(staff, bar, fifths, spelling))])
         {
             Dynamic = Marks is not null && Marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
             TempoWord = Marks is not null && Marks.TempoWords.TryGetValue(index, out string? word) ? word : null,
@@ -1392,7 +1504,14 @@ public static class NotationGenerator
         };
     }
 
-    private sealed record MeasurePlan(Bar Bar, int Fifths, PartMeasure[] Parts);
+    private sealed record MeasurePlan(Bar Bar, int Fifths, PartMeasure[] Parts)
+    {
+        /// <summary>The metronome marks in the bar (version 0.5.4).</summary>
+        public TempoMark[] Tempos { get; init; } = [];
+
+        /// <summary>The MEI number of the original's top staff, which the marks stand over.</summary>
+        public int TempoStaff { get; init; } = 1;
+    }
 
     /// <param name="FirstStaff">The MEI number of the part's top staff; the others follow it.</param>
     private sealed record PartMeasure(int FirstStaff, StaffMeasure[] Staves)
@@ -1415,6 +1534,9 @@ public static class NotationGenerator
 
         /// <summary>"Ped." (down) or "*" (up) at a tick, under a staff.</summary>
         public List<(long At, bool Down, int Staff)> Pedals { get; } = [];
+
+        /// <summary>Fermatas over the top staff, at the onsets of the chords held.</summary>
+        public List<long> Fermatas { get; } = [];
     }
 
     /// <param name="Tstamp2">Where it ends: bars ahead and the beat in that bar, as MEI writes it; none for "cresc." or "dim." written as a word.</param>

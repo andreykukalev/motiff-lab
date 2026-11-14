@@ -21,11 +21,15 @@ export const NOTE_SPACING: Readonly<Record<string, number>> = {
 
 /**
  * An A4 page as the redesign engraves it (0018 section 2, design/kit/render.mjs; 0017 for the page itself): Verovio's
- * page units are tenths of a millimetre, so the page is 210 × 297 mm, with margins of 15 mm at the sides, 50 mm at the
- * top (the most Verovio takes: the app's bar floats over it and the app sets the title in it) and 16 mm at the bottom.
- * Scale 50 halves the SVG's units (the view box is 1050 × 1485, fifths of a millimetre) and leaves the layout as it is; Leland is the music font.
- * Verovio's header still heads the first page with the title and the others with their numbers: the screen hides it
- * (the app shows the title in its own type), the PDF keeps it. The screen and the PDF break the systems alike.
+ * page units are tenths of a millimetre, so the page is 210 × 297 mm, with margins of 15 mm at the sides and 20 mm at the
+ * top and the bottom. Scale 50 halves the SVG's units (the view box is 1050 × 1485, fifths of a millimetre) and leaves the
+ * layout as it is; Leland is the music font.
+ * Version 0.5.5 (#521 section 14): the systems are spread down each page but the last, as a typeset page has them, at least
+ * 14 units apart (20 left a fifth grand staff off a page whose bottom then stayed empty), with balanced margins; the notes
+ * keep their size. The title stands 5 units above the first system, so a tempo mark there keeps clear of both (#521
+ * section 13). Verovio's header heads the first page with the title and the others with their numbers: the web's screen
+ * hides it and sets the title in the app's type in its place, the PDF and the iPad keep it. The screen, the PDF and the
+ * iPad (Engraver.a4Leland) break the systems and pages alike, so a page means the same music on each.
  */
 export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
     font: "Leland",
@@ -34,12 +38,13 @@ export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
     pageHeight: 2970,
     pageMarginLeft: 150,
     pageMarginRight: 150,
-    pageMarginTop: 500,
-    pageMarginBottom: 160,
-    spacingSystem: 20,
+    pageMarginTop: 200,
+    pageMarginBottom: 200,
+    spacingSystem: 14,
     spacingStaff: 10,
+    bottomMarginHeader: 5,
     adjustPageHeight: false,
-    justifyVertically: false,
+    justifyVertically: true,
     breaks: "auto",
     header: "auto",
     footer: "none",
@@ -47,15 +52,10 @@ export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
 };
 
 /**
- * The PDF's page: on paper no bar floats over the top margin, so the title starts 20 mm from the top rather than 50 mm
- * (testing, 2026-11-06: the first page began with a third of it empty). The bottom margin takes the 30 mm the top gives up,
- * so each page holds the same height of music and the PDF breaks its systems and pages as the screen does.
+ * The PDF's page: the screen's (version 0.5.5). It once had a smaller top margin than the screen's 50 mm, which left room
+ * for the web's floating bar; the screen's pages now start below the bar (`.score` padding) with the paper's margins.
  */
-export const A4_PDF_LAYOUT: Readonly<Record<string, unknown>> = {
-    ...A4_LAYOUT,
-    pageMarginTop: 200,
-    pageMarginBottom: 460,
-};
+export const A4_PDF_LAYOUT: Readonly<Record<string, unknown>> = A4_LAYOUT;
 
 /**
  * Gives a MusicXML file without a title one, so an A4 page is headed by the piece's name; a file

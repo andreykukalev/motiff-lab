@@ -56,8 +56,8 @@ else
     <button class="chip" title="@Text["roll.colourHint"]" @onclick="NextColourAsync" disabled="@(AvailableModes.Count() < 2)">@Text[$"roll.colour.{_colourBy}"]</button>
     @if (Expanded.HasDelegate)
     {
-        @* Into phrase focus with the phrase as a roll (testing item 12). *@
-        <button class="chip" title="@Text["roll.expandHint"]" @onclick="() => Expanded.InvokeAsync()"><Icon Name="search" /> @Text["roll.expand"]</button>
+        @* Into phrase focus with the selection as a roll (testing item 12), only with a selection (#521 19.1). *@
+        <button class="chip" title="@Text[Motif is null ? "roll.expandNeedsSelection" : "roll.expandHint"]" disabled="@(Motif is null)" @onclick="() => Expanded.InvokeAsync()"><Icon Name="expand" /> @Text["roll.expand"]</button>
     }
     <button class="chip icon @(_menuOpen ? "on" : null)" aria-expanded="@(_menuOpen ? "true" : "false")" aria-label="@Text["roll.more"]" title="@Text["roll.more"]"
             @onclick="() => _menuOpen = !_menuOpen"><Icon Name="more" /></button>
@@ -125,7 +125,7 @@ else
     private NotePoint? _shownPoint;
 
     /// <summary>Each note's name spelled for its key, by id, as the roll writes it.</summary>
-    private Dictionary<string, string> _spelled = [];
+    private IReadOnlyDictionary<string, string> _spelled = new Dictionary<string, string>();
 
     /// <summary>The notes to draw. The view loads them again only when a different list is given.</summary>
     [Parameter, EditorRequired]
@@ -158,9 +158,17 @@ else
     [Parameter]
     public EventCallback Cleared { get; set; }
 
+    /// <summary>Raised by a selection gesture before the change it makes, for the selection's history (#511 11).</summary>
+    [Parameter]
+    public EventCallback<SelectionGestureNote> SelectionGesture { get; set; }
+
     /// <summary>Raised when the player presses Space outside a control, to play or pause.</summary>
     [Parameter]
     public EventCallback PlayPausePressed { get; set; }
+
+    /// <summary>Raised when the player moves the playhead on the roll: dragged or nudged by a beat, or tapped to play from there.</summary>
+    [Parameter]
+    public EventCallback<RollSeek> PlayheadMoved { get; set; }
 
     /// <summary>The ids of the notes the Notes filter keeps, drawn at full strength and lit as they sound; null keeps all.</summary>
     [Parameter]
@@ -210,11 +218,14 @@ else
     [Parameter]
     public EventCallback Expanded { get; set; }
 
-    /// <summary>Whether every selection is laid across the roll as Fit does: the roll in phrase focus (testing item 12).</summary>
+    /// <summary>
+    /// The passage Expand shows (#521 19): the roll is laid across it and moves only within it, and nothing on it selects or
+    /// edits; null for a roll that shows the whole piece.
+    /// </summary>
     [Parameter]
-    public bool FitsSelection { get; set; }
+    public TickSpan? Passage { get; set; }
 
-    private bool? _shownFits;
+    private TickSpan? _shownPassage;
 
     /// <summary>Another version's notes as dashed plum outlines, for the bar the player writes in a merge (testing item 34).</summary>
     [Parameter]
@@ -230,6 +241,15 @@ else
 
     private (bool On, string Tool)? _shownEditing;
     private string? _shownPicked;
+    private string? _shownMode;
+
+    /// <summary>The mode the bar chose (version 0.5, Scripts/roll/roll-modes.ts); null keeps the roll as it was.</summary>
+    [Parameter]
+    public string? Mode { get; set; }
+
+    /// <summary>A click under the modes: the tick under it, and whether Shift was held.</summary>
+    [Parameter]
+    public EventCallback<(long Tick, bool Extend)> Placed { get; set; }
 
     /// <summary>A note pointed at elsewhere, such as on the score: the roll selects the note at that tick and key and shows it. A new value points again.</summary>
     [Parameter]
@@ -263,6 +283,8 @@ else
 
         if (!ReferenceEquals(Notes, _shown))
         {
+            // Notes again on a roll that shows notes (an edit, a version taken in) keep its zoom and view (#495 BUG-04).
+            bool keepView = _shown is not null;
             _shown = Notes;
             _byId = Notes.ToDictionary(note => note.Id);
             _selected = [];
@@ -270,6 +292,7 @@ else
             _shownKept = null;
             _shownVariation = null;
             _shownPlayRange = null;
+            _shownPassage = null;
             _shownPhrases = null;
             _shownHighlight = null;
             _shownKeys = null;
@@ -284,8 +307,13 @@ else
             };
             // Start with the player's grouping (hands unless they chose another) when it tells notes apart, else hands, tracks, voices.
             _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
-            await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score));
-            _shownFits = null;
+            // The notes cross over once per piece: a second roll on them (Expand) takes what the first was sent (#419).
+            string notesKey = RollShared.NotesKey(Notes, Score);
+            if (!await _view.InvokeAsync<bool>("loadKept", notesKey, keepView))
+            {
+                await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score), notesKey, keepView);
+            }
+
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowMotifAsync(_view);
@@ -294,7 +322,7 @@ else
         }
         else
         {
-            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone || FitsSelection != _shownFits)
+            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
             {
                 await ShowMotifAsync(_view);
             }
@@ -351,6 +379,13 @@ else
             }
         }
 
+        if (Passage != _shownPassage)
+        {
+            _shownPassage = Passage;
+            object? passage = Passage is { } bound ? new { start = bound.Onset.Value, end = bound.End.Value } : null;
+            await view.InvokeVoidAsync("setPassage", passage);
+        }
+
         if (!ReferenceEquals(Phrases, _shownPhrases))
         {
             _shownPhrases = Phrases;
@@ -382,9 +417,12 @@ else
         {
             _shownKeys = Keys;
             _shownNaming = (naming, Text.Language);
-            RollNames names = PianoRollData.Names(Notes!, Keys ?? [], naming, MotiffLab.MusicCore.Words.For(Text.Language));
-            _spelled = Notes!.Select((note, index) => (note.Id, Name: names.Notes[index])).ToDictionary(pair => pair.Id, pair => pair.Name, StringComparer.Ordinal);
-            await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows, names.Short, names.ShortRows, names.Octaves);
+            string namesKey = RollShared.NamesKey(RollShared.NotesKey(Notes!, Score!), Keys, naming, Text.Language);
+            (RollNames names, _spelled) = RollShared.Names(namesKey, Notes!, () => PianoRollData.Names(Notes!, Keys ?? [], naming, MotiffLab.MusicCore.Words.For(Text.Language)));
+            if (!await view.InvokeAsync<bool>("setNamesKept", namesKey))
+            {
+                await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows, names.Short, names.ShortRows, names.Octaves, namesKey);
+            }
         }
 
         if (!ReferenceEquals(Checks, _shownChecks))
@@ -397,6 +435,12 @@ else
         {
             _shownPoint = point;
             await view.InvokeVoidAsync("pointAt", point.Tick, point.Pitch);
+        }
+
+        if (Mode != _shownMode)
+        {
+            _shownMode = Mode;
+            await view.InvokeVoidAsync("setRules", Mode);
         }
 
         (bool, string) editing = (Editor?.On ?? false, Editor?.Tool ?? "move");
@@ -427,7 +471,8 @@ else
     private Dictionary<string, string> Labels() => new[]
     {
         "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
-        "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
+        "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint", "overview", "overviewHint",
+        "playhead", "playheadAt",
     }.ToDictionary(name => name, name => Text[$"roll.js.{name}"]);
 
     /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
@@ -440,12 +485,6 @@ else
 
     private async Task ShowMotifAsync(IJSObjectReference view)
     {
-        if (FitsSelection != _shownFits)
-        {
-            _shownFits = FitsSelection;
-            await view.InvokeVoidAsync("setFitsSelection", FitsSelection);
-        }
-
         _shownMotif = Motif;
         _shownAlone = MotifPlaysAlone;
         if (Motif is { } motif)
@@ -460,16 +499,35 @@ else
 
     /// <summary>Called by the script when a drag across the roll ends, or a bar number is clicked.</summary>
     [JSInvokable]
-    public Task OnRollRange(long anchor, long current, bool click, bool extend) =>
-        RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click, extend));
+    public async Task OnRollRange(long anchor, long current, bool click, bool extend, string? how = null, string? gesture = null)
+    {
+        await SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Change, gesture));
+        await RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click, extend));
+    }
 
-    /// <summary>Called by the script when the player clears the selection.</summary>
+    /// <summary>Called by the script when the player clears the selection: a click on the roll, or a hold outside it (#511 2.1).</summary>
     [JSInvokable]
-    public Task OnRollClear() => Cleared.InvokeAsync();
+    public async Task OnRollClear(string? gesture = null)
+    {
+        await SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Change, gesture));
+        await Cleared.InvokeAsync();
+    }
+
+    /// <summary>Called by the script when a gesture whose hold took the selection away was cancelled.</summary>
+    [JSInvokable]
+    public Task OnRollGestureCancelled(string? gesture) => SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Cancelled, gesture));
+
+    /// <summary>Called by the script when a pointer that cannot scroll moved off the selection before the hold.</summary>
+    [JSInvokable]
+    public Task OnRollHoldHint() => SelectionGesture.InvokeAsync(new SelectionGestureNote(SelectionGestureNote.Hint, null));
 
     /// <summary>Called by the script when Space is pressed outside a control.</summary>
     [JSInvokable]
     public Task OnRollSpace() => PlayPausePressed.InvokeAsync();
+
+    /// <summary>Called by the script when the playhead is moved on the roll, and with play when a tap plays from there.</summary>
+    [JSInvokable]
+    public Task OnRollSeek(long tick, bool play) => PlayheadMoved.InvokeAsync(new RollSeek(new Tick(Math.Max(0, tick)), play));
 
     /// <summary>Called by the script when a Check flag on the bar numbers is tapped.</summary>
     [JSInvokable]
@@ -484,6 +542,20 @@ else
     [JSInvokable]
     public Task OnRollNoteAdd(long onset, int pitch, long length) =>
         Editor?.Add(new RollNoteEdit(null, onset, pitch, length)) ?? Task.CompletedTask;
+
+    /// <summary>Called by the script when a click under the modes places a playhead (version 0.5).</summary>
+    [JSInvokable]
+    public Task OnRollPlace(long tick, bool extend) => Placed.InvokeAsync((Math.Max(0, tick), extend));
+
+    /// <summary>Called by the script when notes are picked in Edit notes, by a click or a box: the editor opens on them (version 0.5).</summary>
+    [JSInvokable]
+    public async Task OnRollNotesPicked(string[] ids)
+    {
+        if (ids.Length > 0 && Editor is { On: false } editor)
+        {
+            await editor.Begin();
+        }
+    }
 
     /// <summary>Called by the script when the editor takes a note out.</summary>
     [JSInvokable]

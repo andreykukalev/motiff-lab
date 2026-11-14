@@ -85,11 +85,11 @@ Where the library lives is not fixed by this record beyond the working hypothesi
 
 ### 8. Sync is free, with a quota
 
-**Decided** (17:49). Sync between the workspaces is free, with a quota. This replaces the Pro-only online saving of 0018 sections 10 and 12 and its rule that the free tier has no cloud account: a free player may sign in to sync. The rest of the Pro rule stands: the assistant, scanning and transcription are Pro. Nothing leaves the device until the player signs in and turns sync on ([0014](0014-hosted-scan-server.md), item 13). Until the sync task lands, the API still checks Pro for saving online as built.
+**Decided** (17:49). Sync between the workspaces is free, with a quota. This replaces the Pro-only online saving of 0018 sections 10 and 12 and its rule that the free tier has no cloud account: a free player may sign in to sync. The rest of the Pro rule stands: the assistant, scanning and transcription are Pro. Nothing leaves the device until the player signs in; signing in turns sync on, and the player can turn it off in Settings ([0014](0014-hosted-scan-server.md), item 13, as version 0.2 amends it). Version 0.2 lands it: the API no longer checks Pro for saving online.
 
-**Open**: the quota itself; this record sets no number.
+**Decided** (Andrei, 2026-11-11, 20:44 UTC, decision card): **the quota is 300 pieces** per free account. The API refuses a new piece beyond them (403, code `quota`); the pieces already online keep syncing, and a piece over the limit stays on the device with a line in both apps that says so. Pro has no such limit. The number is one constant, `Plans.FreeProjectsOnline` in music-core.
 
-**Not decided here**: how conflicts are resolved. Andrei's v1 direction (17:53) is input to the sync work, not a rule of this record: independent changes are combined, conflicting changes are kept as separate versions, and the player chooses.
+**Not decided here**: how conflicts are resolved. Andrei's v1 direction (17:53) is input to the sync work, not a rule of this record: independent changes are combined, conflicting changes are kept as separate versions, and the player chooses. For version 0.2 Andrei decided (2026-11-11) that the last save wins and the previous copy is kept beside as a piece of its own, on the device only (no history on the server); the full merge of [0026](0026-project-continuity.md) follows.
 
 ### 9. Continuity: what the product requires
 
@@ -132,7 +132,7 @@ Where the library lives is not fixed by this record beyond the working hypothesi
 **Open**, each a question for Andrei, not decided here:
 
 1. The iPad v1 rows not yet set (section 11).
-2. The sync quota (section 8).
+2. The sync quota (section 8): decided, 300 pieces (2026-11-11).
 3. The architecture decisions A1–A5 of the review's feature registry. The product requires of them what sections 7–9 say; each is decided in an architecture record, not here. A1–A4 are now decided in [0026](0026-project-continuity.md) (accepted 2026-11-08); A5 is still open:
    - **A1 The shared project model and phrase identity.** Required: the entities of section 9.1 are the same objects in both apps, and a phrase keeps its identity. Decided in 0026: one C# core and the project file as the contract (S1), random ids (S3) and the stored phrase anchor `ph_` (section 2, C1).
    - **A2 Sync**: project identity, the transfer of changes within the quota, conflicts. Required: free sync with a quota (section 8), nothing the player did on either device lost. Decided in 0026: ids (S3), transfer (S4), device state (S5), field classes and note corrections in the merge (S8, S9), pulling (S10) and one conflict record (section 2, C2). The quota itself is still open (item 2).

@@ -39,13 +39,21 @@ public partial class PlaybackLab
         }
 
         // The scale sounds where the selection or the section starts, or ends with the piece when there is no room after it.
-        IReadOnlyList<Note> scale = circle.ScaleNotes(at, _score.End);
-        if (scale.Count == 0)
+        await HearAloneAsync(circle.ScaleNotes(at, _score.End));
+    }
+
+    /// <summary>
+    /// Notes heard on their own over the piece's timeline, in place of the piece, once (over their own span unless
+    /// <paramref name="over"/> is given) or round and round, until they end or are stopped.
+    /// </summary>
+    private async Task HearAloneAsync(IReadOnlyList<Note> scale, TickSpan? over = null, bool once = true)
+    {
+        if (_score is null || scale.Count == 0)
         {
             return;
         }
 
-        TickSpan span = TickSpan.FromBounds(scale[0].Span.Onset, scale[^1].Span.End);
+        TickSpan span = over ?? TickSpan.FromBounds(scale[0].Span.Onset, scale[^1].Span.End);
         _looping = false;
         _alternating = false;
         _answerLoop = null;
@@ -53,7 +61,7 @@ public partial class PlaybackLab
         _scaleStarted = Player.State != PlaybackState.Stopped;
         await Player.SetSourceAsync(CircleSource, _score.WithNotes(scale));
         await Player.SelectSourcesAsync(CircleSource);
-        await Player.SetLoopAsync(span, once: true);
+        await Player.SetLoopAsync(span, once);
         await Player.SeekAsync(span.Onset);
         if (Player.State == PlaybackState.Stopped)
         {
@@ -66,6 +74,7 @@ public partial class PlaybackLab
     {
         _scaleHeard = false;
         _scaleStarted = false;
+        _handbookAt = null;
         if (Player.State != PlaybackState.Stopped)
         {
             await Player.PauseAsync();
@@ -73,6 +82,8 @@ public partial class PlaybackLab
 
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
+        // Under the playback model the selection's loop and its notes come back with Цикл on.
+        await FollowModelAsync();
     }
 
     /// <summary>The scale has played to its end, or playback was paused over it: the piece's notes come back.</summary>

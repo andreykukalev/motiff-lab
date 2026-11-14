@@ -43,4 +43,17 @@ public class PieceDnaKeyTests
         Assert.All(dna.Keys, key => Assert.False(key.KeyInferred));
         Assert.Equal(0, dna.Keys[0].Key.Fifths);
     }
+
+    [Fact]
+    public void The_opening_key_is_the_lane_s_first_key_as_the_Reference_marks_it()
+    {
+        ImportedPiece piece = FurElise();
+
+        DnaKey? fromFile = PieceDna.OpeningKey(piece.Notes, piece.Meter, piece.Keys, piece.End);
+        DnaKey? fromNotes = PieceDna.OpeningKey(piece.Notes, piece.Meter, keys: [], piece.End);
+
+        Assert.Equal(PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection: null, structure: null).Keys[0], fromFile);
+        Assert.True(fromNotes?.Inferred);
+        Assert.Null(PieceDna.OpeningKey([], piece.Meter, piece.Keys, piece.End));
+    }
 }

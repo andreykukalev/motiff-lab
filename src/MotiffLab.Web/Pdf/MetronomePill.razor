@@ -1,28 +1,28 @@
 @* The metronome of the PDF view (decision record 0023; Andrei, 2026-11-04): a pill at the bottom, as the score's transport
    is (0018 section 2), with start and stop, the tempo (slower, faster, or tapped), the beats to the bar and a dot for each
-   beat. It clicks on the device and needs no notes, so it is free. The tempo and beats are kept per piece on this device. *@
-@implements IAsyncDisposable
-@inject IJSRuntime JS
-@inject MotiffLab.Web.Projects.Preferences Preferences
+   beat. It clicks on the device and needs no notes, so it is free. It is the one metronome of the score and the PDF view
+   (#521 section 15, PieceMetronome); the tempo and beats are kept per piece on this device. *@
+@implements IDisposable
+@inject MotiffLab.Web.Playback.PieceMetronome Metronome
 @inject MotiffLab.Web.Localization.UiText Text
 
 <div class="pill metronome-pill" role="toolbar" aria-label="@Text["metronome.label"]">
-    <button class="play" @onclick="ToggleAsync" aria-pressed="@(_running ? "true" : "false")" aria-label="@(_running ? Text["metronome.stop"] : Text["metronome.start"])">
-        <Icon Name="@(_running ? "pause" : "playf")" />
+    <button class="play" @onclick="() => Metronome.ToggleAsync()" aria-pressed="@(Metronome.Running ? "true" : "false")" aria-label="@(Metronome.Running ? Text["metronome.stop"] : Text["metronome.start"])">
+        <Icon Name="@(Metronome.Running ? "pause" : "playf")" />
     </button>
-    <button class="it" @onclick="() => ChangeAsync(_bpm - Step, _beats)" aria-label="@Text["metronome.slower"]" disabled="@(_bpm <= MinBpm)">−</button>
-    <button class="it bpm" @onclick="TapAsync" title="@Text["metronome.tapHint"]" aria-label="@Text.Format("metronome.tempoLabel", _bpm)">
-        <span class="mono">@_bpm</span> <span class="unit">@Text["metronome.bpm"]</span>
+    <button class="it" @onclick="() => Metronome.ChangeAsync(Metronome.Bpm - Step, Metronome.Beats)" aria-label="@Text["metronome.slower"]" disabled="@(Metronome.Bpm <= MinBpm)">−</button>
+    <button class="it bpm" @onclick="() => Metronome.TapAsync()" title="@Text["metronome.tapHint"]" aria-label="@Text.Format("metronome.tempoLabel", Metronome.Bpm)">
+        <span class="mono">@Metronome.Bpm</span> <span class="unit">@Text["metronome.bpm"]</span>
     </button>
-    <button class="it" @onclick="() => ChangeAsync(_bpm + Step, _beats)" aria-label="@Text["metronome.faster"]" disabled="@(_bpm >= MaxBpm)">+</button>
+    <button class="it" @onclick="() => Metronome.ChangeAsync(Metronome.Bpm + Step, Metronome.Beats)" aria-label="@Text["metronome.faster"]" disabled="@(Metronome.Bpm >= MaxBpm)">+</button>
     <span class="div" aria-hidden="true"></span>
-    <button class="it" @onclick="NextBeatsAsync" aria-label="@Text.Format("metronome.beatsLabel", _beats)" title="@Text["metronome.beatsHint"]">
-        <span class="mono">@_beats</span>&nbsp;@Text["metronome.beatsShort"]
+    <button class="it" @onclick="NextBeatsAsync" aria-label="@Text.Format("metronome.beatsLabel", Metronome.Beats)" title="@Text["metronome.beatsHint"]">
+        <span class="mono">@Metronome.Beats</span>&nbsp;@Text["metronome.beatsShort"]
     </button>
     <span class="beats" aria-hidden="true">
-        @for (int beat = 0; beat < _beats; beat++)
+        @for (int beat = 0; beat < Metronome.Beats; beat++)
         {
-            <span class="beat @(beat == 0 ? "first" : null) @(beat == _beat ? "now" : null)"></span>
+            <span class="beat @(beat == 0 ? "first" : null) @(beat == Metronome.Beat ? "now" : null)"></span>
         }
     </span>
     <button class="it" @onclick="() => Closed.InvokeAsync()" aria-label="@Text["metronome.close"]" title="@Text["metronome.close"]"><Icon Name="close" /></button>
@@ -36,14 +36,6 @@
     /// <summary>The beats to the bar the button goes through.</summary>
     private static readonly int[] s_beats = [2, 3, 4, 6];
 
-    private IJSObjectReference? _module;
-    private IJSObjectReference? _metronome;
-    private DotNetObjectReference<MetronomePill>? _self;
-    private bool _running;
-    private int _bpm = 80;
-    private int _beats = 4;
-    private int _beat = -1;
-
     /// <summary>The piece the tempo and beats are kept for.</summary>
     [Parameter, EditorRequired]
     public string PieceId { get; set; } = "";
@@ -52,93 +44,19 @@
     [Parameter]
     public EventCallback Closed { get; set; }
 
-    private string Key => $"pdf.metronome.{PieceId}";
+    protected override void OnInitialized() => Metronome.Changed += OnChanged;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        string? kept = await Preferences.GetAsync(Key);
-        if (kept?.Split(',') is [var bpm, var beats] && int.TryParse(bpm, out int b) && int.TryParse(beats, out int n))
+        if (Metronome.PieceId != PieceId)
         {
-            (_bpm, _beats) = (Math.Clamp(b, MinBpm, MaxBpm), s_beats.Contains(n) ? n : 4);
+            await Metronome.LoadAsync(PieceId);
         }
     }
 
-    private async Task<IJSObjectReference> MetronomeAsync()
-    {
-        if (_metronome is null)
-        {
-            _self = DotNetObjectReference.Create(this);
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/metronome/metronome.js");
-            _metronome = await _module.InvokeAsync<IJSObjectReference>("createMetronome", _self);
-        }
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 
-        return _metronome;
-    }
+    private Task NextBeatsAsync() => Metronome.ChangeAsync(Metronome.Bpm, s_beats[(Array.IndexOf(s_beats, Metronome.Beats) + 1) % s_beats.Length]);
 
-    private async Task ToggleAsync()
-    {
-        IJSObjectReference metronome = await MetronomeAsync();
-        if (_running)
-        {
-            await metronome.InvokeVoidAsync("stop");
-            _running = false;
-        }
-        else
-        {
-            _running = await metronome.InvokeAsync<bool>("start", _bpm, _beats);
-        }
-    }
-
-    private async Task ChangeAsync(int bpm, int beats)
-    {
-        (_bpm, _beats) = (Math.Clamp(bpm, MinBpm, MaxBpm), beats);
-        if (_metronome is not null)
-        {
-            await _metronome.InvokeVoidAsync("set", _bpm, _beats);
-        }
-
-        await Preferences.SetAsync(Key, $"{_bpm},{_beats}");
-    }
-
-    private Task NextBeatsAsync() => ChangeAsync(_bpm, s_beats[(Array.IndexOf(s_beats, _beats) + 1) % s_beats.Length]);
-
-    /// <summary>A tap on the tempo sets it from the last few taps.</summary>
-    private async Task TapAsync()
-    {
-        IJSObjectReference metronome = await MetronomeAsync();
-        if (await metronome.InvokeAsync<int?>("tap") is { } tapped)
-        {
-            await ChangeAsync(tapped, _beats);
-        }
-    }
-
-    /// <summary>The beat that sounds now, from 0, or -1 when stopped.</summary>
-    [JSInvokable]
-    public void OnMetronomeBeat(int beat)
-    {
-        _beat = beat;
-        StateHasChanged();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (_metronome is not null)
-            {
-                await _metronome.InvokeVoidAsync("dispose");
-                await _metronome.DisposeAsync();
-            }
-
-            if (_module is not null)
-            {
-                await _module.DisposeAsync();
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-
-        _self?.Dispose();
-    }
+    public void Dispose() => Metronome.Changed -= OnChanged;
 }

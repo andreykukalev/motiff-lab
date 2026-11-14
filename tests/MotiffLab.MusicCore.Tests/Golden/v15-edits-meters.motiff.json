@@ -1,0 +1,89 @@
+{
+  "format": "motiff-lab-project",
+  "version": 15,
+  "id": "p_6c1d2e3f4a5b4c6d9e0f1a2b3c4d5e6f",
+  "fileName": "Take.mid",
+  "createdAt": "2026-11-12T10:00:00.0000000\u002B00:00",
+  "lastOpened": "2026-11-12T10:00:00.0000000\u002B00:00",
+  "source": "TVRoZAAAAAYAAQACAeBNVHJrAAAAGwD/AwR0YWtlAP9YBAQCGAgA/1EDB6EgAP8vAE1UcmsAAAKsAP8DB1RyYWNrIDGHPpBIRgGQJEaBXIBIQCCQSUaBXIBJQBGQSkaBXIBKQBSQS0aBVIAkQAiAS0AGkCtGA5BMRoFdgExAGZBIRoFdgEhADpBJRoFdgElADZBKRoFdgEpAAoArQA+QJEYGkEhGgV2ASEAXkElGgV2ASUAHkEpGgV2ASkAlkEtGgU2AJEAQgEtAApBMRgGQK0aBXIBMQBeQSEaBXYBIQBmQSUaBXYBJQBaQSkaBUYArQAyASkAOkCRGDJBIRoFcgEhAFJBJRoFcgElAF5BKRoFcgEpACpBLRoFYgCRABYBLQAqQTEYKkCtGgVOATEAhkEhGgV2ASEAEkElGgV2ASUAdkEpGgV2ASkABgCtAFpAkRgGQSEaBXYBIQAGQSUaBXYBJQBuQSkaBXYBKQAqQS0aBXYBLQBKAJEABkCtGEJBMRoFdgExABJBIRoFdgEhAIpBJRoFdgElAB5BKRoFZgCtABIBKQByQSkYEkCZGgVmASkAGkEtGgV2AS0AikExGgV2ATEAJkE1GgV2ATUAMgCZAA5AtRgeQSkaBXYBKQByQS0aBXYBLQAOQTEaBXYBMQACALUAnkCZGApBKRoFcgEpADJBLRoFdgEtAGpBMRoFcgExAA5BNRoFdgE1AD4AmQAeQSkYOkC1GgU+ASkATkEtGgV2AS0AikExGgVuALUABgExAB5AmRgSQSkaBXYBKQAeQS0aBXYBLQBSQTEaBXYBMQByQTUaBW4AmQAKATUAKkC1GEZBKRoFcgEpAFJBLRoFcgEtAFZBMRoFLgC1AEYBMQAeQSkYQkCZGgU2ASkARkEtGgV2AS0AgkExGgV2ATEADkE1GgV2ATUAUgCZAA5AtRguQSkaBXYBKQBiQS0aBXIBLQBGQTEaBUIAtQAyATEAA/y8A",
+  "editsOff": true,
+  "motifs": [],
+  "variations": [],
+  "observations": [],
+  "edits": [
+    {
+      "noteId": "n_0001",
+      "before": {
+        "pitch": 72,
+        "onset": 0,
+        "duration": 219,
+        "velocity": 70
+      }
+    }
+  ],
+  "phrases": {
+    "added": [],
+    "removed": [],
+    "short": {
+      "added": [],
+      "removed": []
+    },
+    "sentences": {
+      "added": [],
+      "removed": []
+    }
+  },
+  "marks": {
+    "ink": [],
+    "notes": [],
+    "highlights": [],
+    "fingering": []
+  },
+  "bookmarks": {
+    "categories": [
+      {
+        "id": "practise",
+        "ink": "Carmine"
+      },
+      {
+        "id": "performance",
+        "ink": "Forest"
+      },
+      {
+        "id": "structure",
+        "ink": "Graphite"
+      },
+      {
+        "id": "teacher",
+        "ink": "Ochre"
+      }
+    ],
+    "items": []
+  },
+  "resumePoints": [],
+  "check": [],
+  "performances": [],
+  "settings": {},
+  "scan": null,
+  "transcription": {
+    "engine": "transkun 2",
+    "bars": {
+      "origin": 960,
+      "sixteenthMicroseconds": 125000,
+      "signature": "4/4",
+      "barStarts": [
+        0,
+        64
+      ],
+      "stepsPerBeat": 4,
+      "beats": [],
+      "meters": [
+        {
+          "at": 64,
+          "signature": "7/8"
+        }
+      ]
+    },
+    "sentFromMs": 754000
+  }
+}

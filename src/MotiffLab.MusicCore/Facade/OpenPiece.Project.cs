@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
@@ -57,8 +58,12 @@ internal sealed partial class OpenPiece
             Answer.Overrides(json, Project);
         }),
         "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
-        "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
-        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
+        "project.metadata" => Change(project => MetadataRequest.Apply(project, request), json => Answer.Project(json, "project", Project)),
+        "check" => Answer.Write(CheckAnswer),
+        "check.resolve" => Change(project => PiecesRequest.Resolve(project, request), CheckAnswer),
+        "pieces.find" => Answer.Write(json => PiecesRequest.Find(json, Project, Piece, Notes, Words, request)),
+        "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece)),
+        "tempo" => Answer.Write(json => TempoRequest.Write(json, Project, Piece, Words)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
@@ -117,6 +122,14 @@ internal sealed partial class OpenPiece
         }
 
         return Answer.Write(answer);
+    }
+
+    /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
+    private void CheckAnswer(Utf8JsonWriter json)
+    {
+        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
+            Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
+        PiecesRequest.Check(json, Project, Piece.Meter);
     }
 
     private string Marks(Func<Marks, Marks> change) => Change(project => project.ChangeMarks(change), json => Answer.Marks(json, Project.Marks, Piece.Meter));
@@ -209,14 +222,15 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// Saves where the player is: a new resume point, or the one "id" names brought up to date. Fields not sent
-    /// keep the point's values; a new point starts at the selection, as written, with both hands.
+    /// keep the point's values; a new point starts at the selection, as written, with both hands. "passage": null
+    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place.
     /// </summary>
     private string SaveResumePoint(Request request)
     {
         DateTimeOffset now = Now(request);
         SavedPassage? passage = null;
-        bool hasPassage = request.Has("passage");
-        if (hasPassage)
+        bool hasPassage = request.Sends("passage");
+        if (request.Has("passage"))
         {
             Request sent = request.Object("passage");
             TickSpan span = sent.Span("span") ?? throw FacadeException.BadRequest("The passage needs \"span\".");
@@ -312,6 +326,7 @@ internal sealed partial class OpenPiece
         _selectionKind = MotifSelectionKind.Range;
         _understood = null;
         Chain = chain;
+        _hiddenVariation = null;
         if (chain is not null)
         {
             Keep.Clear();
@@ -320,7 +335,7 @@ internal sealed partial class OpenPiece
 
         return Answer.Write(json =>
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset));
+            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
             json.WriteBoolean("hasVariation", chain is not null);
             if (chain is not null)
             {

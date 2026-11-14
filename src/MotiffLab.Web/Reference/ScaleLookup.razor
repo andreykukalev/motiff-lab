@@ -1,0 +1,40 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* Scales in the Reference: a tonic, then a scale on it, then the scale's card (ScaleCardView). Everything is music-core's
+   ScaleReference. *@
+<section class="ref-lookup" aria-labelledby="ref-scale-root">
+    <h3 id="ref-scale-root" class="overline">@Text["reference.root"]</h3>
+    <RootChips Chosen="Card.Tonic" Naming="Naming" Label="@Text["reference.root"]" Pick="root => Pick.InvokeAsync((root, Card.Form))" />
+    <h3 id="ref-scale-form" class="overline">@Text["reference.scaleForm"]</h3>
+    <div class="ref-signatures" role="group" aria-labelledby="ref-scale-form">
+        @foreach (ScaleFormChoice choice in ScaleReference.Forms(Words))
+        {
+            bool on = choice.Form == Card.Form;
+            <button class="chip ref-form" aria-pressed="@(on ? "true" : "false")" @onclick="() => Pick.InvokeAsync((Card.Tonic, choice.Form))">@choice.Name</button>
+        }
+    </div>
+</section>
+<ScaleCardView Card="Card" Hear="Hear" />
+
+@code {
+    /// <summary>The scale chosen, kept by the sheet.</summary>
+    [Parameter, EditorRequired]
+    public ScaleCard Card { get; set; } = null!;
+
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    [Parameter]
+    public Words Words { get; set; }
+
+    /// <summary>Another tonic or scale chosen.</summary>
+    [Parameter]
+    public EventCallback<(SpelledName Root, ScaleForm Form)> Pick { get; set; }
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+}

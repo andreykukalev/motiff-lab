@@ -4,9 +4,9 @@ import XCTest
 
 /// Opening a piece as the app does: music-core's MEI laid out by Verovio on A4 pages in Leland.
 final class ScoreTests: XCTestCase {
-    /// Four pages with the web app's A4 options (Engraver.a4Leland = A4_LAYOUT: scale 50, top margin 500, no vertical
-    /// justification); it was three with the iPad's own larger scale before the two were made equal.
-    func testTheExampleOpensOnFourA4Pages() async throws {
+    /// Three pages with the web app's A4 options (Engraver.a4Leland = A4_LAYOUT: scale 50, 20 mm margins at the top and the
+    /// bottom, the systems spread down each page and closer together, #521 section 14), so a page holds one system more.
+    func testTheExampleOpensOnThreeA4Pages() async throws {
         let example = try XCTUnwrap(KitPiece.example)
         let clock = ContinuousClock()
         let start = clock.now
@@ -15,7 +15,7 @@ final class ScoreTests: XCTestCase {
         let piece = try result.get()
         defer { _ = MusicCore.close(piece: piece.id) }
         XCTAssertEqual(piece.title, "Für Elise")
-        XCTAssertEqual(piece.pages.count, 4)
+        XCTAssertEqual(piece.pages.count, 3)
         XCTAssertTrue(piece.pages.allSatisfy { $0.contains("<svg") })
         print("OPEN-AND-ENGRAVE \(elapsed)")
     }
@@ -25,7 +25,12 @@ final class ScoreTests: XCTestCase {
         let even = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: true).utf8)) as? [String: Any])
         XCTAssertEqual((even["spacingLinear"] as? NSNumber)?.doubleValue, 0.08)
         XCTAssertEqual((even["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.9)
-        XCTAssertEqual((even["pageMarginTop"] as? NSNumber)?.intValue, 500)
+        // The music starts just below the floating bar (#479 item 12): the paper's top margin, not the web screen's 500.
+        XCTAssertEqual((even["pageMarginTop"] as? NSNumber)?.intValue, 200)
+        // Balanced margins and the systems spread down the page, the notes keeping their size (#521 section 14).
+        XCTAssertEqual((even["pageMarginBottom"] as? NSNumber)?.intValue, 200)
+        XCTAssertEqual(even["justifyVertically"] as? Bool, true)
+        XCTAssertEqual((even["scale"] as? NSNumber)?.intValue, 50)
         let byNotes = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: false).utf8)) as? [String: Any])
         XCTAssertEqual((byNotes["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.6)
     }
@@ -40,7 +45,8 @@ final class ScoreTests: XCTestCase {
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         XCTAssertEqual(piece.title, "Für Elise")
-        XCTAssertGreaterThan(piece.pages.count, 4)
+        // The whole piece: four full A4 pages since the systems spread down each page (#521 section 14).
+        XCTAssertGreaterThanOrEqual(piece.pages.count, 4)
     }
 
     func testAFileThatIsNoMusicSaysWhy() async {

@@ -58,6 +58,33 @@ public class SettingsTests
     }
 
     [Fact]
+    public void The_version_0_5_experiments_are_off_on_the_device_and_one_switch_replaces_the_two_for_pieces()
+    {
+        foreach (string id in new[] { "experimental.pieces", "experimental.editsLayer", "experimental.liveTempo", "experimental.harmony", "experimental.readingMarks", "experimental.meters", "experimental.libraryImport" })
+        {
+            Setting setting = SettingsCatalogue.Get(id);
+            Assert.Equal(SettingSection.Experimental, setting.Section);
+            Assert.Equal(SettingScope.Device, setting.Scope);
+            Assert.False(SettingsState.Default.IsOn(id), id);
+        }
+
+        Assert.Null(SettingsCatalogue.Find("experimental.autoBookmarks"));
+        Assert.Null(SettingsCatalogue.Find("experimental.pieceParts"));
+    }
+
+    [Fact]
+    public void The_playheads_experiment_is_off_on_the_device_and_has_no_fade_any_more()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.playheads");
+        Assert.Equal(SettingSection.Experimental, setting.Section);
+        Assert.Equal(SettingScope.Device, setting.Scope);
+        Assert.False(SettingsState.Default.IsOn("experimental.playheads"));
+
+        // The fade of the other bars went in v0.5.2 (#479 item 19); a device that kept the switch reads past it.
+        Assert.Null(SettingsCatalogue.Find("experimental.playheadsFade"));
+    }
+
+    [Fact]
     public void A_piece_overrides_only_what_it_may_and_the_project_file_keeps_it()
     {
         Project project = Project.Create("p_test", "a.mid", [1, 2, 3], DateTimeOffset.UnixEpoch)

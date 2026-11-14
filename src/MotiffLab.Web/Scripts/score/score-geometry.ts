@@ -332,21 +332,7 @@ export function readPage(svg: string, number: number): PageGeometry {
 
 /** The x of a tick in a bar, from its onsets and their x (see ScoreGeometry.playhead). */
 export function placeInBar(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[], tick: number): number {
-    const span = Number.isFinite(bar.end) ? bar.end - bar.tick : 0;
-    if (points.length === 0) {
-        return span > 0 ? bar.left + ((bar.right - bar.left) * (tick - bar.tick)) / span : bar.left;
-    }
-    const first = points[0];
-    const last = points[points.length - 1];
-    // Before the first onset: from where the bar's start would be at the pace of the notes after it, never left of the bar.
-    let start = bar.left;
-    if (first.tick > bar.tick && span > 0 && bar.end > first.tick) {
-        start = Math.max(bar.left, first.x - ((first.tick - bar.tick) / (bar.end - first.tick)) * (bar.right - first.x));
-    }
-    const line: { tick: number; x: number }[] = [...(first.tick > bar.tick ? [{ tick: bar.tick, x: start }] : []), ...points];
-    if (Number.isFinite(bar.end) && bar.end > last.tick) {
-        line.push({ tick: bar.end, x: bar.right });
-    }
+    const line = barLine(bar, points);
     if (tick <= line[0].tick) {
         return line[0].x;
     }
@@ -358,6 +344,48 @@ export function placeInBar(bar: Rect & { tick: number; end: number }, points: re
         }
     }
     return line[line.length - 1].x;
+}
+
+/**
+ * The tick at an x in a bar: placeInBar the other way round, along the same line through the bar's onsets, for a playhead
+ * dragged across it (#495 UX-08). Left of the line it is the bar's first moment, right of it the line's last; where the
+ * line does not move on (onsets drawn at one x) it is the first tick there.
+ */
+export function tickInBar(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[], x: number): number {
+    const line = barLine(bar, points);
+    if (x <= line[0].x) {
+        return line[0].tick;
+    }
+    for (let i = 1; i < line.length; i++) {
+        const from = line[i - 1];
+        const to = line[i];
+        if (x < to.x) {
+            return from.tick + ((to.tick - from.tick) * (x - from.x)) / (to.x - from.x);
+        }
+    }
+    return line[line.length - 1].tick;
+}
+
+/**
+ * The line a bar's time takes across it: from where its start would be at the pace of the notes after it (never left of
+ * the bar), through the onsets and their x, to its right barline at its end. A bar with no notes is crossed evenly.
+ */
+function barLine(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[]): { tick: number; x: number }[] {
+    const span = Number.isFinite(bar.end) ? bar.end - bar.tick : 0;
+    if (points.length === 0) {
+        return span > 0 ? [{ tick: bar.tick, x: bar.left }, { tick: bar.end, x: bar.right }] : [{ tick: bar.tick, x: bar.left }];
+    }
+    const first = points[0];
+    const last = points[points.length - 1];
+    let start = bar.left;
+    if (first.tick > bar.tick && span > 0 && bar.end > first.tick) {
+        start = Math.max(bar.left, first.x - ((first.tick - bar.tick) / (bar.end - first.tick)) * (bar.right - first.x));
+    }
+    const line: { tick: number; x: number }[] = [...(first.tick > bar.tick ? [{ tick: bar.tick, x: start }] : []), ...points];
+    if (Number.isFinite(bar.end) && bar.end > last.tick) {
+        line.push({ tick: bar.end, x: bar.right });
+    }
+    return line;
 }
 
 function place(rect: Rect, at: PagePlacement): Rect {
@@ -550,14 +578,15 @@ export class ScoreGeometry {
 
     /**
      * The bar a selection's edge goes to when its handle is let go at a point: on the system nearest the point,
-     * the bar whose left barline (for the start) or right barline (for the end) is nearest across.
+     * the bar whose left barline (for the start) or right barline (for the end) is nearest across, so a bar counts once half
+     * of it or more is covered (#521 3); at exactly half it counts (the bars run left to right, so the end takes the later).
      */
     edgeNear(x: number, y: number, edge: "start" | "end"): ScoreBar | undefined {
         let best: ScoreBar | undefined;
         let distance = Infinity;
         for (const bar of this.systemNear(x, y)) {
             const away = Math.abs(x - (edge === "start" ? bar.left : bar.right));
-            if (away < distance) {
+            if (away < distance || (edge === "end" && away === distance)) {
                 distance = away;
                 best = bar;
             }
@@ -613,6 +642,12 @@ export class ScoreGeometry {
         return { x: placeInBar(bar, points, tick), top, bottom, bar };
     }
 
+    /** The tick at an x across a bar, along its onsets as the playhead crosses it (tickInBar). */
+    tickAt(bar: ScoreBar, x: number, onsetOf: (id: string) => number | undefined): number {
+        const index = this.bars.indexOf(bar);
+        return tickInBar(bar, index < 0 ? [] : this.timePoints(index, onsetOf), x);
+    }
+
     /** The bar's onsets with the x of their notes (the middle of the noteheads that start together), in time order. */
     private timePoints(index: number, onsetOf: (id: string) => number | undefined): { tick: number; x: number }[] {
         const known = this.points.get(index);
@@ -635,14 +670,24 @@ export class ScoreGeometry {
         return points;
     }
 
+    /** The lowest ink of a system, its notes and their stems included: what the playhead's track runs under (#479 item 19). */
+    lineInkBottom(system: number): number {
+        const bars = this.systems[system]?.bars ?? [];
+        return bars.reduce((lowest, index) => Math.max(lowest, this.bars[index].ink.bottom, this.bars[index].bottom), Number.NEGATIVE_INFINITY);
+    }
+
     /** Where a mark on a bar goes, such as a Check flag or a margin note's marker: the top right corner of its top staff. */
     flag(tick: number): { x: number; y: number } | undefined {
         const bar = this.barAt(tick);
         return bar === undefined ? undefined : { x: bar.right, y: bar.staves[0]?.top ?? bar.top };
     }
 
-    /** The bars as the pencil layer anchors marks to them (pencil-marks.ts, 0015). */
+    /** The bars as the pencil layer anchors marks to them (pencil-marks.ts, 0015), each with the edges of its line for strokes in the margins. */
     barFrames(): BarFrame[] {
+        const edges = this.systems.map((system) => ({
+            left: Math.min(...system.bars.map((index) => this.bars[index].left)),
+            right: Math.max(...system.bars.map((index) => this.bars[index].right)),
+        }));
         return this.bars.map((bar) => ({
             tick: bar.tick,
             left: bar.left,
@@ -651,6 +696,9 @@ export class ScoreGeometry {
             bottom: bar.ink.bottom,
             staffTop: bar.staves[0]?.top ?? bar.top,
             space: bar.staves[0]?.space ?? (bar.bottom - bar.top) / 8,
+            line: bar.system,
+            lineLeft: edges[bar.system]?.left ?? bar.left,
+            lineRight: edges[bar.system]?.right ?? bar.right,
         }));
     }
 }

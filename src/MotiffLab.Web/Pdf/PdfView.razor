@@ -22,6 +22,7 @@
     private IJSObjectReference? _pencil;
     private string? _shownPencilKey;
     private string? _shownInk;
+    private bool? _shownReadOnly;
     private IReadOnlyList<int>? _shownBookmarks;
     private ScoreView.PencilState _pencilState = new(false, "pen", "graphite", 0, 0, false);
 
@@ -37,6 +38,10 @@
     [Parameter]
     public int StartPage { get; set; } = 1;
 
+    /// <summary>The place to open at, as the player left the PDF (#511 section 10), in place of <see cref="StartPage"/>; null for none.</summary>
+    [Parameter]
+    public MotiffLab.Web.Projects.ViewPlace? StartPlace { get; set; }
+
     /// <summary>The pages under the bar and how many there are, as the score reports them.</summary>
     [Parameter]
     public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
@@ -48,6 +53,13 @@
     /// <summary>The strokes the project keeps on the pages, as ProjectFile.WriteInk writes them; empty for none.</summary>
     [Parameter]
     public string Ink { get; set; } = "";
+
+    /// <summary>
+    /// Whether the strokes are shown only, for the marks another device writes (version 0.4): nothing writes, erases or
+    /// clears them here, and the pen stays off.
+    /// </summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
 
     /// <summary>The strokes after the player wrote or erased, for the project to keep.</summary>
     [Parameter]
@@ -84,6 +96,12 @@
             await _view.InvokeVoidAsync("setBookmarks", (object)Bookmarks.ToArray());
         }
 
+        if (_pencil is not null && ReadOnly != _shownReadOnly)
+        {
+            _shownReadOnly = ReadOnly;
+            await _pencil.InvokeVoidAsync("setReadOnly", ReadOnly);
+        }
+
         if (_pencil is not null && PencilKey != _shownPencilKey)
         {
             (_shownPencilKey, _shownInk) = (PencilKey, Ink);
@@ -98,7 +116,7 @@
         if (_view is not null && !ReferenceEquals(_shown, Document))
         {
             _shown = Document;
-            int pages = await _view.InvokeAsync<int>("open", Document, StartPage);
+            int pages = await _view.InvokeAsync<int>("open", Document, StartPage, StartPlace);
             if (pages > 0)
             {
                 await _view.InvokeVoidAsync("labelPages", Text["pdf.pageLabel"]);
@@ -116,6 +134,10 @@
             await _view.InvokeVoidAsync("showPage", page);
         }
     }
+
+    /// <summary>Where the pages are scrolled to, as a place a new width keeps (#511 section 10); null before they are laid out.</summary>
+    public async Task<MotiffLab.Web.Projects.ViewPlace?> ViewPlaceAsync() =>
+        _view is null ? null : await _view.InvokeAsync<MotiffLab.Web.Projects.ViewPlace?>("viewPlace");
 
     /// <summary>Keeps page 1 as the piece's cover in the library; false when it could not be drawn.</summary>
     public async Task<bool> SaveCoverAsync(string projectId, string? title) =>

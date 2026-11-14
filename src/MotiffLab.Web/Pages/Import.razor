@@ -16,8 +16,11 @@
 @inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 @inject ScanService Scans
+@inject MotiffLab.Web.Pdf.ScoreScan ScoreScan
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
+@inject MotiffLab.Web.Settings.DeviceSettings SettingsStore
+@inject Microsoft.JSInterop.IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>@Text[Heading] · Motiff Lab</PageTitle>
@@ -61,20 +64,17 @@
             }
             else
             {
-                @* What leaves the device, as one short line and one switch above the file field (0018 section 9). *@
+                @* What leaves the device, as one short line above the file field (0018 section 9): picking the file sends it, with
+                   no switch to turn on each time (v0.5, issue #479 item 17). *@
                 <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanLineHere" : "import.scanLine", server)</p>
-                @if (!Scans.IsLocal)
-                {
-                    <label class="consent">
-                        <input type="checkbox" role="switch" class="switch" @bind="_sendElsewhere" />
-                        <span>@(Scans.IsHosted ? Text["scan.sendHosted"] : Text.Format("import.scanSendElsewhere", server.Host))</span>
-                    </label>
-                }
-
                 <label class="dropzone @(_scanning ? "busy" : null)">
-                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="@Text["import.scanChoose"]" />
-                    <span>@(_scanning ? Text["import.scanBusy"] : Text["import.scanDrop"])</span>
+                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" multiple="@PhotosOn" disabled="@(_reading || _scanning)" aria-label="@Text[PhotosOn ? "import.scanChoosePhotos" : "import.scanChoose"]" />
+                    <span>@(_scanning ? Text["import.scanBusy"] : Text[PhotosOn ? "import.scanDropPhotos" : "import.scanDrop"])</span>
                 </label>
+                @if (_scanning && _scanProgress is { } progress)
+                {
+                    <MotiffLab.Web.Pdf.ScanProgressBar Progress="progress" />
+                }
             }
         </section>
     }
@@ -102,18 +102,13 @@
             }
             else
             {
-                <p class="meta">@Text.Format("transcribe.line", listener)</p>
-                @if (!Scans.IsLocal)
-                {
-                    <label class="consent">
-                        <input type="checkbox" role="switch" class="switch" @bind="_sendSound" />
-                        <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))</span>
-                    </label>
-                }
+                @* Where the sound goes, as one line: choosing the recording and the stretch to hear sends it, with no switch to turn
+                   on first (v0.5.6, #533 section 8). *@
+                <p class="meta">@(Scans.IsHosted ? Text["transcribe.lineHosted"] : Text.Format("transcribe.line", listener))</p>
 
                 <label class="dropzone @(_transcribing || _decoding ? "busy" : null)">
-                    <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
-                    <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
+                    <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding)" aria-label="@Text["transcribe.choose"]" />
+                    <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : HearingText(_hearing))</span>
                 </label>
 
                 @* The stretch to hear (0014), chosen as in an audio trimmer: a selection window on the recording's shape whose
@@ -159,10 +154,10 @@
                             <button @onclick="() => RangeHereAsync(start: true)" disabled="@_transcribing">@Text["transcribe.startHere"]</button>
                             <button @onclick="() => RangeHereAsync(start: false)" disabled="@_transcribing">@Text["transcribe.endHere"]</button>
                         </div>
-                        <p class="meta">@Text.Format("transcribe.rangeHow", RecordingRange.MostMilliseconds / 60_000)</p>
+                        <p class="meta">@Text["transcribe.rangeHow"]</p>
                         <p class="estimate">@Estimate(range)</p>
                         <div class="actions">
-                            <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing || !(Scans.IsLocal || _sendSound))">@Text["transcribe.hearRange"]</button>
+                            <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing)">@Text["transcribe.hearRange"]</button>
                         </div>
                     </section>
                 }
@@ -196,6 +191,16 @@
             @if (_scan is { } scan)
             {
                 <p class="meta">@Text.Format("import.scanRead", Text.Count("import.pageCount", _scanPages), _elapsed.TotalSeconds.ToString("0", Text.Culture))</p>
+                @if (_leftOut.Count > 0)
+                {
+                    @* Photos of pages (v0.5): a page the scan server could not read is left out of the notes, and said so. *@
+                    <ul class="warnings left-out">
+                        @foreach (LeftOutPage page in _leftOut)
+                        {
+                            <li>@Text.Format("import.scanPageLeftOut", page.Page, page.Name, page.Problem)</li>
+                        }
+                    </ul>
+                }
                 @* Check the scan (0011): the bars the rules flag come first; the player checks them in the workspace. *@
                 <section class="scan-check" aria-label="@Text["import.scanCheck"]">
                     <h3>@Text["import.scanCheck"]</h3>
@@ -213,6 +218,7 @@
                     {
                         <p>@Text["import.scanClean"]</p>
                     }
+                    <ScanPagesSummary Pages="scan.Pages" />
                 </section>
             }
             else if (_transcriptionEngine is not null)
@@ -225,6 +231,23 @@
                     <p>@Text["transcribe.draft"]</p>
                     @* Bars and tempo worked out from the notes (0016): changed, or turned off, in the head of the Check drawer (0018 section 9). *@
                     <p>@(_bars is { } bars ? Text.Format("transcribe.barsReport", bars.Signature, bars.QuarterNotesPerMinute) : Text["transcribe.barsNone"])</p>
+                    @if (SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting))
+                    {
+                        @* An experiment (Settings · Experimental, version 0.5): the number of pieces, kept nowhere, opens the review of the pieces with it. *@
+                        <div class="several-pieces">
+                            <label class="consent">
+                                <input type="checkbox" role="switch" class="switch" @bind="_severalPieces" />
+                                <span>@Text["import.severalPieces"]</span>
+                            </label>
+                            @if (_severalPieces)
+                            {
+                                <label class="field">
+                                    <span class="caption">@Text["import.piecesCount"]</span>
+                                    <input type="number" inputmode="numeric" min="2" max="99" @bind="_piecesCount" />
+                                </label>
+                            }
+                        </div>
+                    }
                     @if (_cut)
                     {
                         <p class="notice">@Text.Format("transcribe.cut", (ScanService.ServerRecordingSeconds / 60.0).ToString("0.#", Text.Culture))</p>
@@ -327,10 +350,24 @@
 
     /// <summary>The checks of a piece read by the scan server (0011); null for a file imported on the device.</summary>
     private ScanCheck? _scan;
+
+    /// <summary>The scan server's report on each page of the notes just read (version 0.4); empty without one.</summary>
+    private IReadOnlyList<PageReport> _scanReports = [];
     private string _scanEngine = "";
     private int _scanPages;
     private bool _scanning;
-    private bool _sendElsewhere;
+
+    /// <summary>How far a PDF's notes are read (v0.5, issue #479), while one is.</summary>
+    private PageProgress? _scanProgress;
+
+    /// <summary>Photos of pages (v0.5): the page being read and how many were picked; 0 while one file is read.</summary>
+
+    /// <summary>The photos whose pages could not be read, left out of the notes just read.</summary>
+    private IReadOnlyList<LeftOutPage> _leftOut = [];
+
+    /// <summary>Several photos of a piece's pages may be picked at once (the experiment «Фото страниц», v0.5).</summary>
+    private bool PhotosOn => SettingsStore.IsOn(PhotoPages.Setting);
+
 
     /// <summary>The engine that heard a transcribed recording (0014); null for anything else.</summary>
     private string? _transcriptionEngine;
@@ -363,17 +400,19 @@
     private RecordingRange? _heardRange;
     private int _requests;
 
-    /// <summary>While a long recording is heard in parts: the part being heard, from 1, and how many there are.</summary>
-    private int _part;
-    private int _parts;
+    /// <summary>While a long recording is heard in parts: how many parts are heard of how many; null before the first word.</summary>
+    private HearingProgress? _hearing;
     private bool _transcribing;
-    private bool _sendSound;
 
     /// <summary>The transcription as the engine wrote it, marked as heard, before any bars are worked out.</summary>
     private ImportedPiece? _heard;
 
     /// <summary>The bars and tempo worked out from the notes (0016), as found or as the player changed them; null when none were found.</summary>
     private BarGrid? _bars;
+
+    /// <summary>«В записи несколько пьес» and how many (version 0.5): passed to the workspace once, kept nowhere.</summary>
+    private bool _severalPieces;
+    private int _piecesCount = 2;
     private InputFile? _recordingInput;
 
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
@@ -422,6 +461,7 @@
     protected override async Task OnInitializedAsync()
     {
         await Scans.LoadAsync();
+        await SettingsStore.LoadAsync();
         _signedIn = await Account.PlayerAsync() is not null;
         // Scanning and transcription on Motiff Lab's server are one Pro feature each (0018 section 12); the server checks it too.
         _scanPro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Scan);
@@ -486,13 +526,20 @@
     /// <summary>Sends a PDF or photo to the scan server and imports the MusicXML it reads, with the notes marked as detected (0011).</summary>
     private async Task ScanFileAsync(InputFileChangeEventArgs args)
     {
-        _fileName = args.File.Name;
         _piece = null;
         _scan = null;
         _transcriptionEngine = null;
         _timing = null;
         _rejection = null;
         _start = 0;
+        _leftOut = [];
+        if (args.FileCount > 1)
+        {
+            await ScanPhotosAsync(args);
+            return;
+        }
+
+        _fileName = args.File.Name;
         if (args.File.Size == 0 || args.File.Size > ScanService.MaxUploadBytes)
         {
             _rejection = new(
@@ -509,28 +556,118 @@
             await using Stream stream = args.File.OpenReadStream(ScanService.MaxUploadBytes);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            ScanResult result = await Scans.RecogniseAsync(args.File.Name, memory.ToArray());
+            byte[] data = memory.ToArray();
+            // A PDF longer than the server reads at once goes in parts, up to 100 pages (v0.5, issue #479); a photo as it is.
+            ScanResult result = data.AsSpan().StartsWith("%PDF"u8)
+                ? await ScoreScan.ReadAsync(args.File.Name, data, progress =>
+                {
+                    _scanProgress = progress;
+                    StateHasChanged();
+                })
+                : await Scans.RecogniseAsync(args.File.Name, data);
             _elapsed = watch.Elapsed;
-            if (result.MusicXml is not { } musicXml)
-            {
-                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["import.scanNotReadTip"]);
-                return;
-            }
-
-            string name = Path.ChangeExtension(args.File.Name, ".musicxml");
-            PieceImportResult imported = PieceImporter.Import(name, musicXml);
-            if (imported.Piece is not { } piece)
-            {
-                _rejection = imported.Rejection;
-                return;
-            }
-
-            _scan = ScanCheck.Of(piece);
-            (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
+            ShowScan(result, args.File.Name);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _rejection = new(ImportRejectionReason.NotMusic, Text["pdf.unreadable"], Text["import.scanNotReadTip"]);
         }
         finally
         {
-            _scanning = false;
+            (_scanning, _scanProgress) = (false, null);
+        }
+    }
+
+    /// <summary>
+    /// Photos of pages (v0.5): several photos of one piece's pages, read one request at a time in the order of their names
+    /// and joined into one piece by music-core; a page not read is left out and said so. The photos are not kept.
+    /// </summary>
+    private async Task ScanPhotosAsync(InputFileChangeEventArgs args)
+    {
+        if (args.FileCount > PhotoPages.MaxPhotos)
+        {
+            _rejection = new(ImportRejectionReason.TooLarge, Text.Format("import.scanTooManyPhotos", args.FileCount, PhotoPages.MaxPhotos), Text["import.scanPhotosTip"]);
+            return;
+        }
+
+        IReadOnlyList<IBrowserFile> photos = PhotoPages.InOrder(args.GetMultipleFiles(PhotoPages.MaxPhotos));
+        _fileName = photos[0].Name;
+        if (photos.FirstOrDefault(photo => !PhotoPages.IsPhoto(photo.Name)) is { } other)
+        {
+            _fileName = other.Name;
+            _rejection = new(ImportRejectionReason.Unsupported, Text["import.scanPhotosOnly"], Text["import.scanPhotosTip"]);
+            return;
+        }
+
+        _scanning = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            // Each photo is one request (v0.5.6, #533 section 1): the bar moves as each page's answer comes back.
+            var pages = new PageProgress(photos.Count);
+            var each = Stopwatch.StartNew();
+            PhotoPagesRead read = await PhotoPages.ReadAsync(Scans, photos, Text, page =>
+            {
+                for (; pages.Done < page - 1; each.Restart())
+                {
+                    pages = pages.Read(each.ElapsedMilliseconds);
+                }
+
+                _scanProgress = pages;
+                StateHasChanged();
+            });
+            _elapsed = watch.Elapsed;
+            _leftOut = read.LeftOut;
+            ShowScan(read.Result, photos[0].Name);
+        }
+        finally
+        {
+            (_scanning, _scanProgress) = (false, null);
+        }
+    }
+
+    /// <summary>The notes the scan server read, as a piece with its bars to check; or why there are none.</summary>
+    private void ShowScan(ScanResult result, string fileName)
+    {
+        if (result.MusicXml is not { } musicXml)
+        {
+            _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["import.scanNotReadTip"]);
+            return;
+        }
+
+        // A PDF or photo read in one request has not been through ScanJoin: its engine's mistakes are put right here (#495 BUG-03).
+        musicXml = ScanRepair.Repair(musicXml);
+        string name = Path.ChangeExtension(fileName, ".musicxml");
+        PieceImportResult imported = PieceImporter.Import(name, musicXml);
+        if (imported.Piece is not { } piece)
+        {
+            _rejection = imported.Rejection;
+            return;
+        }
+
+        _scanReports = ReportsFor(result, musicXml);
+        _scan = ScanCheck.Of(piece, _scanReports.Count > 0 ? _scanReports : null);
+        (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
+    }
+
+    /// <summary>
+    /// The server's report on each page as the pages of the notes (version 0.4); none when it sent none, or not one per page
+    /// of the notes, so the notes are kept without them.
+    /// </summary>
+    private static IReadOnlyList<PageReport> ReportsFor(ScanResult result, byte[] musicXml)
+    {
+        if (result.Reports.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            return PageReport.ForScore(result.Reports, musicXml);
+        }
+        catch (ArgumentException)
+        {
+            return [];
         }
     }
 
@@ -559,6 +696,15 @@
         finally
         {
             _decoding = false;
+        }
+
+        if (loaded is { TooLong: true })
+        {
+            _rejection = new(
+                ImportRejectionReason.TooLarge,
+                Text.Format("transcribe.tooLongToDecode", Clock(loaded.Milliseconds), loaded.MostMinutes),
+                Text["transcribe.tooLongToDecodeTip"]);
+            return;
         }
 
         if (loaded is { Milliseconds: > 0 })
@@ -615,32 +761,39 @@
         try
         {
             var watch = Stopwatch.StartNew();
-            if (await Scans.SoundBetweenAsync(range.FromMilliseconds, range.ToMilliseconds) is not { } sound)
+            if (_loaded is not { } loaded)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.tooLargeTip"]);
                 return;
             }
 
-            // A stretch longer than the server hears at once goes in overlapping parts, one after another, and the
-            // notes are joined; the notes' times start at the stretch's start.
-            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
+            // A stretch longer than the server hears at once goes in overlapping parts, several at once, and the notes
+            // are joined; the notes' times start at the stretch's start. Parts heard before are not sent again.
+            HeardSound heard = await Scans.HearRangeAsync(loaded, range, progress =>
             {
-                (_part, _parts) = (part, parts);
+                _hearing = progress;
                 StateHasChanged();
             });
             if (heard.Midi is not { } midi)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, heard.Problem!, Text["transcribe.notHeardTip"]);
+                _rejection = new(ImportRejectionReason.NotMusic, heard.Problem!, heard.Result.NothingHeard ? Text["transcribe.notHeardTip"] : "");
                 return;
             }
 
-            Show(_recordingName, midi, heard.Result, watch.Elapsed, sound.Seconds, false, range, heard.Parts.Count, RecordingParts.Seams(heard.Parts));
+            Show(_recordingName, midi, heard.Result, watch.Elapsed, range.Milliseconds / 1000.0, false, range, heard.Parts.Count, RecordingParts.Seams(heard.Parts));
         }
         finally
         {
-            (_transcribing, _part, _parts) = (false, 0, 0);
+            (_transcribing, _hearing) = (false, null);
         }
     }
+
+    /// <summary>What the drop zone says while a stretch is heard: parts heard of how many, and whether the server is asked again.</summary>
+    private string HearingText(HearingProgress? hearing) => hearing switch
+    {
+        { Total: > 1, Retrying: true } => Text.Format("transcribe.retrying", hearing.Done, hearing.Total),
+        { Total: > 1 } => Text.Format("transcribe.progress", hearing.Done, hearing.Total),
+        _ => Text["transcribe.busy"],
+    };
 
     /// <summary>Imports what the server heard, marked as heard, in the bars worked out from it (0016).</summary>
     private void Show(string recordingName, byte[] midi, TranscriptionResult result, TimeSpan elapsed, double seconds, bool cut, RecordingRange? range, int requests, IReadOnlyList<long>? seams = null)
@@ -657,7 +810,7 @@
 
         (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
         (_heardSeconds, _cut, _heardRange, _requests) = (seconds, cut, range, requests);
-        _bars = BarGrid.Find(piece.Midi!);
+        _bars = BarGrid.Find(piece.Midi!, search: SettingsStore.IsOn(MotiffLab.Web.Insights.TempoCard.Setting) ? GridSearch.Live : null);
         ShowBars();
     }
 
@@ -747,18 +900,20 @@
     private string Estimate(RecordingRange range)
     {
         int parts = range.Parts.Count;
-        double seconds = range.SentMilliseconds / 1000.0 * ScanService.SecondsPerSecondHeard;
+        double seconds = Scans.EstimateSeconds(range.Parts);
         string time = seconds < 90
             ? Text.Format("transcribe.aboutSeconds", (Math.Ceiling(seconds / 10) * 10).ToString("0", Text.Culture))
             : Text.Format("transcribe.aboutMinutes", Math.Ceiling(seconds / 60).ToString("0", Text.Culture));
+        string estimate = parts == 1 ? "transcribe.estimateOne" : Scans.MostAtOnce > 1 ? "transcribe.estimate" : "transcribe.estimateSerial";
         return Text.Format(
-            parts == 1 ? "transcribe.estimateOne" : "transcribe.estimate",
+            estimate,
             Clock(range.FromMilliseconds),
             Clock(range.ToMilliseconds),
             Clock(range.Milliseconds),
             Text.Count("transcribe.parts", parts),
             Text.Count("transcribe.requests", parts),
-            time);
+            time,
+            Math.Min(parts, Scans.MostAtOnce));
     }
 
     /// <summary>A time in the recording as m:ss, or h:mm:ss from an hour, with tenths of a second when asked.</summary>
@@ -817,8 +972,9 @@
 
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
-            Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
-            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams },
+            Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine) with { Pages = _scanReports },
+            // Where the stretch heard starts in the recording file (version 0.5), so a piece's sound is found in it on any device; the file sent whole starts at 0.
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams, SentFromMilliseconds = _heardRange?.FromMilliseconds ?? 0 },
         };
         // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.
         if (_scan is { } check)
@@ -835,7 +991,37 @@
         project = project.AddResumePoint(point);
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
+        string url = CurrentPiece.WorkspaceUrl(project, point.Id);
+        bool several = _severalPieces && _transcriptionEngine is not null && SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting);
+        if (several)
+        {
+            await KeepConcertAsync(project.Id);
+        }
+
+        Navigation.NavigateTo(several ? $"{url}&pieces={Math.Clamp(_piecesCount, 1, 99)}" : url);
+    }
+
+    /// <summary>
+    /// A recording of several pieces (version 0.5): the stretch heard is kept on this device, before the page lets the
+    /// recording go, so each piece split from it can have its own sound. Never in the project file; a browser that could
+    /// not decode the recording keeps nothing.
+    /// </summary>
+    private async Task KeepConcertAsync(string projectId)
+    {
+        if (_heardRange is not { } range)
+        {
+            return;
+        }
+
+        try
+        {
+            await using Microsoft.JSInterop.IJSObjectReference store = await JS.InvokeAsync<Microsoft.JSInterop.IJSObjectReference>("import", "./js/storage/recording-store.js");
+            await store.InvokeAsync<bool>("keepHeldStretch", $"{projectId}/{MotiffLab.Web.Workspace.PartPlace.ConcertSound}", range.FromMilliseconds, range.ToMilliseconds);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // The pieces are made all the same; their sound is then picked again from the file.
+        }
     }
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";

@@ -3,6 +3,10 @@
 // playback position to Blazor. Blazor imports this module through JS interop.
 
 import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
+import type { ModelEvent, ModelState, Step } from "./playback-model.js";
+import { PassageGrip, PlaybackOwner, type Applied, type EnginePlace, type LoopAfter } from "./playback-owner.js";
+import type { Span } from "./playback-model.js";
+import type { DragMessage } from "./playhead-drag.js";
 import { SAMPLE_RATE, decodeMono, peaksOf } from "../import/recording.js";
 import { openRecording } from "../storage/recording-store.js";
 
@@ -57,6 +61,12 @@ export class Player {
     private disposed = false;
     private recordingKey: string | null = null;
     private recordingSound: RecordingSound | null = null;
+    /** The playback model of v0.5.2 (#495 UX-10, playback-owner.ts): the selection and Цикл, while it holds. */
+    private readonly owner = new PlaybackOwner((step) => this.perform(step));
+    /** The playhead on Expand's roll held over its passage (#533 2), while the model lets go there. */
+    private readonly passageGrip = new PassageGrip((step) => this.perform(step));
+    /** What Blazor was last told of the model, so it hears again only when that changes. */
+    private modelReported = "";
 
     private constructor(context: AudioContext, node: AudioWorkletNode, dotnet: DotNetObject) {
         this.context = context;
@@ -91,6 +101,7 @@ export class Player {
     }
 
     setTimeline(timeline: TimelinePayload): void {
+        this.owner.reset();
         this.post({ type: "timeline", ...timeline });
     }
 
@@ -113,10 +124,7 @@ export class Player {
      */
     async play(): Promise<void> {
         await this.resume();
-        const started = new Promise<void>((resolve) => {
-            this.startWaiters.push(resolve);
-            setTimeout(resolve, PLAY_CONFIRM_MS);
-        });
+        const started = this.starting();
         this.post({ type: "play" });
         await started;
     }
@@ -133,8 +141,9 @@ export class Player {
         this.post({ type: "rate", value });
     }
 
-    /** Loops a range; with `once`, plays it once and stops back at its start. */
+    /** Loops a range; with `once`, plays it once and stops back at its start. While the model holds, another owner takes the loop. */
     setLoop(start: number, end: number, once = false): void {
+        this.owner.take();
         this.post({ type: "loop", start, end, once });
     }
 
@@ -144,15 +153,102 @@ export class Player {
 
     /** Loops each pass in turn, its sources over its range, from the start of the first (#43). */
     setAlternation(passes: LoopPass[]): void {
+        this.owner.take();
         this.post({ type: "alternate", passes });
+    }
+
+    // The playback model (v0.5.2, #495 UX-10, slice W1): Blazor sends the events, the rules decide, the engine gets the steps.
+    // Each event answers the engine's loop after it as Blazor keeps it: null untouched, [] none, [start, end] a passage.
+
+    /** Whether the model holds: the experiment on and the page not in focus. Turned on, Blazor hears where it stands. */
+    holdModel(on: boolean): void {
+        if (!on && this.owner.dragging) {
+            // A playhead held as the model lets go (focus opens mid-drag) is let go first, so nothing is left sounding.
+            this.drag({ phase: "release", handle: "black" });
+        }
+        this.owner.held = on;
+        this.modelReported = "";
+        this.reportModel();
+    }
+
+    /** T9–T11: the selection as the range it plays, or none (null). The position never moves. */
+    setSelection(start: number | null, end: number | null): number[] | null {
+        return this.apply({ type: "select", selection: start === null || end === null ? null : { start, end } });
+    }
+
+    /** T1–T3: the one Play button, Space or a pedal; resolves once the engine plays when it was told to. */
+    async press(): Promise<number[] | null> {
+        if (this.state() !== "stopped") {
+            return this.apply({ type: "press" });
+        }
+        await this.resume();
+        const started = this.starting();
+        const loop = this.apply({ type: "press" });
+        await started;
+        return loop;
+    }
+
+    /** T7, T8: Цикл on or off; the same as it is changes nothing. */
+    setSelectionLoop(on: boolean): number[] | null {
+        return on === this.owner.state(this.place()).loop ? null : this.apply({ type: "cycle" });
+    }
+
+    /** T12: the black playhead moved by a tap (a beat, a bar, a note, a fact's place): out of the selection, Цикл turns off. */
+    moveTo(tick: number): number[] | null {
+        return this.apply({ type: "seek", at: tick });
+    }
+
+    /** The engine loops the model's passage again once another owner of the loop has ended. */
+    holdLoop(): number[] {
+        const loop = this.owner.hold(this.place());
+        return loop === null ? [] : [loop.start, loop.end];
+    }
+
+    /**
+     * T14–T16: a playhead's handle dragged on the score or the roll (playhead-drag.ts), straight from the view: taken, playback
+     * stands; dragged, the engine scrubs there; let go, the release rules run and it plays on when it played. Blazor hears
+     * the gesture's start and its end only (OnPlayheadGesture), with the engine's loop after it; the moves stay here.
+     */
+    drag(message: DragMessage, passage: Span | null = null): void {
+        if (passage !== null || this.passageGrip.dragging) {
+            this.dragInPassage(message, passage);
+            return;
+        }
+        if (!this.owner.held) {
+            return;
+        }
+        if (message.phase === "grab") {
+            // A drag while stopped sounds its notes: the browser starts audio on this gesture if it has not yet.
+            void this.resume();
+        }
+        const decided = this.owner.gesture(message, this.place());
+        if (decided === null || message.phase === "move") {
+            return;
+        }
+        this.modelReported = "";
+        this.reportModel(decided.engine);
+        void this.dotnet.invokeMethodAsync("OnPlayheadGesture", loopOf(decided.loop));
+    }
+
+    /**
+     * The playhead on Expand's roll (#533 2): held over the passage, which goes on looping; Blazor hears the transport from
+     * the engine's reports. A gesture whose roll let the passage go mid-drag is still let go.
+     */
+    private dragInPassage(message: DragMessage, passage: Span | null): void {
+        if (message.phase === "grab") {
+            void this.resume();
+        }
+        const over = passage ?? { start: 0, end: Number.MAX_SAFE_INTEGER };
+        this.passageGrip.gesture(message, over, this.place());
+    }
+
+    /** The model's state now, the position as heard; null while it does not hold. */
+    model(): ModelState | null {
+        return this.owner.held ? this.owner.state({ tick: this.currentTick(), transport: this.state() }) : null;
     }
 
     setMetronome(on: boolean): void {
         this.post({ type: "metronome", on });
-    }
-
-    setCountIn(bars: number): void {
-        this.post({ type: "countIn", bars });
     }
 
     setTracks(muted: number[], soloed: number[]): void {
@@ -242,6 +338,66 @@ export class Player {
         await this.context.close();
     }
 
+    /** Where the engine is now, as heard. */
+    private place(): EnginePlace {
+        return { tick: Math.round(this.currentTick()), transport: this.state() };
+    }
+
+    /** An event of the model; Blazor hears at once where the engine will be, before the engine reports it. */
+    private apply(event: ModelEvent): number[] | null {
+        const decided: Applied = this.owner.apply(event, this.place());
+        this.reportModel(decided.engine);
+        return loopOf(decided.loop);
+    }
+
+    /** A step of the model to the engine. */
+    private perform(step: Step): void {
+        switch (step.type) {
+            case "play":
+                this.post({ type: "play" });
+                break;
+            case "pause":
+                this.post({ type: "pause" });
+                break;
+            case "seek":
+                this.post({ type: "seek", tick: step.at });
+                break;
+            case "loop":
+                this.post({ type: "loop", start: step.start, end: step.end });
+                break;
+            case "loopOff":
+                this.post({ type: "loopOff" });
+                break;
+            case "scrub":
+                this.post({ type: "scrub", from: step.from, to: step.to });
+                break;
+            case "scrubEnd":
+                this.post({ type: "scrubEnd" });
+                break;
+        }
+    }
+
+    /** Blazor hears Цикл, the context and the place Play names when one changes; the views read the playheads themselves. */
+    private reportModel(engine = this.place()): void {
+        if (!this.owner.held) {
+            return;
+        }
+        const report = this.owner.report(engine);
+        const key = JSON.stringify(report);
+        if (key !== this.modelReported) {
+            this.modelReported = key;
+            void this.dotnet.invokeMethodAsync("OnPlaybackModel", report.loop, report.context, report.at);
+        }
+    }
+
+    /** Resolves once the engine reports it plays, or after PLAY_CONFIRM_MS. */
+    private starting(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.startWaiters.push(resolve);
+            setTimeout(resolve, PLAY_CONFIRM_MS);
+        });
+    }
+
     private post(message: EngineMessage, transfer: Transferable[] = []): void {
         if (!this.disposed) {
             this.dotnetStale = true;
@@ -307,12 +463,7 @@ export class Player {
 
         const now = performance.now();
         const tick = Math.round(this.currentTick());
-        // A new state or a new pass of an alternating loop goes to Blazor at once, so the views follow what is heard.
-        // A position that has not moved, stopped or paused, is not sent again: each report draws the whole page
-        // over in Blazor, which would keep the page's thread busy and make scrolling stutter on an iPad.
-        const changed = report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass || this.dotnetStale;
-        const moved = tick !== this.lastDotnetTick;
-        if (changed || (moved && now - this.lastDotnetReport >= DOTNET_REPORT_MS)) {
+        if (this.tellsDotnet(report, tick, now)) {
             this.lastDotnetReport = now;
             this.lastDotnetState = report.state;
             this.lastDotnetPass = report.pass;
@@ -320,7 +471,32 @@ export class Player {
             this.dotnetStale = false;
             void this.dotnet.invokeMethodAsync("OnPlaybackPosition", tick, report.state, report.pass);
         }
+        // While a playhead is held, Blazor hears of it at the gesture's end (drag): the views draw the moves themselves.
+        if (!this.owner.dragging && !this.passageGrip.dragging) {
+            this.reportModel();
+        }
     }
+
+    /**
+     * Whether a report goes to Blazor. A new state or a new pass of an alternating loop goes at once, so the views follow
+     * what is heard. A position that has not moved, stopped or paused, is not sent again: each report draws the whole page
+     * over in Blazor, which would keep the page's thread busy and make scrolling stutter on an iPad. While a playhead is
+     * dragged its moves are not sent at all, only a change of state; the release sends where it was let go.
+     */
+    private tellsDotnet(report: PositionReport, tick: number, now: number): boolean {
+        if (report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass) {
+            return true;
+        }
+        if (this.owner.dragging || this.passageGrip.dragging) {
+            return false;
+        }
+        return this.dotnetStale || (tick !== this.lastDotnetTick && now - this.lastDotnetReport >= DOTNET_REPORT_MS);
+    }
+}
+
+/** The engine's loop after an event as Blazor keeps it: null untouched, [] none, [start, end] a passage. */
+function loopOf(loop: LoopAfter): number[] | null {
+    return loop === undefined ? null : loop === null ? [] : [loop.start, loop.end];
 }
 
 /** Mono copy of the decoded sample from just before its attack, so every note starts on time. */

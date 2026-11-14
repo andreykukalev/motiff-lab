@@ -27,7 +27,8 @@ public partial class PlaybackLab
     /// </summary>
     private void StartScanCheck(ImportedPiece piece)
     {
-        _scanCheck = _project?.Scan is not null && piece.MusicXml is not null ? ScanCheck.Of(piece) : null;
+        // With the scan server's page reports (version 0.4), a weak page's bars are less sure and a poor page's flagged.
+        _scanCheck = _project?.Scan is { } scan && piece.MusicXml is not null ? scan.CheckOf(piece) : null;
         if (_scanCheck is not null)
         {
             _asWritten = null;

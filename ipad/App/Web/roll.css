@@ -13,9 +13,5 @@ body { margin: 0; background: var(--surface); color: var(--ink); font: var(--t-b
 /* Read by touch (#338), the drawer gives the notes all its height: a finger moves through the music, so the scroller goes,
    and the keys sounding light down the left of the notes, so the keyboard goes too. */
 .roll .roll-scroll, .roll .roll-keys { display: none; }
-/* The floating zoom (testing item 13), as the web app's app.css draws it: − the percentage + and Fit over the corner of the notes. */
-.roll .roll-zoom { position: absolute; z-index: 2; right: var(--s-2); display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: var(--r-pill); border: 1px solid var(--hairline); background: var(--surface-2); box-shadow: var(--shadow-pill); font: var(--t-label); }
-.roll .roll-zoom-button { min-width: 36px; height: 36px; padding: 0 var(--s-2); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink); font: var(--t-label); }
-.roll .roll-zoom-button:disabled { color: var(--ink-3); }
-.roll .roll-zoom-level { min-width: 3.2em; text-align: center; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.roll .roll-fit { border-left: 1px solid var(--hairline); border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+/* No floating zoom here: the roll reports the bars and the octaves in view and Swift draws the zoom on each axis over the
+   notes, «− 9 тактов +» with Fit and «+ 3 октавы −» over the keyboard column (v0.5.2, #479 item 23, RollTools.swift). */

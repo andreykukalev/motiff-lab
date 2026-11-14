@@ -3,7 +3,7 @@
 // markup and styles, which are the same in each engine.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations, librarySessions, focusSelection, selectPhrase } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -31,6 +31,9 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 
     await page.goto("/");
+    await expect(page.locator(".lib-table tbody tr")).toHaveCount(1);
+    expect(await violations(page)).toEqual([]);
+    await librarySessions(page);
     await expect(page.locator(".card.piece")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
 });
@@ -41,6 +44,7 @@ test("the library: a card, its menu, its resume points, and Add piece, in both t
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(midi);
     await expect(page.locator(".score .score-page").first()).toBeVisible();
     await page.locator(".bar").getByRole("link", { name: "Library" }).click();
+    await librarySessions(page);
     const card = page.locator(".card.piece");
     await expect(card.locator(".thumb img")).toBeVisible();
     for (const theme of ["daylight", "night"]) {
@@ -71,8 +75,8 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
         await openMore(page);
         expect(await violations(page)).toEqual([]);
         await closePopover(page);
-        // A phrase not selected yet: a second tap on the selected one would lift it into focus.
-        await page.locator(".score button.bracket[aria-label][aria-pressed='false']").first().click();
+        // A phrase selected.
+        await selectPhrase(page);
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
         expect(await violations(page)).toEqual([]);
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
@@ -130,17 +134,15 @@ test("marks: the note card, a marker, the highlight swatches, the Contents' note
     expect(await violations(page)).toEqual([]);
 });
 
-test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {
+test("phrase focus: the card with its ossia, the variation chips and the focus bar, in both themes", async ({ page }) => {
     await openFurElise(page);
-    const bracket = page.locator(".score button.bracket[aria-label]").first();
-    await bracket.click();
+    await selectPhrase(page);
     await openInsights(page);
     await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
-    await bracket.click();
+    await focusSelection(page);
     await expect(page.locator(".focus-card .ossia-frame").first()).toBeVisible();
-    await page.locator(".pill").getByRole("button", { name: "Lead-in" }).click();
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     for (const theme of ["daylight", "night"]) {
         await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
@@ -150,8 +152,8 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
 
 test("playback lab with a selection, the Insights stream, an experiment, Adjust and the note editor", async ({ page }) => {
     await openFurElise(page);
-    // A phrase picked: its bracket on the score and the stream of its facts, each with its Evidence.
-    await page.locator(".score button.bracket[aria-label]").nth(1).click();
+    // A phrase picked and the stream of its facts, each with its Evidence.
+    await selectPhrase(page, 1);
     const stream = await openInsights(page);
     await stream.getByRole("button", { name: "Evidence" }).first().click();
     expect(await violations(page)).toEqual([]);
@@ -183,7 +185,7 @@ test("playback lab with a selection, the Insights stream, an experiment, Adjust 
 
 test("kept for this phrase: a kept variation with its note, renaming, a note alone and deleting", async ({ page }) => {
     await openFurElise(page);
-    await page.locator(".score button.bracket[aria-label]").first().click();
+    await selectPhrase(page);
     await openInsights(page);
     const card = page.locator(".stream .explore");
     const kept = page.locator(".observations");

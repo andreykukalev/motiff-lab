@@ -59,6 +59,9 @@ public sealed record DnaKey(MusicalKey Key, TickSpan Span, int FirstBar, int Las
 {
     /// <summary>Some of the key comes from the notes rather than the file: shown as assumed.</summary>
     public bool Inferred => ModeInferred || KeyInferred;
+
+    /// <summary>When the key is read from notes that include recognised ones still to check, where they are (<see cref="NoteDoubt"/>, #352); null otherwise.</summary>
+    public string? Doubt { get; init; }
 }
 
 /// <summary>The chord a bar of the harmony lane holds most of its length.</summary>
@@ -71,6 +74,9 @@ public sealed record DnaChord(int Bar, TickSpan Span, string Symbol, bool Clear)
 
     /// <summary>What the chord does in the bar's key: tonic, subdominant, dominant; none for a chord with a note outside it.</summary>
     public HarmonicFunction Function { get; init; }
+
+    /// <summary>Why the chord is drawn as uncertain when it rests on recognised notes still to check (<see cref="NoteDoubt"/>, #352); null otherwise.</summary>
+    public string? Doubt { get; init; }
 }
 
 /// <summary>A close of a phrase, a dot on the harmony lane: full on the tonic, half on the dominant, inferred.</summary>
@@ -467,6 +473,19 @@ public sealed record PieceDna(
                 }.OfType<string>()]) + ".";
 
         return new DnaIdea("idea_1", true, span, firstBar, lastBar, [.. motif.Select(note => note.Id)], occurrences, title, summary);
+    }
+
+    /// <summary>
+    /// The key the piece starts in, as the key lane reads it (the Reference's circle marks it): the file's first key
+    /// signature with its mode, chosen from the notes when the file gives none, or the key that fits all the notes best,
+    /// marked inferred; null for a piece without notes.
+    /// </summary>
+    public static DnaKey? OpeningKey(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        ArgumentNullException.ThrowIfNull(keys);
+        return notes.Count == 0 ? null : KeyLane(notes, meter, keys, notes.Min(note => note.Span.Onset), Later(end, notes.Max(note => note.Span.End))).FirstOrDefault();
     }
 
     /// <summary>

@@ -178,4 +178,31 @@ public class MotifSelectorTests
         Assert.Equal(["w", "x", "y"], forward.NoteIds);
         Assert.Equal(forward.NoteIds, backward.NoteIds);
     }
+
+    [Fact]
+    public void To_beats_widens_a_passage_to_the_beats_it_touches_so_it_can_start_and_end_mid_bar()
+    {
+        // From inside beat 1 of bar 2 to inside beat 3 of bar 3: from beat 1 of bar 2 to the end of beat 3 of bar 3.
+        Assert.Equal(Span(Bar, (2 * Bar) + (3 * Beat)), MotifSelector.ToBeats(MeterMap.Default, Span(Bar + 300, (2 * Bar) + 1000)));
+        // On beat lines already: beats 2 and 3 of bar 2 stay as they are.
+        Assert.Equal(Span(Bar + Beat, Bar + (3 * Beat)), MotifSelector.ToBeats(MeterMap.Default, Span(Bar + Beat, Bar + (3 * Beat))));
+        // Inside one beat: that beat.
+        Assert.Equal(Span(Bar + Beat, Bar + (2 * Beat)), MotifSelector.ToBeats(MeterMap.Default, Span(Bar + 500, Bar + 501)));
+        Assert.Equal(Span(Bar + Beat, Bar + (2 * Beat)), MotifSelector.ToBeats(MeterMap.Default, Span(Bar + Beat, Bar + Beat + 1)));
+    }
+
+    [Fact]
+    public void To_beats_counts_beats_by_the_time_signature_from_the_end_of_a_pickup_and_never_past_a_bar_cut_short()
+    {
+        // A pickup's beats count from the end of a full bar: the one-beat pickup is one beat, from 0.
+        Assert.Equal(Span(0, 2 * Beat), MotifSelector.ToBeats(s_pickup, Span(100, 900)));
+        // 6/8 counts in eighths.
+        var sixEight = new MeterMap([new MeterChange(Tick.Zero, new TimeSignature(6, 8))]);
+        Assert.Equal(Span(240, 720), MotifSelector.ToBeats(sixEight, Span(250, 700)));
+        // 4/4 changed to 3/4 at 1200 cuts bar 1 short: its last beat ends at the change, not a beat later.
+        var cut = new MeterMap([new MeterChange(Tick.Zero, TimeSignature.CommonTime), new MeterChange(new Tick(1200), new TimeSignature(3, 4))]);
+        Assert.Equal(Span(960, 1200), MotifSelector.ToBeats(cut, Span(1000, 1100)));
+        Assert.Equal(new Tick(1200), MotifSelector.BeatStart(cut, new Tick(1300)));
+        Assert.Equal(new Tick(1680), MotifSelector.BeatEnd(cut, new Tick(1300)));
+    }
 }

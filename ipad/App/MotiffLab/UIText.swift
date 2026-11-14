@@ -1,7 +1,7 @@
 import Foundation
 
 /// The interface's words, from the web app's own string files (src/MotiffLab.Web/wwwroot/i18n/*.json, copied into the
-/// app as i18n/), so both apps say the same thing (0018 section 14). Russian when the iPad prefers it, else English.
+/// app as i18n/), so both apps say the same thing (0018 section 14), and the iPad's own few (ipad/App/Words/*.json). Russian when the iPad prefers it, else English.
 /// Musical text never comes from here: music-core writes it in the piece's language.
 struct UIText: Sendable {
     let language: String
@@ -45,8 +45,14 @@ struct UIText: Sendable {
         return "many"
     }
 
+    /// The web app's words, with the iPad's own (ipad/App/Words, copied into the app as Words/) for what only the iPad says;
+    /// the web's text stands where both name a key.
     private static func load(_ language: String, _ bundle: Bundle) -> [String: String] {
-        guard let url = bundle.url(forResource: language, withExtension: "json", subdirectory: "i18n"),
+        read(language, "i18n", bundle).merging(read(language, "Words", bundle)) { web, _ in web }
+    }
+
+    private static func read(_ language: String, _ folder: String, _ bundle: Bundle) -> [String: String] {
+        guard let url = bundle.url(forResource: language, withExtension: "json", subdirectory: folder),
               let data = try? Data(contentsOf: url),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: String]
         else { return [:] }

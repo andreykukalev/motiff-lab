@@ -19,20 +19,46 @@ final class Player: ObservableObject {
     }
     @Published private(set) var ready = false
     @Published private(set) var problem: String?
-    @Published var tempoPercent = 100 { didSet { send(.rate(Double(tempoPercent) / 100)) } }
+    /// The playback tempo and the piece's (#511 section 17): an object of its own, so that the pill's tempo control observes
+    /// it alone and is not drawn again with every position report while playing; a change applies to the engine at once.
+    let tempo = TempoSetting()
+    /// The playback tempo, 25 % to 150 % of the piece's, as resume points keep it.
+    var tempoPercent: Int {
+        get { tempo.percent }
+        set { tempo.percent = newValue }
+    }
+    /// The engine's clicks on the piece's beats while it plays: on while the metronome (`Metronome.shared`) runs, which
+    /// keeps its own clicks silent then (#521 section 15).
     @Published var metronome = false { didSet { send(.metronome(metronome)) } }
-    /// One bar of clicks before the music, as the web app's Count-in.
-    @Published var countIn = false { didSet { send(.countIn(countIn ? 1 : 0)) } }
 
-    static let tempoChoices = [25, 50, 75, 90, 100, 110, 125, 150]
+    init() {
+        tempo.changed = { [weak self] percent in self?.send(.rate(Double(percent) / 100)) }
+    }
+
+    /// Which hands sound (#328, an experiment): the piece's notes as music-core gives them for both hands or for one
+    /// alone. A change applies at once, also while playing, and the loop and the place stay.
+    @Published var hands = PlayerHands.both {
+        didSet { if oldValue != hands { Task { await applyHands() } } }
+    }
+    /// Which hands the piece's notes carry, and whether any was inferred, from music-core's playback score.
+    @Published private(set) var handsHeld = HandsHeld()
+    /// The beat lines of the piece in ticks, from music-core's playback score: what a selection by beats snaps to (#349).
+    private(set) var beatLines: [Double] = []
+    /// The piece played, for hearing one hand alone.
+    private var piece: Int32?
+    /// The piece's project id, by which the metronome keeps its tempo on the device, and the first bar's time signature
+    /// numerator.
+    private(set) var pieceKey: String?
+    private(set) var firstBarBeats: Int?
 
     private let audio = AVAudioEngine()
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
     private var polling: Task<Void, Never>?
 
-    /// Starts the audio, loads the piano and the piece's playback score from music-core.
-    func load(piece: Int32) async {
+    /// Starts the audio, loads the piano and the piece's playback score from music-core; the metronome follows its piece
+    /// tempo, kept under `key`.
+    func load(piece: Int32, key: String? = nil) async {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default)
@@ -56,10 +82,19 @@ final class Player: ObservableObject {
             }
             renderer.send(.samples(try await piano.value))
             renderer.send(.timeline(score.timeline))
+            renderer.send(.rate(Double(tempo.percent) / 100))
+            tempo.reading = score.tempo
             barNumbers = score.barNumbers
+            beatLines = score.timeline.beats.map(\.at)
+            barBeats = score.barBeats
+            handsHeld = score.hands
+            self.piece = piece
             renderer.send(.source(id: "piece", notes: score.notes))
             renderer.send(.activeSources(["piece"]))
             ready = true
+            pieceKey = key
+            firstBarBeats = score.timeline.bars.first.map { Int($0.beatsPerBar) }
+            Metronome.shared.attach(self)
             startPolling()
         } catch {
             problem = (error as? PlayerError)?.message ?? error.localizedDescription
@@ -71,8 +106,8 @@ final class Player: ObservableObject {
         send(state == .stopped ? .play : .pause)
     }
 
-    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and Count-in and the
-    /// tempo with it); a tap on the page with nothing selected puts it away.
+    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and the tempo with
+    /// it); a tap on the page with nothing selected puts it away.
     @Published var transportKept = false
 
     /// Back to the start, playing on if it was playing.
@@ -91,11 +126,45 @@ final class Player: ObservableObject {
         if state == .stopped { send(.play) }
     }
 
+    /// The playhead moved on the roll (v0.2). Dragged or nudged it only moves: playing, the music goes on from there; paused,
+    /// it waits there, and Play goes on from there. A tap (`play`) plays from there, looping `selection` first when nothing
+    /// loops yet. It stays inside the loop, which keeps its span, as the tempo does.
+    func move(to tick: Double, play: Bool, selection: Range<Double>?) {
+        if play, loop == nil, let selection {
+            setLoop(selection, from: Self.place(tick, inside: selection))
+            return
+        }
+        send(.seek(Self.place(tick, inside: loop)))
+        // Playing already, the engine plays on; Play is only for when it was still.
+        if play { send(.play) }
+    }
+
+    /// Where the playhead may go: inside the loop when one plays (before its end, so playing does not run past it), else
+    /// anywhere from the start.
+    nonisolated static func place(_ tick: Double, inside loop: Range<Double>?) -> Double {
+        guard let loop, !loop.isEmpty else { return max(0, tick) }
+        return min(max(tick, loop.lowerBound), max(loop.lowerBound, loop.upperBound - 1))
+    }
+
     /// The passage that loops, in ticks; nil when nothing loops.
     @Published private(set) var loop: Range<Double>?
 
-    /// Loops a passage and plays it from its start, or stops looping (0018 section 7: a selection loops the selection).
-    func setLoop(_ range: Range<Double>?) {
+    /// Loops a passage and plays it from its start, or from `start` when given, or stops looping (0018 section 7: a selection
+    /// loops the selection). With `play` false the loop is set and waits for Play, as a resumed piece's does (#327). With
+    /// `once` the passage plays through once and stops at its end, back at its start (the selection Play without Loop).
+    func setLoop(_ range: Range<Double>?, from start: Double? = nil, play: Bool = true, once: Bool = false) {
+        applyLoop(range, once: once)
+        guard let range else { return }
+        if let start {
+            send(.seek(start))
+        } else if !range.contains(tick) {
+            send(.seek(range.lowerBound))
+        }
+        if play && state == .stopped { send(.play) }
+    }
+
+    /// The engine loops a passage, or nothing, and the place stays.
+    private func applyLoop(_ range: Range<Double>?, once: Bool = false) {
         loop = range
         // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
         if hearingAlone {
@@ -112,9 +181,85 @@ final class Player: ObservableObject {
             send(.loopOff)
             return
         }
-        send(.loop(start: range.lowerBound, end: range.upperBound))
-        if !range.contains(tick) { send(.seek(range.lowerBound)) }
-        if state == .stopped { send(.play) }
+        send(.loop(start: range.lowerBound, end: range.upperBound, once: once))
+    }
+
+    // MARK: - The playback model (version 0.5.2, #495 UX-10; Settings · Experimental, «Два указателя и режимы»)
+
+    /// The selection as the range it plays (the model's S), the player's copy of the score's: the player owns it and Цикл,
+    /// and the views only read them (PlaybackModel).
+    @Published private(set) var selection: Range<Double>?
+
+    /// Цикл: the selection loops while it is on, and Play keeps the position inside it. It turns on by itself when a
+    /// selection appears, and is kept while there is none.
+    @Published private(set) var cycle = true
+
+    /// The piece's beats as bar.beat, from music-core's playback score: the pill's and the roll's words for a place.
+    private(set) var barBeats = BarBeats()
+
+    /// The position as bar.beat, "16.2"; empty before the score is read.
+    var placeLabel: String {
+        barBeats.at(tick)?.text ?? ""
+    }
+
+    /// The model's state now: the selection and Цикл are the player's, the position and the transport the engine's.
+    var model: PlaybackModel.State {
+        PlaybackModel.State(selection: selection, loop: cycle, tick: tick, transport: state)
+    }
+
+    /// A playhead held by the pen or a finger now (T14–T16, PlayheadDrag.swift); nil while none is.
+    var drag: PlayheadDrag?
+
+    /// One event of the playback model: the engine gets its steps, and the selection and Цикл become what the model says;
+    /// the position and the transport come back from the engine. A drag gives the state as it holds it (`from`). Returns the
+    /// state the model expects once the engine has the steps.
+    @discardableResult
+    func apply(_ event: PlaybackModel.Event, from given: PlaybackModel.State? = nil) -> PlaybackModel.State {
+        let decided = PlaybackModel.next(given ?? model, event)
+        selection = decided.state.selection
+        cycle = decided.state.loop
+        perform(decided.steps)
+        return decided.state
+    }
+
+    /// The score's selection as it is now, after focus or with the experiment turned on: the model takes it (T9–T11), and
+    /// the engine loops what the model says again, in place of the loop another owner, such as focus, gave it.
+    func hold(selection range: Range<Double>?) {
+        apply(.select(range))
+        let wanted = PlaybackModel.engineLoop(model)
+        if wanted != loop { applyLoop(wanted) }
+    }
+
+    /// A tap on a beat, a bar or the whole-piece strip (T12): the position goes there, playing on from there when it plays,
+    /// and Цикл turns off when it leaves the selection; `play` starts it from there.
+    func go(to at: Double, play: Bool) {
+        apply(.seek(at))
+        if play && state == .stopped {
+            perform([.play])
+        }
+    }
+
+    /// The model's steps to the engine; its loop goes through applyLoop, so `loop` says what the engine loops.
+    func perform(_ steps: [TransportStep]) {
+        for step in steps {
+            switch step {
+            case .pause:
+                send(.pause)
+            case .play:
+                transportKept = true
+                send(.play)
+            case .seek(let at):
+                send(.seek(at))
+            case .loop(let range):
+                applyLoop(range)
+            case .loopOff:
+                applyLoop(nil)
+            case .scrub(let from, let to):
+                send(.scrub(from: from, to: to))
+            case .scrubEnd:
+                send(.scrubEnd)
+            }
+        }
     }
 
     /// What sounds (0018 section 7, Original / Variation / Alternate): the piece, the piece with the variation being tried
@@ -203,20 +348,46 @@ final class Player: ObservableObject {
     /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
     /// (0022): the timeline and the notes are sent anew, and whatever plays or loops carries on.
     func reload(piece: Int32) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
+        let request = Self.handsRequest(hands)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
         guard let score = PlaybackScore.read(answer) else { return }
+        tempo.reading = score.tempo
         barNumbers = score.barNumbers
+        beatLines = score.timeline.beats.map(\.at)
+        barBeats = score.barBeats
+        handsHeld = score.hands
         send(.timeline(score.timeline))
         send(.source(id: Self.pieceSource, notes: score.notes))
+        Metronome.shared.pieceChanged(self)
+    }
+
+    /// The piece's notes for the hands chosen, in place of those that sounded: what plays or loops carries on (#328).
+    private func applyHands() async {
+        guard let piece else { return }
+        let chosen = hands
+        let request = Self.handsRequest(chosen)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
+        // Another choice came while music-core answered: the newer one sends its own notes.
+        guard chosen == hands, let score = PlaybackScore.read(answer) else { return }
+        send(.source(id: Self.pieceSource, notes: score.notes))
+    }
+
+    /// The `playback` request for the hands chosen: nothing for both, as before the experiment.
+    nonisolated static func handsRequest(_ hands: PlayerHands) -> String? {
+        hands == .both ? nil : "{\"hands\": \"\(hands.rawValue)\"}"
     }
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
+        // A playhead held as the screen closes is let go where it is: what the drag sounds fades, the pause ends the rest.
+        if drag != nil { send(.scrubEnd) }
+        drag = nil
         polling?.cancel()
         polling = nil
         send(.pause)
         audio.stop()
         ready = false
+        Metronome.shared.detach(self)
     }
 
     /// The node that pulls blocks from the engine. It is made outside the main actor: its block runs on the audio thread.
@@ -252,6 +423,7 @@ final class Player: ObservableObject {
         if state != position.state {
             let started = state != .stopped
             state = position.state
+            Metronome.shared.playbackChanged(self)
             // Notes heard alone that came to their end give way to the piece.
             if hearingAlone && started && state == .stopped { setLoop(nil) }
         }
@@ -350,6 +522,12 @@ struct PlaybackScore: Sendable {
     var timeline: PlaybackTimeline
     /// Where each bar starts and the number it is printed with, in time order: "Back to playback · bar 12".
     var barNumbers: [(start: Double, number: Int)] = []
+    /// Which hands the piece's notes carry, and whether any was inferred (#328).
+    var hands = HandsHeld()
+    /// Each beat's bar and beat, for writing a place as bar.beat (v0.5.2).
+    var barBeats = BarBeats()
+    /// The tempo at the start and where it comes from (v0.5.4, #511 section 17); nil from a music-core before it.
+    var tempo: TempoReading?
 
     static func read(_ text: String) -> PlaybackScore? {
         guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
@@ -376,70 +554,12 @@ struct PlaybackScore: Sendable {
             guard let start = number(bar["onset"]), let printed = number(bar["number"]) else { return nil }
             return (start, Int(printed))
         }
-        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end), barNumbers: numbers)
+        let timeline = PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end)
+        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: object), barBeats: BarBeats.read(items("beats")),
+                             tempo: TempoReading.read(object))
     }
 
     private static func number(_ value: Any?) -> Double? {
         (value as? NSNumber)?.doubleValue
-    }
-}
-
-/// The piano the web app plays (Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0, tools/piano): its 30 MP3
-/// samples and `piano.json`, copied into the app from the web app's files.
-enum Piano {
-    /// The attack starts where the sample first rises above this share of its peak; encoders add silence before it.
-    private static let onsetThreshold: Float = 0.003
-    private static let onsetLeadSeconds = 0.002
-
-    static func load(bundle: Bundle = .main) throws -> [SampleRegion] {
-        guard let folder = bundle.url(forResource: "piano", withExtension: nil),
-              let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("piano.json"))) as? [String: Any],
-              let samples = manifest["samples"] as? [[String: Any]], !samples.isEmpty
-        else { throw PlayerError(message: "The piano samples are missing from the app.") }
-
-        return try samples.map { sample in
-            guard let file = sample["file"] as? String, let pitch = (sample["pitch"] as? NSNumber)?.intValue else {
-                throw PlayerError(message: "piano.json lists a sample without its file or note.")
-            }
-            let audio = try AVAudioFile(forReading: folder.appendingPathComponent(file))
-            let format = audio.processingFormat
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audio.length)) else {
-                throw PlayerError(message: "The piano sample \(file) could not be read.")
-            }
-            try audio.read(into: buffer)
-            return SampleRegion(
-                pitch: pitch,
-                tuneCents: (sample["tuneCents"] as? NSNumber)?.doubleValue ?? 0,
-                data: trimmedToOnset(buffer),
-                sampleRate: format.sampleRate
-            )
-        }
-    }
-
-    /// A mono copy of the decoded sample from just before its attack, so every note starts on time.
-    static func trimmedToOnset(_ buffer: AVAudioPCMBuffer) -> [Float] {
-        guard let channels = buffer.floatChannelData else { return [] }
-        let count = Int(buffer.frameLength)
-        let channelCount = Int(buffer.format.channelCount)
-        var peak: Float = 0
-        for c in 0..<channelCount {
-            for i in 0..<count { peak = max(peak, abs(channels[c][i])) }
-        }
-
-        let threshold = peak * onsetThreshold
-        var onset = 0
-        search: for i in 0..<count {
-            for c in 0..<channelCount where abs(channels[c][i]) > threshold {
-                onset = i
-                break search
-            }
-        }
-
-        let start = max(0, onset - Int((onsetLeadSeconds * buffer.format.sampleRate).rounded()))
-        var mono = [Float](repeating: 0, count: count - start)
-        for c in 0..<channelCount {
-            for i in 0..<mono.count { mono[i] += channels[c][start + i] / Float(channelCount) }
-        }
-        return mono
     }
 }

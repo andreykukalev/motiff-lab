@@ -2,7 +2,7 @@
 // selection's cobalt, testing item 28), which the score follows unless the player turns it off in Settings; scrolled away
 // from it, a chip leads back to it. Paused, the line rests where playing stopped.
 import { expect, test } from "@playwright/test";
-import { openFurElise } from "./steps.mjs";
+import { openFurElise, withAudioDiagnostic } from "./steps.mjs";
 
 test("the playhead moves with the playing, and Back to playback finds it after scrolling away", async ({ page, browserName, isMobile }) => {
     // A small upright window: the page is fitted to its width, so the opening runs below the screen.
@@ -13,11 +13,15 @@ test("the playhead moves with the playing, and Back to playback finds it after s
     await expect(line).toBeHidden();
 
     await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
-    await expect(line).toBeVisible();
-    await expect(wash).toBeVisible();
-    const first = await line.evaluate(element => element.style.transform);
-    await expect.poll(() => line.evaluate(element => element.style.transform)).not.toBe(first);
-    await expect(line).not.toHaveClass(/resting/);
+    // Once in WebKit the engine never reported playing after this press (#401): if it happens again, the test's output
+    // says what the audio did.
+    await withAudioDiagnostic(page, test.info(), async () => {
+        await expect(line).toBeVisible();
+        await expect(wash).toBeVisible();
+        const first = await line.evaluate(element => element.style.transform);
+        await expect.poll(() => line.evaluate(element => element.style.transform)).not.toBe(first);
+        await expect(line).not.toHaveClass(/resting/);
+    });
 
     // Scrolled far from the playing, the chip says where it is and brings the score back to it.
     const score = page.locator("div.score");

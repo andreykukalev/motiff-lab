@@ -138,7 +138,7 @@ jobs:
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
-                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|VERSION|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/workflows/version.yml) ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
                   app=true ;;
@@ -306,19 +306,21 @@ jobs:
         if: steps.changes.outputs.publish == 'true'
         run: dotnet workload install wasm-tools
 
-      # Sign-in and saving online (0014) in the deployed app: the External ID tenant and the services' addresses come
-      # from repository variables that infra/azure/setup.ps1 sets. Pull request builds keep the committed
-      # appsettings.json, with no accounts.
+      # Sign-in and saving online (0014) in the deployed app, on the main address and on the web test site (develop,
+      # whose address infra/azure/test-site-signin.ps1 registers for sign-in): the External ID tenant and the services'
+      # addresses come from repository variables that infra/azure/setup.ps1 sets. The test site uses develop's own API and
+      # scan server (rg-motifflab-dev, API_URL_DEV and SCAN_URL_DEV from infra/azure/dev-env.ps1) once they are set, and
+      # main's until then. Pull request builds keep the committed appsettings.json, with no accounts.
       - name: Write the sign-in settings
         if: >-
-          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' && steps.changes.outputs.site == 'production' &&
+          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
           vars.AUTH_AUTHORITY != '' && vars.AUTH_CLIENT_ID != '' && vars.AUTH_AUDIENCE != '' && vars.API_URL != ''
         env:
           AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
           CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
           AUDIENCE: ${{ vars.AUTH_AUDIENCE }}
-          API_URL: ${{ vars.API_URL }}
-          SCAN_URL: ${{ vars.SCAN_URL }}
+          API_URL: ${{ steps.changes.outputs.site == 'develop' && vars.API_URL_DEV || vars.API_URL }}
+          SCAN_URL: ${{ steps.changes.outputs.site == 'develop' && vars.SCAN_URL_DEV || vars.SCAN_URL }}
         run: |
           for address in "$API_URL" "${SCAN_URL:-https://unset}"; do
             if [[ ! "$address" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
@@ -338,8 +340,8 @@ jobs:
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
 
       # Provisions infra/main.bicep (from main only) and deploys the published app to Azure Static Web Apps: main to
-      # the main address, develop to the environment "develop" (the web test site, without sign-in: its address is
-      # not a registered redirect). Pull requests are built and tested but not deployed.
+      # the main address, develop to the environment "develop" (the web test site, with the same sign-in). Pull
+      # requests are built and tested but not deployed.
       # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
       # Skipped until the bootstrap has set the AZURE_* repository variables.
       - uses: azure/login@v2

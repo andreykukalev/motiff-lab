@@ -100,6 +100,12 @@ public sealed record MotifFact(string Id, FactLens Lens, FactCertainty Certainty
     /// <summary>The line the stream shows: the brief when there is one, the text otherwise.</summary>
     public string Claim => Brief ?? Text;
 
+    /// <summary>
+    /// "Rests on recognised notes still to check in bar 5." when the fact is built on recognised notes the player has
+    /// still to check (<see cref="NoteDoubt"/>, #352); null otherwise.
+    /// </summary>
+    public string? Doubt { get; init; }
+
     public bool Equals(MotifFact? other) =>
         other is not null
         && Id == other.Id
@@ -108,6 +114,7 @@ public sealed record MotifFact(string Id, FactLens Lens, FactCertainty Certainty
         && Text == other.Text
         && Brief == other.Brief
         && Basis == other.Basis
+        && Doubt == other.Doubt
         && Places.SequenceEqual(other.Places);
 
     public override int GetHashCode() => HashCode.Combine(Id, Lens, Certainty, Text, Places.Count);

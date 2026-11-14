@@ -1,6 +1,6 @@
 // Pro (decision record 0018, section 12; preparation item 14): what needs the cloud is Pro. The API tells the app the
 // player's plan (GET /account), Settings shows it, a tester gets a switch whose choice goes with every request as the
-// Motiff-Plan header, and without Pro saving online and the hosted scan server are offered no further. The build under
+// Motiff-Plan header, and without Pro the hosted scan server is offered no further; saving online is free (0025 section 8). The build under
 // test has no sign-in, so the test gives it sign-in settings, plays MSAL's script as a signed-in player, and plays the API.
 import { expect, test } from "@playwright/test";
 import { openFurElise, selectBar } from "./steps.mjs";
@@ -11,8 +11,11 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 
 test.use({ serviceWorkers: "block" });
 
-/** A signed-in player whose account the API answers as the plan the tester chose, or `own` without a choice. */
-async function signedIn(page, { tester, own }) {
+/**
+ * A signed-in player whose account the API answers as the plan the tester chose, or `own` without a choice: once `held`
+ * settles when given (an API waking up), never when `unanswered`.
+ */
+async function signedIn(page, { tester, own, held, unanswered = false }) {
     const choices = [];
     await page.route("**/appsettings.json", route => route.fulfill({
         json: {
@@ -42,12 +45,16 @@ async function signedIn(page, { tester, own }) {
             completeSignOut: async () => ({ status: "success" }),
         };`,
     }));
-    await page.route(`${api}/**`, route => {
+    await page.route(`${api}/**`, async route => {
         const request = route.request();
         if (request.method() === "OPTIONS") {
             return route.fulfill({ status: 204, headers: { ...cors, "Access-Control-Allow-Methods": "GET, PUT, DELETE" } });
         }
         if (new URL(request.url()).pathname === "/account") {
+            await held;
+            if (unanswered) {
+                return route.abort("timedout");
+            }
             const choice = tester ? request.headers()["motiff-plan"] ?? null : null;
             choices.push(choice);
             const plan = choice ?? own;
@@ -63,18 +70,52 @@ async function signedIn(page, { tester, own }) {
     return choices;
 }
 
-test("a free player is told what Pro adds and cannot turn saving online on", async ({ page }) => {
+test("a free player is told what Pro adds and saves online for free", async ({ page }) => {
     await signedIn(page, { tester: false, own: "free" });
     await page.goto("settings");
 
     await expect(page.locator("#plan")).toContainText("Free");
     await expect(page.getByLabel("Testing")).toHaveCount(0);
-    await expect(page.getByLabel("Save my projects online")).toBeDisabled();
-    await expect(page.locator("#online-status")).toHaveText("Saving online is part of Pro.");
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeChecked();
+    await expect(page.locator("#online-status")).toContainText("Free for up to 300 pieces.");
 
     await page.goto("import/scan");
     await expect(page.getByText("Scanning runs on Motiff Lab's server and is part of Pro.")).toBeVisible();
     await expect(page.getByLabel("Choose a PDF or photo of printed music to scan")).toHaveCount(0);
+});
+
+// The API sleeps while nobody uses it and takes about half a minute to wake (2026-11-12): the account shows at once, the
+// plan says it is being checked, and "did not answer" only when the API did not.
+test("while the API wakes, the plan says the server is waking up and the rest of the account shows", async ({ page }) => {
+    let wake;
+    const held = new Promise(resolve => { wake = resolve; });
+    await signedIn(page, { tester: false, own: "free", held });
+    await page.goto("settings");
+
+    await expect(page.locator("#plan")).toContainText("The server is waking up, waiting for its answer…");
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeChecked();
+    wake();
+    await expect(page.locator("#plan")).toContainText("Free");
+});
+
+test("an API that does not answer leaves the plan unknown", async ({ page }) => {
+    await signedIn(page, { tester: false, own: "free", unanswered: true });
+    await page.goto("settings");
+
+    await expect(page.locator("#plan")).toContainText("Not known yet: Motiff Lab's server did not answer.");
+});
+
+// The API is left asleep until the plan is needed (Andrei, 2026-11-12): the library does not ask for it, the account asks once.
+test("the plan is asked only when the account shows it, and once", async ({ page }) => {
+    const choices = await signedIn(page, { tester: false, own: "free" });
+    await page.goto("");
+    const account = page.locator(".lib-head").getByRole("button", { name: "Your account: Andrei" });
+    await expect(account).toBeVisible();
+    expect(choices).toEqual([]);
+
+    await account.click();
+    await expect(page.getByRole("dialog", { name: "Your account" }).locator("#plan")).toContainText("Free");
+    expect(choices).toHaveLength(1);
 });
 
 test("a tester switches between Pro and no Pro, and the choice goes to the API", async ({ page }) => {
@@ -82,11 +123,11 @@ test("a tester switches between Pro and no Pro, and the choice goes to the API",
     await page.goto("settings");
 
     await expect(page.locator("#plan")).toContainText("Pro");
-    await expect(page.getByLabel("Save my projects online")).toBeEnabled();
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeEnabled();
 
     await page.getByLabel("Testing").selectOption("free");
     await expect(page.locator("#plan")).toContainText("Free");
-    await expect(page.getByLabel("Save my projects online")).toBeDisabled();
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeEnabled();
     expect(choices.at(-1)).toBe("free");
 
     // The choice stays on this device.

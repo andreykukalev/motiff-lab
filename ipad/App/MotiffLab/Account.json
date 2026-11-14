@@ -6,5 +6,12 @@
     "ScanScope": "api://c9829141-78ce-482a-a2dd-563ad5698d79/Scan",
     "Api": "https://ca-motifflab-api.salmonplant-06c075b3.polandcentral.azurecontainerapps.io",
     "Scan": "https://ca-motifflab-scan.salmonplant-06c075b3.polandcentral.azurecontainerapps.io"
+  },
+  "Environments": {
+    "Default": "main",
+    "Test": {
+      "Api": "https://ca-motifflab-api-dev.wonderfuldesert-8895dc81.polandcentral.azurecontainerapps.io",
+      "Scan": "https://ca-motifflab-scan-dev.wonderfuldesert-8895dc81.polandcentral.azurecontainerapps.io"
+    }
   }
 }

@@ -20,7 +20,7 @@ public partial class PlaybackLab
     private TickSpan? _menuMoreFor;
 
     /// <summary>Whether the contextual menu shows: something is selected on the page and the pen is not writing.</summary>
-    private bool MenuShown => _selection is not null && !_penOn && _score is not null && !Focused;
+    private bool MenuShown => _selection is not null && !_penOn && _score is not null && !Focused && !Practicing;
 
     /// <summary>Whether the overflow is open for the selection shown now.</summary>
     private bool MenuMoreOpen => _menuMore && _menuMoreFor == _selection?.Span;

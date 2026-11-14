@@ -36,6 +36,17 @@ public sealed class Preferences(IJSRuntime js) : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Whether the player turned «Мои правки» off for a piece on this device (version 0.5): kept by the project's id, never
+    /// in the project, so on another device the corrections are on.
+    /// </summary>
+    public async Task<bool> EditsOffAsync(string projectId) => await GetAsync(EditsOffKey(projectId)) == "1";
+
+    /// <summary>Remembers the corrections off for a piece on this device, or forgets it when they are on again.</summary>
+    public Task SetEditsOffAsync(string projectId, bool off) => SetAsync(EditsOffKey(projectId), off ? "1" : null);
+
+    private static string EditsOffKey(string projectId) => $"edits.off.{projectId}";
+
     public async ValueTask DisposeAsync()
     {
         if (_module is not null)

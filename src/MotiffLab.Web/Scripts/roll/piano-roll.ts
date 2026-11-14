@@ -12,8 +12,6 @@ import {
     ROW_AT_100,
     RollModel,
     fill,
-    fitRow,
-    fitZoom,
     isBlackKey,
     keyIndexAt,
     laneKey,
@@ -27,10 +25,94 @@ import {
     type RollPayload,
 } from "./roll-model.js";
 import { THEME_CHANGED } from "../layout/theme.js";
+import { PRACTICE_EVENT, practiced, shownAt } from "../layout/practice-view.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
+import { PlayheadControl, beatAt, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
+import { type InteractionMode, modeOf } from "../score/score-modes.js";
+import {
+    actsOnRoll,
+    drawBox,
+    drawPlayheads,
+    gestureFor,
+    holdKeepsSelection,
+    modeSelects,
+    navigatesOnRoll,
+    notesInBox,
+    playheadKnobs,
+    rollPlaces,
+    selectsOnRoll,
+    type RollGesture,
+} from "./roll-modes.js";
+import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, laneShown, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
+import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
+import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
+import { HoldToPlace } from "../playback/hold-place.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
+import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
+import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
+import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
+import {
+    chase,
+    easing,
+    edgeScroll,
+    fitFrame,
+    fitZoom,
+    followPlayhead,
+    frameOf,
+    glideFrame,
+    milliseconds,
+    overviewSpan,
+    paddedPitches,
+    revealSelection,
+    scrollLimits,
+    selectionShift,
+    viewAlong,
+    viewOnLoad,
+    zoomOutAfter,
+    type ViewFrame,
+    type ZoomOutEvent,
+} from "./roll-view.js";
+
+/** Who edits and who moves the iPad's roll (InputRules.swift RollInput), and whether the stylus selects (#511 4.1). */
+interface PointerRules {
+    touch: boolean;
+    pen: boolean;
+    scrollFingers: number;
+    penSelects?: boolean;
+}
+
+/** A range dragged across the roll (see PianoRoll.drag). */
+interface RangeDrag {
+    pointer: number;
+    anchorX: number;
+    anchor: number;
+    current: number;
+    edge: boolean;
+    offset?: number;
+    how?: SelectionChange;
+    gesture?: string;
+}
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
+}
+
+/**
+ * A pinch: the fingers' spread (with the zoom on each axis, as last measured, #521 4), the zoom and the rows when it started,
+ * the fingers' middle and the view then, and with the zoom on each axis how much it has zoomed each one since it began.
+ */
+interface Pinch {
+    distance: number;
+    zoom: number;
+    rowScale: number;
+    dx: number;
+    dy: number;
+    midX: number;
+    midY: number;
+    scroll: number;
+    top: number;
+    time: number;
+    pitch: number;
 }
 
 /** The part of the playback player (Scripts/playback/playback.ts) the views read every frame. */
@@ -40,6 +122,13 @@ interface PlayerHandle {
     /** Strikes and releases a key by hand, over playback or without it. */
     noteOn?(pitch: number, velocity?: number): void;
     noteOff?(pitch: number): void;
+    /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
+    model?(): ModelState | null;
+    /**
+     * A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll;
+     * with the passage Expand is bound to, it is held inside it (#533 2).
+     */
+    drag?(message: DragMessage, passage?: Span | null): void;
 }
 
 /** A note of the variation drawn over the roll, with where it came from in the motif. */
@@ -60,6 +149,8 @@ const TICKS_PER_QUARTER = 480;
 const DEFAULT_ZOOM = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 480;
+/** How near the least zoom counts as at it, so a zoom laid there by Fit offers no further step out. */
+const ZOOM_SLACK = 1e-6;
 
 /**
  * Down the left (0018 section 4; testing item 13): a band naming each octave once, in words, then a key per row with its
@@ -85,15 +176,17 @@ export type EditTool = "move" | "add" | "delete";
 const CHECK_FLAG = 14;
 const CHECK_TARGET = 22;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
-const HEADER = 24;
+const BAR_ROW = 24;
+/** The playhead's handle under the bar numbers (Andrei, v0.2): drawn this wide and tall; a mouse takes it this near. */
+const KNOB_WIDTH = 12;
+const KNOB_HEIGHT = 16;
+const KNOB_MOUSE = 20;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
-/** The fewest semitones the rows show when they fit a selection. */
-const MIN_PITCH_SPAN = 12;
 const KEYBOARD_HEIGHT = 64;
 
-/** While playing, the view pages on when the playhead passes this share of its width. */
+/** A note or a bar brought into view by the keyboard or a pointer pages on when it passes this share of the width. */
 const FOLLOW_RIGHT = 0.85;
 const FOLLOW_LEFT = 0.15;
 
@@ -103,7 +196,7 @@ const EDGE_GRAB = 6;
 /** A press that moves less than this many pixels is a click, not a drag. */
 const CLICK_SLOP = 4;
 
-/** After the player moves or zooms the roll by hand in touch reading, playback leaves the view there this long (ms). */
+/** After the player moves or zooms the roll by hand, playback leaves the view there this long (ms). */
 const HAND_PAUSE_MS = 4000;
 /**
  * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer (four octaves in the iPad
@@ -133,6 +226,7 @@ let INK = "";
 let MUTED = "";
 /** A halo round outlines drawn on the notes, so they read on every lane colour. */
 let CHARCOAL = "";
+let PAPER = "";
 /** Letters and dots on a note or a lit key. */
 let ON_NOTE = "";
 let ACCENT = "";
@@ -169,7 +263,21 @@ const HIGHLIGHT_UNDERLINE = 4;
 let VARIATION_LINK = "";
 let GHOST_LINE = "";
 let PATTERN_INK = "";
+/** The strips of the iPad's roll (roll-strips.ts): the whole-piece track and its muted words. */
+let STRIP_LINE = "";
+let STRIP_MUTED = "";
 let LANE_COLOURS: string[] = [];
+/** What a finger needs (`--h-touch`) and the handle's corners (`--r-xs`), in pixels. */
+let TOUCH = 44;
+let KNOB_RADIUS = 4;
+/** The free room either side of what Fit lays across the roll (`--s-4`), in pixels. */
+let FIT_MARGIN = 16;
+/** The kit's motion (`--t-slow` for Fit and a selection brought into view, `--t-base` for following the playhead, `--ease`). */
+let GLIDE_MS = 320;
+let FOLLOW_MS = 200;
+/** How far back, in the kit's slow time (`--t-slow`), a press still finds a playhead that moves on while playing (#533 4). */
+let REACH_BACK_MS = 320;
+let EASE: (share: number) => number = (share) => share;
 /** The tokens the palette was last read from, so patterns are made again when the theme changes. */
 let paletteKey = "";
 
@@ -186,6 +294,9 @@ function readPalette(element: Element): boolean {
     SURFACE_DARK = mix(SURFACE, INK, 0.04);
     MUTED = t("ink-2");
     CHARCOAL = t("surface-2");
+    PAPER = t("paper");
+    STRIP_LINE = t("hairline-strong");
+    STRIP_MUTED = t("ink-3");
     ON_NOTE = t("on-accent");
     ACCENT = t("accent");
     BAR_LINE = mix(SURFACE, INK, 0.3);
@@ -208,7 +319,57 @@ function readPalette(element: Element): boolean {
     HIGHLIGHT_BAND = withAlpha(ACCENT, 0.12);
     PATTERN_INK = withAlpha(ON_NOTE, 0.6);
     LANE_COLOURS = [ACCENT, t("teal"), plum, t("ink-carmine"), t("ink-ochre"), t("ink-forest")];
+    TOUCH = Number.parseFloat(t("h-touch")) || TOUCH;
+    KNOB_RADIUS = Number.parseFloat(t("r-xs")) || KNOB_RADIUS;
+    FIT_MARGIN = Number.parseFloat(t("s-4")) || FIT_MARGIN;
+    GLIDE_MS = milliseconds(t("t-slow"), GLIDE_MS);
+    REACH_BACK_MS = GLIDE_MS;
+    FOLLOW_MS = milliseconds(t("t-base"), FOLLOW_MS);
+    EASE = easing(t("ease"));
     return true;
+}
+
+/** The names setNames takes, in its order. */
+type RollNamesArgs = [notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[]];
+
+/**
+ * The last notes and names Blazor sent, by the keys it gave them (#419): the roll in the drawer and the one in focus that
+ * Expand opens show the same piece, so the second takes the model and the names the first was sent instead of having
+ * thousands of notes cross over from .NET again. The model never changes once made, so the rolls can share it.
+ */
+let keptModel: { key: string; model: RollModel } | null = null;
+let keptNames: { key: string; names: RollNamesArgs } | null = null;
+/**
+ * The player's zoom and view as the last roll drew them (#511 section 5.2), by the key of its notes: the web's roll in focus
+ * that Expand opens, and the drawer's opened again, start from the zoom the player left, and on the same notes from the
+ * same place, so going into and out of Expand changes neither.
+ */
+let keptFrame: { key: string | null; frame: ViewFrame } | null = null;
+
+/** The key of a frame brought back from the device (PDF | Notes, #511 section 10): the next roll takes its view on any notes. */
+const RESTORED_FRAME = "restored";
+
+/**
+ * Brings back the zoom and the view the player left the roll at, kept on the device while the other view of the piece was
+ * shown (PDF | Notes, #511 section 10): the next roll made, on the notes engraved again, starts from them. False for a frame
+ * that is not one.
+ */
+export function restoreRollFrame(value: unknown): boolean {
+    const frame = frameOf(value);
+    if (frame !== null) {
+        keptFrame = { key: RESTORED_FRAME, frame };
+    }
+    return frame !== null;
+}
+
+/** The zoom and the view the last roll drew, or the frame brought back and not yet drawn; null before any. */
+export function keptRollFrame(): ViewFrame | null {
+    return keptFrame === null ? null : { ...keptFrame.frame };
+}
+
+/** Whether the player asked for less motion: glides and following then go at once. */
+function reducedMotion(): boolean {
+    return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** Patterns go with colours so that lanes differ by more than colour (WCAG 2.2 AA, 1.4.1). */
@@ -228,6 +389,59 @@ export class PianoRoll {
     private readonly zoomIn: HTMLButtonElement;
     private readonly zoomLevel: HTMLElement;
     private readonly fitButton: HTMLButtonElement;
+    /** Zoom Out (#521 2.2): back to the general overview, shown after Fit laid a selection across the roll. */
+    private readonly overviewButton: HTMLButtonElement;
+    /** Whether Zoom Out shows (roll-view.ts zoomOutAfter): from Fit of a selection until the overview or the selection goes. */
+    private zoomOutShown = false;
+    /** The playhead the player moves (roll-playhead.ts): its control for the keyboard and a screen reader, and its drag. */
+    private readonly playhead: PlayheadControl;
+    /** The whole piece in one line over the roll (v0.5.2, #479 item 25), shown with the lanes. */
+    private readonly overview: HTMLCanvasElement;
+    /**
+     * The lanes of the iPad's roll (v0.5.2, #479 item 25, roll-strips.ts): the black and the blue playheads of the playback
+     * model (#495 UX-10); the loop strip under the bar numbers and the whole piece over them. Off on the web.
+     */
+    private lanes = false;
+    /** Whether the selection loops (Цикл on), and the position written as bar.beat for the whole-piece strip. */
+    private looping = false;
+    private placeLabel = "";
+    /**
+     * A press on the whole-piece strip (#521 1): on the black dot it holds the position (the lanes' black playhead, dragged
+     * through laneDrag); anywhere else the frame round the bars on screen, `offset` ticks right of the view's left edge.
+     */
+    private overviewPress: { pointer: number; position: boolean; offset: number } | null = null;
+    /**
+     * The passage Expand is bound to (#521 19), or null: while it is, the roll shows only it, fitted across its width; the
+     * view moves only within it and its margin, not at all when it fits, the zoom never shows more than it, playback is
+     * followed no further than its end, and no pointer changes the selection. Its playhead is taken and dragged inside it,
+     * as the model's blue one (#533 2), and no band shades it: the passage is all there is to work on (#533 3).
+     */
+    private passage: Span | null = null;
+    /** The zoom and the view before the passage was bound, given back when it goes, so Collapse returns to them (#521 17). */
+    private beforePassage: ViewFrame | null = null;
+    /** Whether the passage is shown as fitted, with no zoom by hand since: a new size (Expand's card, a turn) fits it again. */
+    private passageFitted = false;
+    /** Pointers down on the roll or its whole-piece strip (#521 16): while any is, playback does not move the view. */
+    private readonly holding = new Set<number>();
+    /** A playhead dragged on the roll, by which pointer and where across: held at an edge, the view goes that way (#521 1.2). */
+    private headDrag: { pointer: number; x: number } | null = null;
+    /**
+     * The model's playheads dragged by their handles (#495 UX-08, roll-head-drag.ts): the handle taken, its places, its end.
+     * The web's player hears them straight from the roll (slice W3); the iPad's page passes them on to Swift (OnRollDrag).
+     */
+    private readonly laneDrag = new PlayheadDrag((message) => {
+        if (this.player?.drag !== undefined) {
+            this.player.drag(message, this.passage);
+            return;
+        }
+        void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, message.phase === "move" ? message.tick : null);
+    });
+    /** Where the press on a playhead's handle began, until it moves past a tap. */
+    private lanePress: number | null = null;
+    /** A navigating press held still (#543 3.1, lead decision 2): the black playhead goes where it is held, then follows it. */
+    private readonly hold = new HoldToPlace((pointer, x) => this.holdPlaced(pointer, x));
+    /** Where the playheads were drawn across the roll lately while the music played, for a press to find them (#533 4). */
+    private drawnHeads: { at: number; black: number; blue: number | null }[] = [];
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -246,38 +460,65 @@ export class PianoRoll {
     private octaveNames: string[] = [];
     /** The bars Check flags, drawn on the bar numbers. */
     private checks: { tick: number; bar: number; label: string }[] = [];
-    /** The lowest and highest pitch of the selection's notes, which the rows fit; null for the piece's. */
+    /** The lowest and highest pitch of the selection's notes, brought into view with a new selection out of it; null for none. */
     private motifPitches: { lowest: number; highest: number } | null = null;
     private laneIndex = new Map<number, number>();
+    /** The player's zoom (#511 section 5): only the zoom controls, a pinch, the wheel and Fit change it. */
     private zoom = DEFAULT_ZOOM;
     /** The rows' height as a share of 100 % (ROW_AT_100), zoomed with the time: one zoom for both (testing item 13). */
     private rowScale = 1;
-    /** Fit the next selection shown, or what is in view, once the roll has its width (Fit, and the roll in phrase focus). */
+    /** Fit pressed before the roll had its width: it fits once it has. */
     private pendingFit = false;
-    /** Whether every new selection is fitted to the roll: the roll in phrase focus (testing item 12). */
-    private fitsSelection = false;
+    /** The key of the notes shown, under which the player's zoom and view are kept for the next roll (keptFrame). */
+    private notesKey: string | null = null;
+    /** A glide of the zoom and the view to where Fit or a new selection takes them: from, to, and when it began (ms). */
+    private glide: { from: ViewFrame; to: ViewFrame; began: number } | null = null;
+    /** Where following the playhead is taking the view, eased to frame by frame; a reveal holds until it is there. */
+    private following: { kind: "glue" | "reveal"; scroll: number } | null = null;
+    /** When the last frame was drawn, for easing the view by the time that passed. */
+    private lastFrame = 0;
     /** Fingers on the notes, for a pinch, and the zoom when the pinch started. */
     private readonly touches = new Map<number, { x: number; y: number }>();
-    private pinch: { distance: number; zoom: number; rowScale: number } | null = null;
+    /** A pinch: the fingers' spread, the zoom and the rows when it started, the fingers' middle and the view then. */
+    private pinch: Pinch | null = null;
+    /**
+     * The zoom on each axis (the iPad's roll, v0.5.2, #479 item 23, roll-zoom.ts): the host draws its own controls for the
+     * bars and the octaves in view (OnRollZoom), so the floating zoom goes; a pinch zooms the axis it spreads along and two
+     * fingers move the roll too. Off on the web.
+     */
+    private axisZoom = false;
+    private zoomReported: AxisZoom | null = null;
+    /**
+     * Which pointers edit with the editor on and how many fingers move the roll (the iPad's InputRules, #479 item 23): with a
+     * stylus the stylus edits and a finger moves the roll; without one a finger edits and two move it. Null: every pointer
+     * edits, as on the web.
+     */
+    private pointerRules: PointerRules | null = null;
+    /** A finger's tap in the editor that adds or takes out a note when it is lifted, as a second finger may yet make it a scroll. */
+    private editTap: { pointer: number; x: number; y: number; tick: number; pitch: number } | null = null;
     /**
      * Touch reading (the iPad's roll, #338): a finger on the notes moves through the music instead of selecting, two
-     * fingers zoom the time only, a tap never clears the selection or sounds a note, and every new selection is fitted.
-     * Off by default, as the web app has it.
+     * fingers zoom the time only, and a tap never clears the selection or sounds a note. Off by default, as the web app has it.
      */
     private touchReading = false;
     /** A finger moving the roll in touch reading: where it went down, and the scroll and top row then. */
     private pan: { pointer: number; x: number; y: number; scroll: number; top: number; moving: boolean } | null = null;
-    /** Whether the view is what Fit made of it, so a new size fits it again (touch reading). */
-    private fitted = false;
-    /** Until when, after a move or zoom by hand, playback does not move the view (touch reading). */
+    /** Until when, after a move or zoom by hand, playback does not move the view. */
     private handUntil = 0;
     private scroll = 0;
     private selected = new Set<number>();
     private focusIndex: number | undefined;
     /** The motif selection (S1-M1, S1-M2): its range and its notes, or null for none. */
     private motif: { start: number; end: number; notes: Set<number>; alone: boolean } | null = null;
-    /** A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the selection. */
-    private drag: { pointer: number; anchorX: number; anchor: number; current: number; edge: boolean } | null = null;
+    /** The selection's span shown before the notes came back (BUG-04), until the selection is sent again: not a new one. */
+    private keptSpan: Span | null = null;
+    /**
+     * A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the
+     * selection, `offset` ticks from the pointer; how it changes the selection and the gesture it belongs to (#511 11).
+     */
+    private drag: RangeDrag | null = null;
+    /** The selection gesture on the strips (#511 2, 6.3). */
+    private readonly strip = new RollStripGesture(this.stripHost());
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
     private filtered: Set<number> | null = null;
     /** The range that plays for the selection [start, end), when it differs from what is selected; null for none. */
@@ -314,6 +555,15 @@ export class PianoRoll {
     private labels: RollLabels;
     /** The note editor (testing item 15): on, its tool, the note picked by id, the length of the next note added, and a drag of a note. */
     private editing = false;
+    /** The modes of version 0.5 (roll-modes.ts); null while the experiment is off. */
+    private mode: InteractionMode | null = null;
+    /** The selection, Цикл and transport of the player's model last drawn, so a change of them alone draws again. */
+    private modelDrawn = "";
+    /** A press under the modes: what it began and where; a pan keeps the scroll and rows it started from. */
+    private rulePress: { pointer: number; x: number; y: number; tick: number; pitch: number; gesture: RollGesture; shift: boolean; scroll: number; top: number; moving: boolean } | null = null;
+    /** The box being drawn in Edit notes, to where the pointer is; and the notes the last box took, for the editor. */
+    private box: { x: number; y: number } | null = null;
+    private boxPicked = new Set<number>();
     private editTool: EditTool = "move";
     private editId: string | null = null;
     private editLength = TICKS_PER_QUARTER / 2;
@@ -341,29 +591,46 @@ export class PianoRoll {
         this.legend = document.createElement("div");
         this.legend.className = "roll-legend";
 
-        this.zoomBar = document.createElement("div");
-        this.zoomBar.className = "roll-zoom";
-        this.zoomBar.setAttribute("role", "group");
-        this.zoomOut = zoomButton("−");
-        this.zoomLevel = document.createElement("span");
-        this.zoomLevel.className = "roll-zoom-level";
-        this.zoomIn = zoomButton("+");
-        this.fitButton = zoomButton("");
-        this.fitButton.classList.add("roll-fit");
-        this.zoomBar.replaceChildren(this.zoomOut, this.zoomLevel, this.zoomIn, this.fitButton);
-        this.zoomOut.addEventListener("click", () => this.zoomBy(1 / ZOOM_STEP));
-        this.zoomIn.addEventListener("click", () => this.zoomBy(ZOOM_STEP));
-        this.fitButton.addEventListener("click", () => this.fit());
+        const zoom = floatingZoom({
+            out: () => this.zoomBy(1 / ZOOM_STEP),
+            in: () => this.zoomBy(ZOOM_STEP),
+            fit: () => this.fit(),
+            overview: () => this.zoomOutToOverview(),
+        });
+        ({ bar: this.zoomBar, out: this.zoomOut, level: this.zoomLevel, in: this.zoomIn, fit: this.fitButton, overview: this.overviewButton } = zoom);
 
         this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
         this.applyLabels();
+        this.playhead = new PlayheadControl(
+            () => this.playheadContext(),
+            (tick, play) => void this.dotnet.invokeMethodAsync("OnRollSeek", tick, play),
+            () => this.invalidate(),
+        );
 
-        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend, this.zoomBar);
+        this.overview = document.createElement("canvas");
+        this.overview.className = "roll-overview";
+        this.overview.style.display = "none";
+        this.overview.setAttribute("aria-hidden", "true");
+        this.overview.addEventListener("pointerdown", this.onOverviewDown);
+        this.overview.addEventListener("pointermove", this.onOverviewMove);
+        this.overview.addEventListener("pointerup", this.onOverviewUp);
+        this.overview.addEventListener("pointercancel", this.onOverviewUp);
+        this.overview.addEventListener("lostpointercapture", this.onOverviewUp);
+
+        this.host.replaceChildren(this.overview, this.roll, this.scroller, this.keys, this.legend, this.zoomBar, this.playhead.element);
 
         this.roll.addEventListener("pointerdown", this.onPointerDown);
         this.roll.addEventListener("pointermove", this.onPointerMove);
         this.roll.addEventListener("pointerup", this.onPointerUp);
         this.roll.addEventListener("pointercancel", this.onPointerCancel);
+        // A playhead whose pointer the roll lost is let go, so nothing is left held (#495 UX-08), nor the view (#521 16).
+        this.roll.addEventListener("lostpointercapture", (event) => {
+            if (this.hold.waits(event.pointerId)) {
+                this.hold.cancel();
+            }
+            this.laneDrag.release(event.pointerId);
+            this.holdEnded(event.pointerId);
+        });
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
         this.keys.addEventListener("pointerdown", this.onKeysDown);
@@ -375,14 +642,54 @@ export class PianoRoll {
         document.addEventListener("pointerup", this.onDocumentPointerUp);
         document.addEventListener("keydown", this.onDocumentKeyDown);
         document.addEventListener(THEME_CHANGED, this.onThemeChanged);
+        document.addEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.resizeObserver = new ResizeObserver(() => this.onResize());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
     }
 
-    /** Shows a piece, replacing what was shown. The selection is cleared. */
-    load(payload: RollPayload): void {
-        this.model = RollModel.fromPayload(payload);
+    /**
+     * Shows a piece, replacing what was shown, and keeps it under the key given for the next roll. The selection is cleared.
+     * With `keepView` (the same piece's notes again, after an edit) the zoom and the stretch in view stay (BUG-04).
+     */
+    load(payload: RollPayload, key?: string, keepView = false): void {
+        const model = RollModel.fromPayload(payload);
+        if (key !== undefined) {
+            keptModel = { key, model };
+        }
+        this.show(model, keepView, key ?? null);
+    }
+
+    /** Shows the piece kept under the key, as load does; false when another is kept, so Blazor sends this one. */
+    loadKept(key: string, keepView = false): boolean {
+        if (keptModel?.key !== key) {
+            return false;
+        }
+        this.show(keptModel.model, keepView, key);
+        return true;
+    }
+
+    private show(model: RollModel, keepView: boolean, key: string | null): void {
+        const motif = this.motif;
+        const span = motif === null ? this.keptSpan : { start: motif.start, end: motif.end };
+        let view = viewOnLoad({ scroll: this.scroll, pitchTop: this.pitchTop, span }, keepView, this.editing);
+        // A roll made anew (Expand on the web, the drawer opened again) takes the player's zoom, and on the same notes the view too.
+        const kept = this.model === null ? keptFrame : null;
+        if (kept !== null) {
+            this.zoom = kept.frame.zoom;
+            this.rowScale = kept.frame.rowScale;
+            if (kept.key === RESTORED_FRAME || (key !== null && kept.key === key)) {
+                view = { ...view, scroll: kept.frame.scroll, pitchTop: kept.frame.pitchTop };
+            }
+            this.showZoom();
+        }
+        this.notesKey = key;
+        this.glide = null;
+        this.following = null;
+        if (!keepView) {
+            this.setZoomOut(zoomOutAfter("selectionCleared"));
+        }
+        this.model = model;
         this.selected = new Set();
         this.focusIndex = undefined;
         this.motif = null;
@@ -396,12 +703,13 @@ export class PianoRoll {
         this.drag = null;
         this.press = null;
         this.pan = null;
-        this.fitted = false;
         this.editDrag = null;
-        if (!this.editing) {
-            this.scroll = 0;
-            this.pitchTop = null;
-        } else if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
+        this.rulePress = null;
+        this.boxPicked.clear();
+        this.keptSpan = view.span;
+        this.pitchTop = view.pitchTop;
+        this.scroll = this.clampScroll(view.scroll);
+        if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
             this.editId = null;
         }
         this.updateLanes();
@@ -419,6 +727,7 @@ export class PianoRoll {
         if (!on) {
             this.editId = null;
             this.editDrag = null;
+            this.boxPicked.clear();
         }
         this.roll.classList.toggle("editing", on);
         this.invalidate();
@@ -427,6 +736,23 @@ export class PianoRoll {
     /** Picks a note in the editor, such as one just added, so the arrows and Delete act on it. */
     pickForEdit(id: string | null): void {
         this.editId = id;
+        this.invalidate();
+    }
+
+    /** The mode the bar chose (version 0.5, roll-modes.ts); a null mode keeps the roll as it was. */
+    setRules(mode: string | null): void {
+        const before = this.mode;
+        this.mode = modeOf(mode);
+        if (this.mode !== before) {
+            // Another tool reads presses its own way: one begun under the old tool leaves nothing behind (#543 9).
+            this.cancelPresses();
+        }
+        if (this.mode === null) {
+            this.laneDrag.release();
+            delete this.roll.dataset.mode;
+        } else {
+            this.roll.dataset.mode = this.mode;
+        }
         this.invalidate();
     }
 
@@ -442,21 +768,20 @@ export class PianoRoll {
     /** A press on the notes while the editor is on: picks, starts a drag, adds or takes out a note. */
     private editPress(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
         const index = model.noteAt(tick, pitch);
-        if (this.editTool === "delete") {
-            if (index !== undefined) {
-                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
-            }
+        if (this.editTool !== "move" && this.waitsForLift(event)) {
+            // A finger that edits while two fingers move the roll (an iPad without a stylus): it adds or takes out when lifted.
+            this.editTap = { pointer: event.pointerId, x, y, tick, pitch };
+            return;
+        }
+        if (this.editTool === "delete" || (this.editTool === "add" && index === undefined)) {
+            this.tapEdit(model, tick, pitch);
             return;
         }
         if (index === undefined) {
-            if (this.editTool === "add") {
-                const onset = Math.max(0, Math.floor(tick / EDIT_STEP) * EDIT_STEP);
-                this.release(this.strike(pitch));
-                void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
-            } else {
-                this.editId = null;
-                this.invalidate();
-            }
+            this.editId = null;
+            this.boxPicked.clear();
+            this.beginRulePress(event, x, y, tick, pitch, true);
+            this.invalidate();
             return;
         }
         const note = model.notes[index];
@@ -493,7 +818,10 @@ export class PianoRoll {
      * The names to write, spelled by music-core for the key as the score spells them (0018 section 4): one per note in load
      * order, and per key signature (from where it starts) one per row, MIDI 0 to 127, in the player's naming (C4 or до¹).
      */
-    setNames(notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[]): void {
+    setNames(notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[], key?: string): void {
+        if (key !== undefined) {
+            keptNames = { key, names: [notes, keyTicks, rows, short, shortRows, octaves] };
+        }
         const count = this.model?.notes.length ?? -1;
         this.spelled = notes.length === count ? notes : null;
         this.shortNames = short?.length === count ? short : null;
@@ -502,6 +830,15 @@ export class PianoRoll {
         this.fullRowNames = rows;
         this.octaveNames = octaves ?? [];
         this.invalidate();
+    }
+
+    /** Writes the names kept under the key, as setNames does; false when others are kept, so Blazor sends these. */
+    setNamesKept(key: string): boolean {
+        if (keptNames?.key !== key) {
+            return false;
+        }
+        this.setNames(...keptNames.names);
+        return true;
     }
 
     /** The bars Check flags (0018 section 9): an amber "?" on each bar's number, which opens Check at that bar. */
@@ -546,9 +883,9 @@ export class PianoRoll {
      * left edge, where it is.
      */
     zoomBy(factor: number, anchorX?: number): void {
+        this.byHand();
         if (this.touchReading) {
             // Touch reading zooms the time only, round the middle of the view unless an anchor is given.
-            this.byHand();
             this.zoomTo(this.zoom * factor, this.rowScale, anchorX ?? this.timeWidth() / 2);
             return;
         }
@@ -556,8 +893,11 @@ export class PianoRoll {
     }
 
     /**
-     * Fit (testing item 13): lays the selection, or else the phrase in the middle of the view, across the roll's width, its
-     * rows in the roll's height as far as the rows' limits allow. Before the roll has its width, it fits once it has.
+     * Fit (testing item 13, #511 section 5.1, #521 2.1), only when the player asks, one action and never a toggle: lays the
+     * selection across the roll's width as it is now with a margin either side, or without a selection the general overview
+     * (overviewSpan: about sixteen bars round the playhead, the playhead in the middle), its rows in the roll's height as far
+     * as the rows' limits allow, and glides there. What it made is then the player's zoom: nothing fits again by itself.
+     * Before the roll has its width, it fits once it has.
      */
     fit(): void {
         const model = this.model;
@@ -567,40 +907,161 @@ export class PianoRoll {
             return;
         }
         this.pendingFit = false;
-        const span = this.motif ?? this.phraseAt(this.scroll + this.visibleTicks() / 2) ?? { start: 0, end: model.end };
-        const margin = 8;
-        this.zoom = fitZoom(span.end - span.start, this.timeWidth() - 2 * margin, MIN_ZOOM, MAX_ZOOM);
-        // The rows of the notes in the stretch, an octave at least, with one free row above and below.
+        const motif = this.motif;
+        if (this.passage !== null) {
+            this.fitPassage(model, this.passage);
+        } else if (motif === null) {
+            this.fitStretch(model, this.overviewStretch(model), "overview");
+        } else {
+            this.fitStretch(model, motif, "fitSelection");
+        }
+    }
+
+    /**
+     * Binds the roll to the passage Expand shows (#521 19), its [start, end) in ticks, or lets it go (null). Bound, the roll
+     * lays the passage across its width at once, the zoom and the view before it kept; let go, they come back as they were
+     * (#521 17), so the drawer's roll is where the player left it. The selection is the host's, as always.
+     */
+    setPassage(span: Span | null): void {
+        if (span === null) {
+            if (this.passage === null) {
+                return;
+            }
+            this.passage = null;
+            this.passageFitted = false;
+            const before = this.beforePassage;
+            this.beforePassage = null;
+            this.glide = null;
+            this.following = null;
+            this.drag = null;
+            this.setZoomOut(this.zoomOutShown);
+            if (before !== null) {
+                this.setFrame(before);
+            }
+            return;
+        }
+        if (this.passage === null) {
+            this.beforePassage = this.currentFrame();
+        }
+        this.passage = { start: span.start, end: Math.max(span.end, span.start + 1) };
+        this.drag = null;
+        this.strip.cancel();
+        this.setZoomOut(this.zoomOutShown);
+        this.fit();
+    }
+
+    /** Lays the passage of Expand across the roll at once, its notes' rows in its height: what the passage shows by itself. */
+    private fitPassage(model: RollModel, passage: Span): void {
+        const to = this.stretchFrame(model, passage);
+        this.handUntil = 0;
+        this.glide = null;
+        this.following = null;
+        this.passageFitted = true;
+        this.setFrame(to);
+    }
+
+    /**
+     * Zoom Out (#521 2.2): the general overview round the playhead, as Fit shows it without a selection; the selection stays
+     * as it is, whichever it is now, and Zoom Out is hidden until Fit lays a selection across the roll again.
+     */
+    zoomOutToOverview(): void {
+        const model = this.model;
+        // Bound to a passage there is nothing to see round it (#521 19.2): Zoom Out is not offered.
+        if (model === null || this.host.clientWidth === 0 || this.passage !== null) {
+            return;
+        }
+        this.fitStretch(model, this.overviewStretch(model), "overview");
+    }
+
+    /** The general overview's stretch round the playhead as it is drawn now (roll-view.ts overviewSpan). */
+    private overviewStretch(model: RollModel): Span {
+        return overviewSpan(model.bars.map((bar) => ({ start: bar.onset, end: bar.end })), this.tickNow, model.end);
+    }
+
+    /** Glides to a stretch laid across the roll with its notes' rows in its height; Zoom Out shows after a selection's. */
+    private fitStretch(model: RollModel, span: Span, event: ZoomOutEvent): void {
+        const from = this.currentFrame();
+        const to = this.stretchFrame(model, span);
+        this.setZoomOut(zoomOutAfter(event));
+        this.handUntil = 0;
+        this.glideTo(from, to);
+    }
+
+    /** The frame that lays a stretch across the roll as it is now, with its notes' rows in its height (fitFrame). */
+    private stretchFrame(model: RollModel, span: Span): ViewFrame {
         let lowest = Number.POSITIVE_INFINITY;
         let highest = Number.NEGATIVE_INFINITY;
-        for (const index of model.inRange(span.start, span.end)) {
+        for (const index of model.inRange(Math.max(0, span.start), Math.min(model.end, span.end))) {
             const pitch = model.notes[index].pitch;
             lowest = Math.min(lowest, pitch);
             highest = Math.max(highest, pitch);
         }
-        if (Number.isFinite(lowest)) {
-            const { low, high } = this.paddedPitches(lowest, highest);
-            const rows = high - low + 1;
-            const fitted = this.touchReading
-                ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.floor(this.rollHeight() / rows)))
-                : fitRow(rows, this.rollHeight());
-            this.rowScale = fitted / ROW_AT_100;
-            // Touch reading shows the whole piece's rows: the selection's sit in the middle of those in view, and when even
-            // the thinnest rows cannot hold them all, the middle of the selection is what shows.
-            const spare = Math.floor(this.rollHeight() / this.rowHeight()) - rows;
-            this.pitchTop = this.touchReading ? high + Math.floor(spare / 2) : high;
+        return fitFrame({
+            start: span.start,
+            end: span.end,
+            pitches: Number.isFinite(lowest) ? { lowest, highest } : null,
+            width: this.timeWidth(),
+            height: this.rollHeight(),
+            margin: FIT_MARGIN,
+            zoomLimits: [MIN_ZOOM, MAX_ZOOM],
+            rowLimits: [this.touchReading ? READING_MIN_ROW : MIN_ROW, MAX_ROW],
+            rowAt100: ROW_AT_100,
+            before: this.currentFrame(),
+        });
+    }
+
+    /** Shows or hides Zoom Out: the web's button in the floating zoom, and the iPad's in what the roll reports (OnRollZoom). */
+    private setZoomOut(shown: boolean): void {
+        this.zoomOutShown = shown;
+        this.overviewButton.hidden = !shown || this.passage !== null;
+        this.invalidate();
+    }
+
+    /** The player's zoom and the view as they are now, the highest row shown resolved. */
+    private currentFrame(): ViewFrame {
+        return { zoom: this.zoom, rowScale: this.rowScale, scroll: this.scroll, pitchTop: this.pitchTop ?? this.pitchRange().high };
+    }
+
+    /** Glides the zoom and the view from one frame to another in the kit's slow time, at once with less motion. */
+    private glideTo(from: ViewFrame, to: ViewFrame): void {
+        this.following = null;
+        if (reducedMotion() || GLIDE_MS <= 0) {
+            this.glide = null;
+            this.setFrame(to);
+            return;
         }
-        this.scroll = Math.round(Math.max(0, span.start - (margin * TICKS_PER_QUARTER) / this.zoom));
-        this.fitted = true;
-        this.handUntil = 0;
+        this.glide = { from, to, began: performance.now() };
+        this.invalidate();
+    }
+
+    /** Sets the zoom and the view to a frame, within the zoom's limits and the scroll's. */
+    private setFrame(frame: ViewFrame): void {
+        this.zoom = Math.min(MAX_ZOOM, Math.max(this.minZoom(), frame.zoom));
+        this.rowScale = frame.rowScale;
+        this.scroll = this.clampScroll(frame.scroll);
+        this.pitchTop = Math.round(frame.pitchTop);
         this.showZoom();
         this.invalidate();
     }
 
+    /** One frame of a glide; true while it goes on. */
+    private stepGlide(now: number): boolean {
+        const glide = this.glide;
+        if (glide === null) {
+            return false;
+        }
+        const share = Math.min(1, (now - glide.began) / GLIDE_MS);
+        this.setFrame(glideFrame(glide.from, glide.to, EASE(share)));
+        if (share >= 1) {
+            this.glide = null;
+        }
+        return true;
+    }
+
     /**
      * Touch reading (#338), for the iPad's roll: a finger on the notes moves through the music sideways and through the rows
-     * up and down, never selecting; two fingers zoom the time only; a tap on the notes neither selects, clears nor sounds;
-     * every new selection is fitted, and fitted again when the roll changes size. The bar numbers still select bars.
+     * up and down, never selecting; two fingers zoom the time only; a tap on the notes neither selects, clears nor sounds.
+     * The bar numbers still select bars.
      */
     setTouchReading(on: boolean): void {
         this.touchReading = on;
@@ -608,11 +1069,160 @@ export class PianoRoll {
         this.invalidate();
     }
 
-    /** In phrase focus the roll fits every selection it is given (testing item 12). */
-    setFitsSelection(on: boolean): void {
-        this.fitsSelection = on;
-        if (on) {
-            this.fit();
+    /**
+     * The zoom on each axis (v0.5.2, #479 item 23), for the iPad's roll: the floating zoom goes, as the host draws its own
+     * controls from what OnRollZoom tells it (the bars and the octaves in view, and which steps are left); a pinch zooms the
+     * time across and the pitch up and down, and two fingers move the roll.
+     */
+    setAxisZoom(on: boolean): void {
+        this.axisZoom = on;
+        this.zoomBar.style.display = on ? "none" : "";
+        this.zoomReported = null;
+        this.invalidate();
+    }
+
+    /**
+     * Which pointers edit with the editor on ("touch", "pen") and how many fingers move the roll; null for every pointer, one
+     * finger. `penSelects` false: the Pen is on, so the stylus changes no selection here (#511 4.1).
+     */
+    setPointerRules(rules: PointerRules | null): void {
+        this.pointerRules = rules;
+        this.cancelEditPress();
+        this.invalidate();
+    }
+
+    /** A step of the time zoom: + (1) shows fewer bars, − (−1) more, round the middle of the view; the rows stay. */
+    zoomTime(direction: 1 | -1): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const share = barShareInView(model.bars, this.scroll, this.scroll + this.visibleTicks());
+        if (share <= 0) {
+            return;
+        }
+        this.byHand();
+        this.zoomTo((this.zoom * share) / stepBars(share, direction), this.rowScale, this.timeWidth() / 2);
+    }
+
+    /** A step of the pitch zoom: + (1) one octave fewer in view, − (−1) one more, round the middle row; the time stays. */
+    zoomPitch(direction: 1 | -1): void {
+        const height = this.rollHeight();
+        const octaves = octavesInView(Math.floor(height / this.rowHeight()));
+        this.byHand();
+        this.rowsAround(rowForOctaves(stepOctaves(octaves, direction), height, READING_MIN_ROW, MAX_ROW) / ROW_AT_100, this.header + height / 2);
+    }
+
+    /** Sets the rows' height, keeping the pitch at a height on the roll where it is. */
+    private rowsAround(rowScale: number, y: number): void {
+        const before = this.pitchRange();
+        const pitch = before.high - (y - this.header) / before.row;
+        this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max(READING_MIN_ROW / ROW_AT_100, rowScale));
+        this.pitchTop = Math.round(pitch + (y - this.header) / this.rowHeight());
+        this.invalidate();
+    }
+
+    /** Tells the host the bars and the octaves in view and which steps are left, when they change (the zoom on each axis). */
+    private reportZoom(): void {
+        const model = this.model;
+        if (!this.axisZoom || model === null) {
+            return;
+        }
+        const row = this.rowHeight();
+        const octaves = octavesInView(Math.floor(this.rollHeight() / row));
+        const now: AxisZoom = {
+            bars: barsInView(model.bars, this.scroll, this.scroll + this.visibleTicks()),
+            octaves,
+            timeIn: this.zoom < MAX_ZOOM,
+            timeOut: this.zoom > this.minZoom() + ZOOM_SLACK,
+            pitchIn: octaves > 1 && row < MAX_ROW,
+            pitchOut: row > READING_MIN_ROW,
+            zoomOut: this.zoomOutShown && this.passage === null,
+        };
+        if (!sameZoom(this.zoomReported, now)) {
+            this.zoomReported = now;
+            void this.dotnet.invokeMethodAsync("OnRollZoom", now);
+        }
+    }
+
+    /** Whether a pointer of this type edits with the editor on, under the iPad's rules; every pointer without them. */
+    private editsWith(type: string): boolean {
+        const rules = this.pointerRules;
+        // Expand inspects a passage; it edits no notes (#521 19.3).
+        return this.passage === null && (rules === null || (type === "touch" ? rules.touch : rules.pen));
+    }
+
+    /**
+     * Whether a press of this pointer type may change the selection: only under Select with the modes (#543 2), not the
+     * stylus while the Pen is on (#511 4.1), none in Expand (#521 19.3).
+     */
+    private selectsWith(type: string): boolean {
+        return selectsOnRoll(type, this.penHolds(), this.passage !== null, this.mode);
+    }
+
+    /** Whether a press of this pointer type navigates under the bar's tool (#543 2, roll-modes.ts navigatesOnRoll). */
+    private navigates(type: string): boolean {
+        return navigatesOnRoll(this.mode, type);
+    }
+
+    /** Whether the bar's Pen holds the stylus, which then does nothing on the roll (#511 4.1, #521 10). */
+    private penHolds(): boolean {
+        return this.mode === "pen" || this.pointerRules?.penSelects === false;
+    }
+
+    /** Whether a finger's tap in the editor waits to be lifted: two fingers move the roll, so a second may still come. */
+    private waitsForLift(event: PointerEvent): boolean {
+        return event.pointerType === "touch" && (this.pointerRules?.scrollFingers ?? 1) > 1;
+    }
+
+    /** Lets go of a note being dragged in the editor, sending nothing, and of a tap not yet lifted. */
+    private cancelEditPress(): void {
+        if (this.editDrag !== null) {
+            this.release(this.editDrag.sounding);
+            this.editDrag = null;
+        }
+        this.editTap = null;
+    }
+
+    /** A tap in the editor with Add or Remove: a note added where there is none, taken out, or picked. */
+    private tapEdit(model: RollModel, tick: number, pitch: number): void {
+        const index = model.noteAt(tick, pitch);
+        if (this.editTool === "delete") {
+            if (index !== undefined) {
+                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
+            }
+            return;
+        }
+        if (index !== undefined) {
+            this.editId = model.notes[index].id;
+            this.invalidate();
+            return;
+        }
+        const onset = Math.max(0, Math.floor(tick / EDIT_STEP) * EDIT_STEP);
+        this.release(this.strike(pitch));
+        void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
+    }
+
+    /**
+     * The lanes (v0.5.2, #479 item 25): the two playheads of the playback model (#495 UX-10), the loop strip under the bar
+     * numbers and the whole piece over the roll. A tap in either strip moves the position; on the whole piece
+     * the roll goes there too. With the lanes a tap on the notes plays nothing.
+     */
+    setLanes(on: boolean): void {
+        if (!on) {
+            this.laneDrag.release();
+        }
+        this.lanes = on;
+        this.overview.style.display = on ? "" : "none";
+        this.invalidate();
+    }
+
+    /** The position written as bar.beat for the whole-piece strip, and whether the selection loops. */
+    setPlace(label: string, looping: boolean): void {
+        if (label !== this.placeLabel || looping !== this.looping) {
+            this.placeLabel = label;
+            this.looping = looping;
+            this.invalidate();
         }
     }
 
@@ -637,29 +1247,38 @@ export class PianoRoll {
             return;
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
-        const moved = this.motif === null || this.motif.start !== start;
-        const changed = moved || this.motif?.end !== end;
+        const { moved } = selectionShift(this.motif ?? this.keptSpan, start, end);
+        this.keptSpan = null;
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
         this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
-        this.drag = null;
-        // A selection made elsewhere (a phrase chip, the score) scrolls into view, as the score does (0012).
-        if (moved) {
-            this.keepInView(start);
-            this.pitchTop = null;
-        }
-        if (this.touchReading ? changed : this.fitsSelection && (moved || this.motif.end !== end)) {
-            this.fit();
+        this.drag = keptDrag(this.drag);
+        // The zoom is the player's (#511 section 5.1): a selection never fits. Only a new one wholly out of view (made on the
+        // score far away, a phrase stepped to) is brought into it; one whose edge moved stays where it is.
+        if (moved && this.host.clientWidth > 0) {
+            const reveal = revealSelection({
+                scroll: this.scroll,
+                visible: this.visibleTicks(),
+                rows: this.pitchRange(),
+                span: { start, end },
+                pitches: this.motifPitches,
+                maxScroll: this.maxScroll(),
+            });
+            if (reveal !== null) {
+                const from = this.currentFrame();
+                this.glideTo(from, { ...from, scroll: reveal.scroll, pitchTop: reveal.pitchTop ?? from.pitchTop });
+            }
         }
         this.invalidate();
     }
 
     clearMotif(): void {
+        this.setZoomOut(zoomOutAfter("selectionCleared"));
         this.motif = null;
+        this.keptSpan = null;
         this.motifPitches = null;
-        this.drag = null;
-        // With no selection there is nothing to fit again: a new size keeps the left edge and the zoom.
-        this.fitted = false;
+        // The page's answer to a hold's clear (#543 9): a new range the press drags on after it is kept (keptDrag).
+        this.drag = keptDrag(this.drag);
         this.invalidate();
     }
 
@@ -759,6 +1378,10 @@ export class PianoRoll {
 
     /** Follows the player every animation frame, until called with null. */
     follow(player: PlayerHandle | null): void {
+        if (player !== this.player) {
+            // A playhead held as the roll follows another player, or none, is let go first (#495 UX-08).
+            this.laneDrag.release();
+        }
         this.player = player;
         this.invalidate();
     }
@@ -768,6 +1391,11 @@ export class PianoRoll {
         cancelAnimationFrame(this.frame);
         this.resizeObserver.disconnect();
         this.roll.removeEventListener("pointerdown", this.onPointerDown);
+        this.overview.removeEventListener("pointerdown", this.onOverviewDown);
+        this.overview.removeEventListener("pointermove", this.onOverviewMove);
+        this.overview.removeEventListener("pointerup", this.onOverviewUp);
+        this.overview.removeEventListener("pointercancel", this.onOverviewUp);
+        this.overview.removeEventListener("lostpointercapture", this.onOverviewUp);
         this.roll.removeEventListener("pointermove", this.onPointerMove);
         this.roll.removeEventListener("pointerup", this.onPointerUp);
         this.roll.removeEventListener("pointercancel", this.onPointerCancel);
@@ -778,11 +1406,13 @@ export class PianoRoll {
         this.keys.removeEventListener("pointerup", this.onKeysUp);
         this.keys.removeEventListener("pointercancel", this.onKeysUp);
         this.releaseAllLive();
+        this.laneDrag.release();
         this.scroller.removeEventListener("input", this.onScroll);
         document.removeEventListener("pointerdown", this.onDocumentPointerDown);
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
         document.removeEventListener("keydown", this.onDocumentKeyDown);
         document.removeEventListener(THEME_CHANGED, this.onThemeChanged);
+        document.removeEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.host.replaceChildren();
     }
 
@@ -790,20 +1420,24 @@ export class PianoRoll {
         if (this.disposed) {
             return;
         }
+        const time = performance.now();
+        const elapsed = this.lastFrame === 0 ? 0 : time - this.lastFrame;
+        this.lastFrame = time;
         const player = this.player;
         if (player !== null) {
-            const now = player.currentTick();
+            const now = this.laneDrag.heard(this.playhead.heard(player.currentTick()));
             if (now !== this.tickNow) {
                 const jumped = Math.abs(now - this.tickNow) > TICKS_PER_QUARTER;
                 this.tickNow = now;
                 this.dirty = true;
-                if (this.touchReading) {
-                    this.followReading(now, jumped);
-                } else if (player.state() !== "stopped" || jumped) {
-                    this.keepInView(now);
-                }
+                this.followPlayer(now, jumped, player.state() === "playing");
             }
+            this.dirty ||= this.modelChanged(player);
         }
+        if (!this.stepGlide(time)) {
+            this.stepFollow(elapsed);
+        }
+        this.stepEdgeScroll(elapsed);
         if (this.dirty) {
             this.dirty = false;
             this.draw();
@@ -815,32 +1449,125 @@ export class PianoRoll {
         this.dirty = true;
     }
 
-    /**
-     * Touch reading follows the playhead only when it leaves the view, so a fitted selection on a loop stays still, and not
-     * for a while after the player moved the view by hand.
-     */
-    private followReading(tick: number, jumped: boolean): void {
-        const offset = tick - this.scroll;
-        const away = offset < 0 || offset > this.visibleTicks();
-        if (away && (this.player?.state() !== "stopped" || jumped) && performance.now() >= this.handUntil) {
-            this.keepInView(tick);
-            // The view has left what Fit made: a new size keeps it, rather than jumping back to the selection.
-            this.fitted = false;
-        }
+    /** Where the notes start: under the bar numbers, and under the loop strip with the lanes. */
+    private get header(): number {
+        return this.lanes ? BAR_ROW + LOOP_LANE : BAR_ROW;
     }
 
-    /** The roll changed size (a turn of the iPad, the drawer): in touch reading a fitted view is fitted again. */
-    private onResize(): void {
-        if (this.touchReading && this.fitted) {
-            this.pendingFit = true;
+    /**
+     * Where the playhead takes the view (#511 section 6.1, roll-view.ts followPlayhead): along with it past FOLLOW_AT of the
+     * width while playing, no further than the end of what plays, and back to it once after a jump out of view; not while a
+     * playhead is held (its drag and scrub stay as they are, #495), while a finger or the stylus is down on the roll (#521
+     * 16), during a glide, or for a while after the player moved the view by hand. A reveal under way holds until another jump.
+     */
+    private followPlayer(tick: number, jumped: boolean, playing: boolean): void {
+        if (this.glide !== null || this.holding.size > 0 || this.playhead.dragging || this.laneDrag.handle !== null || performance.now() < this.handUntil
+            || this.host.clientWidth === 0 || (this.following?.kind === "reveal" && !jumped)) {
+            return;
+        }
+        const play = this.playRange;
+        const passage = this.passage;
+        const end = passage !== null ? passage.end : play !== null && tick >= play.start && tick < play.end ? play.end : (this.model?.end ?? 0);
+        const { min, max } = this.scrollLimits();
+        this.following = followPlayhead({ scroll: this.scroll, visible: this.visibleTicks(), tick, playing, jumped, end, maxScroll: max, minScroll: min }) ?? this.following;
+    }
+
+    /** One frame of the view easing to where following takes it, in the kit's base time (at once with less motion). */
+    private stepFollow(elapsed: number): void {
+        const following = this.following;
+        if (following === null) {
+            return;
+        }
+        const tau = reducedMotion() ? 0 : FOLLOW_MS / 3;
+        const next = chase(this.scroll, following.scroll, elapsed, tau);
+        // Within half a pixel it is there.
+        const there = Math.abs(next - following.scroll) * this.zoom < TICKS_PER_QUARTER / 2;
+        this.scroll = there ? following.scroll : next;
+        if (there) {
+            this.following = null;
         }
         this.invalidate();
     }
 
-    /** The player moved or zoomed the view by hand: it is no longer what Fit made, and playback leaves it for a while. */
+    /** The roll changed size (a turn of the iPad, the drawer, Expand): the zoom and the view stay; more or less of the music shows. */
+    private onResize(): void {
+        // Bound to a passage, it stays laid across the roll as long as the player has not zoomed it, and within it anyway.
+        if (this.passage !== null && this.model !== null) {
+            if (this.passageFitted) {
+                this.fit();
+            } else {
+                this.setFrame(this.currentFrame());
+            }
+        }
+        this.invalidate();
+    }
+
+    /** The player moved or zoomed the view by hand: a glide or a follow stops, and playback leaves the view for a while. */
     private byHand(): void {
-        this.fitted = false;
+        this.passageFitted = false;
+        this.glide = null;
+        this.following = null;
         this.handUntil = performance.now() + HAND_PAUSE_MS;
+    }
+
+    /** Whether the music plays now. */
+    private playing(): boolean {
+        return this.player?.state() === "playing";
+    }
+
+    /**
+     * A finger, the stylus or the mouse went down on the roll or its whole-piece strip (#521 16.2), in any mode: while the
+     * music plays, the view stops following the playhead at once and stays while it is down, the music and the playhead going
+     * on. Nothing else changes: what the press does is its own.
+     */
+    private holdBegan(pointer: number): void {
+        this.holding.add(pointer);
+        if (this.playing()) {
+            this.following = null;
+        }
+    }
+
+    /**
+     * The last pointer down on the roll was let go (#521 16.3): while the music plays, the view catches up with the playhead
+     * at once (eased, never a page jump) and follows it again, whatever the press did to the view meanwhile.
+     */
+    private holdEnded(pointer: number): void {
+        if (!this.holding.delete(pointer) || this.holding.size > 0 || !this.playing()) {
+            return;
+        }
+        this.handUntil = 0;
+        this.following = null;
+        this.followPlayer(this.tickNow, true, true);
+    }
+
+    /**
+     * While a playhead is dragged on the roll near its left or right edge, the view goes that way, faster the nearer the
+     * edge, and the playhead stays under the pointer (#521 1.2), so it goes on past what was in view without being let go.
+     */
+    private stepEdgeScroll(elapsed: number): void {
+        const held = this.headDrag;
+        if (held === null || this.model === null) {
+            return;
+        }
+        const lane = this.laneDrag.holds(held.pointer);
+        if (!lane && !this.playhead.dragging) {
+            this.headDrag = null;
+            return;
+        }
+        const delta = edgeScroll(held.x, { left: GUTTER, right: this.host.clientWidth, zone: TOUCH }, this.visibleTicks(), elapsed);
+        if (delta === 0) {
+            return;
+        }
+        const before = this.scroll;
+        this.scrollTo(before + delta);
+        if (this.scroll === before) {
+            return;
+        }
+        if (lane) {
+            this.dragLaneHeadTo(held.pointer, held.x);
+        } else {
+            this.playhead.move(held.pointer, held.x, this.tickAtX(Math.max(GUTTER, held.x)));
+        }
     }
 
     /** Shows the roll's words in another language (#134): the lanes, the legend, the hand letters and what a screen reader hears. */
@@ -862,13 +1589,15 @@ export class PianoRoll {
         this.zoomIn.title = this.labels.zoomIn;
         this.fitButton.textContent = this.labels.fit;
         this.fitButton.title = this.labels.fitHint;
+        this.overviewButton.textContent = this.labels.overview;
+        this.overviewButton.title = this.labels.overviewHint;
         this.showZoom();
     }
 
     /** The zoom as a percentage of 100 % (DEFAULT_ZOOM), with − and + off at the limits. */
     private showZoom(): void {
         this.zoomLevel.textContent = fill(this.labels.zoomLevel, Math.round((this.zoom / DEFAULT_ZOOM) * 100));
-        this.zoomOut.disabled = this.zoom <= MIN_ZOOM;
+        this.zoomOut.disabled = this.zoom <= this.minZoom() + ZOOM_SLACK;
         this.zoomIn.disabled = this.zoom >= MAX_ZOOM;
     }
 
@@ -877,24 +1606,10 @@ export class PianoRoll {
         const width = this.timeWidth();
         const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.tickNow) - GUTTER, 0), width);
         const anchorTick = this.scroll + (anchor * TICKS_PER_QUARTER) / this.zoom;
-        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+        this.zoom = Math.min(MAX_ZOOM, Math.max(this.minZoom(), zoom));
         this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max((this.touchReading ? READING_MIN_ROW : MIN_ROW) / ROW_AT_100, rowScale));
         this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
         this.showZoom();
-    }
-
-    /** The phrase whose stretch holds a tick, from the phrase starts (#18): to the next start, or the end of the piece. */
-    private phraseAt(tick: number): { start: number; end: number } | null {
-        const model = this.model;
-        const starts = this.phrases.map((phrase) => phrase.tick).sort((a, b) => a - b);
-        if (model === null || starts.length === 0) {
-            return null;
-        }
-        let at = 0;
-        while (at + 1 < starts.length && starts[at + 1] <= tick) {
-            at++;
-        }
-        return { start: starts[at], end: starts[at + 1] ?? model.end };
     }
 
     private updateLanes(): void {
@@ -916,12 +1631,36 @@ export class PianoRoll {
         return (this.timeWidth() * TICKS_PER_QUARTER) / this.zoom;
     }
 
-    private maxScroll(): number {
-        return Math.max(0, (this.model?.end ?? 0) - this.visibleTicks() * 0.5);
+    /** How far the view's left edge goes: the whole piece, or only within the passage of Expand (roll-view.ts scrollLimits). */
+    private scrollLimits(): { min: number; max: number } {
+        return scrollLimits({
+            end: this.model?.end ?? 0,
+            visible: this.visibleTicks(),
+            passage: this.passage,
+            margin: (FIT_MARGIN * TICKS_PER_QUARTER) / this.zoom,
+        });
     }
 
+    private maxScroll(): number {
+        return this.scrollLimits().max;
+    }
+
+    /** A left edge within the scroll's limits, in whole ticks. */
+    private clampScroll(tick: number): number {
+        const { min, max } = this.scrollLimits();
+        return Math.round(Math.min(max, Math.max(min, tick)));
+    }
+
+    /** The least zoom: the kit's, or bound to a passage the one that lays it across the roll, so no more than it shows (#521 19.1). */
+    private minZoom(): number {
+        return this.passage === null ? MIN_ZOOM : fitZoom(this.passage, this.timeWidth(), FIT_MARGIN, [MIN_ZOOM, MAX_ZOOM]);
+    }
+
+    /** Moves the view to a left edge; a glide or a follow under way gives way to it. */
     private scrollTo(tick: number): void {
-        this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, tick)));
+        this.glide = null;
+        this.following = null;
+        this.scroll = this.clampScroll(tick);
         this.invalidate();
     }
 
@@ -930,6 +1669,9 @@ export class PianoRoll {
      * extend adds it to the selection: a click or Shift-click on its number, by keyboard (WCAG 2.1.1).
      */
     private stepBar(model: RollModel, step: 1 | -1, extend: boolean): void {
+        if (this.passage !== null) {
+            return;
+        }
         const motif = this.motif;
         let index = 0;
         if (motif !== null) {
@@ -941,7 +1683,7 @@ export class PianoRoll {
             return;
         }
         this.keepInView(bar.onset);
-        void this.dotnet.invokeMethodAsync("OnRollRange", bar.onset, bar.onset, true, extend && motif !== null);
+        void this.dotnet.invokeMethodAsync("OnRollRange", bar.onset, bar.onset, true, extend && motif !== null, extend && motif !== null ? "edit" : motif === null ? "create" : "replace", nextGestureId());
     }
 
     private keepInView(tick: number): void {
@@ -953,16 +1695,14 @@ export class PianoRoll {
     }
 
     /**
-     * Rows from one below the lowest note to one above the highest: of the selection when there is one, so the drawer shows
-     * the selected phrase large enough for note names (0018 section 4), at least an octave; else of the piece.
+     * Rows from one below the piece's lowest note to one above its highest, at least an octave: all of them where they fit,
+     * else a window of the zoom's rows from the highest row shown (0018 section 4; #511 section 5.1).
      */
     private pitchRange(): { low: number; high: number; row: number; above: boolean; below: boolean } {
         const model = this.model;
-        // In touch reading the rows reach the whole piece, so moving on through the music finds every note; Fit puts the
-        // selection's rows in view.
-        const piece = { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
-        const span = this.touchReading ? piece : this.motifPitches ?? piece;
-        const { low, high } = this.paddedPitches(span.lowest, span.highest);
+        // The rows reach the whole piece, so moving on through the music finds every note and a new selection never moves
+        // them (#511 section 5.1); Fit puts the selection's rows in view.
+        const { low, high } = paddedPitches(model?.lowest ?? 60, model?.highest ?? 72);
         // Rows of the zoom's height (testing item 11): as many as fit, widened round the notes when they take fewer, else a
         // window from the top of the notes (where the tune usually is) until scrolled.
         const row = this.rowHeight();
@@ -973,14 +1713,6 @@ export class PianoRoll {
     /** The height of a row: the zoom's, down to thinner rows in touch reading. */
     private rowHeight(): number {
         return this.touchReading ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.round(ROW_AT_100 * this.rowScale))) : rowFor(this.rowScale);
-    }
-
-    /** The rows of notes from lowest to highest: an octave at least, with one free row above and below. */
-    private paddedPitches(lowest: number, highest: number): { low: number; high: number } {
-        const middle = (lowest + highest) / 2;
-        const low = Math.min(lowest, Math.floor(middle - MIN_PITCH_SPAN / 2));
-        const high = Math.max(highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
-        return { low: Math.max(0, low - 1), high: Math.min(127, high + 1) };
     }
 
     /** Scrolls the rows by whole rows, up for a positive count, when they do not all fit. */
@@ -1005,7 +1737,8 @@ export class PianoRoll {
         // The parts' margins (css: .roll-scroll, .roll-keys, .roll-legend) sit between them, and the bar numbers sit above the
         // notes; a page that hides the parts (the iPad's, in touch reading) has no margins to leave.
         const margins = rest > 0 ? 20 : 0;
-        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - margins - HEADER));
+        const overview = this.lanes ? OVERVIEW_HEIGHT : 0;
+        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - margins - this.header - overview));
     }
 
     private draw(): void {
@@ -1020,11 +1753,19 @@ export class PianoRoll {
             this.fit();
         }
         const { low, high, row } = this.pitchRange();
-        const height = HEADER + (high - low + 1) * row;
+        // The frame of Expand is not the player's (#521 17): the drawer's roll opened again starts from the one before it.
+        if (this.model !== null && this.passage === null) {
+            keptFrame = { key: this.notesKey, frame: { zoom: this.zoom, rowScale: this.rowScale, scroll: this.scroll, pitchTop: this.pitchTop ?? high } };
+        }
+        const height = this.header + (high - low + 1) * row;
         this.drawRoll(width, height, low, high, row);
         this.drawKeyboard(width);
+        if (this.lanes) {
+            this.drawOverview(width);
+        }
         // The zoom floats over the bottom right corner of the notes.
         this.zoomBar.style.top = `${this.roll.offsetTop + height - this.zoomBar.offsetHeight - 8}px`;
+        this.reportZoom();
 
         this.scroller.max = String(this.maxScroll());
         this.scroller.value = String(this.scroll);
@@ -1038,7 +1779,7 @@ export class PianoRoll {
 
         // Pitch rows, black-key rows darker, a line under each C.
         for (let pitch = low; pitch <= high; pitch++) {
-            const y = HEADER + (high - pitch) * row;
+            const y = this.header + (high - pitch) * row;
             if (isBlackKey(pitch)) {
                 context.fillStyle = SURFACE_DARK;
                 context.fillRect(GUTTER, y, width - GUTTER, row);
@@ -1063,10 +1804,10 @@ export class PianoRoll {
         for (const line of model.grid(from, to)) {
             const x = Math.round(this.xOf(line.tick));
             context.fillStyle = line.bar === null ? BEAT_LINE : BAR_LINE;
-            context.fillRect(x, line.bar === null ? HEADER : 0, 1, height);
+            context.fillRect(x, line.bar === null ? this.header : 0, 1, height);
             if (line.bar !== null && x - lastLabel >= 28) {
                 context.fillStyle = INK;
-                context.fillText(String(line.bar), x + 3, HEADER / 2);
+                context.fillText(String(line.bar), x + 3, BAR_ROW / 2);
                 lastLabel = x;
             }
         }
@@ -1083,14 +1824,14 @@ export class PianoRoll {
             context.setLineDash(phrase.inferred ? [4, 3] : []);
             context.globalAlpha = PHRASE_LINE_ALPHA;
             context.beginPath();
-            context.moveTo(x, HEADER);
+            context.moveTo(x, this.header);
             context.lineTo(x, height);
             context.stroke();
             context.globalAlpha = 1;
             context.lineWidth = 2;
             context.beginPath();
             context.moveTo(x, 0);
-            context.lineTo(x, HEADER);
+            context.lineTo(x, BAR_ROW);
             context.stroke();
             context.setLineDash([]);
             context.fillStyle = colour;
@@ -1103,32 +1844,33 @@ export class PianoRoll {
         }
 
         // The selected range, or the range being dragged, shaded and marked on the bar numbers.
+        // Not in Expand (#533 3): the passage on screen is the selection already, and nothing there changes it.
         const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.motif;
-        if (band !== null) {
+        if (band !== null && this.passage === null) {
             const left = Math.max(GUTTER, this.xOf(band.start));
             const right = Math.min(width, this.xOf(band.end));
             if (right > left) {
                 context.fillStyle = SELECTION_BAND;
-                context.fillRect(left, HEADER, right - left, height - HEADER);
+                context.fillRect(left, this.header, right - left, height - this.header);
                 context.fillStyle = SELECTION_HEADER;
-                context.fillRect(left, HEADER - 4, right - left, 4);
+                context.fillRect(left, BAR_ROW - 4, right - left, 4);
                 context.fillStyle = ACCENT;
                 context.fillRect(Math.round(left), 0, 1, height);
                 context.fillRect(Math.round(right) - 1, 0, 1, height);
                 // Grips on the bar numbers show that the edges can be dragged.
                 if (this.drag === null) {
                     if (left > GUTTER) {
-                        context.fillRect(Math.round(left), 0, 4, HEADER);
+                        context.fillRect(Math.round(left), 0, 4, BAR_ROW);
                     }
                     if (right < width) {
-                        context.fillRect(Math.round(right) - 4, 0, 4, HEADER);
+                        context.fillRect(Math.round(right) - 4, 0, 4, BAR_ROW);
                     }
                 }
             }
         }
 
         // The range that plays, which a variation can make longer or shorter than the selection.
-        const play = this.drag === null ? this.playRange : null;
+        const play = this.drag === null && !this.lanes && this.passage === null ? this.playRange : null;
         if (play !== null) {
             const left = Math.max(GUTTER, this.xOf(play.start));
             const right = Math.min(width, this.xOf(play.end));
@@ -1139,7 +1881,7 @@ export class PianoRoll {
                 if (play.end > selectionEnd) {
                     const from = Math.max(GUTTER, this.xOf(selectionEnd));
                     context.fillStyle = PLAY_RANGE_EXTENSION;
-                    context.fillRect(from, HEADER, right - from, height - HEADER);
+                    context.fillRect(from, this.header, right - from, height - this.header);
                 }
                 if (play.end !== selectionEnd && right < width) {
                     context.strokeStyle = PLAY_RANGE;
@@ -1159,7 +1901,7 @@ export class PianoRoll {
             const right = Math.min(width, this.xOf(span.end));
             if (right > left) {
                 context.fillStyle = HIGHLIGHT_BAND;
-                context.fillRect(left, HEADER, right - left, height - HEADER);
+                context.fillRect(left, this.header, right - left, height - this.header);
                 context.fillStyle = HIGHLIGHT;
                 context.fillRect(left, height - HIGHLIGHT_UNDERLINE, Math.max(2, right - left - 1), HIGHLIGHT_UNDERLINE);
             }
@@ -1167,7 +1909,7 @@ export class PianoRoll {
 
         context.save();
         context.beginPath();
-        context.rect(GUTTER, HEADER, width - GUTTER, height - HEADER);
+        context.rect(GUTTER, this.header, width - GUTTER, height - this.header);
         context.clip();
         const sounding = new Set(this.soundingNow(model));
         context.font = noteFont(row);
@@ -1180,7 +1922,7 @@ export class PianoRoll {
             const at = this.editDrag?.index === index ? this.edited(index) : { onset: note.onset, pitch: note.pitch, length: note.end - note.onset };
             const x = this.xOf(at.onset);
             const w = Math.max(2, (at.length * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - at.pitch) * row + 1;
+            const y = this.header + (high - at.pitch) * row + 1;
             const h = Math.max(2, row - 2);
             const lane = this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0;
 
@@ -1232,7 +1974,7 @@ export class PianoRoll {
                 context.strokeRect(x - 1, y - 1, w + 2, h + 2);
             }
             // The note picked in the editor: the accent's outline, as everything the player points at (0018).
-            if (this.editing && note.id === this.editId) {
+            if (this.editing && (note.id === this.editId || this.boxPicked.has(index))) {
                 context.strokeStyle = ACCENT;
                 context.lineWidth = 2;
                 context.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
@@ -1258,7 +2000,7 @@ export class PianoRoll {
         for (const tag of chosen) {
             const tagWidth = context.measureText(tag.text).width + 8;
             const left = Math.min(Math.max(GUTTER + 1, tag.x - 1), width - tagWidth - 1);
-            const top = Math.max(HEADER + 1, tag.y - 17);
+            const top = Math.max(this.header + 1, tag.y - 17);
             context.fillStyle = INK;
             context.beginPath();
             context.roundRect(left, top, tagWidth, 14, 3);
@@ -1271,12 +2013,511 @@ export class PianoRoll {
         const { above, below } = this.pitchRange();
         this.drawGutter(context, model, low, high, row, sounding, above, below);
 
-        // Playhead.
-        const playhead = this.xOf(this.tickNow);
-        if (playhead >= GUTTER && playhead <= width) {
-            context.fillStyle = ACCENT;
-            context.fillRect(Math.round(playhead) - 1, 0, 2, height);
+        this.drawPlayhead(context, width, height);
+    }
+
+    /**
+     * The playhead: the kit's 2 px accent line, with its handle hanging under the bar numbers for a finger to drag, ringed
+     * while the keyboard is on it. Its control sits over the handle, kept in view when the line is not.
+     */
+    private drawPlayhead(context: CanvasRenderingContext2D, width: number, height: number): void {
+        const at = this.xOf(this.tickNow);
+        this.keepDrawnHeads();
+        const playheadContext = this.playheadContext();
+        if (playheadContext !== null) {
+            const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
+            this.playhead.place(left, this.roll.offsetTop + BAR_ROW, TOUCH, playheadContext, this.labels);
         }
+        if (this.lanes) {
+            this.drawLanes(context, width, height);
+            return;
+        }
+        if (this.drawRules(context, width, height)) {
+            return;
+        }
+        if (at < GUTTER || at > width) {
+            return;
+        }
+        const x = Math.round(at);
+        context.fillStyle = ACCENT;
+        context.fillRect(x - 1, 0, 2, height);
+        context.beginPath();
+        context.roundRect(x - KNOB_WIDTH / 2, this.header, KNOB_WIDTH, KNOB_HEIGHT, [0, 0, KNOB_RADIUS, KNOB_RADIUS]);
+        context.fill();
+        if (this.playhead.focused) {
+            context.strokeStyle = ACCENT;
+            context.lineWidth = 2;
+            context.strokeRect(x - KNOB_WIDTH / 2 - 3, this.header - 3, KNOB_WIDTH + 6, KNOB_HEIGHT + 6);
+        }
+    }
+
+    /** Where the playhead may go and where it is, for its control; null before a piece is shown. */
+    private playheadContext(): PlayheadContext | null {
+        const model = this.model;
+        if (model === null) {
+            return null;
+        }
+        return { bars: model.bars, span: this.playheadSpan(), end: model.end, tick: this.player?.currentTick() ?? this.tickNow };
+    }
+
+    /** The loop strip and the two playheads of the playback model, with the lanes (roll-strips.ts, playback-model.ts). */
+    private drawLanes(context: CanvasRenderingContext2D, width: number, height: number): void {
+        const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.xOf(tick) };
+        const playing = this.player !== null && this.player.state() !== "stopped";
+        // Practice view (#533 11): the black playhead alone, without the loop strip and the blue one.
+        const view = rollPlaces(practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
+        if (this.laneShown()) {
+            drawLoopLane(context, frame, this.motif, this.looping, this.stripInks(), modeSelects(this.mode));
+        }
+        drawPosition(context, frame, view, this.stripInks());
+    }
+
+    /** The whole piece in one line over the roll: the position, the bars on screen, the selection. */
+    private drawOverview(width: number): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const context = prepare(this.overview, width, OVERVIEW_HEIGHT);
+        const view = { start: this.scroll, end: this.scroll + this.visibleTicks() };
+        const lastBar = String(model.bars.at(-1)?.number ?? "");
+        const playing = this.player !== null && this.player.state() !== "stopped";
+        drawOverview(context, width, { tick: this.tickNow, label: this.placeLabel, end: model.end, lastBar, view, selection: this.motif, playing }, this.stripInks());
+    }
+
+    private stripInks(): StripInks {
+        return { ink: INK, accent: ACCENT, tint: SELECTION_BAND, surface: SURFACE, line: STRIP_LINE, muted: STRIP_MUTED };
+    }
+
+    /**
+     * A press on the whole piece (#521 1): the black dot and the frame round the bars on screen are two targets. On the dot it
+     * takes the position, the black playhead, as its line down the roll does (laneDrag); anywhere else the frame, which a
+     * drag moves through the piece, the position staying where it is. A press outside the frame brings the frame there.
+     */
+    private readonly onOverviewDown = (event: PointerEvent): void => {
+        const model = this.model;
+        if (model === null || this.overviewPress !== null) {
+            return;
+        }
+        this.overview.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        this.holdBegan(event.pointerId);
+        const x = this.overviewX(event);
+        const width = this.host.clientWidth;
+        if (this.player !== null && overviewGrab(x, width, this.tickNow, model.end, TOUCH / 2) === "position" && this.laneDrag.grab("black", event.pointerId, this.playing())) {
+            this.overviewPress = { pointer: event.pointerId, position: true, offset: 0 };
+            return;
+        }
+        const tick = overviewTick(x, width, model.end);
+        const offset = viewGrabOffset(tick, { start: this.scroll, end: this.scroll + this.visibleTicks() });
+        this.overviewPress = { pointer: event.pointerId, position: false, offset };
+        this.byHand();
+        this.scrollTo(tick - offset);
+    };
+
+    /**
+     * A drag on the whole piece: the position goes to the place under the pointer, the view staying while it is inside and
+     * going along past its edge (viewAlong, #521 1.2); or the frame goes with the pointer, the position staying.
+     */
+    private readonly onOverviewMove = (event: PointerEvent): void => {
+        const press = this.overviewPress;
+        const model = this.model;
+        if (press === null || model === null || press.pointer !== event.pointerId) {
+            return;
+        }
+        const tick = overviewTick(this.overviewX(event), this.host.clientWidth, model.end);
+        if (!press.position) {
+            this.byHand();
+            this.scrollTo(tick - press.offset);
+            return;
+        }
+        const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
+        const place = laneDragTick("black", tick, bars, this.motif, model.end);
+        if (place !== undefined) {
+            this.laneDrag.move(event.pointerId, place);
+            this.scrollTo(viewAlong(this.scroll, this.visibleTicks(), place, this.maxScroll()));
+        }
+    };
+
+    private readonly onOverviewUp = (event: PointerEvent): void => {
+        const press = this.overviewPress;
+        if (press === null || press.pointer !== event.pointerId) {
+            return;
+        }
+        this.overviewPress = null;
+        if (press.position) {
+            this.laneDrag.release(event.pointerId);
+        }
+        this.holdEnded(event.pointerId);
+        this.invalidate();
+    };
+
+    /** Where a pointer is across the whole-piece strip. */
+    private overviewX(event: PointerEvent): number {
+        return event.clientX - this.overview.getBoundingClientRect().left;
+    }
+
+    /** Where the playhead stays: the loop, else the selection; null for neither, and with the lanes, where it goes anywhere. */
+    private playheadSpan(): Span | null {
+        if (this.lanes) {
+            return null;
+        }
+        return this.playRange ?? (this.motif === null ? null : { start: this.motif.start, end: this.motif.end });
+    }
+
+    /**
+     * A press on the playhead takes it rather than what lies under it: on its handle, or with a finger in touch reading
+     * anywhere down its line, a touch target wide. Not while the notes are being edited.
+     */
+    private pressPlayhead(event: PointerEvent, x: number, y: number): boolean {
+        const finger = event.pointerType !== "mouse";
+        const line = this.touchReading && finger;
+        if (this.editing || this.player === null) {
+            return false;
+        }
+        if (this.passage !== null) {
+            return this.pressPassageHead(event, x, y, finger ? TOUCH : KNOB_MOUSE, line);
+        }
+        if (this.lanes) {
+            return this.pressLaneHead(event, x, y);
+        }
+        const state = this.heldModel();
+        if (state !== null) {
+            return this.pressModelHead(event, state, x, y);
+        }
+        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
+            return false;
+        }
+        this.playhead.begin(event.pointerId, x);
+        return true;
+    }
+
+    /** Where the two playheads are drawn now, across the roll: the black one always, the blue one with the model's selection. */
+    private headsNow(): { black: number; blue: number | null } {
+        const playing = this.playing();
+        const state = this.lanes ? { selection: this.motif, loop: this.looping } : this.heldModel();
+        if (state === null) {
+            return { black: this.xOf(this.tickNow), blue: null };
+        }
+        // In practice view (#533 11) the blue playhead is neither drawn nor taken; outside the selection it is not either (#543 6).
+        const view = rollPlaces(practiced(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
+        return { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue) };
+    }
+
+    /** Keeps where the playheads are drawn while the music plays, for as long as a press may still find them there (#533 4). */
+    private keepDrawnHeads(): void {
+        if (!this.playing()) {
+            this.drawnHeads = [];
+            return;
+        }
+        const at = performance.now();
+        this.drawnHeads = this.drawnHeads.filter((drawn) => drawn.at >= at - REACH_BACK_MS);
+        this.drawnHeads.push({ at, ...this.headsNow() });
+    }
+
+    /**
+     * Where a press at `x` measures each playhead from (#533 4, roll-head-drag.ts reachedFrom): playing, the nearest place it
+     * was drawn at in the kit's slow time, at most a touch target behind or ahead of where it is now, as the finger lands
+     * where it saw the line; stopped, where it is.
+     */
+    private headsNear(x: number): { black: number; blue: number | null } {
+        const now = this.headsNow();
+        const since = performance.now() - REACH_BACK_MS;
+        const drawn = this.playing() ? this.drawnHeads : [];
+        const black = reachedFrom(x, now.black, drawn.map((head) => ({ at: head.at, x: head.black })), since, TOUCH);
+        const blue = now.blue === null ? null
+            : reachedFrom(x, now.blue, drawn.flatMap((head) => (head.blue === null ? [] : [{ at: head.at, x: head.blue }])), since, TOUCH);
+        return { black, blue };
+    }
+
+    /**
+     * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
+     * down its line, a touch target wide: the drag moves it on the sixteenth grid, not what lies under it.
+     */
+    private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
+        const { black, blue } = this.headsNear(x);
+        const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
+        return this.grabHead(laneHeadAt(x, y, heads), event.pointerId, x);
+    }
+
+    /**
+     * On the web, the model's two playheads (#495 UX-08 and UX-10, slice W3): a press takes the blue one by its knob or the
+     * black one by its dot, on the bar numbers' edge, a touch target wide for a finger. The drag moves the one taken, not
+     * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
+     */
+    private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
+        const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))));
+        // Playing, the knob is found where it was drawn a moment ago too (headsNear); its height stays.
+        const near = this.headsNear(x);
+        const found = {
+            black: knobs.black === null ? null : { ...knobs.black, x: near.black },
+            blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue },
+        };
+        const reach = (event.pointerType === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
+        return this.grabHead(knobHeadAt(x, y, found, reach), event.pointerId, x);
+    }
+
+    /**
+     * A playhead taken by its handle (#533 4): while the music plays, it stands as soon as it is held, the press telling the
+     * player at once (T14), and plays on from where it is let go (T16); stopped, a tap on it moves nothing.
+     */
+    private grabHead(handle: Handle | null, pointer: number, x: number): boolean {
+        if (handle === null || !this.laneDrag.grab(handle, pointer, this.playing())) {
+            return false;
+        }
+        this.lanePress = x;
+        return true;
+    }
+
+    /**
+     * In Expand (#533 2) the playhead is the model's blue one over the passage: taken by its handle, or with a finger in touch
+     * reading anywhere down its line, a touch target wide (found where it was drawn a moment ago while playing), and dragged
+     * inside the passage on the sixteenth grid, heard; playing, it stands while held and plays on from where it is let go.
+     */
+    private pressPassageHead(event: PointerEvent, x: number, y: number, touch: number, line: boolean): boolean {
+        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, touch, line)) {
+            return false;
+        }
+        return this.grabHead("blue", event.pointerId, x);
+    }
+
+    /** The web's playback model while the player holds it under the modes, which the roll draws and drags; else null. */
+    private heldModel(): ModelState | null {
+        return this.mode === null || this.model === null ? null : (this.player?.model?.() ?? null);
+    }
+
+    /**
+     * A move of the press on a playhead's handle, past a tap: it goes to the tick under it, held as its handle is, the blue
+     * one to the selection (the web's from the player's model, the same band).
+     */
+    private moveLaneHead(event: PointerEvent, x: number): boolean {
+        if (this.laneDrag.handle === null || this.model === null || !this.laneDrag.holds(event.pointerId)) {
+            return false;
+        }
+        if (this.lanePress !== null && Math.abs(x - this.lanePress) < CLICK_SLOP) {
+            return true;
+        }
+        this.lanePress = null;
+        this.headDrag = { pointer: event.pointerId, x };
+        this.dragLaneHeadTo(event.pointerId, x);
+        return true;
+    }
+
+    /** The held playhead goes to the place under a point across the roll, on its grid and inside its band. */
+    private dragLaneHeadTo(pointer: number, x: number): void {
+        const handle = this.laneDrag.handle;
+        const model = this.model;
+        if (handle === null || model === null) {
+            return;
+        }
+        const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
+        const selection = this.passage ?? (this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif));
+        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end);
+        if (tick !== undefined) {
+            this.laneDrag.move(pointer, tick);
+            this.invalidate();
+        }
+    }
+
+    /** The end of a press on the playhead: a drag has moved it; a tap on it in touch reading plays from there. */
+    private releasePlayhead(event: PointerEvent): boolean {
+        if (this.laneDrag.holds(event.pointerId)) {
+            this.laneDrag.release(event.pointerId);
+            this.invalidate();
+            return true;
+        }
+        const ended = this.playhead.end(event.pointerId);
+        if (ended === null) {
+            return false;
+        }
+        if (ended === "tapped" && this.touchReading) {
+            this.playFrom(event.clientX - this.roll.getBoundingClientRect().left);
+        }
+        this.invalidate();
+        return true;
+    }
+
+    /** A tap inside the loop, or the selection, plays from there (touch reading); anywhere else it does nothing (#338). */
+    private playFrom(x: number): void {
+        const span = this.playheadSpan();
+        const tick = this.tickAtX(x);
+        if (span !== null && !this.editing && tick >= span.start && tick < span.end) {
+            this.playhead.go(Math.round(tick), true);
+        }
+    }
+
+    /**
+     * A press under the modes of version 0.5 (roll-modes.ts): the hand in Navigate, a range from outside the selection in
+     * Select, a box in Edit notes; else only a click. False while the modes are off, or the editor has the press.
+     */
+    private beginRulePress(event: PointerEvent, x: number, y: number, tick: number, pitch: number, box = false): boolean {
+        if (this.mode === null || (this.editing && !box)) {
+            return false;
+        }
+        const motif = this.motif;
+        const navigates = !box && this.navigates(event.pointerType);
+        const gesture = box ? "box" : gestureFor(navigates ? "navigate" : this.mode, motif !== null && tick >= motif.start && tick < motif.end);
+        this.rulePress = { pointer: event.pointerId, x, y, tick, pitch, gesture, shift: event.shiftKey, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+        if (navigates) {
+            this.hold.begin(event.pointerId, x, y);
+        }
+        return true;
+    }
+
+    /** A move of a press under the modes; false when a range drag takes it on from here, as before the modes. */
+    private moveRulePress(event: PointerEvent, x: number, y: number): boolean {
+        const press = this.rulePress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return false;
+        }
+        if (press.gesture === "pan") {
+            this.movePan(press, x, y);
+            return true;
+        }
+        if (!press.moving && Math.hypot(x - press.x, y - press.y) < CLICK_SLOP) {
+            return true;
+        }
+        press.moving = true;
+        if (press.gesture === "range") {
+            this.rulePress = null;
+            this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick, edge: false };
+            return false;
+        }
+        if (press.gesture === "box") {
+            this.box = { x, y };
+            this.invalidate();
+        }
+        return true;
+    }
+
+    /** The end of a press under the modes: a box picks its notes for the editor; a click places a playhead, or picks a note in Edit notes. */
+    private endRulePress(event: PointerEvent): boolean {
+        const press = this.rulePress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return false;
+        }
+        this.rulePress = null;
+        const box = this.box;
+        this.box = null;
+        if (box !== null) {
+            this.pickBox(press, box);
+        } else if (!press.moving) {
+            this.clickUnderRules(press);
+        }
+        this.invalidate();
+        return true;
+    }
+
+    /**
+     * A click under the modes: in Edit notes on a note, the editor opens on it; anywhere else a playhead goes to the beat. On
+     * the iPad's strips (the lanes) a click is a tap there (tapStrip).
+     */
+    private clickUnderRules(press: { tick: number; pitch: number; shift: boolean; y?: number }): void {
+        const index = this.mode === "edit" ? this.model?.noteAt(press.tick, press.pitch) : undefined;
+        if (index !== undefined && this.model !== null) {
+            this.boxPicked.clear();
+            this.editId = this.model.notes[index].id;
+            void this.dotnet.invokeMethodAsync("OnRollNotesPicked", [this.editId]);
+            return;
+        }
+        if (this.lanes && press.y !== undefined && press.y < this.header) {
+            this.tapStrip(press.tick, press.y);
+            return;
+        }
+        void this.dotnet.invokeMethodAsync("OnRollPlace", Math.round(press.tick), press.shift);
+    }
+
+    /**
+     * A navigating tap on the iPad's strips (#543 2): on the loop strip inside the selection the position goes there (T13);
+     * anywhere else on the bar numbers or the strip the black playhead goes to the beat under it (T12), as a click on the
+     * web's bar numbers does. It never selects.
+     */
+    private tapStrip(tick: number, y: number): void {
+        const model = this.model;
+        if (model === null || this.pressLoopLane(y, tick)) {
+            return;
+        }
+        this.playhead.go(beatAt(model.bars, tick), false);
+    }
+
+    /**
+     * A navigating press held still (#543 3.1, lead decision 2): the black playhead goes to the place under the pointer on the
+     * sixteenth grid (laneDragTick), inside the selection or not, and the press holds it from here: moved on, it scrubs as a
+     * taken playhead (T14–T16); playing, the music stands while it is held and plays on from where it is let go. Nothing
+     * else the press began goes on, and the selection stays as it is. In Expand it is the passage's playhead, kept inside it.
+     */
+    private holdPlaced(pointer: number, x: number): void {
+        const handle = this.passage === null ? "black" : "blue";
+        if (this.model === null || this.player === null || !this.laneDrag.grab(handle, pointer, this.playing())) {
+            return;
+        }
+        if (this.pan?.pointer === pointer) {
+            this.pan = null;
+        }
+        if (this.rulePress?.pointer === pointer) {
+            this.rulePress = null;
+        }
+        this.lanePress = null;
+        this.headDrag = { pointer, x };
+        this.dragLaneHeadTo(pointer, x);
+    }
+
+    /** The notes a box drawn in Edit notes takes, picked for the editor (not a selection); the editor opens on them. */
+    private pickBox(from: { x: number; y: number }, to: { x: number; y: number }): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const { high, row } = this.pitchRange();
+        const pitchAt = (y: number): number => high - Math.floor((y - this.header) / row);
+        const picked = notesInBox(model.notes, { fromTick: this.tickAtX(from.x), toTick: this.tickAtX(to.x), fromPitch: pitchAt(from.y), toPitch: pitchAt(to.y) });
+        this.boxPicked = new Set(picked);
+        this.editId = picked.length > 0 ? model.notes[picked[0]].id : null;
+        if (picked.length > 0) {
+            void this.dotnet.invokeMethodAsync("OnRollNotesPicked", picked.map((index) => model.notes[index].id));
+        }
+    }
+
+    /** Delete or Backspace in the editor takes out every note a box picked. True when it did. */
+    private removeBoxPicked(event: KeyboardEvent, model: RollModel): boolean {
+        if (!this.editing || this.boxPicked.size < 2 || (event.key !== "Delete" && event.key !== "Backspace")) {
+            return false;
+        }
+        for (const index of this.boxPicked) {
+            void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
+        }
+        this.boxPicked.clear();
+        this.editId = null;
+        return true;
+    }
+
+    /**
+     * The box being drawn and the two playheads of the playback model (#495 UX-10), from the player's model with the position
+     * of this frame, under the modes of version 0.5; false while they are off or the player does not hold the model.
+     */
+    private drawRules(context: CanvasRenderingContext2D, width: number, height: number): boolean {
+        const press = this.rulePress;
+        if (press !== null && this.box !== null) {
+            drawBox(context, press, this.box, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        }
+        const state = this.heldModel();
+        if (state === null) {
+            return false;
+        }
+        const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, left: GUTTER, right: width, height };
+        drawPlayheads(context, frame, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))), { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        return true;
+    }
+
+    /** Whether the player's model changed but for its position since it was drawn: Цикл or a pause moves or fills a playhead. */
+    private modelChanged(player: PlayerHandle): boolean {
+        const state = this.mode === null ? null : (player.model?.() ?? null);
+        const key = state === null ? "" : `${state.selection?.start ?? ""}:${state.selection?.end ?? ""}:${state.loop}:${state.transport}`;
+        if (key === this.modelDrawn) {
+            return false;
+        }
+        this.modelDrawn = key;
+        return true;
     }
 
     /** A note's name spelled for its key, or its unspelled name before music-core sent the names. */
@@ -1307,13 +2548,13 @@ export class PianoRoll {
         }
         const chosen = new Set([...this.selected].map((index) => model.notes[index]?.pitch));
         context.fillStyle = SURFACE;
-        context.fillRect(0, HEADER, GUTTER, (high - low + 1) * row);
+        context.fillRect(0, this.header, GUTTER, (high - low + 1) * row);
         this.drawOctaves(context, low, high, row);
         context.font = `${Math.min(12, Math.max(9, row - 6))}px "Source Sans 3", system-ui, sans-serif`;
         context.textAlign = "left";
         context.textBaseline = "middle";
         for (let pitch = low; pitch <= high; pitch++) {
-            const y = HEADER + (high - pitch) * row;
+            const y = this.header + (high - pitch) * row;
             const black = isBlackKey(pitch);
             const lane = lit.get(pitch);
             const pointed = chosen.has(pitch);
@@ -1328,7 +2569,7 @@ export class PianoRoll {
             }
         }
         context.fillStyle = BAR_LINE;
-        context.fillRect(GUTTER - 3, HEADER, 1, (high - low + 1) * row);
+        context.fillRect(GUTTER - 3, this.header, 1, (high - low + 1) * row);
         // A small arrow at the right of the keyboard where rows go on above or below the view.
         context.fillStyle = MUTED;
         const arrow = (tipY: number, direction: 1 | -1): void => {
@@ -1340,10 +2581,10 @@ export class PianoRoll {
             context.fill();
         };
         if (above) {
-            arrow(HEADER + 2, 1);
+            arrow(this.header + 2, 1);
         }
         if (below) {
-            arrow(HEADER + (high - low + 1) * row - 2, -1);
+            arrow(this.header + (high - low + 1) * row - 2, -1);
         }
     }
 
@@ -1361,7 +2602,7 @@ export class PianoRoll {
         for (let octave = Math.floor(low / 12); octave <= Math.floor(high / 12); octave++) {
             const bottom = Math.max(low, octave * 12);
             const top = Math.min(high, octave * 12 + 11);
-            const y = HEADER + (high - top) * row;
+            const y = this.header + (high - top) * row;
             const length = (top - bottom + 1) * row;
             context.fillStyle = octave % 2 === 0 ? SURFACE_DARK : SURFACE;
             context.fillRect(0, y, OCTAVE_BAND - 2, length);
@@ -1390,10 +2631,10 @@ export class PianoRoll {
         for (const flag of this.checkPlaces(model, from, to, width)) {
             context.fillStyle = CHECK_FILL;
             context.beginPath();
-            context.roundRect(flag.x, (HEADER - CHECK_FLAG) / 2, CHECK_FLAG, CHECK_FLAG, 2);
+            context.roundRect(flag.x, (BAR_ROW - CHECK_FLAG) / 2, CHECK_FLAG, CHECK_FLAG, 2);
             context.fill();
             context.fillStyle = KEY_BLACK;
-            context.fillText("?", flag.x + CHECK_FLAG / 2, HEADER / 2 + 0.5);
+            context.fillText("?", flag.x + CHECK_FLAG / 2, BAR_ROW / 2 + 0.5);
         }
     }
 
@@ -1427,7 +2668,7 @@ export class PianoRoll {
             }
             const x = this.xOf(note.onset);
             const w = Math.max(4, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - note.pitch) * row + 1;
+            const y = this.header + (high - note.pitch) * row + 1;
             context.strokeRect(x + 1, y + 1, w - 2, Math.max(2, row - 2) - 2);
         }
         context.restore();
@@ -1439,14 +2680,14 @@ export class PianoRoll {
         if (variation === null) {
             return;
         }
-        const centre = (pitch: number): number => HEADER + (high - pitch) * row + row / 2;
+        const centre = (pitch: number): number => this.header + (high - pitch) * row + row / 2;
         for (const note of variation) {
             if (note.end < from || note.onset > to || note.pitch < low || note.pitch > high) {
                 continue;
             }
             const x = this.xOf(note.onset);
             const w = Math.max(2, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - note.pitch) * row + 1;
+            const y = this.header + (high - note.pitch) * row + 1;
             const h = Math.max(2, row - 2);
             if (note.onset !== note.fromOnset || note.pitch !== note.fromPitch) {
                 context.strokeStyle = VARIATION_LINK;
@@ -1562,6 +2803,9 @@ export class PianoRoll {
     }
 
     /** A new theme: the roll and its legend are drawn again in its colours. */
+    /** Practice view began, ended or showed its controls (#533 11): the playheads and the strips are drawn again. */
+    private readonly onPracticeChanged = (): void => this.invalidate();
+
     private readonly onThemeChanged = (): void => {
         this.renderLegend();
         this.invalidate();
@@ -1618,62 +2862,48 @@ export class PianoRoll {
         if (model === null) {
             return;
         }
+        this.holdBegan(event.pointerId);
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const y = event.clientY - box.top;
-        if (this.pinched(event, x, y)) {
+        if (this.pinched(event, x, y) || this.pensOwn(event)) {
             return;
         }
         const { high, row } = this.pitchRange();
-        const pitch = high - Math.floor((y - HEADER) / row);
+        const pitch = high - Math.floor((y - this.header) / row);
         this.roll.setPointerCapture(event.pointerId);
         // No text selection while dragging; focus by hand so the keys (Escape, arrows) reach the roll.
         event.preventDefault();
         this.roll.focus({ preventScroll: true });
         if (x < GUTTER) {
             // The pitch names play their row's key, as the keyboard does.
-            if (y >= HEADER) {
+            if (y >= this.header) {
                 this.press = { pointer: event.pointerId, x, y, tick: -1, pitch, add: false, sounding: this.strike(pitch), top: null };
             }
             return;
         }
         const tick = this.tickAtX(x);
-        // In touch reading a finger on the notes moves through the music: it neither selects nor sounds.
-        if (this.touchReading && !this.editing && y >= HEADER && event.pointerType !== "mouse") {
-            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+        if (this.pressPlayhead(event, x, y)) {
             return;
         }
-        // A press on an edge of the selection drags that edge; the other edge stays where it is.
-        const edge = this.editing ? null : this.edgeAt(x);
-        if (edge !== null && this.motif !== null) {
-            const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
-            this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
-            this.invalidate();
+        // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).
+        const edits = this.editing && this.editsWith(event.pointerType);
+        if (this.pressPanOrEdge(event, x, y, tick, edits)) {
             return;
         }
-        if (y < HEADER && this.editing) {
-            return;
-        }
-        if (y < HEADER) {
-            // A Check flag opens Check at its bar.
-            const width = this.host.clientWidth;
-            const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
-                .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
-            if (flag !== undefined) {
-                void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
-                return;
+        if (y < this.header) {
+            if (!this.editing) {
+                this.pressBarNumbers(event, model, x, y, tick, pitch);
+            } else {
+                this.pressLoopLane(y, tick);
             }
-            // Shift-click on a bar number extends the selection to that bar.
-            if (event.shiftKey && this.motif !== null) {
-                void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
-                return;
-            }
-            this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
-            this.invalidate();
             return;
         }
-        if (this.editing) {
+        if (edits) {
             this.editPress(event, model, x, y, tick, pitch);
+            return;
+        }
+        if (this.beginRulePress(event, x, y, tick, pitch)) {
             return;
         }
         // A note sounds as soon as it is pressed, over playback too.
@@ -1682,6 +2912,84 @@ export class PianoRoll {
         this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
 
+    /** While the Pen is on, the stylus is the Pen's: a gesture belongs to one tool, so on the roll it does nothing (#521 10). */
+    private pensOwn(event: PointerEvent): boolean {
+        if (actsOnRoll(event.pointerType, this.penHolds())) {
+            return false;
+        }
+        event.preventDefault();
+        return true;
+    }
+
+    /**
+     * A press that moves the roll or drags an edge of the selection; true when it was one. In touch reading a finger on the
+     * notes moves through the music: it neither selects nor sounds; so does a pointer that does not edit while the editor is
+     * on (#479 item 23). A press on an edge drags that edge, the other staying where it is; under the iPad's rules the
+     * handles over the notes take it with the editor on too, as the selection's handles do in every mode.
+     */
+    private pressPanOrEdge(event: PointerEvent, x: number, y: number, tick: number, edits: boolean): boolean {
+        if (this.touchReading && !edits && y >= this.header && event.pointerType !== "mouse") {
+            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            if (this.navigates(event.pointerType)) {
+                this.hold.begin(event.pointerId, x, y);
+            }
+            return true;
+        }
+        const edge = !this.selectsWith(event.pointerType) || (this.editing && (this.pointerRules === null || y >= this.header)) ? null : this.edgeAt(x);
+        if (edge === null || this.motif === null) {
+            return false;
+        }
+        const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
+        this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
+        this.invalidate();
+        return true;
+    }
+
+    /** A press on the bar numbers: a Check flag opens Check at its bar; else it begins selecting bars, or Shift extends. */
+    private pressBarNumbers(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
+        const width = this.host.clientWidth;
+        const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
+            .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
+        if (flag !== undefined) {
+            void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
+            return;
+        }
+        // In Navigate the strips select nothing (#543 2): a drag moves the roll, a tap moves the playhead, a hold puts it there.
+        if (this.navigates(event.pointerType)) {
+            this.beginNavigatePress(event, x, y, tick, pitch);
+            return;
+        }
+        if (this.inHiddenLane(y)) {
+            return;
+        }
+        // Select follows the one selection gesture on the strips (#511 2.1, 6.3); Edit notes and the Pen keep their rules.
+        const ruled = this.mode !== null && this.mode !== "select";
+        if ((ruled && this.beginRulePress(event, x, y, tick, pitch)) || !this.selectsWith(event.pointerType)) {
+            return;
+        }
+        // Shift-click on a bar number extends the selection to that bar.
+        if (event.shiftKey && this.motif !== null) {
+            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true, "edit", nextGestureId());
+            return;
+        }
+        // Inside the selection a move edits it, outside a hold clears it; without one a press selects at once (#511 2.1).
+        this.strip.begin(event, x, y, tick);
+        this.invalidate();
+    }
+
+    /**
+     * A navigating press on the strips (#543 2): it moves the roll as a press on the notes does (a finger or the stylus on
+     * the iPad, the mouse on the web), a tap moves the playhead, and held still it puts the black playhead there.
+     */
+    private beginNavigatePress(event: PointerEvent, x: number, y: number, tick: number, pitch: number): void {
+        if (this.touchReading && event.pointerType !== "mouse") {
+            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            this.hold.begin(event.pointerId, x, y);
+            return;
+        }
+        this.beginRulePress(event, x, y, tick, pitch);
+    }
+
     /**
      * Two fingers on the notes pinch the zoom (testing item 13): the second finger cancels what the first began (a press,
      * a drag) and starts the pinch. True when the press is part of a pinch.
@@ -1689,6 +2997,12 @@ export class PianoRoll {
     private pinched(event: PointerEvent, x: number, y: number): boolean {
         if (event.pointerType !== "touch") {
             return false;
+        }
+        if (this.touches.size > 0 && !this.touches.has(event.pointerId) && staleGesture({ pointerType: "touch" }, event)) {
+            // A first finger with fingers still counted down: their end was lost (#543 9). Without this every finger after
+            // would be taken for a pinch's second and the roll would answer no single finger again.
+            this.touches.clear();
+            this.cancelPresses();
         }
         this.touches.set(event.pointerId, { x, y });
         if (this.touches.size < 2) {
@@ -1700,9 +3014,28 @@ export class PianoRoll {
         }
         this.drag = null;
         this.pan = null;
+        if (this.touchReading) {
+            // Two fingers move the roll: what the first began in the editor goes, nothing sent (#479 item 23).
+            this.cancelEditPress();
+        }
+        this.playhead.cancel();
+        this.hold.cancel();
+        this.laneDrag.release();
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
-        this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: this.zoom, rowScale: this.rowScale };
+        this.pinch = {
+            distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+            zoom: this.zoom,
+            rowScale: this.rowScale,
+            dx: a.x - b.x,
+            dy: a.y - b.y,
+            midX: (a.x + b.x) / 2,
+            midY: (a.y + b.y) / 2,
+            scroll: this.scroll,
+            top: this.pitchRange().high,
+            time: 1,
+            pitch: 1,
+        };
         this.invalidate();
         return true;
     }
@@ -1710,7 +3043,14 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.movedByFingers(event, x, event.clientY - box.top)) {
+        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x)) {
+            return;
+        }
+        if (this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
+            this.headDrag = this.playhead.dragging ? { pointer: event.pointerId, x } : null;
+            return;
+        }
+        if (this.moveRulePress(event, x, event.clientY - box.top)) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1728,10 +3068,10 @@ export class PianoRoll {
             this.invalidate();
             return;
         }
-        if (this.editing && this.model !== null) {
+        if (this.editing && this.drag === null && this.model !== null) {
             const tick = this.tickAtX(x);
             const { high, row } = this.pitchRange();
-            const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - HEADER) / row)) : undefined;
+            const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - this.header) / row)) : undefined;
             this.roll.style.cursor = index === undefined
                 ? this.editTool === "add" ? "copy" : ""
                 : this.editTool === "delete" ? "not-allowed"
@@ -1751,7 +3091,7 @@ export class PianoRoll {
                     this.scrollPitch(Math.round((y - press.y) / row), press.top);
                     return;
                 }
-                const pitch = high - Math.floor((y - HEADER) / row);
+                const pitch = high - Math.floor((y - this.header) / row);
                 if (pitch !== press.pitch) {
                     this.release(press.sounding);
                     press.pitch = pitch;
@@ -1759,18 +3099,21 @@ export class PianoRoll {
                 }
                 return;
             }
-            // A press on the notes area that moves becomes a range drag, as on the bar numbers.
-            if (Math.abs(x - press.x) >= CLICK_SLOP) {
+            // A press on the notes area that moves becomes a range drag, as on the bar numbers; not in Expand (#521 19.3).
+            if (Math.abs(x - press.x) >= CLICK_SLOP && this.passage === null) {
                 this.release(press.sounding);
                 this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick, edge: false };
                 this.press = null;
             }
         }
+        if (this.strip.move(event.pointerId, x, event.clientY - box.top)) {
+            return;
+        }
         if (this.drag === null || event.pointerId !== this.drag.pointer) {
             this.roll.style.cursor = x >= GUTTER && this.edgeAt(x) !== null ? "ew-resize" : "";
             return;
         }
-        this.drag.current = this.tickAtX(Math.max(GUTTER, x));
+        this.drag.current = Math.max(0, this.tickAtX(Math.max(GUTTER, x)) + (this.drag.offset ?? 0));
         // Dragging past either edge scrolls the roll along.
         if (x > this.host.clientWidth - 8 || x < GUTTER + 8) {
             this.keepInView(this.drag.current);
@@ -1783,16 +3126,15 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.endedByFingers(event)) {
-            return;
-        }
-        const editDrag = this.editDrag;
-        if (editDrag !== null && event.pointerId === editDrag.pointer) {
-            const { onset, pitch, length } = this.edited(editDrag.index);
-            this.editDrag = null;
-            this.release(editDrag.sounding);
-            this.sendEdit(editDrag.index, onset, pitch, length);
-            this.invalidate();
+        // A hold that fired made the press the playhead's: releasePlayhead lets it go; one still waiting is a tap.
+        this.hold.end(event.pointerId);
+        this.pointerUp(event);
+        this.headDrag = null;
+        this.holdEnded(event.pointerId);
+    };
+
+    private pointerUp(event: PointerEvent): void {
+        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event) || this.strip.end(event.pointerId)) {
             return;
         }
         const press = this.press;
@@ -1821,25 +3163,69 @@ export class PianoRoll {
         const click = !drag.edge && Math.abs(x - drag.anchorX) < CLICK_SLOP;
         // An end edge let go on a beat line ends there, not a beat later: music-core rounds an end up to the next beat.
         const current = drag.edge && drag.current > drag.anchor ? Math.max(drag.anchor, drag.current - 1) : drag.current;
-        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false);
+        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false, drag.how ?? "create", drag.gesture ?? nextGestureId());
         this.drag = null;
         this.invalidate();
-    };
+    }
+
+    /** The end of a press in the editor: a finger's tap adds or takes out a note, a drag sends where the note went. */
+    private endEditPress(event: PointerEvent): boolean {
+        const tap = this.editTap;
+        if (tap !== null && event.pointerId === tap.pointer) {
+            this.editTap = null;
+            const area = this.roll.getBoundingClientRect();
+            if (this.model !== null && Math.hypot(event.clientX - area.left - tap.x, event.clientY - area.top - tap.y) < CLICK_SLOP) {
+                this.tapEdit(this.model, tap.tick, tap.pitch);
+            }
+            return true;
+        }
+        const editDrag = this.editDrag;
+        if (editDrag === null || event.pointerId !== editDrag.pointer) {
+            return false;
+        }
+        const { onset, pitch, length } = this.edited(editDrag.index);
+        this.editDrag = null;
+        this.release(editDrag.sounding);
+        this.sendEdit(editDrag.index, onset, pitch, length);
+        this.invalidate();
+        return true;
+    }
 
     private readonly onPointerCancel = (event: PointerEvent): void => {
         this.touches.delete(event.pointerId);
+        this.cancelPresses();
+        this.holdEnded(event.pointerId);
+        this.invalidate();
+    };
+
+    /**
+     * Every press the roll was reading is let go, sending nothing more (a cancel, a change of tool): no range, edge, pan,
+     * hold or held playhead is left to take the next press (#543 9). A selection a hold took away comes back.
+     */
+    private cancelPresses(): void {
         this.pinch = null;
         this.release(this.press?.sounding ?? null);
         this.release(this.editDrag?.sounding ?? null);
         this.editDrag = null;
+        this.editTap = null;
         this.drag = null;
         this.press = null;
         this.pan = null;
-        this.invalidate();
-    };
+        this.rulePress = null;
+        this.box = null;
+        this.strip.cancel();
+        this.hold.cancel();
+        this.playhead.cancel();
+        this.laneDrag.release();
+        this.headDrag = null;
+    }
 
-    /** A move of a pinch, or of a finger moving the roll in touch reading; true when it was one. */
+    /**
+     * A move of a pinch, or of a finger moving the roll in touch reading; true when it was one. Every move comes here first,
+     * so a press waiting for its hold to put the playhead there (HoldToPlace) hears it too.
+     */
     private movedByFingers(event: PointerEvent, x: number, y: number): boolean {
+        this.hold.move(event.pointerId, x, y);
         if (this.touches.has(event.pointerId)) {
             this.touches.set(event.pointerId, { x, y });
         }
@@ -1848,7 +3234,9 @@ export class PianoRoll {
             const [a, b] = [...this.touches.values()];
             const factor = Math.hypot(a.x - b.x, a.y - b.y) / pinch.distance;
             const anchor = Math.max(0, (a.x + b.x) / 2 - GUTTER);
-            if (this.touchReading) {
+            if (this.touchReading && this.axisZoom) {
+                this.pinchOnAxes(pinch, a, b);
+            } else if (this.touchReading) {
                 // Two fingers zoom the time only, so the rows stay where they are.
                 this.byHand();
                 this.zoomTo(pinch.zoom * factor, this.rowScale, anchor);
@@ -1864,6 +3252,33 @@ export class PianoRoll {
         return false;
     }
 
+    /**
+     * A pinch with the zoom on each axis (#479 item 23, #521 4): in every move the time zooms by the fingers' spread across,
+     * round where they began, and the rows by their spread up and down (pinchStep), both at once, so the pinch may turn from
+     * one way to the other without lifting; and the roll follows the fingers' middle, so two fingers move it as one does.
+     */
+    private pinchOnAxes(pinch: Pinch, a: { x: number; y: number }, b: { x: number; y: number }): void {
+        const step = pinchStep({ dx: pinch.dx, dy: pinch.dy }, { dx: a.x - b.x, dy: a.y - b.y });
+        // Within the zoom's limits, so a pinch back from a limit zooms at once.
+        pinch.time = Math.min(MAX_ZOOM / pinch.zoom, Math.max(this.minZoom() / pinch.zoom, pinch.time * step.time));
+        pinch.pitch = Math.min(MAX_ROW / ROW_AT_100 / pinch.rowScale, Math.max(READING_MIN_ROW / ROW_AT_100 / pinch.rowScale, pinch.pitch * step.pitch));
+        pinch.dx = step.spread.dx;
+        pinch.dy = step.spread.dy;
+        this.byHand();
+        this.scroll = pinch.scroll;
+        this.pitchTop = pinch.top;
+        this.zoomTo(pinch.zoom * pinch.time, pinch.rowScale, Math.max(0, pinch.midX - GUTTER));
+        if (pinch.pitch !== 1) {
+            this.rowsAround(pinch.rowScale * pinch.pitch, pinch.midY);
+        }
+        this.scrollTo(this.scroll - (((a.x + b.x) / 2 - pinch.midX) * TICKS_PER_QUARTER) / this.zoom);
+        const { high, row, above, below } = this.pitchRange();
+        if (above || below) {
+            this.pitchTop = high + Math.round(((a.y + b.y) / 2 - pinch.midY) / row);
+        }
+        this.invalidate();
+    }
+
     /** The end of a pinch, or of a finger on the roll in touch reading; true when it was one. */
     private endedByFingers(event: PointerEvent): boolean {
         if (this.touches.delete(event.pointerId) && this.pinch !== null) {
@@ -1872,8 +3287,15 @@ export class PianoRoll {
             return true;
         }
         if (this.pan !== null && event.pointerId === this.pan.pointer) {
-            // A tap or a move through the music: the selection stays as it is.
+            // A tap or a move through the music: the selection stays as it is. A tap inside the loop or the selection plays
+            // from there (Andrei, v0.2).
+            const pan = this.pan;
             this.pan = null;
+            if (!pan.moving && pan.y < this.header) {
+                this.tapStrip(this.tickAtX(pan.x), pan.y);
+            } else if (!pan.moving) {
+                this.playFrom(pan.x);
+            }
             return true;
         }
         return false;
@@ -1897,13 +3319,68 @@ export class PianoRoll {
     /** Which edge of the selection is under x, if any. */
     private edgeAt(x: number): "start" | "end" | null {
         const motif = this.motif;
-        if (motif === null) {
+        // The lanes' handles are the loop strip's: hidden with it in practice view, they take nothing (#543, 0.5.6 tail).
+        // Only Select changes the selection, so outside it the handles take nothing (#543 2, 4.2).
+        if (motif === null || !modeSelects(this.mode) || (this.lanes && !this.laneShown())) {
             return null;
         }
-        if (Math.abs(x - this.xOf(motif.end)) <= EDGE_GRAB) {
+        // The lanes' handles take a finger (WCAG 2.2, 2.5.8).
+        const grab = this.lanes ? TOUCH / 2 : EDGE_GRAB;
+        if (Math.abs(x - this.xOf(motif.end)) <= grab) {
             return "end";
         }
-        return Math.abs(x - this.xOf(motif.start)) <= EDGE_GRAB ? "start" : null;
+        return Math.abs(x - this.xOf(motif.start)) <= grab ? "start" : null;
+    }
+
+    /** How the strips' selection gesture reaches the roll and the page. */
+    private stripHost(): StripHost {
+        return {
+            selection: () => (this.motif === null ? null : { start: this.motif.start, end: this.motif.end }),
+            beginRange: (pointer, x, tick, how, gesture) => {
+                this.drag = { pointer, anchorX: x, anchor: tick, current: tick, edge: false, how, gesture };
+                this.invalidate();
+            },
+            beginEdge: (pointer, anchor, offset, gesture) => {
+                this.drag = { pointer, anchorX: Number.NaN, anchor, current: anchor, edge: true, offset, how: "edit", gesture };
+            },
+            beginPan: (pointer, x, y) => {
+                this.pan = { pointer, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: true };
+            },
+            clear: (gesture) => void this.dotnet.invokeMethodAsync("OnRollClear", gesture),
+            cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnRollGestureCancelled", gesture),
+            hint: () => void this.dotnet.invokeMethodAsync("OnRollHoldHint"),
+            keepsSelection: () => holdKeepsSelection(this.mode, this.playing()),
+            tap: (tick, y, inside) => {
+                // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection,
+                // and under the modes places the playhead on the beat, as a click there always has.
+                if (inside && this.pressLoopLane(y, tick)) {
+                    return;
+                }
+                if (this.mode !== null) {
+                    this.clickUnderRules({ tick, pitch: -1, shift: false, y });
+                }
+            },
+        };
+    }
+
+    /** Whether the loop strip is shown and takes presses (roll-strips.ts laneShown): with the lanes, not in practice view. */
+    private laneShown(): boolean {
+        return laneShown(this.lanes, shownAt(this.host));
+    }
+
+    /** Whether a point lies in the loop strip's lane while the strip is hidden (laneShown): there no press reaches the strip. */
+    private inHiddenLane(y: number): boolean {
+        return this.lanes && !this.laneShown() && y >= BAR_ROW && y < this.header;
+    }
+
+    /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
+    private pressLoopLane(y: number, tick: number): boolean {
+        const motif = this.motif;
+        if (!this.laneShown() || (this.editing && this.pointerRules === null) || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
+            return false;
+        }
+        this.playhead.go(Math.round(tick), false);
+        return true;
     }
 
     /** Strikes a key by hand and lights it; returns the pitch, to release later. */
@@ -1990,11 +3467,15 @@ export class PianoRoll {
 
     /** Clears the selected notes and asks the page to clear the motif selection, when there is any. */
     private clearAll(): void {
+        // In Expand the selection is the passage shown: nothing here takes it away (#521 19.3).
+        if (this.passage !== null) {
+            return;
+        }
         if (this.selected.size > 0) {
             this.selectIndex(undefined, false);
         }
         if (this.motif !== null) {
-            void this.dotnet.invokeMethodAsync("OnRollClear");
+            void this.dotnet.invokeMethodAsync("OnRollClear", nextGestureId());
         }
     }
 
@@ -2026,7 +3507,8 @@ export class PianoRoll {
         if (press === null || Math.hypot(event.clientX - press.x, event.clientY - press.y) >= CLICK_SLOP) {
             return;
         }
-        if (this.host.isConnected && this.host.offsetParent !== null && !this.touchReading) {
+        // Under the modes of version 0.5 only ✕ or Escape removes the selection.
+        if (this.host.isConnected && this.host.offsetParent !== null && !this.touchReading && this.mode === null) {
             this.clearAll();
         }
     };
@@ -2059,9 +3541,16 @@ export class PianoRoll {
             event.preventDefault();
             return;
         }
+        if (this.removeBoxPicked(event, model)) {
+            event.preventDefault();
+            return;
+        }
         const picked = this.editing ? this.editIndex() : undefined;
         if (picked !== undefined && this.editKey(event, model, picked)) {
             event.preventDefault();
+            return;
+        }
+        if (this.touchReading && this.nudgeKey(event)) {
             return;
         }
         switch (event.key) {
@@ -2089,6 +3578,16 @@ export class PianoRoll {
         }
         event.preventDefault();
     };
+
+    /** Read by touch, the roll selects no notes: ← and → move the playhead by a beat. True when the key was one of them. */
+    private nudgeKey(event: KeyboardEvent): boolean {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+            return false;
+        }
+        event.preventDefault();
+        this.playhead.nudge(event.key === "ArrowRight" ? 1 : -1);
+        return true;
+    }
 
     /** The editor's keys on the note picked: Delete or Backspace takes it out, the arrows move it, Shift with ← → changes its length. */
     private editKey(event: KeyboardEvent, model: RollModel, index: number): boolean {
@@ -2134,12 +3633,14 @@ export class PianoRoll {
             if ((event.deltaY < 0 && !above) || (event.deltaY > 0 && !below)) {
                 return;
             }
+            this.byHand();
             this.scrollPitch(-Math.sign(event.deltaY) * Math.max(1, Math.round(Math.abs(event.deltaY) / row)));
         } else {
             const delta = event.shiftKey ? event.deltaY : event.deltaX;
             if (delta === 0) {
                 return;
             }
+            this.byHand();
             this.scrollTo(this.scroll + (delta * TICKS_PER_QUARTER) / this.zoom);
         }
         event.preventDefault();
@@ -2152,6 +3653,34 @@ export class PianoRoll {
 }
 
 /** A button of the floating zoom. */
+/**
+ * The floating zoom (testing item 13): − the percentage + and Fit, and Zoom Out after Fit of a selection (#521 2.2), hidden
+ * until then; each button does what it is given.
+ */
+function floatingZoom(actions: { out: () => void; in: () => void; fit: () => void; overview: () => void }): {
+    bar: HTMLElement;
+    out: HTMLButtonElement;
+    level: HTMLElement;
+    in: HTMLButtonElement;
+    fit: HTMLButtonElement;
+    overview: HTMLButtonElement;
+} {
+    const bar = document.createElement("div");
+    bar.className = "roll-zoom";
+    bar.setAttribute("role", "group");
+    const level = document.createElement("span");
+    level.className = "roll-zoom-level";
+    const buttons = { out: zoomButton("−"), in: zoomButton("+"), fit: zoomButton(""), overview: zoomButton("") };
+    buttons.fit.classList.add("roll-fit");
+    buttons.overview.classList.add("roll-fit");
+    buttons.overview.hidden = true;
+    for (const key of ["out", "in", "fit", "overview"] as const) {
+        buttons[key].addEventListener("click", actions[key]);
+    }
+    bar.replaceChildren(buttons.out, level, buttons.in, buttons.fit, buttons.overview);
+    return { bar, level, ...buttons };
+}
+
 function zoomButton(text: string): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";

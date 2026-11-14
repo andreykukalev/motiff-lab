@@ -2,22 +2,34 @@
 // shows its length and shape for the player to choose the stretch to hear, sends only that stretch's sound
 // to the scan server, and opens the MIDI it hears with every note marked as detected.
 // The scan server is played by the test: it answers with what Basic Pitch heard in a synthesised melody.
+// It is a real HTTP server rather than a route, so the test reads the bytes the browser sent: WebKit's network inspector
+// leaves a Blob's bytes out of the body it reports (only the multipart text around them is kept), though WebKit sends them.
 // Runs in every engine, since decoding the recording is the browser's own work.
 import { expect, test } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { closePopover, openMore, violations } from "./steps.mjs";
+import { closePopover, openMore, violations, librarySessions } from "./steps.mjs";
 
 const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
 const furElise = fileURLToPath(new URL(`${fixtures}transkun-fur-elise.mid`, import.meta.url));
-const server = "http://localhost:8765";
 
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
+
+/** The stand-in scan servers the running test started, closed after it. */
+const servers = [];
+
+test.afterEach(async () => {
+    await Promise.all(servers.splice(0).map(server => new Promise(resolve => {
+        server.closeAllConnections();
+        server.close(resolve);
+    })));
+});
 
 /** A 440 Hz tone in stereo, a second at 44.1 kHz by default, as a WAV file the browser decodes and mixes down. */
 async function recording(seconds = 1, rate = 44100) {
@@ -45,23 +57,48 @@ async function recording(seconds = 1, rate = 44100) {
     return path;
 }
 
-/** Plays the scan server, answering with the MIDI file given; returns the uploads it received. */
+/**
+ * Plays the scan server on a free port, answering every part with the MIDI file given, and points the app at it in
+ * Settings; returns the uploads it received, each the request's body as it arrived.
+ */
 async function scanServer(page, answer = heard) {
     const uploads = [];
     const midi = await readFile(answer);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
-    await page.route(`${server}/health`, route => route.fulfill({
-        json: { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "basic-pitch", version: "0.4.0", maxMegabytes: 200, maxSeconds: 600 } },
-        headers: cors,
-    }));
-    await page.route(`${server}/transcribe`, route => {
-        uploads.push(route.request().postDataBuffer() ?? Buffer.alloc(0));
-        return route.fulfill({ body: midi, contentType: "audio/midi", headers: { ...cors, "X-Engine": "basic-pitch 0.4.0", "X-Seconds": "1.0", "X-Cut": "false" } });
+    const health = { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "basic-pitch", version: "0.4.0", maxMegabytes: 200, maxSeconds: 600 } };
+    const server = createServer((request, response) => {
+        const chunks = [];
+        request.on("data", chunk => chunks.push(chunk));
+        request.on("end", () => {
+            const path = new URL(request.url, "http://localhost").pathname;
+            if (request.method === "OPTIONS") {
+                const allowed = request.headers["access-control-request-headers"] ?? "";
+                response.writeHead(204, { ...cors, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": allowed });
+                response.end();
+            } else if (path === "/health") {
+                response.writeHead(200, { ...cors, "Content-Type": "application/json" });
+                response.end(JSON.stringify(health));
+            } else if (path === "/transcribe" && request.method === "POST") {
+                uploads.push(Buffer.concat(chunks));
+                response.writeHead(200, { ...cors, "Content-Type": "audio/midi", "X-Engine": "basic-pitch 0.4.0", "X-Seconds": "1.0", "X-Cut": "false" });
+                response.end(midi);
+            } else {
+                response.writeHead(404, cors);
+                response.end();
+            }
+        });
     });
+    servers.push(server);
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+
+    await page.goto("/settings");
+    await page.getByLabel("Scan server address").fill(`http://127.0.0.1:${server.address().port}`);
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
     return uploads;
 }
 
-/** Picks a recording and, once the browser has read it, sends the stretch chosen (all of it, up to 7 minutes). */
+/** Picks a recording and, once the browser has read it, sends the stretch chosen (all of it, however long). */
 async function transcribe(page, file) {
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(file);
     await page.getByRole("button", { name: "Transcribe the stretch" }).click();
@@ -75,9 +112,6 @@ test("transcription is off until Settings has a scan server", async ({ page }) =
 
 test("a recording's sound is sent as mono audio, and its notes open marked as heard", async ({ page }) => {
     const uploads = await scanServer(page);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
@@ -106,14 +140,12 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
     await expect(page).toHaveURL(/playback/);
     await page.goto("/");
     // The library's card says where the piece came from (0018 section 9).
+    await librarySessions(page);
     await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
 test("a transcription is written in bars and a tempo worked out from its notes, which the player changes in Check", async ({ page }) => {
     await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await transcribe(page, await recording());
@@ -181,27 +213,26 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await closePopover(page);
     await page.goto("/");
     // The library's card says where the piece came from (0018 section 9).
+    await librarySessions(page);
     await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
 test("a recording longer than two minutes is heard in overlapping parts and its notes are joined", async ({ page }) => {
     const uploads = await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await transcribe(page, await recording(240, 8000));
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
 
-    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other. The last part
-    // ends where the decoded sound does, and WebKit resamples the 8 kHz file a couple of samples short of 240 s, so
-    // the last part may be up to a millisecond short.
+    // Four minutes go as two parts, each half with five seconds of the other: the seam lies at the quietest moment
+    // within ten seconds of two minutes, so together they carry 250 s, neither more than the server hears at once.
     expect(uploads).toHaveLength(2);
-    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40));
-    expect(sizes[0]).toBe(125 * 22050 * 2);
-    expect(sizes[1]).toBeLessThanOrEqual(125 * 22050 * 2);
-    expect(sizes[1]).toBeGreaterThan((125 - 0.001) * 22050 * 2);
+    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40) / (22050 * 2));
+    expect(Math.abs(sizes[0] + sizes[1] - 250)).toBeLessThan(0.01);
+    for (const seconds of sizes) {
+        expect(seconds).toBeGreaterThanOrEqual(115);
+        expect(seconds).toBeLessThanOrEqual(140);
+    }
 
     // The stand-in answers each part with Für Elise's first 130 s: the first part keeps its first two
     // minutes, the second what it heard after its five-second lead-in.
@@ -212,38 +243,35 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
 
 test("only the stretch the player chooses in a long recording is sent, and the parts it takes are told first", async ({ page }) => {
     const uploads = await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
     const range = page.getByRole("region", { name: "Choose what to hear" });
-    await expect(range.getByText("10:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(range.getByText("Take 1 at the piano.wav · 10:00 long")).toBeVisible({ timeout: 30_000 });
 
-    // Ten minutes start as their first seven, which go in four parts.
-    await expect(range.getByText("0:00 to 7:00, 7:00 long: heard in 4 parts", { exact: false })).toBeVisible();
-    await expect(range.getByText("so 4 requests to the scan server", { exact: false })).toBeVisible();
+    // Ten minutes start whole, and go in five parts, one after another to the player's own server.
+    await expect(range.getByText("0:00 to 10:00, 10:00 long: heard in 5 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("so 5 requests to the scan server, one after another", { exact: false })).toBeVisible();
 
     // Found by ear: the play position moved to 2:00, "Start here"; the end stays. Then to 4:30, "End here".
     const player = page.locator(".recording-range audio");
     await player.evaluate(audio => { audio.currentTime = 120; });
     await range.getByRole("button", { name: "Start here" }).click();
-    await expect(range.getByText("2:00 to 7:00, 5:00 long: heard in 3 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("2:00 to 10:00, 8:00 long: heard in 4 parts", { exact: false })).toBeVisible();
     await player.evaluate(audio => { audio.currentTime = 270; });
     await range.getByRole("button", { name: "End here" }).click();
     await expect(range.getByText("2:00 to 4:30, 2:30 long: heard in 2 parts", { exact: false })).toBeVisible();
     await expect(range.getByText("so 2 requests to the scan server", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
 
-    // Two and a half minutes go as two parts of 75 s with five seconds of the other: 80 s each.
+    // Two and a half minutes go as two parts of about 75 s, the seam at the quietest moment near the even cut, each
+    // with five seconds of the other: 160 s together.
     await range.getByRole("button", { name: "Transcribe the stretch" }).click();
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
     expect(uploads).toHaveLength(2);
-    for (const body of uploads) {
-        const wav = body.indexOf(Buffer.from("RIFF"));
-        expect(body.readUInt32LE(wav + 40)).toBe(80 * 22050 * 2);
-    }
+    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40) / (22050 * 2));
+    expect(Math.abs(sizes[0] + sizes[1] - 160)).toBeLessThan(0.01);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(70);
     await expect(page.getByText("2:00 to 4:30 of the recording heard", { exact: false })).toBeVisible();
     await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
 });
@@ -253,14 +281,11 @@ test("the selection is dragged on the recording's shape, and the play position m
     // file (error 4, NotSupportedError on play). Fixed or explained in #337, which removes this mark.
     test.fixme(browserName === "webkit", "#337: the recording's player sometimes cannot load the file in WebKit");
     await scanServer(page);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
     const range = page.getByRole("region", { name: "Choose what to hear" });
-    await expect(range.getByText("0:00 to 7:00, 7:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(range.getByText("0:00 to 10:00, 10:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
     const start = range.getByRole("slider", { name: "Start" });
     const end = range.getByRole("slider", { name: "End" });
     const box = await range.locator(".wave").boundingBox();

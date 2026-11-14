@@ -1,0 +1,191 @@
+@using System.Globalization
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Several pieces in a score or recording (an experiment, Settings · Experimental; version 0.5): the review step. While the
+   pieces are reviewed, one row a piece: its number, its title to type, its bars, its time in a recording or its pages, and,
+   for a boundary music-core found, how sure it is and why, dashed like any inference. A boundary is removed, moved by a
+   bar or added (from a bar typed, or from the start of the selection); «Найти заново» asks music-core again, with the
+   number of pieces when the player gives one. Confirm keeps the pieces as the pieces layer, in one save. Once kept, the
+   pieces are listed, a tap selecting each, until the player reviews them again. Every boundary is music-core's
+   (SectionFinder.FindPieces, FoundSections, PieceLayer); this only shows them and passes the player's changes on. *@
+<section id="contents-pieces" class="contents-section found-sections pieces-review" aria-labelledby="contents-pieces-title">
+    <h3 id="contents-pieces-title" class="overline">@Heading</h3>
+    @if (Review is { } review)
+    {
+        <p class="caption">@Text[review.Items.Count > 1 ? "pieces.reviewHow" : "pieces.one"]</p>
+        <ol class="entries">
+            @foreach (FoundSection piece in review.Items)
+            {
+                <li class="found-entry @(piece.IsAdded || piece.IsKept ? "mine" : null)" @key="piece.FirstBar">
+                    <div class="entry">
+                        <button class="go" title="@Text["found.goHint"]" @onclick="() => Go.InvokeAsync(piece.Span)">
+                            <span class="t">@Text.Format("parts.piece", piece.Number)</span>
+                            <span class="c">@Where(piece)</span>
+                            @if (!piece.IsAdded && !piece.IsKept && piece.Number > 1)
+                            {
+                                <span class="why">@piece.ConfidenceIn(Words) · @piece.ReasonIn(Words)</span>
+                            }
+                        </button>
+                    </div>
+                    @if (piece.Number > 1)
+                    {
+                        <span class="tag found-tag">@Text[piece.IsAdded || piece.IsKept ? "pieces.mine" : "found.tag"]</span>
+                    }
+                    <input type="text" class="piece-title" maxlength="200" aria-label="@Text.Format("pieces.titleOf", piece.Number)"
+                           value="@piece.PieceTitleIn(Words)" @onchange="change => Rename(piece, change.Value as string)" />
+                    @if (piece.Number > 1)
+                    {
+                        <div class="found-actions" role="group" aria-label="@Text.Format("parts.piece", piece.Number)">
+                            <button class="btn quiet compact" disabled="@(!review.CanMove(piece.Number, piece.FirstBar - 1))"
+                                    @onclick="() => Change.InvokeAsync(found => found.Move(piece.Number, piece.FirstBar - 1))">@Text["pieces.earlier"]</button>
+                            <button class="btn quiet compact" disabled="@(!review.CanMove(piece.Number, piece.FirstBar + 1))"
+                                    @onclick="() => Change.InvokeAsync(found => found.Move(piece.Number, piece.FirstBar + 1))">@Text["pieces.later"]</button>
+                            <button class="btn quiet compact" @onclick="() => Change.InvokeAsync(found => found.Dismiss(piece.Number))">@Text["pieces.remove"]</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ol>
+        <div class="found-move">
+            @if (SelectionBar is { } here && review.CanAdd(here))
+            {
+                <button class="btn quiet compact" @onclick="() => Change.InvokeAsync(found => found.Add(here))">@Text.Format("pieces.addHere", here)</button>
+            }
+            <label for="pieces-add">@Text["pieces.addAt"]</label>
+            <input id="pieces-add" type="number" inputmode="numeric" min="1" value="@_bar" aria-invalid="@(_bar.Length == 0 || CanAdd(review) ? "false" : "true")"
+                   @oninput="args => _bar = args.Value as string ?? string.Empty" />
+            <button class="btn quiet compact" disabled="@(!CanAdd(review))" @onclick="() => AddAsync(review)">@Text["pieces.add"]</button>
+        </div>
+        @FindAgain
+        <div class="parts-actions">
+            @if (HasLayer)
+            {
+                <button class="btn quiet" @onclick="() => Cancel.InvokeAsync()">@Text["pieces.cancel"]</button>
+            }
+            <button class="btn primary" disabled="@_saving" @onclick="ConfirmAsync">@Text["pieces.confirm"]</button>
+        </div>
+    }
+    else
+    {
+        <ul class="entries">
+            @foreach (LayerPiece piece in Layer)
+            {
+                <li @key="piece.BookmarkId">
+                    <div class="entry">
+                        <button class="go" title="@Text["found.goHint"]" @onclick="() => Go.InvokeAsync(piece.Span)">
+                            <span class="t">@piece.Title</span>
+                            <span class="c">@Place(piece.Span, piece.FirstBar, piece.LastBar)</span>
+                        </button>
+                    </div>
+                </li>
+            }
+        </ul>
+        <div class="parts-actions">
+            <button class="btn quiet" @onclick="() => ReviewAgain.InvokeAsync()">@Text["pieces.reviewAgain"]</button>
+        </div>
+        @FindAgain
+    }
+</section>
+
+@code {
+    /// <summary>The pieces under review, as music-core holds them; null once they are kept and the review is closed.</summary>
+    [Parameter]
+    public FoundSections? Review { get; set; }
+
+    /// <summary>The pieces kept in the project (the pieces layer), in score order.</summary>
+    [Parameter]
+    public IReadOnlyList<LayerPiece> Layer { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Words Words { get; set; }
+
+    /// <summary>A piece's bars in words, with its time in a recording or its pages when the notes have them.</summary>
+    [Parameter, EditorRequired]
+    public Func<TickSpan, int, int, string> Place { get; set; } = static (_, _, _) => "";
+
+    /// <summary>The bar the selection starts at, where «Новая пьеса отсюда» puts a boundary; null without a selection.</summary>
+    [Parameter]
+    public int? SelectionBar { get; set; }
+
+    /// <summary>The number of pieces the player gave, when the review was found with one.</summary>
+    [Parameter]
+    public int? Count { get; set; }
+
+    [Parameter]
+    public EventCallback<TickSpan> Go { get; set; }
+
+    /// <summary>A change to the pieces under review, which music-core makes (move, dismiss, add, rename).</summary>
+    [Parameter]
+    public EventCallback<Func<FoundSections, FoundSections>> Change { get; set; }
+
+    /// <summary>Find the pieces again over the notes as they are, with the number of pieces or without.</summary>
+    [Parameter]
+    public EventCallback<int?> Find { get; set; }
+
+    [Parameter]
+    public EventCallback Confirm { get; set; }
+
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+
+    [Parameter]
+    public EventCallback ReviewAgain { get; set; }
+
+    private string _bar = string.Empty;
+    private string? _count;
+    private bool _saving;
+
+    private bool HasLayer => Layer.Count > 0;
+
+    private string Heading => Review is { } review
+        ? Text.Format("contents.category", Text["pieces.title"], review.Items.Count)
+        : Text.Format("contents.category", Text["pieces.title"], Layer.Count);
+
+    private string Where(FoundSection piece) => Place(piece.Span, piece.FirstBar, piece.LastBar);
+
+    /// <summary>«Найти заново» with the number of pieces, empty to let music-core decide.</summary>
+    private RenderFragment FindAgain => @<div class="found-move">
+        <label for="pieces-count">@Text["pieces.count"]</label>
+        <input id="pieces-count" type="number" inputmode="numeric" min="1" max="99" value="@(_count ?? Count?.ToString(CultureInfo.InvariantCulture))"
+               aria-invalid="@(CountValid ? "false" : "true")" @oninput="args => _count = args.Value as string" />
+        <button class="btn quiet compact" disabled="@(!CountValid)" @onclick="() => Find.InvokeAsync(TypedCount)">@Text["pieces.findAgain"]</button>
+    </div>;
+
+    private string? CountText => _count ?? Count?.ToString(CultureInfo.InvariantCulture);
+
+    private int? TypedCount => int.TryParse(CountText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count) && count >= 1 ? count : null;
+
+    private bool CountValid => string.IsNullOrWhiteSpace(CountText) || TypedCount is not null;
+
+    private int? TypedBar => int.TryParse(_bar, NumberStyles.Integer, CultureInfo.InvariantCulture, out int bar) ? bar : null;
+
+    private bool CanAdd(FoundSections review) => TypedBar is { } bar && review.CanAdd(bar);
+
+    private async Task AddAsync(FoundSections review)
+    {
+        if (TypedBar is { } bar && review.CanAdd(bar))
+        {
+            _bar = string.Empty;
+            await Change.InvokeAsync(found => found.Add(bar));
+        }
+    }
+
+    private Task Rename(FoundSection piece, string? title) => Change.InvokeAsync(found => found.Rename(piece.Number, title));
+
+    private async Task ConfirmAsync()
+    {
+        _saving = true;
+        try
+        {
+            await Confirm.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

@@ -42,7 +42,6 @@
                     }
                 </div>
                 <p class="caption preset-hint" role="status">@(Store.State.Preset == Preset.Custom ? Text["settings.presetHint.custom"] : PresetHint(Store.State.Preset))</p>
-                <SettingSwitch Id="guidance.brackets" Label="@Text["settings.brackets"]" />
                 <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" />
                 <SettingChoice Id="guidance.barFade" Label="@Text["settings.barFade"]" Name="@(choice => Text[$"settings.barFade.{choice}"])" />
                 break;
@@ -106,6 +105,32 @@
             case SheetSection.Account:
                 <MotiffLab.Web.Account.AccountPanel Level="3" />
                 break;
+
+            case SheetSection.Experimental:
+                @* New ideas tried in the app before they become features (governance, "Experiments"): each off until turned on, on this device. *@
+                <p class="caption">@Text["settings.experimentalHow"]</p>
+                <SettingSwitch Id="experimental.pieces" Label="@Text["settings.pieces"]" Hint="@Text["settings.piecesHint"]" />
+                <SettingSwitch Id="experimental.editsLayer" Label="@Text["settings.editsLayer"]" Hint="@Text["settings.editsLayerHint"]" />
+                <SettingSwitch Id="experimental.liveTempo" Label="@Text["settings.liveTempo"]" Hint="@Text["settings.liveTempoHint"]" />
+                <SettingSwitch Id="experimental.reference" Label="@Text["settings.reference"]" Hint="@Text["settings.referenceHint"]" />
+                <SettingSwitch Id="experimental.harmony" Label="@Text["settings.harmony"]" Hint="@Text["settings.harmonyHint"]" />
+                <SettingSwitch Id="experimental.readingMarks" Label="@Text["settings.readingMarks"]" Hint="@Text["settings.readingMarksHint"]" />
+                <SettingSwitch Id="experimental.playheads" Label="@Text["settings.playheads"]" Hint="@Text["settings.playheadsHint"]" />
+                <SettingSwitch Id="experimental.meters" Label="@Text["settings.meters"]" Hint="@Text["settings.metersHint"]" />
+                <SettingSwitch Id="experimental.photoPages" Label="@Text["settings.photoPages"]" Hint="@Text["settings.photoPagesWebHint"]" />
+                <SettingSwitch Id="experimental.libraryImport" Label="@Text["settings.libraryImport"]" Hint="@Text["settings.libraryImportHint"]" />
+                <SettingSwitch Id="@MotiffLab.Web.Import.ScanService.EngineSetting" Label="@Text["settings.scanEngine"]" Hint="@Text["settings.scanEngineHint"]" />
+                @if (Store.IsOn(MotiffLab.Web.Import.ScanService.EngineSetting))
+                {
+                    @* An engine is named as the server names it, in both languages; «Авто» is said in the player's. *@
+                    <SettingChoice Id="@MotiffLab.Web.Import.ScanService.EngineChoice" Label="@Text["settings.scanEngineChoice"]"
+                                   Name="@(choice => choice == MotiffLab.Web.Import.ScanService.Auto ? Text["settings.scanEngineAuto"] : choice)" />
+                }
+                break;
+
+            case SheetSection.About:
+                <AboutPanel />
+                break;
         }
 
         @if (PieceOverrides is { Count: > 0 } overrides)
@@ -128,6 +153,8 @@
         Roll,
         Appearance,
         Account,
+        Experimental,
+        About,
     }
 
     private static readonly Preset[] s_presets = [Preset.Learning, Preset.Practising, Preset.Clean];
@@ -253,6 +280,8 @@
         SheetSection.Layers => "settings.section.layers",
         SheetSection.Roll => "settings.section.roll",
         SheetSection.Appearance => "settings.appearance",
+        SheetSection.Experimental => "settings.section.experimental",
+        SheetSection.About => "settings.section.about",
         _ => "settings.section.account",
     }];
 

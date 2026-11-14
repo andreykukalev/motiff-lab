@@ -105,9 +105,19 @@ public sealed record ChordSpan(TickSpan Span, ChordLabel Chord, Pitch Bass, int 
     /// <summary>The symbol with the bass when it is not the root: "E/G♯".</summary>
     public string Symbol(MusicalKey spelling) => Chord.Symbol(spelling, Bass.PitchClass);
 
+    /// <summary>
+    /// "Rests on recognised notes still to check in bar 5." when some of the chord's notes are recognised notes the
+    /// player has still to check (<see cref="NoteDoubt"/>, #352); null otherwise. The finder leaves it null.
+    /// </summary>
+    public string? Doubt { get; init; }
+
+    /// <summary>Whether the chord is shown as uncertain: its reading is close, or it rests on notes still to check.</summary>
+    public bool IsUncertain => Confidence < HarmonyAnalyzer.ClearConfidence || Doubt is not null;
+
     public bool Equals(ChordSpan? other) =>
         other is not null && Span == other.Span && Chord == other.Chord && Bass == other.Bass && Confidence == other.Confidence
-        && Alternatives.SequenceEqual(other.Alternatives) && NoteIds.SequenceEqual(other.NoteIds, StringComparer.Ordinal);
+        && Alternatives.SequenceEqual(other.Alternatives) && NoteIds.SequenceEqual(other.NoteIds, StringComparer.Ordinal)
+        && Doubt == other.Doubt;
 
     public override int GetHashCode() => HashCode.Combine(Span, Chord, Bass, Confidence);
 }

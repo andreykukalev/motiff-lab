@@ -31,7 +31,11 @@ export interface PencilMark {
     size: number;
     /** Where the bar it starts in begins, in ticks: stable across layouts and across the as-written and generated scores. */
     bar: number;
-    /** Where the stroke starts: across the bar, 0 at its left edge and 1 at its right. */
+    /**
+     * Where the stroke starts: across the bar, 0 at its left edge and 1 at its right. Below 0 it starts in the left margin
+     * of the bar's line and above 1 in its right margin: the bar is the line's first or last, and placeMark draws the
+     * stroke from that edge of whatever line the bar is on in this layout.
+     */
     u: number;
     /** Where the stroke starts: staff spaces below the bar's top staff line (negative above it). */
     v: number;
@@ -39,7 +43,16 @@ export interface PencilMark {
     points: number[];
     /** The first point's pressure. */
     pressure: number;
+    /**
+     * For a stroke begun in a line's margin (version 0.4), which one: u then counts from that edge of the line the bar is
+     * on, in the bar's widths. Left out for a stroke begun in its bar, and on every stroke written before 0.4, which
+     * placeMark places by u below 0 or above 1 as before.
+     */
+    margin?: StrokeMargin;
 }
+
+/** Which margin of its line a stroke begun outside the bars is in: the project file's "margin" (Projects/Marks.cs). */
+export type StrokeMargin = "left" | "right";
 
 /** Where an engraved bar sits in the score's content pixels, measured after each layout. */
 export interface BarFrame {
@@ -54,6 +67,14 @@ export interface BarFrame {
     staffTop: number;
     /** Pixels between two staff lines. */
     space: number;
+    /**
+     * The line (system) the bar is on, numbered across the score, and where its first bar starts and its last ends. A
+     * stroke begun in a line's margin is kept against its first or last bar and drawn from that edge of the line. Frames
+     * without a line (a PDF's pages) keep every stroke against the frame itself.
+     */
+    line?: number;
+    lineLeft?: number;
+    lineRight?: number;
 }
 
 /**
@@ -113,14 +134,46 @@ export function nearestBar(frames: readonly BarFrame[], x: number, y: number): B
     return best;
 }
 
-/** Keeps a stroke drawn in content pixels against the bar its first point is nearest. Null with no points or no bars. */
+/**
+ * The bar a stroke starting at a point is kept against: the one nearest, or, when the point is in the margin left or right
+ * of that bar's line, the line's first or last bar, so the stroke stays at the edge of the line in another layout.
+ */
+export function anchorBar(frames: readonly BarFrame[], x: number, y: number): BarFrame | undefined {
+    return anchorAt(frames, x, y)?.frame;
+}
+
+/** The bar a point is kept against (anchorBar) and, when the point is in a line's margin, which one. */
+function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: BarFrame; margin?: StrokeMargin } | undefined {
+    const nearest = nearestBar(frames, x, y);
+    if (nearest === undefined || nearest.line === undefined) {
+        return nearest === undefined ? undefined : { frame: nearest };
+    }
+    const left = x < (nearest.lineLeft ?? nearest.left);
+    const right = x > (nearest.lineRight ?? nearest.right);
+    if (!left && !right) {
+        return { frame: nearest };
+    }
+    let edge = nearest;
+    for (const frame of frames) {
+        if (frame.line === nearest.line && (left ? frame.left < edge.left : frame.right > edge.right)) {
+            edge = frame;
+        }
+    }
+    return { frame: edge, margin: left ? "left" : "right" };
+}
+
+/**
+ * Keeps a stroke drawn in content pixels against the bar its first point is nearest, or, begun in a line's margin, against
+ * the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
+ */
 export function anchorMark(
     frames: readonly BarFrame[],
     points: readonly InkPoint[],
     style: { id: string; tool: MarkTool; colour: MarkColour; size: number },
 ): PencilMark | null {
     const first = points[0];
-    const frame = first === undefined ? undefined : nearestBar(frames, first.x, first.y);
+    const anchor = first === undefined ? undefined : anchorAt(frames, first.x, first.y);
+    const frame = anchor?.frame;
     if (first === undefined || frame === undefined || frame.space <= 0) {
         return null;
     }
@@ -129,7 +182,7 @@ export function anchorMark(
     for (const point of points.slice(1)) {
         rest.push(round((point.x - first.x) / frame.space), round((point.y - first.y) / frame.space), round(point.pressure));
     }
-    return {
+    const mark: PencilMark = {
         id: style.id,
         tool: style.tool,
         colour: style.colour,
@@ -140,6 +193,25 @@ export function anchorMark(
         points: rest,
         pressure: round(first.pressure),
     };
+    return anchor?.margin === undefined ? mark : { ...mark, margin: anchor.margin };
+}
+
+/**
+ * Where a stroke starts across this layout: in its bar, or, for a stroke in a margin, counted from that edge of the line
+ * the bar is on now, so a bar that went into the middle of a line does not put the stroke over its neighbour's notes. A
+ * stroke says its margin (version 0.4); one written before says it by u below 0 or above 1. Where the bar is still at the
+ * line's edge, this is exactly where any build draws it.
+ */
+function startX(mark: PencilMark, frame: BarFrame): number {
+    const inBar = frame.left + mark.u * (frame.right - frame.left);
+    const margin = mark.margin ?? (mark.u < 0 ? "left" : mark.u > 1 ? "right" : undefined);
+    if (margin === "left") {
+        return inBar + ((frame.lineLeft ?? frame.left) - frame.left);
+    }
+    if (margin === "right") {
+        return inBar + ((frame.lineRight ?? frame.right) - frame.right);
+    }
+    return inBar;
 }
 
 /** Where a mark goes in this layout, in content pixels, and its thickness there; null when its bar is not engraved. */
@@ -148,7 +220,7 @@ export function placeMark(mark: PencilMark, frames: ReadonlyMap<number, BarFrame
     if (frame === undefined) {
         return null;
     }
-    const x0 = frame.left + mark.u * (frame.right - frame.left);
+    const x0 = startX(mark, frame);
     const y0 = frame.staffTop + mark.v * frame.space;
     const points: InkPoint[] = [{ x: x0, y: y0, pressure: mark.pressure }];
     for (let i = 0; i + 2 < mark.points.length; i += 3) {
@@ -258,7 +330,163 @@ function distanceToSegment(a: InkPoint, b: InkPoint, x: number, y: number): numb
     return Math.hypot(a.x + t * dx - x, a.y + t * dy - y);
 }
 
+/** How far a point is from a line through the eraser's points, or from its one point. */
+function distanceToPath(path: ReadonlyArray<{ x: number; y: number }>, x: number, y: number): number {
+    if (path.length === 1) {
+        return Math.hypot(path[0].x - x, path[0].y - y);
+    }
+    let nearest = Infinity;
+    for (let i = 1; i < path.length; i++) {
+        nearest = Math.min(nearest, distanceToSegment({ ...path[i - 1], pressure: 0 }, { ...path[i], pressure: 0 }, x, y));
+    }
+    return nearest;
+}
+
+/** The stroke's points with more between any two further apart than `step`, their pressure taken along the line. */
+export function densify(points: readonly InkPoint[], step: number): InkPoint[] {
+    const walked: InkPoint[] = points.slice(0, 1);
+    for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        const parts = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step);
+        for (let part = 1; part < parts; part++) {
+            const t = part / parts;
+            walked.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y), pressure: a.pressure + t * (b.pressure - a.pressure) });
+        }
+        walked.push(b);
+    }
+    return walked;
+}
+
+/**
+ * What is left of a stroke after the eraser passed along `path` (the iPad, #479 item 7): the runs of its centre line
+ * farther from the path than the eraser's reach and the stroke's own half-thickness, as a real eraser leaves a line in
+ * pieces. The line is first walked in short steps, so a cut can fall between two of its points; a piece keeps two
+ * points or more. Null when the eraser missed the stroke; an empty list when it took all of it. The iPad's PDF pages
+ * split their strokes the same way (InkSplit in ipad/App/MotiffLab/InkGeometry.swift).
+ */
+export function eraseAlong(
+    points: readonly InkPoint[],
+    radius: number,
+    path: ReadonlyArray<{ x: number; y: number }>,
+    reach: number,
+): InkPoint[][] | null {
+    if (points.length === 0 || path.length === 0) {
+        return null;
+    }
+    const limit = reach + radius;
+    if (!boxesMeet(points, path, limit)) {
+        return null;
+    }
+    const walked = densify(points, Math.max(0.5, limit / 2));
+    const gone = walked.map((point) => distanceToPath(path, point.x, point.y) <= limit);
+    if (!gone.includes(true)) {
+        return null;
+    }
+    const pieces: InkPoint[][] = [];
+    let run: InkPoint[] = [];
+    walked.forEach((point, i) => {
+        if (!gone[i]) {
+            run.push(point);
+            return;
+        }
+        if (run.length > 1) {
+            pieces.push(run);
+        }
+        run = [];
+    });
+    if (run.length > 1) {
+        pieces.push(run);
+    }
+    return pieces;
+}
+
+/** Whether two sets of points' boxes come within `gap` of each other: a quick no before measuring every point. */
+function boxesMeet(a: ReadonlyArray<{ x: number; y: number }>, b: ReadonlyArray<{ x: number; y: number }>, gap: number): boolean {
+    const box = (points: ReadonlyArray<{ x: number; y: number }>) => {
+        const edges = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+        for (const point of points) {
+            edges.left = Math.min(edges.left, point.x);
+            edges.right = Math.max(edges.right, point.x);
+            edges.top = Math.min(edges.top, point.y);
+            edges.bottom = Math.max(edges.bottom, point.y);
+        }
+        return edges;
+    };
+    const one = box(a);
+    const two = box(b);
+    return one.left - gap <= two.right && two.left - gap <= one.right && one.top - gap <= two.bottom && two.top - gap <= one.bottom;
+}
+
+/**
+ * One press of the eraser while it lasts (the iPad, BUG-05): the eraser rubs out as it moves, not when it lifts. Each move
+ * cuts what it passes over at once (eraseAlong, from where the last move left off), and the page shows the marks so
+ * (rubbedMarks); when it lifts, the cut marks go and the pieces are saved as one step, which Undo takes back whole.
+ */
+export interface Rubbing {
+    /** The saved marks it cut, whole: to take away when it lifts, and to put back on Undo. */
+    readonly removed: readonly PencilMark[];
+    /** What is left of them, kept against their bars again, not saved yet. */
+    readonly pieces: readonly PencilMark[];
+    /** Where the eraser was at its last move; null before the first. */
+    readonly last: { x: number; y: number } | null;
+}
+
+/** A press of the eraser that has taken nothing yet. */
+export const NO_RUBBING: Rubbing = { removed: [], pieces: [], last: null };
+
+/** The marks as they look while the eraser is pressed: the saved ones without those it cut, and the pieces left. */
+export function rubbedMarks(rubbing: Rubbing, marks: readonly PencilMark[]): PencilMark[] {
+    if (rubbing.removed.length === 0 && rubbing.pieces.length === 0) {
+        return [...marks];
+    }
+    const gone = new Set([...rubbing.removed, ...rubbing.pieces].map((mark) => mark.id));
+    return [...marks.filter((mark) => !gone.has(mark.id)), ...rubbing.pieces];
+}
+
+/**
+ * The eraser moved on to `points` (content pixels) from where it was: what it has cut now. A mark it cuts is replaced by
+ * what is left of it, each piece in the mark's tool, ink and size; a piece cut again is replaced in turn, and only a saved
+ * mark goes to `removed`. `cut` says whether this move took anything, so the page is drawn again only then.
+ */
+export function rubAlong(
+    rubbing: Rubbing,
+    marks: readonly PencilMark[],
+    points: ReadonlyArray<{ x: number; y: number }>,
+    layout: { frames: readonly BarFrame[]; byTick: ReadonlyMap<number, BarFrame>; reach: number; newId: () => string },
+): { rubbing: Rubbing; cut: boolean } {
+    if (points.length === 0) {
+        return { rubbing, cut: false };
+    }
+    const path = rubbing.last === null ? [...points] : [rubbing.last, ...points];
+    const last = points[points.length - 1];
+    const removed = [...rubbing.removed];
+    let pieces = [...rubbing.pieces];
+    let cut = false;
+    for (const mark of rubbedMarks(rubbing, marks)) {
+        const place = placeMark(mark, layout.byTick);
+        const left = place === null ? null : eraseAlong(place.points, place.radius, path, layout.reach);
+        if (left === null) {
+            continue;
+        }
+        cut = true;
+        if (pieces.some((piece) => piece.id === mark.id)) {
+            pieces = pieces.filter((piece) => piece.id !== mark.id);
+        } else {
+            removed.push(mark);
+        }
+        for (const run of left) {
+            const kept = anchorMark(layout.frames, run, { id: layout.newId(), tool: mark.tool, colour: mark.colour, size: mark.size });
+            if (kept !== null) {
+                pieces.push(kept);
+            }
+        }
+    }
+    return { rubbing: { removed, pieces, last: { x: last.x, y: last.y } }, cut };
+}
+
 const TOOLS: ReadonlySet<string> = new Set<MarkTool>(["pen", "highlighter"]);
+const MARGINS: ReadonlySet<string> = new Set<StrokeMargin>(["left", "right"]);
 const COLOURS: ReadonlySet<string> = new Set<MarkColour>(["graphite", "carmine", "forest", "ochre", "amber"]);
 
 /** The colours of a version 1 file, by the ink nearest each. */
@@ -305,7 +533,9 @@ export function readMarks(text: string | null | undefined): PencilMark[] {
             && isNumber(candidate.size) && candidate.size > 0
             && isNumber(candidate.bar) && isNumber(candidate.u) && isNumber(candidate.v) && isNumber(candidate.pressure)
             && Array.isArray(candidate.points) && candidate.points.length % 3 === 0 && candidate.points.every(isNumber)) {
-            whole.push({ ...(candidate as PencilMark), colour });
+            // A margin this build does not know is left out: the stroke is then placed by u, as before 0.4.
+            const { margin, ...stroke } = candidate as PencilMark;
+            whole.push(MARGINS.has(margin as string) ? { ...stroke, colour, margin } : { ...stroke, colour });
         }
     }
     return whole;

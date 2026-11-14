@@ -91,11 +91,116 @@ final class PencilTests: XCTestCase {
         let missed = try await call(view, "erase", ["points": [["x": x, "y": y + 400]]]) as? [String]
         XCTAssertEqual(missed, [])
 
+        // The eraser cuts along its path (#479 item 7): a pass across the middle leaves both ends, each kept again
+        // against its bar in the stroke's own ink.
+        let across = [["x": x + 20, "y": y - 20], ["x": x + 20, "y": y + 24]]
+        let answered = try await call(view, "eraseAlong", ["points": across])
+        let cut = try XCTUnwrap(answered as? [String: Any])
+        XCTAssertEqual(cut["removed"] as? [String], [mark["id"] as? String ?? "?"])
+        let pieces = try XCTUnwrap(cut["added"] as? [[String: Any]])
+        XCTAssertEqual(pieces.count, 2, "the stroke is left in two pieces")
+        XCTAssertEqual(pieces.compactMap { $0["colour"] as? String }, ["carmine", "carmine"])
+        XCTAssertEqual(pieces.compactMap { ($0["bar"] as? NSNumber)?.doubleValue }, [value("tick"), value("tick")])
+
         // The project file keeps the stroke as it is, for the web app to draw in the same place.
         let file = await MusicCore.run { MusicCore.call(piece: piece.id, "project.save", #"{"now": "2026-11-04T12:00:00Z"}"#) }
         let saved = try XCTUnwrap(facadeObject(file))
         let kept = (saved["marks"] as? [String: Any])?["ink"] as? [[String: Any]]
         XCTAssertEqual(kept?.first?["bar"] as? NSNumber, mark["bar"] as? NSNumber)
+    }
+
+    /// Highlighter strokes are one layer (#479 item 9): opaque inside it, under the pencil, the layer translucent as a
+    /// whole, so two strokes over the same place are no darker than one.
+    func testHighlighterStrokesAreOneFlatLayerUnderThePencil() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(KitPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+        let placed = try await view.callAsyncJavaScript("return motiff.frames()", contentWorld: .page)
+        let bar = try XCTUnwrap((placed as? [[String: Any]])?[2])
+        func value(_ key: String) -> Double { (bar[key] as? NSNumber)?.doubleValue ?? 0 }
+        let x = (value("left") + value("right")) / 2
+        let y = value("staffTop") + 2 * value("space")
+        var marks: [[String: Any]] = []
+        for (tool, dy) in [("highlighter", 0.0), ("highlighter", 3.0), ("pen", 0.0)] {
+            let points = [["x": x, "y": y + dy, "pressure": 0.5], ["x": x + 40, "y": y + dy, "pressure": 0.5]]
+            let anchored = try await call(view, "anchor", ["points": points, "tool": tool, "colour": "graphite"])
+            marks.append(try XCTUnwrap(anchored as? [String: Any]))
+        }
+        _ = try await call(view, "draw", ["marks": marks])
+        let inLayer = try await view.evaluateJavaScript("document.querySelectorAll('#ink > g.highlights > path.mark.highlighter').length") as? NSNumber
+        XCTAssertEqual(inLayer?.intValue, 2, "both highlighter strokes are in the one layer")
+        let pencilOver = try await view.evaluateJavaScript("document.querySelectorAll('#ink > path.mark.pen').length") as? NSNumber
+        XCTAssertEqual(pencilOver?.intValue, 1, "the pencil is drawn over the layer")
+        let style = try await view.evaluateJavaScript("""
+            (() => {
+                const layer = getComputedStyle(document.querySelector('#ink > g.highlights')).opacity;
+                const stroke = getComputedStyle(document.querySelector('#ink path.mark.highlighter')).opacity;
+                return [layer, stroke];
+            })()
+            """) as? [String]
+        XCTAssertEqual(style?.last, "1", "each stroke is opaque inside the layer")
+        XCTAssertEqual(Double(style?.first ?? "") ?? 0, Double(PenSizes.highlighterAlpha), accuracy: 0.001, "the layer is as translucent as amber-tint")
+    }
+
+    /// A stroke begun in a line's margin (v0.4) is kept against the line's first bar (u below 0) or its last (u above 1),
+    /// drawn where it was written, and music-core keeps it thinned.
+    func testAStrokeInALinesMarginIsKeptAgainstTheLinesEdgeBar() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(KitPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let placed = try await view.callAsyncJavaScript("return motiff.frames()", contentWorld: .page)
+        let frames = try XCTUnwrap(placed as? [[String: Any]])
+        func value(_ frame: [String: Any], _ key: String) -> Double { (frame[key] as? NSNumber)?.doubleValue ?? .nan }
+        let line = frames.filter { value($0, "line") == 0 }
+        let first = try XCTUnwrap(line.min { value($0, "left") < value($1, "left") })
+        let last = try XCTUnwrap(line.max { value($0, "right") < value($1, "right") })
+        XCTAssertGreaterThan(line.count, 1, "the first line has several bars")
+        XCTAssertEqual(value(first, "lineLeft"), value(first, "left"))
+        XCTAssertEqual(value(last, "lineRight"), value(last, "right"))
+
+        // A short line down the margin, a few pixels out from each edge of the line, at the height of its middle staff line.
+        func stroke(_ x: Double, _ frame: [String: Any]) -> [[String: Double]] {
+            let y = value(frame, "staffTop") + 2 * value(frame, "space")
+            return (0..<40).map { ["x": x, "y": y + Double($0) * 0.5, "pressure": 0.5] }
+        }
+        let leftX = value(first, "left") - 12
+        let rightX = value(last, "right") + 12
+        let leftAnchored = try await call(view, "anchor", ["points": stroke(leftX, first), "tool": "pen", "colour": "graphite"])
+        let rightAnchored = try await call(view, "anchor", ["points": stroke(rightX, last), "tool": "pen", "colour": "carmine"])
+        let left = try XCTUnwrap(leftAnchored as? [String: Any])
+        let right = try XCTUnwrap(rightAnchored as? [String: Any])
+        XCTAssertEqual((left["bar"] as? NSNumber)?.doubleValue, value(first, "tick"))
+        XCTAssertLessThan((left["u"] as? NSNumber)?.doubleValue ?? 0, 0)
+        XCTAssertEqual((right["bar"] as? NSNumber)?.doubleValue, value(last, "tick"))
+        XCTAssertGreaterThan((right["u"] as? NSNumber)?.doubleValue ?? 0, 1)
+
+        // The page names the margin a stroke was begun in (v0.4, pencil-marks.ts), and the mark goes to music-core as it is.
+        XCTAssertEqual(left["margin"] as? String, "left")
+        XCTAssertEqual(right["margin"] as? String, "right")
+        let request = String(decoding: try JSONSerialization.data(withJSONObject: ["strokes": [left, right]]), as: UTF8.self)
+        let added = await MusicCore.run { MusicCore.call(piece: piece.id, "ink.add", request) }
+        let answer = try XCTUnwrap(facadeObject(added))
+        let ink = try XCTUnwrap(answer["ink"] as? [[String: Any]], "\(answer)")
+        XCTAssertEqual(ink.count, 2)
+        XCTAssertEqual(ink.compactMap { $0["margin"] as? String }.sorted(), ["left", "right"], "music-core keeps and answers each stroke's margin")
+        // Forty points on a straight line are kept as its two ends.
+        XCTAssertEqual((ink.first?["points"] as? [Any])?.count, 3, "the straight stroke is thinned to its ends")
+
+        let drawn = try await call(view, "draw", ["marks": ink]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, 2)
+        // Each is drawn where it was written, in the margin outside the line.
+        for (id, x) in [(left["id"] as? String ?? "?", leftX), (right["id"] as? String ?? "?", rightX)] {
+            let box = try await view.evaluateJavaScript("(() => { const b = document.querySelector('#ink path[data-id=\"\(id)\"]').getBBox(); return [b.x, b.width]; })()") as? [NSNumber]
+            let centre = (box?[0].doubleValue ?? 0) + (box?[1].doubleValue ?? 0) / 2
+            XCTAssertEqual(centre, x, accuracy: 2, "the stroke \(id) sits where it was written")
+        }
     }
 
     func testTheBarNamesThePagesUnderTheReadingLine() async throws {
@@ -120,7 +225,9 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(numbered, String(piece.pages.count))
     }
 
-    func testBracketsAndTheSelectionBandAreDrawnOverTheBars() async throws {
+    /// The selection band is drawn over the bars, and no phrase bracket above the top staff (#479 item 14: Andrei,
+    /// 2026-11-13, the strip read as an extra staff line).
+    func testTheSelectionBandIsDrawnOverTheBarsWithoutPhraseBrackets() async throws {
         let view = try await scorePage()
         let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
@@ -129,19 +236,26 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
         let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
-        let units = shown.units.map { ["start": $0.onset, "end": $0.end, "number": $0.number, "kind": $0.kind, "current": $0.number == 2, "label": $0.name] as [String: Any] }
-        let drawn = try await call(view, "phrases", ["units": units]) as? NSNumber
-        XCTAssertEqual(drawn?.intValue, shown.units.count)
-        let brackets = try await view.evaluateJavaScript("document.querySelectorAll('body > .bracket').length") as? NSNumber
-        XCTAssertGreaterThanOrEqual(brackets?.intValue ?? 0, shown.units.count, "a bracket on every system its phrase touches")
-        let current = try await view.evaluateJavaScript("document.querySelector('body > .bracket.on').dataset.phrase") as? String
-        XCTAssertEqual(current, "2")
+        let drawsPhrases = try await view.evaluateJavaScript("typeof window.motiff.phrases") as? String
+        XCTAssertEqual(drawsPhrases, "undefined", "the page has no phrase brackets to draw")
 
         let second = try XCTUnwrap(shown.unit(2))
         let bands = try await call(view, "select", ["start": second.onset, "end": second.end, "startLabel": "start", "endLabel": "end"]) as? NSNumber
         XCTAssertGreaterThanOrEqual(bands?.intValue ?? 0, 1)
         let handles = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
         XCTAssertEqual(handles?.intValue, 2)
+        // Under the modes only Select draws the handles (#543 4.2): in Navigate the band stays without them.
+        _ = try await call(view, "mode", ["name": "navigate"])
+        let inNavigate = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(inNavigate?.intValue, 0, "no handle to draw, take or report to the pen in Navigate")
+        let bandInNavigate = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-band').length") as? NSNumber
+        XCTAssertGreaterThanOrEqual(bandInNavigate?.intValue ?? 0, 1)
+        _ = try await call(view, "mode", ["name": "select"])
+        let inSelect = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(inSelect?.intValue, 2)
+        _ = try await call(view, "mode", [String: Any]())
+        let brackets = try await view.evaluateJavaScript("document.querySelectorAll('body > .bracket').length") as? NSNumber
+        XCTAssertEqual(brackets?.intValue, 0)
         let cleared = try await call(view, "select", NSNull()) as? NSNumber
         XCTAssertEqual(cleared?.intValue, 0)
     }
@@ -191,12 +305,6 @@ final class PencilTests: XCTestCase {
         XCTAssertGreaterThan(frames?.intValue ?? 0, 0)
         _ = MusicCore.call(piece: piece.id, "variation.clear")
 
-        // Lead-in takes in the bar before and the bar after.
-        let led = try await call(view, "lead", ["start": second.onset, "end": second.end])
-        let wider = try XCTUnwrap(led as? [String: Any])
-        XCTAssertLessThan((wider["start"] as? NSNumber)?.doubleValue ?? .infinity, second.onset)
-        XCTAssertGreaterThan((wider["end"] as? NSNumber)?.doubleValue ?? 0, second.end)
-
         _ = try await call(view, "focus", ["open": false])
         let gone = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
         XCTAssertEqual(gone, true)
@@ -219,22 +327,22 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
         let zoom = try await view.evaluateJavaScript("document.querySelector('#roll > .roll-zoom')?.textContent ?? ''") as? String
         XCTAssertEqual(zoom?.contains("100 %"), true, "the floating zoom over the notes")
-        // In phrase focus the roll lays each selection across itself (testing item 12).
-        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+        // The zoom is the player's (#511 section 5): a new selection leaves it at 100 %, and only Fit lays the selection
+        // across the roll; a selection after Fit leaves Fit's zoom as it is.
         let firstBar: [String: Any] = ["selected": ["start": 0, "end": 1440, "ids": Array((roll["ids"] as? [String] ?? []).prefix(4))]]
         _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": firstBar], contentWorld: .page)
-        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": false], contentWorld: .page)
-        // Read by touch (#338), the drawer's roll fits each new selection too: the zoom leaves 100 %, and the same
-        // selection sent again (as a loop starting does) leaves it where it is.
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let selected = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        XCTAssertEqual(selected?.contains("100 %"), true, "a new selection never fits the roll")
+        _ = try await view.callAsyncJavaScript("return roll.zoom(data)", arguments: ["data": ["axis": "fit", "direction": 1]], contentWorld: .page)
+        try await Task.sleep(nanoseconds: 700_000_000)
+        let fitted = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
+        XCTAssertNotEqual(fitted?.contains("100 %"), true, "Fit lays the selection across the roll")
         let twoBars: [String: Any] = ["selected": ["start": 0, "end": 2880, "ids": Array((roll["ids"] as? [String] ?? []).prefix(8))]]
         _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": twoBars], contentWorld: .page)
         try await Task.sleep(nanoseconds: 300_000_000)
-        let fitted = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
-        XCTAssertNotEqual(fitted?.contains("100 %"), true, "a new selection is fitted on the roll")
-        _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": twoBars], contentWorld: .page)
-        try await Task.sleep(nanoseconds: 300_000_000)
         let kept = try await view.evaluateJavaScript("document.querySelector('#roll .roll-zoom-level')?.textContent ?? ''") as? String
-        XCTAssertEqual(kept, fitted, "the same selection again leaves the roll as it is")
+        XCTAssertEqual(kept, fitted, "a selection after Fit keeps Fit's zoom")
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
 
@@ -360,9 +468,10 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "layers", ["hidden": ["check"]])
         let hidden = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .check-flag')).display") as? String
         XCTAssertEqual(hidden, "none")
-        // Settings can turn the phrase brackets off, and a slate page shows light notes on a dark page.
-        let hiddenNow = try await call(view, "layers", ["hidden": ["brackets"], "slate": true]) as? [String]
-        XCTAssertEqual(hiddenNow, ["brackets"])
+        // The analysis can be hidden, a name the page does not know is left out (the phrase brackets are gone, #479 item
+        // 14), and a slate page shows light notes on a dark page.
+        let hiddenNow = try await call(view, "layers", ["hidden": ["analysis", "brackets"], "slate": true]) as? [String]
+        XCTAssertEqual(hiddenNow, ["analysis"])
         let page = try await view.evaluateJavaScript("document.documentElement.getAttribute('data-page')") as? String
         XCTAssertEqual(page, "slate")
         _ = try await call(view, "checks", ["flags": [[String: Any]]()])

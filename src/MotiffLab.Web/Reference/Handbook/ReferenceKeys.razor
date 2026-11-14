@@ -1,0 +1,68 @@
+@using System.Globalization
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+
+@* The Reference's keyboard (version 0.5): the keys from the C below the music to the B above it (ReferenceMusic), the ones
+   it marks tinted with their note's name, and each C named with its octave where no note is marked. *@
+<div class="ref-keys" role="img" aria-label="@Label" style="--whites: @Whites.Count">
+    @for (int i = 0; i < Whites.Count; i++)
+    {
+        int pitch = Whites[i];
+        MarkedKey? marked = Marked(pitch);
+        <span class="ref-white @(marked is null ? null : "on")">
+            @if (marked is not null)
+            {
+                <b>@marked.NameIn(Naming)</b>
+            }
+            else if (pitch % 12 == 0)
+            {
+                <i>C@((pitch / 12) - 1)</i>
+            }
+        </span>
+    }
+    @foreach ((int pitch, int after) in Blacks)
+    {
+        MarkedKey? marked = Marked(pitch);
+        <span class="ref-black @(marked is null ? null : "on")" style="--after: @after.ToString(CultureInfo.InvariantCulture)">
+            @if (marked is not null)
+            {
+                <b>@marked.NameIn(Naming)</b>
+            }
+        </span>
+    }
+</div>
+
+@code {
+    private static readonly bool[] s_black = [false, true, false, true, false, false, true, false, true, false, true, false];
+
+    [Parameter, EditorRequired]
+    public ReferenceMusic Music { get; set; } = null!;
+
+    /// <summary>What the keyboard shows, read out in place of the picture.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>How the marked keys are named, as the note naming setting says.</summary>
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    private List<int> Whites => [.. Enumerable.Range(Music.KeyboardLow, Music.KeyboardHigh - Music.KeyboardLow + 1).Where(pitch => !s_black[pitch % 12])];
+
+    /// <summary>Each black key with the number of white keys left of it.</summary>
+    private IEnumerable<(int Pitch, int After)> Blacks
+    {
+        get
+        {
+            List<int> whites = Whites;
+            for (int i = 1; i < whites.Count; i++)
+            {
+                if (whites[i] - whites[i - 1] == 2)
+                {
+                    yield return (whites[i] - 1, i);
+                }
+            }
+        }
+    }
+
+    private MarkedKey? Marked(int pitch) => Music.Keys.FirstOrDefault(key => key.Midi == pitch);
+}

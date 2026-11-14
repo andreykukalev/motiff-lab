@@ -1,0 +1,260 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
+@inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Settings.DeviceSettings Settings
+
+@* Pieces in a file, part of the experiment Several pieces in a score or recording (Settings · Experimental; v0.4, made
+   from the pieces layer in 0.5; ideas bank «Несколько произведений внутри одного файла или записи»: a logical
+   organisation, not physical cutting). The pieces the player confirmed above (the pieces layer) are the pieces of the
+   collection: «Разделить на пьесы» lists them with their bars (and, for a recording, the stretch of the sound music-core
+   gives), a title, a composer and tags for each, and the playlist they join; Split makes each an ordinary piece of the
+   library (PieceParts; a recording's pieces on bars of their own, found from their own stretch). The collection stays as
+   it is, and says afterwards how many pieces were made from it; a piece made says where it came from. Both are read from
+   the project files (version 0.4: the original each piece keeps, and its partOf). *@
+<section id="contents-parts" class="contents-section piece-parts" aria-labelledby="contents-parts-title">
+    <h3 id="contents-parts-title" class="overline">@Text["parts.title"]</h3>
+    @if (Origin is { } origin)
+    {
+        <p class="parts-done">@(origin.Playlist is { } playlist ? Text.Format("parts.from", origin.Collection, playlist) : Text.Format("parts.fromAlone", origin.Collection))</p>
+        @if (PartPlace.Of(Text, origin.Place) is { Length: > 0 } place)
+        {
+            <p class="meta">@place</p>
+        }
+    }
+    @if (Done is { Parts.Count: > 0 } done)
+    {
+        string pieces = Text.Count("parts.pieces", done.Parts.Count);
+        <p class="parts-done">@(done.Playlist is { } playlist ? Text.Format("parts.done", pieces, playlist) : Text.Format("parts.doneAlone", pieces))</p>
+        <ul class="entries">
+            @foreach (PartLink part in done.Parts)
+            {
+                <li class="entry" @key="part.Id">
+                    <span class="t">@part.Title</span>
+                    <span class="c">@DoneRange(part)</span>
+                </li>
+            }
+        </ul>
+    }
+    else if (Candidates.Count == 0)
+    {
+        @if (Origin is null)
+        {
+            <p class="meta">@Text["parts.noneLayer"]</p>
+        }
+    }
+    else if (_rows is null)
+    {
+        <p class="meta">@Text.Format("parts.readyLayer", Text.Count("parts.layerPieces", Candidates.Count))</p>
+        <button class="btn quiet" @onclick="Start">@Text["parts.split"]</button>
+    }
+    else
+    {
+        <div class="parts-form" role="group" aria-label="@Text["parts.split"]">
+            <label class="field">
+                <span class="caption">@Text["parts.playlist"]</span>
+                <input type="text" maxlength="80" @bind="_playlist" @bind:event="oninput" placeholder="@Collection?.Details.Title.Value" />
+            </label>
+            <ol class="parts-list">
+                @foreach (PartRow row in _rows)
+                {
+                    <li class="part-row" @key="row.Number">
+                        <label class="check">
+                            <input type="checkbox" checked="@row.Include" @onchange="change => Include(row, change.Value is true)" />
+                            <span>@Text.Format("parts.piece", row.Number)</span>
+                        </label>
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.titleOf", row.Number)" @bind="row.Title" @bind:event="oninput" disabled="@(!row.Include)" />
+                        <span class="c">@RowRange(row)</span>
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.composerOf", row.Number)" placeholder="@Text["parts.composer"]" @bind="row.Composer" @bind:event="oninput" disabled="@(!row.Include)" />
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.tagsOf", row.Number)" placeholder="@Text["parts.tags"]" @bind="row.Tags" @bind:event="oninput" disabled="@(!row.Include)" />
+                    </li>
+                }
+            </ol>
+            <p class="caption">@(_problem ?? Text["parts.how"])</p>
+            <div class="parts-actions">
+                <button class="btn quiet" @onclick="Cancel">@Text["parts.cancel"]</button>
+                <button class="btn primary" disabled="@(_problem is not null || _making)" @onclick="ConfirmAsync">@Text["parts.confirm"]</button>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The collection: the piece open, as saved.</summary>
+    [Parameter, EditorRequired]
+    public Project? Collection { get; set; }
+
+    /// <summary>The pieces the player confirmed (the pieces layer), in score order: the pieces the collection holds.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LayerPiece> Layer { get; set; } = [];
+
+    /// <summary>A piece's stretch of a recording heard, in milliseconds (music-core's HeardCut.StretchOf); null for notes not heard.</summary>
+    [Parameter, EditorRequired]
+    public Func<TickSpan, (long From, long To)?> Stretch { get; set; } = static _ => null;
+
+    /// <summary>A passage's bars in words, as the workspace says them («такты 1–40»).</summary>
+    [Parameter, EditorRequired]
+    public Func<TickSpan, string> BarsText { get; set; } = static _ => "";
+
+    /// <summary>Bars by their numbers, first and last, in the same words.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, int, string> BarNumbersText { get; set; } = static (_, _) => "";
+
+    [Parameter, EditorRequired]
+    public Words Words { get; set; }
+
+    /// <summary>The pieces of the library made from the collection, as their files tell it; null when none.</summary>
+    [Parameter]
+    public SplitLink? Done { get; set; }
+
+    /// <summary>The collection this piece was made from, as its file names it; null for a piece of its own.</summary>
+    [Parameter]
+    public PartOrigin? Origin { get; set; }
+
+    /// <summary>The pieces made, for the page to save.</summary>
+    [Parameter]
+    public EventCallback<PieceSplit> Made { get; set; }
+
+    /// <summary>One piece to make: the layer piece it comes from, whether it is made, its title, composer and tags, and what music-core says of it.</summary>
+    private sealed class PartRow(int number, LayerPiece piece)
+    {
+        public int Number { get; } = number;
+
+        public LayerPiece Piece { get; } = piece;
+
+        public TickSpan Span => Piece.Span;
+
+        public string Title { get; set; } = piece.Title;
+
+        public string Composer { get; set; } = "";
+
+        /// <summary>The tags as typed, separated by commas.</summary>
+        public string Tags { get; set; } = "";
+
+        public bool Include { get; set; } = true;
+
+        /// <summary>The piece as music-core would make it now: its bars and its stretch of a recording.</summary>
+        public PiecePart? Preview { get; set; }
+    }
+
+    private List<PartRow>? _rows;
+    private string _playlist = "";
+    private string? _problem;
+    private bool _making;
+
+    /// <summary>The pieces of the layer: the pieces of the collection, as the player confirmed them.</summary>
+    private IReadOnlyList<LayerPiece> Candidates => Collection is null ? [] : Layer;
+
+    private void Start()
+    {
+        _rows = [.. Candidates.Select((piece, index) => new PartRow(index + 1, piece))];
+        _playlist = Collection?.Details.Title.Value ?? "";
+        Preview();
+    }
+
+    private void Cancel()
+    {
+        _rows = null;
+        _problem = null;
+    }
+
+    private void Include(PartRow row, bool include)
+    {
+        row.Include = include;
+        Preview();
+    }
+
+    /// <summary>The ticked pieces as music-core's parts: by their stretch of a recording heard, else by their bars.</summary>
+    private List<(PartRow Row, PartRange Range)> Chosen() =>
+        [.. (_rows ?? []).Where(static row => row.Include).Select(row => (row, RangeOf(row)))];
+
+    private PartRange RangeOf(PartRow row)
+    {
+        PartRange range = Stretch(row.Span) is { } stretch
+            ? PartRange.InRecording(row.Title, stretch.From, stretch.To)
+            : new PartRange(row.Title, PartUnit.Bars, row.Piece.FirstBar, row.Piece.LastBar);
+        return range with
+        {
+            Composer = string.IsNullOrWhiteSpace(row.Composer) ? null : row.Composer,
+            Tags = [.. row.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)],
+        };
+    }
+
+    /// <summary>The split as it would be, read again whenever a piece is ticked: what each takes, or why it cannot be made.</summary>
+    private void Preview()
+    {
+        _problem = null;
+        foreach (PartRow row in _rows ?? [])
+        {
+            row.Preview = null;
+        }
+
+        List<(PartRow Row, PartRange Range)> chosen = Chosen();
+        if (chosen.Count == 0)
+        {
+            _problem = Text["parts.noneChosen"];
+            return;
+        }
+
+        int preview = 0;
+        if (Split(chosen, () => $"p_preview{++preview}") is { } split)
+        {
+            for (int i = 0; i < chosen.Count; i++)
+            {
+                chosen[i].Row.Preview = split.Parts[i];
+            }
+        }
+    }
+
+    /// <summary>The pieces music-core makes of the collection; null, with the reason in words, when it cannot.</summary>
+    private PieceSplit? Split(List<(PartRow Row, PartRange Range)> chosen, Func<string> newId)
+    {
+        // With «Темп живого исполнения» on, each piece's beat is found again after each pause and jump in tempo (v0.5).
+        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words, FreshBars = true, LiveTempo = Settings.IsOn(MotiffLab.Web.Insights.TempoCard.Setting) };
+        try
+        {
+            return PieceParts.Split(Collection!, [.. chosen.Select(static each => each.Range)], options);
+        }
+        catch (NotSupportedException)
+        {
+            _problem = Text["parts.notSupported"];
+        }
+        catch (ArgumentException)
+        {
+            _problem = Text["parts.overlap"];
+        }
+
+        return null;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        List<(PartRow Row, PartRange Range)> chosen = Chosen();
+        if (_making || chosen.Count == 0 || Split(chosen, static () => $"p_{Guid.NewGuid():N}") is not { } split)
+        {
+            return;
+        }
+
+        _making = true;
+        try
+        {
+            await Made.InvokeAsync(split);
+            _rows = null;
+        }
+        finally
+        {
+            _making = false;
+        }
+    }
+
+    private string RowRange(PartRow row) =>
+        row.Preview?.Milliseconds is { } stretch ? $"{BarsText(row.Span)} · {PartPlace.Times(stretch.From, stretch.To)}" : BarsText(row.Span);
+
+    /// <summary>A piece made: the collection's bars it took, known right after the split, and its place in the original.</summary>
+    private string DoneRange(PartLink part)
+    {
+        string bars = part is { First: { } first, Last: { } last } ? BarNumbersText(first, last) : "";
+        string place = PartPlace.Of(Text, part.Place);
+        return string.Join(" · ", new[] { bars, place }.Where(static each => each.Length > 0));
+    }
+}

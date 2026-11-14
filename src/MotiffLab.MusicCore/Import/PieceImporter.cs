@@ -388,6 +388,12 @@ public sealed record ImportedPiece(
     public IReadOnlyList<Playback.PlaybackTempo>? AssembledTempos { get; init; }
 
     /// <summary>
+    /// The tempo the player set for the piece, in quarter notes a minute (project file "tempo", version 0.5.4): what it
+    /// plays and is marked at from its start (<see cref="Playback.PlayerTempo"/>); null to play as the piece states.
+    /// </summary>
+    public int? PlayerTempo { get; init; }
+
+    /// <summary>
     /// What the player can start with (N2 step 4): the whole piece, each hand the notes carry, and
     /// each track when there are several. A hand that is inferred says so.
     /// </summary>

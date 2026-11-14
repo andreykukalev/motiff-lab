@@ -179,7 +179,17 @@ test("rings, flags and the pencil's frames come from the same boxes", async () =
 
     const frames = geometry.barFrames();
     assert.equal(frames.length, geometry.bars.length);
-    assert.deepEqual(frames[3], { tick: bar.tick, left: bar.left, right: bar.right, top: bar.ink.top, bottom: bar.ink.bottom, staffTop: bar.staves[0].top, space: bar.staves[0].space });
+    const line = geometry.systems[bar.system].bars.map((index) => geometry.bars[index]);
+    assert.deepEqual(frames[3], {
+        tick: bar.tick, left: bar.left, right: bar.right, top: bar.ink.top, bottom: bar.ink.bottom, staffTop: bar.staves[0].top, space: bar.staves[0].space,
+        line: bar.system, lineLeft: line[0].left, lineRight: line[line.length - 1].right,
+    });
+    // Every bar of a line shares its edges: the first bar's left and the last bar's right.
+    assert.ok(line.length > 1);
+    for (const index of geometry.systems[bar.system].bars) {
+        assert.equal(frames[index].lineLeft, line[0].left);
+        assert.equal(frames[index].lineRight, line[line.length - 1].right);
+    }
     // At 800 px for 2100 units, a space of 18 units is about 6.9 px.
     assert.ok(Math.abs(frames[3].space - (18 * 800) / 2100) < 0.2);
 });

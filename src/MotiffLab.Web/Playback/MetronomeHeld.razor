@@ -1,0 +1,16 @@
+@* The tempo over the metronome's button while it is held and slid (#521 section 15): what letting go keeps for the piece. *@
+@implements IDisposable
+@inject PieceMetronome Metronome
+
+@if (Metronome.Holding is int bpm)
+{
+    <span class="metronome-held mono" role="status">@Metronome.Note = @bpm</span>
+}
+
+@code {
+    protected override void OnInitialized() => Metronome.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Metronome.Changed -= OnChanged;
+}

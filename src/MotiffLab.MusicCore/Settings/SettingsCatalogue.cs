@@ -74,6 +74,66 @@ public static class SettingsCatalogue
 
         Switch("account.saveOnline", SettingSection.Account, null, SettingScope.Device),
         Switch("account.analytics", SettingSection.Account, null, SettingScope.Device),
+
+        // Experiments, each off until the player turns it on on this device. Several pieces in a score or recording (v0.5,
+        // replacing automatic bookmarks and pieces in a file): where the pieces of a long score or recording begin, proposed
+        // by music-core (SectionFinder) and set by hand, kept as the pieces layer, and each piece made a library piece of
+        // its own (PieceParts); the file itself is not cut.
+        Switch("experimental.pieces", SettingSection.Experimental, null, SettingScope.Device),
+
+        // My corrections on or off (v0.5): the player's note corrections laid on one by one, the ones that no longer fit shown.
+        Switch("experimental.editsLayer", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Live performance tempo (v0.5): a recording's beat grid found again after each pause and tempo jump.
+        Switch("experimental.liveTempo", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Для чтения» with the marks that matter (v0.5): a recording's score for reading with marked dynamics, rit. and
+        // accel., and fermatas (PlayingMarks.Significant).
+        Switch("experimental.readingMarks", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
+        Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Справочник» (v0.5): the Reference with three tabs, keys on a circle shaded by their accidentals, chords and scales
+        // with how they sound (ReferenceSounding), and the harmony explorer (HarmonyExplorer); nothing is written into a piece.
+        Switch("experimental.harmony", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Photos of pages (v0.4, iPad): pages photographed in a row become one PDF piece, read by the scan server page by page.
+        // On the web (v0.5): several photos picked at once on Scan printed music, read page by page into one piece, not kept.
+        Switch("experimental.photoPages", SettingSection.Experimental, null, SettingScope.Device),
+
+        // At the instrument, on the iPad. Resume where you stopped (#327): the passage, focus, tempo, loop and hands of the
+        // latest resume point come back when the piece opens, and are kept in it when it closes.
+        Switch("experimental.resume", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Hands separately (#328): both hands, the right or the left in the pill, and the next or previous phrase outside focus.
+        Switch("experimental.hands", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Selection by beats (#349): the selection's edges snap to beats, so a passage can start and end mid-bar.
+        Switch("experimental.beats", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Two playheads and modes (v0.5, specs two-playheads and interaction-modes): a global playhead and one inside the
+        // selection (on the iPad since v0.5.2 one playback position, cobalt inside the selection and ink outside it), the
+        // selection by beats changed only by its handles, and the modes Navigate, Select, Edit notes and Pen. The fade of the
+        // other bars while the piece played was removed in v0.5.2 (#479 item 19): every bar stays as readable.
+        Switch("experimental.playheads", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Changes of signature in a recording (v0.5, a preview): where the bars read better in 5/8, 7/8, 9/8, 5/4 or 12/8
+        // (LiveBars.OddMeters), said in the Check drawer's head; nothing is changed or saved.
+        Switch("experimental.meters", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Import a folder (v0.5, «Импорт папки»): the PDF, MIDI and MusicXML files of a folder the player chose added in one go,
+        // with repeats by fingerprint, suggested titles and composers, and folders as playlists (LibraryImport); the
+        // player's files are only read.
+        Switch("experimental.libraryImport", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Choice of scan engine (v0.5.8): while it is on, a scan names the engine chosen here to the scan server, homr or
+        // copisteria, so the two can be compared on the player's own pages; off, the server reads with homr as before. The
+        // engine that read a scan is kept in its origin (ScanOrigin.Engine), as it always was. "auto" (decision record 0029)
+        // reads a born-digital PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with
+        // the server's own engine; photos always go to the server.
+        Switch("experimental.scanEngine", SettingSection.Experimental, null, SettingScope.Device),
+        Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

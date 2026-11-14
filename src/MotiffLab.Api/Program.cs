@@ -28,8 +28,8 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .SetIsOriginAllowed(AllowedOrigins(config))
     .AllowAnyHeader()
-    .WithMethods("GET", "PUT", "DELETE")
-    .WithExposedHeaders("ETag")
+    .WithMethods("GET", "PUT", "POST", "DELETE")
+    .WithExposedHeaders("ETag", TestReset.Header)
     .SetPreflightMaxAge(TimeSpan.FromMinutes(10))));
 
 // Created on first use, so the tests can put their own store in its place.

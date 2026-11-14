@@ -13,7 +13,7 @@
     }
     else
     {
-        <button class="avatar" aria-haspopup="dialog" title="@_player" aria-label="@Text.Format("account.open", _player)" @onclick="Open"><PlayerAvatar Name="_player" Photo="@_photo" /></button>
+        <button class="avatar" aria-haspopup="dialog" title="@_player" aria-label="@Text.Format("account.open", _player)" @onclick="Open"><PlayerAvatar Name="@_player" Photo="@_photo" /></button>
     }
 }
 
@@ -32,7 +32,8 @@
         Account.ProfileChanged += OnProfileChanged;
         _player = await Account.PlayerAsync();
         _loaded = true;
-        await LoadProfileAsync();
+        // The API may take a while to wake: the button shows the sign-in's name at once, and the chosen one when it answers.
+        OnProfileChanged();
     }
 
     /// <summary>The name and photo the player chose, once the API answers; the sign-in's name until then.</summary>

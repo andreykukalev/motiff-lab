@@ -196,13 +196,13 @@ public class PdfPieceTests
         Assert.Equal(read, read.Through(piece.Meter, piece.Meter, piece.End));
         Assert.Equal(new PageMap([Tick.Zero]), read.Through(piece.Meter, piece.Meter, piece.Meter.GetBar(2).Span.Onset));
 
-        // The online copy holds the notes and leaves the PDF on the device; a PDF with no notes has nothing to send.
+        // The online copy holds the notes and leaves the PDF on the device; a PDF with no notes sends its description (0.5).
         Project online = kept.ForOnline()!;
         Assert.Null(online.Document);
         Assert.Null(online.DocumentPages);
         Assert.Equal(musicXml, online.Source);
         Assert.Same(notes, notes.ForOnline());
-        Assert.Null(Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).ForOnline());
+        Assert.Null(Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).ForOnline()!.Document);
     }
 
     [Fact]

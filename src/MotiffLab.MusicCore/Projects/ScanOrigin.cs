@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -19,18 +20,41 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     /// <summary>The bars the player said look right, in bar order, each once.</summary>
     public IReadOnlyList<int> ConfirmedBars { get; } = [.. (ConfirmedBars ?? throw new ArgumentNullException(nameof(ConfirmedBars))).Distinct().Order()];
 
+    /// <summary>The original the notes were read from (<see cref="PieceOriginal.Id"/>, version 0.3); null when not kept.</summary>
+    public string? From { get; init; }
+
+    /// <summary>When the notes were read (version 0.3); null when not kept.</summary>
+    public DateTimeOffset? At { get; init; }
+
+    /// <summary>
+    /// What the scan server saw of each page it read (version 0.4, within version 15), in page order: the raw numbers of
+    /// its reports, so a page's quality is worked out again on every open (<see cref="PageReport.Quality"/>) and the
+    /// thresholds can change without touching the file. Empty when the server sent none, as for every scan before 0.4.
+    /// </summary>
+    public IReadOnlyList<PageReport> Pages { get; init; } = [];
+
     /// <summary>A scan just read, with no bar checked yet.</summary>
     public static ScanOrigin Read(string engine) => new(engine, []);
 
     public bool IsConfirmed(int bar) => ConfirmedBars.Contains(bar);
 
+    /// <summary>
+    /// The check of the notes this scan read (<paramref name="piece"/>, its source as imported), with the page reports it
+    /// keeps (<see cref="Pages"/>, version 0.4): bars on a weak page less sure, bars on a poor page flagged
+    /// <see cref="ScanFlag.PageQuality"/>. Without reports, as <see cref="ScanCheck.Of(ImportedPiece)"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The piece was not imported from MusicXML.</exception>
+    public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
+
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
-    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]);
+    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages };
 
     /// <summary>The origin with the bar taken out of the confirmed ones, so its notes are detected again.</summary>
-    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]);
+    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages };
 
-    public bool Equals(ScanOrigin? other) => other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars);
+    public bool Equals(ScanOrigin? other) =>
+        other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars) && From == other.From && At == other.At
+        && Pages.SequenceEqual(other.Pages);
 
     public override int GetHashCode() => ConfirmedBars.Aggregate(Engine.GetHashCode(StringComparison.Ordinal), HashCode.Combine);
 }

@@ -29,6 +29,9 @@ internal sealed partial class OpenPiece
     private static readonly KeepProperty[] s_defaultKeep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private InvitationContext? _understood;
+
+    /// <summary>The Check flags and notes <see cref="_understood"/> was read from.</summary>
+    private (IReadOnlyList<CheckFlag>? Check, IReadOnlyList<Note> Notes)? _understoodFor;
     private TryChip? _chip;
     private MotifSelectionKind _selectionKind = MotifSelectionKind.Range;
 
@@ -48,7 +51,7 @@ internal sealed partial class OpenPiece
 
     public Project Project { get; private set; }
 
-    public ImportedPiece Piece { get; }
+    public ImportedPiece Piece { get; private set; }
 
     /// <summary>The imported notes with the project's corrections and the bars taken from performances applied.</summary>
     public IReadOnlyList<Note> Notes { get; private set; }
@@ -92,8 +95,9 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// A new project from a recording heard in parts (0014, 0016), as the web app makes one: the parts' notes joined
-    /// ("milliseconds", "parts" as for performance.add), marked detected, written in the bars worked out from them when
-    /// some fit, with the transcription's engine ("engine"), its seams and the Check flags it raises.
+    /// ("milliseconds", "parts" and "levels" as for performance.add), marked detected, written in the bars worked out from them when
+    /// some fit ("tempo": "live" finds the beat afresh in each section, <see cref="LiveTempoRequest"/>), with the transcription's
+    /// engine ("engine"), its seams and the Check flags it raises.
     /// </summary>
     public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
     {
@@ -107,11 +111,18 @@ internal sealed partial class OpenPiece
         }
 
         long milliseconds = heard.Long("milliseconds")!.Value;
-        IReadOnlyList<RecordingPart> plan = RecordingParts.Plan(milliseconds);
-        BarGrid? bars = BarGrid.Find(imported.Midi);
+        IReadOnlyList<RecordingPart> plan = PlanOf(heard, milliseconds);
+        BarGrid? bars = BarGrid.Find(imported.Midi, search: LiveTempoRequest.Of(heard));
+        long? sentFrom = heard.Long("sentFromMs");
+        if (sentFrom is < 0)
+        {
+            throw FacadeException.BadRequest("\"sentFromMs\" is where the stretch sent starts in the recording file, 0 or later.");
+        }
+
         var origin = new TranscriptionOrigin(heard.Text("engine") ?? "unknown engine", bars)
         {
             Seams = plan.Count > 1 ? RecordingParts.Seams(plan) : [],
+            SentFromMilliseconds = sentFrom,
         };
         ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
         Project project = Project.Create(id, name, midi, now) with { Transcription = origin };
@@ -119,15 +130,19 @@ internal sealed partial class OpenPiece
         return Open(ProjectFile.Write(project), words);
     }
 
-    /// <summary>A saved project, with its first motif back as the selection and that motif's variation.</summary>
-    public static OpenPiece Open(byte[] projectFile, Words words)
+    /// <summary>
+    /// A saved project, with its first motif back as the selection and that motif's variation; the corrections laid over
+    /// the notes as <paramref name="layer"/> says (version 0.5), strictly by default.
+    /// </summary>
+    /// <param name="asTheFileSays">The corrections are left out when the file says the player turned them off ("editsOff"), whatever <paramref name="layer"/> says.</param>
+    public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict, bool asTheFileSays = false)
     {
         Project project;
         OpenedProject opened;
         try
         {
             project = ProjectFile.Read(projectFile);
-            opened = OpenedProject.Open(project);
+            opened = OpenedProject.Open(project, asTheFileSays && project.EditsOff ? EditsLayer.Off : layer);
         }
         catch (ProjectFileException exception)
         {
@@ -149,6 +164,7 @@ internal sealed partial class OpenPiece
             }
         }
 
+        result.StartLayer(opened);
         return result;
     }
 
@@ -167,9 +183,11 @@ internal sealed partial class OpenPiece
         "variation.clear" => Clear(),
         "notation" => Notation(request),
         "playback" => Playback(request),
+        "tempo.set" => SetTempo(request),
         "roll" => Roll(request),
         "project.save" => Save(request),
-        "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure), Words, Piece.End, Piece.Meter)),
+        "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
+        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure)), Words, Piece.End, Piece.Meter)),
         _ => CallOnProject(name, request),
     };
 
@@ -182,7 +200,7 @@ internal sealed partial class OpenPiece
         json.WriteString("language", Words.IsRussian ? "ru" : "en");
         if (Selection is { } selection)
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset));
+            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
         }
         else
         {
@@ -190,6 +208,13 @@ internal sealed partial class OpenPiece
         }
 
         json.WriteBoolean("hasVariation", Chain is not null);
+        if (_layer != EditsLayer.Strict)
+        {
+            json.WriteStartObject("edits");
+            json.WriteNumber("count", Project.Edits.Edits.Count);
+            LayerFields(json);
+            json.WriteEndObject();
+        }
     }
 
     /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>
@@ -246,7 +271,7 @@ internal sealed partial class OpenPiece
             Answer.Phrases(json, Levels, Level, Words);
             if (Selection is { } now)
             {
-                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset));
+                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset), Piece.Meter);
             }
             else
             {
@@ -293,12 +318,10 @@ internal sealed partial class OpenPiece
     private IReadOnlyList<MotifFact> SentenceFacts()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (Levels.Phrases.Matching(selection.Span) is { } phrase)
-        {
-            return Levels.Sentences.Facts(phrase);
-        }
-
-        return Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence) : [];
+        IReadOnlyList<MotifFact> facts = Levels.Phrases.Matching(selection.Span) is { } phrase ? Levels.Sentences.Facts(phrase)
+            : Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence)
+            : [];
+        return Doubt().On(facts, selection);
     }
 
     /// <summary>Sounds a Try chip (0018, section 7): one accepted step over the selection with the chip's Keep preset.</summary>
@@ -311,6 +334,7 @@ internal sealed partial class OpenPiece
         Keep.UnionWith(chain.Context.Keep);
         Chain = chain;
         _chip = chip;
+        _hiddenVariation = null;
         return ChainAnswer(chain);
     }
 
@@ -326,7 +350,14 @@ internal sealed partial class OpenPiece
         }
         else if (request.Span("span") is { } span)
         {
-            selection = MotifSelector.Select(Notes, Piece.Meter, span, filter);
+            // "snap": "beat" (#349, within contract 12) takes the span out to whole beats, so it can start and end mid-bar.
+            TickSpan chosen = request.Text("snap") switch
+            {
+                null => span,
+                "beat" => MotifSelector.ToBeats(Piece.Meter, span),
+                _ => throw FacadeException.BadRequest("\"snap\" is \"beat\"."),
+            };
+            selection = MotifSelector.Select(Notes, Piece.Meter, chosen, filter);
         }
         else
         {
@@ -346,7 +377,8 @@ internal sealed partial class OpenPiece
         _understood = null;
         _chip = null;
         Chain = null;
-        return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset)));
+        _hiddenVariation = null;
+        return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter));
     }
 
     /// <summary>The circle of fifths for the selection, from the key and chords music-core read for it.</summary>
@@ -356,18 +388,25 @@ internal sealed partial class OpenPiece
     private InvitationContext Understood()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (_understood is { } understood)
+        // Fixing a note or resolving a Check flag changes the doubt, so the understanding is read again (#352).
+        if (_understood is { } understood && _understoodFor is { } from && ReferenceEquals(from.Check, Project.Check) && ReferenceEquals(from.Notes, Notes))
         {
             return understood;
         }
 
+        NoteDoubt doubt = Doubt();
         KeySignature? key = KeySignature.InForce(Piece.Keys, selection.Span.Onset);
-        MotifAnalysis motif = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
-        StructureAnalysis structure = StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words);
-        IReadOnlyList<MotifFact> character = MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words);
-        HarmonyAnalysis harmony = HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, motif.Key?.Key, Words);
+        MotifAnalysis read = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
+        HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, read.Key?.Key, Words), selection);
+        MotifAnalysis motif = doubt.On(read, selection);
+        StructureAnalysis structure = doubt.On(StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words), selection);
+        IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words), selection);
+        _understoodFor = (Project.Check, Notes);
         return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words) { Harmony = harmony };
     }
+
+    /// <summary>The recognised notes still to check: in the bars with an open Check flag (#352).</summary>
+    private NoteDoubt Doubt() => NoteDoubt.Of(Notes, Piece.Meter, Project.OpenChecks.Select(static flag => flag.Bar), Words);
 
     private string Clear()
     {
@@ -395,6 +434,13 @@ internal sealed partial class OpenPiece
         string of = request.Text("of") ?? "piece";
         string title = request.Text("title") ?? Path.GetFileNameWithoutExtension(Piece.FileName);
         bool readable = request.Bool("readable") ?? true;
+        // «Для чтения» (version 0.5): the score for reading with the marks of the playing that matter, "reading": "marks".
+        bool reading = request.Text("reading") switch
+        {
+            null => false,
+            "marks" => true,
+            _ => throw FacadeException.BadRequest("\"reading\" is \"marks\": the score for reading with the marks of the playing that matter."),
+        };
         bool heard = Transcribed.IsHeard(Piece);
         BarRange? bars = ExcerptOf(request);
         // Another version above (0022, section 4) is engraved as the comparison layer has it, likely artefacts only when asked.
@@ -409,14 +455,14 @@ internal sealed partial class OpenPiece
         if (of == "piece")
         {
             notation = generated
-                ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias)
-                : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title) : NotationGenerator.FromMidi(Piece.Midi!, title);
+                ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias, reading)
+                : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title, PlaybackScore.FromPiece(Piece).Tempos) : NotationGenerator.FromMidi(Piece.Midi!, title, tempos: PlaybackScore.FromPiece(Piece).Tempos);
         }
         else if (of == "variation")
         {
             Note[] notes = InPlace(Shown());
             Tick end = notes.Length == 0 ? Piece.End : notes.Max(note => note.Span.End);
-            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias);
+            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias, reading);
         }
         else
         {
@@ -516,21 +562,28 @@ internal sealed partial class OpenPiece
         return new NotationOssia(idea.Name, variation.Notes, AsHeard: heard && readable);
     }
 
-    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
+    /// <param name="reading">For notes heard, written for reading: with the marks of the playing that matter («Для чтения», <see cref="PlayedMarks.Significant"/>).</param>
+    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, bool reading = false)
     {
         IEnumerable<KeyChange> keys = NotationKeys(heard);
+        // The tempo is marked as music-core plays it (version 0.5.4): notated or the player's "♩ = 92", inferred "♩ ≈ 92".
+        PlaybackScore played = PlaybackScore.FromPiece(Piece);
         if (!heard)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias, tempos: played.Tempos);
+        }
+
+        if (readable && !reading)
+        {
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias, tempos: played.Tempos);
         }
 
         if (readable)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant, tempos: played.Tempos);
         }
 
-        PlaybackScore played = PlaybackScore.FromPiece(Piece);
-        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
+        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias, tempos: played.Tempos);
     }
 
     /// <summary>The key signatures the score is written in: the piece's, or for notes heard without one the key worked out from them.</summary>
@@ -558,23 +611,45 @@ internal sealed partial class OpenPiece
         return Answer.Write(json => Answer.Roll(json, payload, names));
     }
 
+    /// <summary>
+    /// What plays: the piece, the variation heard, the variation in place or another version, with "hands" ("right" or
+    /// "left", #328 within contract 12) only that hand's notes, as the web app plays a hand alone. The answer says which
+    /// hands the piece's notes carry and whether any was inferred ("hands").
+    /// </summary>
     private string Playback(Request request)
     {
-        PlaybackScore score = PlaybackScore.FromPiece(Piece);
-        if (Project.ChangesNotes)
+        Hand? hand = request.Text("hands") switch
         {
-            score = score.WithNotes(Notes);
-        }
-
-        score = (request.Text("of") ?? "piece") switch
+            null or "both" => null,
+            "right" => Hand.Right,
+            "left" => Hand.Left,
+            _ => throw FacadeException.BadRequest("\"hands\" is \"both\", \"right\" or \"left\"."),
+        };
+        IEnumerable<Note>? notes = (request.Text("of") ?? "piece") switch
         {
-            "piece" => score,
-            "heard" => score.WithNotes((Chain ?? throw FacadeException.NoVariation()).Heard),
-            "inPlace" => score.WithNotes(InPlace(Shown())),
-            "version" => score.WithNotes(VersionLayer(Performance(request), artefacts: false).Notes),
+            "piece" => Project.ChangesNotes || hand is not null ? Notes : null,
+            "heard" => (Chain ?? throw FacadeException.NoVariation()).Heard,
+            "inPlace" => InPlace(Shown()),
+            "version" => VersionLayer(Performance(request), artefacts: false).Notes,
             _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\", \"inPlace\" or \"version\"."),
         };
-        return Answer.Write(json => Answer.Playback(json, score));
+        if (hand is { } alone)
+        {
+            notes = notes!.Where(SelectionFilter.ForHand(alone).Matches);
+        }
+
+        PlaybackScore score = PlaybackScore.FromPiece(Piece);
+        if (notes is not null)
+        {
+            score = score.WithNotes(notes);
+        }
+
+        PlaybackHands hands = PlaybackHands.Of(Notes);
+        return Answer.Write(json =>
+        {
+            Answer.Playback(json, score);
+            Answer.Hands(json, hands);
+        });
     }
 
     /// <summary>The variation the player sees and hears: the pending step's result, else the accepted chain's.</summary>
@@ -602,12 +677,22 @@ internal sealed partial class OpenPiece
             : null;
         var motifs = Project.Motifs.Where(motif => motif.Id != MotifId).ToList();
         var variations = Project.Variations.Where(variation => variation.MotifId != MotifId).ToList();
-        if (Selection is { NoteIds.Count: > 0 } selection)
+        if (_layer == EditsLayer.Off)
+        {
+            // With the corrections off, the selection is over notes they would change: the motifs stay as they were (version 0.5).
+            motifs = [.. Project.Motifs];
+            variations = [.. Project.Variations];
+        }
+        else if (Selection is { NoteIds.Count: > 0 } selection)
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, _selectionKind, MotifMode.Discovery, Notes)));
             if (Chain is { Result: not null } chain)
             {
                 variations.Insert(0, SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain));
+            }
+            else if (_hiddenVariation is { } hidden)
+            {
+                variations.Insert(0, hidden);
             }
         }
 

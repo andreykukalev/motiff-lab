@@ -21,6 +21,9 @@ public enum SettingSection
     Assistant,
     Appearance,
     Account,
+
+    /// <summary>Experiments (governance, "Experiments"): each new idea behind its own switch, off until the player turns it on.</summary>
+    Experimental,
 }
 
 /// <summary>What a setting's value is.</summary>

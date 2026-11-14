@@ -1,6 +1,6 @@
 namespace MotiffLab.Web.Score;
 
-/// <summary>A bookmark the score draws as a bracket in its category's ink above the phrase brackets (decision record 0018, section 5).</summary>
+/// <summary>A bookmark the score draws as a bracket in its category's ink above the top staff (decision record 0018, section 5).</summary>
 /// <param name="Id">The bookmark's id; a tap on its bracket gives it back.</param>
 /// <param name="Start">Where it starts, in ticks.</param>
 /// <param name="End">Where it ends, in ticks.</param>

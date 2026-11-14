@@ -1,0 +1,96 @@
+@using System.Globalization
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* «Темп живого исполнения» (an experiment, Settings · Experimental, version 0.5): the piece's tempo bar by bar as music-core
+   reads it (TempoProfile, computed, never stored). The curve over the bars, the usual tempo and its range as a band, the
+   stretches that go slower or faster, each a chip that selects its bars, and each piece of the pieces layer on a line of its
+   own. Every figure and sentence comes from music-core; the card only draws them. *@
+<section class="tempo-card" aria-labelledby="tempo-card-title">
+    <h3 class="overline" id="tempo-card-title">@Text["tempo.title"]</h3>
+    <p class="claim">@Fact.Text</p>
+    @if (View.Whole.Bars.Count > 1 && View.Whole.Varies)
+    {
+        <svg viewBox="0 0 @Width @Height" role="img" aria-label="@Text.Format("tempo.chart", Bpm(Slowest), Bpm(Fastest))" preserveAspectRatio="none">
+            <rect class="band" x="0" y="@F(Y(View.Whole.High))" width="@Width" height="@F(Math.Max(1, Y(View.Whole.Low) - Y(View.Whole.High)))" />
+            @foreach (TempoChange change in View.Whole.Changes)
+            {
+                <rect class="stretch" x="@F(X(change.FirstBar))" y="0" width="@F(Math.Max(2, X(change.LastBar) - X(change.FirstBar)))" height="@Height" />
+            }
+            <line class="usual" x1="0" x2="@Width" y1="@F(Y(View.Whole.Usual))" y2="@F(Y(View.Whole.Usual))" />
+            <polyline class="curve" points="@Points" />
+        </svg>
+    }
+    <div class="caption-row">
+        <span class="tag certainty @(View.Whole.Inferred ? "inferred" : "detected")">@Text[View.Whole.Inferred ? "tempo.inferred" : "tempo.fromFile"]</span>
+    </div>
+    @if (View.Whole.Changes.Count > 0)
+    {
+        <div class="chips" role="group" aria-label="@Text["tempo.changes"]">
+            @foreach (TempoChange change in View.Whole.Changes)
+            {
+                <button class="chip" title="@Text["tempo.showHint"]" @onclick="() => ShowBars.InvokeAsync((change.FirstBar, change.LastBar))">
+                    @Text.Format(change.Slower ? "tempo.slower" : "tempo.faster", change.FirstBar, change.LastBar)
+                </button>
+            }
+        </div>
+    }
+    @if (View.Pieces.Count > 1)
+    {
+        <p class="overline">@Text["tempo.pieces"]</p>
+        <ul class="tempo-pieces">
+            @foreach (TempoPieceRow piece in View.Pieces)
+            {
+                <li>
+                    <button class="link" title="@Text["tempo.showHint"]" @onclick="() => ShowBars.InvokeAsync((piece.FirstBar, piece.LastBar))">
+                        @Text.Format("tempo.pieceLine", piece.Title, Bpm(piece.Profile.Usual), Bpm(piece.Profile.Low), Bpm(piece.Profile.High))
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private const int Width = 300;
+    private const int Height = 64;
+
+    /// <summary>The setting that turns the experiment on: the card, the live search when a recording is heard, and the Check head's actions.</summary>
+    public const string Setting = "experimental.liveTempo";
+
+    [Parameter, EditorRequired]
+    public TempoView View { get; set; } = null!;
+
+    /// <summary>Raised with the first and last bar to select: a stretch that changes, or a piece.</summary>
+    [Parameter]
+    public EventCallback<(int First, int Last)> ShowBars { get; set; }
+
+    private Words Words => Words.For(Text.Language);
+
+    private MotifFact Fact => View.Whole.Facts(Words)[0];
+
+    private int Slowest => View.Whole.Bars.Min(bar => bar.Tenths);
+
+    private int Fastest => View.Whole.Bars.Max(bar => bar.Tenths);
+
+    private string Bpm(int tenths) => TempoProfile.Bpm(tenths, Words);
+
+    private double X(int barNumber)
+    {
+        int first = View.Whole.Bars[0].Number, last = View.Whole.Bars[^1].Number;
+        return last == first ? 0 : (double)(barNumber - first) * Width / (last - first);
+    }
+
+    /// <summary>A tempo's height on the chart: faster higher, with a little room above and below.</summary>
+    private double Y(int tenths)
+    {
+        double low = Slowest, high = Fastest;
+        return high <= low ? Height / 2.0 : 4 + ((high - tenths) * (Height - 8) / (high - low));
+    }
+
+    private string Points => string.Join(" ", View.Whole.Bars.Select(bar => $"{F(X(bar.Number))},{F(Y(bar.Tenths))}"));
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+}

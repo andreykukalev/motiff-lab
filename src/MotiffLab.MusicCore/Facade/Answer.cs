@@ -326,11 +326,16 @@ internal static partial class Answer
         json.WriteNumber("marks", project.Marks.Count);
         json.WriteNumber("bookmarks", project.Bookmarks.Count);
         json.WriteNumber("openChecks", project.OpenChecks.Count);
+        Details(json, project.Details);
         // Within contract 4, for the library's cards (0018 section 9): the bars still to check, whether the piece has notes
         // and a PDF (0023), and the resume point worked from last.
         json.WriteNumber("checkBars", project.Summary.CheckBars);
         json.WriteBoolean("hasNotes", project.HasNotes);
         json.WriteBoolean("document", project.Document is not null);
+        // Within contract 12 (version 0.3): the originals and where their bytes are, for the iPad's badges.
+        Originals(json, project);
+        // Within contract 12 (version 0.4): where a piece made with «Пьесы в файле» is in its collection.
+        PartOf(json, project.PartOf);
         // Within contract 4 (2026-11-05): notes read from a PDF piece name it, and where each of its pages starts in the
         // notes, in ticks, for PDF | Notes.
         if (project.ReadFrom is { } readFrom)
@@ -445,13 +450,19 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Selection(Utf8JsonWriter json, string name, MotifSelection selection, KeySignature? key)
+    /// <summary>
+    /// A selection: its span, its bars and, since #349 (within contract 12), the beat of the first bar it starts on and the
+    /// beat of the last bar it ends in ("bar 5, beat 2 → bar 8, beat 3"), counted as <see cref="MeterMap.ToPosition"/> counts them.
+    /// </summary>
+    public static void Selection(Utf8JsonWriter json, string name, MotifSelection selection, KeySignature? key, MeterMap meter)
     {
         json.WriteStartObject(name);
         json.WriteNumber("onset", selection.Span.Onset.Value);
         json.WriteNumber("end", selection.Span.End.Value);
         json.WriteNumber("firstBar", selection.FirstBar);
         json.WriteNumber("lastBar", selection.LastBar);
+        json.WriteNumber("firstBeat", meter.ToPosition(selection.Span.Onset).Beat);
+        json.WriteNumber("lastBeat", meter.ToPosition(new Tick(Math.Max(selection.Span.Onset.Value, selection.Span.End.Value - 1))).Beat);
         json.WriteNumber("barCount", selection.BarCount);
         Filter(json, "filter", selection.Filter);
         Texts(json, "noteIds", selection.NoteIds);
@@ -476,6 +487,7 @@ internal static partial class Answer
             }
 
             json.WriteString("basis", fact.Basis);
+            Doubt(json, fact.Doubt);
             json.WriteStartArray("places");
             foreach (FactPlace place in fact.Places)
             {
@@ -497,6 +509,18 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>
+    /// "doubt": why a chord, key or fact rests on recognised notes still to check (#352), written only when it does, so an
+    /// answer about imported notes reads as before (contract 11).
+    /// </summary>
+    private static void Doubt(Utf8JsonWriter json, string? doubt)
+    {
+        if (doubt is not null)
+        {
+            json.WriteString("doubt", doubt);
+        }
     }
 
     /// <summary>Try chips (0018, section 7): id, operation, label in the language, Keep preset and the step's parameters in the project file's shape.</summary>
@@ -541,19 +565,7 @@ internal static partial class Answer
             json.WriteString("runnerUpNote", circle.RunnerUpNote);
         }
 
-        json.WriteStartArray("sectors");
-        foreach (CircleSector sector in circle.Sectors)
-        {
-            json.WriteStartObject();
-            json.WriteNumber("position", sector.Position);
-            json.WriteNumber("fifths", sector.Fifths);
-            json.WriteString("major", sector.Major);
-            json.WriteString("minor", sector.Minor);
-            json.WriteString("signature", sector.Signature);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
+        Sectors(json, circle.Sectors);
         json.WriteStartArray("neighbours");
         foreach (CircleNeighbour neighbour in circle.Neighbours)
         {
@@ -603,6 +615,24 @@ internal static partial class Answer
         Texts(json, "lines", circle.Lines);
         Texts(json, "zones", circle.Zones.Select(static zone => Name(zone)));
         json.WriteEndObject();
+    }
+
+    /// <summary>The circle's twelve places: each with its signature's fifths, its major and minor keys and the signature in short.</summary>
+    public static void Sectors(Utf8JsonWriter json, IEnumerable<CircleSector> sectors)
+    {
+        json.WriteStartArray("sectors");
+        foreach (CircleSector sector in sectors)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("position", sector.Position);
+            json.WriteNumber("fifths", sector.Fifths);
+            json.WriteString("major", sector.Major);
+            json.WriteString("minor", sector.Minor);
+            json.WriteString("signature", sector.Signature);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     private static void CirclePlace(Utf8JsonWriter json, string name, FactPlace place)
@@ -727,7 +757,8 @@ internal static partial class Answer
             json.WriteNumber("bass", chord.Bass.MidiNumber);
             json.WriteNumber("inversion", chord.Inversion);
             json.WriteNumber("confidence", chord.Confidence);
-            json.WriteString("certainty", Name(chord.Confidence < HarmonyAnalyzer.ClearConfidence ? FactCertainty.Uncertain : FactCertainty.Inferred));
+            json.WriteString("certainty", Name(chord.IsUncertain ? FactCertainty.Uncertain : FactCertainty.Inferred));
+            Doubt(json, chord.Doubt);
             Texts(json, "alternatives", chord.Alternatives.Select(alternative => alternative.Symbol(spelling, chord.Bass.PitchClass)));
             Texts(json, "noteIds", chord.NoteIds);
             json.WriteEndObject();
@@ -814,6 +845,7 @@ internal static partial class Answer
             json.WriteString("label", key.Key.NameIn(words));
             json.WriteBoolean("modeInferred", key.ModeInferred);
             json.WriteBoolean("keyInferred", key.KeyInferred);
+            Doubt(json, key.Doubt);
             Passage(json, "passage", key.Span, key.FirstBar, key.LastBar);
             json.WriteEndObject();
         }
@@ -837,6 +869,7 @@ internal static partial class Answer
             json.WriteBoolean("clear", chord.Clear);
             json.WriteString("degree", chord.Degree);
             json.WriteString("function", Name(chord.Function));
+            Doubt(json, chord.Doubt);
             json.WriteEndObject();
         }
 
@@ -1153,6 +1186,47 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>
+    /// "tempo": {"perMinute", "source"} of the tempo at the start as played, quarter notes a minute; "piece": the same as
+    /// the piece states it, before the player's tempo; "player": the player's tempo for the piece, or null (version 0.5.4).
+    /// "beat": "quarter", or "dottedQuarter" in 6/8 and the other compound meters, the note the player reads and types the
+    /// tempo in (<see cref="TempoBeats"/>); "perMinute" and "player" stay quarter notes, "beatsPerMinute" counts the beat.
+    /// </summary>
+    public static void PlaybackTempoAnswer(Utf8JsonWriter json, PlaybackScore score)
+    {
+        TempoBeat beat = TempoBeats.At(score.Meter, Tick.Zero);
+        json.WriteStartObject("tempo");
+        json.WriteNumber("perMinute", score.StartTempo.PerMinute);
+        json.WriteString("source", score.StartTempo.Source.Name());
+        json.WriteString("beat", beat.Name());
+        json.WriteNumber("beatsPerMinute", beat.PerMinute(score.StartTempo.MicrosecondsPerQuarter));
+        json.WriteStartObject("piece");
+        json.WriteNumber("perMinute", score.PieceTempos[0].PerMinute);
+        json.WriteString("source", score.PieceTempos[0].Source.Name());
+        json.WriteNumber("beatsPerMinute", beat.PerMinute(score.PieceTempos[0].MicrosecondsPerQuarter));
+        json.WriteEndObject();
+        if (score.StartTempo.Source == TempoSource.Player)
+        {
+            json.WriteNumber("player", score.StartTempo.PerMinute);
+        }
+        else
+        {
+            json.WriteNull("player");
+        }
+
+        json.WriteEndObject();
+    }
+
+    /// <summary>
+    /// A playback score: its end, notes, pedal, tempos, beats and bars. Within contract 12 (version 0.5.2, the iPad's one
+    /// playback position) each beat also tells its "bar" and its "beat" in the bar, and each bar the "firstBeat" its start
+    /// falls in, counted as <see cref="MeterMap.ToPosition"/> counts them, so an app writes a place as bar.beat ("16.2")
+    /// without counting beats itself.
+    /// </summary>
+    /// <remarks>
+    /// Within contract 12 (version 0.5.4, #511 section 17, fields added) each tempo tells its "source" ("notated",
+    /// "inferred", "assumed" or "player"), and "tempo" what the tempo control shows: see <see cref="PlaybackTempoAnswer"/>.
+    /// </remarks>
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)
     {
         json.WriteNumber("end", score.End.Value);
@@ -1186,16 +1260,21 @@ internal static partial class Answer
             json.WriteStartObject();
             json.WriteNumber("at", tempo.At.Value);
             json.WriteNumber("microsecondsPerQuarter", tempo.MicrosecondsPerQuarter);
+            json.WriteString("source", tempo.Source.Name());
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
+        PlaybackTempoAnswer(json, score);
         json.WriteStartArray("beats");
         foreach (PlaybackBeat beat in score.Beats)
         {
             json.WriteStartObject();
             json.WriteNumber("at", beat.At.Value);
             json.WriteBoolean("downbeat", beat.IsDownbeat);
+            MetricPosition place = score.Meter.ToPosition(beat.At);
+            json.WriteNumber("bar", place.Bar);
+            json.WriteNumber("beat", place.Beat);
             json.WriteEndObject();
         }
 
@@ -1210,10 +1289,21 @@ internal static partial class Answer
             json.WriteNumber("beatTicks", bar.BeatTicks);
             json.WriteNumber("beatsPerBar", bar.BeatsPerBar);
             json.WriteBoolean("pickup", bar.IsPickup);
+            json.WriteNumber("firstBeat", score.Meter.ToPosition(bar.Span.Onset).Beat);
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>Which hands the piece's notes carry and whether any was inferred: {"hands": {right, left, inferred}} (#328).</summary>
+    public static void Hands(Utf8JsonWriter json, PlaybackHands hands)
+    {
+        json.WriteStartObject("hands");
+        json.WriteBoolean("right", hands.Right);
+        json.WriteBoolean("left", hands.Left);
+        json.WriteBoolean("inferred", hands.Inferred);
+        json.WriteEndObject();
     }
 
     public static void Catalogue(Utf8JsonWriter json, Words words)

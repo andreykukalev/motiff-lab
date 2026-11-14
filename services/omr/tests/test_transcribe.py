@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.main import MIDI_TYPE, create_app
+from app.recognise import Reading
 from app.transcribe import INPUT_FORMATS, TranscribeError, Transcription, duration_command, extract_command
 from tests.test_auth import token, verifier
 from tests.test_merge import page
@@ -13,7 +14,7 @@ RECORDING = b"\x00\x00\x00\x18ftypmp42" + bytes(64)
 
 
 def client(transcribe=lambda path, seconds: Transcription(MIDI, 12.0, False), **options) -> TestClient:
-    return TestClient(create_app(lambda path, number: page("1"), transcribe, **options))
+    return TestClient(create_app(lambda path, number: Reading(page("1")), transcribe, **options))
 
 
 def test_health_names_the_transcription_engine_and_its_limits():

@@ -70,6 +70,20 @@ enum DesignTokens {
         return CGFloat(value)
     }
 
+    /// A timing token in seconds, such as "t-base" (0.2); 0 when it is missing.
+    static func duration(_ name: String) -> Double {
+        guard let text = stands.light[name], text.hasSuffix("ms"), let value = Double(text.dropLast(2)) else { return 0 }
+        return value / 1000
+    }
+
+    /// The kit's easing curve (`--ease`, "cubic-bezier(.2,.8,.2,1)") as its four control values; a plain ease-out's
+    /// when it is missing.
+    static var ease: [Double] {
+        guard let text = stands.light["ease"], text.hasPrefix("cubic-bezier("), text.hasSuffix(")") else { return [0, 0, 0.58, 1] }
+        let values = text.dropFirst(13).dropLast().split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        return values.count == 4 ? values : [0, 0, 0.58, 1]
+    }
+
     /// A shadow token's first layer, such as "shadow-pill": "0 6px 20px rgba(31,28,24,.18)", in the stand the iPad's
     /// appearance asks for. SwiftUI's radius is about half the CSS blur.
     static func shadow(_ name: String) -> (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) {
@@ -182,6 +196,14 @@ extension CGFloat {
     }
 }
 
+extension Animation {
+    /// The kit's motion: a timing token, such as `.ds("t-base")`, on the kit's easing curve.
+    static func ds(_ name: String) -> Animation {
+        let ease = DesignTokens.ease
+        return .timingCurve(ease[0], ease[1], ease[2], ease[3], duration: DesignTokens.duration(name))
+    }
+}
+
 extension View {
     /// Sets one of the kit's type styles, with its line height.
     func dsType(_ style: DSType) -> some View {
@@ -275,6 +297,23 @@ struct DSItemStyle: ButtonStyle {
     }
 }
 
+/// An item of the pill or the menu as its icon alone (ds.css `.pill .it`, v0.5.2 #495 UX-11): a fingertip's square,
+/// quiet ink, and the accent with its tint while it is on. Its words stay for VoiceOver (`accessibilityLabel`) and as
+/// the pointer's tip (`help`), given by the button.
+struct DSIconItemStyle: ButtonStyle {
+    var on = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
+            .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Circle())
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(Circle())
+    }
+}
+
 /// A chip (ds.css `.chip`): a filter, a place, a way to try; the accent's tint and border while it is on.
 struct DSChipStyle: ButtonStyle {
     var on = false
@@ -309,9 +348,10 @@ struct FloatingSurface: ViewModifier {
     }
 }
 
-/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber.
+/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber; a tempo's source plain from the notes and in
+/// amber's tint when the player set it (version 0.5.4).
 struct Tag: View {
-    enum Kind { case saved, warn, detected, assumed }
+    enum Kind { case saved, warn, detected, assumed, plain, player }
 
     let text: String
     let kind: Kind
@@ -323,6 +363,11 @@ struct Tag: View {
             .padding(.horizontal, CGFloat.ds("s-2"))
             .frame(minHeight: 22)
             .background(background, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+            .overlay {
+                if kind == .plain {
+                    RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong"))
+                }
+            }
     }
 
     private var foreground: Color {
@@ -330,16 +375,18 @@ struct Tag: View {
         case .saved: .ds("plum")
         case .warn: .ds("warning")
         case .detected: .ds("accent")
-        case .assumed: .ds("ink-2")
+        case .assumed, .plain: .ds("ink-2")
+        case .player: .ds("ink")
         }
     }
 
     private var background: Color {
         switch kind {
         case .saved: .ds("plum-tint")
-        case .warn: .ds("amber-tint")
+        case .warn, .player: .ds("amber-tint")
         case .detected: .ds("accent-tint")
         case .assumed: .ds("hairline")
+        case .plain: .clear
         }
     }
 }

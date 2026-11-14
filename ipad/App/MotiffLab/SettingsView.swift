@@ -109,7 +109,7 @@ final class DeviceSettings: ObservableObject {
 /// iPad acts on are shown: the others join the sheet with the features they switch.
 struct SettingsSheet: View {
     enum SheetSection: String, CaseIterable, Hashable {
-        case guidance, score, layers, roll, appearance, account
+        case guidance, score, layers, roll, appearance, account, experimental, about
     }
 
     @ObservedObject var settings: DeviceSettings
@@ -151,6 +151,8 @@ struct SettingsSheet: View {
         .background(Color.ds("surface"))
         .modifier(PageSizedSheet())
         .task { await settings.load() }
+        // The API scales to zero: a plan or profile that did not come at launch is asked again when Settings opens.
+        .task { await account.refreshIfMissing() }
     }
 
     @ViewBuilder private func navigation(vertical: Bool) -> some View {
@@ -238,7 +240,6 @@ struct SettingsSheet: View {
             Text(text["settings.presetHint.\(settings.preset)"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-            switchRow("guidance.brackets", text["settings.brackets"])
             switchRow("guidance.transportPill", text["settings.pillWithSelection"], on: "selection", off: "playing", hint: text["settings.pillWithSelectionHint"])
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
@@ -273,10 +274,39 @@ struct SettingsSheet: View {
             }
         case .account:
             AccountPanel(account: account, text: text)
+            // Main or Test (Andrei, 2026-11-12): only in a version build or for a tester.
+            EnvironmentPanel(account: account, text: text)
             if ScanServer.hosted(account) == nil {
                 // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
                 ScanPanel(scan: ScanServer.shared, text: text)
             }
+        case .experimental:
+            // New ideas tried in the app before they become features (governance, "Experiments"): each off until turned
+            // on, on this iPad. Only the experiments the iPad acts on are listed.
+            Text(text["settings.experimentalHow"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+            switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
+            switchRow("experimental.photoPages", text["settings.photoPages"], hint: text["settings.photoPagesHint"])
+            switchRow("experimental.pieces", text["settings.pieces"], hint: text["settings.piecesPdfHint"])
+            switchRow("experimental.editsLayer", text["settings.editsLayer"], hint: text["settings.editsLayerHint"])
+            switchRow("experimental.liveTempo", text["settings.liveTempo"], hint: text["settings.liveTempoHint"])
+            // Version 0.5: a whole folder of scores into the library, kept by link or copied, and their notes read in a batch.
+            switchRow("experimental.libraryImport", text["folderImport.setting"], hint: text["folderImport.settingHint"])
+            // At the instrument (#327, #328, #349).
+            switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
+            switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])
+            switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
+            // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
+            switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
+            // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
+            switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
+            if settings.isOn(ScanServer.engineSetting) {
+                choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
+            }
+        case .about:
+            // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
+            AboutPanel(account: account, text: text)
         }
     }
 
@@ -310,6 +340,8 @@ struct SettingsSheet: View {
         case .roll: text["settings.section.roll"]
         case .appearance: text["settings.appearance"]
         case .account: text["settings.section.account"]
+        case .experimental: text["settings.section.experimental"]
+        case .about: text["settings.section.about"]
         }
     }
 
@@ -339,6 +371,8 @@ struct AccountPanel: View {
     @ObservedObject var account: Account
     let text: UIText
     @State private var editing = false
+    /// Saving online and sync with the player's other devices (version 0.2): on once signed in, until turned off here.
+    @AppStorage(CloudSync.onKey) private var syncOn = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -365,6 +399,15 @@ struct AccountPanel: View {
                 Button(text["settings.signOut"]) { account.signOut() }
                     .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
                 plan
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                    Toggle(text["settings.saveOnline"], isOn: $syncOn)
+                        .dsType(.label)
+                        .foregroundStyle(Color.ds("ink"))
+                        .tint(Color.ds("accent"))
+                    Text(syncOn ? text.format("settings.onlineOn", String(CloudSync.freeProjectsOnline)) : text["settings.onlineOff"])
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                }
             } else {
                 Text(text["settings.accountTitle"]).dsType(.label).foregroundStyle(Color.ds("ink"))
                 Text(text["settings.accountWhy"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
@@ -390,6 +433,10 @@ struct AccountPanel: View {
             Text(text["settings.plan"]).dsType(.label).foregroundStyle(Color.ds("ink-2"))
             Spacer()
             Text(planName).dsType(.label).foregroundStyle(account.plan?.isPro == true ? Color.ds("plum") : Color.ds("ink"))
+            if account.plan == nil && account.planFailed && !account.planAsking {
+                Button(text["settings.planRetry"]) { Task { await account.refreshPlan() } }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
         }
         if account.plan?.isTester == true {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -405,7 +452,8 @@ struct AccountPanel: View {
     }
 
     private var planName: String {
-        guard let plan = account.plan else { return text["settings.planUnknown"] }
+        // "Did not answer" only after an ask failed; while asking (a cold start takes up to half a minute), «Проверяю…».
+        guard let plan = account.plan else { return text[account.planFailed && !account.planAsking ? "settings.planUnknown" : "settings.planChecking"] }
         return plan.isPro ? text["settings.planPro"] : text["settings.planFree"]
     }
 }
@@ -458,7 +506,7 @@ private struct ProfileEditor: View {
             Text(text["profile.name"]).dsType(.label).foregroundStyle(Color.ds("ink"))
             TextField(account.player ?? "", text: $name)
                 .dsType(.body)
-                .textFieldStyle(.roundedBorder)
+                .modifier(FieldLook())
                 .textInputAutocapitalization(.words)
                 .submitLabel(.done)
                 .onChange(of: name) { _, value in

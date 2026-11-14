@@ -43,12 +43,12 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(levels.allSatisfy { $0["available"] as? Bool == true })
     }
 
-    func testTheBracketsAndTheSelectionAreReadFromMusicCore() throws {
+    func testThePhrasesAndTheSelectionAreReadFromMusicCore() throws {
         let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
         XCTAssertEqual(shown.level, "phrase")
         XCTAssertEqual(shown.counts["phrase"], shown.units.count)
         let first = try XCTUnwrap(shown.units.first)
-        XCTAssertEqual(first.kind, "start")
+        XCTAssertEqual(first.number, 1, "the first unit starts the piece")
         XCTAssertEqual(first.name, "фраза", "a unit is named in the piece's language")
         XCTAssertLessThan(first.onset, first.end)
 
@@ -368,6 +368,22 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(pdf.document?.page(at: 1)?.annotations.contains { $0 is InkMark } ?? false)
         XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 2, box: box), ["pk_test"])
         XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 1, box: box), [], "the eraser takes only the page it is on")
+        let cut = pdf.erasure(by: [CGPoint(x: 150, y: 691)], on: 2, box: box)
+        XCTAssertEqual(cut.added.count, 2, "the eraser cuts the stroke in two where it passed (#479 item 7)")
+        XCTAssertEqual(cut.added.compactMap { $0["colour"] as? String }, ["carmine", "carmine"], "the pieces keep the stroke's ink")
+        XCTAssertNil(request["margin"], "a stroke begun on the page is in no margin")
+
+        // A stroke begun beside the page is in its margin (v0.4), kept so and drawn where it was written.
+        let beside = [(CGPoint(x: -12, y: 400), 0.5), (CGPoint(x: 20, y: 400), 0.5)]
+        let marginal = try XCTUnwrap(DocumentStroke.request(id: "pk_left", tool: "pen", colour: "graphite", size: PdfController.penSize, page: 2, box: box, points: beside))
+        XCTAssertEqual(marginal["margin"] as? String, "left")
+        XCTAssertEqual(DocumentStroke.margin(u: 1.02), "right")
+        await pdf.change("document.ink.add", ["strokes": [marginal]])
+        let left = try XCTUnwrap(pdf.strokes.first { $0.id == "pk_left" })
+        XCTAssertEqual(left.margin, "left", "music-core answers the margin it kept")
+        XCTAssertEqual(left.path(in: box).first?.x ?? 0, -12, accuracy: 1e-6)
+        XCTAssertNil(pdf.strokes.first { $0.id == "pk_test" }?.margin)
+        await pdf.change("document.ink.remove", ["ids": ["pk_left"]])
 
         // The project file keeps the PDF and its bookmarks, and opens as a PDF piece again.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Nocturne test.motiff.json")
@@ -454,9 +470,16 @@ final class FacadeTests: XCTestCase {
 
     func testARecordingIsPlannedInPartsAndItsSoundReadBack() async throws {
         let parts = await RecordingParts.plan(600_000)
-        XCTAssertEqual(parts.count, 4, "the first 7 minutes, in parts of about two minutes")
+        XCTAssertEqual(parts.count, 5, "all 10 minutes, in parts of about two minutes")
         XCTAssertEqual(parts.first?.sendFrom, 0)
-        XCTAssertEqual(parts.last?.sendTo, 420_000)
+        XCTAssertEqual(parts.last?.sendTo, 600_000)
+        XCTAssertEqual(parts.first?.sendTo, 125_000, "without levels the seam is the even cut, with five seconds of the next part")
+
+        // The levels of 100 ms lay the seam at the quietest moment within ten seconds of the even cut (0014 item 7).
+        var levels = [Int](repeating: 500, count: 6_000)
+        for index in 1_150..<1_160 { levels[index] = 0 }
+        let quiet = await RecordingParts.plan(600_000, levels: levels)
+        XCTAssertEqual(quiet.first?.sendTo, 120_750, "kept to 115.75 s, sent five seconds on")
 
         let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
         let wav = RecordingSound.wav(tone[...])
@@ -469,6 +492,9 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(Double(sound.milliseconds), 1_000, accuracy: 20)
         XCTAssertEqual(RecordingSound.read(url, most: 500)?.milliseconds, 500)
         XCTAssertEqual(sound.wav(from: 250, to: 750).count, 44 + 11_025 * 2)
+        let heard = sound.levels(from: 0, to: 1_000)
+        XCTAssertEqual(heard.count, 10, "one level every 100 ms")
+        XCTAssertEqual(Double(heard[3]), 8_000 * 2 / .pi, accuracy: 60, "the mean size of a sine 8,000 high")
     }
 
     func testTheNotesAScanReadsFromAPdfFillThatPieceWhichOpensAsNotesOrAsItsPdf() throws {
@@ -556,6 +582,17 @@ final class FacadeTests: XCTestCase {
         XCTAssertNil(scan.address(hosted: hosted), "turned off, nothing is sent")
         scan.chooseHosted()
         XCTAssertEqual(scan.address(hosted: hosted), hosted)
+    }
+
+    /// A file larger than the scan server reads is not sent, so it is not refused after the whole upload (v0.5, E).
+    @MainActor
+    func testAFileLargerThanTheScanServerReadsIsNotSent() async throws {
+        let address = try XCTUnwrap(ScanServer.parse("http://127.0.0.1:9"))
+        let big = Data(count: ScanServer.maxUploadBytes + 1)
+        let answer = await ScanServer.recognisePage(fileName: "big.pdf", data: big, address: address, account: Account(options: nil))
+        guard case .failure(.tooLarge) = answer.result else { return XCTFail("refused before sending") }
+        XCTAssertNil(answer.report)
+        XCTAssertTrue(ScanProblem.tooLarge.text(UIText(language: "en")).hasPrefix("This file is larger than 50 MB"))
     }
 
     func testANoteOfABarIsCorrectedAndPutBackAsImported() throws {

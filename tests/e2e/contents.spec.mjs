@@ -4,7 +4,7 @@
 // go to, focus on, change or delete. The drawer is one sheet (testing item 21): the pages with their phrases, the detected
 // structure, which can be added as Structure bookmarks, the bookmarks and the notes; its chips scroll to a section.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { openFurElise, selectBar, selectPhrase } from "./steps.mjs";
 
 const card = page => page.locator(".bookmark-card");
 const drawer = page => page.locator(".sheet.contents");
@@ -45,7 +45,7 @@ test("a bookmark made from the menu is drawn on the score and listed in the Cont
 test("a bookmark across a system break keeps its hooks and its title on every system", async ({ page }) => {
     const errors = await openFurElise(page);
     // Phrase 2 (bars 4–8) runs from the first system onto the second.
-    await page.locator(".score button.bracket[aria-label]").nth(1).click();
+    await selectPhrase(page, 1);
     await page.locator(".ctx").getByRole("button", { name: "Bookmark" }).click();
     await card(page).getByRole("textbox", { name: "Title" }).fill("A long title for the answer to the opening phrase");
     await card(page).getByRole("button", { name: "Done" }).click();

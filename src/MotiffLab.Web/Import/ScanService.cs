@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Localization;
+using MotiffLab.Web.Settings;
 
 namespace MotiffLab.Web.Import;
 
@@ -23,12 +25,28 @@ namespace MotiffLab.Web.Import;
 /// The page goes only to that address, and only when the player picks it for scanning; the server
 /// deletes it as soon as it has been read. MIDI and MusicXML files never leave the browser.
 /// </remarks>
-public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text)
+public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiText text, DeviceSettings settings)
 {
+    /// <summary>
+    /// The experiment «Выбор движка распознавания» (Settings · Experimental, v0.5.8): while it is on, each scan names the
+    /// engine chosen in <see cref="EngineChoice"/> (homr or copisteria) to the server, so the two can be compared on the
+    /// player's own pages; off, nothing is named and the server reads with homr, as before.
+    /// </summary>
+    public const string EngineSetting = "experimental.scanEngine";
+
+    /// <summary>The engine the experiment sends, "homr" or "copisteria".</summary>
+    public const string EngineChoice = "scan.engine";
+
+    /// <summary>
+    /// The engine choice «Авто» (decision record 0029): a PDF's pages a notation program drew are read on this device, the
+    /// others go to the server, which reads them with its own engine. Never named to the server.
+    /// </summary>
+    public const string Auto = "auto";
+
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
 
-    /// <summary>The largest upload the server accepts.</summary>
+    /// <summary>The largest upload the server accepts (services/omr <c>MAX_UPLOAD_MB</c>, 50 there and on Motiff Lab's server); a larger file is not sent.</summary>
     public const long MaxUploadBytes = 50 * 1024 * 1024;
 
     public const string AcceptedExtensions = ".pdf,.png,.jpg,.jpeg";
@@ -145,20 +163,33 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
         ArgumentNullException.ThrowIfNull(data);
         if (Address is not { } address)
         {
-            return ScanResult.Failed("Scanning is off. Give the scan server's address in Settings.");
+            return ScanResult.Failed("Scanning is off. Give the scan server's address in Settings.") with { Stop = ScanStop.Off };
+        }
+
+        // Said before sending, so the whole file is not uploaded only to be refused.
+        if (data.Length > MaxUploadBytes)
+        {
+            return ScanResult.Failed($"{text["import.scanTooLarge"]} {text["import.scanTooLargeTip"]}");
         }
 
         using var content = new MultipartFormDataContent();
         var file = new ByteArrayContent(data);
         file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(file, "file", Path.GetFileName(fileName));
+        string? chosen = await EngineChoiceAsync();
+        chosen = chosen == Auto ? null : chosen;
+        if (chosen is not null)
+        {
+            content.Add(new StringContent(chosen), "engine");
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(address, "recognise")) { Content = content };
         // The sign-in goes to Motiff Lab's own server only, never to an address typed in Settings.
         if (IsHosted)
         {
             if (await account.TokenAsync(account.Options.ScanScope) is not { } token)
             {
-                return ScanResult.Failed(text["scan.signIn"]);
+                return ScanResult.Failed(text["scan.signIn"]) with { Stop = ScanStop.SignIn };
             }
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -173,18 +204,15 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
                 byte[] musicXml = await response.Content.ReadAsByteArrayAsync(cancellation);
                 string engine = response.Headers.TryGetValues("X-Engine", out IEnumerable<string>? values) ? values.First() : "unknown engine";
                 int pages = response.Headers.TryGetValues("X-Pages", out IEnumerable<string>? counts) && int.TryParse(counts.First(), out int count) ? count : 1;
-                return new ScanResult(musicXml, engine, pages, null);
+                return new ScanResult(musicXml, engine, pages, null) { Reports = ReportsOf(response) };
             }
 
             if (IsHosted && response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return ScanResult.Failed(text["scan.needsPro"]);
+                return ScanResult.Failed(text["scan.needsPro"]) with { Stop = ScanStop.NeedsPro };
             }
 
-            string? problem = TextOf(await response.Content.ReadAsByteArrayAsync(cancellation), "message");
-            return ScanResult.Failed(problem is { Length: > 0 } message
-                ? message
-                : response.StatusCode == HttpStatusCode.NotFound ? NotAScanServer : "The scan server could not read this file.");
+            return RefusedAs(response.StatusCode, await response.Content.ReadAsByteArrayAsync(cancellation), chosen);
         }
         catch (TaskCanceledException) when (!cancellation.IsCancellationRequested)
         {
@@ -192,33 +220,43 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
         }
         catch (HttpRequestException)
         {
-            return ScanResult.Failed(Unreachable(address));
+            return ScanResult.Failed(Unreachable(address)) with { Stop = ScanStop.Unreachable };
         }
+    }
+
+    /// <summary>Why the server did not read the file, from its answer: its own words, or the engine it lacks in the player's language.</summary>
+    private ScanResult RefusedAs(HttpStatusCode status, byte[] body, string? chosen)
+    {
+        if (chosen is not null && TextOf(body, "code") == "engine")
+        {
+            return ScanResult.Failed(text.Format("scan.engineMissing", chosen));
+        }
+
+        string? problem = TextOf(body, "message");
+        return problem is { Length: > 0 } message ? ScanResult.Failed(message)
+            : status == HttpStatusCode.NotFound ? ScanResult.Failed(NotAScanServer) with { Stop = ScanStop.Unreachable }
+            : ScanResult.Failed("The scan server could not read this file.");
+    }
+
+    /// <summary>The engine chosen while the experiment is on (homr, copisteria or <see cref="Auto"/>), else null: the server's own, homr.</summary>
+    public async Task<string?> EngineChoiceAsync()
+    {
+        await settings.LoadAsync();
+        return settings.IsOn(EngineSetting) ? settings[EngineChoice] : null;
     }
 
     /// <summary>
     /// Decodes the recording picked in the input on this device and holds its sound in the browser for
-    /// <see cref="SoundBetweenAsync"/>; null when this browser cannot decode it or it is larger than
-    /// <see cref="MaxDecodeBytes"/>. Nothing is sent.
+    /// <see cref="HearRangeAsync"/>; null when this browser cannot decode it. A WAV file, and an MP4, M4A or MOV file in
+    /// a browser with WebCodecs, are decoded a block at a time, of any size; another file only when it is at most
+    /// <see cref="MaxDecodeBytes"/>, and when it is too long to decode whole on this device the answer says so
+    /// (<see cref="LoadedRecording.TooLong"/>). Nothing is sent.
     /// </summary>
     public async Task<LoadedRecording?> LoadRecordingAsync(ElementReference input)
     {
         try
         {
             return await (await RecordingModuleAsync()).InvokeAsync<LoadedRecording?>("load", input, MaxDecodeBytes);
-        }
-        catch (JSException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>The held recording's sound from one millisecond to another, as a mono WAV file; null when none is held.</summary>
-    public async Task<RecordingSound?> SoundBetweenAsync(long fromMilliseconds, long toMilliseconds)
-    {
-        try
-        {
-            return await (await RecordingModuleAsync()).InvokeAsync<RecordingSound?>("soundBetween", fromMilliseconds, toMilliseconds);
         }
         catch (JSException)
         {
@@ -269,53 +307,6 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
 
     private async Task<IJSObjectReference> RecordingModuleAsync() =>
         _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
-
-    /// <summary>
-    /// Hears the sound of a stretch on the scan server (0014): in one request, or in overlapping parts, one after another,
-    /// when it is longer than the server hears at once, with the notes joined and their times from the stretch's start.
-    /// <paramref name="progress"/> is told the part about to be sent and how many there are.
-    /// </summary>
-    public async Task<HeardSound> HearAsync(RecordingSound sound, Action<int, int>? progress = null)
-    {
-        ArgumentNullException.ThrowIfNull(sound);
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
-        var heard = new List<(RecordingPart, byte[])>();
-        TranscriptionResult result = TranscriptionResult.Failed(text["transcribe.failed"]);
-        foreach (RecordingPart part in parts)
-        {
-            progress?.Invoke(part.Index + 1, parts.Count);
-            byte[] upload = parts.Count == 1 ? sound.Wav : sound.Part(part.SendFromMilliseconds, part.SendToMilliseconds);
-            TranscriptionResult partResult = await TranscribeAsync("recording.wav", upload);
-            if (partResult.Midi is { } partMidi)
-            {
-                result = partResult;
-                heard.Add((part, partMidi));
-            }
-            else if (partResult.NothingHeard && parts.Count > 1)
-            {
-                // A quiet stretch: the other parts still have notes.
-                result = heard.Count == 0 ? partResult : result;
-            }
-            else
-            {
-                return new HeardSound(null, partResult, parts);
-            }
-        }
-
-        if (heard.Count == 0)
-        {
-            return new HeardSound(null, result, parts);
-        }
-
-        try
-        {
-            return new HeardSound(parts.Count == 1 ? result.Midi : RecordingParts.Join(heard), result, parts);
-        }
-        catch (MidiImportException)
-        {
-            return new HeardSound(null, TranscriptionResult.Failed(text["transcribe.failed"]), parts);
-        }
-    }
 
     /// <summary>Sends a recording, or the sound taken out of it, to be transcribed; the MIDI and engine, or a plain reason there is none.</summary>
     public async Task<TranscriptionResult> TranscribeAsync(string fileName, byte[] data, CancellationToken cancellation = default)
@@ -382,6 +373,27 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
         }
     }
 
+    /// <summary>
+    /// What the server saw of each page (its <c>X-Page-Report</c>, version 0.4): numbers only, never the music. None from a
+    /// server before it, or when the header cannot be read: the notes are kept all the same, without the summary by page.
+    /// </summary>
+    private static IReadOnlyList<PageReport> ReportsOf(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("X-Page-Report", out IEnumerable<string>? values))
+        {
+            return [];
+        }
+
+        try
+        {
+            return PageReport.Parse(values.First());
+        }
+        catch (FormatException)
+        {
+            return [];
+        }
+    }
+
     private const string NotAScanServer = "Something answers at this address, but it is not a Motiff Lab scan server.";
 
     private static string Unreachable(Uri address) =>
@@ -408,15 +420,18 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     }
 
     /// <summary>A string property of a JSON object, or null when the body is not one or has no such string.</summary>
-    private static string? TextOf(byte[] json, string name)
+    private static string? TextOf(byte[] json, string name) => ValueOf(json, name, JsonValueKind.String)?.GetString();
+
+    /// <summary>A property of a JSON object of the kind asked, or null when the body is not one or has no such property.</summary>
+    private static JsonElement? ValueOf(byte[] json, string name, JsonValueKind kind)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
             return document.RootElement.ValueKind == JsonValueKind.Object
                 && document.RootElement.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.String
-                    ? value.GetString()
+                && value.ValueKind == kind
+                    ? value.Clone()
                     : null;
         }
         catch (JsonException)
@@ -426,31 +441,16 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     }
 }
 
-/// <summary>A recording the browser decoded and holds: its length, its loudness in equal stretches between 0 and 1, and an address its page can play it from.</summary>
-public sealed record LoadedRecording(long Milliseconds, double[] Peaks, string Url);
-
-/// <summary>The sound the browser took out of a stretch of a recording: a mono WAV file and its length.</summary>
-public sealed record RecordingSound(byte[] Wav, double Seconds)
+/// <summary>
+/// A recording the browser decoded and holds: its length, its loudness in equal stretches between 0 and 1, an address its
+/// page can play it from, and a fingerprint of its sound by which the parts already heard are found again. With
+/// <see cref="Problem"/> "tooLong" nothing is held: the recording, of the length told, is too long to decode whole here,
+/// where <see cref="MostMinutes"/> is the most.
+/// </summary>
+public sealed record LoadedRecording(long Milliseconds, double[] Peaks, string Url, string Fingerprint = "", string? Problem = null, int MostMinutes = 0)
 {
-    private const int HeaderBytes = 44;
-
-    /// <summary>The length in milliseconds.</summary>
-    public long Milliseconds => (long)Math.Round(Seconds * 1000);
-
-    /// <summary>The stretch of the sound from one millisecond to another, as a WAV file of its own.</summary>
-    public byte[] Part(long fromMilliseconds, long toMilliseconds)
-    {
-        int rate = BitConverter.ToInt32(Wav, 24);
-        int samples = (Wav.Length - HeaderBytes) / 2;
-        int from = (int)Math.Clamp(fromMilliseconds * rate / 1000, 0, samples);
-        int to = (int)Math.Clamp(toMilliseconds * rate / 1000, from, samples);
-        byte[] part = new byte[HeaderBytes + ((to - from) * 2)];
-        Wav.AsSpan(0, HeaderBytes).CopyTo(part);
-        Wav.AsSpan(HeaderBytes + (from * 2), (to - from) * 2).CopyTo(part.AsSpan(HeaderBytes));
-        BitConverter.TryWriteBytes(part.AsSpan(4), part.Length - 8);
-        BitConverter.TryWriteBytes(part.AsSpan(40), part.Length - HeaderBytes);
-        return part;
-    }
+    /// <summary>True when the recording is too long for this browser to decode whole on this device, and it cannot decode it in blocks.</summary>
+    public bool TooLong => Problem == "tooLong";
 }
 
 /// <summary>What the scan server heard in a recording: the notes as MIDI, or why there are none.</summary>
@@ -476,5 +476,27 @@ public sealed record HeardSound(byte[]? Midi, TranscriptionResult Result, IReadO
 /// <param name="Engine">The engine and its version, for example "homr 0.7.0".</param>
 public sealed record ScanResult(byte[]? MusicXml, string Engine, int Pages, string? Problem)
 {
+    /// <summary>The server's report on each page it read, in order (version 0.4); empty when it sent none.</summary>
+    public IReadOnlyList<PageReport> Reports { get; init; } = [];
+
     public static ScanResult Failed(string problem) => new(null, "", 0, problem);
+
+    /// <summary>Why nothing more can be read until the player acts, when that is why this was not: not the file's fault.</summary>
+    public ScanStop? Stop { get; init; }
+}
+
+/// <summary>What stops every read after it, not only this one (a batch waits for the player then).</summary>
+public enum ScanStop
+{
+    /// <summary>Scanning is off: no server is set.</summary>
+    Off,
+
+    /// <summary>Motiff Lab's server needs the player signed in.</summary>
+    SignIn,
+
+    /// <summary>Motiff Lab's server reads for Pro.</summary>
+    NeedsPro,
+
+    /// <summary>The server cannot be reached, or is not a scan server.</summary>
+    Unreachable,
 }

@@ -1,0 +1,83 @@
+@using Microsoft.JSInterop
+@using MotiffLab.MusicCore.Accounts
+@inject CloudSync Sync
+@inject OnlineProjects Online
+@inject MotiffLab.Web.Localization.UiText Text
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@* The library's sync with the player's other devices (version 0.2, CloudSync): one pass when the library opens, and one
+   each time the page comes back into view or the network returns (Scripts/account/sync-wake.ts). A free account keeps
+   300 pieces online (0025 section 8): the others stay here, and this line says how many. *@
+@if (_overQuota > 0)
+{
+    <p class="lib-note warning" role="status">@Text.Format("online.overQuota", _overQuota, Plans.FreeProjectsOnline)</p>
+}
+
+@code {
+    /// <summary>Raised when a pass added or changed a project here, so the library lists them again.</summary>
+    [Parameter]
+    public EventCallback Synced { get; set; }
+
+    private int _overQuota;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _unwatch;
+    private DotNetObjectReference<LibrarySync>? _self;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await PassAsync();
+        try
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/account/sync-wake.js");
+            _unwatch = await _module.InvokeAsync<IJSObjectReference>("watch", _self);
+        }
+        catch (JSException)
+        {
+            // Without it the library still syncs each time it opens.
+        }
+    }
+
+    /// <summary>The page shown again or the network back: one more pass.</summary>
+    [JSInvokable]
+    public Task Wake() => InvokeAsync(PassAsync);
+
+    private async Task PassAsync()
+    {
+        if (await Sync.RunAsync())
+        {
+            await Synced.InvokeAsync();
+        }
+
+        _overQuota = await Online.OverQuotaAsync();
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null && _unwatch is not null)
+            {
+                await _module.InvokeVoidAsync("stop", _unwatch);
+                await _unwatch.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        _self?.Dispose();
+    }
+}

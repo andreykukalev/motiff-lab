@@ -1,0 +1,27 @@
+@using MotiffLab.Web.Localization
+
+@* Where a piece's notes are in a batch (version 0.5, ux-prototype/v0.5/screens/import-web-5-status.png): «в очереди»,
+   «распознаётся · стр. 2 из 3», «есть ноты», «не вышло: …». *@
+@switch (Item.State)
+{
+    case RecognitionState.Queued:
+        <span class="st queued"><span class="dot" aria-hidden="true"></span>@Text["recognition.queued"]</span>
+        break;
+    case RecognitionState.Reading:
+        <span class="st reading"><span class="spin" aria-hidden="true"></span>@(Item.Page > 0 ? Text.Format("recognition.readingPage", Item.Page, Item.Pages) : Text["recognition.reading"])</span>
+        break;
+    case RecognitionState.Done:
+        <span class="st done"><Icon Name="check" Size="IconSize.Small" />@Text["recognition.done"]</span>
+        break;
+    default:
+        <span class="st failed" title="@Item.Reason">@Text.Format("recognition.failed", Item.Reason ?? Text["pdf.readNone"])</span>
+        break;
+}
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public RecognitionItem Item { get; set; } = default!;
+}

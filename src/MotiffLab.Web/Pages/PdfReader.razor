@@ -16,6 +16,8 @@
 @inject NavigationManager Navigation
 @inject ScanService Scans
 @inject UiText Text
+@inject MotiffLab.Web.Playback.PieceMetronome Metronome
+@implements IDisposable
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
 
@@ -26,8 +28,13 @@
 <main class="lab app workspace pdf-reader">
     @if (_project?.Document is { } document)
     {
-        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
-                 PencilKey="@PencilKey" Ink="@_ink" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
+        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" StartPlace="_startPlace" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
+                 PencilKey="@PencilKey" Ink="@_ink" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
+    }
+
+    @if (_away is { } away)
+    {
+        <MotiffLab.Web.Library.OriginalAway @key="away.Id" Project="away" Opened="OpenedAway" />
     }
 
     @if (_message is not null)
@@ -55,15 +62,29 @@
             <span class="tag pdf-tag">PDF</span>
         }
         <span class="sp"></span>
+        @* Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found). *@
+        @if (_project is not null && !HasNotes && _pages.Count > 0)
+        {
+            bool reading = _popover == Popover.Recognise;
+            <button class="act wide recognise @(reading ? "on" : null)" aria-expanded="@(reading ? "true" : "false")" title="@Text["pdf.readNotes"]"
+                    @onclick="() => Toggle(Popover.Recognise)">
+                <Icon Name="roll" Size="IconSize.Large" /> <span class="lbl">@Text["pdf.readNotes"]</span> @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+            </button>
+        }
         @if (_project is not null)
         {
             bool marked = CurrentBookmark is not null;
-            <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]" title="@Text["pdf.bookmarkPage"]"
-                    @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
-            <button class="act @(_metronomeOpen ? "on" : null)" aria-pressed="@(_metronomeOpen ? "true" : "false")" aria-label="@Text["metronome.label"]" title="@Text["metronome.label"]"
-                    @onclick="() => _metronomeOpen = !_metronomeOpen"><Icon Name="metronome" Size="IconSize.Large" /></button>
-            <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
-                    @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+            <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]"
+                    title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pdf.bookmarkPage"])"
+                    @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0 || ReadOnlyMarks)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
+            @* The metronome starts at once with its pill for the beats and the tapped tempo; held, a slide sets its tempo (#521 section 15). *@
+            <span class="metronome-button">
+                <button class="act @(Metronome.Running ? "on" : null)" aria-pressed="@(Metronome.Running ? "true" : "false")" aria-label="@Text["metronome.label"]"
+                        title="@Text["metronome.holdHint"]" data-metronome-hold @onclick="ToggleMetronomeAsync"><Icon Name="metronome" Size="IconSize.Large" /></button>
+                <MotiffLab.Web.Playback.MetronomeHeld />
+            </span>
+            <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]"
+                    title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pencil.hint"])" @onclick="TogglePenAsync" disabled="@ReadOnlyMarks"><Icon Name="pen" Size="IconSize.Large" /></button>
         }
         <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                 @onclick="() => Toggle(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
@@ -71,7 +92,7 @@
 
     @if (_metronomeOpen && _project is { } piece)
     {
-        <MetronomePill PieceId="@piece.Id" Closed="() => _metronomeOpen = false" />
+        <MetronomePill PieceId="@piece.Id" Closed="CloseMetronomeAsync" />
     }
 
     @if (_popover != Popover.None)
@@ -81,12 +102,6 @@
     @if (_popover == Popover.More)
     {
         <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]">
-            @if (_project is not null && !HasNotes)
-            {
-                <button class="btn quiet" @onclick="() => _popover = Popover.Recognise" disabled="@(_pages.Count == 0)">
-                    <Icon Name="camera" /> @Text["pdf.readNotes"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
-                </button>
-            }
             @* Another version is compared with notes (0022), so a PDF needs its notes read first; they become a separate piece. *@
             <button class="btn quiet" @onclick="AddVersionAsync" disabled="@(_project is null || (!HasNotes && _pages.Count == 0))">
                 <Icon Name="mic" /> @Text["performance.add"] @if (_project is not null && !HasNotes && Scans.IsHosted) { <span class="tag pro">Pro</span> }
@@ -107,6 +122,10 @@
     {
         <div class="popover pdf-contents" role="dialog" aria-label="@Text["bar.contents"]">
             <p class="overline">@Text["pdf.bookmarks"]</p>
+            @if (ReadOnlyMarks)
+            {
+                <p class="caption">@Text["pdf.marksElsewhere"]</p>
+            }
             @if (project.DocumentMarks.Bookmarks.Count == 0)
             {
                 <p class="caption">@Text["pdf.noBookmarks"]</p>
@@ -121,10 +140,17 @@
                             <button class="btn quiet go" @onclick="() => GoToAsync(bookmark.Page)" aria-label="@Text.Format("pdf.goTo", bookmark.Name ?? where)">
                                 <Icon Name="bookmark" /> <span class="pgno">@where</span>
                             </button>
-                            <input type="text" value="@bookmark.Name" maxlength="@PageBookmark.MaxName" placeholder="@Text["pdf.bookmarkName"]"
-                                   aria-label="@Text.Format("pdf.bookmarkNameFor", where)" @onchange="args => RenameAsync(bookmark.Id, args.Value as string)" />
-                            <button class="btn icon" aria-label="@Text.Format("pdf.removeBookmark", where)" title="@Text["pdf.removeBookmarkHint"]"
-                                    @onclick="() => RemoveBookmarkAsync(bookmark.Id)"><Icon Name="trash" /></button>
+                            @if (ReadOnlyMarks)
+                            {
+                                <span class="name">@bookmark.Name</span>
+                            }
+                            else
+                            {
+                                <input type="text" value="@bookmark.Name" maxlength="@PageBookmark.MaxName" placeholder="@Text["pdf.bookmarkName"]"
+                                       aria-label="@Text.Format("pdf.bookmarkNameFor", where)" @onchange="args => RenameAsync(bookmark.Id, args.Value as string)" />
+                                <button class="btn icon" aria-label="@Text.Format("pdf.removeBookmark", where)" title="@Text["pdf.removeBookmarkHint"]"
+                                        @onclick="() => RemoveBookmarkAsync(bookmark.Id)"><Icon Name="trash" /></button>
+                            }
                         </li>
                     }
                 </ul>
@@ -165,6 +191,12 @@
         Version,
     }
 
+    /// <summary>
+    /// Whether the marks on the pages are shown only (version 0.4; Andrei, 2026-11-12): the iPad holds this PDF too and
+    /// writes them, and they come here with the online copy (<see cref="Project.WritesDocumentMarks"/>).
+    /// </summary>
+    private bool ReadOnlyMarks => _project is { } project && !project.WritesDocumentMarks(HoldingDevice.Web);
+
     /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
     private string? PencilKey => _project is { } project ? $"pdf:{project.Id}" : null;
 
@@ -174,11 +206,17 @@
     /// <summary>The bookmark on the page under the bar, if any.</summary>
     private PageBookmark? CurrentBookmark => _pages.First > 0 ? _project?.DocumentMarks.BookmarkOn(_pages.First) : null;
     private int _startPage = 1;
+
+    /// <summary>The place the PDF was left at (PDF | Notes, #511 section 10), opened at when no page is asked for; null for none.</summary>
+    private ViewPlace? _startPlace;
+
+    /// <summary>Keeps where the pages are as the player leaves them, for the PDF or the library (#511 section 10).</summary>
+    private IDisposable? _leaving;
     private (int First, int Last, int Count) _pages;
     private bool _coverSaved;
 
     /// <summary>The piece's name: the file's name without its extension.</summary>
-    private string? Title => _project is { } project ? ScoreTitle.Of(project.FileName) ?? project.FileName : null;
+    private string? Title => _project is { } project ? project.Metadata.Title ?? ScoreTitle.Of(project.FileName) ?? project.FileName : null;
 
     private string? PageText => _pages switch
     {
@@ -190,6 +228,54 @@
     /// <summary>The page the player was last on in this PDF, kept on this device.</summary>
     private static string PageKey(string id) => $"pdf.page.{id}";
 
+    protected override void OnInitialized()
+    {
+        _leaving = Navigation.RegisterLocationChangingHandler(async _ => await KeepPlaceAsync());
+        Metronome.Changed += OnMetronomeChanged;
+    }
+
+    public void Dispose()
+    {
+        _leaving?.Dispose();
+        Metronome.Changed -= OnMetronomeChanged;
+        // The metronome is the page's: it stops as the page goes (#521 section 15).
+        _ = Metronome.StopAsync();
+    }
+
+    private void OnMetronomeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>The metronome's button: it clicks at once, its pill with it, and stops with the pill put away.</summary>
+    private async Task ToggleMetronomeAsync()
+    {
+        if (_project is not { } piece)
+        {
+            return;
+        }
+
+        if (Metronome.PieceId != piece.Id)
+        {
+            await Metronome.LoadAsync(piece.Id);
+        }
+
+        await Metronome.ToggleAsync();
+        _metronomeOpen = Metronome.Running;
+    }
+
+    private async Task CloseMetronomeAsync()
+    {
+        await Metronome.StopAsync();
+        _metronomeOpen = false;
+    }
+
+    /// <summary>The place the pages are at, kept with the piece on this device (PDF | Notes, #511 section 10).</summary>
+    private async Task KeepPlaceAsync()
+    {
+        if (_project is { } project && _view is not null && _pages.Count > 0 && await _view.ViewPlaceAsync() is { } place)
+        {
+            await Preferences.KeepPdfPlaceAsync(project.Id, place);
+        }
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (ProjectId is not { Length: > 0 } id || _project?.Id == id)
@@ -198,6 +284,7 @@
         }
 
         _message = null;
+        _away = null;
         _notes = null;
         _coverSaved = false;
         _pages = default;
@@ -210,17 +297,30 @@
                 return;
             }
 
-            // A piece with no PDF opens in the workspace.
-            if (project.Document is null)
+            // A piece with notes and no PDF opens in the workspace. A piece that is only a PDF whose file is not in it
+            // (version 0.5: linked in the player's folder, or on another device) shows where its PDF is (OriginalAway).
+            if (project.Document is null && project.HasNotes)
             {
                 Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
                 return;
             }
 
+            if (project.Document is null && !project.DescribesDocument)
+            {
+                _project = null;
+                _message = Text["pdf.unreadable"];
+                return;
+            }
+
+            _away = project.Document is null ? project : null;
+
             _notes = await Projects.NotesReadFromAsync(id);
             _startPage = Page is > 0 and int asked ? asked
                 : int.TryParse(await Preferences.GetAsync(PageKey(id)), out int page) && page > 0 ? page : 1;
+            _startPlace = Page is > 0 ? null : await Preferences.PdfPlaceAsync(id);
             Show(project);
+            // The piece's metronome as kept, so its button can be held before it first clicks (#521 section 15).
+            await Metronome.LoadAsync(id);
         }
         catch (ProjectFileException exception)
         {
@@ -264,6 +364,16 @@
     }
 
     /// <summary>Shows the project and what is kept on its pages.</summary>
+    /// <summary>The piece whose PDF is not in its file yet: OriginalAway finds it, then the pages show.</summary>
+    private Project? _away;
+
+    private void OpenedAway(Project opened)
+    {
+        _away = null;
+        CurrentPiece.Saved(opened);
+        Show(opened);
+    }
+
     private void Show(Project project)
     {
         _project = project;
@@ -286,32 +396,23 @@
     /// </summary>
     private async Task<string?> ReadNotesAsync(ScanResult result, bool forVersion)
     {
-        if (_project is not { HasNotes: false } project || result.MusicXml is not { } musicXml)
+        if (_project is not { } project)
         {
             return result.Problem;
         }
 
-        string name = Path.ChangeExtension(project.FileName, ".musicxml");
-        PieceImportResult imported = PieceImporter.Import(name, musicXml);
-        if (imported.Piece is not { } piece)
+        (NotesRead? notes, string? problem) = NotesReading.Into(project, result, _pages.Count, Text, DateTimeOffset.Now);
+        if (notes is null)
         {
-            return imported.Rejection?.Text(Words.For(Text.Language)) ?? Text["pdf.readNone"];
+            return problem;
         }
 
-        ScanCheck check = ScanCheck.Of(piece);
-        PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
-        Project read = project.Recognised(musicXml, result.Engine, pages) with
-        {
-            Check = CheckFlag.FromScan(check, []),
-            LastOpened = DateTimeOffset.Now,
-        };
-        ResumePoint point = ResumePoint.Start(read.NextResumePointId(), DateTimeOffset.Now);
-        read = read.AddResumePoint(point);
+        Project read = notes.Project with { LastOpened = DateTimeOffset.Now };
         await Projects.SaveAsync(read);
-        CurrentPiece.Open(check.Mark(piece, []), SelectionFilter.All, read);
+        CurrentPiece.Open(notes.Check.Mark(notes.Piece, []), SelectionFilter.All, read);
         _popover = Popover.None;
-        string url = CurrentPiece.WorkspaceUrl(read, point.Id);
-        Tick at = pages.StartOf(Math.Max(1, _pages.First));
+        string url = CurrentPiece.WorkspaceUrl(read, notes.Point.Id);
+        Tick at = notes.Pages.StartOf(Math.Max(1, _pages.First));
         Navigation.NavigateTo(forVersion ? url + "&view=versions" : url + $"&at={at.Value}");
         return null;
     }
@@ -346,7 +447,10 @@
         }
     }
 
-    /// <summary>The "Notes" view at its resume point, scrolled to where the page under the bar starts.</summary>
+    /// <summary>
+    /// The "Notes" view as the player left it (#511 section 10); the first time, at its resume point, scrolled to where the
+    /// page under the bar starts.
+    /// </summary>
     private async Task ShowNotesAsync()
     {
         if (await NotesAsync() is not { } notes)
@@ -355,9 +459,16 @@
             return;
         }
 
+        string url = CurrentPiece.WorkspaceUrl(notes, notes.RecentResumePoints.FirstOrDefault()?.Id);
+        if (await Preferences.NotesViewAsync(notes.Id) is not null)
+        {
+            Navigation.NavigateTo(url + $"&view={ViewStates.NotesAsLeft}");
+            return;
+        }
+
         PageMap? pages = notes.ReadFrom?.Pages ?? notes.DocumentPages;
         Tick at = pages?.StartOf(Math.Max(1, _pages.First)) ?? Tick.Zero;
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(notes, notes.RecentResumePoints.FirstOrDefault()?.Id) + $"&at={at.Value}");
+        Navigation.NavigateTo(url + $"&at={at.Value}");
     }
 
     private void Toggle(Popover popover) => _popover = _popover == popover ? Popover.None : popover;
@@ -374,7 +485,7 @@
     /// <summary>Keeps what the player wrote or erased on the pages.</summary>
     private async Task OnMarksChangedAsync(string ink)
     {
-        if (_project is not { } project)
+        if (_project is not { } project || ReadOnlyMarks)
         {
             return;
         }
@@ -399,7 +510,7 @@
     /// <summary>Bookmarks the page under the bar, or takes its bookmark away.</summary>
     private async Task ToggleBookmarkAsync()
     {
-        if (_project is not { } project || _pages.First < 1)
+        if (_project is not { } project || _pages.First < 1 || ReadOnlyMarks)
         {
             return;
         }
@@ -412,7 +523,7 @@
 
     private async Task RenameAsync(string id, string? name)
     {
-        if (_project is { } project)
+        if (_project is { } project && !ReadOnlyMarks)
         {
             await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RenameBookmark(id, name) });
         }
@@ -420,7 +531,7 @@
 
     private async Task RemoveBookmarkAsync(string id)
     {
-        if (_project is { } project)
+        if (_project is { } project && !ReadOnlyMarks)
         {
             await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RemoveBookmark(id) });
         }

@@ -18,6 +18,10 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
     private const string ProfileKind = "profile";
     private const string ProfileId = "player.profile";
 
+    /// <summary>The reset stamp's kind and id (TestReset), with a dot for the same reason; lists read only projects.</summary>
+    private const string ResetKind = "reset";
+    private const string ResetId = "player.reset";
+
     public async Task<IReadOnlyList<StoredSummary>> ListAsync(string ownerId, CancellationToken cancellationToken)
     {
         // Every field but the file.
@@ -113,6 +117,30 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
         return rows.Count(row => row.Kind == Kind);
     }
 
+    public async Task<long?> GetResetAsync(string ownerId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ItemResponse<ResetDocument> read = await container.ReadItemAsync<ResetDocument>(ResetId, new PartitionKey(ownerId), cancellationToken: cancellationToken);
+            return read.Resource.Stamp;
+        }
+        catch (CosmosException error) when (error.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<int> ResetAsync(string ownerId, long stamp, CancellationToken cancellationToken)
+    {
+        int deleted = await DeleteAllAsync(ownerId, cancellationToken);
+        await container.UpsertItemAsync(
+            new ResetDocument(ResetId, ownerId, ResetKind, stamp),
+            new PartitionKey(ownerId),
+            new ItemRequestOptions { EnableContentResponseOnWrite = false },
+            cancellationToken);
+        return deleted;
+    }
+
     public async Task<StoredProfile?> GetProfileAsync(string ownerId, CancellationToken cancellationToken)
     {
         try
@@ -148,6 +176,8 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
         string File);
 
     private sealed record ProfileDocument(string Id, string OwnerId, string Kind, string? Name, string? Photo, DateTimeOffset SavedAt);
+
+    private sealed record ResetDocument(string Id, string OwnerId, string Kind, long Stamp);
 
     private sealed record IdOnly(string Id, string? Kind);
 }

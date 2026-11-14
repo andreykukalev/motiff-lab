@@ -24,9 +24,14 @@ internal static partial class ProjectEndpoints
     public static void MapProjects(this IEndpointRouteBuilder app)
     {
         RouteGroupBuilder projects = app.MapGroup("/projects").RequireAuthorization(Player.Policy);
+        bool resets = TestReset.IsEnabled(app.ServiceProvider.GetRequiredService<IConfiguration>());
 
+        // In the develop deployment the list also says the player's last reset (TestReset), in a header, so the shape stays.
         projects.MapGet("/", async (HttpContext http, IProjectStore store, CancellationToken cancel) =>
-            Results.Ok(await store.ListAsync(Player.Id(http.User), cancel)));
+        {
+            await TestReset.AddStampAsync(http, store, resets, cancel);
+            return Results.Ok(await store.ListAsync(Player.Id(http.User), cancel));
+        });
 
         projects.MapGet("/{id}", async (string id, HttpContext http, IProjectStore store, CancellationToken cancel) =>
         {
@@ -39,57 +44,8 @@ internal static partial class ProjectEndpoints
             return Results.Bytes(Unpack(stored.PackedFile), "application/json");
         });
 
-        projects.MapPut("/{id}", async (string id, HttpContext http, IProjectStore store, CancellationToken cancel) =>
-        {
-            if (!IsProjectId(id))
-            {
-                return Problem(StatusCodes.Status400BadRequest, "A project id has letters, digits, - and _ only.");
-            }
-
-            if (Player.Plan(http).Plan != Plan.Pro && await IsBeyondFreeAsync(store, Player.Id(http.User), id, cancel))
-            {
-                return Problem(StatusCodes.Status403Forbidden, $"A free account keeps {Plans.FreeProjectsOnline} pieces online; this one stays on the device.", "quota");
-            }
-
-            byte[]? file = await ReadBodyAsync(http.Request, cancel);
-            if (file is null)
-            {
-                return Problem(StatusCodes.Status413PayloadTooLarge, $"The project is larger than {MaxFileBytes / (1024 * 1024)} MB.");
-            }
-
-            Project project;
-            try
-            {
-                project = ProjectFile.Read(file);
-            }
-            catch (ProjectFileException error)
-            {
-                return Problem(StatusCodes.Status400BadRequest, error.Message);
-            }
-
-            if (project.Id != id)
-            {
-                return Problem(StatusCodes.Status400BadRequest, "The project file belongs to another project.");
-            }
-
-            string packed = Pack(file);
-            if (packed.Length > MaxPackedChars)
-            {
-                return Problem(StatusCodes.Status413PayloadTooLarge, "The project is too large to save online yet; it stays on this device.");
-            }
-
-            string? ifMatch = http.Request.Headers.IfMatch.Count > 0 ? http.Request.Headers.IfMatch.ToString() : null;
-            try
-            {
-                string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, ifMatch, cancel);
-                http.Response.Headers.ETag = etag;
-                return Results.NoContent();
-            }
-            catch (ConflictException error)
-            {
-                return Problem(StatusCodes.Status412PreconditionFailed, error.Message);
-            }
-        });
+        projects.MapPut("/{id}", (string id, HttpContext http, IProjectStore store, CancellationToken cancel) =>
+            SaveAsync(id, http, store, resets, cancel));
 
         projects.MapDelete("/{id}", async (string id, HttpContext http, IProjectStore store, CancellationToken cancel) =>
             IsProjectId(id) && await store.DeleteAsync(Player.Id(http.User), id, cancel)
@@ -100,6 +56,65 @@ internal static partial class ProjectEndpoints
         app.MapDelete("/me", async (HttpContext http, IProjectStore store, CancellationToken cancel) =>
             Results.Ok(new { deletedProjects = await store.DeleteAllAsync(Player.Id(http.User), cancel) }))
             .RequireAuthorization(Player.Policy);
+        app.MapTestReset();
+    }
+
+    /// <summary>Saves the project sent, over the stored one when <c>If-Match</c> still names it.</summary>
+    private static async Task<IResult> SaveAsync(string id, HttpContext http, IProjectStore store, bool resets, CancellationToken cancel)
+    {
+        if (!IsProjectId(id))
+        {
+            return Problem(StatusCodes.Status400BadRequest, "A project id has letters, digits, - and _ only.");
+        }
+
+        if (await TestReset.IsStaleAsync(http, store, resets, cancel))
+        {
+            return Problem(StatusCodes.Status409Conflict, "Everything was cleared for a new testing cycle since this device last looked; it clears its own library first.", "reset");
+        }
+
+        if (Player.Plan(http).Plan != Plan.Pro && await IsBeyondFreeAsync(store, Player.Id(http.User), id, cancel))
+        {
+            return Problem(StatusCodes.Status403Forbidden, $"A free account keeps {Plans.FreeProjectsOnline} pieces online; this one stays on the device.", "quota");
+        }
+
+        byte[]? file = await ReadBodyAsync(http.Request, cancel);
+        if (file is null)
+        {
+            return Problem(StatusCodes.Status413PayloadTooLarge, $"The project is larger than {MaxFileBytes / (1024 * 1024)} MB.");
+        }
+
+        Project project;
+        try
+        {
+            project = ProjectFile.Read(file);
+        }
+        catch (ProjectFileException error)
+        {
+            return Problem(StatusCodes.Status400BadRequest, error.Message);
+        }
+
+        if (project.Id != id)
+        {
+            return Problem(StatusCodes.Status400BadRequest, "The project file belongs to another project.");
+        }
+
+        string packed = Pack(file);
+        if (packed.Length > MaxPackedChars)
+        {
+            return Problem(StatusCodes.Status413PayloadTooLarge, "The project is too large to save online yet; it stays on this device.");
+        }
+
+        string? ifMatch = http.Request.Headers.IfMatch.Count > 0 ? http.Request.Headers.IfMatch.ToString() : null;
+        try
+        {
+            string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, ifMatch, cancel);
+            http.Response.Headers.ETag = etag;
+            return Results.NoContent();
+        }
+        catch (ConflictException error)
+        {
+            return Problem(StatusCodes.Status412PreconditionFailed, error.Message);
+        }
     }
 
     /// <summary>True when the project is new online and the player already keeps <see cref="Plans.FreeProjectsOnline"/> pieces there.</summary>

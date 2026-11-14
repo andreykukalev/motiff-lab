@@ -1,0 +1,27 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Темп живого исполнения» (an experiment, Settings · Experimental, version 0.5), in the Check drawer's head for a
+   transcription: the bars found again section by section, each piece of the pieces layer starting one and moving along by
+   the time it was played, and «Такты по партитуре», the same with the metre and tempo of a score version as a hint, never a
+   rule. music-core finds the bars (LiveBars); the page saves the piece and opens it again in them. *@
+<div class="live-bars" role="group" aria-label="@Text["tempo.liveBars"]">
+    <div class="row">
+        <button class="btn secondary compact" disabled="@(!CanChange)" @onclick="() => Find.InvokeAsync(false)">@Text["tempo.findSections"]</button>
+        <button class="btn secondary compact" disabled="@(!CanChange || !HasScore)" title="@(HasScore ? null : Text["tempo.noScore"])" @onclick="() => Find.InvokeAsync(true)">@Text["tempo.fromScore"]</button>
+    </div>
+    <p class="caption">@Text["tempo.liveHow"]</p>
+</div>
+
+@code {
+    /// <summary>Whether the bars can still change, the pieces layer aside.</summary>
+    [Parameter]
+    public bool CanChange { get; set; }
+
+    /// <summary>Whether the piece has a version written from a score to take the hint from.</summary>
+    [Parameter]
+    public bool HasScore { get; set; }
+
+    /// <summary>Raised to find the bars again: true with the score's hint.</summary>
+    [Parameter]
+    public EventCallback<bool> Find { get; set; }
+}

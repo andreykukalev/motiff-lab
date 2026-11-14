@@ -5,10 +5,26 @@ import WebKit
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
-/// Escape clears the selection (a tap never does, #338), Space plays or pauses; with the note editor on (testing item 15), a note
-/// moved, added or taken out goes to music-core as a correction on the draft.
+/// Escape clears the selection (a tap never does, #338), Space plays or pauses; the playhead dragged or nudged by a beat moves
+/// the player there, and a tap inside the loop or the selection plays from there (v0.2); with the note editor on (testing item
+/// 15), a note moved, added or taken out goes to music-core as a correction on the draft. Since v0.5.2 (#479 item 23) the
+/// roll is where notes are edited: its own modes, Navigate and Edit notes (RollMode, who edits is RollInput's), the zoom on
+/// each axis it reports and Swift draws (RollTools), and a drag across its bar numbers selecting by beats as the score does.
 @MainActor
 final class RollController: NSObject, ObservableObject {
+    /// The mode chosen on the roll's switch (#479 item 23); Edit notes holds while the note editor is open.
+    @Published var mode: RollMode = .navigate {
+        didSet {
+            guard mode != oldValue else { return }
+            sendEditor()
+        }
+    }
+    /// The bars and the octaves in view, as the roll last reported them; nil until it has.
+    @Published private(set) var zoom: RollZoom?
+    /// The mode the roll is in: Edit notes only while the editor is open, and never in Expand.
+    var shownMode: RollMode { RollMode.shown(chosen: mode, editorOpen: editorState != nil, bound: passage != nil) }
+    /// The passage Expand shows (#521 19), which the roll is bound to while it is shown there; nil in the drawer.
+    private(set) var passage: Range<Double>?
     /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
     @Published var noteNames = true {
         didSet {
@@ -22,24 +38,58 @@ final class RollController: NSObject, ObservableObject {
     @Published private(set) var canChangeColour = false
     @Published private(set) var problem: String?
 
-    /// Bars chosen on the roll: the first, the last, and whether a tap extends the selection to them.
-    var barsPicked: (@MainActor (_ first: Int, _ last: Int, _ extend: Bool) -> Void)?
-    var cleared: (@MainActor () -> Void)?
+    /// A bar tapped or a stretch dragged on the roll's bar numbers or the selection's handles, with its gesture for the
+    /// selection's history (#511 11); `byBeats` says how a drag selects (by beats where the score does).
+    var picked: (@MainActor (RollPick, _ gesture: String?) -> Void)?
+    var byBeats: (@MainActor () -> Bool)?
+    var cleared: (@MainActor (_ gesture: String?) -> Void)?
+    /// A hold's clear cancelled; a pointer that cannot scroll moved off the selection before the hold (roll-strip-gesture.ts).
+    var gestureCancelled: (@MainActor (String) -> Void)?
+    var holdHinted: (@MainActor () -> Void)?
     var spacePressed: (@MainActor () -> Void)?
+    /// The playhead moved on the roll: to a tick, and with `play` a tap that plays from there.
+    var playheadMoved: (@MainActor (_ tick: Double, _ play: Bool) -> Void)?
+    /// A lane's playhead taken, dragged or let go by its handle (#495 UX-08): the player runs the model (PlayheadDrag.swift).
+    var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
 
     let webView: WKWebView
+    /// Where the roll is on screen, as the score screen has it (RollPlace.shown): the one place whose holder has the web view
+    /// (#495 BUG-01). Not published, so setting it renders nothing again; the new place's holder takes the web view at once.
+    var place: RollPlace? {
+        didSet {
+            if place != oldValue { RollHolder.placeChanged(self) }
+        }
+    }
     private let text = UIText.current
     private var pageReady = false
     private var loaded = false
     private var piece: OpenPiece?
+    /// The piece whose notes the roll shows: its notes loaded again keep the roll's zoom and view (#495 BUG-04).
+    private var shownPiece: Int32?
     private var dark = false
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
-    private var fits = false
+    /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
+    private var lanesOn = false
+    /// Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one.
+    private var practiceOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
     private var editor: [String: Any] = ["on": false]
+    /// The note editor's state as the score has it; nil while it is closed.
+    private var editorState: NoteEditorState?
+    /// Who edits and who moves the roll, as last told (RollInput).
+    private var input: [String: Any] = [:]
+    /// The bar's Pen (#511 4.1): while it is on, the Pencil changes no selection on the roll.
+    var penOn = false {
+        didSet { if penOn != oldValue { applyInput() } }
+    }
+    /// The bar's tool under the modes (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in
+    /// Navigate a long press puts the playhead where it is held; none before the modes.
+    var barTool: InputRules.Tool = .none {
+        didSet { if barTool != oldValue { applyInput() } }
+    }
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -75,10 +125,28 @@ final class RollController: NSObject, ObservableObject {
         Task { await load() }
     }
 
-    /// Where the player is: the roll marks the keys sounding and keeps the playhead in view.
-    func position(_ tick: Double, playing: Bool) {
+    /// Where the player is: the roll marks the keys sounding and keeps the playhead in view. With the lanes, also the place as
+    /// bar.beat for the whole-piece strip and whether the selection loops (Цикл).
+    func position(_ tick: Double, playing: Bool, label: String = "", looping: Bool = false) {
         guard loaded else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return roll.position(data)", arguments: ["data": ["tick": tick, "playing": playing]], contentWorld: .page) }
+        let data: [String: Any] = ["tick": tick, "playing": playing, "label": label, "looping": looping]
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.position(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The lanes of version 0.5.2 on or off (#479 item 25): on under the modes outside phrase focus.
+    func lanes(_ on: Bool) {
+        guard on != lanesOn else { return }
+        lanesOn = on
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": on], contentWorld: .page) }
+    }
+
+    /// Practice view on or off (#533 11, PracticeView.swift).
+    func practice(_ on: Bool) {
+        guard on != practiceOn else { return }
+        practiceOn = on
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
     /// The selection, shaded with its notes lit, and the span that loops; nil for none.
@@ -95,20 +163,58 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
-    /// Whether every selection is laid across the roll, as its Fit does: the roll in phrase focus (testing item 12).
-    func fitsSelection(_ on: Bool) {
-        fits = on
+    /// Binds the roll to the passage Expand shows (#521 19), or lets it go (nil): bound, it lays the passage across itself,
+    /// moves only within it, changes no selection and edits no notes; let go, its zoom, its view and Edit notes are as they
+    /// were before (#521 17).
+    func bind(_ span: Range<Double>?) {
+        guard span != passage else { return }
+        passage = span
+        sendEditor()
         guard loaded else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": on], contentWorld: .page) }
+        Task { await sendPassage() }
     }
 
-    /// The note editor on, with its tool and the note picked, or off (nil): a press on the notes then edits them.
+    private func sendPassage() async {
+        let data: Any = passage.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
+        _ = try? await webView.callAsyncJavaScript("return roll.passage(span)", arguments: ["span": data], contentWorld: .page)
+    }
+
+    /// The note editor open, with its tool and the note picked, or closed (nil), when the roll goes back to Navigate. A press
+    /// on the notes edits them in Edit notes only (#479 item 23).
     func showEditor(_ state: NoteEditorState?) {
-        var data: [String: Any] = ["on": state != nil, "tool": state?.tool ?? "move"]
-        if let picked = state?.picked { data["picked"] = picked }
+        editorState = state
+        if state == nil { mode = .navigate }
+        sendEditor()
+    }
+
+    private func sendEditor() {
+        let editing = shownMode == .edit
+        var data: [String: Any] = ["on": editing, "tool": editorState?.tool ?? "move"]
+        if editing, let picked = editorState?.picked { data["picked"] = picked }
         editor = data
+        applyInput()
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
+    /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
+    func applyInput() {
+        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+        guard loaded else { return }
+        let data = input
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, Fit, or Zoom Out (#521 2.2).
+    enum ZoomAxis: String {
+        case time, pitch, fit, overview
+    }
+
+    func zoomStep(_ axis: ZoomAxis, _ direction: Int) {
+        guard loaded else { return }
+        let data: [String: Any] = ["axis": axis.rawValue, "direction": direction]
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.zoom(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
     /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
@@ -149,15 +255,29 @@ final class RollController: NSObject, ObservableObject {
     }
 
     fileprivate func received(_ message: [String: Any]) {
-        func number(_ value: Any?) -> Int? { (value as? NSNumber)?.intValue }
-        if let range = message["range"] as? [String: Any], let first = number(range["first"]), let last = number(range["last"]) {
-            barsPicked?(first, last, (range["extend"] as? Bool) ?? false)
+        if let range = message["range"] as? [String: Any], let pick = RollPick(range, byBeats: byBeats?() ?? false) {
+            picked?(pick, range["gesture"] as? String)
         }
-        if message["clear"] != nil {
-            cleared?()
+        if let report = message["zoom"] as? [String: Any], let read = RollZoom(report), read != zoom {
+            zoom = read
+        }
+        if let clear = message["clear"] {
+            cleared?((clear as? [String: Any])?["gesture"] as? String)
+        }
+        if let gesture = message["gestureCancelled"] as? String {
+            gestureCancelled?(gesture)
+        }
+        if message["holdHint"] != nil {
+            holdHinted?()
         }
         if message["space"] != nil {
             spacePressed?()
+        }
+        if let seek = message["seek"] as? [String: Any], let tick = (seek["tick"] as? NSNumber)?.doubleValue {
+            playheadMoved?(tick, (seek["play"] as? Bool) ?? false)
+        }
+        if let gesture = PlayheadGesture(message: message["drag"]) {
+            playheadGestured?(gesture)
         }
         if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
             noteEdited?(made)
@@ -176,14 +296,21 @@ final class RollController: NSObject, ObservableObject {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
-        let request: [String: Any] = ["roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"]]
+        // The same piece's notes again (a note edited, a version taken in, another naming) keep the zoom and the view (BUG-04); back from the PDF, the roll's first load takes the frame the player left (#511 10).
+        let request: [String: Any] = [
+            "roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"], "keep": shownPiece == id, "frame": RollFrameHandoff.take(for: id),
+        ]
         do {
             let shown = try await webView.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             colourBy = shown?["colourBy"] as? String ?? "hand"
             canChangeColour = ((shown?["modes"] as? [Any])?.count ?? 0) > 1
             loaded = true
-            if fits {
-                _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+            shownPiece = id
+            if lanesOn {
+                _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": true], contentWorld: .page)
+            }
+            if practiceOn {
+                _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": true], contentWorld: .page)
             }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
@@ -195,6 +322,11 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
+            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+            _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
+            if passage != nil {
+                await sendPassage()
+            }
         } catch {
             problem = error.localizedDescription
         }
@@ -204,7 +336,8 @@ final class RollController: NSObject, ObservableObject {
     static func labels(_ text: UIText) -> [String: String] {
         let names = [
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
-            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
+            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint", "overview", "overviewHint",
+            "playhead", "playheadAt",
         ]
         var labels = Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
         // The iPad's roll is read by touch (#338): a screen reader hears how, not the web roll's mouse and keyboard.
@@ -255,161 +388,24 @@ private final class RollMessageRelay: NSObject, WKScriptMessageHandler {
     }
 }
 
-/// The piano roll's drawer (ds.css `.drawer`, the web app's roll drawer): up from the bottom, 40% of the height in
-/// landscape and 30% in portrait, with its head (where it is, Note names, the colour scheme, Close) over the roll.
-struct RollDrawer: View {
-    @ObservedObject var roll: RollController
-    @ObservedObject var score: ScoreController
-    let text: UIText
-    /// Expand: the phrase in focus as a roll (testing item 12).
-    let expand: () -> Void
-    let close: () -> Void
-
-    var body: some View {
-        VStack(spacing: CGFloat.ds("s-2")) {
-            if let editor = score.noteEditor {
-                editing(editor)
-            } else {
-                head
-            }
-            ScoreRollView(roll: roll)
-        }
-        .padding(.top, CGFloat.ds("s-5"))
-        .padding(.horizontal, CGFloat.ds("s-3"))
-        .padding(.bottom, CGFloat.ds("s-2"))
-        .background(Color.ds("surface"), in: UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
-        .overlay(alignment: .top) {
-            Capsule().fill(Color.ds("hairline-strong")).frame(width: 36, height: 4).padding(.top, CGFloat.ds("s-2"))
-        }
-        .dsShadow("shadow-sheet")
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["bar.roll"])
-    }
-
-    /// Where it is with Clear selection, Edit notes, Note names, the colour scheme, Expand and Close.
-    private var head: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Text(heading).overline()
-            // The selection menu gives way to the drawer, so the selection is let go here (#338).
-            if score.selection != nil {
-                ClearSelectionButton(score: score, text: text)
-            }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            Button {
-                score.beginNoteEdit()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "pen", size: CGFloat.ds("icon-s"))
-                    Text(text["edit.begin"])
-                }
-            }
-            .buttonStyle(DSItemStyle())
-            .help(text["edit.beginHint"])
-            Button {
-                roll.noteNames.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    Circle().fill(roll.noteNames ? Color.ds("accent") : Color.ds("hairline-strong")).frame(width: 6, height: 6)
-                    Text(text["roll.noteNames"])
-                }
-            }
-            .buttonStyle(DSItemStyle(on: roll.noteNames))
-            .accessibilityAddTraits(roll.noteNames ? .isSelected : [])
-            Button(text["roll.colour.\(roll.colourBy)"]) {
-                roll.nextColour()
-            }
-            .buttonStyle(DSItemStyle())
-            .disabled(!roll.canChangeColour)
-            .help(text["roll.colourHint"])
-            Button(action: expand) {
-                HStack(spacing: 6) {
-                    Icon(name: "search", size: CGFloat.ds("icon-s"))
-                    Text(text["roll.expand"])
-                }
-            }
-            .buttonStyle(DSItemStyle())
-            .help(text["roll.expandHint"])
-            Button(action: close) {
-                Icon(name: "close").frame(width: 32, height: 32)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["bar.close"])
-        }
-    }
-
-    /// The note editor's head (testing item 15): the tools, Undo, Reset, Cancel and Save, and what the tool does.
-    private func editing(_ editor: NoteEditorState) -> some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                // The overline in the accent: the roll is being edited.
-                Text(text["edit.title"]).dsType(.overline).textCase(.uppercase).tracking(0.66).foregroundStyle(Color.ds("accent"))
-                SegmentedChoice(options: ["move", "add", "delete"].map { ($0, text["edit.\($0)"]) }, chosen: editor.tool, label: text["edit.tool"]) {
-                    score.chooseNoteEditTool($0)
-                }
-                Button {
-                    score.undoNoteEdit()
-                } label: {
-                    Icon(name: "undo", size: CGFloat.ds("icon-s")).frame(width: 32, height: 32)
-                }
-                .buttonStyle(DSItemStyle())
-                .disabled(!editor.canUndo)
-                .accessibilityLabel(text["edit.undo"])
-                Button(text["edit.reset"]) {
-                    score.resetNotes()
-                }
-                .buttonStyle(DSItemStyle())
-                .disabled(!editor.canReset)
-                .help(text["edit.resetHint"])
-                Spacer(minLength: CGFloat.ds("s-2"))
-                Button(text["edit.cancel"]) {
-                    score.cancelNoteEdit()
-                }
-                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                Button {
-                    score.saveNoteEdit()
-                } label: {
-                    HStack(spacing: 6) {
-                        Icon(name: "check", size: CGFloat.ds("icon-s"))
-                        Text(text["edit.save"])
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                .disabled(!editor.changed)
-            }
-            Text("\(text["edit.\(editor.tool)Hint"]) \(text["edit.keptOnSave"])")
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .lineLimit(2)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["edit.toolbar"])
-    }
-
-    /// "Piano roll · bars 9–16", or "Piano roll" with nothing selected.
-    private var heading: String {
-        guard let selection = score.selection else { return text["roll.heading"] }
-        let bars = selection.firstBar == selection.lastBar
-            ? text.format("bars.one", String(selection.firstBar))
-            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        return text.format("roll.headingBars", bars)
-    }
-}
-
 /// The roll's one web view, in the drawer or over the card in focus. Each place gets a holder of its own that the web view
-/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Expand hands the web view from the
-/// drawer to the card while the drawer is still sliding away; the holder shown last takes it back, rather than the web view
-/// keeping the size of a holder that is going.
+/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Only the holder of the place shown
+/// has the web view (RollPlace.holder, #495 BUG-01): Expand hands it from the drawer to the card once, while the drawer is
+/// still sliding away, and no SwiftUI update moves it again. Before, each update of each holder took it: while the music
+/// played (an update about thirty times a second) the drawer going and the card coming passed it back and forth on every
+/// update, each move resizing the roll, refitting it and sending a new zoom, which updated both holders again.
 struct ScoreRollView: UIViewRepresentable {
     @ObservedObject var roll: RollController
+    let place: RollPlace
 
     func makeUIView(context: Context) -> RollHolder {
-        let holder = RollHolder(webView: roll.webView)
-        holder.hold()
+        let holder = RollHolder(roll: roll, place: place)
+        holder.claim()
         return holder
     }
 
     func updateUIView(_ holder: RollHolder, context: Context) {
-        holder.hold()
+        holder.claim()
     }
 
     /// All the room it is offered, never the size the web view kept from its last place.
@@ -419,14 +415,23 @@ struct ScoreRollView: UIViewRepresentable {
     }
 }
 
-/// A place the roll's web view fills: its bounds, on every layout. A holder leaving the screen with the web view hands it
-/// to a holder still on screen.
+/// A place the roll's web view fills: its bounds, on every layout. Of the holders, the newest of the place shown has the web
+/// view; a holder that is going, or of another place, never takes it.
 final class RollHolder: UIView {
     private static let all = NSHashTable<RollHolder>.weakObjects()
+    /// How many holders were made: each one's number, so the newest of a place is known.
+    private static var made = 0
+    private weak var roll: RollController?
     private let webView: WKWebView
+    private let place: RollPlace
+    private let number: Int
 
-    init(webView: WKWebView) {
-        self.webView = webView
+    init(roll: RollController, place: RollPlace) {
+        self.roll = roll
+        webView = roll.webView
+        self.place = place
+        Self.made += 1
+        number = Self.made
         super.init(frame: .zero)
         Self.all.add(self)
     }
@@ -435,11 +440,22 @@ final class RollHolder: UIView {
         return nil
     }
 
-    func hold() {
-        if webView.superview !== self {
-            addSubview(webView)
-        }
+    /// Takes the web view when this is the holder of the place shown and does not have it yet; else changes nothing.
+    func claim() {
+        guard webView.superview !== self, let roll, Self.holder(of: roll) === self else { return }
+        addSubview(webView)
         setNeedsLayout()
+    }
+
+    /// The place shown changed: its holder takes the web view, when it is made already; else it takes it as it is made.
+    static func placeChanged(_ roll: RollController) {
+        holder(of: roll)?.claim()
+    }
+
+    private static func holder(of roll: RollController) -> RollHolder? {
+        let holders = all.allObjects.filter { $0.roll === roll }
+        let newest = RollPlace.holder(for: roll.place, among: holders.map { (place: $0.place, made: $0.number) })
+        return holders.first { $0.number == newest }
     }
 
     override func layoutSubviews() {
@@ -447,11 +463,5 @@ final class RollHolder: UIView {
         if webView.superview === self {
             webView.frame = bounds
         }
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window == nil, webView.superview === self else { return }
-        Self.all.allObjects.first { $0 !== self && $0.window != nil && $0.webView === webView }?.hold()
     }
 }

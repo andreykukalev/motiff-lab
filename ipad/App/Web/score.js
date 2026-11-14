@@ -1,13 +1,18 @@
 // The score in the iPad app (decision record 0019 section 1.4). The pages are Verovio's SVG; where each bar sits is
 // read by the web app's own score geometry, and pencil marks are anchored to bars and drawn exactly as the web app
-// does (Scripts/score/pencil-marks.ts, compiled into the app as score/). PencilKit draws the live stroke in Swift; when
-// it ends, Swift hands its points here to be kept against its bar (`anchor`), saves the stroke in the project file
-// through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
+// does (Scripts/score/pencil-marks.ts, compiled into the app as score/). Swift draws the live stroke with the same
+// outline and grain (InkInput.swift); when it ends, Swift hands its points here to be kept against its bar (`anchor`),
+// saves the stroke in the project file through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
+// The pencil's marks are filled with the grain of Web/grain.png (score.html, #479 item 7); the eraser cuts the marks
+// it passes over into what is left of them as it moves (`rub`, BUG-05), and Swift saves what it did when it lifts
+// (`rubEnd`). Who selects, taps or writes with a finger or the Pencil is
+// Swift's (`input`, InputRules.swift, #479 item 18).
 //
-// The score is also the selection surface (0018 section 3): the phrases are drawn as pencil brackets above the top
-// staff (`phrases`), and the web app's own selection layer (Scripts/score/selection-layer.ts) draws the band and its
-// handles and turns a long press and a drag across bars into a choice of bars. What the player does on the score goes
-// to Swift as a message: a bracket or a bar tapped, bars chosen, and where the selection menu goes.
+// The score is also the selection surface (0018 section 3): the web app's own selection layer
+// (Scripts/score/selection-layer.ts) draws the band and its handles and turns a long press and a drag across bars into a
+// choice of bars. What the player does on the score goes to Swift as a message: a bar tapped, bars chosen, and where the
+// selection menu goes. The phrases are no longer drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14:
+// the strip read as an extra staff line); they stay in music-core, and focus still steps by them.
 //
 // Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
 // (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
@@ -18,7 +23,7 @@
 // A fact chosen in the Insights stream (0018 section 6) rings its places on the score (`highlight`), as the web app's
 // score view does: the notes turn cobalt with a box round each notehead, and the first comes into view.
 //
-// The player's bookmarks (0018 section 5) are brackets in their category's ink above the phrase brackets, titled in
+// The player's bookmarks (0018 section 5) are brackets in their category's ink above the top staff, titled in
 // italic at the left end and stacked where they overlap, as the web app's score view draws them (`bookmarks`); a tap
 // gives the bookmark to Swift. The Contents drawer's Pages tab shows the pages as small pictures (`outline`), and a
 // page or a bookmark chosen there is brought into view (`showPage`, `reveal`).
@@ -29,7 +34,7 @@
 // bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
 //
 // Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
-// phrase bracket and before any Check flag or note on the bar, and tints the printed notes it does not have
+// bookmarks' level and before any Check flag or note on the bar, and tints the printed notes it does not have
 // (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift with where the label is. These
 // show only with Extra information on (testing item 33). While a merge draft shows the version or the result, the notes from
 // the version are plum and the player's own amber; a thin plum line runs under each bar taken from a version. Above the
@@ -40,12 +45,23 @@
 // follows unless the player turned that off: the system playing is kept below the bar, so the next one shows beneath it
 // (0018 section 7). A scroll by hand wins for a few seconds, as on the web, and the next Play follows again. While the
 // line is out of sight, the bar it is in goes to Swift (`playheadAway`, -1 when it is back), for the chip that returns
-// to it (`returnToPlayhead`).
+// to it (`returnToPlayhead`). Under the modes the two playheads of the playback model are drawn (`playheads`), and their
+// handles are dragged (#495 UX-08): the handle taken, its places and its letting go go to Swift (`drag`), and where the
+// handles are (`heads`), so a finger there is never the pen's.
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
-import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
+import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
+import { beatUnder, modeOf } from "../score/score-modes.js";
+import { ScoreBeats } from "../score/selection-beats.js";
+import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
+import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
+import { pressPlaces } from "../playback/playhead-press.js";
+import { PRACTICE_ATTRIBUTE } from "../layout/practice-view.js";
+import { viewOf } from "../playback/playback-model.js";
+import { PlayheadDrag } from "../playback/playhead-drag.js";
+import { anchorAt, anchorOf, lineOf, systemSpans } from "../score/view-anchor.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -55,10 +71,7 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
-/** Where a bracket's number sits from its left end (the CSS's left), and how far along the next number starting there goes. */
-const BRACKET_NUMBER_LEFT = -2;
-const BRACKET_NUMBER_STEP = 16;
-/** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers, and overlapping ones stack by the next amount, as on the web. */
+/** Bookmarks sit this far above the top staff, clear of a version's labels over the bars, and overlapping ones stack by the next amount, as on the web. */
 const BOOKMARK_LIFT = 40;
 const BOOKMARK_STACK = 24;
 
@@ -78,14 +91,20 @@ const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
 
-/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (brackets, rings) and Check. */
+/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false };
 let nextId = 0;
+/** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
+let rubbing = NO_RUBBING;
+
+/** The kind of pointer that pressed last ("touch" for a finger, "pen" for the Pencil), for the tap that follows. */
+let lastPointer = "touch";
+document.addEventListener("pointerdown", (event) => { lastPointer = event.pointerType; }, true);
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
 function show({ pages, timemap, dark }) {
@@ -129,7 +148,6 @@ function layout() {
     state.frames = geometry.barFrames();
     state.byTick = framesByTick(state.frames);
     redraw();
-    placePhrases();
     placeBookmarks();
     placeNotes();
     placeRings();
@@ -186,65 +204,8 @@ function post(message) {
 }
 
 /**
- * The phrases at the level shown, as pencil brackets above the top staff, numbered at the left end; the selected one
- * in the accent. Each phrase is { start, end, number, kind, current, label }.
- */
-function phrases({ units }) {
-    state.phrases = units ?? [];
-    placePhrases();
-    return state.phrases.length;
-}
-
-function placePhrases() {
-    for (const old of document.querySelectorAll("body > .bracket")) {
-        old.remove();
-    }
-    const geometry = state.geometry;
-    if (geometry === null) {
-        return;
-    }
-    // Two units that start in the same bar (one a bar long or less) would put their numbers one over the other: the later
-    // number moves along by one place (testing item 33).
-    const numbered = new Map();
-    for (const phrase of state.phrases) {
-        for (const run of geometry.bracket(phrase.start, phrase.end)) {
-            const bracket = document.createElement("button");
-            bracket.type = "button";
-            bracket.className = `bracket ${phrase.kind}`;
-            bracket.classList.toggle("on", phrase.current);
-            bracket.classList.toggle("from", !run.first);
-            bracket.classList.toggle("on-to", !run.last);
-            bracket.dataset.phrase = String(phrase.number);
-            bracket.style.left = `${run.left}px`;
-            bracket.style.top = `${run.top}px`;
-            bracket.style.width = `${Math.max(4, run.right - run.left)}px`;
-            if (run.first) {
-                bracket.setAttribute("aria-label", phrase.label);
-                bracket.setAttribute("aria-pressed", phrase.current ? "true" : "false");
-                const number = document.createElement("span");
-                number.className = "n";
-                number.setAttribute("aria-hidden", "true");
-                number.textContent = String(phrase.number);
-                const place = `${run.page}:${run.system}:${Math.round(run.left)}`;
-                const before = numbered.get(place) ?? 0;
-                numbered.set(place, before + 1);
-                if (before > 0) {
-                    number.style.left = `${BRACKET_NUMBER_LEFT + before * BRACKET_NUMBER_STEP}px`;
-                }
-                bracket.append(number);
-            } else {
-                // The rest of a phrase that runs on to the next system is the same target, said once.
-                bracket.tabIndex = -1;
-                bracket.setAttribute("aria-hidden", "true");
-            }
-            document.body.append(bracket);
-        }
-    }
-}
-
-/**
  * The bookmarks, each { id, start, end, title, ink, label }: brackets in the category's ink ("graphite", "carmine",
- * "forest" or "ochre") above the phrase brackets, the title in italic at the left end of every run, overlapping ones
+ * "forest" or "ochre") above the top staff, the title in italic at the left end of every run, overlapping ones
  * stacked.
  */
 function bookmarks({ items }) {
@@ -443,7 +404,7 @@ function placeNotes() {
 }
 
 /**
- * Another version's labels above the bars' top left, over the phrase bracket: one may run on over the next bar, up to the
+ * Another version's labels above the bars' top left, under the bookmarks: one may run on over the next bar, up to the
  * next label, Check flag or note on the same system, and goes up above the flags when a narrow bar leaves it too little room.
  */
 function placePerformance(geometry, flags) {
@@ -474,19 +435,18 @@ function placePerformance(geometry, flags) {
 }
 
 /**
- * Hides the layers named, for a clean page, and the phrase brackets when Settings turns them off ("brackets"); the
- * others show. With `slate`, Night stand shows light notes on a dark page. Returns what is hidden.
+ * Hides the layers named, for a clean page; the others show. With `slate`, Night stand shows light notes on a dark page. Returns what is hidden.
  */
 function layers({ hidden, slate }) {
     const names = hidden ?? [];
-    for (const layer of [...LAYERS, "brackets"]) {
+    for (const layer of LAYERS) {
         document.body.classList.toggle(`hide-${layer}`, names.includes(layer));
     }
     document.documentElement.toggleAttribute("data-page", false);
     if (slate) {
         document.documentElement.setAttribute("data-page", "slate");
     }
-    return [...LAYERS, "brackets"].filter((layer) => names.includes(layer));
+    return LAYERS.filter((layer) => names.includes(layer));
 }
 
 /** The top of the bookmark titles over a band's first run, in window pixels, for the menu to clear; null when none is there. */
@@ -524,20 +484,179 @@ function reportMenu() {
 const selection = new SelectionLayer(document.body, {
     geometry: () => state.geometry,
     marksTop: (band) => bookmarksTop(band),
-    // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars.
-    penOn: () => state.pen || state.focus,
-    chosen: (first, last) => {
+    // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars. Once Swift
+    // has sent the rules for each pointer (`input`, #479 item 18), they say who selects instead.
+    penOn: () => state.focus || (state.input === null && state.pen),
+    // How the selection changed and the gesture that changed it go along: Swift keeps a gesture's changes as one step of
+    // the selection's history (#511 11).
+    chosen: (first, last, _byHandle, how, gesture) => {
         const end = state.geometry?.barAt(last)?.end;
         if (end !== undefined) {
-            post({ chosen: { start: first, end } });
+            post({ chosen: { start: first, end, how, gesture } });
         }
     },
+    // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
+    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar.
+    beats: () => state.beats,
+    tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
+    chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
+    // The selection gesture (#511 2.1, Scripts/score/selection-gesture.ts): a hold outside the selection takes it away; a
+    // gesture cancelled after that gives it back; a Pencil moved off it before the hold is told to hold.
+    cleared: (gesture) => post({ cleared: { gesture } }),
+    cancelled: (gesture) => post({ gestureCancelled: gesture }),
+    hint: () => post({ holdHint: true }),
+    // The modes of version 0.5 (Settings · Experimental): only Select starts a selection with a drag, never from inside it,
+    // and there a finger drags at once, as two fingers scroll.
+    mode: () => state.mode,
+    fingerDrags: () => state.mode === "select",
+    dragStart: (pointerType) => (state.focus ? "none" : state.input?.[pointerType]?.select),
+    // A finger takes a handle; the Pencil does where it does not write (#511 4.1): in the Pen it writes over the handles.
+    takesHandle: (pointerType) => state.input?.[pointerType]?.handles,
 });
+
+/** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
+const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
+
+/**
+ * The two playheads of the playback model (version 0.5.2, #495 UX-10, Scripts/playback/playback-model.ts), drawn as the web
+ * app's score view draws its playheads (Scripts/score/playheads.ts): the black track under the bar at the position, always,
+ * and with a selection the cobalt line at the position held to it.
+ */
+const heads = new ScorePlayheadMarks(document.body, {
+    at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
+    lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
+    grab: (handle, event) => grabs.begin(handle, event),
+});
+
+/** Where the player is, as Swift last said (`playing`): what the playheads are drawn at when no drag shows another place. */
+const heard = { tick: 0, playing: false };
+
+/**
+ * The playheads dragged by their handles (#495 UX-08 and UX-10, Scripts/score/playhead-grab.ts): the black one inside the
+ * bar it stood in, the blue one inside the selection, on the sixteenth grid. Swift is told the handle taken, its places
+ * once a frame and its letting go (`drag`), and runs the playback model. A finger always takes a handle; the Pencil does,
+ * except where it writes (the Pen): there it writes, as the design has it.
+ */
+const grabs = new ScoreGrab({
+    geometry: () => state.geometry,
+    onsetOf: (id) => state.timeline?.onsetOf(id),
+    selection: () => state.heads?.selection ?? null,
+    takes: (pointerType) => state.heads !== null && !state.focus && (pointerType !== "pen" || (state.input?.pen?.tap ?? !state.pen)),
+    point: (event) => {
+        const view = document.body.getBoundingClientRect();
+        return { x: event.clientX - view.left + document.body.scrollLeft, y: event.clientY - view.top + document.body.scrollTop };
+    },
+    moved: () => reportPlace(drawHeads(), !heard.playing),
+}, new PlayheadDrag((message) => post({ drag: message })));
+
+/**
+ * The long press on the music (v0.5.7, #543 3 and 5, Scripts/score/playhead-grab.ts ScorePress): where InputRules let a
+ * pointer hold the playhead (`hold`: Navigate, and with the Pen a finger that does not write), held still on a bar it puts
+ * the black playhead at the place under it and, moved on, scrubs across bars and systems, through the same drag messages
+ * as the dot (T14-T16). It never selects.
+ */
+const press = new ScorePress(document.body, {
+    geometry: () => state.geometry,
+    onsetOf: (id) => state.timeline?.onsetOf(id),
+    places: (event) => state.heads !== null && !state.focus && pressPlaces(event.pointerType, state.input?.[event.pointerType]?.hold, state.mode),
+    point: (event) => {
+        const view = document.body.getBoundingClientRect();
+        return { x: event.clientX - view.left + document.body.scrollLeft, y: event.clientY - view.top + document.body.scrollTop };
+    },
+    moved: () => reportPlace(drawHeads(), !heard.playing),
+}, grabs.drag);
+
+/**
+ * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select" or "pen";
+ * none keeps the score as before.
+ */
+function mode({ name }) {
+    state.mode = modeOf(name);
+    if (state.mode === null) {
+        delete document.body.dataset.mode;
+    } else {
+        document.body.dataset.mode = state.mode;
+    }
+    press.cancel();
+    selection.place();
+}
+
+/**
+ * Who does what on the score (#479 item 18, InputRules.swift): for "touch" (a finger) and "pen" (the Pencil), how a press
+ * starts a selection ("now", "longPress" or "none") and whether a tap acts on the page. Before Swift sends them, the
+ * rules before: the Pen on, nothing but writing.
+ */
+function input(rules) {
+    state.input = rules ?? null;
+    press.cancel();
+    selection.place();
+}
+
+/** Whether the tap just made acts on the page: not by a pointer that writes. */
+function tapActs() {
+    const rule = state.input?.[lastPointer];
+    return rule === undefined ? !state.pen : rule.tap;
+}
+
+/**
+ * The playback model under the modes (version 0.5.2, #495 UX-10): { selection: { start, end } or null, loop: Цикл on },
+ * the selection the blue playhead keeps to; null draws the playhead of before the modes.
+ */
+function playheads(value) {
+    state.heads = value ?? null;
+    if (state.heads === null) {
+        grabs.cancel();
+        press.cancel();
+        heads.hide();
+        reportGrips();
+    } else {
+        placePlayhead(null);
+    }
+}
+
+/**
+ * A tap under the modes never changes the selection: it places the playhead on the beat under it, or puts the sheet away
+ * off the bars. Notes are edited only in the roll (#479 item 23). The Pen only writes.
+ */
+function tapUnderModes(event) {
+    const geometry = state.geometry;
+    // In the Pen a tap by a finger that does not write places the playhead, as in Navigate (#479 item 18).
+    if (geometry === null || (state.mode === "pen" && state.input === null)) {
+        return;
+    }
+    const view = document.body.getBoundingClientRect();
+    const x = event.clientX - view.left + document.body.scrollLeft;
+    const y = event.clientY - view.top + document.body.scrollTop;
+    const beat = beatUnder(geometry, scoreBeats, x, y);
+    post(beat === undefined ? { blank: true } : { place: { start: beat.start, end: beat.end } });
+}
+
+/** Selection by beats on (`lines`, the beat lines in ticks from music-core's playback score) or off (none). */
+function beats({ lines }) {
+    state.beats = Array.isArray(lines) && lines.length > 0 ? lines : null;
+    selection.place();
+}
 const placeMenu = selection.placeMenu.bind(selection);
 selection.placeMenu = () => {
     placeMenu();
     reportMenu();
+    reportHandles();
 };
+
+let handlesReported = "";
+
+/**
+ * Where the selection's handles are, in the document's pixels, whenever they move: a touch on one moves it, and the
+ * Pencil does not write there (#479 item 18).
+ */
+function reportHandles() {
+    const handles = [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
+    const key = JSON.stringify(handles);
+    if (key !== handlesReported) {
+        handlesReported = key;
+        post({ handles });
+    }
+}
 selection.setMenu(menu);
 
 /** A drawer over the left of the page (the Contents): the selection layer keeps the menu to its right, as on the web. */
@@ -592,7 +711,7 @@ function barUnder(event) {
 }
 
 /**
- * A tap on the score: a bracket selects its phrase, and a tap anywhere in a bar, on a note or between them, names that bar
+ * A tap on the score: a tap anywhere in a bar, on a note or between them, names that bar
  * to Swift, which selects it when nothing is selected. A tap never plays (#338): the music starts only with Play or Loop.
  */
 document.body.addEventListener("click", (event) => {
@@ -621,12 +740,14 @@ document.body.addEventListener("click", (event) => {
         post({ bookmark: bookmark.dataset.bookmark });
         return;
     }
-    const bracket = target?.closest(".bracket");
-    if (bracket) {
-        post({ bracket: Number(bracket.dataset.phrase) });
+    // A press on a playhead's handle is the handle's, a tap on it included: it never places the playhead or selects a bar.
+    // The release of a long press that put the playhead is no tap on a beat (#543 3.1).
+    const pressed = press.swallowsClick();
+    if (selection.swallowsClick() || pressed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
-    if (selection.swallowsClick() || state.pen || target === null || target.closest(".sel-handle")) {
+    if (state.mode !== null) {
+        tapUnderModes(event);
         return;
     }
     const bar = barUnder(event);
@@ -638,8 +759,7 @@ document.body.addEventListener("click", (event) => {
  * an empty object when there is no bar (WebKit's async calls do not take a null back).
  */
 function anchor({ points, tool, colour, width = DEFAULT_WIDTH }) {
-    nextId += 1;
-    const id = `m${Date.now().toString(36)}${nextId.toString(36)}`;
+    const id = newMarkId();
     // The thickness chosen in the palette, thin to thick, as the web app's pencil layer sizes its marks.
     const size = (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[width] ?? (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[DEFAULT_WIDTH];
     return anchorMark(state.frames, points, { id, tool, colour: tool === "highlighter" ? "amber" : colour, size }) ?? {};
@@ -657,6 +777,50 @@ function erase({ points }) {
     return ids;
 }
 
+function newMarkId() {
+    nextId += 1;
+    return `m${Date.now().toString(36)}${nextId.toString(36)}`;
+}
+
+/** The eraser cuts along `points` from where it was, in the document's pixels; nothing else changes. */
+function rubOn(from, points) {
+    return rubAlong(from, state.marks, points, { frames: state.frames, byTick: state.byTick, reach: ERASER_REACH, newId: newMarkId });
+}
+
+/**
+ * The eraser moved on to these points, in the document's pixels (BUG-05): the marks under it go at once, as a real
+ * eraser leaves a line in pieces (#479 item 7), and the page is drawn again where it took something. Answers how many
+ * marks the page shows.
+ */
+function rub({ points }) {
+    const moved = rubOn(rubbing, points ?? []);
+    rubbing = moved.rubbing;
+    if (moved.cut) {
+        redraw();
+    }
+    return rubbedMarks(rubbing, state.marks).length;
+}
+
+/**
+ * The eraser lifted: what the press did, for Swift to save as one step: the saved marks it cut, whole (for Undo), and the
+ * pieces left of them, each kept against its bar. The page keeps showing them so until music-core's answer is drawn.
+ */
+function rubEnd() {
+    const done = rubbing;
+    rubbing = NO_RUBBING;
+    state.marks = rubbedMarks(done, state.marks);
+    return { removed: done.removed, added: done.pieces };
+}
+
+/**
+ * The eraser's whole path at once, in the document's pixels: the marks it passes over, by id, and what is left of each,
+ * as one press would leave them. Nothing on the page changes.
+ */
+function eraseAlongPath({ points }) {
+    const done = rubOn(NO_RUBBING, points ?? []).rubbing;
+    return { removed: done.removed.map((mark) => mark.id), added: done.pieces };
+}
+
 /** Draws the piece's marks, as music-core answers them (`marks.ink`). */
 function draw({ marks }) {
     state.marks = marks ?? [];
@@ -666,10 +830,15 @@ function draw({ marks }) {
 
 function redraw() {
     const ink = document.getElementById("ink");
+    const shown = rubbedMarks(rubbing, state.marks);
     ink.setAttribute("width", document.documentElement.scrollWidth);
     ink.setAttribute("height", document.documentElement.scrollHeight);
-    ink.replaceChildren();
-    for (const mark of state.marks) {
+    // The highlighter's strokes are one layer under the pencil's, opaque inside it and translucent as a whole, so where
+    // strokes overlap the amber is as light as anywhere else (#479 item 9).
+    const highlights = document.createElementNS(SVG, "g");
+    highlights.setAttribute("class", "highlights");
+    ink.replaceChildren(highlights);
+    for (const mark of shown) {
         const place = placeMark(mark, state.byTick);
         if (place === null) {
             continue;
@@ -678,7 +847,7 @@ function redraw() {
         path.setAttribute("class", `mark ${mark.tool} ${mark.colour}`);
         path.setAttribute("d", outlinePath(place.points, place.radius, mark.tool === "pen"));
         path.dataset.id = mark.id;
-        ink.append(path);
+        (mark.tool === "highlighter" ? highlights : ink).append(path);
     }
 }
 
@@ -712,6 +881,10 @@ focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: 
 function focus({ open, label, back }) {
     state.focus = Boolean(open);
     focusLayer.hidden = !state.focus;
+    if (state.focus) {
+        grabs.cancel();
+        press.cancel();
+    }
     if (!state.focus) {
         cardScore.replaceChildren();
         card.timeline = null;
@@ -800,7 +973,7 @@ const sounding = { page: new Set(), card: new Set(), key: "", byHand: -Infinity 
  * The playhead's line and its bar's wash on the page, made on first use, the bar last reported out of sight, and whether
  * the piece has played, so a pause leaves the playhead resting where it stopped (testing item 28).
  */
-const playhead = { line: null, wash: null, away: -1, played: false, top: 0 };
+const playhead = { line: null, wash: null, away: -1, played: false, top: 0, shown: false };
 
 /** The pill's room at the bottom of the view: a playhead under it is out of sight. */
 const PILL_ROOM_PX = 84;
@@ -808,6 +981,14 @@ const PILL_ROOM_PX = 84;
 /** A touch or the wheel moving the page is the player's own scroll: playback leaves the page alone for a while. */
 for (const name of ["touchmove", "wheel"]) {
     window.addEventListener(name, () => { sounding.byHand = performance.now(); }, { passive: true });
+}
+
+/**
+ * A stroke of the pen began (`on`) or ended (#521 10): while it is written playback leaves the page where it is, so the
+ * music never moves under the pen, and after it for as long as after a scroll by hand.
+ */
+function writing({ on }) {
+    sounding.byHand = on ? Infinity : performance.now();
 }
 
 /**
@@ -821,9 +1002,15 @@ function playing({ tick, playing, follow, auto = true }) {
         sounding.byHand = -Infinity;
     }
     playhead.played ||= playing;
-    // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
-    const resting = !playing && playhead.played && tick > 0;
-    placePlayhead((playing || resting) && !state.focus ? tick : null, !playing);
+    heard.tick = tick;
+    heard.playing = playing;
+    if (state.heads !== null) {
+        reportPlace(drawHeads(), !playing);
+    } else {
+        // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
+        const resting = !playing && playhead.played && tick > 0;
+        placePlayhead((playing || resting) && !state.focus ? tick : null, !playing);
+    }
     const onPage = playing && state.timeline !== null ? state.timeline.soundingAt(tick) : [];
     const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
     const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
@@ -839,6 +1026,59 @@ function playing({ tick, playing, follow, auto = true }) {
     return null;
 }
 
+/**
+ * The playback model's two playheads (version 0.5.2): out of focus the black playhead always shows, and the blue one with a
+ * selection, at the player's place or, while a handle is dragged and just after, where it was dragged to. Returns where the
+ * black one is.
+ */
+function drawHeads() {
+    let at;
+    if (state.focus || state.heads === null) {
+        heads.hide();
+    } else {
+        const chosen = state.heads.selection ?? null;
+        const tick = grabs.drag.heard(heard.tick);
+        const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: heard.playing ? "playing" : "stopped" });
+        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black" });
+    }
+    reportGrips();
+    return at;
+}
+
+let gripsReported = "";
+let gripsAt = -Infinity;
+/** While the piece plays the handles are measured no more often than this, in milliseconds, so playing stays light. */
+const GRIPS_PLAYING_MS = 250;
+
+/**
+ * Where the playheads' handles are, in the document's pixels, when they have moved a little: a finger there takes the
+ * handle, never the pen's stroke (InkInput, #495 UX-08).
+ */
+function reportGrips() {
+    if (heard.playing && state.heads !== null && performance.now() - gripsAt < GRIPS_PLAYING_MS) {
+        return;
+    }
+    gripsAt = performance.now();
+    // In practice view the blue playhead is hidden, so the Pencil is not kept from writing where it is (#533 11).
+    const grips = state.heads === null || state.focus ? [] : heads.grips().filter(({ handle }) => !state.practice || handle !== "blue").map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
+    const key = grips.map(({ handle, x, y }) => `${handle} ${Math.round(x / 2)} ${Math.round(y / 2)}`).join(",");
+    if (key !== gripsReported) {
+        gripsReported = key;
+        post({ heads: grips });
+    }
+}
+
+/**
+ * Practice view (#533 11, PracticeView.swift): "on" hides the blue playhead of the selection (score.css), "off" shows it again;
+ * the black playhead of the piece stays, dragged and placed by a tap as ever.
+ */
+function practice(shown) {
+    state.practice = shown === "on";
+    document.body.setAttribute(PRACTICE_ATTRIBUTE, state.practice ? "on" : "off");
+    gripsAt = -Infinity;
+    reportGrips();
+}
+
 /** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
 function placePlayhead(tick, resting = false) {
     const timeline = state.timeline;
@@ -849,7 +1089,7 @@ function placePlayhead(tick, resting = false) {
                 element.hidden = true;
             }
         }
-        reportAway(-1);
+        reportPlace(undefined, resting);
         return;
     }
     playhead.line ??= overlay("playhead");
@@ -863,12 +1103,22 @@ function placePlayhead(tick, resting = false) {
         element.classList.toggle("resting", resting);
     }
     // Moved by a transform on layers of their own, so the page under them is not painted again on every frame (testing item 31).
-    playhead.top = at.top - 6;
-    setStyle(line, "transform", `translate(${at.x - 1}px, ${playhead.top}px)`);
+    setStyle(line, "transform", `translate(${at.x - 1}px, ${at.top - 6}px)`);
     setStyle(line, "height", `${at.bottom - at.top + 12}px`);
     setStyle(wash, "transform", `translate(${at.bar.left}px, ${at.top - 4}px)`);
     setStyle(wash, "width", `${at.bar.right - at.bar.left}px`);
     setStyle(wash, "height", `${at.bottom - at.top + 8}px`);
+    reportPlace(at, resting);
+}
+
+/** Keeps where the playhead that plays is, for Back to playback, and tells Swift when it is out of sight while playing. */
+function reportPlace(at, resting) {
+    playhead.shown = at !== undefined;
+    if (at === undefined) {
+        reportAway(-1);
+        return;
+    }
+    playhead.top = at.top - 6;
     const shownTop = window.scrollY + READING_LINE_PX - 16;
     const shownBottom = window.scrollY + window.innerHeight - PILL_ROOM_PX;
     reportAway(!resting && (at.bottom < shownTop || at.top > shownBottom) ? at.bar.tick : -1);
@@ -898,8 +1148,7 @@ function reportAway(barTick) {
 
 /** Back to playback: the page scrolls to the line and follows the playing again. */
 function returnToPlayhead() {
-    const line = playhead.line;
-    if (line === null || !line.isConnected || line.hidden) {
+    if (!playhead.shown) {
         return false;
     }
     sounding.byHand = -Infinity;
@@ -936,14 +1185,6 @@ function keepInView(note) {
     const top = Math.max(0, window.scrollY + box.top - READING_LINE_PX);
     window.scrollTo({ top, behavior: "smooth" });
     return top;
-}
-
-/** A passage with the bar before it and the bar after it, within the piece: what Lead-in plays (0018 section 4). */
-function lead({ start, end }) {
-    const geometry = state.geometry;
-    const before = start > 0 ? geometry?.barAt(start - 1)?.tick : undefined;
-    const after = geometry?.barAt(end)?.end;
-    return { start: before ?? start, end: after ?? end };
 }
 
 /**
@@ -1074,14 +1315,14 @@ async function picture(svg, width, ink, paper) {
     }
 }
 
-/** Brings a page to the top of the view, under the bar. */
-function showPage({ page }) {
+/** Brings a page to the top of the view, under the bar; at once when `instant`, as the notes open there (#533 6). */
+function showPage({ page, instant = false }) {
     const element = document.querySelector(`#pages > .page[data-page="${page}"]`);
     if (element === null) {
         return false;
     }
     const top = element.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(document.body).paddingTop);
-    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, top), behavior: instant ? "instant" : "smooth" });
     return true;
 }
 
@@ -1105,11 +1346,28 @@ function firstTickOn({ page }) {
 }
 
 /** Brings the page a place in the piece is on to the top, under the bar, as the PDF's pages lead to the notes (0023). */
-function showTick({ tick }) {
+function showTick({ tick, instant = false }) {
     const bars = state.geometry?.bars ?? [];
     const before = bars.filter((bar) => bar.tick <= tick);
     const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : bars[0];
-    return bar === undefined ? false : showPage({ page: bar.page });
+    return bar === undefined ? false : showPage({ page: bar.page, instant });
+}
+
+/**
+ * Where the view is, as a place in the notes that survives a new layout (PDF | Notes, #511 section 10): the system a line of
+ * the document crosses, by the tick of its first bar, and how far into it the line is. Swift reads the line from its scroll
+ * view (`y`, in the document's pixels) and keeps the place while the PDF is shown; null before the pages are laid out.
+ */
+function placeAt({ y }) {
+    const geometry = state.geometry;
+    return geometry ? anchorAt(systemSpans(geometry.systems, geometry.bars), y) : null;
+}
+
+/** The line of the document a place kept by `placeAt` lies at now, in the document's pixels, for Swift to scroll to; or null. */
+function lineAt(place) {
+    const geometry = state.geometry;
+    const anchor = anchorOf(place);
+    return geometry && anchor ? lineOf(systemSpans(geometry.systems, geometry.bars), anchor) : null;
 }
 
 /** Where each bar is now, in the document's pixels: for the tests. */
@@ -1117,5 +1375,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

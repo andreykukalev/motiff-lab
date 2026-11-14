@@ -12,5 +12,18 @@
 <body>
   <div id="pages"></div>
   <svg id="ink" aria-hidden="true"></svg>
+  <!-- The pencil's grain (#479 item 7): each ink through the same tile of Web/grain.png from the page's top left corner,
+       48 pixels a tile, as Swift draws the stroke being written (InkPaint in InkInput.swift). -->
+  <svg id="grain" aria-hidden="true" width="0" height="0">
+    <defs>
+      <mask id="grain-tile" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
+        <image href="grain.png" x="0" y="0" width="48" height="48" preserveAspectRatio="none"/>
+      </mask>
+      <pattern id="pencil-graphite" patternUnits="userSpaceOnUse" width="48" height="48"><rect class="graphite" width="48" height="48" mask="url(#grain-tile)"/></pattern>
+      <pattern id="pencil-carmine" patternUnits="userSpaceOnUse" width="48" height="48"><rect class="carmine" width="48" height="48" mask="url(#grain-tile)"/></pattern>
+      <pattern id="pencil-forest" patternUnits="userSpaceOnUse" width="48" height="48"><rect class="forest" width="48" height="48" mask="url(#grain-tile)"/></pattern>
+      <pattern id="pencil-ochre" patternUnits="userSpaceOnUse" width="48" height="48"><rect class="ochre" width="48" height="48" mask="url(#grain-tile)"/></pattern>
+    </defs>
+  </svg>
 </body>
 </html>

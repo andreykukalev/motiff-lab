@@ -1,13 +1,16 @@
 import Foundation
 
-/// The phrases of a piece at the level shown (facade `phrases`, 0018 section 3): Short, Phrases or Sentences, drawn as
-/// pencil brackets above the top staff (Web/score.js) that select their unit when tapped.
+/// The phrases of a piece at the level shown (facade `phrases`, 0018 section 3): Short, Phrases or Sentences. They are
+/// no longer drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14); focus steps by
+/// them and a selection is named by them.
 struct PhraseLevelsShown: Equatable, Sendable {
     /// "short", "phrase" or "sentence".
     var level: String
     /// How many units each level has, by its id.
     var counts: [String: Int]
     var units: [PhraseUnit]
+    /// The levels the player changed (boundaries added or taken away, in the Music Studio), which can be reset.
+    var edited: Set<String> = []
 
     static let ids = ["short", "phrase", "sentence"]
 
@@ -21,6 +24,11 @@ struct PhraseLevelsShown: Equatable, Sendable {
             if let id = entry["id"] as? String { counts[id] = (entry["count"] as? NSNumber)?.intValue ?? 0 }
         }
         self.counts = counts
+        let edits = object["edits"] as? [String: Any] ?? [:]
+        self.edited = Set(Self.ids.filter { id in
+            let level = edits[id] as? [String: Any] ?? [:]
+            return ["added", "removed"].contains { !((level[$0] as? [Any]) ?? []).isEmpty }
+        })
         self.units = units.compactMap(PhraseUnit.init(answer:))
     }
 
@@ -57,17 +65,6 @@ struct PhraseUnit: Equatable, Sendable {
         selectableEnd = number(selectable?["end"]) ?? end
         provenance = (answer["start"] as? [String: Any])?["provenance"] as? String ?? "inferred"
     }
-
-    /// How its start was found, as the bracket's class, as the web app has it: the start of the piece, the player's own,
-    /// inferred, or imported from the file.
-    var kind: String {
-        if number == 1 { return "start" }
-        switch provenance {
-        case "userEdited", "userConfirmed": return "yours"
-        case "inferred", "detected": return "inferred"
-        default: return "imported"
-        }
-    }
 }
 
 /// The passage selected on the score (facade `select`): where it starts and ends, its bars and its notes.
@@ -77,16 +74,22 @@ struct ScoreSelection: Equatable, Sendable {
     var firstBar: Int
     var lastBar: Int
     var noteIds: [String]
+    /// The beat of the first bar it starts on and of the last bar it ends in, as music-core counts them (#349); nil from
+    /// an older answer.
+    var firstBeat: Int?
+    var lastBeat: Int?
 
-    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = []) {
+    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = [], firstBeat: Int? = nil, lastBeat: Int? = nil) {
         self.onset = onset
         self.end = end
         self.firstBar = firstBar
         self.lastBar = lastBar
         self.noteIds = noteIds
+        self.firstBeat = firstBeat
+        self.lastBeat = lastBeat
     }
 
-    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, noteIds, …}}.
+    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}.
     init?(answer: String) {
         guard let selection = facadeObject(answer)?["selection"] as? [String: Any],
               let onset = (selection["onset"] as? NSNumber)?.doubleValue,
@@ -96,7 +99,15 @@ struct ScoreSelection: Equatable, Sendable {
             end: end,
             firstBar: (selection["firstBar"] as? NSNumber)?.intValue ?? 0,
             lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0,
-            noteIds: selection["noteIds"] as? [String] ?? []
+            noteIds: selection["noteIds"] as? [String] ?? [],
+            firstBeat: (selection["firstBeat"] as? NSNumber)?.intValue,
+            lastBeat: (selection["lastBeat"] as? NSNumber)?.intValue
         )
+    }
+
+    /// "Bar 5, beat 2 → bar 8, beat 3", for a selection by beats (#349); nil without the beats.
+    func beatSpan(_ text: UIText) -> String? {
+        guard let firstBeat, let lastBeat else { return nil }
+        return text.format("selection.beatSpan", String(firstBar), String(firstBeat), String(lastBar), String(lastBeat))
     }
 }

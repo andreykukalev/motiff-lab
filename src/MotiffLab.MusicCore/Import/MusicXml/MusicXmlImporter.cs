@@ -352,8 +352,37 @@ public static class MusicXmlImporter
             MeasureCount: meter.BarsBefore(end).Count(),
             Issues: issues.Build(MusicXmlIssueCodes.Describe));
 
-        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, slurs, repeats, measures, tempos, timeSignatures, meter, keys, end, report);
+        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, slurs, repeats, measures, tempos, timeSignatures, meter, keys, end, report)
+        {
+            Barlines = Barlines(parts, starts),
+            Texts = Texts(parts, At),
+        };
     }
+
+    /// <summary>The bar lines drawn other than single, one per position and style, in time order.</summary>
+    private static List<MusicXmlBarline> Barlines(List<PartReader> parts, QuarterFraction[] starts) => [.. parts
+        .SelectMany(part => part.Barlines)
+        .Select(barline => new MusicXmlBarline(
+            CanonicalTime.ToTick(starts[barline.IsAtEnd ? barline.MeasureIndex + 1 : barline.MeasureIndex]).Tick,
+            barline.IsAtEnd ? barline.MeasureIndex + 1 : barline.MeasureIndex,
+            barline.Style,
+            barline.IsRepeat))
+        .Distinct()
+        .OrderBy(barline => barline.At)
+        .ThenBy(barline => barline.Style, StringComparer.Ordinal)
+        .ThenBy(barline => barline.IsRepeat)];
+
+    /// <summary>The words and rehearsal marks written over the music, in time order, then by part.</summary>
+    private static List<MusicXmlText> Texts(List<PartReader> parts, Func<int, QuarterFraction, QuarterFraction> at) => [.. parts
+        .SelectMany(part => part.Texts.Select(text => new MusicXmlText(
+            CanonicalTime.ToTick(at(text.MeasureIndex, text.Offset)).Tick,
+            part.Index,
+            text.MeasureIndex,
+            text.Text,
+            text.IsRehearsal,
+            text.IsBold)))
+        .OrderBy(text => text.At)
+        .ThenBy(text => text.Track)];
 
     /// <summary>
     /// Pairs the slur starts and stops of a part by their <c>number</c>, in document order. A start
@@ -648,6 +677,12 @@ public static class MusicXmlImporter
     /// <summary>A repeat sign on the left (start) or right (end) bar line of a measure.</summary>
     private sealed record PartRepeat(int MeasureIndex, bool IsAtEnd, MusicXmlRepeatDirection Direction);
 
+    /// <summary>A bar line drawn other than single (its <c>&lt;bar-style&gt;</c>), on the left or right of a measure.</summary>
+    private sealed record PartBarline(int MeasureIndex, bool IsAtEnd, string Style, bool IsRepeat);
+
+    /// <summary>The text of a <c>&lt;words&gt;</c> or <c>&lt;rehearsal&gt;</c> direction, at the cursor.</summary>
+    private sealed record PartText(int MeasureIndex, QuarterFraction Offset, string Text, bool IsRehearsal, bool IsBold);
+
     private sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length);
 
     /// <summary>Walks one part: keeps a position cursor per measure and collects notes, attributes and directions.</summary>
@@ -686,6 +721,10 @@ public static class MusicXmlImporter
         public List<PartSlurMark> Slurs { get; } = [];
 
         public List<PartRepeat> Repeats { get; } = [];
+
+        public List<PartBarline> Barlines { get; } = [];
+
+        public List<PartText> Texts { get; } = [];
 
         public List<Timed<decimal>> Tempos { get; } = [];
 
@@ -861,13 +900,19 @@ public static class MusicXmlImporter
 
         private void ReadBarline(XElement barline)
         {
-            if (barline.Element("repeat")?.Attribute("direction")?.Value.Trim() is not string direction)
+            string location = barline.Attribute("location")?.Value.Trim() ?? "right";
+            if (location == "middle")
             {
                 return;
             }
 
-            string location = barline.Attribute("location")?.Value.Trim() ?? "right";
-            if (location == "middle")
+            XElement? repeat = barline.Element("repeat");
+            if (Trimmed(barline.Element("bar-style")?.Value) is { } style && style != "regular")
+            {
+                Barlines.Add(new PartBarline(_measureIndex, location == "right", style, repeat is not null));
+            }
+
+            if (repeat?.Attribute("direction")?.Value.Trim() is not string direction)
             {
                 return;
             }
@@ -1085,6 +1130,17 @@ public static class MusicXmlImporter
 
         private void ReadDirection(XElement direction)
         {
+            foreach (XElement type in direction.Elements("direction-type"))
+            {
+                foreach (XElement text in type.Elements().Where(static element => element.Name.LocalName is "words" or "rehearsal"))
+                {
+                    if (Trimmed(text.Value) is { } written)
+                    {
+                        Texts.Add(new PartText(_measureIndex, _cursor, written, text.Name.LocalName == "rehearsal", text.Attribute("font-weight")?.Value.Trim() == "bold"));
+                    }
+                }
+            }
+
             bool hasSoundTempo = false;
             foreach (XElement sound in direction.Elements("sound"))
             {

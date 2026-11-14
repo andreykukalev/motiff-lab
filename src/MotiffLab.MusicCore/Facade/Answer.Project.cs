@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
@@ -32,6 +34,7 @@ internal static partial class Answer
 
             json.WriteEndArray();
             json.WriteNumber("pressure", stroke.Pressure);
+            Margin(json, stroke.Margin);
             json.WriteEndObject();
         }
 
@@ -202,9 +205,11 @@ internal static partial class Answer
     /// <summary>
     /// The Check flags (0018 section 9) in bar order, each with its reason's short name and explanation in the piece's
     /// language and the span of its bar (null for a bar the piece does not reach), and where the doubts come from: the
-    /// scan's or the transcription's engine.
+    /// scan's or the transcription's engine. A recording's notes whose length is uncertain come apart as "lengths" (#352,
+    /// contract 11): one entry per bar with its notes, its reasons' names and explanations; empty for any other piece. A scan
+    /// with the server's page reports (version 0.4) tells its "pages" (<see cref="ScanPages"/>); empty for any other piece.
     /// </summary>
-    public static void Check(Utf8JsonWriter json, Project project, Words words, MeterMap meter, Tick end)
+    public static void Check(Utf8JsonWriter json, Project project, Words words, MeterMap meter, Tick end, IReadOnlyList<UncertainLengths> lengths, IReadOnlyList<ScanPage> pages)
     {
         json.WriteStartArray("flags");
         foreach (CheckFlag flag in (project.Check ?? []).OrderBy(flag => flag.Bar))
@@ -216,20 +221,14 @@ internal static partial class Answer
             json.WriteString("name", CheckFlag.NameOf(flag.Reason, words));
             json.WriteString("text", flag.Describe(words));
             json.WriteBoolean("resolved", flag.Resolved);
-            if (flag.Bar >= meter.FirstBarNumber && meter.GetBar(flag.Bar).Span is { } span && span.Onset < end)
-            {
-                Span(json, "span", span);
-            }
-            else
-            {
-                json.WriteNull("span");
-            }
-
+            BarSpan(json, flag.Bar, meter, end);
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
         json.WriteNumber("open", project.OpenChecks.Count);
+        Lengths(json, lengths, words, meter, end);
+        ScanPages(json, pages, project.Scan?.ConfirmedBars ?? []);
         json.WriteString("origin", project.Scan is not null ? "scanned" : project.Transcription is not null ? "transcribed" : "imported");
         if ((project.Scan?.Engine ?? project.Transcription?.Engine) is { } engine)
         {
@@ -238,6 +237,38 @@ internal static partial class Answer
         else
         {
             json.WriteNull("engine");
+        }
+    }
+
+    /// <summary>"lengths": a recording's bars with notes of uncertain length (#352), each with its notes, reasons, their names and explanations.</summary>
+    private static void Lengths(Utf8JsonWriter json, IReadOnlyList<UncertainLengths> lengths, Words words, MeterMap meter, Tick end)
+    {
+        json.WriteStartArray("lengths");
+        foreach (UncertainLengths bar in lengths)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", bar.Bar);
+            Texts(json, "noteIds", bar.NoteIds);
+            Texts(json, "reasons", bar.Reasons.Select(Name));
+            Texts(json, "names", bar.Reasons.Select(reason => HeardLengths.NameOf(reason, words)));
+            Texts(json, "texts", bar.Reasons.Select(reason => HeardLengths.Explain(reason, words)));
+            BarSpan(json, bar.Bar, meter, end);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>"span": the bar's span, or null for a bar the piece does not reach.</summary>
+    private static void BarSpan(Utf8JsonWriter json, int bar, MeterMap meter, Tick end)
+    {
+        if (bar >= meter.FirstBarNumber && meter.GetBar(bar).Span is { } span && span.Onset < end)
+        {
+            Span(json, "span", span);
+        }
+        else
+        {
+            json.WriteNull("span");
         }
     }
 
@@ -296,6 +327,37 @@ internal static partial class Answer
 
         json.WriteEndObject();
     }
+
+    /// <summary>
+    /// The title, composer, tags and playlists a library card shows (contract 12): "title" and "titleFrom" ("player",
+    /// "file" or "fileName"), "composer" and "composerFrom" ("player" or "file"; both null when neither names one), "tags"
+    /// and "playlists".
+    /// </summary>
+    public static void Details(Utf8JsonWriter json, PieceDetails details)
+    {
+        json.WriteString("title", details.Title.Value);
+        json.WriteString("titleFrom", From(details.Title.Attribution));
+        if (details.Composer is { } composer)
+        {
+            json.WriteString("composer", composer.Value);
+            json.WriteString("composerFrom", From(composer.Attribution));
+        }
+        else
+        {
+            json.WriteNull("composer");
+            json.WriteNull("composerFrom");
+        }
+
+        Texts(json, "tags", details.Tags);
+        Texts(json, "playlists", details.Playlists);
+    }
+
+    private static string From(Events.Attribution attribution) => attribution.Provenance switch
+    {
+        Events.Provenance.UserEdited => "player",
+        Events.Provenance.Imported => "file",
+        _ => "fileName",
+    };
 
     /// <summary>A span with the bars it covers, as the drawers list a mark: "span": {onset, end}, "bars": {first, last}.</summary>
     private static void Place(Utf8JsonWriter json, TickSpan span, MeterMap meter)

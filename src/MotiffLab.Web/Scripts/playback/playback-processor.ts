@@ -15,7 +15,7 @@ export const MIN_RATE = 0.25;
 export const MAX_RATE = 1.5;
 export const MAX_VOICES = 96;
 
-export type TransportState = "stopped" | "countingIn" | "playing";
+export type TransportState = "stopped" | "playing";
 
 export interface SampleRegion {
     /** MIDI note the sample was recorded at. */
@@ -32,7 +32,7 @@ export interface TimelineMessage {
     tempos: number[];
     /** Pairs: tick, 1 for a downbeat or 0. */
     beats: number[];
-    /** Quads: start tick, duration, beat ticks, beats per bar. */
+    /** Quads: start tick, duration, beat ticks, beats per bar. The engine reads none of them since the count-in went (v0.5.5). */
     bars: number[];
     end: number;
 }
@@ -68,12 +68,15 @@ export type EngineMessage =
     | { type: "loopOff" }
     | { type: "alternate"; passes: LoopPass[] }
     | { type: "metronome"; on: boolean }
-    | { type: "countIn"; bars: number }
     | { type: "tracks"; muted: number[]; soloed: number[] }
     | { type: "noteOn"; pitch: number; velocity: number }
     | { type: "noteOff"; pitch: number }
     | RecordingMessage
-    | { type: "recordingOn"; on: boolean };
+    | { type: "recordingOn"; on: boolean }
+    /** A playhead dragged while stopped (#495 UX-09): the notes whose starts it passed sound (Engine.scrub). */
+    | { type: "scrub"; from: number; to: number }
+    /** The drag let go: the notes it sounded fade. */
+    | { type: "scrubEnd" };
 
 /**
  * A recording heard as it sounds (decision record 0024, scenario 2): its mono samples, and where the places of the
@@ -93,6 +96,16 @@ export interface RecordingMessage {
  */
 export const LIVE_SOURCE = "live";
 const LIVE_TRACK = -1;
+
+/**
+ * Scrubbing (#495 UX-09, the architect's design playback-model-v0.5.2, slice W3; as the iPad's engine, PlaybackEngine.swift):
+ * the drag's voices are apart from the piece's, so its end, Play or a seek fades them all. One move strikes at most
+ * SCRUB_GROUPS starts, those nearest where it went, so a fast drag never floods the voices; a note it strikes sounds its
+ * length at the tempo, never longer than SCRUB_SECONDS, then fades.
+ */
+export const SCRUB_SOURCE = "scrub";
+export const SCRUB_GROUPS = 6;
+export const SCRUB_SECONDS = 1.5;
 
 export interface PositionReport {
     type: "position";
@@ -116,9 +129,6 @@ interface Timeline {
     tempoUspq: Float64Array;
     beatTicks: Float64Array;
     beatDown: Uint8Array;
-    barStart: Float64Array;
-    barBeatTicks: Float64Array;
-    barBeats: Float64Array;
     end: number;
 }
 
@@ -226,16 +236,10 @@ export class Engine {
     private passes: LoopPass[] | null = null;
     private pass = -1;
     private metronome = false;
-    private countInBars = 0;
     private muted = new Set<number>();
     private soloed = new Set<number>();
 
     private beatCursor = 0;
-    private countInTotal = 0;
-    private countInDone = 0;
-    private countInElapsed = 0;
-    private countInFramesPerBeat = 0;
-    private countInBeatsPerBar = 0;
 
     private voices: Voice[] = [];
     private clicks: Click[] = [];
@@ -319,17 +323,10 @@ export class Engine {
                 this.alternate(message.passes);
                 break;
             case "loopOff":
-                this.stopAlternating();
-                this.loopOnce = false;
-                this.loopStart = 0;
-                this.loopEnd = 0;
-                this.requestReport();
+                this.loopOff();
                 break;
             case "metronome":
                 this.metronome = message.on;
-                break;
-            case "countIn":
-                this.countInBars = Math.max(0, Math.floor(message.bars));
                 break;
             case "tracks":
                 this.muted = new Set(message.muted);
@@ -350,6 +347,12 @@ export class Engine {
             case "recordingOn":
                 this.recordingOn = message.on;
                 break;
+            case "scrub":
+                this.scrub(message.from, message.to);
+                break;
+            case "scrubEnd":
+                this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
+                break;
         }
     }
 
@@ -369,8 +372,6 @@ export class Engine {
             this.blockOffset = done;
             if (this.state === "playing") {
                 done += this.advancePlaying(done, frames - done);
-            } else if (this.state === "countingIn") {
-                done += this.advanceCountIn(done, frames - done);
             } else {
                 done = frames;
             }
@@ -410,15 +411,11 @@ export class Engine {
     private setTimeline(message: TimelineMessage): void {
         const tempoCount = message.tempos.length / 2;
         const beatCount = message.beats.length / 2;
-        const barCount = message.bars.length / 4;
         const timeline: Timeline = {
             tempoTicks: new Float64Array(tempoCount),
             tempoUspq: new Float64Array(tempoCount),
             beatTicks: new Float64Array(beatCount),
             beatDown: new Uint8Array(beatCount),
-            barStart: new Float64Array(barCount),
-            barBeatTicks: new Float64Array(barCount),
-            barBeats: new Float64Array(barCount),
             end: message.end,
         };
         for (let i = 0; i < tempoCount; i++) {
@@ -428,11 +425,6 @@ export class Engine {
         for (let i = 0; i < beatCount; i++) {
             timeline.beatTicks[i] = message.beats[2 * i];
             timeline.beatDown[i] = message.beats[2 * i + 1];
-        }
-        for (let i = 0; i < barCount; i++) {
-            timeline.barStart[i] = message.bars[4 * i];
-            timeline.barBeatTicks[i] = message.bars[4 * i + 2];
-            timeline.barBeats[i] = message.bars[4 * i + 3];
         }
         if (tempoCount === 0) {
             timeline.tempoTicks = Float64Array.of(0);
@@ -496,6 +488,8 @@ export class Engine {
         if (this.timeline === null || this.state !== "stopped") {
             return;
         }
+        // What a drag sounded gives way to the piece: playback starts clean.
+        this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
 
         if (this.hasLoop() && (this.position < this.loopStart || this.position >= this.loopEnd)) {
             this.position = this.loopStart;
@@ -504,27 +498,11 @@ export class Engine {
         }
         this.relocate(false);
 
-        if (this.countInBars > 0) {
-            const bar = Math.max(0, lastAtOrBefore(this.timeline.barStart, this.position));
-            const beatTicks = this.timeline.barBeatTicks.length > 0 ? this.timeline.barBeatTicks[bar] : TICKS_PER_QUARTER;
-            const beatsPerBar = this.timeline.barBeats.length > 0 ? this.timeline.barBeats[bar] : 4;
-            this.countInBeatsPerBar = beatsPerBar;
-            this.countInTotal = beatsPerBar * this.countInBars;
-            this.countInDone = 0;
-            this.countInElapsed = 0;
-            this.countInFramesPerBeat = beatTicks / this.ticksPerFrame(this.tempoIndex(this.position));
-            this.state = "countingIn";
-        } else {
-            this.startPlaying();
-        }
-        this.requestReport();
-    }
-
-    private startPlaying(): void {
         this.state = "playing";
         for (const id of this.active) {
             this.chase(id, this.sources.get(id)!);
         }
+        this.requestReport();
     }
 
     private pause(): void {
@@ -541,6 +519,15 @@ export class Engine {
         this.position = Math.min(Math.max(0, tick), end);
         this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
         this.relocate(this.state === "playing");
+        this.requestReport();
+    }
+
+    /** Nothing loops any more, an alternation and a loop played once included. */
+    private loopOff(): void {
+        this.stopAlternating();
+        this.loopOnce = false;
+        this.loopStart = 0;
+        this.loopEnd = 0;
         this.requestReport();
     }
 
@@ -687,31 +674,6 @@ export class Engine {
         }
     }
 
-    private advanceCountIn(offset: number, available: number): number {
-        while (this.countInDone < this.countInTotal) {
-            const at = Math.max(0, Math.ceil(this.countInDone * this.countInFramesPerBeat - this.countInElapsed - FRAME_EPSILON));
-            if (at >= available) {
-                break;
-            }
-            const accent = this.countInDone % this.countInBeatsPerBar === 0;
-            this.startClick(offset + at, accent);
-            this.countInDone++;
-        }
-
-        const remaining = this.countInTotal * this.countInFramesPerBeat - this.countInElapsed;
-        const used = Math.max(0, Math.ceil(remaining - FRAME_EPSILON));
-        if (used < available) {
-            this.countInElapsed += used;
-            this.startPlaying();
-            this.blockOffset = offset + used;
-            this.requestReport();
-            return used;
-        }
-
-        this.countInElapsed += available;
-        return available;
-    }
-
     /** Plays up to `available` frames, stopping early at a tempo change, the loop end or the end of the piece. */
     private advancePlaying(offset: number, available: number): number {
         const timeline = this.timeline!;
@@ -813,7 +775,51 @@ export class Engine {
         }
     }
 
-    private startVoice(sourceId: string, pitch: number, velocity: number, track: number, endTick: number, frame: number): void {
+    /**
+     * A playhead dragged while stopped (#495 UX-09): the position goes to `to` without striking what sounds there (a seek
+     * would) and without fading what the drag already sounds; the starts of the active sources' audible notes it passed
+     * sound, forward those in (from, to], back those in [to, from), each start's notes together, as a chord. A move that
+     * passes more starts than SCRUB_GROUPS strikes only those nearest `to`. Each note sounds its length at the tempo, at
+     * most SCRUB_SECONDS, then fades as a released note does. The metronome stays silent. Ignored while playing.
+     */
+    private scrub(from: number, to: number): void {
+        const timeline = this.timeline;
+        if (timeline === null || this.state !== "stopped") {
+            return;
+        }
+        const start = Math.min(Math.max(0, from), timeline.end);
+        const target = Math.min(Math.max(0, to), timeline.end);
+        this.position = target;
+        this.relocate(false);
+        this.requestReport();
+        // Forward the start itself is behind and the place reached is passed; back the other way round.
+        const passed = (onset: number): boolean => (target > start ? onset > start && onset <= target : onset >= target && onset < start);
+        const chords = new Map<number, { source: Source; index: number }[]>();
+        for (const id of this.active) {
+            const source = this.sources.get(id);
+            for (let index = 0; source !== undefined && index < source.onset.length; index++) {
+                const onset = source.onset[index];
+                if (passed(onset) && this.isAudible(source.track[index])) {
+                    chords.set(onset, [...(chords.get(onset) ?? []), { source, index }]);
+                }
+            }
+        }
+        const longest = Math.round(SCRUB_SECONDS * this.sampleRate);
+        const nearest = [...chords.keys()].sort((a, b) => Math.abs(a - target) - Math.abs(b - target)).slice(0, SCRUB_GROUPS);
+        for (const onset of nearest) {
+            const perFrame = this.ticksPerFrame(this.tempoIndex(onset));
+            for (const { source, index } of chords.get(onset) ?? []) {
+                const frames = Math.round(source.duration[index] / perFrame);
+                this.startVoice(SCRUB_SOURCE, source.pitch[index], source.velocity[index], source.track[index], Infinity, 0, Math.min(longest, Math.max(1, frames)));
+            }
+        }
+    }
+
+    /**
+     * Starts a voice at a frame of the block. It is released at `endTick` while playing, or, with `hold`, that many frames
+     * after it starts, counted down block by block whether or not anything plays (a drag's notes).
+     */
+    private startVoice(sourceId: string, pitch: number, velocity: number, track: number, endTick: number, frame: number, hold = Infinity): void {
         const region = this.regionByPitch[pitch];
         if (region === null) {
             return;
@@ -837,7 +843,7 @@ export class Engine {
             gain: 0.08 + 0.92 * loudness * loudness,
             level: 1,
             startAt: frame,
-            releaseAt: Infinity,
+            releaseAt: frame + hold,
             released: false,
             endTick,
             order: this.voiceOrder++,

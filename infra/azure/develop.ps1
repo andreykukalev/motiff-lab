@@ -8,7 +8,7 @@
   1. Deploys infra/bootstrap.bicep again, which adds the CI identity's sign-in for the develop branch (github-develop)
      next to the ones for main and pull requests. Nothing else in Azure changes.
   2. Sets the GitHub repository variable DEPLOY_DEVELOP to true, which CI reads (.github/workflows/ci.yml).
-  The test site has no sign-in: its address is not a registered redirect, so the app runs there without accounts.
+  Sign-in on the test site needs its address registered once: infra/azure/test-site-signin.ps1.
   The next push to develop deploys it; the address is <site>-develop.<region>.azurestaticapps.net (CI's summary and
   the Static Web App's Environments tab show it).
 

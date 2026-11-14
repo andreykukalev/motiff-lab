@@ -15,19 +15,33 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<Player>();
+builder.Services.AddScoped<PieceMetronome>();
 builder.Services.AddScoped<CurrentPiece>();
 builder.Services.AddScoped<ProjectStore>();
 builder.Services.AddScoped<UsageAnalytics>();
 builder.Services.AddScoped<ScanService>();
 builder.Services.AddScoped<UiText>();
 builder.Services.AddScoped<Preferences>();
+builder.Services.AddTransient<LibraryShelfState>();
 builder.Services.AddScoped<MotiffLab.Web.Settings.DeviceSettings>();
+builder.Services.AddScoped<MotiffLab.Web.Library.PlayerFolders>();
+builder.Services.AddScoped<MotiffLab.Web.Library.ImportJob>();
+builder.Services.AddScoped<MotiffLab.Web.Library.OriginalFinder>();
+builder.Services.AddScoped<MotiffLab.Web.Library.FolderSheets>();
+builder.Services.AddScoped<MotiffLab.Web.Library.FolderChanges>();
+builder.Services.AddScoped<MotiffLab.Web.Library.HostedPages>();
+builder.Services.AddScoped<MotiffLab.Web.Library.PdfPages>();
+builder.Services.AddScoped<MotiffLab.Web.Pdf.ScoreScan>();
+builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionQueue>();
+builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionPick>();
 
 // Sign-in and saving online (0014) exist only in a build whose appsettings.json names the External ID tenant.
 AccountOptions account = builder.Configuration.GetSection("Account").Get<AccountOptions>() ?? new AccountOptions();
 builder.Services.AddSingleton(account);
 builder.Services.AddScoped<CloudAccount>();
+builder.Services.AddScoped<TestReset>();
 builder.Services.AddScoped<OnlineProjects>();
+builder.Services.AddScoped<CloudSync>();
 if (account.IsConfigured)
 {
     builder.Services.AddMsalAuthentication(options =>

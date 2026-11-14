@@ -4,8 +4,8 @@ import UIKit
 
 /// Where players sign in (decision record 0014): the web app's External ID tenant, its app registration and the
 /// Motiff Lab API's scopes, in `Account.json` (the same shape and values as the published web app's
-/// `appsettings.json`). The iPad signs in with MSAL on the registration's iOS redirect,
-/// `msauth.<bundle id>://auth` (infra/azure/ipad.ps1).
+/// `appsettings.json`), with one environment's servers (`EnvironmentSetup`). The iPad signs in with MSAL on the
+/// registration's iOS redirect, `msauth.<bundle id>://auth` (infra/azure/ipad.ps1).
 struct AccountOptions: Decodable, Equatable, Sendable {
     /// https://<domain>.ciamlogin.com/<tenant id>
     var authority: String
@@ -32,7 +32,7 @@ struct AccountOptions: Decodable, Equatable, Sendable {
         !authority.isEmpty && !clientId.isEmpty && !apiScope.isEmpty && URL(string: api)?.host != nil
     }
 
-    /// The options in the app, or nil in a build without sign-in; then nothing about accounts shows.
+    /// Main's options in the app, or nil in a build without sign-in; then nothing about accounts shows.
     static func load(bundle: Bundle = .main) -> AccountOptions? {
         guard let url = bundle.url(forResource: "Account", withExtension: "json"),
               let data = try? Data(contentsOf: url),
@@ -135,39 +135,126 @@ struct PlayerProfile: Equatable, Sendable {
 /// and the plan the API answers. As in the web app (Account/CloudAccount.cs), a tester's choice of Pro or no Pro is kept
 /// on this device and sent with every request to the API and the scan server (`Motiff-Plan`), which trust it only from a
 /// tester. Signing in is optional: everything on the device works without it, and the free tier sends nothing anywhere.
+/// It talks to one server environment at a time (`EnvironmentSetup`, Andrei 2026-11-12): Main or Test, switched in
+/// Settings with the sign-in kept; in a version build Main is read only unless the player allowed writing.
 @MainActor
 final class Account: ObservableObject {
     static let choiceKey = "ml-test-plan"
     static let planHeader = "Motiff-Plan"
+    /// How long an ask for the plan or the profile waits: the API scales to zero, and its cold start takes 25-35 s.
+    static let coldStartTimeout: TimeInterval = 60
 
     /// The signed-in player's name or email, or nil when nobody is signed in.
     @Published private(set) var player: String?
     /// The plan as the API answered it; nil while signed out or when the API could not be reached.
     @Published private(set) var plan: AccountPlan?
+    /// Whether the API is being asked for the plan now: Settings says «Проверяю…» rather than "did not answer".
+    @Published private(set) var planAsking = false
+    /// Whether the last ask for the plan failed (no token, no answer, not 200): only then Settings says "did not answer".
+    @Published private(set) var planFailed = false
     /// A tester's choice on this device; nil for the account's own plan.
     @Published private(set) var choice: Plan?
     /// The name and photo the player chose; nil while signed out, before the API answers, or when it cannot be reached.
     @Published private(set) var profile: PlayerProfile?
     @Published private(set) var busy = false
     @Published var problem: String?
+    /// The server environment the app works in now, and whether writing to Main was allowed for this build.
+    @Published private(set) var environment: ServerEnvironment
+    @Published private(set) var mainWritesAllowed: Bool
+    /// Grows each time the Test library is cleared on this iPad (`TestLibrary`), so the library reads its pieces again.
+    @Published private(set) var libraryCleared = 0
 
-    let options: AccountOptions?
+    /// The environments this build knows; nil in a build without sign-in.
+    let setup: EnvironmentSetup?
     private var made: MSALPublicClientApplication?
     private let defaults: UserDefaults
     private let session: URLSession
     private let text: UIText
     private var account: MSALAccount?
+    /// Counts the asks for the plan, so only the latest one's answer is shown.
+    private var planAsks = 0
 
-    init(options: AccountOptions? = .load(), defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
-        self.options = options
+    init(setup: EnvironmentSetup? = .bundled, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+        self.setup = setup
         self.defaults = defaults
         self.session = session
         self.text = text
         choice = defaults.string(forKey: Self.choiceKey).flatMap(Plan.init(rawValue:))
+        environment = setup.map { $0.current(chosen: defaults.string(forKey: $0.choiceKey)) } ?? .main
+        mainWritesAllowed = EnvironmentSetup.mainWritesAllowed(defaults)
     }
 
+    /// An account on one environment's servers only: Main, read and written as in a build from main.
+    convenience init(options: AccountOptions?, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+        self.init(setup: options.map { EnvironmentSetup(main: $0, test: nil, buildDefault: .main) }, defaults: defaults, session: session, text: text)
+    }
+
+    /// The sign-in and the servers of the environment the app works in; nil in a build without sign-in.
+    var options: AccountOptions? { setup?.options(environment) }
+
     /// False in a build without sign-in.
-    var isAvailable: Bool { options != nil }
+    var isAvailable: Bool { setup != nil }
+
+    /// A version build (a commit not in main yet): it starts in Test, and Main is read only there by default.
+    var isVersionBuild: Bool { setup?.isVersionBuild == true }
+
+    /// Whether Settings shows the environment row: in a version build, for a tester, or away from the build's default.
+    var offersEnvironmentChoice: Bool {
+        setup?.offersChoice(current: environment, isTester: plan?.isTester == true) == true
+    }
+
+    /// Whether the app may change anything online now: false only in Main in a version build until writing is allowed.
+    var writes: Bool { setup?.writes(environment, mainAllowed: mainWritesAllowed) ?? true }
+
+    /// Switches the app to the environment (Settings, after the player confirmed it): from now on the library is that
+    /// environment's own project files and sync records, and every request goes to its servers. The sign-in stays (one
+    /// tenant); the plan and the profile are asked of the environment's API again.
+    func switchEnvironment(to target: ServerEnvironment) async {
+        guard let setup, setup.test != nil, target != environment else { return }
+        defaults.set(target.rawValue, forKey: setup.choiceKey)
+        environment = target
+        plan = nil
+        profile = nil
+        await refreshPlan()
+        await refreshProfile()
+    }
+
+    /// Allows writing to Main in a version build, for this build only, or takes it back.
+    func allowMainWrites(_ allowed: Bool) {
+        if allowed {
+            defaults.set(EnvironmentSetup.build(), forKey: EnvironmentSetup.mainWritesKey)
+        } else {
+            defaults.removeObject(forKey: EnvironmentSetup.mainWritesKey)
+        }
+        mainWritesAllowed = allowed
+    }
+
+    /// The signed-in player's copies in the Test database deleted with the API's POST /me/reset (the profile kept there goes
+    /// too), for «Очистить всё»; the reset's stamp is kept as applied here at once, so this iPad does not clear again, and
+    /// the player's other devices clear their test library at their next sync (`TestReset`). Only in Test and only on
+    /// develop's own API (`TestLibrary.deletesOnline`): nothing is ever asked of Main's database.
+    func deleteTestCopies() async -> TestLibrary.Online {
+        guard player != nil else { return .signedOut }
+        guard TestLibrary.deletesOnline(setup, in: environment) else { return .notDevelop }
+        guard var request = await apiRequest("me/reset", in: .test) else { return .failed }
+        request.httpMethod = "POST"
+        request.timeoutInterval = Self.coldStartTimeout
+        guard let answer = try? await session.data(for: request), let response = answer.1 as? HTTPURLResponse, response.statusCode == 200
+        else { return .failed }
+        if let stamp = TestReset.stamp(response.value(forHTTPHeaderField: TestReset.header)) { resetApplied(stamp) }
+        if environment == .test { profile = nil }
+        return .deleted
+    }
+
+    /// Keeps a reset stamp as applied in Test (`TestReset`): after this iPad's own «Очистить всё», or one from another device.
+    func resetApplied(_ stamp: Int64) {
+        TestReset.record(stamp, in: defaults, environment: .test)
+    }
+
+    /// Tells the library that the Test library was cleared.
+    func libraryWasCleared() {
+        libraryCleared += 1
+    }
 
     /// The name to show: the one the player chose, else the sign-in's; nil when nobody is signed in.
     var shownName: String? { player.map { profile?.name ?? $0 } }
@@ -251,6 +338,7 @@ final class Account: ObservableObject {
         account = nil
         player = nil
         plan = nil
+        planFailed = false
         profile = nil
     }
 
@@ -264,12 +352,36 @@ final class Account: ObservableObject {
     }
 
     /// Asks the API for the plan again; nil when it cannot be reached, and then the app offers no Pro feature.
+    /// While it asks, `planAsking`; when it got no plan, `planFailed`. An ask overtaken by a newer one (another
+    /// environment, a tester's choice) changes nothing.
     func refreshPlan() async {
-        guard let options, player != nil, let token = await token(options.apiScope),
-              let request = request(path: "account", token: token)
-        else { return }
-        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return }
-        plan = AccountPlan.read(answer.0)
+        guard let options, player != nil else { return }
+        planAsks += 1
+        let ask = planAsks
+        planAsking = true
+        planFailed = false
+        let answer = await fetch("account", options: options)
+        guard ask == planAsks else { return }
+        planAsking = false
+        guard player != nil else { return }
+        if let answer, let read = AccountPlan.read(answer) { plan = read } else { planFailed = true }
+    }
+
+    /// Asks again for what is missing while signed in (Settings opens, the app comes back): the plan when there is none
+    /// and no ask is under way, the profile when there is none. Asks nothing when signed out.
+    func refreshIfMissing() async {
+        guard player != nil else { return }
+        if plan == nil && !planAsking { await refreshPlan() }
+        if profile == nil { await refreshProfile() }
+    }
+
+    /// The API's answer at the path with the player's token, waiting long enough for a cold start; nil without a token
+    /// or a 200.
+    private func fetch(_ path: String, options: AccountOptions) async -> Data? {
+        guard let token = await token(options.apiScope), var request = request(path: path, token: token) else { return nil }
+        request.timeoutInterval = Self.coldStartTimeout
+        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return answer.0
     }
 
     /// Whether the signed-in player may use the feature; false when signed out.
@@ -277,15 +389,13 @@ final class Account: ObservableObject {
 
     /// Asks the API for the player's profile again; it stays as it was when the API cannot be reached.
     func refreshProfile() async {
-        guard let options, player != nil, let token = await token(options.apiScope),
-              let request = request(path: "profile", token: token)
-        else { return }
-        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return }
-        profile = PlayerProfile.read(answer.0)
+        guard let options, player != nil, let answer = await fetch("profile", options: options), player != nil else { return }
+        profile = PlayerProfile.read(answer)
     }
 
     /// Keeps the player's name and photo (nil clears either); nil when kept, else what went wrong in the player's words.
     func saveProfile(name: String?, photo: String?) async -> String? {
+        guard writes else { return text["environment.notSaved"] }
         guard let options, player != nil, let token = await token(options.apiScope),
               var request = request(path: "profile", token: token)
         else { return text["profile.notSaved"] }
@@ -323,15 +433,26 @@ final class Account: ObservableObject {
     }
 
     /// A request to the API with a token for its scope, got without asking the player anything; nil when nobody is
-    /// signed in or there is no token.
-    func apiRequest(_ path: String) async -> URLRequest? {
-        guard let options, player != nil, let token = await token(options.apiScope) else { return nil }
+    /// signed in or there is no token. Given an environment, nil once the app works in another one, so nothing meant for
+    /// one database reaches the other.
+    func apiRequest(_ path: String, in environment: ServerEnvironment? = nil) async -> URLRequest? {
+        let expected = environment ?? self.environment
+        guard let options, player != nil, expected == self.environment, let token = await token(options.apiScope),
+              expected == self.environment
+        else { return nil }
         return request(path: path, token: token)
     }
 
-    /// The projects the player saved online, read with their token on any plan (0014); the iPad only reads them (#335).
+    /// The projects the player saved online in the environment the app works in now, with their token on any plan (0014):
+    /// listed, fetched and sent by the sync (version 0.2, `CloudSync`), never deleted from the iPad (but for clearing the test
+    /// library in Test, `deleteTestCopies`). Its requests stop once
+    /// the app switches environment, and it sends nothing where the app may not write (Main in a version build). In Test on
+    /// develop's API it also hears of «Очистить всё» from another device (`TestReset`).
     var online: OnlineProjects {
-        OnlineProjects(session: session) { [weak self] path in await self?.apiRequest(path) }
+        let environment = self.environment
+        let resets: Int64? = TestReset.applies(setup, in: environment) ? TestReset.applied(defaults, in: environment) : nil
+        return OnlineProjects(
+            session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) }, writable: writes, resetApplied: resets)
     }
 
     /// Adds a tester's choice to a request for the API or the hosted scan server; nothing when there is none.

@@ -13,8 +13,48 @@ struct CheckFlagEntry: Equatable, Sendable {
     var span: Range<Double>?
 }
 
+/// The notes of a recording's bar whose length is uncertain (facade `check` "lengths", #352): worked out, never saved, and
+/// apart from the flags, since a length can be wrong where the pitch and the start are right.
+struct UncertainLengthsEntry: Identifiable, Equatable, Sendable {
+    var bar: Int
+    var noteIds: [String]
+    /// The reasons' short names in the piece's language: "Pedal held at the end".
+    var names: [String]
+    /// What each reason means, in the piece's language.
+    var texts: [String]
+    var span: Range<Double>?
+    var id: Int { bar }
+}
+
+/// One page of a scan the server reported on, as `check` counts it (v0.4, within contract 12): its place in the notes from
+/// 1, its quality ("good", "weak" or "poor"), how far the server turned it, its bars and how many of them are doubtful, and
+/// its first and last bar (nil without bars).
+struct CheckPageEntry: Identifiable, Equatable, Sendable {
+    var page: Int
+    var quality: String
+    var rotation: Int
+    var bars: Int
+    var doubtful: Int
+    var firstBar: Int?
+    var lastBar: Int?
+    var id: Int { page }
+
+    /// The bars to show for the page.
+    var barRange: ClosedRange<Int>? {
+        guard let firstBar, let lastBar, firstBar <= lastBar else { return nil }
+        return firstBar...lastBar
+    }
+}
+
+extension PageSummaryLine {
+    /// «Страница 4: 9 из 12 тактов под вопросом», for a page as `check` counts it.
+    static func of(_ page: CheckPageEntry, _ text: UIText) -> PageSummaryLine {
+        of(page.page, JoinedPage(bars: page.bars, doubtful: page.doubtful, quality: page.quality), text)
+    }
+}
+
 /// The bars Check asks about, as music-core answers `check` and `check.resolve`: the flags in bar order, how many are open,
-/// and where the doubts come from.
+/// where the doubts come from, and a scan's pages as the server's page reports kept with it tell them (v0.4).
 struct CheckShelf: Equatable, Sendable {
     /// A bar with its flags, as the drawer lists it.
     struct BarFlags: Identifiable, Equatable, Sendable {
@@ -24,36 +64,85 @@ struct CheckShelf: Equatable, Sendable {
         var span: Range<Double>? { flags.lazy.compactMap(\.span).first }
     }
 
+    /// A piece of the pieces layer with its flagged bars, open and in all (version 0.5, `check` "pieces"): Check by piece.
+    struct PieceEntry: Identifiable, Equatable, Sendable {
+        var title: String
+        var firstBar: Int
+        var lastBar: Int
+        var open: Int
+        var total: Int
+        var id: Int { firstBar }
+
+        func holds(_ bar: Int) -> Bool { bar >= firstBar && bar <= lastBar }
+    }
+
     var flags: [CheckFlagEntry] = []
+    /// The pieces of the layer, in score order; empty without a pieces layer.
+    var pieces: [PieceEntry] = []
+    /// A recording's bars with notes of uncertain length, in bar order (#352).
+    var lengths: [UncertainLengthsEntry] = []
     var open = 0
     /// "scanned", "transcribed" or "imported".
     var origin = "imported"
     var engine: String?
+    /// The scan's pages, in order; empty without page reports.
+    var pages: [CheckPageEntry] = []
 
     init() {}
 
     init?(answer: String) {
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
-        flags = (object["flags"] as? [[String: Any]] ?? []).compactMap { entry in
-            guard let bar = number(entry["bar"]) else { return nil }
-            let span = (entry["span"] as? [String: Any]).flatMap { span in
+        func spanOf(_ value: Any?) -> Range<Double>? {
+            (value as? [String: Any]).flatMap { span in
                 number(span["onset"]).flatMap { onset in number(span["end"]).map { onset..<max($0, onset + 1) } }
             }
+        }
+        lengths = (object["lengths"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let bar = number(entry["bar"]) else { return nil }
+            return UncertainLengthsEntry(
+                bar: Int(bar), noteIds: entry["noteIds"] as? [String] ?? [], names: entry["names"] as? [String] ?? [],
+                texts: entry["texts"] as? [String] ?? [], span: spanOf(entry["span"])
+            )
+        }
+        flags = (object["flags"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let bar = number(entry["bar"]) else { return nil }
+            let span = spanOf(entry["span"])
             return CheckFlagEntry(
                 bar: Int(bar), reason: entry["reason"] as? String ?? "", name: entry["name"] as? String ?? "",
                 text: entry["text"] as? String ?? "", resolved: entry["resolved"] as? Bool ?? false, span: span
             )
         }
+        pieces = (object["pieces"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let first = number(entry["firstBar"]), let last = number(entry["lastBar"]) else { return nil }
+            return PieceEntry(
+                title: entry["title"] as? String ?? "", firstBar: Int(first), lastBar: Int(last),
+                open: Int(number(entry["open"]) ?? 0), total: Int(number(entry["total"]) ?? 0)
+            )
+        }
         open = Int(number(object["open"]) ?? 0)
         origin = object["origin"] as? String ?? "imported"
         engine = object["engine"] as? String
+        pages = (object["pages"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let page = number(entry["page"]) else { return nil }
+            return CheckPageEntry(
+                page: Int(page), quality: entry["quality"] as? String ?? "good", rotation: Int(number(entry["rotation"]) ?? 0),
+                bars: Int(number(entry["bars"]) ?? 0), doubtful: Int(number(entry["doubtful"]) ?? 0),
+                firstBar: number(entry["firstBar"]).map { Int($0) }, lastBar: number(entry["lastBar"]).map { Int($0) }
+            )
+        }
     }
 
     var hasFlags: Bool { !flags.isEmpty }
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
+
+    /// The bars still to check in one piece of the layer, or in every piece without one.
+    func openBars(in piece: PieceEntry?) -> [BarFlags] {
+        guard let piece else { return openBars }
+        return openBars.filter { piece.holds($0.bar) }
+    }
 
     /// The bars checked, every flag on them, in bar order.
     var resolvedBars: [BarFlags] { group(flags.filter(\.resolved)) }
@@ -153,6 +242,8 @@ struct CheckDrawer: View {
     let close: () -> Void
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
+    /// The piece of the layer the list keeps to, after Open (version 0.5, Check by piece), by its first bar; nil for every piece.
+    @State private var shownPiece: Int?
 
     var body: some View {
         let check = score.check
@@ -189,7 +280,23 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
-                    ForEach(check.openBars) { bar in openEntry(bar) }
+                    // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
+                    PhotoPagesCheck(score: score, text: text)
+                    if DeviceSettings.shared.isOn("experimental.pieces"), !check.pieces.isEmpty {
+                        // Check by piece (version 0.5): the pieces of the layer with their bars to check.
+                        Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        ForEach(check.pieces) { piece in pieceEntry(piece) }
+                    }
+                    ForEach(check.openBars(in: check.pieces.first { $0.firstBar == shownPiece })) { bar in openEntry(bar) }
+                    if !check.lengths.isEmpty {
+                        // A recording's note lengths are heard less surely than their starts (#352): shown apart.
+                        Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        Text(text["check.lengthsHint"])
+                            .dsType(.caption)
+                            .foregroundStyle(Color.ds("ink-2"))
+                            .fixedSize(horizontal: false, vertical: true)
+                        ForEach(check.lengths) { bar in lengthsEntry(bar) }
+                    }
                     if !check.resolvedBars.isEmpty {
                         Text(text["check.resolvedHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
                         ForEach(check.resolvedBars) { bar in resolvedEntry(bar) }
@@ -219,6 +326,42 @@ struct CheckDrawer: View {
         default: source = ""
         }
         return source + text[check.origin == "transcribed" ? "check.howRecordingShort" : "check.howScanShort"]
+    }
+
+    /// A piece of the layer: its title and bars, its bars to check, Open (the list keeps to its bars; again, every piece's)
+    /// and Looks right for the whole piece, one change music-core makes (`check.resolve` with its bars).
+    private func pieceEntry(_ piece: CheckShelf.PieceEntry) -> some View {
+        let shown = shownPiece == piece.firstBar
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(piece.title)
+                    .font(DesignTokens.font(weight: 600, size: 15))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text.format("bars.range", String(piece.firstBar), String(piece.lastBar)))
+                    .dsType(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            Text(piece.open > 0 ? text.count("check.toReview", piece.open) : text["checkPieces.done"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+            HStack(spacing: CGFloat.ds("s-2")) {
+                if piece.open > 0 || shown {
+                    Button(text[shown ? "checkPieces.all" : "checkPieces.open"]) { shownPiece = shown ? nil : piece.firstBar }
+                        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                        .accessibilityAddTraits(shown ? .isSelected : [])
+                }
+                if piece.open > 0 {
+                    Button(text["scanCheck.looksRight"]) { score.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
+                        .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                }
+            }
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(shown ? Color.ds("accent-tint") : Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(shown ? Color.ds("accent") : Color.ds("hairline")))
+        .accessibilityElement(children: .contain)
     }
 
     private func openEntry(_ bar: CheckShelf.BarFlags) -> some View {
@@ -261,6 +404,32 @@ struct CheckDrawer: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(selected ? Color.ds("accent-tint") : Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(selected ? Color.ds("accent") : Color.ds("hairline")))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func lengthsEntry(_ bar: UncertainLengthsEntry) -> some View {
+        let locale = Locale(identifier: text.language)
+        let names = bar.names.enumerated().map { $0.offset == 0 ? $0.element : $0.element.lowercased(with: locale) }.joined(separator: ", ")
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(text.format("check.bar", String(bar.bar)))
+                    .font(DesignTokens.font(weight: 600, size: 15))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text.count("check.lengthsNotes", bar.noteIds.count) + " · " + names)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            ForEach(bar.texts, id: \.self) { explanation in
+                Text(explanation)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                .disabled(bar.span == nil)
+        }
+        .padding(.vertical, CGFloat.ds("s-1"))
         .accessibilityElement(children: .contain)
     }
 

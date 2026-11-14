@@ -74,10 +74,7 @@ public partial class PlaybackLab
         _checkOpen = project.OpenChecks.Count > 0 || (_checkOpen && HasCheck);
         _insightsOpen &= !_checkOpen;
 
-        if (point.Passage is { } passage && _selection?.Span != passage.Span)
-        {
-            await MoveSelectionAsync(passage.Span, _filters.Contains(passage.Filter) ? passage.Filter : SelectionFilter.All, note: null);
-        }
+        await SelectPassageAsync(point);
 
         if (point.TempoPercent != TempoPercent)
         {
@@ -109,11 +106,38 @@ public partial class PlaybackLab
             _checkOpen = false;
             _performanceOpen = true;
         }
+        else if (View == AddSourceView && _project is not null)
+        {
+            OpenAddSource();
+        }
+
+        // Back from the PDF, the "Notes" view as the player left it (#511 section 10).
+        await ReturnToNotesViewAsync();
 
         if (fresh || idea is { Length: > 0 } || View is { Length: > 0 })
         {
             // The address names the resume point and no longer asks for the idea, so a reload comes back here as it is.
             Navigation.NavigateTo(MotiffLab.Web.Import.CurrentPiece.WorkspaceUrl(_project!, point.Id), replace: true);
+        }
+    }
+
+    /// <summary>
+    /// Selects the passage the resume point was on. The keys and the score take the player's hand as soon as the score shows,
+    /// before the piece has settled on its resume point: a passage selected in that moment was saved with no resume point to
+    /// hold it, so when the point has none of its own, that one goes into it now.
+    /// </summary>
+    private async Task SelectPassageAsync(ResumePoint point)
+    {
+        if (point.Passage is { } passage)
+        {
+            if (_selection?.Span != passage.Span)
+            {
+                await MoveSelectionAsync(passage.Span, _filters.Contains(passage.Filter) ? passage.Filter : SelectionFilter.All, note: null);
+            }
+        }
+        else if (_selection is { NoteIds.Count: > 0 })
+        {
+            await SaveProjectAsync();
         }
     }
 

@@ -5,10 +5,11 @@ namespace MotiffLab.MusicCore.Tests.Accounts;
 public sealed class PlansTests
 {
     [Fact]
-    public void Pro_allows_every_Pro_feature_and_the_free_tier_none()
+    public void Pro_allows_every_Pro_feature_and_the_free_tier_only_saving_online()
     {
         Assert.All(Plans.Features, feature => Assert.True(Plans.Allows(Plan.Pro, feature)));
-        Assert.All(Plans.Features, feature => Assert.False(Plans.Allows(Plan.Free, feature)));
+        Assert.All(Plans.Features, feature => Assert.Equal(feature == ProFeature.SaveOnline, Plans.Allows(Plan.Free, feature)));
+        Assert.Equal(300, Plans.FreeProjectsOnline);
         Assert.Equal(Enum.GetValues<ProFeature>(), Plans.Features);
     }
 
@@ -39,7 +40,8 @@ public sealed class PlansTests
         Assert.Equal(expected, state.Plan);
         Assert.True(state.IsTester);
         Assert.Equal(chosen, state.Chosen);
-        Assert.Equal(expected == Plan.Pro, state.Allows(ProFeature.SaveOnline));
+        Assert.Equal(expected == Plan.Pro, state.Allows(ProFeature.Assistant));
+        Assert.True(state.Allows(ProFeature.SaveOnline));
     }
 
     [Fact]

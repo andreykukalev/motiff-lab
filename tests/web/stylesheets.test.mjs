@@ -25,3 +25,20 @@ for (const sheet of sheets) {
         assert.equal(depth, 0, `a { left open, opened on line ${open.at(-1)} (comments removed)`);
     });
 }
+
+// A :has() asked of the body or the root with a descendant in it walks the whole document each time the page changes until
+// it finds one, and the whole of it when there is none: on a long score, tens of thousands of elements on every change (#419).
+// Ask with child combinators from the top (body:has(> #app > .library)), or of a sibling (.library ~ .site-footer).
+test("the app's stylesheet never asks the body or the root about any descendant", () => {
+    const text = readFileSync(new URL(sheets[0], root), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const broad = [...text.matchAll(/(?:^|[\s,}])(?:html|body|:root)\s*:has\(\s*(?!>)[^)]*\)/g)].map((match) => match[0].trim());
+    assert.deepEqual(broad, []);
+});
+
+// The engraved A4 sheets are laid out and painted only near the view (#419): a 70-page score is one document of tens of
+// thousands of elements. The sheet's own box is what the score measures (score-view.ts, geometry), so it must keep its size.
+test("the score's A4 sheets are rendered only near the view, at the size of a sheet", () => {
+    const text = readFileSync(new URL(sheets[0], root), "utf8");
+    assert.match(text, /\.score\.paged \.score-page:not\(\.pdf-page\)\s*\{\s*content-visibility:\s*auto;/);
+    assert.match(text, /\.score\.paged \.score-page\s*\{\s*width:\s*var\(--page-w\);\s*aspect-ratio:\s*210 \/ 297;/);
+});

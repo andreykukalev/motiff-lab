@@ -1,0 +1,75 @@
+@using MotiffLab.Web.Localization
+
+@* What reading notes from a PDF, or hearing a recording, needs before anything is sent (0011, 0014, 0018 section 12): a scan
+   server set, and on Motiff Lab's server an account and Pro, offered here; once all is there, what the caller shows to send.
+   One PDF («Распознать ноты»), a batch from the library (version 0.5) and a recording as a version ask the same way. *@
+@if (!_ready)
+{
+    <p class="caption">@Text["pdf.readChecking"]</p>
+}
+else if (Scans.Address is null)
+{
+    @if (Scans.HostedAddress is not null)
+    {
+        <p class="caption">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+    }
+    else
+    {
+        <p class="caption">@Text[Hearing ? "transcribe.setUp" : "import.scanSetUp"] <a href="settings#scan-heading">@Text[Hearing ? "transcribe.setUpLink" : "import.scanSetUpLink"]</a>.</p>
+    }
+}
+else if (Scans.IsHosted && !_signedIn)
+{
+    <MotiffLab.Web.Account.SignInPrompt Text="@Text[Hearing ? "transcribe.signInPrompt" : "scan.signInPrompt"]" />
+}
+else if (Scans.IsHosted && !_pro)
+{
+    <p class="pro-offer">
+        <span class="tag pro">Pro</span> @Text[Hearing ? "transcribe.proPrompt" : "scan.proPrompt"]
+        @if (Account.IsAvailable)
+        {
+            <a href="settings#plan">@Text["ask.offerPlan"]</a>
+        }
+    </p>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Inject]
+    private ScanService Scans { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Account.CloudAccount Account { get; set; } = default!;
+
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    /// <summary>What to show once the notes can be sent.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>For a recording to hear (transcription), not a PDF or photo to read.</summary>
+    [Parameter]
+    public bool Hearing { get; set; }
+
+    /// <summary>Once it is known whether the notes can be sent.</summary>
+    [Parameter]
+    public EventCallback Checked { get; set; }
+
+    private bool _ready;
+    private bool _signedIn;
+    private bool _pro;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Scans.LoadAsync();
+        _signedIn = await Account.PlayerAsync() is not null;
+        // Scanning and transcription on Motiff Lab's server are Pro (0018 section 12); the server checks it too.
+        _pro = _signedIn && await Account.AllowsAsync(Hearing ? MotiffLab.MusicCore.Accounts.ProFeature.Transcribe : MotiffLab.MusicCore.Accounts.ProFeature.Scan);
+        _ready = true;
+        await Checked.InvokeAsync();
+    }
+}

@@ -26,6 +26,8 @@ struct Fact: Identifiable, Equatable, Sendable {
     /// The fact in one short line for the stream when the text lists what it counts; nil when the text is already one line.
     var brief: String?
     var basis: String
+    /// "Rests on recognised notes still to check in bar 5." when the fact does (#352); nil otherwise.
+    var doubt: String?
     var places: [Place]
     var tries: [Try]
 
@@ -37,6 +39,7 @@ struct Fact: Identifiable, Equatable, Sendable {
         self.text = text
         brief = answer["brief"] as? String
         basis = answer["basis"] as? String ?? ""
+        doubt = answer["doubt"] as? String
         places = (answer["places"] as? [[String: Any]] ?? []).compactMap { place in
             guard let onset = (place["onset"] as? NSNumber)?.doubleValue, let end = (place["end"] as? NSNumber)?.doubleValue else { return nil }
             return Place(label: place["label"] as? String ?? "", onset: onset, end: end, noteIds: place["noteIds"] as? [String] ?? [])
@@ -195,6 +198,14 @@ final class InsightsController: ObservableObject {
         if let lens, !(understanding?.lensesShown.contains(lens) ?? false) {
             self.lens = nil
         }
+    }
+
+    /// The same selection read again, when what its facts rest on changed: a note fixed, or a bar checked or to check again,
+    /// so a fact on recognised notes still to check says so, or no longer does (#352). Nothing when nothing was read.
+    func reread() async {
+        guard let selection = understood, trial == nil else { return }
+        understood = nil
+        await load(piece: piece, selection: selection)
     }
 
     /// The claim tapped: its places are ringed; tapped again, they are cleared.
@@ -556,6 +567,10 @@ struct FactRow: View {
                 .buttonStyle(.plain)
                 .accessibilityHint(text["insights.claimHint"])
                 .accessibilityAddTraits(chosen ? .isSelected : [])
+            }
+            if let doubt = fact.doubt {
+                // The fact rests on recognised notes still to check (#352): said where, beside the uncertain tag.
+                Text(doubt).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 Tag(text: text["term.certainty.\(fact.certainty)"], kind: fact.certainty == "detected" ? .detected : .assumed)

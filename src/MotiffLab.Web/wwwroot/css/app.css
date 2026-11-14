@@ -135,6 +135,7 @@ h1, h2, .app-title strong {
 .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
     gap: 2px;
     padding: 2px;
     background: var(--surface);
@@ -144,6 +145,10 @@ h1, h2, .app-title strong {
 
 .seg > button,
 .lab .seg > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
     min-height: var(--h-compact);
     padding: 0 var(--s-3);
     border: 0;
@@ -1155,6 +1160,11 @@ h1, h2, .app-title strong {
 /* Score view (Score/ScoreView.razor, Scripts/score): the whole screen (0018 section 2), A4 sheets of paper on the desk in one
    continuously scrolling document; the notes being heard in the accent. The view is a size container, so a page's width can
    follow the view's height in landscape. */
+/* While it lands on the place it opens at (PDF | Notes, #533 6), the desk shows and the pages wait out of sight. */
+.score[data-landing] > * {
+    visibility: hidden;
+}
+
 .score {
     position: absolute;
     inset: 0;
@@ -1237,6 +1247,13 @@ h1, h2, .app-title strong {
     aspect-ratio: 210 / 297;
 }
 
+/* A long score (#419: 71 pages, tens of thousands of elements) stays one document, but the browser lays out and paints only
+   the engraved sheets near the view; the sheet's size comes from its width and shape, so the scroll keeps its length. A PDF's
+   sheet is left out: its bookmark tab reaches past the edge, which this would clip. */
+.score.paged .score-page:not(.pdf-page) {
+    content-visibility: auto;
+}
+
 /* A PDF's pages (0023) keep their own shape and numbers: the sheet takes the page's proportions, the drawing fills it, and the
    app adds no page number of its own over the printed one. */
 .score.paged .score-page.pdf-page {
@@ -1307,7 +1324,8 @@ h1, h2, .app-title strong {
     font-variant-numeric: tabular-nums;
 }
 
-.pdf-contents .pdf-bookmarks input {
+.pdf-contents .pdf-bookmarks input,
+.pdf-contents .pdf-bookmarks .name {
     flex: 1;
     min-width: 0;
 }
@@ -1343,6 +1361,41 @@ h1, h2, .app-title strong {
     border-color: var(--ink);
 }
 
+/* The metronome's button (#521 section 15): a tap starts or stops it; held, a slide sets its tempo, shown over the
+   button while it is held. The press is the button's own: no scrolling, no system menu, no text selected. */
+.metronome-button {
+    position: relative;
+    display: inline-flex;
+}
+
+[data-metronome-hold] {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.metronome-held {
+    position: absolute;
+    bottom: calc(100% + var(--s-2));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-pill);
+    color: var(--ink);
+    font: var(--t-label);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.bar .metronome-held {
+    bottom: auto;
+    top: calc(100% + var(--s-2));
+}
+
 /* "PDF" beside the page: what is open is the printed pages, not notes the app can play. */
 .pdf-reader .bar .pdf-tag {
     flex: none;
@@ -1359,14 +1412,15 @@ h1, h2, .app-title strong {
     font-weight: 600;
 }
 
-/* Verovio's header is hidden: it keeps the top margin the bar sits in, and the app sets the title in its own type. */
+/* Verovio's header is hidden: it keeps its room above the first system, and the app sets the title in its own type there,
+   a little higher as its type is larger, so a tempo mark over the first system stays clear of it (#521 section 13). */
 .score svg .pgHead {
     display: none;
 }
 
 .score-page .title-block {
     position: absolute;
-    top: 4.8%;
+    top: 3.6%;
     left: 8%;
     right: 8%;
     text-align: center;
@@ -1667,6 +1721,11 @@ h1, h2, .app-title strong {
 .roll .roll-fit {
     border-left: 1px solid var(--hairline);
     border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+/* Fit with Zoom Out after it (#521 2.2): Zoom Out ends the group, so Fit's right end is square. */
+.roll .roll-fit:has(+ .roll-fit:not([hidden])) {
+    border-radius: 0;
 }
 
 /* Import screen (Pages/Import.razor, N2): a drop zone over the native file input, then the report. */
@@ -2335,7 +2394,9 @@ h1:focus {
     background: var(--desk);
 }
 
-body:has(.workspace) .site-footer {
+/* The pages are #app's children and the footer follows them. Asked of the body with :has(), the question walked the whole
+   document on every change, a long score's tens of thousands of elements included (#419). */
+.workspace ~ .site-footer {
     display: none;
 }
 
@@ -2353,6 +2414,7 @@ body:has(.workspace) .site-footer {
 .lab.workspace .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--s-2);
     height: var(--h-control);
     padding: 0 var(--s-4);
@@ -2580,19 +2642,157 @@ body:has(.workspace) .site-footer {
     margin-left: var(--s-2);
 }
 
-/* Read the notes, from the overflow of a PDF not yet recognised. */
+/* Original PDF | Notes, and PDF | Notes where the bar is short of room. Measured on the notes view's bar, the fuller one, in
+   Russian: the long label takes 65px more, and the title keeps about 60px only from 860px across, or 1250px beside a sheet.
+   The PDF view follows the same widths, so the label does not change between the two views. */
+.view-switch .short {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .view-switch .long {
+        display: none;
+    }
+
+    .view-switch .short {
+        display: inline;
+    }
+}
+
+@media (orientation: landscape) and (max-width: 1250px) {
+    .workspace.insights-open .view-switch .long, .workspace.contents-open .view-switch .long {
+        display: none;
+    }
+
+    .workspace.insights-open .view-switch .short, .workspace.contents-open .view-switch .short {
+        display: inline;
+    }
+}
+
+@media (orientation: landscape) {
+    .workspace.insights-open.contents-open .view-switch .long {
+        display: none;
+    }
+
+    .workspace.insights-open.contents-open .view-switch .short {
+        display: inline;
+    }
+}
+
+/* Recognise notes in the bar of a PDF not yet recognised (Andrei, 2026-11-11): the notes icon and its word, with Pro on
+   Motiff Lab's server. Where the bar has no room for the word, the icon and Pro stay and the word is left to the name. */
+.pdf-reader .bar .act.recognise {
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pdf-reader .bar .act.recognise .tag.pro {
+    display: inline-flex;
+    align-items: center;
+    height: var(--s-6);
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* On a phone the PDF tag gives way too: Recognise notes says the same, that the notes are not read yet. */
+@media (max-width: 480px) {
+    .pdf-reader .bar:has(.recognise) .pdf-tag {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .pdf-reader .bar .act.recognise .lbl {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+/* The panel Recognise notes opens, under the bar of a PDF not yet recognised. */
 .workspace .recognise-popover {
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
     right: var(--s-4);
     width: min(22rem, calc(100% - 2 * var(--s-4)));
 }
 
-.recognise-popover label.consent {
+/* While a score's notes are read (v0.5.6, #533 section 1): a segment a page (or a piece, in the library's batch), filled
+   when its notes are back, marked as going on while it is read, empty while it waits; nothing fills by time alone. The
+   current segment of a batch fills by the pages of its piece read (--done). */
+.scan-progress {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.scan-progress .pages, .recognition-bar .pages {
     display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font: var(--t-label);
-    color: var(--ink);
+    gap: 2px;
+    height: var(--s-1);
+}
+
+.scan-progress .pages.dense, .recognition-bar .pages.dense {
+    gap: 0;
+}
+
+.scan-progress .page, .recognition-bar .page {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+}
+
+.scan-progress .pages.dense .page, .recognition-bar .pages.dense .page {
+    border-radius: 0;
+}
+
+.scan-progress .page.done, .recognition-bar .page.done {
+    background: var(--ink-2);
+}
+
+.scan-progress .page.current, .recognition-bar .page.current {
+    background: var(--hairline-strong);
+    animation: page-reading calc(4 * var(--t-slow)) var(--ease) infinite alternate;
+}
+
+.recognition-bar .page.current::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+}
+
+@keyframes page-reading {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0.45;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scan-progress .page.current, .recognition-bar .page.current {
+        animation: none;
+    }
+}
+
+.scan-progress .caption {
+    color: var(--ink-2);
+    font: var(--t-caption);
 }
 
 .recognise-popover .problem {
@@ -2749,6 +2949,22 @@ body:has(.workspace) .site-footer {
     transition: bottom var(--t-base) var(--ease);
 }
 
+/* Practice view (#533 11, Scripts/layout/practice-view.ts): the blue playhead of the selection goes, the black one of the piece
+   stays to drag; its own Play/Pause and Leave show for a few seconds after a tap on the score, where the pill sits. */
+.lab.workspace:is([data-practice="on"], [data-practice="reveal"]) .score .ph-sel {
+    visibility: hidden;
+}
+.lab.workspace .practice-controls {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--t-base) var(--ease), visibility 0s linear var(--t-base);
+}
+.lab.workspace[data-practice="reveal"] .practice-controls {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity var(--t-base) var(--ease);
+}
+
 /* Back to the place of playing: shown while the playhead is out of sight, above the pill when the pill is up. */
 .lab.workspace .back-to-play {
     position: absolute;
@@ -2855,15 +3071,183 @@ body:has(.workspace) .site-footer {
     transform: translateX(-50%) rotate(45deg);
 }
 
-/* The five tempo steps in one row. */
+/* A popover's choices in one row. */
 .workspace .pill .pill-popover .seg {
     flex-wrap: nowrap;
     white-space: nowrap;
 }
 
-.workspace .pill .pill-popover .tempo input {
+/* The tempo control (version 0.5.4, #511 section 17; version 0.5.5, #521 section 12): two sections, the piece tempo typed by a
+   tap on its number, and the playback pace with its − slider + by 1 % and coarse steps. */
+.workspace .pill .pill-popover:has(> .tempo-control) {
+    width: min(26rem, calc(100vw - 2 * var(--s-4)));
+}
+
+.workspace .pill .tempo-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    white-space: normal;
+}
+
+.workspace .pill .tempo-control :is(.tempo-head, .tempo-fine, .tempo-steps, .tempo-entry) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .pill .tempo-control .tempo-head {
+    justify-content: space-between;
+}
+
+.workspace .pill .tempo-control .tempo-section {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .pill .tempo-control .tempo-section + .tempo-section {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-3);
+}
+
+.workspace .pill .tempo-control .reset {
+    justify-self: start;
+}
+
+.workspace .pill .tempo-control .heading {
+    font: var(--t-heading);
+    color: var(--ink);
+}
+
+.workspace .pill .tempo-control .close {
+    width: var(--s-10);
+    height: var(--s-10);
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.workspace .pill .tempo-control .num {
+    display: grid;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+    text-align: start;
+    cursor: text;
+}
+
+.workspace .pill .tempo-control .num:disabled {
+    cursor: default;
+}
+
+.workspace .pill .tempo-control .num:hover:not(:disabled) {
+    background: var(--accent-tint);
+}
+
+.workspace .pill .tempo-control .num b {
+    font: var(--t-display);
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+.workspace .pill .tempo-control .num b span {
+    font: var(--t-title);
+    color: var(--ink-2);
+    margin-inline-start: var(--s-1);
+}
+
+.workspace .pill .tempo-control :is(.num small, .unit) {
+    font: var(--t-caption);
+    color: var(--ink-2);
+    margin: 0;
+}
+
+.workspace .pill .tempo-control .field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    flex: 1;
+    min-width: 0;
+    color: var(--ink-2);
+}
+
+.workspace .pill .tempo-control .field :is(.pre, .post) {
+    flex: none;
+    white-space: nowrap;
+}
+
+.workspace .pill .tempo-control .field input {
     width: 100%;
+    min-width: var(--s-12);
+    height: var(--s-10);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-title);
+    font-variant-numeric: tabular-nums;
+}
+
+.workspace .pill .tempo-control .tempo-fine input[type="range"] {
+    flex: 1;
+    min-width: 0;
     accent-color: var(--accent);
+}
+
+/* − and + are 44 px targets, held to repeat (hold-repeat.ts): no callout or text selection while held. */
+.workspace .pill .tempo-control .step {
+    flex: none;
+    width: calc(var(--s-10) + var(--s-1));
+    height: calc(var(--s-10) + var(--s-1));
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-title);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
+
+.workspace .pill .tempo-control .step:disabled {
+    color: var(--ink-3);
+    cursor: default;
+}
+
+.workspace .pill .tempo-control .tempo-steps {
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+.workspace .pill .tempo-control .tempo-steps .chip {
+    min-width: var(--s-10);
+    height: var(--s-8);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.workspace .pill .tempo-control .tempo-steps .chip.on {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+    font-weight: 600;
 }
 
 /* The piano roll drawer: up from the bottom, 40% of the height in landscape and 30% in portrait. The pill rides above it. */
@@ -2988,8 +3372,9 @@ body:has(.workspace) .site-footer {
 .lab.workspace :is(.drawer, .sheet, .focus-roll, .ask-pop) .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
+    justify-content: center;
+    gap: var(--s-2);
+    height: var(--h-compact);
     min-height: 0;
     padding: 0 var(--s-3);
     border-radius: var(--r-pill);
@@ -2997,6 +3382,8 @@ body:has(.workspace) .site-footer {
     background: var(--surface-2);
     color: var(--ink);
     font: var(--t-label);
+    /* A chip's label stays on one line (#432). */
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -3172,7 +3559,7 @@ body:has(.workspace) .site-footer {
     border-top: 1px solid var(--hairline);
 }
 
-/* Saved ideas are the app's composition: plum, as on the brackets and the focus card's chips. */
+/* Saved ideas are the app's composition: plum, as on the focus card's chips. */
 .lab.workspace .stream .chip.idea {
     background: var(--plum-tint);
     border-color: transparent;
@@ -3324,37 +3711,111 @@ body:has(.workspace) .site-footer {
     margin-top: var(--s-5);
 }
 
-/* The pen palette under the bar, while the pen is on: four inks, the highlighter, the eraser, undo and clear. */
+/* The pen palette under the bar, while the pen is on (#533 section 9): one card in two rows. The first stays put whatever
+   the tool: the tools, Undo, Redo, Clear, the layers and the cross; the second holds the chosen tool's colour and thickness,
+   or the eraser's one line, and keeps the room of the widest so the card never changes size under the finger. */
 .workspace .pen-palette {
     position: absolute;
     z-index: 5;
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
     right: var(--s-4);
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: var(--s-1);
     max-width: calc(100% - 2 * var(--s-4));
     padding: var(--s-1) var(--s-2);
     box-sizing: border-box;
-    border-radius: var(--r-pill);
+    border-radius: var(--r-l);
     background: var(--surface-2);
     border: 1px solid var(--hairline);
     box-shadow: var(--shadow-menu);
 }
 
-.lab.workspace .pen-palette .it {
-    display: inline-flex;
+.workspace .pen-palette .pen-row {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    height: 36px;
-    padding: 0 var(--s-3);
+    gap: var(--s-1);
+    margin: 0;
+}
+
+.workspace .pen-palette .pen-gap {
+    flex: 1 0 var(--s-2);
+}
+
+/* The chosen tool's row, under a hairline, as wide as the pencil's: four inks and three thicknesses. */
+.workspace .pen-palette .pen-settings {
+    min-width: calc(7 * var(--h-touch) + 3 * var(--s-1));
+    min-height: var(--h-touch);
+    padding-top: var(--s-1);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .pen-palette .pen-hint {
+    padding-left: var(--s-2);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The tools (ds.css .seg): three icons, the chosen one on the accent's strong tint. */
+.workspace .pen-palette .pen-tools {
+    display: inline-flex;
+    padding: 2px;
     border-radius: var(--r-pill);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+}
+
+.lab.workspace .pen-palette .pen-tool {
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-pill);
+    color: var(--ink-2);
     cursor: pointer;
 }
 
-.lab.workspace .pen-palette .it.on, .lab.workspace .pen-palette .it:hover:not(:disabled) {
+.lab.workspace .pen-palette .pen-tool.on {
+    background: var(--accent-tint-strong);
+    color: var(--ink);
+}
+
+.lab.workspace .pen-palette .pen-tool:hover:not(.on) {
     background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .it {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    border-radius: 50%;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.lab.workspace .pen-palette .it:hover:not(:disabled) {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .it:disabled {
+    opacity: .38;
+    cursor: default;
+}
+
+/* Redo is Undo's icon, mirrored. */
+.workspace .pen-palette .redo .ic {
+    transform: scaleX(-1);
+}
+
+/* The colours: a swatch each, the chosen one ringed in the accent. */
+.workspace .pen-palette .pen-colours {
+    display: inline-flex;
+    align-items: center;
 }
 
 .lab.workspace .pen-palette .ink-swatch {
@@ -3367,9 +3828,13 @@ body:has(.workspace) .site-footer {
     cursor: pointer;
 }
 
+.workspace .pen-palette span.ink-swatch {
+    cursor: default;
+}
+
 .workspace .pen-palette .ink-swatch span {
-    width: 20px;
-    height: 20px;
+    width: var(--icon-l);
+    height: var(--icon-l);
     border-radius: 50%;
     box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px var(--hairline-strong);
 }
@@ -3378,20 +3843,28 @@ body:has(.workspace) .site-footer {
     box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent);
 }
 
-.workspace .pen-palette .graphite span {
-    background: var(--ink-graphite);
+.workspace .pen-palette .graphite {
+    --tool-colour: var(--ink-graphite);
 }
 
-.workspace .pen-palette .carmine span {
-    background: var(--ink-carmine);
+.workspace .pen-palette .carmine {
+    --tool-colour: var(--ink-carmine);
 }
 
-.workspace .pen-palette .forest span {
-    background: var(--ink-forest);
+.workspace .pen-palette .forest {
+    --tool-colour: var(--ink-forest);
 }
 
-.workspace .pen-palette .ochre span {
-    background: var(--ink-ochre);
+.workspace .pen-palette .ochre {
+    --tool-colour: var(--ink-ochre);
+}
+
+.workspace .pen-palette .amber {
+    --tool-colour: var(--amber);
+}
+
+.workspace .pen-palette .ink-swatch span {
+    background: var(--tool-colour);
 }
 
 .workspace .pen-palette .div {
@@ -3401,47 +3874,52 @@ body:has(.workspace) .site-footer {
 }
 
 .workspace .pen-palette .caption {
-    padding: 0 var(--s-2);
+    margin: 0;
+    padding: 0 var(--s-2) var(--s-1);
+    max-width: calc(7 * var(--h-touch));
 }
 
-/* The thickness of the tool that draws: three dots, thin to thick, the chosen one ringed in the accent. */
+/* The thicknesses: a line each, as thick as the tool draws in proportion (the pencil's thickest a few pixels, the marker's
+   band wider), in the tool's colour; the chosen one ringed in the accent. */
 .workspace .pen-palette .widths {
     display: inline-flex;
     align-items: center;
+    --sample-max: var(--s-1);
+}
+
+.workspace .pen-palette .widths.marker {
+    --sample-max: var(--s-4);
 }
 
 .lab.workspace .pen-palette .width {
-    width: var(--h-control);
+    width: var(--h-touch);
     height: var(--h-touch);
     padding: 0;
     display: grid;
     place-items: center;
-    border-radius: var(--r-pill);
+    border-radius: 50%;
     cursor: pointer;
 }
 
-.workspace .pen-palette .width span {
-    border-radius: 50%;
-    background: var(--ink);
+.workspace .pen-palette .width .sample {
+    width: var(--icon-l);
+    height: max(1px, calc(var(--sample-max) * var(--share, 1)));
+    border-radius: var(--r-pill);
+    background: var(--tool-colour);
 }
 
-.workspace .pen-palette .width.w0 span {
-    width: 4px;
-    height: 4px;
+/* The inks keep their colour in the dark (pigment on paper): a hairline round each sample keeps the graphite in sight. */
+[data-theme="dark"] .workspace .pen-palette .width .sample {
+    box-shadow: 0 0 0 1px var(--hairline-strong);
 }
 
-.workspace .pen-palette .width.w1 span {
-    width: 8px;
-    height: 8px;
-}
-
-.workspace .pen-palette .width.w2 span {
-    width: 13px;
-    height: 13px;
-}
-
-.lab.workspace .pen-palette .width.on, .lab.workspace .pen-palette .width:hover {
+.lab.workspace .pen-palette .width:hover {
     background: var(--accent-tint);
+}
+
+.lab.workspace .pen-palette .width.on {
+    background: var(--accent-tint);
+    box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* The cross puts the tools away, as the bar's Pen action does. */
@@ -3452,94 +3930,12 @@ body:has(.workspace) .site-footer {
     display: grid;
     place-items: center;
     border-radius: 50%;
+    color: var(--ink-2);
     cursor: pointer;
 }
 
 .lab.workspace .pen-palette .close:hover {
     background: var(--accent-tint);
-}
-
-/* Phrase brackets (0018 section 3, design/kit/ds.css .bracket): pencil over the top staff, numbered at the left end, the
-   selected one in the accent, a plum dot where ideas were kept. Each is a button with a hit area taller than its line. */
-.lab .score button.bracket {
-    position: absolute;
-    z-index: 1;
-    height: 9px;
-    min-height: 0;
-    padding: 0;
-    box-sizing: border-box;
-    background: transparent;
-    border: 1.25px solid var(--ink-graphite);
-    border-bottom: 0;
-    border-radius: 2px 2px 0 0;
-    opacity: 0.75;
-    cursor: pointer;
-}
-
-.lab .score button.bracket::before {
-    content: "";
-    position: absolute;
-    inset: -16px -2px -3px;
-}
-
-.lab .score button.bracket:hover:not(:disabled) {
-    opacity: 1;
-    border-color: var(--ink-graphite);
-}
-
-.lab .score button.bracket.on {
-    opacity: 1;
-    border-width: 1.5px;
-    border-bottom: 0;
-    border-color: var(--accent);
-}
-
-.lab .score button.bracket.from {
-    border-left: 0;
-    border-top-left-radius: 0;
-}
-
-.lab .score button.bracket.on-to {
-    border-right: 0;
-    border-top-right-radius: 0;
-}
-
-/* On the Slate page the graphite pencil is all but lost on the dark paper: the brackets and their numbers take the page's
-   own ink at the same weight. */
-[data-theme="dark"][data-page="slate"] .lab .score button.bracket:not(.on) {
-    border-color: var(--notation);
-}
-
-[data-theme="dark"][data-page="slate"] .score .bracket:not(.on) .n {
-    color: var(--notation);
-}
-
-.score .bracket .n {
-    position: absolute;
-    left: -2px;
-    top: -16px;
-    font: 600 11px/14px var(--font-ui);
-    color: var(--ink-graphite);
-}
-
-.score .bracket.on .n {
-    color: var(--accent);
-}
-
-.score .bracket .dot {
-    position: absolute;
-    right: -3px;
-    top: -8px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--plum);
-}
-
-.lab .score button.bracket:focus-visible {
-    box-shadow: none;
-    outline: 2px dotted var(--accent);
-    outline-offset: 3px;
 }
 
 /* The selection (0018 section 3, design/kit/ds.css .band, .handle): a cobalt band over the selected bars on each
@@ -3797,11 +4193,13 @@ body:has(.workspace) .site-footer {
     max-height: 100%;
     overflow-y: auto;
     overscroll-behavior: contain;
-    /* Room for the step buttons inside the card's edges. */
-    margin: 0 calc(var(--h-touch) + var(--s-2));
+    /* Expand shows the passage alone: no arrows to another phrase at its edges (#521 19). */
+    margin: 0 var(--s-3);
 }
 
-.workspace .focus-card svg {
+/* The phrase's notation only: the icons in the card's buttons and in the focus roll's head keep their own size and line
+   (#432: the Edit notes pen, drawn the card's width and filled, crossed the roll's head as a black stripe). */
+.workspace .focus-card .phrase-card-score svg {
     display: block;
     width: 100%;
     height: auto;
@@ -3809,16 +4207,16 @@ body:has(.workspace) .site-footer {
     fill: currentColor;
 }
 
-.workspace .focus-card svg use {
+.workspace .focus-card .phrase-card-score svg use {
     fill: currentColor;
 }
 
-.workspace .focus-card svg [color]:not(.playing) {
+.workspace .focus-card .phrase-card-score svg [color]:not(.playing) {
     color: inherit !important;
 }
 
 /* The ossia's name is the overline on its frame, not Verovio's label at its left. */
-.workspace .focus-card svg g.label {
+.workspace .focus-card .phrase-card-score svg g.label {
     display: none;
 }
 
@@ -3857,8 +4255,7 @@ body:has(.workspace) .site-footer {
     text-transform: uppercase;
 }
 
-/* The phrase as a roll in the card (testing item 12): the card takes the stage's height and the roll fills it, between
-   previous and next. */
+/* The phrase as a roll in the card (testing item 12): the card takes the stage's height and the roll fills it. */
 .workspace .focus-card:has(.focus-roll) {
     flex: 1;
 }
@@ -3868,48 +4265,10 @@ body:has(.workspace) .site-footer {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding: var(--s-3) calc(var(--h-touch) + var(--s-2));
+    padding: var(--s-3);
     background: var(--surface);
     color: var(--ink);
     border-radius: inherit;
-}
-
-/* Previous and next: 44 px round buttons inside the card's edges. */
-.lab.workspace .focus-card .step {
-    position: absolute;
-    top: 50%;
-    width: var(--h-touch);
-    height: var(--h-touch);
-    min-height: 0;
-    margin-top: calc(var(--h-touch) / -2);
-    padding: 0;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    border: 1px solid var(--hairline-strong);
-    background: var(--surface-2);
-    color: var(--ink);
-    box-shadow: var(--shadow-menu);
-    cursor: pointer;
-    z-index: 1;
-}
-
-.lab.workspace .focus-card .step.prev {
-    left: var(--s-1);
-}
-
-.lab.workspace .focus-card .step.next {
-    right: var(--s-1);
-}
-
-.lab.workspace .focus-card .step:disabled {
-    opacity: 0.4;
-    cursor: default;
-}
-
-.lab.workspace .focus-card .step:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
 }
 
 /* The kept variations (design/kit/ds.css, Ossia panel): 24 px plum-tinted chips that pick the one shown. */
@@ -4025,7 +4384,7 @@ body:has(.workspace) .site-footer {
 .workspace .ink-graphite { --mark: var(--ink-graphite); }
 .workspace .ink-ochre { --mark: var(--ink-ochre); }
 
-/* Bookmarks on the score (design/kit/ds.css .bmb): a bracket in the category's ink above the phrase brackets, the title
+/* Bookmarks on the score (design/kit/ds.css .bmb): a bracket in the category's ink above the top staff, the title
    in italic serif at its left end; overlapping ones stack. Each is a button with a hit area over its title and line. */
 .lab .score button.bmb {
     position: absolute;
@@ -4358,6 +4717,152 @@ body:has(.workspace) .site-footer {
     color: var(--ink-2);
 }
 
+/* Automatic bookmarks (an experiment): proposals, not the player's marks, so they are dashed and neutral like any inference,
+   never amber or a category's ink, with the tag "found automatically" and the facts they rest on. */
+.workspace .contents .found-sections .found-entry {
+    display: grid;
+    gap: var(--s-1);
+    justify-items: start;
+    padding: var(--s-1) var(--s-1) var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-s);
+}
+
+.workspace .contents .found-sections .found-entry + .found-entry {
+    margin-top: var(--s-1);
+}
+
+.workspace .contents .found-sections .entry {
+    width: 100%;
+}
+
+.workspace .contents .found-sections .entry .why {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .found-sections .found-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    margin-left: var(--s-3);
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--hairline);
+    color: var(--ink-2);
+    font: var(--t-caption);
+}
+
+.workspace .contents .found-sections .found-actions,
+.workspace .contents .found-sections .found-move {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 0 var(--s-2);
+}
+
+.lab.workspace .contents .found-sections .found-actions .btn {
+    padding: 0 var(--s-2);
+}
+
+.workspace .contents .found-sections .found-move label {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.workspace .contents .found-sections .found-move input {
+    width: calc(var(--s-12) + var(--s-4));
+    height: var(--h-compact);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+}
+
+/* Pieces in a file (an experiment): the Structure bookmarks listed as pieces to make, each ticked, titled and with its
+   bars (and its stretch of a recording), the playlist above them; after the split, one line and the pieces made. */
+.workspace .contents .piece-parts .parts-form {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .contents .piece-parts .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.workspace .contents .piece-parts .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts input[type=text],
+.workspace .contents .piece-parts select {
+    min-width: 0;
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .contents .piece-parts input[type=text]:disabled {
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts .parts-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .contents .piece-parts .part-row {
+    display: grid;
+    gap: var(--s-1);
+    padding: var(--s-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+}
+
+.workspace .contents .piece-parts .part-row .check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.workspace .contents .piece-parts .part-row .c,
+.workspace .contents .piece-parts .entry .c {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts .entry {
+    display: grid;
+    padding: var(--s-1) var(--s-2);
+}
+
+.workspace .contents .piece-parts .parts-done {
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.workspace .contents .piece-parts .parts-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+}
+
 /* The Pages tab: the pages as thumbnails on paper, with the phrases that start on each and a tick per bookmark. */
 .workspace .contents .pages-strip {
     list-style: none;
@@ -4479,7 +4984,7 @@ body:has(.workspace) .site-footer {
 .lab .score.hide-ink .pencil-layer,
 .lab .score.hide-notes :is(button.marker, div.hl),
 .lab .score.hide-bookmarks button.bmb,
-.lab .score.hide-analysis :is(button.bracket, .highlight-mark),
+.lab .score.hide-analysis .highlight-mark,
 .lab .score.hide-check button.check-flag {
     display: none;
 }
@@ -4564,14 +5069,6 @@ body:has(.workspace) .site-footer {
     padding: var(--s-3);
     border-radius: var(--r-m);
     background: var(--surface-2);
-}
-
-.workspace .perf-sheet .recognise-inline label.consent {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font: var(--t-label);
-    color: var(--ink);
 }
 
 .workspace .perf-sheet .recognise-inline .problem {
@@ -4685,6 +5182,36 @@ body:has(.workspace) .site-footer {
 .workspace .check-sheet .tag.warn {
     background: var(--amber-tint);
     color: var(--ink);
+}
+
+/* The summary by page of a scan the server reported on (v0.4), in the Check sheet and after a scan is read. */
+.scan-pages ul.warnings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.scan-pages ul.warnings li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.scan-pages .tag.warn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--amber-tint);
+    color: var(--ink);
+    font: var(--t-caption);
+    font-weight: 600;
 }
 
 .workspace .check-sheet .row {
@@ -4832,9 +5359,10 @@ body:has(.workspace) .site-footer {
 }
 
 /* ---------------------------------------------------------------------------------------------------------------------
-   The library (decision record 0018 section 9; design/kit/screens/s1_library.png, ds.css .card): the wordmark, Add piece,
-   the overflow and the account; the pieces as cards with their first page, three across in landscape and two in portrait;
-   the dashed Add a piece card; Add piece and a piece's resume points as sheets over the shelf.
+   The library (decision record 0018 section 9; version 0.2, ux-prototype/v2/screens/lib-1-list.png to lib-4-props.png): its
+   name, the search, Add piece, the overflow and the account; the tabs and filters; the list of pieces with its columns and
+   the index; the sessions as cards with their first page, three across in landscape and two in portrait; the dashed Add a
+   piece card of the empty library; Add piece, a piece's properties and its resume points as sheets over the shelf.
    --------------------------------------------------------------------------------------------------------------------- */
 .lab.library {
     position: relative;
@@ -4842,11 +5370,11 @@ body:has(.workspace) .site-footer {
     padding: var(--s-10) var(--s-10) var(--s-8);
 }
 
-body:has(.library) {
+body:has(> #app > .library) {
     background: var(--desk);
 }
 
-body:has(.library) .site-footer {
+.library ~ .site-footer {
     max-width: 1280px;
     padding: 0 var(--s-10) var(--s-8);
 }
@@ -4947,7 +5475,7 @@ body:has(.library) .site-footer {
     border-left: 3px solid var(--amber);
 }
 
-/* The header: "Motiff Lab" in the serif with the italic tagline, then Add piece, ••• and the account. */
+/* The header: "Library" in the serif, then the search, Add piece, ••• and the account. */
 .library .lib-head {
     display: flex;
     flex-wrap: wrap;
@@ -4956,30 +5484,18 @@ body:has(.library) .site-footer {
     gap: var(--s-4);
 }
 
-.library .brand {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--s-2) var(--s-5);
-}
-
-.library h1.wordmark {
+.library .lib-head h1 {
     margin: 0;
     font: var(--t-display);
-    font-size: 40px;
-    line-height: 48px;
     color: var(--ink);
-}
-
-.library .tagline {
-    margin: 0;
-    font: italic 400 20px/26px var(--font-display);
-    color: var(--ink-2);
 }
 
 .library .lib-actions {
     display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--s-3);
 }
 
@@ -5144,6 +5660,541 @@ body:has(.library) .site-footer {
     color: var(--ink);
 }
 
+/* The player's own tags on a card or a row: neutral, since cobalt points, plum is the app's and amber is Check's. */
+.library .tag.own {
+    border: 1px solid var(--hairline);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-weight: 500;
+}
+
+/* Where a piece's original is when it is not here (version 0.3): neutral and dashed, a fact about the device, not a mark. */
+.library .tag.held {
+    border: 1px dashed var(--hairline-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-weight: 500;
+}
+
+.library .lib-table .col-title .tag.held {
+    margin-inline-start: var(--s-2);
+    vertical-align: middle;
+}
+
+/* What a piece holds (v0.5.6, #533 section 10): small neutral icons in a row, PDF, notes, recording, then the others. */
+.library .sources {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    color: var(--ink-2);
+    vertical-align: middle;
+}
+
+.library .sources .source {
+    display: inline-flex;
+}
+
+.library .lib-table .col-title .sources {
+    margin-inline-start: var(--s-2);
+}
+
+.library .card .what .sources {
+    align-self: flex-start;
+}
+
+/* The search in the header (version 0.2, lib-1-list.png): the field shows the focus, once. */
+.library .lib-head .search {
+    display: flex;
+    flex: 0 1 24rem;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 12rem;
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    color: var(--ink-2);
+}
+
+.library .lib-head .search:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring);
+}
+
+.library .lib-head .search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+    outline: none;
+}
+
+.library .lib-head .search input:focus-visible {
+    box-shadow: none;
+}
+
+/* The tabs (ds.css .tabs) with the filters at their right; on a narrow screen the filters go under them. */
+.library .lib-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-4);
+    margin-top: var(--s-6);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.library .lib-tabs .tabs {
+    display: flex;
+    gap: var(--s-5);
+    overflow-x: auto;
+}
+
+.library .lib-tabs .tab {
+    min-height: var(--h-touch);
+    border-radius: 0;
+    margin-bottom: -1px;
+    padding: var(--s-3) 0;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-label);
+    font-size: 15px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .lib-tabs .tab.on {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.library .lib-tabs .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding-bottom: var(--s-2);
+}
+
+.library .lib-filter {
+    position: relative;
+}
+
+.library .lib-filter .lib-menu {
+    left: auto;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.library .lib-filter .lib-menu .mark {
+    display: inline-grid;
+    width: var(--s-5);
+    color: var(--accent);
+}
+
+.library .lib-filter .lib-menu .btn.picked {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.library .chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-1);
+    height: var(--h-compact);
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .chip.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
+.library .lib-none {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-4);
+}
+
+/* A composer or playlist opened on its tab: the way back to all of them, and its name. */
+.library .lib-picked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+}
+
+.library .lib-picked .ttl {
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+/* The panel under the tabs; with the index at its right edge while the list is in order from A. */
+.library .lib-panel {
+    position: relative;
+    margin-top: var(--s-2);
+}
+
+.library .lib-panel.indexed {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--s-2);
+}
+
+.library .lib-panel > .lib-grid {
+    margin-top: var(--s-4);
+}
+
+/* The list of pieces (lib-1-list.png): the column headings in small capitals, a line a piece in the serif. */
+.library .lib-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.library .lib-table th, .library .lib-table td {
+    padding: 0 var(--s-3);
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .lib-table thead th {
+    height: var(--h-control);
+    border-bottom: 1px solid var(--hairline);
+    font-weight: 400;
+}
+
+.library .lib-table .head {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.library .lib-table span.head {
+    cursor: default;
+}
+
+.library .lib-table .head.on {
+    color: var(--ink);
+}
+
+.library .lib-table .col-title {
+    width: 40%;
+}
+
+.library .lib-table .col-composer {
+    width: 20%;
+}
+
+.library .lib-table .col-playlists {
+    width: 22%;
+}
+
+.library .lib-table .col-opened {
+    width: 18%;
+    text-align: right;
+}
+
+.library .lib-table .col-more {
+    width: calc(var(--h-touch) + var(--s-3));
+    padding: 0;
+    overflow: visible;
+}
+
+.library .lib-table tbody tr {
+    height: var(--s-12);
+    border-bottom: 1px solid var(--hairline);
+    cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--s-12);
+}
+
+.library .lib-table tbody tr:hover, .library .lib-table tbody tr.menu-open {
+    background: var(--surface);
+    content-visibility: visible;
+}
+
+/* An open ••• menu stands over the clear scrim that closes it. */
+.library .lib-table tbody tr.menu-open {
+    position: relative;
+    z-index: 3;
+}
+
+.library .lib-table tbody th {
+    font-weight: 400;
+}
+
+.library .lib-table .ttl {
+    max-width: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 18px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .lib-table td {
+    color: var(--ink-2);
+    font: var(--t-body);
+}
+
+.library .lib-table td.col-opened {
+    font: var(--t-caption);
+}
+
+.library .lib-table .card-more {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* The Composers and Playlists tabs: a line each, its name and how many pieces, the way into it at the right. */
+.library .lib-groups {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .lib-groups .group {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    width: 100%;
+    min-height: var(--s-12);
+    padding: 0 var(--s-3);
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.library .lib-groups .group:hover {
+    background: var(--surface);
+}
+
+.library .lib-groups .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The index at the right edge, staying in view as the list scrolls: a letter a line, small; the Cyrillic letters, when there
+   are any, in a column of their own. */
+.library .lib-index {
+    position: sticky;
+    top: var(--s-4);
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(26, var(--s-6));
+    padding-top: var(--h-control);
+}
+
+.library .lib-index button {
+    width: var(--s-6);
+    min-height: 0;
+    height: var(--s-6);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-overline);
+    cursor: pointer;
+}
+
+.library .lib-index button:hover {
+    color: var(--accent);
+}
+
+/* A piece's properties (lib-4-props.png): the title and Done, then the fields one under another; the composers already in the
+   library under the composer while typing; the tags as chips with their ✕ and a dashed «+ tag»; the playlists ticked. */
+.library .props-sheet .hd {
+    align-items: center;
+}
+
+.library .props-sheet .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.library .props-sheet .caption {
+    font: var(--t-label);
+}
+
+.library .props-sheet input[type=text] {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--paper);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .props-sheet input[type=text]:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .props-sheet .suggest {
+    margin: 0;
+    padding: var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-menu);
+    list-style: none;
+}
+
+.library .props-sheet .suggest button {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.library .props-sheet .suggest button:hover, .library .props-sheet .suggest button:focus-visible {
+    background: var(--accent-tint);
+}
+
+.library .props-sheet .suggest .name {
+    flex: 1;
+}
+
+.library .props-sheet .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .props-sheet li.chip {
+    height: var(--h-control);
+    padding: 0 0 0 var(--s-4);
+    background: var(--surface-2);
+    cursor: default;
+}
+
+.library .props-sheet .chip-x {
+    display: grid;
+    place-items: center;
+    width: var(--h-control);
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.library .props-sheet .chip.add {
+    height: var(--h-control);
+    border-style: dashed;
+    background: transparent;
+    color: var(--ink-2);
+}
+
+.library .props-sheet input.chip-input {
+    width: 12rem;
+    height: var(--h-control);
+    border-color: var(--accent);
+    border-radius: var(--r-pill);
+}
+
+.library .props-sheet .playlists .check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-control);
+    color: var(--ink);
+    font: var(--t-body);
+    cursor: pointer;
+}
+
+.library .props-sheet .playlists input[type=checkbox] {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.library .props-sheet .new-playlist {
+    align-self: flex-start;
+    color: var(--accent);
+}
+
+/* A long shelf costs little: a card off screen is not laid out or painted until it scrolls near. */
+.library .card.piece {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+}
+
+/* An open ••• menu reaches out of its card, which containment would cut. */
+.library .card.piece.menu-open {
+    content-visibility: visible;
+}
+
 .library .card .rule {
     height: 1px;
     margin: var(--s-2) 0 var(--s-2);
@@ -5303,7 +6354,8 @@ body:has(.library) .site-footer {
     cursor: progress;
 }
 
-.library .route .ic {
+/* The round behind a route's icon; the icon inside it keeps its own size (it is an .ic too). */
+.library .route > .ic {
     display: grid;
     place-items: center;
     width: 40px;
@@ -5400,26 +6452,31 @@ body:has(.library) .site-footer {
     align-items: flex-end;
 }
 
-/* In portrait the tagline gives way, so the wordmark and the actions share one line. */
-@media (max-width: 960px) {
-    .library .tagline {
-        display: none;
-    }
-}
-
 /* Phones: the header wraps, the gutters narrow; Add piece and the resume points rise from the bottom. */
 @media (max-width: 760px) {
     .lab.library {
         padding: var(--s-6) var(--s-4);
     }
 
-    body:has(.library) .site-footer {
+    .library ~ .site-footer {
         padding: 0 var(--s-4) var(--s-6);
     }
 
-    .library h1.wordmark {
-        font-size: 32px;
-        line-height: 38px;
+    .library .lib-head .search {
+        flex: 1 1 100%;
+        order: 1;
+    }
+
+    .library .lib-table .col-playlists, .library .lib-table .col-composer {
+        display: none;
+    }
+
+    .library .lib-table .col-title {
+        width: 60%;
+    }
+
+    .library .lib-table .col-opened {
+        width: 40%;
     }
 
     .library .lib-sheet {
@@ -5515,6 +6572,12 @@ body:has(.library) .site-footer {
     overflow-y: auto;
 }
 
+/* A row's own min-height replaces the flex item's automatic minimum, so in a pane taller than the sheet the rows would
+   shrink below their text and a long hint would run over the next row: rows keep their height and the pane scrolls. */
+.lab .settings-sheet .settings-pane > * {
+    flex-shrink: 0;
+}
+
 .lab .settings-sheet .settings-head {
     display: flex;
     align-items: center;
@@ -5559,6 +6622,29 @@ body:has(.library) .site-footer {
     color: var(--ink-2);
 }
 
+/* Settings · About: which build this is, selectable to copy; the test site's mark as the iPad shows it. */
+.lab .settings-sheet .about-value {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    user-select: text;
+}
+
+.lab .settings-sheet .env-mark {
+    padding: var(--s-1) var(--s-2);
+    border: 1px solid var(--danger);
+    border-radius: var(--r-xs);
+    font: var(--t-label);
+    color: var(--danger);
+}
+
+.lab .settings-sheet .test-library .problem {
+    color: var(--danger);
+}
+
 .lab :is(.settings-sheet, .popover) .set-row .row-hint {
     flex: 1 0 100%;
     margin-top: calc(-1 * var(--s-2));
@@ -5567,6 +6653,7 @@ body:has(.library) .site-footer {
 .lab .settings-sheet .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
 }
 
 .lab .settings-sheet .seg.presets {
@@ -7666,6 +8753,29 @@ body:has(.library) .site-footer {
     font: var(--t-caption);
 }
 
+/* Where an original's bytes are (version 0.3): one quiet line, dashed when they are on no device here. */
+.workspace .source-card .held {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .source-card .held.where-onipad,
+.workspace .source-card .held.where-inbrowser,
+.workspace .source-card .held.where-nowhere {
+    justify-self: start;
+    padding: 0 var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-xs);
+}
+
+.workspace .perf-sheet .local-first {
+    margin: var(--s-2) 0 0;
+    color: var(--ink-2);
+}
+
 .workspace .source-details {
     display: grid;
     gap: var(--s-2);
@@ -8084,4 +9194,2636 @@ body:has(.library) .site-footer {
 
 .workspace .marker-pop .overline {
     margin: 0 0 var(--s-2);
+}
+
+/* The Reference (an experiment, Settings · Experimental): the circle of fifths over the library or the score. The key
+   signatures first, then the circle and the key's card side by side, or one under the other on a narrow screen. Cobalt is
+   the key chosen and its relative (pointing); the piece's key is outlined in ink, dashed when assumed. */
+.ref-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--dim);
+}
+
+.ref-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    width: min(960px, calc(100vw - 2 * var(--s-4)));
+    max-height: calc(100vh - 2 * var(--s-4));
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-sheet);
+    color: var(--ink);
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+}
+
+.ref-sheet:focus {
+    outline: none;
+}
+
+.ref-sheet :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.ref-sheet .ref-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-6) var(--s-2);
+}
+
+.ref-sheet h2 {
+    margin: 0;
+    font: var(--t-title);
+}
+
+.ref-sheet .ref-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    padding: 0 var(--s-6) var(--s-6);
+    overflow-y: auto;
+}
+
+.ref-sheet .overline {
+    margin: 0;
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.ref-sheet .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.ref-sheet .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    min-height: var(--h-compact);
+    padding: 0 var(--s-3);
+    border: 1px solid transparent;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.ref-sheet .btn:hover {
+    background: var(--accent-tint);
+}
+
+.ref-sheet .btn.icon {
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    justify-content: center;
+}
+
+.ref-sheet .ref-lookup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-signatures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-sig {
+    min-width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body-strong);
+    cursor: pointer;
+}
+
+.ref-sheet .ref-sig:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-sig[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.ref-sheet .ref-main {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.2fr);
+    gap: var(--s-6);
+    align-items: start;
+}
+
+@media (max-width: 700px) {
+    .ref-sheet .ref-main {
+        grid-template-columns: 1fr;
+    }
+
+    .ref-sheet .ref-head, .ref-sheet .ref-body {
+        padding-left: var(--s-4);
+        padding-right: var(--s-4);
+    }
+}
+
+.ref-sheet .ref-circle-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-circle {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.ref-circle .ref-key path {
+    fill: var(--surface-2);
+    stroke: var(--hairline-strong);
+    stroke-width: 0.6;
+    cursor: pointer;
+}
+
+.ref-circle .ref-key.minor path {
+    fill: var(--surface);
+}
+
+.ref-circle .ref-key path:hover {
+    fill: var(--accent-tint);
+}
+
+.ref-circle .ref-key path:focus-visible {
+    outline: none;
+    stroke: var(--focus-ring);
+    stroke-width: 2;
+}
+
+.ref-circle .ref-key.pair path {
+    fill: var(--accent-tint);
+}
+
+.ref-circle .ref-key.on path {
+    fill: var(--accent-tint-strong);
+    stroke: var(--accent);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-key.piece path {
+    stroke: var(--ink);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-key.piece.inferred path {
+    stroke-dasharray: 4 3;
+}
+
+.ref-circle text {
+    fill: var(--ink);
+    font-family: var(--font-ui);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.ref-circle .ref-key.major text {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ref-circle .ref-key.minor text {
+    font-size: 9.5px;
+}
+
+.ref-circle .ref-sign {
+    fill: var(--ink-2);
+    font-size: 8px;
+}
+
+.ref-sheet .ref-piece-key {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-piece-mark {
+    width: var(--s-4);
+    height: var(--s-3);
+    border: 1.5px dashed var(--ink);
+    border-radius: var(--r-xs);
+}
+
+.ref-sheet .ref-choose {
+    align-self: center;
+}
+
+.ref-sheet .ref-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.ref-sheet .ref-name {
+    margin: 0;
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-related li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+.ref-sheet .ref-related .btn.quiet {
+    color: var(--accent);
+}
+
+.ref-sheet .ref-signature {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.ref-sheet .ref-staff {
+    height: var(--s-12);
+    flex: none;
+    color: var(--notation);
+}
+
+.ref-staff line {
+    stroke: currentColor;
+    stroke-width: 0.8;
+}
+
+.ref-staff text {
+    fill: currentColor;
+    dominant-baseline: central;
+}
+
+.ref-staff .clef {
+    font-size: 34px;
+    dominant-baseline: auto;
+}
+
+.ref-staff .accidental {
+    font-size: 13px;
+    text-anchor: middle;
+}
+
+.ref-sheet .ref-signature-line {
+    margin: 0;
+    font: var(--t-body);
+}
+
+.ref-sheet .ref-sounds {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-sound {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: var(--s-1) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ref-sheet .ref-sound:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-sound[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--ink);
+}
+
+.ref-sheet .ref-sound-title {
+    font: var(--t-body-strong);
+}
+
+.ref-sheet .ref-notes {
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-numeral {
+    min-width: var(--s-8);
+    font: var(--t-body-strong);
+    font-family: var(--font-display);
+}
+
+.ref-sheet .ref-function {
+    margin-left: auto;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The function's colour on the chord's edge, as Piece DNA colours functions; the text stays ink. */
+.ref-sheet .ref-chords .ref-sound {
+    border-left-width: var(--s-1);
+}
+
+.ref-sheet .ref-chords .fn-tonic {
+    border-left-color: var(--fn-t);
+}
+
+.ref-sheet .ref-chords .fn-subdominant {
+    border-left-color: var(--fn-s);
+}
+
+.ref-sheet .ref-chords .fn-dominant {
+    border-left-color: var(--fn-d);
+}
+
+.ref-sheet .ref-keyboard {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+}
+
+.ref-keyboard rect {
+    stroke: var(--ink-2);
+    stroke-width: 0.6;
+}
+
+.ref-keyboard .white {
+    fill: var(--paper);
+}
+
+.ref-keyboard .black {
+    fill: var(--ink);
+}
+
+.ref-keyboard .on {
+    fill: var(--accent);
+}
+
+/* Keys | Chords | Scales at the top of the Reference. */
+.ref-sheet .ref-modes {
+    align-self: flex-start;
+}
+
+/* A key's card, and under it the own card of the scale or chord last tapped on it. */
+.ref-sheet .ref-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+}
+
+.ref-sheet .ref-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet .ref-lookup + .ref-detail {
+    padding-top: 0;
+    border-top: 0;
+}
+
+/* A chord symbol keeps its case: F♯m7 is not F♯M7. */
+.ref-sheet .ref-detail-name {
+    margin: 0;
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-detail-kind {
+    margin-left: var(--s-2);
+    font: var(--t-body);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-form {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+    cursor: pointer;
+}
+
+.ref-sheet .ref-form:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-form[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+/* Degrees over notes, one column a tone. */
+.ref-sheet .ref-formula {
+    border-collapse: collapse;
+    font: var(--t-body);
+}
+
+.ref-sheet .ref-formula th {
+    padding: var(--s-1) var(--s-3) var(--s-1) 0;
+    font: var(--t-caption);
+    text-align: left;
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-formula td {
+    min-width: var(--s-8);
+    padding: var(--s-1) var(--s-2);
+    text-align: center;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-formula .ref-degree {
+    font: var(--t-body-strong);
+}
+
+.ref-sheet .ref-positions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-position {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+    min-height: var(--h-touch);
+    padding: var(--s-1) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+.ref-sheet .ref-position-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-figure {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-position-play {
+    display: inline-flex;
+    gap: var(--s-1);
+    margin-left: auto;
+}
+
+.ref-sheet .btn.ref-play[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
+/* Circle in the score's bar is a word, not an icon: its own width. */
+.lab.workspace .bar .act.ref-act {
+    width: auto;
+    padding: 0 var(--s-2);
+    font: var(--t-label);
+}
+
+/* Several pieces in a score or recording (an experiment, version 0.5): the review of where the pieces begin. A boundary
+   music-core found stays dashed like any inference; the player's own (added, or confirmed before) is drawn solid. */
+.workspace .contents .pieces-review .found-entry.mine {
+    border-style: solid;
+}
+
+.workspace .contents .pieces-review .piece-title {
+    width: 100%;
+    min-width: 0;
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .contents .pieces-review > .caption {
+    margin: 0 0 var(--s-2);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .pieces-review .found-move {
+    margin-top: var(--s-2);
+}
+
+.workspace .contents .pieces-review .parts-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+}
+
+/* «В записи несколько пьес» under the report of a recording heard, with how many. */
+.import .several-pieces {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.import .several-pieces .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.import .several-pieces input[type=number] {
+    width: calc(var(--s-12) + var(--s-4));
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+/* A piece split from a recording (an experiment, version 0.5): its own sound or its notes. */
+.workspace .contents .piece-sound .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+}
+
+/* Check by pieces (an experiment, version 0.5): one row a piece of the pieces layer above the bars to check. */
+.workspace .check-sheet .check-pieces {
+    margin-bottom: var(--s-3);
+}
+
+/* «Справочник» (version 0.5, experimental.harmony; Andrei approved the mockup 2026-11-12): the Reference's three tabs in one
+   dialog. Every control centres its text (and icon and text) both ways, as design/kit/ds.css builds them. */
+.ref-sheet.handbook {
+    width: min(1180px, calc(100vw - 2 * var(--s-4)));
+    height: min(820px, calc(100vh - 2 * var(--s-4)));
+    max-height: none;
+}
+
+.ref-sheet.handbook .ref-head {
+    justify-content: flex-start;
+    gap: var(--s-5);
+    padding: var(--s-3) var(--s-4) var(--s-3) var(--s-6);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-head .btn.icon {
+    margin-left: auto;
+}
+
+.ref-sheet.handbook .ref-tabs > button {
+    min-height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-label);
+    font-size: 15px;
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-body {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.ref-sheet.handbook :is(.btn, .chip, .seg > button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .btn.primary {
+    min-height: var(--h-touch);
+    padding: 0 var(--s-5);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 15px;
+}
+
+.ref-sheet.handbook .btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.ref-sheet.handbook .btn.secondary {
+    min-height: var(--h-touch);
+    padding: 0 var(--s-5);
+    border-color: var(--hairline-strong);
+    background: var(--surface-2);
+    font-size: 15px;
+}
+
+.ref-sheet.handbook .btn.secondary.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.ref-sheet.handbook .chip {
+    min-width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0 var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .chip:hover {
+    border-color: var(--accent);
+}
+
+/* The tint laid on white, not on the sheet, so the cobalt name keeps its contrast (WCAG AA). */
+.ref-sheet.handbook .chip[aria-pressed=true] {
+    border-color: var(--accent);
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Аккорды и гаммы: what sounds on the left, the result and how it sounds on the right. */
+.ref-sheet.handbook .ref-cs {
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    height: 100%;
+}
+
+.ref-sheet.handbook .ref-material {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5) var(--s-6);
+    border-right: 1px solid var(--hairline);
+    overflow-y: auto;
+}
+
+.ref-sheet.handbook .ref-kind {
+    display: flex;
+    width: 100%;
+    margin-bottom: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-kind > button {
+    flex: 1;
+    min-height: var(--h-compact);
+}
+
+.ref-sheet.handbook .ref-roots {
+    display: grid;
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+    gap: var(--s-2) var(--s-1);
+}
+
+.ref-sheet.handbook .ref-roots .chip {
+    min-width: 0;
+    padding: 0;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-roots .chip.natural {
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-roots .chip[aria-pressed=true] {
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet.handbook .ref-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    min-width: 0;
+    padding: var(--s-5) var(--s-6);
+    overflow-y: auto;
+}
+
+/* The result scrolls; its notation and panels keep their height instead of shrinking under what follows. */
+.ref-sheet.handbook .ref-result > * {
+    flex-shrink: 0;
+}
+
+.ref-sheet.handbook .ref-result-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-5);
+}
+
+/* The result's name over the library (.lab h3 is an overline there): its own type, in its own case. */
+.ref-sheet.handbook :is(.ref-result-symbol, .ref-result-name) {
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-result-symbol {
+    margin: 0;
+    font: var(--t-display);
+    font-size: var(--s-12);
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-result-name {
+    margin: 0;
+    font: var(--t-display);
+}
+
+.ref-sheet.handbook .ref-result-kind {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-result-kind strong {
+    font: var(--t-body-strong);
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-result-head .ref-formula {
+    margin-left: auto;
+}
+
+.ref-sheet.handbook .ref-formula th {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .ref-formula td {
+    min-width: var(--s-10);
+    padding: var(--s-1) var(--s-3);
+    border-left: 1px solid var(--hairline);
+    font: var(--t-body-strong);
+}
+
+.ref-sheet.handbook .ref-formula td:first-of-type {
+    border-left: 0;
+}
+
+.ref-sheet.handbook .ref-formula .ref-degree {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+/* The notation on the paper, its notes cobalt while they sound. */
+.ref-sheet.handbook .ref-score {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    min-height: var(--s-12);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--paper);
+    color: var(--notation);
+}
+
+.ref-sheet.handbook .ref-score.stretch {
+    display: block;
+}
+
+.ref-sheet.handbook .ref-score svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    fill: currentColor;
+}
+
+.ref-sheet.handbook .ref-score svg use {
+    fill: currentColor;
+}
+
+.ref-sheet.handbook .ref-score svg [color]:not(.playing) {
+    color: inherit !important;
+}
+
+.ref-sheet.handbook .ref-score g.note.playing, .ref-sheet.handbook .ref-score g.chord.playing {
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
+}
+
+/* A progression's playhead (mockup C3): a soft band over the notes sounding, marked by a small triangle above. */
+.ref-sheet.handbook .ref-playhead {
+    position: absolute;
+    width: var(--s-6);
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--ink) 14%, transparent);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.ref-sheet.handbook .ref-playhead::before {
+    position: absolute;
+    top: calc(-1 * var(--s-4));
+    left: 50%;
+    border: var(--s-2) solid transparent;
+    border-top-color: var(--ink);
+    transform: translateX(-50%);
+    content: "";
+}
+
+/* The keyboard: white keys side by side, the black ones over them; the keys the music marks tinted, named. */
+.ref-sheet.handbook .ref-keys {
+    position: relative;
+    display: flex;
+    height: calc(3 * var(--s-10));
+    margin: 0 var(--s-4);
+}
+
+.ref-sheet.handbook .ref-white {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-left-width: 0;
+    border-radius: 0 0 var(--r-xs) var(--r-xs);
+    background: var(--surface-2);
+}
+
+.ref-sheet.handbook .ref-white:first-child {
+    border-left-width: 1px;
+}
+
+.ref-sheet.handbook .ref-white.on {
+    background: var(--accent-tint-strong);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-black {
+    position: absolute;
+    top: 0;
+    left: calc(var(--after) * 100% / var(--whites) - 30% / var(--whites));
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    width: calc(60% / var(--whites));
+    height: 58%;
+    padding-bottom: var(--s-1);
+    border-radius: 0 0 var(--r-xs) var(--r-xs);
+    background: var(--ink);
+}
+
+.ref-sheet.handbook .ref-black.on {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.ref-sheet.handbook .ref-keys b {
+    font: var(--t-label);
+    font-weight: 600;
+}
+
+.ref-sheet.handbook .ref-keys i {
+    font: var(--t-caption);
+    font-style: normal;
+    color: var(--ink-2);
+}
+
+/* Звучание: a label and a segmented control a row, then Play and Loop. */
+.ref-sheet.handbook .ref-sound-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+}
+
+.ref-sheet.handbook .ref-row-label {
+    width: calc(4 * var(--s-10));
+    flex: none;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-row .seg > button {
+    min-height: var(--h-compact);
+    padding: 0 var(--s-3);
+}
+
+/* Тональности: the circle on the left, the key's card on the right. */
+.ref-sheet.handbook .ref-keys-tab {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    height: 100%;
+}
+
+.ref-sheet.handbook .ref-circle-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4);
+    padding: var(--s-5);
+    border-right: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-circle-side .ref-circle {
+    width: 100%;
+    max-width: 600px;
+}
+
+.ref-sheet.handbook .ref-card-side {
+    padding: var(--s-6);
+    overflow-y: auto;
+}
+
+.ref-sheet.handbook .ref-card .ref-name {
+    font: var(--t-display);
+}
+
+/* The key's card as a list (mockup C2): a scale or a main chord a row over a hairline, its notes in a column, the function
+   at the right; no keyboard under it (KeyCardView.Keyboard), as «Аккорды и гаммы» shows the keys. */
+.ref-sheet.handbook .ref-card .ref-sounds {
+    gap: 0;
+}
+
+.ref-sheet.handbook .ref-card .ref-sound {
+    display: grid;
+    grid-template-columns: var(--s-8) minmax(var(--s-12), 1fr) 1.4fr auto;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: var(--h-touch);
+    padding: var(--s-2) 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    background: transparent;
+}
+
+.ref-sheet.handbook .ref-card .ref-sound:hover {
+    background: var(--accent-tint);
+}
+
+.ref-sheet.handbook .ref-card .ref-sound .ic {
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-card .ref-sound .ref-sound-title {
+    font: var(--t-body);
+    font-weight: 500;
+}
+
+.ref-sheet.handbook .ref-card .ref-notes {
+    letter-spacing: 0.04em;
+}
+
+.ref-sheet.handbook .ref-card .ref-function {
+    margin-left: 0;
+    text-align: right;
+}
+
+.ref-sheet.handbook .ref-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2) var(--s-5);
+    margin: 0;
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+/* Over a piece whose key is not known, the circle shows C major only to be filled, and says so, small (#533 7). */
+.ref-sheet.handbook .ref-key-unknown {
+    font: var(--t-caption);
+}
+
+.ref-sheet.handbook .ref-swatch {
+    width: var(--s-4);
+    height: var(--s-4);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-xs);
+}
+
+.ref-sheet.handbook .ref-swatch.inferred {
+    border-style: dashed;
+}
+
+.ref-sheet.handbook .ref-swatch.on {
+    border-color: var(--accent);
+    background: var(--accent-tint-strong);
+}
+
+/* The circle by accidentals: one neutral tone, a shade darker for each sharp or flat (Andrei, 2026-11-12). */
+.ref-circle.shaded .ref-key path {
+    stroke: var(--surface);
+    stroke-width: 1.2;
+}
+
+.ref-circle.shaded .ref-key.acc-0:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 3%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-1:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 7%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-2:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 11%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-3:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 15%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-4:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 19%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-5:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 23%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-6:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 27%, var(--surface-2)); }
+
+.ref-circle.shaded .ref-key:not(.on):not(.pair) path:hover {
+    fill: var(--accent-tint);
+}
+
+.ref-circle.shaded .ref-key.pair path {
+    fill: color-mix(in srgb, var(--accent-tint) 50%, var(--surface-2));
+}
+
+.ref-circle.shaded .ref-key.on path {
+    fill: var(--accent-tint);
+    stroke: var(--accent);
+    stroke-width: 2.4;
+}
+
+.ref-circle.shaded .ref-key.piece path {
+    stroke: var(--ink);
+    stroke-width: 2;
+}
+
+.ref-circle.shaded .ref-key.on text, .ref-circle.shaded .ref-key.pair text {
+    fill: var(--accent);
+}
+
+.ref-circle.shaded .ref-key.major text {
+    font-size: 13px;
+}
+
+.ref-circle.shaded .ref-key.minor text {
+    font-size: 10.5px;
+    font-weight: 500;
+}
+
+.ref-circle.shaded .ref-sign {
+    font-size: 10px;
+}
+
+/* A phone: one column, the result under what sounds, the card under the circle. */
+@media (max-width: 860px) {
+    .ref-sheet.handbook {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .ref-sheet.handbook .ref-head {
+        flex-wrap: wrap;
+        gap: var(--s-2);
+        padding: var(--s-2) var(--s-4);
+    }
+
+    .ref-sheet.handbook .ref-tabs {
+        order: 3;
+        width: 100%;
+    }
+
+    .ref-sheet.handbook .ref-tabs > button {
+        flex: 1;
+        padding: 0 var(--s-2);
+    }
+
+    .ref-sheet.handbook .ref-body {
+        overflow-y: auto;
+    }
+
+    .ref-sheet.handbook :is(.ref-cs, .ref-keys-tab) {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .ref-sheet.handbook :is(.ref-material, .ref-circle-side) {
+        border-right: 0;
+        border-bottom: 1px solid var(--hairline);
+        overflow: visible;
+    }
+
+    .ref-sheet.handbook :is(.ref-material, .ref-result, .ref-card-side) {
+        padding: var(--s-4);
+        overflow: visible;
+    }
+
+    .ref-sheet.handbook .ref-row-label {
+        width: 100%;
+    }
+
+    .ref-sheet.handbook .ref-keys {
+        margin: 0;
+    }
+}
+
+/* «Темп живого исполнения» (an experiment, version 0.5): the tempo card in Insights, music-core's tempo bar by bar. */
+.tempo-card {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--paper);
+}
+
+.tempo-card svg {
+    width: 100%;
+    height: calc(var(--s-12) + var(--s-4));
+}
+
+.tempo-card .band {
+    fill: var(--surface-2);
+}
+
+.tempo-card .stretch {
+    fill: var(--teal-tint);
+}
+
+.tempo-card .usual {
+    stroke: var(--ink-3);
+    stroke-dasharray: var(--s-1) var(--s-1);
+    vector-effect: non-scaling-stroke;
+}
+
+.tempo-card .curve {
+    fill: none;
+    stroke: var(--ink-2);
+    stroke-width: var(--stroke-icon);
+    vector-effect: non-scaling-stroke;
+}
+
+.tempo-card .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.tempo-card .tempo-pieces {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--s-1);
+}
+
+.live-bars {
+    display: grid;
+    gap: var(--s-2);
+}
+
+/* Исследователь (mockup C3): the key and its chords as tiles, the progression as bars with each bar's position and Remove
+   above the bar chosen, the progression in notes across the width with its playhead, then how it is played. */
+.ref-sheet.handbook .ref-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    height: 100%;
+    padding: var(--s-5) var(--s-6);
+    overflow-y: auto;
+}
+
+/* The tab scrolls as a whole; nothing in it shrinks below its content (the notation keeps its systems). */
+.ref-sheet.handbook .ref-explorer > * {
+    flex: none;
+}
+
+.ref-sheet.handbook .ref-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ref-sheet.handbook .ref-select select {
+    height: var(--h-touch);
+    padding: 0 var(--s-10) 0 var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body-strong);
+    appearance: none;
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .ref-select select:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.ref-sheet.handbook .ref-select .ic {
+    position: absolute;
+    right: var(--s-4);
+    pointer-events: none;
+}
+
+.ref-sheet.handbook .ref-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-1);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .ref-tile {
+    min-width: calc(2 * var(--s-10) - var(--s-2));
+    min-height: calc(var(--s-12) + var(--s-2));
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar):hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-tile:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-numeral {
+    font: var(--t-title);
+    line-height: 1;
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-numeral sup {
+    margin-left: 1px;
+    font: var(--t-caption);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-symbol {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-bars {
+    display: flex;
+    gap: var(--s-3);
+    margin: var(--s-10) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet.handbook .ref-bar-item {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.ref-sheet.handbook .ref-bar {
+    width: 100%;
+    min-height: calc(var(--s-12) + var(--s-6));
+    padding: var(--s-2);
+    border-radius: var(--r-m);
+}
+
+.ref-sheet.handbook .ref-bar.on {
+    border: 2px solid var(--accent);
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-bar.on .ref-symbol {
+    color: var(--accent);
+}
+
+/* The bar's positions and Remove float above it, inside the tab at the first and last bars. */
+.ref-sheet.handbook .ref-turns {
+    position: absolute;
+    bottom: calc(100% + var(--s-2));
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-menu);
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .ref-bar-item.first .ref-turns {
+    left: 0;
+    transform: none;
+}
+
+.ref-sheet.handbook .ref-bar-item.last .ref-turns {
+    right: 0;
+    left: auto;
+    transform: none;
+}
+
+.ref-sheet.handbook .ref-turns .seg {
+    flex-wrap: nowrap;
+    border: 0;
+    background: transparent;
+}
+
+.ref-sheet.handbook .ref-turns :is(.seg > button, .btn) {
+    min-height: var(--h-compact);
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+    font: var(--t-label);
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-turns .btn {
+    border-left: 1px solid var(--hairline);
+    border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.ref-sheet.handbook .ref-explorer .ref-score {
+    min-height: calc(4 * var(--s-12));
+}
+
+.ref-sheet.handbook .ref-explorer-sound {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-8);
+}
+
+.ref-sheet.handbook .ref-explorer-sound .ref-row + .ref-row .ref-row-label {
+    width: auto;
+}
+
+.ref-sheet.handbook .btn.primary.round {
+    width: calc(var(--s-12) + var(--s-2));
+    height: calc(var(--s-12) + var(--s-2));
+    padding: 0;
+    border-radius: var(--r-pill);
+}
+
+@media (max-width: 860px) {
+    .ref-sheet.handbook .ref-explorer {
+        height: auto;
+        padding: var(--s-4);
+    }
+
+    .ref-sheet.handbook .ref-bars {
+        flex-wrap: wrap;
+    }
+
+    .ref-sheet.handbook .ref-bar-item {
+        flex: 1 0 calc(25% - var(--s-3));
+    }
+
+    .ref-sheet.handbook .ref-explorer-sound .ref-row + .ref-row .ref-row-label {
+        width: 100%;
+    }
+
+    /* Three sections on a phone's width: one line, the labels at the compact size of ds.css. */
+    .ref-sheet.handbook .ref-tabs {
+        flex-wrap: nowrap;
+    }
+
+    .ref-sheet.handbook .ref-tabs > button {
+        min-width: 0;
+        padding: 0 var(--s-1);
+        font-size: 13px;
+    }
+}
+
+/* The modes in the bar (version 0.5, the experiment Two playheads and modes; mockup «Указатели и режимы»): one group of
+   icons in a quiet pill, the mode chosen naming itself in the accent's tint, its text centred as in every control. */
+.lab.workspace .bar .modes {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--h-control);
+    padding: 2px;
+    margin: 0 var(--s-1);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.lab.workspace .bar .modes .mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 0;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lab.workspace .bar .modes .mode:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .modes .mode.on {
+    padding: 0 var(--s-3);
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+    font-weight: 600;
+}
+
+.lab.workspace .bar .modes .mode:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Each mode has its cursor on the score: a hand that closes while it moves the score, a cross to select, the arrow to
+   pick a note (a pointer over one), and the pen's own. */
+.score[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.score[data-mode="navigate"].panning {
+    cursor: grabbing;
+}
+
+.score[data-mode="select"] {
+    cursor: crosshair;
+}
+
+.score[data-mode="edit"] {
+    cursor: default;
+}
+
+.score[data-mode="edit"] g.note {
+    cursor: pointer;
+}
+
+/* The playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts; #479 item 19). The
+   piece's place is a short track under the system that plays, as wide as its bar, filled up to the place, with a dot on it:
+   solid while the piece plays, hollow when it stands. It is in the notation's dark ink, so it reads on the paper in both
+   themes, and covers no note; no bar fades. The selection's playhead is a cobalt line with a knob inside its band. */
+.score .gtrack {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    height: 2px;
+    border-radius: var(--r-xs);
+    will-change: transform;
+    background: color-mix(in srgb, var(--notation) 24%, transparent);
+    pointer-events: none;
+}
+
+.score .gtrack .fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--notation) 62%, var(--paper));
+}
+
+.score .gtrack .dot {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: var(--s-3);
+    height: var(--s-3);
+    margin: calc(var(--s-3) / -2) 0 0 calc(var(--s-3) / -2);
+    border-radius: 50%;
+    background: var(--notation);
+    box-shadow: 0 0 0 2px var(--paper);
+}
+
+.score .gtrack.stop .dot {
+    background: var(--paper);
+    box-shadow: inset 0 0 0 2px var(--notation), 0 0 0 2px var(--paper);
+}
+
+/* Under the modes the notes sounding stay in the notation's ink, drawn heavier: cobalt is the selection's colour only. */
+.score[data-mode] g.note.playing, .score[data-mode] g.chord.playing {
+    fill: var(--notation);
+    stroke: var(--notation);
+    color: var(--notation);
+}
+
+/* Placed across the staves, the line reaches beyond them here (#495 UX-07): above by a step and half its knob, so the knob
+   stands a step clear of the top staff line, the same at every zoom; below by a step. */
+.score .ph-sel {
+    --ph-lift: calc(var(--s-2) + 14px / 2);
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 2px;
+    margin-top: calc(-1 * var(--ph-lift));
+    padding: var(--ph-lift) 0 var(--s-2);
+    box-sizing: content-box;
+    border-radius: 1px;
+    will-change: transform;
+    background: var(--accent);
+    pointer-events: none;
+}
+
+.score .ph-sel .knob {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface-2);
+    transform: translate(-50%, -50%);
+}
+
+/* The black playhead held (v0.5.7, #543 5; Scripts/score/playheads.ts placeCursor): while the player holds its dot or a long
+   press on the notes, a line in the notation's ink stands across the staves at the place and follows the pointer; let go,
+   it fades. Hidden otherwise, so it never covers the score while it is read. */
+.score .ph-held {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 2px;
+    margin-top: calc(-1 * var(--s-2));
+    padding: var(--s-2) 0;
+    box-sizing: content-box;
+    border-radius: 1px;
+    will-change: transform;
+    background: var(--notation);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--t-fast) var(--ease);
+}
+
+.score .ph-held.held {
+    opacity: 1;
+    transition: none;
+}
+
+/* The black dot and the cobalt knob are handles the mouse, the pen or a finger drags (#495 UX-08, Scripts/score/
+   playhead-grab.ts): they take the press, a touch target wide, and the page does not scroll under a finger there. */
+.score :is(.gtrack .dot, .ph-sel .knob).grip {
+    pointer-events: auto;
+    touch-action: none;
+    cursor: grab;
+}
+
+.score :is(.gtrack .dot, .ph-sel .knob).grip::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--h-touch);
+    height: var(--h-touch);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.score :is(.gtrack .dot, .ph-sel .knob).grip:active {
+    cursor: grabbing;
+}
+
+/* The one Play of the playback model (v0.5.2, #495 UX-10), in the pill: a cobalt disc and words where the selection plays
+   (or, stopped, will play), an ink disc and words where the piece goes on, with the place as bar.beat. */
+.lab.workspace .pill .play-at {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: var(--h-control);
+    padding: 0 var(--s-2) 0 0;
+    border-radius: var(--r-pill);
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--t-fast) var(--ease);
+}
+
+.lab.workspace .pill .play-at .pb {
+    display: grid;
+    place-items: center;
+    width: var(--h-control);
+    height: var(--h-control);
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.lab.workspace .pill .play-at.piece {
+    color: var(--ink);
+}
+
+/* The place alone, bar.beat (#511 section 8.2): figures of one width, over a hidden «888.88» that holds the widest place, so
+   the pill keeps its size as the place moves and as it plays and pauses. */
+.lab.workspace .pill .play-at .lbl {
+    display: inline-grid;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab.workspace .pill .play-at .lbl::before {
+    content: "888.88";
+    grid-area: 1 / 1;
+    visibility: hidden;
+}
+
+.lab.workspace .pill .play-at .lbl > span {
+    grid-area: 1 / 1;
+}
+
+.lab.workspace .pill .play-at.piece .pb {
+    background: var(--ink);
+    color: var(--surface);
+}
+
+/* The modes on the Piano Roll (version 0.5, Scripts/roll/roll-modes.ts): the hand in Navigate, a crosshair to select by
+   beats in Select and to draw a box round notes in Edit notes. An edge of the selection still shows its own cursor. */
+.roll-notes[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.roll-notes[data-mode="navigate"]:active {
+    cursor: grabbing;
+}
+
+.roll-notes[data-mode="select"], .roll-notes[data-mode="edit"] {
+    cursor: crosshair;
+}
+
+/* The piece in another key (#351, mockup C2): under the key's card, «Für Elise в ми миноре» with Слушать and Показать ноты,
+   kept to the card's foot over a hairline. The piece's own key while it is chosen: the cobalt of the choice wins over the
+   ink outline of the piece's key. */
+.ref-sheet.handbook .ref-card-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+}
+
+.ref-sheet.handbook .ref-piece-in {
+    margin-top: auto;
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-piece-in .overline {
+    margin: 0 0 var(--s-3);
+}
+
+.ref-sheet.handbook .ref-piece-in-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-piece-in-actions .btn {
+    justify-content: center;
+    gap: var(--s-2);
+    text-align: center;
+}
+
+.ref-circle.shaded .ref-key.on.piece path {
+    stroke: var(--accent);
+    stroke-width: 2.4;
+}
+
+/* The outlines are drawn over the keys (ReferenceCircle.Outlines), which keep their order so the focus stays put. */
+.ref-circle .ref-outline {
+    fill: none;
+    pointer-events: none;
+    stroke-linejoin: round;
+}
+
+.ref-circle .ref-outline.piece {
+    stroke: var(--ink);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-outline.piece.inferred {
+    stroke-dasharray: 4 3;
+}
+
+.ref-circle .ref-outline.on {
+    stroke: var(--accent);
+    stroke-width: 1.6;
+}
+
+.ref-circle.shaded .ref-outline.piece {
+    stroke-width: 2;
+}
+
+.ref-circle.shaded .ref-outline.on {
+    stroke-width: 2.4;
+}
+
+/* The score shown in another key (#351): a plum pill under the bar, as what the app made, clear of the transport pill at
+   the foot; Play there and the key back. */
+.workspace .transpose-pill {
+    position: fixed;
+    z-index: 6;
+    top: calc(env(safe-area-inset-top, 0px) + var(--s-3) + var(--h-touch) + var(--s-2));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    max-width: calc(100vw - 2 * var(--s-4));
+    padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-menu);
+    font: var(--t-label);
+}
+
+.lab.workspace .transpose-pill .btn.quiet {
+    justify-content: center;
+    gap: var(--s-1);
+    color: var(--plum);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* A key of the circle pressed with the pointer shows no browser ring; reached with the keyboard it is outlined in cobalt (the
+   ring's box-shadow does not draw on SVG). */
+.ref-circle .ref-key path:focus {
+    outline: none;
+}
+
+.ref-circle .ref-key path:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 3;
+}
+
+/* On a phone the pill's words take a line of their own over its two actions. */
+@media (max-width: 600px) {
+    .workspace .transpose-pill {
+        flex-wrap: wrap;
+        justify-content: center;
+        box-sizing: border-box;
+        width: calc(100vw - 2 * var(--s-4));
+        padding: var(--s-2) var(--s-3) var(--s-1);
+        border-radius: var(--r-l);
+        text-align: center;
+    }
+
+    .workspace .transpose-pill > span {
+        flex-basis: 100%;
+    }
+}
+
+/* «Добавить папку» (an experiment, version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-1..3): the route on Add
+   piece, «Что нашлось» and the import's line over the list. Ported from the mockup's import.css on tokens only. */
+.library button.route {
+    width: 100%;
+    font: inherit;
+    text-align: start;
+}
+
+/* «Что нашлось»: wide, nearly the height of the window; the list scrolls between the counters and the foot. */
+.library .lib-sheet.found {
+    gap: 0;
+    width: min(1080px, calc(100vw - 2 * var(--s-8)));
+    height: calc(100vh - 2 * var(--s-10));
+    padding: 0;
+    overflow: hidden;
+}
+
+.library .found .hd {
+    padding: var(--s-6) var(--s-6) 0;
+}
+
+.library .found .hd .overline {
+    margin: 0 0 var(--s-1);
+}
+
+.library .found .found-status {
+    margin: 0;
+    padding: var(--s-4) var(--s-6) 0;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-6);
+}
+
+.library .found .counts .chip {
+    gap: var(--s-2);
+    height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-body);
+}
+
+/* A counter chosen is cobalt-tinted with ink text (the lab's chosen button is white on cobalt). */
+.library .found .counts .chip.on {
+    color: var(--ink);
+    font-weight: 400;
+}
+
+.library .found .chip .n {
+    font-weight: 600;
+}
+
+.library .found .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--s-6) var(--s-4);
+}
+
+.library .found table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.library .found th, .library .found td {
+    padding: 0 var(--s-3);
+    text-align: start;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .found thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    height: var(--h-touch);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.library .found thead .head.on {
+    color: var(--ink);
+}
+
+.library .found tbody tr {
+    height: calc(var(--h-touch) + var(--s-3));
+    border-bottom: 1px solid var(--hairline);
+}
+
+.library .found .c-check {
+    width: calc(var(--h-touch) + var(--s-3));
+    padding: 0 0 0 var(--s-3);
+}
+
+.library .found .c-comp {
+    width: 20%;
+}
+
+.library .found .c-folder {
+    width: 26%;
+}
+
+.library .found .c-pages {
+    width: calc(var(--s-12) + var(--s-4));
+    text-align: end;
+}
+
+.library .found td.c-pages {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found input.check {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+    vertical-align: middle;
+}
+
+/* A title or composer to write over: plain text until pointed at; a guess is grey until the player writes. */
+.library .found input.t, .library .found input.v {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 0 calc(-1 * var(--s-1));
+    padding: 0 var(--s-1);
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--ink);
+    text-overflow: ellipsis;
+}
+
+.library .found input.t {
+    font: var(--t-title);
+}
+
+.library .found input.v {
+    font: var(--t-body);
+}
+
+.library .found input.guess {
+    color: var(--ink-2);
+}
+
+.library .found input.t:hover, .library .found input.v:hover {
+    border-color: var(--hairline-strong);
+}
+
+.library .found input.t:focus, .library .found input.v:focus {
+    border-color: var(--hairline-strong);
+    background: var(--surface);
+    color: var(--ink);
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .found span.t {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-title);
+    color: var(--ink-2);
+}
+
+.library .found .src {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.library .found td.c-comp .v, .library .found td.c-folder .v {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found td.c-comp .v.fact {
+    color: var(--ink);
+}
+
+.library .found span.t .tag {
+    height: calc(var(--s-5) + 2px);
+    margin-inline-start: var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface);
+    font-family: var(--font-ui);
+    vertical-align: middle;
+    color: var(--ink-2);
+}
+
+.library .found span.t .tag.bad {
+    color: var(--danger);
+}
+
+.library .found .others {
+    padding: var(--s-3) var(--s-3) 0;
+}
+
+.library .found .ft {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: var(--s-4);
+    padding: var(--s-4) var(--s-6) var(--s-5);
+    border-top: 1px solid var(--hairline);
+    background: var(--surface);
+}
+
+.library .found .choices {
+    display: grid;
+    grid-template-columns: max-content minmax(0, max-content);
+    align-items: center;
+    gap: var(--s-2) var(--s-4);
+}
+
+.library .found .choices .lbl {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .choices .seg {
+    justify-self: start;
+    background: var(--surface-2);
+}
+
+.library .found .seg > button {
+    min-height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-body);
+}
+
+.library .found .seg > button.on {
+    font-weight: 600;
+}
+
+.library .found .space.short {
+    color: var(--danger);
+}
+
+.library .found .go {
+    height: var(--h-touch);
+    padding: 0 var(--s-6);
+    font: var(--t-body-strong);
+}
+
+/* The import's line over the list: what it is doing, the folder, Pause and Stop; a thin track of how far it is. */
+.library .run-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-touch);
+    margin-top: var(--s-5);
+    padding: 0 var(--s-2) 0 var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.library .run-bar .what {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: var(--t-body-strong);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .run-bar .what .ic {
+    color: var(--ink-2);
+}
+
+.library .run-bar .what[aria-expanded=true] .ic {
+    transform: rotate(90deg);
+}
+
+.library .run-bar .where {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-caption);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.library .run-bar .sp {
+    flex: 1;
+}
+
+.library .run-bar .btn {
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+}
+
+.library .run-bar label.btn input[type=file] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.library .run-bar .track {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--hairline);
+}
+
+.library .run-bar .fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+    transition: width var(--t-base) var(--ease);
+}
+
+/* The batch's segments (v0.5.6, #533 section 1), a piece each, where the import's track runs. */
+.library .recognition-bar .pages {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+}
+
+.library .recognition-bar .page {
+    border-radius: 0;
+}
+
+.library .run-details {
+    margin-top: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+.library .run-details .overline {
+    margin: var(--s-3) 0 var(--s-1);
+}
+
+.library .run-details ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .run-details li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-1) 0;
+    font: var(--t-body);
+}
+
+/* Phones: «Что нашлось» takes the screen; the composer and the folder give way to the title. */
+@media (max-width: 760px) {
+    .library .lib-sheet.found {
+        width: 100%;
+        height: 92vh;
+        max-height: 92vh;
+    }
+
+    .library .found .c-comp, .library .found .c-folder {
+        display: none;
+    }
+
+    .library .found .ft, .library .found .choices {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* «Проверить папку» in the library's ••• menu (version 0.5, import-web-6-recheck-menu.png): a folder, when it was looked through. */
+.library .lib-menu .item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.library .lib-menu .item .caption {
+    padding: 0 var(--s-4) var(--s-2) calc(var(--s-4) + var(--icon-m) + var(--s-2));
+}
+
+.library .lib-menu hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.library .lib-menu .caption.error {
+    color: var(--danger);
+}
+
+/* «Что изменилось в папке»: a count that is not a filter, and «Похоже, это та же пьеса» over the new files. */
+.library .found .counts .chip.static {
+    cursor: default;
+    font: var(--t-body);
+}
+
+.library .found .same {
+    margin: 0 var(--s-6) var(--s-4);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+}
+
+.library .found .same h3 {
+    margin: 0 0 var(--s-3);
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.library .found .same .pair, .pdf-reader .away-card .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+}
+
+.library .found .same .side p, .pdf-reader .away-card .side p {
+    margin: 0;
+}
+
+.library .found .same .overline, .pdf-reader .away-card .overline {
+    margin: 0 0 var(--s-1);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.library .found .same .t, .pdf-reader .away-card .side .t {
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.library .found .same .m, .pdf-reader .away-card .side .m {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .same .act {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+}
+
+/* A PDF piece whose file is not in it (version 0.5, import-web-7-missing.png): where its PDF is, over the dimmed reader. */
+.pdf-reader .away-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: var(--dim);
+}
+
+.pdf-reader .away-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    width: min(440px, calc(100vw - 2 * var(--s-4)));
+    padding: var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-sheet);
+    transform: translate(-50%, -50%);
+}
+
+.pdf-reader .away-card:has(.pair) {
+    width: min(640px, calc(100vw - 2 * var(--s-4)));
+}
+
+.pdf-reader .away-card h2 {
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.pdf-reader .away-card > p {
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.pdf-reader .away-card > p.path, .pdf-reader .away-card > p.caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.pdf-reader .away-card .acts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+}
+
+.pdf-reader .away-card .file input {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .library .found .same .pair, .pdf-reader .away-card .pair {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Batch recognition (version 0.5, «Импорт папки», import-web-4..5): what is picked over the list, a box on each PDF piece,
+   one consent, and on each piece of the batch where its notes are. */
+.library .lib-pickbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-touch);
+    margin-top: var(--s-4);
+}
+
+.library .lib-pickbar .what {
+    margin: 0;
+    font: var(--t-body-strong);
+    color: var(--ink);
+}
+
+.library .lib-pickbar .sp {
+    flex: 1;
+}
+
+.library .lib-table .col-pick {
+    width: calc(var(--h-touch) - var(--s-2));
+    padding: 0 0 0 var(--s-3);
+}
+
+.library .lib-table .col-pick input {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.library .st {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    height: 22px;
+    margin-inline-start: var(--s-3);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font: var(--t-caption);
+    font-weight: 600;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.library .st .ic {
+    width: 14px;
+    height: 14px;
+}
+
+.library .st.done .ic {
+    color: var(--success);
+}
+
+.library .st.failed {
+    max-width: 24rem;
+    overflow: hidden;
+    color: var(--danger);
+    text-overflow: ellipsis;
+}
+
+.library .st .dot {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--ink-3);
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+.library .st .spin {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--hairline-strong);
+    border-top-color: var(--ink-2);
+    border-radius: 50%;
+    box-sizing: border-box;
+    animation: st-spin calc(var(--t-slow) * 3) linear infinite;
+}
+
+@keyframes st-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .library .st .spin {
+        animation: none;
+    }
+}
+
+.library .run-bar .own {
+    font: var(--t-caption);
+    white-space: nowrap;
+}
+
+.library .consent-sheet {
+    width: min(560px, calc(100vw - 2 * var(--s-4)));
+}
+
+.library .consent-sheet .hd .ttl {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.library .consent-sheet .how-many {
+    margin: 0;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 22px;
+}
+
+.library .consent-sheet .names {
+    margin: calc(-1 * var(--s-2)) 0 0;
+    color: var(--ink-2);
+}
+
+.library .consent-sheet .facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--s-3) var(--s-4);
+    margin: 0;
+}
+
+.library .consent-sheet dt {
+    color: var(--ink-2);
+    font: var(--t-label);
+    line-height: 22px;
+}
+
+.library .consent-sheet dd {
+    margin: 0;
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .consent-sheet .track {
+    position: relative;
+    display: block;
+    height: 6px;
+    margin-top: var(--s-2);
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+}
+
+.library .consent-sheet .fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+}
+
+.library .consent-sheet .over {
+    display: block;
+    margin-top: var(--s-2);
+    color: var(--ink-2);
+}
+
+.library .consent-sheet .acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+}
+
+@media (max-width: 600px) {
+    .library .consent-sheet .facts {
+        grid-template-columns: 1fr;
+        gap: var(--s-1);
+    }
+
+    .library .consent-sheet dd {
+        margin-bottom: var(--s-2);
+    }
+}
+
+/* Select's options beside the modes (#511 4.2): Undo and Redo, then By bars or By beats; grey in place when off. */
+.lab.workspace .bar .select-options .mode:disabled {
+    color: var(--ink-3);
+    background: transparent;
+    cursor: default;
+}
+
+.lab.workspace .bar .select-options .mode.redo svg {
+    transform: scaleX(-1);
+}
+
+.lab.workspace .bar .select-options .select-by {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: var(--s-1);
 }

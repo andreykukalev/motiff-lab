@@ -1,0 +1,30 @@
+@* One choice of the Reference's «Звучание» (version 0.5): a labelled row with a segmented control of radio buttons, its
+   text centred in each (design/kit/ds.css). *@
+<div class="ref-row">
+    <span class="ref-row-label" id="@_id">@Label</span>
+    <div class="seg" role="radiogroup" aria-labelledby="@_id">
+        @foreach ((string id, string label) in Options)
+        {
+            bool on = id == Value;
+            <button type="button" role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => Pick.InvokeAsync(id)">@label</button>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly string _id = $"ref-row-{Guid.NewGuid():N}";
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>Each choice's id and its label.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(string Id, string Label)> Options { get; set; } = [];
+
+    /// <summary>The id chosen.</summary>
+    [Parameter]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> Pick { get; set; }
+}

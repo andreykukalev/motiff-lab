@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.auth import AuthError, NotProError, TokenVerifier, is_pro
 from app.main import create_app
+from app.recognise import Reading
 from tests.test_app import png
 from tests.test_merge import page
 
@@ -85,7 +86,7 @@ def test_a_player_without_pro_may_not_scan():
 
 
 def test_a_hosted_server_reads_no_page_without_pro():
-    client = TestClient(create_app(lambda path, number: page("1", "2"), verify=verifier().verify))
+    client = TestClient(create_app(lambda path, number: Reading(page("1", "2")), verify=verifier().verify))
     refused = client.post(
         "/recognise", files={"file": ("photo.png", png(), "image/png")}, headers={"Authorization": f"Bearer {token(roles=[])}"}
     )
@@ -105,7 +106,7 @@ def test_a_hosted_server_reads_no_page_without_a_sign_in():
 
     def recognise(path, number):
         read.append(number)
-        return page("1", "2")
+        return Reading(page("1", "2"))
 
     client = TestClient(create_app(recognise, verify=verifier().verify))
     assert client.get("/health").json()["signIn"] is True

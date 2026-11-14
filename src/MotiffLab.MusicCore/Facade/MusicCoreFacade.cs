@@ -21,6 +21,47 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
+    /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
+    /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
+    /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
+    /// project.metadata sets them on an open piece or PDF piece, and on piece 0 in a project file sent as "file", answering
+    /// that file changed. Within 12, the summary gained "playlists", the playlists the piece is on by name, and
+    /// project.metadata takes them as it takes "tags", a field added. Also within 12, four calls on piece 0 sync projects
+    /// (version 0.2, <see cref="ProjectSync"/>), each with project files as text: project.online (the copy saved online),
+    /// project.sync (the next step), project.pulled (an online copy kept with this device's PDF) and project.resolve (two
+    /// changed copies: the last saved kept, the other beside as a previous copy), calls added. Also within 12 (version 0.3,
+    /// long recordings), recording.parts plans the whole recording rather than its first 7 minutes, and it, performance.add
+    /// with "parts" and open with "transcription" take "levels", the sound's loudness that puts the seams at quiet moments,
+    /// a field added.
+    /// Also within 12, reference.key and reference.sound on piece 0 answer the circle of fifths with any key's card and its
+    /// scales and chords to hear (the Reference experiment, <see cref="Analysis.KeyReference"/>), calls added. Also within 12
+    /// (the Reference, part 2), reference.chord and reference.scale on piece 0 answer a chord's and a scale's own card,
+    /// reference.sound sounds them, and reference.key on an open piece also answers "pieceKey", calls and fields added.
+    /// Also within 12 (version 0.5, the iPad's «Справочник»), reference.sounding sounds a chord or a scale as chosen (position,
+    /// spacing, the way it is played, octaves) and reference.explorer the harmony explorer's progression in a texture, and the
+    /// chords and scales offered tell their "family", calls and fields added.
+    /// Also within 12, for the iPad's practice experiments (#327, #328, #349): select takes "snap": "beat" and a selection
+    /// answers "firstBeat" and "lastBeat"; playback takes "hands" ("both", "right", "left") and answers "hands" (which hands
+    /// the notes carry, and whether any was inferred); resume.save takes "passage": null for no passage, fields added.
+    /// Also within 12 (version 0.4), the calls write the fields the project file took within 15: parts.split's parts keep
+    /// "partOf", which the project summary answers; document.read takes "reports" as scan.join does and keeps them, raising
+    /// PageQuality, and check answers "pages"; ink.add and document.ink.add keep a stroke's "margin", which marks and
+    /// document.marks answer, fields added.
+    /// Also within 12 (version 0.5, «Импорт папки»), library.plan on piece 0 answers the import plan of a folder the app
+    /// read (<see cref="Import.LibraryImport"/>) and library.confirm the metadata of a piece once the player confirmed its
+    /// suggestions, calls added; library.relink answers where the library's originals are in a fresh listing of the folder
+    /// (<see cref="Import.LibraryRelink"/>), a call added; library.linked makes a piece of a PDF left in the player's folder
+    /// and library.link moves an original to where it was found again, calls added; open takes "pdf" (base64) for a piece
+    /// whose PDF is away (it answered "originalAway" before), and answers "otherFile" when the fingerprint differs.
+    /// Also within 12 (version 0.5.2, the iPad's one playback position), playback's beats answer "bar" and "beat" and its
+    /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
+    /// Also within 12 (decision record 0029, the scan engine «Авто»), scan.vector on piece 0 reads a born-digital PDF's pages
+    /// on the device and says which pages go to the scan server (<see cref="ScanRequest.Vector"/>), a call added.
+    /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
+    /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
+    /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
+    /// a fact turns "uncertain" and a key read from those notes too; check answers "lengths", the bars of a recording
+    /// whose notes' lengths are uncertain. The project file stays version 15.
     /// 10 removes the calls no app sends (#342): the assembly calls of 9 (the web assembles through music-core directly,
     /// 0024 and 0025), variation.start, .propose, .check, .accept, .reject, .undo and .redo (the iPad app runs a variation
     /// through try and variation.clear), and experiments, experiments.start and experiments.surprise. They answer
@@ -53,7 +94,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 10;
+    public const int Contract = 12;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -72,9 +113,11 @@ public sealed class MusicCoreFacade
     /// with the piece's number, its project and its summary. The request may carry "language" ("en"
     /// or "ru"), "id" for the new project (without one it gets <see cref="NewProjectId"/>) and "now" (ISO 8601) for its
     /// creation time. A PDF, or the project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
-    /// "summary", and only the document's calls work on it. With "transcription" ({"engine", "milliseconds", "parts"}, the
+    /// "summary", and only the document's calls work on it; with "photos" (v0.4) the PDF is that many photographed pages, and
+    /// its original is described so. With "transcription" ({"engine", "milliseconds", "parts"}, the
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
-    /// the recording's notes, worked out as the web app works them out (0014, 0016).
+    /// the recording's notes, worked out as the web app works them out (0014, 0016). For a project file, "edits" ("on" or
+    /// "off", version 0.5) lays the corrections over the notes one by one or leaves them out; without it they must all fit.
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -105,7 +148,7 @@ public sealed class MusicCoreFacade
             bool asPdf = fields.Text("view") == "pdf";
             if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes, asPdf) is not null))
             {
-                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
+                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos")) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
                 _documents[number] = document;
                 _next++;
                 return Answer.Write(json =>
@@ -115,8 +158,26 @@ public sealed class MusicCoreFacade
                 });
             }
 
+            if (IsProjectFile(fileName, bytes) && IsAway(bytes))
+            {
+                if (!fields.Has("pdf"))
+                {
+                    throw new FacadeException("originalAway", "This piece's PDF is not in its file: link the file again where it is (Привязать оригинал).");
+                }
+
+                // Version 0.5, «Импорт папки»: the PDF read from where it is, matched by its fingerprint; never written into the file.
+                OpenDocument away = OpenDocument.Open(AwayOpened(bytes, fields.Required("pdf")));
+                _documents[number] = away;
+                _next++;
+                return Answer.Write(json =>
+                {
+                    json.WriteNumber("piece", number);
+                    away.Summary(json);
+                });
+            }
+
             OpenPiece piece = IsProjectFile(fileName, bytes)
-                ? OpenPiece.Open(bytes, words)
+                ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")), asTheFileSays: fields.Text("edits") == "piece")
                 : OpenPiece.Import(id, fileName, bytes, words, now);
             _pieces[number] = piece;
             _next++;
@@ -148,7 +209,21 @@ public sealed class MusicCoreFacade
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
+                    "project.metadata" => ProjectMetadata(fields),
+                    "project.online" => SyncRequest.Online(fields),
+                    "project.sync" => SyncRequest.Next(fields),
+                    "project.pulled" => SyncRequest.Pulled(fields),
+                    "project.resolve" => SyncRequest.Resolve(fields),
                     "recording.parts" => RecordingPartsOf(fields),
+                    _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
+                    "scan.join" => ScanRequest.Join(fields),
+                    "scan.vector" => ScanRequest.Vector(fields),
+                    "parts.split" => PartsRequest.Split(fields),
+                    "library.plan" => LibraryRequest.Plan(fields),
+                    "library.confirm" => LibraryRequest.Confirm(fields),
+                    "library.relink" => LibraryRequest.Relink(fields),
+                    "library.linked" => LibraryRequest.Linked(fields),
+                    "library.link" => LibraryRequest.Link(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -173,14 +248,17 @@ public sealed class MusicCoreFacade
     }
 
     /// <summary>
-    /// The parts a recording of "milliseconds" is heard in, its first 7 minutes (<see cref="RecordingRange.MostMilliseconds"/>):
+    /// The parts a recording of "milliseconds" is heard in, all of it however long (until version 0.3, its first 7 minutes),
+    /// with the seams at quiet moments when the request sends "levels", how loud the sound is in each 100 ms
+    /// (<see cref="RecordingParts.Plan(long, IReadOnlyList{int})"/>):
     /// {"milliseconds": heard, "parts": [{index, sendFrom, sendTo, keepFrom, keepTo}]} in milliseconds, so an app sends each
-    /// part's sound to the scan server and gives the notes back to `performance.add` as "parts" (0014, 0022).
+    /// part's sound to the scan server and gives the notes back to `performance.add` as "parts", with the same "levels"
+    /// (0014, 0022).
     /// </summary>
     private static string RecordingPartsOf(Request request)
     {
-        long milliseconds = request.Long("milliseconds") is > 0 and var length ? Math.Min(length, RecordingRange.MostMilliseconds) : throw FacadeException.BadRequest("Send \"milliseconds\", how long the recording is.");
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(milliseconds);
+        long milliseconds = request.Long("milliseconds") is > 0 and var length ? length : throw FacadeException.BadRequest("Send \"milliseconds\", how long the recording is.");
+        IReadOnlyList<RecordingPart> parts = OpenPiece.PlanOf(request, milliseconds);
         return Answer.Write(json =>
         {
             json.WriteNumber("milliseconds", milliseconds);
@@ -209,6 +287,22 @@ public sealed class MusicCoreFacade
         string file = fields.Required("file");
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
         return Answer.Write(json => Answer.Project(json, "project", project));
+    }
+
+    /// <summary>
+    /// The title, composer, tags and playlists set in a project file without opening the piece (contract 12), for the
+    /// library's properties: the request's "file" is the project file's text, and "title", "composer", "tags" and "playlists"
+    /// as on an open piece. Answers
+    /// {"project": {…}} as project.summary does and "file", the project file to save in place of the one sent.
+    /// </summary>
+    private static string ProjectMetadata(Request fields)
+    {
+        Project project = MetadataRequest.Apply(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), fields);
+        return Answer.Write(json =>
+        {
+            Answer.Project(json, "project", project);
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+        });
     }
 
     /// <summary>
@@ -266,6 +360,46 @@ public sealed class MusicCoreFacade
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Whether a project file is a piece with no notes and no PDF in it (version 0.5): its PDF is in the player's folder or
+    /// on another device, so it is listed (project.summary) and opens only once the file is linked again.
+    /// </summary>
+    private static bool IsAway(byte[] projectFile)
+    {
+        try
+        {
+            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: null };
+        }
+        catch (ProjectFileException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// A PDF piece whose PDF is away, with the PDF the app read from the player's folder or a file the player picked
+    /// (base64): the same file by its fingerprint, or "otherFile". A linked PDF stays out of the file when it is saved; a
+    /// PDF kept in the file on another device is kept here again, as «Привязать оригинал» keeps it.
+    /// </summary>
+    private static Project AwayOpened(byte[] projectFile, string pdf)
+    {
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(pdf);
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"pdf\" must be base64.");
+        }
+
+        Project project = ProjectFile.Read(projectFile);
+        Project? opened = project.LinksDocument ? project.WithLinkedDocument(data)
+            : project.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Pdf or OriginalKind.Images } original && PdfDocument.IsPdf(data) && original.Matches(PieceOriginal.Fingerprint(data)) ? project with { Document = data }
+            : null;
+        return opened ?? throw new FacadeException("otherFile", "This is another file, not the PDF of this piece: its fingerprint differs.");
     }
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>

@@ -32,6 +32,7 @@
 @implements IDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject PieceMetronome Metronome
 @inject Preferences Preferences
 @inject DeviceSettings SettingsStore
 @inject CurrentPiece CurrentPiece
@@ -46,8 +47,8 @@
 @* The score page (decision record 0018, sections 1 and 2): the score is the whole screen, one continuously scrolling document of
    A4 pages, with nothing docked. A floating bar carries the title, the page under the top of the view and five actions (Phrases,
    Pen, Piano roll, Insights, Play) and fades while the player reads; the transport pill appears with a selection or playback;
-   the piano roll is a drawer and the Insights sheet slides over the right. The phrases are brackets on the score at the level
-   the player chose. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
+   the piano roll is a drawer and the Insights sheet slides over the right. The phrases, at the level the player chose, are not
+   drawn on the score (#479 item 14); a selection steps and snaps by them. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
 @* The shared workspace state (decision record 0013): one snapshot per render, which the sheet reads; the page is its only writer. *@
 <CascadingValue Value="State">
     <main class="lab app workspace @WorkspaceClass @(_assembling ? "assembling" : null)" @ref="_main" @onkeydown="WorkspaceKeys">
@@ -103,14 +104,15 @@
             else if (ShownScore is { } shown)
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-                <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
+                <ScoreView @ref="_scoreView" Source="shown" Landing="_landing" Range="ShownRange" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
-                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
-                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
+                           PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
+                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" SelectionGesture="OnSelectionGestureAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
                            PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" TakenBars="ScoreTakenBars" PerformancePicked="OnPerformancePickedAsync"
-                           Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway" />
+                           Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway"
+                           Mode="@ScoreMode" BeatLines="ScoreBeatLines" SpanChosen="OnScoreSpanChosenAsync" BeatClicked="OnScoreBeatClickedAsync" NoteToEdit="OnScoreNoteToEditAsync" />
             }
             else
             {
@@ -153,7 +155,16 @@
                     <span class="sp"></span>
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
                             data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
-                    @if (_scoreView?.CanDraw == true)
+                    @if (PlayheadsOn)
+                    {
+                        <ModeGroup Mode="Mode" CanDraw="@(_scoreView?.CanDraw == true)" Chosen="ChooseModeAsync" />
+                        @if (Mode == InteractionMode.Select)
+                        {
+                            <SelectionOptions CanUndo="_selectionHistory.CanUndo" CanRedo="_selectionHistory.CanRedo" Undo="UndoSelectionAsync" Redo="RedoSelectionAsync"
+                                              ByBeats="SelectsByBeats" ByBeatsChanged="ChooseSelectByBeatsAsync" />
+                        }
+                    }
+                    else if (_scoreView?.CanDraw == true)
                     {
                         <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
                                 @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
@@ -162,6 +173,15 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                    @* Practice view (#533 11): in and out by one press, F too; the selection, playback and the loop go on as they are.
+                       Lit while the selection menu and the controls show, dark in practice view (#543 7). *@
+                    <button class="act @(PracticeLit ? "on" : null)" aria-pressed="@(PracticeLit ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
+                            @onclick="TogglePracticeAsync"><Icon Name="practice" Size="IconSize.Large" /></button>
+                    @if (ReferenceOn)
+                    {
+                        @* The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap from the score. *@
+                        <button class="act ref-act @(_referenceOpen ? "on" : null)" aria-haspopup="dialog" title="@Text["reference.openHint"]" @onclick="OpenReference">@Text["reference.open"]</button>
+                    }
                     @* Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron lists each kind. *@
                     <span class="act-split @(LayerShown("extra") ? "on" : null)">
                         <button class="act" aria-pressed="@(LayerShown("extra") ? "true" : "false")" aria-label="@Text["extra.toggle"]" title="@Text["extra.hint"]"
@@ -169,9 +189,13 @@
                         <button class="act chev @(_popover == Popover.Layers ? "on" : null)" aria-expanded="@(_popover == Popover.Layers ? "true" : "false")" aria-label="@Text["extra.list"]"
                                 title="@Text["extra.list"]" @onclick="() => TogglePopover(Popover.Layers)"><Icon Name="chevd" /></button>
                     </span>
-                    <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
-                    </button>
+                    @if (!ModelHolds)
+                    {
+                        @* Under the playback model (v0.5.2) the one Play is in the pill, which then always shows. *@
+                        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State != PlaybackState.Stopped ? Text["transport.pause"] : Text["transport.play"])">
+                            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
+                        </button>
+                    }
                     <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                             @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
                 }
@@ -185,7 +209,8 @@
             @switch (_popover)
             {
                 case Popover.Phrases:
-                    @* The Phrases popover (0018 section 3): the level, the brackets on or off, and Reset to detected. It never lists the phrases. *@
+                    @* The Phrases popover (0018 section 3): the level and Reset to detected. It never lists the phrases. The brackets it
+                       showed on the score are gone (Andrei, 2026-11-13, #479 item 14); the level still sets what a selection steps and snaps by. *@
                     <div class="popover phrases-popover" role="dialog" aria-label="@Text["bar.phrases"]" data-keeps-selection>
                         <p class="overline">@Text["phrases.levelTitle"]</p>
                         <div class="seg" role="radiogroup" aria-label="@Text["phrases.levelTitle"]">
@@ -196,10 +221,6 @@
                             }
                         </div>
                         <p class="caption">@LevelCount</p>
-                        <label class="switch-row">
-                            <span>@Text["phrases.showBrackets"]</span>
-                            <input type="checkbox" role="switch" class="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
-                        </label>
                         <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(Levels is null || Levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
                         @PopoverScope([GranularitySetting], "score")
                     </div>
@@ -344,7 +365,7 @@
             {
                 @* Phrase focus (0018 section 4): the page dimmed behind the phrase lifted into a card; a tap on the page goes back to it. *@
                 <div class="focus-layer" data-keeps-selection>
-                    <button class="veil" aria-label="@Text["focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
+                    <button class="veil" aria-label="@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
                     <div class="focus-stage">
                         <section class="focus-card @(FocusVariations is { Count: > 0 } ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
                             @if (FocusVariations is { Count: > 0 } variations)
@@ -358,22 +379,20 @@
                                     }
                                 </div>
                             }
-                            <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
                             @if (_focusRoll)
                             {
-                                @* The phrase as a roll laid across the card whole (testing item 12); the zoom and Fit float over it. *@
+                                @* The passage as a roll over the card (testing item 12), bound to it (#521 19): laid across the card, moved
+                                   only within it, nothing on it selects or edits; the zoom and Fit float over it. *@
                                 <div class="focus-roll" data-fill="true">
-                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
+                                    <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" Passage="FocusSpan"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor" />
+                                               PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" />
                                 </div>
                             }
                             else
                             {
                                 <PhraseCard Source="card" Sounding="@FocusSounding" />
                             }
-                            <button class="step next" aria-label="@Text["focus.next"]" title="@Text["focus.next"]" disabled="@(!CanStepOn)" @onclick="() => StepUnitAsync(1)"><Icon Name="fwd" Size="IconSize.Large" /></button>
                         </section>
                     </div>
                 </div>
@@ -391,9 +410,9 @@
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" SelectionGesture="OnSelectionGestureAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor"
-                               Expanded="ExpandRollAsync" />
+                               Expanded="ExpandRollAsync" Mode="@ScoreMode" Placed="OnRollPlacedAsync" />
                 </section>
             }
 
@@ -466,6 +485,30 @@
                 </div>
             }
 
+            @if (Transposed is { } moved)
+            {
+                @* The piece shown in another key (#351): what it is, Play it there, and its own key back; nothing is saved. *@
+                <div class="transpose-pill" role="status" data-keeps-selection>
+                    <span>@TransposedText(moved)</span>
+                    <button type="button" class="btn quiet compact" @onclick="HearShownTransposedAsync"><Icon Name="playf" />@Text["reference.hearPiece"]</button>
+                    <button type="button" class="btn quiet compact" @onclick="UntransposeAsync">@Text.Format("reference.backTo", moved.From.NameIn(Words))</button>
+                </div>
+            }
+
+            @* Practice view (#533 11) keeps the page clean of the hints of the selection and of playback. *@
+            @if (_selectionToast && _selectionHistory.CanUndo && !Practicing)
+            {
+                @* After a clear or a replace (#511 11): one tap brings the selection back; no Redo here. *@
+                <div class="merge-toast selection-toast" role="status" data-keeps-selection>
+                    <span>@Text["selection.clearedToast"]</span>
+                    <button class="btn quiet compact" @onclick="UndoSelectionAsync">@Text["selection.bringBack"]</button>
+                </div>
+            }
+            else if (_holdHint && !Practicing)
+            {
+                <div class="merge-toast selection-toast" role="status"><span>@Text["selection.holdHint"]</span></div>
+            }
+
             @if (_mergeToast is { } toast)
             {
                 <div class="merge-toast" role="status">
@@ -498,6 +541,16 @@
                 </div>
             }
 
+            @if (_referenceOpen && HandbookOn)
+            {
+                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" InPiece="true" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false"
+                                                                PieceTitle="@ScoreTitle.Of(_title)" Transposed="Transposed?.To" Transpose="TransposeAsync" />
+            }
+            else if (_referenceOpen)
+            {
+                <MotiffLab.Web.Reference.ReferenceSheet PieceKey="_referencePieceKey" InPiece="true" Hear="HearReferenceAsync" Closed="() => _referenceOpen = false" />
+            }
+
             @if (_settingsOpen)
             {
                 <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" BackLabel="@BackTo(Place.Settings)" Back="GoBackAsync" Closed="() => CloseFromAsync(Place.Settings)" LayoutChosen="SetPagedAsync" />
@@ -527,7 +580,7 @@
                     </div>
 
                 <InsightsStream Choose="ChooseFactAsync" HearScale="HearScaleAsync" ScaleHeard="_scaleHeard" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
-                                Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" />
+                                Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" Tempo="TempoShown" ShowBars="ShowTempoBarsAsync" />
                 @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                 {
                     <ComparePanel />
@@ -633,12 +686,23 @@
                 </aside>
             }
 
-            @if (_playheadAway is { } awayAt && Player.State != PlaybackState.Stopped && _meter is not null)
+            @if (_playheadAway is { } awayAt && Player.State != PlaybackState.Stopped && _meter is not null && !Practicing)
             {
                 @* The playhead out of sight while playing (testing item 4): one tap scrolls back to it and the score follows again. *@
                 <button class="chip back-to-play @(PillShown ? "over-pill" : null)" data-keeps-selection @onclick="ReturnToPlayheadAsync">
                     <Icon Name="play" Size="IconSize.Small" /> @Text.Format("transport.backToPlay", _meter.BarAt(awayAt).Number)
                 </button>
+            }
+
+            @if (Practicing)
+            {
+                @* Practice view's controls (#533 11): shown for a few seconds by a tap on the score, as a video player's (practice-view.ts). *@
+                <div class="pill practice-controls" role="toolbar" aria-label="@Text["practice.controls"]" data-keeps-selection>
+                    <button class="play" @onclick="PlayPauseAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
+                    </button>
+                    <button class="it" @onclick="TogglePracticeAsync"><Icon Name="practice" /> @Text["practice.leave"]</button>
+                </div>
             }
 
             @if (_assembling)
@@ -647,41 +711,36 @@
                 {
                     @RecordingWave
                 }
-                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="@(Player.HearingRecording ? 100 : TempoPercent)"
+                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="@(Player.HearingRecording ? 100 : TempoPercent)" Tempo="TempoNow" HearingRecording="Player.HearingRecording" SetTempoPercent="SetTempoPercentAsync"
                               TogglePlay="ToggleAssemblyPlayAsync" ToggleLoop="ToggleAssemblyLoopAsync" Show="ShowSourceAsync" Hear="HearSourceAsync" />
             }
             else if (PillShown)
             {
                 @* The transport pill (0018 section 2, design/kit/ds.css .pill): with a selection or while playing. *@
                 <div class="pill @(_pillMenu != PillMenu.None ? "settings-open" : null)" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection data-long-press="pill">
-                    <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
-                    </button>
-                    @if (_selection is { NoteIds.Count: > 0 })
+                    @if (ModelHolds)
                     {
-                        <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+                        @ModelTransport
                     }
-                    @if (Focused)
+                    else
                     {
-                        <button class="it @(_leadIn ? "on" : null)" aria-pressed="@(_leadIn ? "true" : "false")" title="@Text["focus.leadInHint"]" @onclick="ToggleLeadInAsync"><Icon Name="leadin" /> @Text["focus.leadIn"]</button>
+                        <button class="play" @onclick="PillPlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
+                        </button>
+                        @* Expand always loops its passage, so it has no Loop (#533 2). *@
+                        @if (_selection is { NoteIds.Count: > 0 } && !Focused)
+                        {
+                            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+                        }
                     }
                     @* Tempo and Hands open their popovers over themselves, with the pointer at them (design/kit/ds.css .popover). *@
                     <span class="anchor">
-                        <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
-                                @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono">@TempoPercent%</span></button>
+                        <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoNow?.PieceText ?? "", TempoPercent)"
+                                @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono tempo-label">@TempoPillText</span></button>
                         @if (_pillMenu == PillMenu.Tempo)
                         {
                             <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
-                                <div class="seg" role="group" aria-label="@Text["transport.tempo"]">
-                                    @foreach (int percent in s_tempoSteps)
-                                    {
-                                        <button class="@(TempoPercent == percent ? "on" : null)" aria-pressed="@(TempoPercent == percent ? "true" : "false")" @onclick="() => SetTempoPercentAsync(percent)">@percent%</button>
-                                    }
-                                </div>
-                                <label class="tempo">
-                                    <span class="visually-hidden">@Text["transport.tempo"]</span>
-                                    <input type="range" min="@MinTempo" max="@MaxTempo" step="5" value="@TempoPercent" @oninput="SetTempoAsync" />
-                                </label>
+                                <TempoControl Percent="TempoPercent" Reading="TempoNow" SetPercent="SetTempoPercentAsync" SetPlayerTempo="SetPlayerTempoAsync" Close="ClosePopover" />
                             </div>
                         }
                     </span>
@@ -707,8 +766,11 @@
                     @* Where playback is, for a screen reader: the score shows it with the notes being heard. *@
                     <span class="visually-hidden state" role="status">@StateText</span>
                     <span class="visually-hidden position" aria-live="off">@PositionText</span>
-                    <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
-                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" title="@Text["transport.countInHint"]" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
+                    @* The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). *@
+                    <span class="metronome-button">
+                        <button class="it @(Metronome.Running ? "on" : null)" aria-pressed="@(Metronome.Running ? "true" : "false")" title="@Text["metronome.holdHint"]" data-metronome-hold @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
+                        <MetronomeHeld />
+                    </span>
                     @if (_pillMenu == PillMenu.Settings)
                     {
                         @* The pill's own settings (0018 section 10), from a long press on it: over the pill's middle. *@
@@ -749,6 +811,29 @@
         <button class="btn quiet all-settings" aria-haspopup="dialog" @onclick="() => OpenSettings(section)">@Text["settings.all"]</button>
     </div>;
 
+    /// <summary>
+    /// The pill's transport under the playback model (v0.5.2, #495 UX-10, PlaybackLab.Playheads.cs), as on the iPad: one Play
+    /// whose colour follows the place, cobalt where the selection plays (or, stopped, will play) and ink where the piece goes
+    /// on, with the place as bar.beat alone at a width that does not change (#511 section 8.2); with a selection, Цикл with its span.
+    /// </summary>
+    private RenderFragment ModelTransport => @<text>
+        @{
+            bool playing = Player.State != PlaybackState.Stopped;
+            bool cobalt = Player.Context == PlaybackContext.Selection;
+            string place = PlayPlace;
+        }
+        <button class="play-at @(cobalt ? null : "piece")" @onclick="PressAsync" aria-label="@Text.Format(playing ? "pill.pauseAt" : "pill.play", place)"
+                title="@Text[cobalt ? "pill.playSelectionHint" : "pill.playPieceHint"]">
+            <span class="pb" aria-hidden="true"><Icon Name="@(playing ? "pause" : "playf")" /></span><span class="lbl" aria-hidden="true"><span>@place</span></span>
+        </button>
+        @if (CycleSpan is { } span)
+        {
+            <span class="div" aria-hidden="true"></span>
+            <button class="it @(Player.SelectionLoop ? "on" : null)" aria-pressed="@(Player.SelectionLoop ? "true" : "false")" title="@Text["pill.cycleHint"]"
+                    @onclick="ToggleCycleAsync"><Icon Name="loop" /> @Text.Format("pill.cycle", span.First, span.Last)</button>
+        }
+    </text>;
+
     private RenderFragment SelectionMenu => @<div class="menu">
         @if (_noteDraft is { } note)
         {
@@ -761,8 +846,12 @@
         else
         {
             @* Each item names itself in aria-label, so its word can give way to the icon alone in a narrow window (portrait, Split View). *@
-            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
-            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /><span class="lbl">@Text["focus.enter"]</span></button>
+            @if (!ModelHolds)
+            {
+                @* Under the playback model (v0.5.2) Play and Цикл are in the pill only. *@
+                <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
+            }
+            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocusAsync"><Icon Name="expand" /><span class="lbl">@Text["focus.enter"]</span></button>
             <button class="it" aria-label="@Text["menu.note"]" @onclick="StartNote"><Icon Name="note" /><span class="lbl">@Text["menu.note"]</span></button>
             <button class="it" aria-label="@Text["menu.bookmark"]" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /><span class="lbl">@Text["menu.bookmark"]</span></button>
             <span class="div" aria-hidden="true"></span>
@@ -774,6 +863,13 @@
                 <span class="div" aria-hidden="true"></span>
                 <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
                         @onclick="ToggleMenuMore"><Icon Name="more" /></button>
+                @* Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it. *@
+                <button class="it icon" aria-label="@Text["menu.hide"]" title="@Text["menu.hide"] (F)" @onclick="TogglePracticeAsync"><Icon Name="practice" /></button>
+                @if (PlayheadsOn)
+                {
+                    @* Only ✕ or Escape removes the selection (version 0.5, the experiment Two playheads and modes). *@
+                    <button class="it icon" aria-label="@Text["menu.clearSelection"]" title="@Text["menu.clearSelection"] (Esc)" @onclick="CloseSelectionAsync"><Icon Name="deselect" /></button>
+                }
                 @if (MenuMoreOpen)
                 {
                     <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
@@ -884,6 +980,10 @@
             {
                 <button class="chip" @onclick='() => ScrollContentsToAsync("contents-structure")'>@Text["contents.structure"]</button>
             }
+            @if (PiecesOn)
+            {
+                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-pieces")'>@Text["parts.chip"]</button>
+            }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-bookmarks")'>@Text["contents.bookmarks"]</button>
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-notes")'>@Text["contents.tabNotes"]</button>
         </nav>
@@ -936,6 +1036,21 @@
                         <button class="btn quiet" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
                     }
                 </section>
+            }
+
+            @if (PiecesOn)
+            {
+                @* An experiment (Settings · Experimental, version 0.5): where the pieces begin, reviewed and kept as the pieces layer, then made pieces of their own. *@
+                <PiecesReview Review="PiecesUnderReview" Layer="KeptPieces" Words="Words" Place="PiecePlace" SelectionBar="SelectionStartBar" Count="_reviewCount"
+                              Go="GoToPieceAsync" Change="ChangePieces" Find="FindPiecesAgain" Confirm="ConfirmPiecesAsync" Cancel="CancelPiecesReview" ReviewAgain="ReviewKeptPieces" />
+                @if (_project is not null)
+                {
+                    <PiecePartsSection Collection="_project" Layer="KeptPieces" Stretch="PieceStretch" BarsText="BarsOf" BarNumbersText="BarsOf" Words="Words" Done="_partsMade" Origin="_partOf" Made="SavePartsAsync" />
+                    @if (_ownSound != MotiffLab.Web.Workspace.PieceSoundPlace.None)
+                    {
+                        <PieceSound Sound="_ownSound" Hearing="HearingOwnSound" Busy="_ownSoundBusy" Hear="HearOwnSoundAsync" Pick="PickOwnSoundAsync" />
+                    }
+                }
             }
 
             <section id="contents-bookmarks" class="contents-section" aria-labelledby="contents-bookmarks-title">
@@ -1072,12 +1187,13 @@
     /// out, to put back. In the Insights sheet's More tools for any piece, and under Fix notes in the Check drawer.
     /// </summary>
     private RenderFragment NoteCorrections => @<text>
+    @if (_checkFixing is null && EditsLayerShown is { } layer) { <MotiffLab.Web.Workspace.EditsLayerSwitch View="layer" IdPrefix="fix" Disabled="NoteEditing" Switch="SwitchEditsLayerAsync" Drop="DropUnfitEditAsync" /> }
     <p class="meta">@Text["correct.hint"]</p>
     <div class="row">
-        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
+        <button @onclick="UndoCorrectionAsync" disabled="@(_edits.IsEmpty || EditsOff)" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
         <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
     </div>
-    @if (_selection is { NoteIds.Count: > 0 } picked)
+    @if (!EditsOff && _selection is { NoteIds.Count: > 0 } picked)
     {
         <table class="notes-table">
             <thead>
@@ -1121,7 +1237,7 @@
             </tbody>
         </table>
     }
-    else
+    else if (!EditsOff)
     {
         <p class="meta">@Text["correct.selectFirst"]</p>
     }
@@ -1151,6 +1267,13 @@
         <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="() => CloseFromAsync(Place.Check)"><Icon Name="close" /></button>
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
+    @if (EditsLayerShown is { } layer) { <MotiffLab.Web.Workspace.EditsLayerSwitch View="layer" IdPrefix="check" Disabled="NoteEditing" Switch="SwitchEditsLayerAsync" Drop="DropUnfitEditAsync" /> }
+    @if (CheckPiecesShown is { Count: > 0 } checkPieces) { <MotiffLab.Web.Workspace.CheckPieces Pieces="checkPieces" BarsText="BarsOf" Shown="_checkPiece?.First" Undoable="CheckPieceUndoable" Open="ShowCheckPiece" LooksRight="ResolveCheckPieceAsync" Undo="UndoCheckPieceAsync" /> }
+    @if (_scanCheck is { Pages.Count: > 0 } pagesChecked && _project?.Scan is { } scanRead)
+    {
+        @* The summary by page from the scan server's reports (version 0.4): music-core's counts, the confirmed bars left out. *@
+        <MotiffLab.Web.Import.ScanPagesSummary Pages="pagesChecked.Pages" Confirmed="scanRead.ConfirmedBars" HeadingId="check-pages-title" />
+    }
     @if (_project is { Transcription: { } heard } project)
     {
         @* The bars and tempo worked out from the notes (0016), in the drawer's head for a transcription (0018 section 9). *@
@@ -1197,6 +1320,8 @@
                 <p class="caption">@Text["transcribe.barsOff"]</p>
             }
             <p class="caption">@Text[canChange ? "check.barsHow" : "check.barsKept"]</p>
+            @if (LiveTempoOn) { <MotiffLab.Web.Workspace.LiveBarsActions CanChange="LiveBars.CanChange(project)" HasScore="HasScoreVersion" Find="FindLiveBarsAsync" /> }
+            @if (MetersOn && heard.Bars is not null) { <MotiffLab.Web.Workspace.OddMetersPreview Stretches="OddMetersShown" /> }
         </section>
     }
     @if (OpenCheckBars.Count == 0 && HasCheckFlags)
@@ -1204,7 +1329,7 @@
         <p class="caption">@Text["check.allDoneHint"]</p>
     }
     <ul class="check-list">
-        @foreach (IGrouping<int, CheckFlag> bar in OpenCheckBars)
+        @foreach (IGrouping<int, CheckFlag> bar in ListedCheckBars)
         {
             bool fixing = _checkFixing == bar.Key;
             bool selected = SelectedCheckBar == bar.Key;
@@ -1228,6 +1353,27 @@
             </li>
         }
     </ul>
+    @if (UncertainLengthBars is { Count: > 0 } lengths)
+    {
+        @* A recording's note lengths are heard less surely than their starts (#352): shown apart, worked out, never saved. *@
+        <p class="overline">@Text["check.lengthsHeading"]</p>
+        <p class="caption">@Text["check.lengthsHint"]</p>
+        <ul class="check-list lengths">
+            @foreach (UncertainLengths bar in lengths)
+            {
+                <li class="check-entry @(SelectedCheckBar == bar.Bar ? "on" : null)">
+                    <p class="check-bar"><strong>@Text.Format("check.bar", bar.Bar)</strong> <span class="caption">@Text.Count("check.lengthsNotes", bar.NoteIds.Count) · @LengthNames(bar)</span></p>
+                    @foreach (LengthDoubt reason in bar.Reasons)
+                    {
+                        <p class="caption">@HeardLengths.Explain(reason, Words)</p>
+                    }
+                    <div class="row">
+                        <button class="btn quiet compact" @onclick="() => ShowCheckBarAsync(bar.Bar)">@Text["scanCheck.show"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
     @if (UncheckedSelectedBars is { Count: > 0 } others)
     {
         @* A scan's other bars: confirmed once the player compared them with the page (0011). *@
@@ -1472,16 +1618,33 @@
                     <div class="row"><button class="btn secondary compact" @onclick="RestartFromSheetAsync">@Text["assembly.restartFrom"]</button></div>
                 </li>
             }
-            @if (piece.Document is not null)
+            @if (piece.FindOriginal(PieceOriginal.DocumentId) is { } pdfOriginal)
             {
                 <li class="source-card">
-                    <p class="head"><Icon Name="pages" Size="IconSize.Small" /> <strong>@piece.DocumentFileName</strong> <span class="caption">@Text["sources.pdfInside"]</span></p>
-                    <div class="row">
-                        <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
-                        <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
-                            @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
-                        </button>
-                    </div>
+                    <p class="head"><Icon Name="pages" Size="IconSize.Small" /> <strong>@pdfOriginal.Shown</strong> <span class="caption">@Text[piece.Document is null ? "originals.kindPdf" : "sources.pdfInside"]</span></p>
+                    <p class="held where-@WhereIs(pdfOriginal).ToString().ToLowerInvariant()">@WhereText(pdfOriginal)</p>
+                    @if (piece.Document is not null)
+                    {
+                        <div class="row">
+                            <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
+                            <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
+                                @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <label class="file btn secondary compact" title="@Text["originals.relinkHint"]">
+                                @Text["originals.relink"]
+                                <InputFile OnChange="RelinkPdfAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+                            </label>
+                        </div>
+                    }
+                    @if (_relinking == PieceOriginal.DocumentId && _relinkStatus is { } pdfStatus)
+                    {
+                        <p class="caption" role="status">@pdfStatus</p>
+                    }
                 </li>
             }
             @foreach (SavedPerformance kept in piece.Performances)
@@ -1491,6 +1654,24 @@
                 <li class="source-card">
                     <p class="head"><span class="dot tone-@ToneOf(kept.Id)" aria-hidden="true"></span> <strong>@kept.Name</strong> <span class="caption">@VersionRole(kept) · @BarsOfSource(kept.Id)</span></p>
                     <p>@MatchSummary(kept.Id)</p>
+                    @if (kept.Source == PerformanceSource.Recording && piece.FindOriginal(kept.Id) is { } recordingOriginal)
+                    {
+                        OriginalWhere recordingWhere = WhereIs(recordingOriginal);
+                        <p class="held where-@recordingWhere.ToString().ToLowerInvariant()"><Icon Name="mic" Size="IconSize.Small" /> @WhereText(recordingOriginal)</p>
+                        @if (recordingWhere != OriginalWhere.Here)
+                        {
+                            <div class="row">
+                                <label class="file btn secondary compact" title="@Text["originals.relinkHint"]">
+                                    @Text["originals.relink"]
+                                    <InputFile @ref="_relinkPickers[kept.Id]" OnChange="() => RelinkRecordingAsync(kept.Id)" accept="@MotiffLab.Web.Import.ScanService.AcceptedRecordings" />
+                                </label>
+                            </div>
+                        }
+                        @if (_relinking == kept.Id && _relinkStatus is { } recordingStatus)
+                        {
+                            <p class="caption" role="status">@recordingStatus</p>
+                        }
+                    }
                     <div class="row">
                         @if (corrections > 0)
                         {
@@ -1513,6 +1694,10 @@
                 </li>
             }
         </ul>
+        @if (ShownOriginals.Any())
+        {
+            <p class="caption local-first">@Text["originals.localFirst"]</p>
+        }
         @if (_readingDocument && piece.Document is { } pdf)
         {
             <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@piece.DocumentFileName" Heading="@Text["sources.readPdf"]" Intro="@Text["sources.readPdfIntro"]"
@@ -1537,7 +1722,7 @@
                 <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
             </label>
             <p class="caption">@Text["sources.pdfHow"]</p>
-            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" Picked="FingerprintRecordingAsync" />
         </section>
     }
 </aside>;
@@ -1685,7 +1870,8 @@
     /// Original / Variation / Alternate when the phrase has a variation, then the piano roll, Insights and Play.
     /// </summary>
     private RenderFragment FocusBar => @<text>
-        <button class="back-to-page" title="@Text["focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="back" Size="IconSize.Large" /> <span>@Text["focus.back"]</span></button>
+        @* The way back is the way in (#521 17): from the score «К странице», from the roll «Свернуть». *@
+        <button class="back-to-page" title="@Text[_focusFromRoll ? "focus.collapseHint" : "focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="@(_focusFromRoll ? "collapse" : "back")" Size="IconSize.Large" /> <span>@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]</span></button>
         <span class="crumb">@FocusPosition</span>
         @* The phrase as notes or as a roll (testing item 12). *@
         <div class="seg" role="radiogroup" aria-label="@Text["focus.showAs"]">
@@ -1737,9 +1923,7 @@
         }
         <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                 @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
-        </button>
+        @* No Play here (#511 section 8.1): the pill's is the one, and it always shows in focus (PillShown). *@
     </text>;
 
     private const string VariationSource = "variation";
@@ -1880,12 +2064,6 @@
     private int[] _tracks = [];
     private int _lastBar;
     private MotifSelection? _selection;
-    private MotifAnalysis? _analysis;
-    private StructureAnalysis? _structure;
-    private IReadOnlyList<MotifFact> _character = [];
-    private HarmonyAnalysis _harmony = HarmonyAnalysis.None;
-    /// <summary>The circle of fifths for the selection, from its key and chords (<see cref="KeyCircle"/>).</summary>
-    private KeyCircleView? _circle;
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
 
@@ -1901,7 +2079,7 @@
     private string? _selectionNote;
 
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
-    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _sentenceFacts, .. _character, .. _harmony.Facts];
+    private IReadOnlyList<MotifFact> Facts => _reading?.Facts ?? [];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
@@ -1927,11 +2105,8 @@
     /// <summary>Whether something loops: the selection, or the motif with its answer.</summary>
     private bool Looping => _looping || _answerLoop is not null;
 
-    /// <summary>The experiments music-core offers for the selection (decision record 0010).</summary>
-    private IReadOnlyList<Experiment> _offers = [];
-
-    /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
-    private InvitationContext? _invitationContext;
+    /// <summary>The selection's structure, facts, context and offers, read when first needed; null without a selection.</summary>
+    private SelectionReading? _reading;
 
     /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
     private ExploreTrial? _trial;
@@ -2047,16 +2222,16 @@
         _ => ScoreChoice.Generated,
     };
 
-    /// <summary>The score shown: as written, generated from the notes, or with the variation in place.</summary>
-    private ScoreSource? ShownScore => ShownChoice switch
+    /// <summary>The score shown: as written, generated from the notes, with the variation in place, or moved to another key (#351).</summary>
+    private ScoreSource? ShownScore => TransposedScore ?? ShownChoice switch
     {
         ScoreChoice.Variation => _variationScore,
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };
 
-    /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it shows none.</summary>
-    private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation ? null : PencilMarks.KeyFor(_project?.Id, _title);
+    /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it, or moved to another key, shows none.</summary>
+    private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation || TransposedScore is not null ? null : PencilMarks.KeyFor(_project?.Id, _title);
 
     private IReadOnlyList<InkStroke>? _inkWritten;
     private string _ink = "";
@@ -2127,7 +2302,6 @@
 
     private string StateText => Player.State switch
     {
-        PlaybackState.CountingIn => Text["transport.countIn"],
         PlaybackState.Playing => Text["transport.playing"],
         _ => Text["transport.stopped"],
     };
@@ -2135,8 +2309,11 @@
     protected override void OnInitialized()
     {
         Player.Changed += OnPlayerChanged;
+        Player.Moved += OnPlayerMoved;
+        Metronome.Changed += OnMetronomeChanged;
         Text.Changed += OnLanguageChanged;
         SettingsStore.Changed += OnSettingsChanged;
+        WatchLeavingNotes();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -2148,6 +2325,8 @@
         if (firstRender)
         {
             await ReadLayoutPreferencesAsync();
+            await ReadSelectByAsync();
+            await WarmEngraverAsync();
             await Player.InitializeAsync();
         }
 
@@ -2189,6 +2368,8 @@
         if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
         {
             _pieceVersion = CurrentPiece.Version;
+            StartLanding();
+            ExpectEngraving();
             await LoadPieceAsync(piece);
             if (_filters.Contains(CurrentPiece.StartWith))
             {
@@ -2200,9 +2381,13 @@
             _level = ProjectLevel;
             if (_project is { PhraseLevels.IsEmpty: false } phrased)
             {
-                SuggestPhrases(phrased.PhraseLevels);
+                ReadLevelsWith(phrased.PhraseLevels);
             }
 
+            // The score shows before the piece is read at its levels (#419); restoring the selection needs them.
+            await ScoreShownAsync();
+            EnsureLevels();
+            StartEditsLayer(CurrentPiece.Opened);
             if (_project is { ChangesNotes: true } corrected)
             {
                 _restoring = true;
@@ -2222,23 +2407,34 @@
             }
 
             await ArriveAtResumePointAsync();
+            await EndArrivalAsync();
+            await CheckOriginalsAsync();
+            await ReadPartsMadeAsync();
             StateHasChanged();
         }
 
         await SyncLayoutAsync();
+        await SyncModeKeysAsync();
+        await SyncPracticeAsync();
+        await SyncModelAsync();
+        await SyncMetronomeAsync();
     }
 
     public void Dispose()
     {
         Player.Changed -= OnPlayerChanged;
+        Player.Moved -= OnPlayerMoved;
+        Metronome.Changed -= OnMetronomeChanged;
         Text.Changed -= OnLanguageChanged;
         SettingsStore.Changed -= OnSettingsChanged;
+        // The metronome is the page's: it stops as the page goes (#521 section 15).
+        _ = Metronome.StopAsync();
     }
 
     private void OnPlayerChanged() => _ = InvokeAsync(async () =>
     {
         await FollowScaleAsync();
-        await FollowPlayingInFocusAsync();
+        await FollowCycleAsync();
         StateHasChanged();
     });
 
@@ -2267,6 +2463,7 @@
     private async Task LoadFurEliseAsync()
     {
         await LoadPieceAsync(FurElise.Import(), FurElise.Title);
+        EnsureLevels();
         // Für Elise has no project, so the address no longer names one.
         if (ProjectId is not null)
         {
@@ -2315,35 +2512,41 @@
     private async Task LoadPieceAsync(ImportedPiece piece, string? title = null)
     {
         string? scoreTitle = title ?? ScoreTitle.Of(piece.FileName);
+        _writtenXml = null;
         // MIDI cannot mark accents, so a MIDI piece has no accent fact rather than "no accents".
         _accents = piece.MusicXml?.AccentMarks;
         _characterContext = CharacterContext.FromPiece(piece);
         // MIDI has no slurs or repeat signs; rests still mark phrase boundaries.
         _phraseMarks = piece.MusicXml?.PhraseMarks ?? PhraseMarks.None;
+        ReadSectionsOf(piece);
         _heard = Transcribed.IsHeard(piece);
         _heardKey = _heard && piece.Keys.Count == 0 ? Transcribed.KeyOf(piece.Notes) : null;
         if (piece.AssembledTempos is { } tempos)
         {
             // Notes made by an assembly (0024, section 7): engraved and played from the notes, in their own bars, keys and tempo.
             IEnumerable<KeyChange> keyChanges = piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-            await LoadAsync((PlaybackScore.Create(piece.Notes, tempos, piece.Meter, piece.End), piece.Meter, piece.Notes), title ?? piece.FileName,
-                NotationGenerator.Generate(piece.Notes, piece.Meter, keyChanges, piece.End, scoreTitle), musicXml: null, piece.Keys);
+            PlaybackScore made = PlaybackScore.Create(piece.Notes, tempos, piece.Meter, piece.End).WithPlayerTempo(piece.PlayerTempo);
+            await LoadAsync((made, piece.Meter, piece.Notes), title ?? piece.FileName,
+                NotationGenerator.Generate(piece.Notes, piece.Meter, keyChanges, piece.End, scoreTitle, tempos: made.Tempos), musicXml: null, piece.Keys);
             return;
         }
 
+        // The tempo is played and marked as music-core says, with the player's own for the piece (version 0.5.4).
         if (piece.Midi is { } midi)
         {
-            var score = PlaybackScore.FromMidi(midi);
+            PlaybackScore score = PlaybackScore.OwnTempoOf(piece, PlaybackScore.FromMidi(midi)).WithPlayerTempo(piece.PlayerTempo);
             GeneratedNotation notation = _heard
                 ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, scoreTitle, score)
-                : NotationGenerator.FromMidi(midi, scoreTitle);
+                : NotationGenerator.FromMidi(midi, scoreTitle, tempos: score.Tempos);
             await LoadAsync((score, piece.Meter, piece.Notes), title ?? piece.FileName, notation, musicXml: null, piece.Keys);
             return;
         }
 
         MusicXmlImport import = piece.MusicXml!;
         using var text = new StreamReader(new MemoryStream(piece.ScoreXml!), detectEncodingFromByteOrderMarks: true);
-        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), title ?? piece.FileName, NotationGenerator.FromMusicXml(import, scoreTitle), await text.ReadToEndAsync(), piece.Keys);
+        PlaybackScore written = PlaybackScore.FromMusicXml(import).WithPlayerTempo(piece.PlayerTempo);
+        _writtenXml = await text.ReadToEndAsync();
+        await LoadAsync((written, piece.Meter, piece.Notes), title ?? piece.FileName, NotationGenerator.FromMusicXml(import, scoreTitle, written.Tempos), WrittenTempo.With(_writtenXml, written), piece.Keys);
     }
 
     private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml, IReadOnlyList<KeySignature> keys)
@@ -2363,19 +2566,16 @@
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
         _pieceStructure = null;
         _level = DefaultLevel;
-        SuggestPhrases(LevelEdits.None);
+        ReadLevelsLater();
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
         _selection = null;
+        ForgetSelectionHistory();
         _focus = false;
         _focusSpan = null;
         _highlight = null;
-        _analysis = null;
-        _structure = null;
-        _character = [];
-        _harmony = HarmonyAnalysis.None;
-        _circle = null;
+        _reading = null;
         _sentenceFacts = [];
         _selectionNote = null;
         _looping = false;
@@ -2384,8 +2584,6 @@
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
-        _offers = [];
-        _invitationContext = null;
         _trial = null;
         // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
         _project = null;
@@ -2409,12 +2607,12 @@
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
     private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end, IReadOnlyList<NotationOssia>? ossias = null) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias);
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias, tempos: _score?.Tempos);
 
     private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played, IReadOnlyList<NotationOssia>? ossias = null) =>
         _readable
-            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, ossias: ossias)
-            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias);
+            ? ReadableNotation(notes, meter, keys, end, title, played, ossias: ossias)
+            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias, tempos: played.Tempos);
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
     private void SetReadable(bool readable)
@@ -2443,6 +2641,11 @@
         if (notation.WrittenAsHeard)
         {
             parts.Add(Text["score.readableNote"]);
+            if (HasReadingMarks(notation))
+            {
+                parts.Add(Text["score.readingMarks"]);
+            }
+
             if (notation.GraceNoteCount > 0)
             {
                 parts.Add(Text.Count("score.graceNotes", notation.GraceNoteCount));
@@ -2501,6 +2704,24 @@
     /// </summary>
     private async Task PlayPauseAsync()
     {
+        if (Transposed is not null)
+        {
+            await TogglePlayAsync();
+            return;
+        }
+
+        if (ModelHolds)
+        {
+            await PressAsync();
+            return;
+        }
+
+        if (Focused)
+        {
+            await PlayPassageAsync();
+            return;
+        }
+
         if (!_looping && _selection is { NoteIds.Count: > 0 })
         {
             await ToggleLoopSelectionAsync();
@@ -2515,15 +2736,22 @@
         await TogglePlayAsync();
     }
 
-    private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? PlayAsync() : Player.PauseAsync();
+    /// <summary>The transport's Play: while the notes are shown in another key (#351), they are heard there.</summary>
+    private Task TogglePlayAsync() => Player.State != PlaybackState.Stopped ? Player.PauseAsync() : Transposed is not null ? HearShownTransposedAsync() : PlayAsync();
 
     /// <summary>Starts playback, and counts it for analytics when the player has turned them on (#64).</summary>
     private async Task PlayAsync()
     {
         _pillKept = true;
         await Player.PlayAsync();
+        await TrackPlaybackAsync();
+    }
+
+    /// <summary>Counts a start of playback for analytics when the player has turned them on (#64).</summary>
+    private Task TrackPlaybackAsync()
+    {
         string hear = !VariationChosen ? "original" : _hear.Length > 1 ? "both" : "variation";
-        await Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
+        return Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
     }
 
     private async Task StopAsync()
@@ -2535,15 +2763,13 @@
     private Task SeekAsync(ChangeEventArgs args) =>
         long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
 
-    private Task SetTempoAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int percent) ? SetTempoPercentAsync(percent) : Task.CompletedTask;
+    /// <summary>The pill's tempo: "90 % · ♩ 83", the percentage and the beats a minute heard, "♩ ?" when not recognised (version 0.5.4).</summary>
+    /// <summary>The pill's tempo (#521 section 12): the piece tempo, with the playback pace beside it when it is not 100 %.</summary>
+    private string TempoPillText => TempoNow?.PillText(TempoPercent, Text) ?? $"{TempoPercent}%";
 
-    /// <summary>The slowest and fastest the tempo goes, as a percentage of the piece's; the pill's slider has the same range.</summary>
-    private const int MinTempo = 25;
-    private const int MaxTempo = 150;
-
+    /// <summary>The playback tempo, 25 % to 150 % of the piece's in 1 % steps; the engine changes its rate at once, also while playing.</summary>
     private Task SetTempoPercentAsync(int percent) =>
-        Player.SetTempoAsync(Math.Clamp(percent, MinTempo, MaxTempo) / 100.0);
+        Player.SetTempoAsync(Math.Clamp(percent, TempoControl.Min, TempoControl.Max) / 100.0);
 
     /// <summary>The phrase the selection stands for or lies mostly in, which Previous and Next phrase step from.</summary>
     private Phrase? StepFrom => _phrases is { } map && _selection is { } selection ? CurrentPhrase ?? map.Covering(selection.Span) : null;
@@ -2603,10 +2829,6 @@
             return [.. _notes!.Where(note => ids.Contains(note.Id))];
         }
     }
-
-    private Task ToggleMetronomeAsync() => Player.SetMetronomeAsync(!Player.Metronome);
-
-    private Task ToggleCountInAsync() => Player.SetCountInAsync(!Player.CountIn);
 
     /// <summary>
     /// What playback, the roll and a selection can be limited to (S1-M2): a hand when the piece has
@@ -2722,16 +2944,30 @@
     /// <summary>The facts about a selection and the experiments offered for them.</summary>
     private void Analyze(MotifSelection selection)
     {
+        EnsureLevels();
         IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
         KeySignature? key = KeySignature.InForce(_keys, selection.Span.Onset);
-        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
-        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
-        _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
-        _harmony = HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, _analysis.Key?.Key, Words);
-        _circle = KeyCircle.For(selection, _notes!, _meter!, _analysis.Key, _harmony, Words);
-        _sentenceFacts = SentenceFactsFor(selection);
-        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
-        _offers = TryChips.Buttons(Facts, _invitationContext);
+        // Recognised notes still to check make what is read from them uncertain, and say where (#352).
+        NoteDoubt doubt = Doubt;
+        IReadOnlyList<Note> notes = _notes!;
+        MeterMap meter = _meter!;
+        Words words = Words;
+        IReadOnlyList<AccentMark>? accents = _accents;
+        CharacterContext characterContext = _characterContext!;
+        _sentenceFacts = doubt.On(SentenceFactsFor(selection), selection);
+        // The readings wait until something shows them (#419): a card turned by playback in focus shows none (#433).
+        _reading = new SelectionReading(
+            () =>
+            {
+                MotifAnalysis read = MotifAnalyzer.Analyze(notes, meter, selection, key, accents, phrases, words);
+                HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(notes, meter, selection, read.Key?.Key, words), selection);
+                MotifAnalysis analysis = doubt.On(read, selection);
+                IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(notes, meter, selection, key, characterContext, words), selection);
+                return new SelectionAnalysis(analysis, harmony, character, KeyCircle.For(selection, notes, meter, analysis.Key, harmony, words));
+            },
+            _sentenceFacts,
+            () => doubt.On(StructureAnalyzer.Analyze(notes, meter, selection, phrases, words), selection),
+            (read, structure) => new InvitationContext(notes, meter, selection, read.Motif, structure, read.Character, words) { Harmony = read.Harmony });
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -2747,7 +2983,9 @@
             _noteDraft = null;
         }
 
+        TickSpan? before = _selection?.Span;
         _selection = MotifSelector.Select(_notes!, _meter!, Selectable(span), _filter, SelectionCap(span));
+        NoteSelectionStep(before);
         Analyze(_selection);
         _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
@@ -2780,7 +3018,11 @@
         // The steps follow the selection as it changes, so the player keeps hearing and seeing them.
         await ReplayAsync();
 
-        if (_looping)
+        if (ModelHolds)
+        {
+            await SelectInModelAsync();
+        }
+        else if (_looping)
         {
             if (_selection.NoteIds.Count == 0)
             {
@@ -2840,26 +3082,28 @@
 
     private async Task ClearSelectionAsync()
     {
+        TickSpan? before = _selection?.Span;
+        _selection = null;
+        NoteSelectionStep(before);
+        if (ModelHolds)
+        {
+            // T11: nothing loops, the black playhead stays where it is.
+            await SelectInModelAsync();
+        }
+
         if (_looping)
         {
             await StopLoopingAsync();
         }
 
-        _selection = null;
         _bookmarkDraft = _bookmarkDraft is { Id: null } ? null : _bookmarkDraft;
         _noteDraft = null;
         // Nothing to lift: focus goes with the selection.
         _focus = false;
         _focusSpan = null;
         _highlight = null;
-        _analysis = null;
-        _structure = null;
-        _character = [];
-        _harmony = HarmonyAnalysis.None;
-        _circle = null;
+        _reading = null;
         _sentenceFacts = [];
-        _invitationContext = null;
-        _offers = [];
         _trial = null;
         _layered = false;
         _listenTo = ListenTo.Everything;
@@ -2899,7 +3143,7 @@
                 return [];
             }
 
-            var kept = _edits.Apply(_imported).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+            var kept = Corrected(_edits).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
             return [.. _imported.Where(note => !kept.Contains(note.Id))];
         }
     }
@@ -2986,14 +3230,14 @@
     {
         _edits = edits;
         // Bars taken from a performance (decision record 0022, section 5) come after the corrections.
-        _notes = PerformanceTake.Apply(edits.Apply(_imported), _project?.TakenBars ?? []);
+        _notes = PerformanceTake.Apply(Corrected(edits), _project?.TakenBars ?? []);
         if (_selection is { } current)
         {
             // Renders between the awaits below must not see a selection that names a removed note.
             _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter, SelectionCap(current.Span));
         }
 
-        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
+        _score = PlaybackScore.Create(_notes, _score!.PieceTempos, _meter!, _score.End, _score.Pedal).WithPlayerTempo(_score.StartTempo.Source == TempoSource.Player ? _score.StartTempo.PerMinute : null);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         SuggestPhrases();
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
@@ -3022,7 +3266,7 @@
     private ExploreTrial? ActiveTrial => _trial is { } trial && ReferenceEquals(trial.Chain, _chain) ? trial : null;
 
     /// <summary>What the Explore card offers: what fits the selection, or while an experiment runs, what fitted where it was offered.</summary>
-    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _offers;
+    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _reading?.Offers ?? [];
 
     /// <summary>
     /// Tries one alternative of an experiment (decision record 0010): its steps become the variation,
@@ -3031,21 +3275,21 @@
     /// </summary>
     private async Task TryExperimentAsync(ExploreRequest request)
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection || _invitationContext is null)
+        if (_selection is not { NoteIds.Count: > 0 } selection || _reading is not { } reading)
         {
             return;
         }
 
         ExploreTrial? active = ActiveTrial;
         bool tryingOne = active is { Kept: false };
-        InvitationContext offeredIn = active?.OfferedIn ?? _invitationContext;
+        InvitationContext offeredIn = active?.OfferedIn ?? reading.Context;
         Experiment experiment = request.Experiment;
         VariationChain chain = ExperimentCatalogue.Start(experiment, request.Alternative, offeredIn);
         var trial = new ExploreTrial(
             experiment,
             request.Alternative,
             offeredIn,
-            active?.Offers ?? _offers,
+            active?.Offers ?? reading.Offers,
             chain,
             tryingOne ? active!.Before : _chain,
             tryingOne ? active!.KeepBefore : _keep.ToHashSet(),
@@ -3136,19 +3380,14 @@
     /// <summary>The fact chosen on the Understand tab and what the score and the roll highlight for it (#25); null for none. A new selection clears it.</summary>
     private FactHighlight? _highlight;
 
-    /// <summary>
-    /// The experiments the Understand tab links its facts to: those offered for the same selection as the facts.
-    /// None while an experiment offered for another selection runs (the motif's return), as its offers rest on other facts.
-    /// </summary>
-    private IReadOnlyList<Experiment> UnderstandOffers => ActiveTrial is { } trial && !ReferenceEquals(trial.OfferedIn, _invitationContext) ? [] : CardOffers;
-
     /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
     private async Task ChooseFactAsync(FactChoice? choice)
     {
         _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
         if (choice?.Place is { } place)
         {
-            await Player.SeekAsync(place.Span.Onset);
+            await Player.MoveAsync(place.Span.Onset);
+            await FollowModelAsync();
         }
     }
 
@@ -3366,7 +3605,7 @@
         VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter, words: Words));
 
     /// <summary>The key the selection's analysis read, which diatonic operations count steps in; null when it is uncertain.</summary>
-    private MusicalKey? Key => _analysis?.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
+    private MusicalKey? Key => _reading?.Analysis.Motif.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
 
     /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
     private Task ReplayAsync() =>
@@ -3465,9 +3704,10 @@
             return;
         }
 
-        var motifs = _project.Motifs.Where(motif => motif.Id != _motifId).ToList();
-        var variations = _project.Variations.Where(variation => variation.MotifId != _motifId).ToList();
-        if (_selection is { NoteIds.Count: > 0 } selection)
+        // With the corrections off (version 0.5), the selection is over notes they would change: the motifs stay as they were.
+        var motifs = _project.Motifs.Where(motif => EditsOff || motif.Id != _motifId).ToList();
+        var variations = _project.Variations.Where(variation => EditsOff || variation.MotifId != _motifId).ToList();
+        if (!EditsOff && _selection is { NoteIds.Count: > 0 } selection)
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(_motifId, 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, _notes!)));
             if (_chain is { Result: not null } chain)
@@ -3476,7 +3716,7 @@
             }
         }
 
-        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(Levels?.Edits ?? LevelEdits.None));
+        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(Levels?.Edits ?? _levelsToRead ?? LevelEdits.None));
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }
@@ -3542,6 +3782,7 @@
         else
         {
             await Player.SelectSourcesAsync(ids);
+            await FollowModelAsync();
         }
     }
 
@@ -3586,7 +3827,6 @@
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
-        await SetLeadSourceAsync(selection);
         // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
         _alternating = _alternating && CanAlternate(selection);
         // The other version is heard only in focus, while it is shown (0022, section 5).
@@ -3599,14 +3839,25 @@
         {
             await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(selection.Span))));
         }
+        TickSpan range = PlayRange(selection);
+        if (ModelHolds)
+        {
+            // The playback model (v0.5.2) loops the selection with Цикл on; the position stays where it is (T9, T10).
+            await LoopInModelAsync(range);
+        }
+
         if (_alternating)
         {
             return await AlternateAsync(selection);
         }
 
-        await Player.SelectSourcesAsync(WithLeadSource(_hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)));
-        // In focus, Lead-in takes in the bar before and the bar after.
-        TickSpan range = WithLead(PlayRange(selection));
+        await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
+        if (ModelHolds)
+        {
+            return range;
+        }
+
+        // Expand loops its passage too (#533 2).
         await Player.SetLoopAsync(range);
         if (!range.Contains(Player.Position))
         {
@@ -3661,6 +3912,12 @@
 
     private async Task StopLoopingAsync()
     {
+        if (ModelHolds)
+        {
+            await StopInModelAsync();
+            return;
+        }
+
         _looping = false;
         _alternating = false;
         _answerLoop = null;

@@ -15,7 +15,7 @@ namespace MotiffLab.Web.Playback;
 /// such as the original motif and a variation. Selecting sources, for A/B or layered listening,
 /// keeps the musical position.
 /// </remarks>
-public sealed class Player(IJSRuntime js) : IAsyncDisposable
+public sealed partial class Player(IJSRuntime js) : IAsyncDisposable
 {
     public const string OriginalSource = "original";
 
@@ -31,8 +31,14 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     private Task? _initializing;
     private PlaybackScore? _timeline;
 
-    /// <summary>Raised on the renderer's thread after the position or state changes.</summary>
+    /// <summary>Raised on the renderer's thread after the state changes, or the position other than by a report (<see cref="Moved"/>).</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// Raised on the renderer's thread after the engine reports the position moving and nothing else changed (#419): it
+    /// reports many times a second, and the page draws again only what shows the move.
+    /// </summary>
+    public event Action? Moved;
 
     public bool IsReady => _engine is not null;
 
@@ -49,8 +55,6 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     public TickSpan? Loop { get; private set; }
 
     public bool Metronome { get; private set; }
-
-    public bool CountIn { get; private set; }
 
     public IReadOnlySet<int> Muted { get; private set; } = new HashSet<int>();
 
@@ -172,10 +176,17 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
     /// <summary>
     /// Loops a range, such as the selected motif, or stops looping with null. With <paramref name="once"/> the range plays once
-    /// and playback stops at its end, back at its start.
+    /// and playback stops at its end, back at its start. While the playback model holds, a range is another owner's loop and
+    /// null gives the engine the model's loop back (<see cref="HoldLoopAsync"/>).
     /// </summary>
     public async Task SetLoopAsync(TickSpan? range, bool once = false)
     {
+        if (range is null && ModelHeld)
+        {
+            await HoldLoopAsync();
+            return;
+        }
+
         IJSObjectReference engine = await EngineAsync();
         Loop = range;
         EndAlternation();
@@ -219,15 +230,6 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 
-    /// <summary>When on, play starts after one bar of clicks in the meter and tempo where playback starts.</summary>
-    public async Task SetCountInAsync(bool on)
-    {
-        IJSObjectReference engine = await EngineAsync();
-        CountIn = on;
-        await engine.InvokeVoidAsync("setCountIn", on ? 1 : 0);
-        Changed?.Invoke();
-    }
-
     /// <summary>
     /// Mutes and solos tracks. A track sounds when it is not muted and, if any track is soloed,
     /// it is one of them.
@@ -245,22 +247,25 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     [JSInvokable]
     public void OnPlaybackPosition(double tick, string state, int pass)
     {
+        bool moved = true;
         // A report from before the page started or ended the alternation names no pass of it; it is ignored.
         if (Passes is { } passes && pass >= 0 && pass < passes.Count && pass != Pass)
         {
             Pass = pass;
             ActiveSources = passes[pass].Sources;
             Loop = passes[pass].Range;
+            moved = false;
         }
 
         Position = new Tick(Math.Max(0, (long)Math.Round(tick)));
-        State = state switch
+        PlaybackState now = state switch
         {
             "playing" => PlaybackState.Playing,
-            "countingIn" => PlaybackState.CountingIn,
             _ => PlaybackState.Stopped,
         };
-        Changed?.Invoke();
+        moved &= now == State;
+        State = now;
+        (moved ? Moved : Changed)?.Invoke();
     }
 
     public async ValueTask DisposeAsync()
@@ -325,9 +330,6 @@ public sealed record RecordingSound(long Milliseconds, IReadOnlyList<double> Pea
 public enum PlaybackState
 {
     Stopped,
-
-    /// <summary>Playing the count-in bar before the music starts.</summary>
-    CountingIn,
 
     Playing,
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
@@ -52,6 +53,19 @@ public partial class PlaybackLab
     private string VersionRole(SavedPerformance version) =>
         Text[version.Source == PerformanceSource.Score ? "sources.roleNotes" : "sources.rolePlaying"];
 
+    /// <summary>The place to open on arrival («&amp;view=addSource»): the Sources sheet with Add a source open, as a piece split from a recording opens (version 0.5).</summary>
+    private const string AddSourceView = "addSource";
+
+    /// <summary>A piece split from a recording, opened: the Sources sheet with Add a source open, for its score.</summary>
+    private void OpenAddSource()
+    {
+        _insightsOpen = false;
+        _checkOpen = false;
+        _performanceOpen = true;
+        _addingSource = true;
+        _readingDocument = false;
+    }
+
     private void ToggleAddSource()
     {
         _addingSource = !_addingSource;
@@ -77,11 +91,24 @@ public partial class PlaybackLab
             return;
         }
 
-        IBrowserFile file = args.File;
+        (byte[]? data, string? problem) = await PickedPdfAsync(args.File);
+        if (data is null)
+        {
+            _performanceStatus = problem;
+            return;
+        }
+
+        _project = project.WithDocument(data, PageMap.Even(_meter, _score.End, PdfDocument.PageCount(data)));
+        _performanceStatus = Text["sources.pdfKept"];
+        await CheckOriginalsAsync(changed: true);
+    }
+
+    /// <summary>The bytes of a PDF the player picked, or why they cannot be kept: too large, or not a PDF.</summary>
+    private async Task<(byte[]? Data, string? Problem)> PickedPdfAsync(IBrowserFile file)
+    {
         if (PdfDocument.CheckSize(file.Size) is { } tooLarge)
         {
-            _performanceStatus = tooLarge.Text(Words);
-            return;
+            return (null, tooLarge.Text(Words));
         }
 
         byte[] data;
@@ -92,16 +119,7 @@ public partial class PlaybackLab
             data = memory.ToArray();
         }
 
-        if (!PdfDocument.IsPdf(data))
-        {
-            _performanceStatus = Text["sources.notPdf"];
-            return;
-        }
-
-        _project = project.WithDocument(data, PageMap.Even(_meter, _score.End, PdfDocument.PageCount(data)));
-        _performanceStatus = Text["sources.pdfKept"];
-        CurrentPiece.Saved(_project);
-        await Projects.SaveAsync(_project);
+        return PdfDocument.IsPdf(data) ? (data, null) : (null, Text["sources.notPdf"]);
     }
 
     /// <summary>
@@ -115,6 +133,8 @@ public partial class PlaybackLab
             return result.Problem;
         }
 
+        // The engine's mistakes put right, as in document.read and sources.documentNotes (#495 BUG-03).
+        musicXml = ScanRepair.Repair(musicXml);
         string fileName = Path.ChangeExtension(project.DocumentFileName, ".musicxml");
         if (PieceImporter.Import(fileName, musicXml).Piece is not { } read)
         {

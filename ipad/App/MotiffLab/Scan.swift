@@ -1,3 +1,4 @@
+import PDFKit
 import SwiftUI
 
 /// What a scan server read from a PDF: the MusicXML, the engine that read it and how many pages it read.
@@ -5,6 +6,13 @@ struct ScanResult: Sendable {
     let musicXml: Data
     let engine: String
     let pages: Int
+    /// The server's report on each page (`X-Page-Report`, numbers only), when it sends one.
+    var report: String?
+    /// A PDF read in parts (issue #479): each part's report, in order, when every part sent one.
+    var partReports: [String]?
+
+    /// The reports on the pages as `document.read` takes them: one header per request, in order.
+    var reports: [String]? { partReports ?? report.map { [$0] } }
 }
 
 /// Sheet music scanning on the iPad (0011, 0014, 0023), as the web app's `ScanService` does it: the PDF goes to the scan
@@ -21,6 +29,25 @@ final class ScanServer: ObservableObject {
     static let off = "off"
     /// The address the service's README starts it on.
     static let suggested = "http://localhost:8765"
+    /// The largest file the scan server reads (services/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
+    /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
+    static let maxUploadBytes = 50 * 1024 * 1024
+    /// The experiment «Выбор движка распознавания» (v0.5.8), as the web app's `ScanService.EngineSetting`: while it is on,
+    /// each scan names the engine chosen in `engineChoice` (homr or copisteria) to the server, so the two can be compared on
+    /// the player's own pages; off, nothing is named and the server reads with homr, as before.
+    static let engineSetting = "experimental.scanEngine"
+    static let engineChoice = "scan.engine"
+
+    /// The engine to name to the server: the experiment's choice while it is on, else nil (the server's own, homr). «Авто»
+    /// is never named: the pages it sends go to the server's own engine (`VectorPages.swift`).
+    static func chosenEngine(_ settings: DeviceSettings) -> String? {
+        settings.isOn(engineSetting) && settings[engineChoice] != auto ? settings[engineChoice] : nil
+    }
+
+    /// True when the player chose «Авто» in the experiment: the pages a notation program drew are read on the device.
+    static func choseAuto(_ settings: DeviceSettings) -> Bool {
+        settings.isOn(engineSetting) && settings[engineChoice] == auto
+    }
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.
     @Published private(set) var chosen: String?
@@ -92,20 +119,55 @@ final class ScanServer: ObservableObject {
     }
 
     /// Sends the PDF to be read: the MusicXML and engine, or why it could not be read. To the hosted server it goes with
-    /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's.
-    static func recognise(fileName: String, data: Data, address: URL, account: Account) async -> Result<ScanResult, ScanProblem> {
+    /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's. A PDF of
+    /// more than one page, up to 100, goes a page a request and their notes are joined (v0.5.6, #533 section 1,
+    /// `ScanParts.swift`); with «Авто», the pages a notation program drew are read on the device and only the rest are sent
+    /// (decision record 0029, `VectorPages.swift`); `progress`, or the task's `ScanProgress.listener`, hears as each page is sent and read.
+    static func recognise(fileName: String, data: Data, address: URL, account: Account, progress: ScanProgressListener? = nil) async -> Result<ScanResult, ScanProblem> {
+        let report = progress ?? ScanProgress.listener
+        // A file PDFKit cannot open goes whole, as before: the server says what is wrong with it.
+        guard data.starts(with: Data("%PDF".utf8)), let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else {
+            return await whole(fileName: fileName, data: data, address: address, account: account, report: report)
+        }
+        let pages = document.pageCount
+        guard pages <= ScanParts.mostPages else { return .failure(.tooManyPages(pages)) }
+        if choseAuto(DeviceSettings.shared), let vector = await vectorPages(data) {
+            return await recogniseAuto(fileName: fileName, document: document, vector: vector, address: address, account: account, report: report)
+        }
+        guard pages > 1 else { return await whole(fileName: fileName, data: data, address: address, account: account, report: report) }
+        return await recognisePages(fileName: fileName, document: document, address: address, account: account, report: report)
+    }
+
+    /// One request for the whole file, as one page of the progress.
+    private static func whole(fileName: String, data: Data, address: URL, account: Account, report: ScanProgressListener?) async -> Result<ScanResult, ScanProblem> {
+        let progress = ScanProgress(pages: 1)
+        report?(progress)
+        let start = Date()
+        let answer = await recognisePage(fileName: fileName, data: data, address: address, account: account).result
+        if case .success = answer { report?(progress.read(after: ScanProgress.since(start))) }
+        return answer
+    }
+
+    /// Sends one file to be read, as `recognise`, with the server's page report (`X-Page-Report`), which comes with a page
+    /// that could not be read too (v0.4, «Фото страниц»).
+    static func recognisePage(fileName: String, data: Data, address: URL, account: Account) async -> (result: Result<ScanResult, ScanProblem>, report: String?) {
+        guard data.count <= maxUploadBytes else { return (.failure(.tooLarge), nil) }
         let boundary = "motiff-\(UUID().uuidString)"
         var request = URLRequest(url: address.appendingPathComponent("recognise"))
         request.httpMethod = "POST"
         request.timeoutInterval = 600
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         if address == hosted(account) {
-            guard let options = account.options, let token = await account.token(options.scanScope) else { return .failure(.signIn) }
+            guard let options = account.options, let token = await account.token(options.scanScope) else { return (.failure(.signIn), nil) }
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             account.addPlanChoice(to: &request)
         }
         let name = fileName.replacingOccurrences(of: "\"", with: "")
         var body = Data()
+        let engine = chosenEngine(DeviceSettings.shared)
+        if let engine {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"engine\"\r\n\r\n\(engine)\r\n".utf8))
+        }
         body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
         body.append(data)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
@@ -114,22 +176,27 @@ final class ScanServer: ObservableObject {
         do {
             let (answer, response) = try await URLSession.shared.data(for: request)
             let http = response as? HTTPURLResponse
+            let report = http?.value(forHTTPHeaderField: "X-Page-Report")
             switch http?.statusCode ?? 0 {
             case 200..<300:
                 let engine = http?.value(forHTTPHeaderField: "X-Engine") ?? "unknown engine"
                 let pages = Int(http?.value(forHTTPHeaderField: "X-Pages") ?? "") ?? 1
-                return .success(ScanResult(musicXml: answer, engine: engine, pages: pages))
+                return (.success(ScanResult(musicXml: answer, engine: engine, pages: pages, report: report)), report)
             case 403 where hostedServer:
-                return .failure(.needsPro)
+                return (.failure(.needsPro), nil)
             case let status:
-                let message = (try? JSONSerialization.jsonObject(with: answer) as? [String: Any])?["message"] as? String
-                if let message, !message.isEmpty { return .failure(.server(message)) }
-                return .failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file."))
+                let problem = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
+                if let engine, problem?["code"] as? String == "engine" {
+                    return (.failure(.server(UIText.current.format("scan.engineMissing", engine))), report)
+                }
+                let message = problem?["message"] as? String
+                if let message, !message.isEmpty { return (.failure(.server(message)), report) }
+                return (.failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file.")), report)
             }
         } catch let error as URLError where error.code == .timedOut {
-            return .failure(.server("The scan server took too long to answer."))
+            return (.failure(.server("The scan server took too long to answer.")), nil)
         } catch {
-            return .failure(.unreachable(address))
+            return (.failure(.unreachable(address)), nil)
         }
     }
 }
@@ -140,6 +207,10 @@ enum ScanProblem: Error, Equatable {
     case unreachable(URL)
     case signIn
     case needsPro
+    /// Larger than the scan server reads; nothing was sent.
+    case tooLarge
+    /// A PDF of more pages than a score may have (`ScanParts.mostPages`); nothing was sent.
+    case tooManyPages(Int)
     case server(String)
 
     func text(_ text: UIText) -> String {
@@ -148,8 +219,16 @@ enum ScanProblem: Error, Equatable {
         case .unreachable(let address): "The scan server at \(address.absoluteString) does not answer. Check that it is running (see Settings), and that this iPad may reach it."
         case .signIn: text["scan.signIn"]
         case .needsPro: text["scan.needsPro"]
+        case .tooLarge: text["import.scanTooLarge"] + " " + text["import.scanTooLargeTip"]
+        case .tooManyPages(let pages): text.format("scan.tooManyPages", String(pages), String(ScanParts.mostPages))
         case .server(let message): message
         }
+    }
+
+    /// The problem as one page of a PDF read a page a request met it: the server's own words say which page.
+    func onPage(_ page: Int, _ text: UIText) -> ScanProblem {
+        guard case .server(let message) = self else { return self }
+        return .server(text.format("scan.pageFailed", String(page), message))
     }
 }
 
@@ -218,7 +297,10 @@ struct ScanPanel: View {
 
 /// Read the notes from a PDF piece (0011, 0023; the web app's RecognisePanel): the PDF goes to the scan server, and the
 /// notes it reads become a separate piece; the PDF piece stays as it is (Andrei, 2026-11-05). What leaves the device is one
-/// line and one switch; on Motiff Lab's server it needs an account and Pro, offered here.
+/// line naming the server set in Settings, and Recognise notes sends it: pressing the button is the player's yes, with no
+/// switch to turn on each time (issue #479 item 17). While it is read, a segment a page says which pages are read and
+/// which is being read, and, once a page is timed, about how long is left (v0.5.6, #533 section 1); its sheet is as tall
+/// as it is (`fittedSheet`). On Motiff Lab's server it needs an account and Pro, offered here.
 struct ReadNotesPanel: View {
     let address: URL?
     let hosted: Bool
@@ -229,12 +311,14 @@ struct ReadNotesPanel: View {
     var heading: String? = nil
     /// What becomes of the notes read, under Send; that they go into this piece unless given.
     var keeps: String? = nil
+    /// The key of the line on what is sent and to where ({0} the address), in place of the PDF's.
+    var line: String? = nil
     let settings: () -> Void
     /// Sends the PDF and puts the notes into the piece, or adds them as a version; answers why not, or nil once done.
     let read: () async -> String?
-    @State private var send = false
     @State private var reading = false
     @State private var problem: String?
+    @StateObject private var feed = ScanFeed()
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
@@ -249,26 +333,17 @@ struct ReadNotesPanel: View {
                         caption(text["scan.proPrompt"])
                     }
                 } else {
-                    let local = ScanServer.isLocal(address)
-                    caption(text.format(local ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString))
-                    if !local {
-                        Toggle(hosted ? text["pdf.sendHosted"] : text.format("pdf.sendElsewhere", address.host ?? address.absoluteString), isOn: $send)
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("ink"))
-                            .tint(Color.ds("accent"))
-                            .disabled(reading)
-                    }
+                    caption(line.map { text.format($0, address.absoluteString) } ?? sentTo(address))
                     Button {
-                        Task {
-                            reading = true
-                            problem = await read()
-                            reading = false
-                        }
+                        Task { await send() }
                     } label: {
                         Text(reading ? text["import.scanBusy"] : text["pdf.readSend"])
                     }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                    .disabled(reading || !(local || send))
+                    .disabled(reading)
+                    if reading, let progress = feed.progress {
+                        ScanProgressBar(progress: progress, text: text)
+                    }
                     caption(keeps ?? text["pdf.readKeeps"])
                 }
             } else {
@@ -286,5 +361,24 @@ struct ReadNotesPanel: View {
 
     private func caption(_ words: String) -> some View {
         Text(words).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Where Recognise notes sends the PDF: Motiff Lab's server, or the address set in Settings.
+    private func sentTo(_ address: URL) -> String {
+        if hosted { return text["pdf.readLineHosted"] }
+        return text.format(ScanServer.isLocal(address) ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString)
+    }
+
+    /// Sends the PDF on the player's press, with the pages as they go to the bar.
+    @MainActor
+    private func send() async {
+        reading = true
+        problem = nil
+        let feed = feed
+        problem = await ScanProgress.$listener.withValue({ feed.progress = $0 }) {
+            await read()
+        }
+        feed.progress = nil
+        reading = false
     }
 }

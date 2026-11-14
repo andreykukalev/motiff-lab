@@ -1,0 +1,96 @@
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Playback
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject Player Player
+@inject UiText Text
+
+@* The Reference's notation (version 0.5): music-core's MEI for a chord, a scale or a progression, engraved on its own; the
+   notes light up as they sound (Scripts/reference/reference-score.ts). The script owns the host's children. *@
+<div class="ref-score @(Stretch ? "stretch" : null)" role="img" aria-label="@Label" @ref="_host"></div>
+@if (_error is not null)
+{
+    <p class="error">@_error</p>
+}
+
+@code {
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _score;
+    private string? _shown;
+    private ReferencePlacement? _following;
+    private string? _error;
+
+    /// <summary>The music to engrave, as music-core wrote it; engraved again when it changes.</summary>
+    [Parameter, EditorRequired]
+    public string Mei { get; set; } = "";
+
+    /// <summary>Stretched across the width with a playhead, as a progression is; else as narrow as the music.</summary>
+    [Parameter]
+    public bool Stretch { get; set; }
+
+    /// <summary>Where the music sounds while it plays, so its notes light up; null when it does not.</summary>
+    [Parameter]
+    public ReferencePlacement? Placement { get; set; }
+
+    /// <summary>What the notation shows, read out in place of the picture.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/reference/reference-score.js");
+            _score = await _module.InvokeAsync<IJSObjectReference>("createReferenceScore", _host, Stretch);
+        }
+
+        if (_score is null)
+        {
+            return;
+        }
+
+        if (Mei != _shown)
+        {
+            _shown = Mei;
+            try
+            {
+                await _score.InvokeAsync<int>("load", Mei);
+                _error = null;
+            }
+            catch (JSException exception)
+            {
+                _error = Text.Format("score.error", exception.Message);
+                StateHasChanged();
+            }
+        }
+
+        if (!Equals(Placement, _following))
+        {
+            _following = Placement;
+            object? placement = Placement is { } placed ? new { at = placed.At, musicTempo = placed.MusicTempo, timelineTempo = placed.TimelineTempo } : null;
+            await _score.InvokeVoidAsync("follow", placement is null ? null : Player.Engine, placement);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_score is not null)
+            {
+                await _score.InvokeVoidAsync("dispose");
+                await _score.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The page is going away with the notation.
+        }
+    }
+}

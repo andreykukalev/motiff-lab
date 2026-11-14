@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
@@ -17,6 +18,11 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// <see cref="Provenance.UserConfirmed"/>; corrections still go to the edit log and become user-edited.
 /// </para>
 /// <para>
+/// With the scan server's report on each page (<see cref="PageReport"/>), the page a bar was read from counts too: a bar
+/// on a weak page is at <see cref="WeakPageConfidence"/>, below the 0.6 hints need, and every bar on a poor page is
+/// flagged <see cref="ScanFlag.PageQuality"/>. The report is not kept: it counts each time it is given.
+/// </para>
+/// <para>
 /// The checks are rules on the imported score, so they say what is wrong in it, not what the page shows.
 /// Pure and deterministic: the same piece gives the same bars.
 /// </para>
@@ -29,25 +35,42 @@ public sealed record ScanCheck
     /// <summary>The confidence of a note in a bar no check flagged; it is still a reading, not a fact.</summary>
     public const double CleanConfidence = 0.7;
 
+    /// <summary>The confidence of a note in a bar no check flagged on a weak page: below the 0.6 hints need, so it shows as unsure.</summary>
+    public const double WeakPageConfidence = 0.5;
+
     /// <summary>The lowest and highest keys of an 88-key piano, A0 and C8.</summary>
     public const int LowestPianoKey = 21;
 
     public const int HighestPianoKey = 108;
 
-    private ScanCheck(IReadOnlyList<ScanBar> bars) => Bars = bars;
+    private ScanCheck(IReadOnlyList<ScanBar> bars, IReadOnlyList<ScanPage> pages) => (Bars, Pages) = (bars, pages);
 
     /// <summary>Every measure of the score in order, flagged or not.</summary>
     public IReadOnlyList<ScanBar> Bars { get; }
+
+    /// <summary>
+    /// Each page the scan server reported on, in order, with its quality and the bars read from it; empty when the check
+    /// was given no reports. For the summary by page: «Страница 4: 9 из 12 тактов под вопросом».
+    /// </summary>
+    public IReadOnlyList<ScanPage> Pages { get; }
 
     /// <summary>The bars at least one check flagged, in order.</summary>
     public IEnumerable<ScanBar> Flagged => Bars.Where(static bar => bar.IsFlagged);
 
     /// <summary>Checks a piece imported from recognised MusicXML.</summary>
     /// <exception cref="ArgumentException">The piece was not imported from MusicXML.</exception>
-    public static ScanCheck Of(ImportedPiece piece)
+    public static ScanCheck Of(ImportedPiece piece) => Of(piece, null);
+
+    /// <summary>
+    /// Checks a piece imported from recognised MusicXML whose pages the scan server reported on, one report per page in
+    /// order (<see cref="ScanJoin"/> marks where each page starts). Without reports, as <see cref="Of(ImportedPiece)"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The piece was not imported from MusicXML.</exception>
+    public static ScanCheck Of(ImportedPiece piece, IReadOnlyList<PageReport>? pages)
     {
         ArgumentNullException.ThrowIfNull(piece);
         MusicXmlImport import = piece.MusicXml ?? throw new ArgumentException("A scan is read as MusicXML.", nameof(piece));
+        PageMap? map = pages is { Count: > 0 } && import.Measures.Count > 0 ? PageMap.Of(piece, pages.Count) : null;
 
         var notesByMeasure = import.SourceNotes.Zip(import.Notes)
             .ToLookup(static pair => pair.First.MeasureIndex);
@@ -89,22 +112,37 @@ public sealed record ScanCheck
                 flags.Add(ScanFlag.GraceNotes);
             }
 
+            int? page = map?.PageOf(measure.Span.Onset);
+            PageQuality? quality = page is { } number ? pages![number - 1].Quality : null;
+            if (quality == PageQuality.Poor)
+            {
+                flags.Add(ScanFlag.PageQuality);
+            }
+
             bars.Add(new ScanBar(
                 piece.Meter.ToPosition(measure.Span.Onset).Bar,
                 measure.Number,
                 measure.Span,
                 flags,
-                [.. notes.Select(static pair => pair.Second.Id)]));
+                [.. notes.Select(static pair => pair.Second.Id)])
+            {
+                Page = page,
+                PageQuality = quality,
+            });
         }
 
-        return new ScanCheck(bars);
+        return new ScanCheck(bars, PagesOf(pages, bars));
     }
+
+    /// <summary>Each reported page with the bars read from it; none without reports.</summary>
+    private static List<ScanPage> PagesOf(IReadOnlyList<PageReport>? pages, List<ScanBar> bars) =>
+        pages is null ? [] : [.. pages.Select((report, index) => new ScanPage(index + 1, report, [.. bars.Where(bar => bar.Page == index + 1)]))];
 
     /// <summary>The bar that starts at bar number <paramref name="bar"/>, or null when no measure does.</summary>
     public ScanBar? Find(int bar) => Bars.FirstOrDefault(scanned => scanned.Bar == bar);
 
     /// <summary>
-    /// The notes marked as a scan's notes are: detected, less sure in flagged bars, and confirmed in
+    /// The notes marked as a scan's notes are: detected, less sure in flagged bars and on weak pages, and confirmed in
     /// the bars the player said look right. Hands read from the staves are marked the same way.
     /// Notes the check does not know, such as ones added later, are left as they are.
     /// </summary>
@@ -118,7 +156,7 @@ public sealed record ScanCheck
         {
             Attribution attribution = confirmedBars.Contains(bar.Bar)
                 ? Attribution.UserConfirmed
-                : Attribution.Detected(bar.IsFlagged ? FlaggedConfidence : CleanConfidence);
+                : Attribution.Detected(bar.Confidence);
             foreach (string id in bar.NoteIds)
             {
                 attributions[id] = attribution;
@@ -178,6 +216,20 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
 {
     public bool IsFlagged => Flags.Count > 0;
 
+    /// <summary>The page the measure was read from, from 1, when the scan server reported on the pages; otherwise null.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>How well that page can be trusted (<see cref="PageReport.Quality"/>); null without a report.</summary>
+    public PageQuality? PageQuality { get; init; }
+
+    /// <summary>
+    /// How sure the reading of the bar is: <see cref="ScanCheck.FlaggedConfidence"/> when flagged,
+    /// <see cref="ScanCheck.WeakPageConfidence"/> on a weak page, otherwise <see cref="ScanCheck.CleanConfidence"/>.
+    /// </summary>
+    public double Confidence => IsFlagged ? ScanCheck.FlaggedConfidence
+        : PageQuality == Scan.PageQuality.Weak ? ScanCheck.WeakPageConfidence
+        : ScanCheck.CleanConfidence;
+
     /// <summary>What each flag means, in plain words for the player, in the order the checks ran.</summary>
     public IEnumerable<string> Reasons => ReasonsIn(Words.English);
 
@@ -201,8 +253,25 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
         ScanFlag.GraceNotes => words.T(
             "The bar has grace notes, which are often misread, and Motiff Lab does not play them yet.",
             "В такте есть форшлаги: их часто читают неверно, и Motiff Lab пока их не играет."),
+        ScanFlag.PageQuality => words.T(
+            "The page this bar is on was too dark, too soft or could not be read, so any note in it may be wrong. Compare it with the page, or photograph the page again.",
+            "Страница с этим тактом слишком тёмная, нечёткая или не прочиталась, поэтому любая нота в такте может быть неверной. Сверьте такт со страницей или переснимите её."),
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
+}
+
+/// <summary>One page of a scan the server reported on: its place in the score, from 1, the server's report and the bars read from it.</summary>
+public sealed record ScanPage(int Page, PageReport Report, IReadOnlyList<ScanBar> Bars)
+{
+    /// <summary>How well the page can be trusted (<see cref="PageReport.Quality"/>).</summary>
+    public PageQuality Quality => Report.Quality;
+
+    /// <summary>The bars below the 0.6 a hint needs, flagged or on a weak page, other than those the player confirmed.</summary>
+    public int DoubtfulOf(IReadOnlyCollection<int> confirmedBars)
+    {
+        ArgumentNullException.ThrowIfNull(confirmedBars);
+        return Bars.Count(bar => bar.Confidence < ScanCheck.CleanConfidence && !confirmedBars.Contains(bar.Bar));
+    }
 }
 
 /// <summary>Why a scanned bar is worth checking.</summary>
@@ -213,4 +282,7 @@ public enum ScanFlag
     StavesDiffer,
     OutOfPianoRange,
     GraceNotes,
+
+    /// <summary>The bar is on a page the scan server's report calls poor (<see cref="PageReport.Quality"/>).</summary>
+    PageQuality,
 }

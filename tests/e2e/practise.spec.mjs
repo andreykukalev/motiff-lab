@@ -1,15 +1,16 @@
 // Practise a phrase (#50, docs/08-central-product-model.md; 0018 section 2): the transport pill plays it, loops it, slows
 // it down and plays one hand; moving to the next phrase and opening the Insights sheet keep the tempo, the loop and the hand.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, openInsights } from "./steps.mjs";
+import { openFurElise, selectBar, openInsights, selectPhrase } from "./steps.mjs";
 
 test("practise a phrase: loop it, slow it down, hear one hand and move on", async ({ page }) => {
     const errors = await openFurElise(page);
     const pill = page.locator(".pill");
     const selection = page.locator(".selection-status");
-    const tempo = pill.locator(".mono");
+    // The pill says the percentage and the quarter notes a minute heard: "50% · ♩ 60" (version 0.5.4).
+    const tempo = pill.locator(".tempo-label");
 
-    await page.locator(".score button.bracket[aria-label]").first().click();
+    await selectPhrase(page);
     await expect(selection).toContainText("Selected phrase 1");
 
     // The loop and the tempo, within reach on the pill.
@@ -17,9 +18,9 @@ test("practise a phrase: loop it, slow it down, hear one hand and move on", asyn
     await loop.click();
     await expect(loop).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Looping");
-    await pill.getByRole("button", { name: "Tempo 100%" }).click();
-    await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "50%" }).click();
-    await expect(tempo).toHaveText("50%");
+    await pill.getByRole("button", { name: /^Tempo .*, playback pace 100%$/ }).click();
+    await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "50", exact: true }).click();
+    await expect(tempo).toHaveText(/^♩\.? (= \d+|≈ \d+|\?) · 50%$/);
 
     // One hand alone while the phrase loops; Für Elise marks the hands by staff.
     await pill.getByRole("button", { name: "Which notes play, light up and can be selected" }).click();
@@ -36,7 +37,7 @@ test("practise a phrase: loop it, slow it down, hear one hand and move on", asyn
     await openInsights(page);
     await expect(page.locator(".sheet .selection-text")).toHaveText("Phrase 2 · bars 4–8");
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
-    await expect(tempo).toHaveText("50%");
+    await expect(tempo).toHaveText(/^♩\.? (= \d+|≈ \d+|\?) · 50%$/);
     await expect(loop).toHaveAttribute("aria-pressed", "true");
 
     expect(errors).toEqual([]);

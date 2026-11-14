@@ -122,13 +122,13 @@ public partial class PlaybackLab
     /// </summary>
     private async Task<TickSpan> AlternateAsync(MotifSelection selection)
     {
-        TickSpan original = WithLead(PlayRange(selection, [Player.OriginalSource]));
+        TickSpan original = PlayRange(selection, [Player.OriginalSource]);
         // With no variation, the other version in focus (0022, section 5) is the second pass.
         string other = _variation is { Notes.Count: > 0 } ? VariationSource : VersionSource;
         await Player.AlternateAsync(
         [
-            new LoopPass(WithLeadSource([SelectionSource]), original),
-            new LoopPass(WithLeadSource([other]), WithLead(PlayRange(selection, [other]))),
+            new LoopPass([SelectionSource], original),
+            new LoopPass([other], PlayRange(selection, [other])),
         ]);
         return original;
     }

@@ -1,16 +1,16 @@
 import PDFKit
-import PencilKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
 
 /// The score and the pencil marks on it (decision record 0019, sections 1.4 and 2.2). The pages are Verovio's SVG in one
 /// web view, which runs the web app's own score modules (Web/score.js over Scripts/score) to know where each bar is
-/// and to draw the marks. The Apple Pencil writes with PencilKit for its low latency: when a stroke ends, its points
-/// go to the page to be kept against the bar they start in, music-core saves the stroke in the project file
-/// (`ink.add`, `marks.ink` in project file version 12), and the marks are drawn again from what music-core answers.
-/// PencilKit's own drawing is cleared after every stroke, so a mark lives only in the project file and shows the
-/// same in the web app. A finger never writes: it scrolls.
+/// and to draw the marks. The pen writes through InkInput, which draws the stroke as it is written with the outline and
+/// grain the page keeps it with (#479 item 7): when a stroke ends, its points go to the page to be kept against the bar
+/// they start in, music-core saves the stroke in the project file (`ink.add`, `marks.ink` in project file version 12),
+/// and the marks are drawn again from what music-core answers, so a mark lives only in the project file and shows in
+/// the same place in the web app. Who writes, selects and scrolls with a finger or the Pencil is InputRules' (#479
+/// item 18): the stylus follows the tool, a finger moves around the music.
 @MainActor
 final class ScoreController: NSObject, ObservableObject, PenHolder {
     enum Tool: Equatable {
@@ -35,37 +35,87 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var color: UIColor { DesignTokens.color("ink-\(rawValue)") }
     }
 
-    @Published var tool = Tool.pen(.graphite) {
-        didSet {
-            if oldValue != tool { previousTool = oldValue }
-            applyTool()
-        }
+    /// The pen's one tool and each tool's settings (PenState, #495 UX-06), as last chosen on this device (PenMemory): the
+    /// same after PDF | Notes and when the piece opens again.
+    @Published var pen = PenMemory.saved() {
+        didSet { if pen != oldValue { PenMemory.keep(pen) } }
     }
-    /// The bar's Pen (0018 section 5): while it is on, a finger writes too and two fingers scroll, so the score takes
-    /// marks on any iPad, with or without a Pencil. The Pencil always writes.
+    /// The bar's Pen (0018 section 5): while it is on, the Pencil writes; on an iPad without a stylus one finger writes
+    /// and two fingers scroll, so the score takes marks with or without a Pencil (InputRules).
     @Published var penOn = false {
         didSet {
             applyInput()
+            penChanged?(penOn)
             if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
+            sendMode()
         }
     }
-    /// The phrases at the level shown, drawn as brackets on the score (0018 section 3).
+    /// The mode the bar chose (version 0.5, the experiment Two playheads and modes), other than the Pen; nil while the
+    /// experiment is off, which keeps the score as before.
+    @Published var mode: InteractionMode? {
+        didSet {
+            guard mode != oldValue else { return }
+            applyInput()
+            sendMode()
+        }
+    }
+    /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
+    var penChanged: (@MainActor (Bool) -> Void)?
+    /// The bar's mode or the Pen changed: the roll reads presses by the same tool (#543 2, RollInput.barTool).
+    var toolChanged: (@MainActor (InteractionMode?, Bool) -> Void)?
+    /// Whether the roll is in Edit notes: then Undo is the note edits' (#521 9).
+    var rollEditing: (@MainActor () -> Bool)?
+    /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
+    var placeTapped: (@MainActor (Range<Double>) -> Void)?
+    /// A playhead's handle taken, dragged or let go on the page (#495 UX-08): the player runs the model (PlayheadDrag.swift).
+    var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
+    /// The one playback position as the page last had it (the selection it turns cobalt in), or nil for the one playhead of before.
+    private var playheadsWanted: [String: Any]?
+    private var playheadsShown = ""
+    /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
     @Published private(set) var phrases: PhraseLevelsShown?
-    /// The passage selected on the score: a bracket tapped, a bar tapped, or bars chosen by a long press and a drag.
+    /// «Не показывать» in the Phrases menu (#479 item 21): the phrases are not named, in the Contents nor for the
+    /// selection, until a level is chosen again. Kept on this device for every piece; the piece's level stays as it was.
+    @Published var phrasesHidden = UserDefaults.standard.bool(forKey: ScoreController.phrasesHiddenKey) {
+        didSet { UserDefaults.standard.set(phrasesHidden, forKey: Self.phrasesHiddenKey) }
+    }
+    static let phrasesHiddenKey = "motiff.phrases.hidden"
+    /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
+    /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
+    @Published private(set) var selectionSteps = SelectionHistory<SelectionSpan>()
+    /// «Выделение снято · Вернуть» for a while after a clear or a replace (#511 11); nil while none shows.
+    @Published private(set) var selectionToast: SelectionToast?
+    /// «Задержите касание…» for a moment after a pointer that cannot scroll moved off the selection (#511 2.1, C).
+    @Published private(set) var holdHint: UUID?
+    /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
+    @Published private(set) var notice: Notice?
+
+    struct Notice: Equatable {
+        var key: String
+        var id = UUID()
+    }
+    /// Select's «По тактам / По долям» (#511 4.2), and the beat lines and the experiment it chooses between (SelectionTools.swift).
+    @Published var selectsByBeats = SelectBy.saved()
+    var pieceBeatLines: [Double] = []
+    var beatsExperiment = false
+    /// The piece as its selection's history knows it (SelectionHistories.key).
+    private var historyKey: String?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
     /// nothing is selected or a drag is on.
     @Published private(set) var menuPlace: CGPoint?
     /// A tap on the page that selects nothing: away from the bars, or anywhere while a passage is selected. The Insights
     /// sheet goes away; the selection stays (#338).
     var blankTapped: (@MainActor () -> Void)?
-    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it.
+    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
+    /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back.
     @Published private(set) var focused = false
-    /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
-    @Published var leadIn = false {
-        didSet { if oldValue != leadIn { Task { await updatePlayRange() } } }
-    }
-    /// What Play and Loop take for the selection: its span, with a bar either side while leading in.
+    /// Practice view (#533 11, PracticeView.swift): view state only, changed by `practise`; and the time its controls hide.
+    @Published var practice = PracticeView()
+    var practiceTimer: Task<Void, Never>?
+    /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
+    @Published private(set) var expandEntry = ExpandEntry.notes
+    /// What Play and Loop take for the selection: its span (Lead-in went in v0.5.6, #533 3).
     @Published private(set) var playRange: PlayRange?
     /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
     var ossia: String? {
@@ -214,6 +264,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var text: String
     }
     @Published private(set) var canUndo = false
+    /// Whether the Pen's Redo has a step (#521 9).
+    @Published private(set) var canRedo = false
     @Published private(set) var problem: String?
     /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
     @Published private(set) var noteEditor: NoteEditorState?
@@ -232,21 +284,28 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     let webView: WKWebView
-    private let canvas = PKCanvasView()
+    /// The pen, and who writes and who scrolls (#479 items 7 and 18).
+    private let ink = InkInput()
     private var piece: OpenPiece?
     private var dark = false
     private var pageReady = false
     private var shown = false
-    private var clearing = false
-    private(set) var previousTool = Tool.eraser
-    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes).
-    @Published var penWidth = PenSizes.defaultWidth { didSet { applyTool() } }
-    @Published var highlighterWidth = PenSizes.defaultWidth { didSet { applyTool() } }
+    /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
+    @Published var pencilPalette: PencilPaletteCall?
+    /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
+    private var handleSpots: [CGPoint] = []
+    /// The playheads' handles, in the document's pixels, as the page last reported them: a finger there takes the handle.
+    private var headSpots: [CGPoint] = []
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
-    /// The strokes added here, newest last, for Undo.
-    private var added: [String] = []
+    /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, or a press of the eraser (BUG-05).
+    private var steps = InkHistory()
+    /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
+    private let inkQueue = InkQueue()
+    /// The eraser's points not yet sent to the page, in the page's pixels, and whether a send is waiting in the queue.
+    private var rubPoints: [[String: Double]] = []
+    private var rubQueued = false
     /// Verovio's options for the card at its width now, as the page gives them.
     private var cardOptions: String?
     /// The places ringed for the fact chosen in Insights.
@@ -280,22 +339,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         webView.isOpaque = false
         webView.backgroundColor = .clear
 
-        // The canvas lies over the web view and takes only the Pencil: its drawing gesture is moved to the web view,
-        // so a finger still reaches the web view and scrolls the score.
-        canvas.backgroundColor = .clear
-        canvas.isOpaque = false
+        // The pen's gesture and the stroke being written lie over the web view; the rules say which pointers they take.
+        ink.attach(to: webView, pan: webView.scrollView.panGestureRecognizer)
+        ink.style = { [weak self] point in self?.liveStyle(at: point) }
+        ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
+        ink.rubs = { [weak self] in self?.tool == .eraser }
+        ink.rubbed = { [weak self] points, lifted in self?.rubbed(points, lifted: lifted) }
+        ink.handles = { [weak self] in self.map { $0.inView($0.handleSpots) } ?? [] }
+        ink.heads = { [weak self] in self.map { $0.inView($0.headSpots) } ?? [] }
+        ink.pencil.perform = { [weak self] action, point in self?.scorePencilGesture(action, at: point) }
+        ink.penDown = { [weak self] down in self?.penDown(down) }
         applyInput()
-        canvas.isScrollEnabled = false
-        canvas.delegate = self
-        canvas.frame = webView.bounds
-        canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        canvas.isUserInteractionEnabled = false
-        webView.addSubview(canvas)
-        webView.addGestureRecognizer(canvas.drawingGestureRecognizer)
-        let pencil = UIPencilInteraction()
-        pencil.delegate = self
-        webView.addInteraction(pencil)
-        applyTool()
 
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
     }
@@ -306,6 +360,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
+            webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
+            historyKey = SelectionHistories.key(piece)
+            selectionSteps = SelectionHistories.history(of: SelectionHistories.key(piece))
+            rendered = false
             versions = VersionShelf()
             versionStatus = nil
             sources = SourcesInfo()
@@ -323,10 +382,32 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if pageReady { Task { await render() } }
     }
 
+    /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
+    /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05).
     func undo() {
-        guard let last = added.popLast(), let piece else { return }
-        canUndo = !added.isEmpty
-        Task { await change(piece.id, "ink.remove", ["ids": [last]]) }
+        inkQueue.then { [weak self] in
+            guard let self, let piece = self.piece, let last = self.steps.undo() else { return }
+            self.inkStepsChanged()
+            await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+                await self.change(piece.id, call, request, draws: draws)
+            }
+        }
+    }
+
+    /// Does the step undone last again (#521 9): a stroke comes back, a press of the eraser takes again what it took.
+    func redo() {
+        inkQueue.then { [weak self] in
+            guard let self, let piece = self.piece, let step = self.steps.redo() else { return }
+            self.inkStepsChanged()
+            await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+                await self.change(piece.id, call, request, draws: draws)
+            }
+        }
+    }
+
+    private func inkStepsChanged() {
+        canUndo = steps.canUndo
+        canRedo = steps.canRedo
     }
 
     // MARK: - The page
@@ -342,10 +423,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
-            Task { await select(start, end) }
+            // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before. The gesture's
+            // changes are one step of the selection's history (#511 11).
+            let gesture = chosen["gesture"] as? String
+            if chosen["beats"] as? Bool == true {
+                selectBeats(start, end, gesture: gesture)
+            } else {
+                Task { await select(start, end, gesture: gesture) }
+            }
         }
+        receivedGesture(message)
         // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
-        // choice (a bracket, a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
+        // choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
             if selection == nil {
                 Task { await select(start, end) }
@@ -353,14 +442,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 blankTapped?()
             }
         }
-        if let bracket = number(message["bracket"]) {
-            selectPhrase(Int(bracket))
-        }
         if let bookmark = message["bookmark"] as? String {
             goToBookmark(bookmark)
         }
         if let note = message["noteMarker"] as? String {
             openNote(note)
+        }
+        if let handles = message["handles"] as? [[String: Any]] {
+            handleSpots = handles.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
         }
         if let away = number(message["playheadAway"]) {
             playheadAway = away < 0 ? nil : away
@@ -373,6 +462,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             markerPick = MarkerPick(bar: Int(bar), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0)
             showVersionBar(Int(bar))
         }
+        receivedUnderModes(message)
         // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
         if message["blank"] != nil {
             blankTapped?()
@@ -386,11 +476,27 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
+    /// Under the modes (version 0.5) a tap places a playhead on its beat; notes are edited only in the roll (#479 item 23).
+    /// A playhead's handle dragged goes to the player, and where the handles are is kept for the pen (#495 UX-08).
+    private func receivedUnderModes(_ message: [String: Any]) {
+        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        if let place = message["place"] as? [String: Any], let start = number(place["start"]), let end = number(place["end"]) {
+            placeTapped?(start..<max(end, start + 1))
+        }
+        if let heads = message["heads"] as? [[String: Any]] {
+            headSpots = heads.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
+        }
+        if let gesture = PlayheadGesture(message: message["drag"]) {
+            playheadGestured?(gesture)
+        }
+    }
+
     // MARK: - Phrases and the selection
 
-    /// Shows another level: the brackets are drawn again, and the selection moves to the unit that is, encloses or starts
-    /// it at the new level.
+    /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
+    /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
+        phrasesHidden = false
         guard let piece, level != phrases?.level else { return }
         let request = "{\"level\": \"\(level)\"}"
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
@@ -403,7 +509,20 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// A bracket tapped: its unit is selected; a second tap on the selected one lifts it into focus.
+    /// «Вернуть найденные» (the web app's Reset level): the level shown forgets the player's own boundaries, made in
+    /// the Music Studio, and has the units found in the file again.
+    func resetLevel() {
+        guard let piece, let level = phrases?.level, phrases?.edited.contains(level) == true else { return }
+        let request = "{\"reset\": true, \"level\": \"\(level)\"}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.edit", request) }
+            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
+            await showSelection()
+            await updatePlayRange()
+        }
+    }
+
+    /// A unit chosen by its number (the screenshot walk, ScreensHook): it is selected; chosen again, it lifts into focus.
     func selectPhrase(_ number: Int) {
         guard let unit = phrases?.unit(number) else { return }
         if let selection, selection.onset == unit.selectableOnset, selection.end == unit.selectableEnd {
@@ -413,28 +532,42 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { await select(unit.selectableOnset, unit.selectableEnd) }
     }
 
-    /// Selects a passage through music-core, which keeps it within what a selection may hold.
-    func select(_ start: Double, _ end: Double) async {
-        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}")
+    /// Selects a passage through music-core, which keeps it within what a selection may hold; with `gesture`, as part of
+    /// that gesture's step of the history.
+    func select(_ start: Double, _ end: Double, gesture: String? = nil, step: Bool = true) async {
+        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}", gesture: gesture, step: step)
+    }
+
+    /// Selects a passage by beats (#349): music-core takes its edges out to the beat lines. A drag on the score or on the
+    /// roll's bar numbers and handles (#479 item 23), where the score selects by beats.
+    func selectBeats(_ start: Double, _ end: Double, gesture: String? = nil) {
+        Task { await select(request: Self.beatsRequest(start, end), gesture: gesture) }
+    }
+
+    /// A passage by beats, as music-core's `select` takes it: its edges out to the beat lines.
+    static func beatsRequest(_ start: Double, _ end: Double) -> String {
+        "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}"
     }
 
     /// Selects whole bars, as the piano roll picks them; a tap that extends takes the selection to the bar tapped.
-    func selectBars(_ first: Int, _ last: Int, extend: Bool) {
+    func selectBars(_ first: Int, _ last: Int, extend: Bool, gesture: String? = nil) {
         var from = first
         var to = last
         if extend, let selection {
             if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
         }
-        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}") }
+        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
     }
 
-    private func select(request: String) async {
+    /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo).
+    func select(request: String, gesture: String? = nil, step: Bool = true) async {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
         guard let chosen = ScoreSelection(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String
             return
         }
+        if step { noteSelectionChange(from: selection, to: chosen, gesture: gesture) }
         selection = chosen
         await showSelection()
         await updatePlayRange()
@@ -444,8 +577,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    func clearSelection() {
+    /// Takes the selection away: ✕, Escape, or a hold outside it (`gesture`, #511 2.1); `step` false for Undo.
+    func clearSelection(gesture: String? = nil, step: Bool = true) {
         guard selection != nil else { return }
+        if step { noteSelectionChange(from: selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
         leaveFocus()
         selection = nil
@@ -457,7 +592,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Bookmarks and the Contents
 
-    /// Draws the bookmarks as brackets in their categories' inks above the phrase brackets (0018 section 5).
+    /// Draws the bookmarks as brackets in their categories' inks above the top staff (0018 section 5).
     func showBookmarks(_ shelf: BookmarkShelf?) {
         let bookmarks = shelf?.bookmarks ?? []
         bookmarkSpans = Dictionary(bookmarks.map { ($0.id, $0.onset..<max($0.end, $0.onset + 1)) }, uniquingKeysWith: { first, _ in first })
@@ -507,13 +642,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let bars = selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))
             : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        let phrase = phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } ?? false
+        let phrase = !phrasesHidden && phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } == true
         return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", bars)
     }
 
     var bookmarkTitle: String {
         guard let selection else { return "" }
-        if let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+        if !phrasesHidden, let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
             return label(of: unit)
         }
         let bars = selection.firstBar == selection.lastBar
@@ -658,12 +793,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return Set(Self.layerIds.filter { values["layers.\($0)"] == "off" })
     }
 
-    /// What the page hides: the layers hidden, and the phrase brackets when Settings turns them off.
+    /// What the page hides: the layers hidden, and Check while neither extra information nor the Check drawer shows it.
     private func applyLayers() async {
         guard shown else { return }
         var hidden = Self.layers.filter(hiddenLayers.contains)
         if !extraShown("check") && !checkDrawerOpen { hidden.append("check") }
-        if DeviceSettings.shared["guidance.brackets"] == "off" { hidden.append("brackets") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
         _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": hidden, "slate": slate]], contentWorld: .page)
     }
@@ -716,7 +850,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Show: the bar is selected, so it can be looped and compared with the page or the recording, and comes into view.
     func showCheckBar(_ bar: Int) {
-        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span else { return }
+        // A bar of a flag, or of notes whose length is uncertain (#352).
+        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span
+            ?? check.lengths.first(where: { $0.bar == bar })?.span else { return }
         Task {
             await select(span.lowerBound, span.upperBound)
             _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
@@ -725,8 +861,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Looks right, or Check again: every flag on the bar resolved or open again, kept with the piece.
     func resolveCheck(_ bar: Int, _ resolved: Bool) {
+        resolveChecks(["bar": bar, "resolved": resolved])
+    }
+
+    /// Looks right for a whole piece of the pieces layer (version 0.5, Check by piece): every flagged bar from `first` to
+    /// `last` resolved, in one change music-core makes, kept with the piece.
+    func resolveCheckPiece(first: Int, last: Int) {
+        resolveChecks(["bars": ["first": first, "last": last], "resolved": true])
+    }
+
+    private func resolveChecks(_ fields: [String: Any]) {
         guard let piece else { return }
-        let request = Self.json(["bar": bar, "resolved": resolved]) ?? "{}"
+        let request = Self.json(fields) ?? "{}"
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
             if let shelf = CheckShelf(answer: answer) {
@@ -913,10 +1059,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard versions.read(performance: answer) else {
             return facadeObject(answer)?["message"] as? String ?? text["transcribe.failed"]
         }
-        var status = versions.matched == 0
+        let status = versions.matched == 0
             ? text["performance.noMatch"]
             : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
-        if heard.cut { status += " " + text.format("version.recordingCut", "7") }
         versionStatus = status
         await versionAdded(piece)
         return nil
@@ -1054,6 +1199,22 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
         if !versions.read(performance: answer) { versionStatus = facadeObject(answer)?["message"] as? String }
         await drawVersions()
+    }
+
+    /// The piece's tempo the player read in the printed notes, or nil to play it as it states again (version 0.5.4, #511
+    /// section 17, `tempo.set`): kept in the project file, heard from the player's next playback score and marked on the
+    /// score engraved again.
+    func setPieceTempo(_ perMinute: Int?) async {
+        guard let piece else { return }
+        let request = perMinute.map { "{\"perMinute\": \($0)}" } ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "tempo.set", request) }
+        if let failure = facadeObject(answer), failure["error"] != nil {
+            problem = failure["message"] as? String
+            return
+        }
+        notesChanged?()
+        await engraveScore()
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
     }
 
     /// The notes changed (bars taken or restored): the player and the roll take the new notes, and the score is engraved
@@ -1448,13 +1609,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - Phrase focus
 
-    /// Lifts the selection into focus: the page dims, the card shows the selection's bars on their own, and the page
-    /// neither scrolls nor takes the Pencil until Back.
-    func enterFocus() {
-        guard shown, selection != nil, !penOn, !focused else { return }
+    /// Lifts the selection into focus (Expand, #521 19): the page dims, the card shows the selection's bars on their own, and
+    /// the page neither scrolls nor takes the Pencil until the way back, which `entry` names (#521 17).
+    func enterFocus(from entry: ExpandEntry = .notes) {
+        guard shown, ExpandRules.opens(selected: selection != nil, penOn: penOn), !focused else { return }
+        expandEntry = entry
         focused = true
         setPageStill(true)
-        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text["focus.back"]]
+        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text[entry.backKey]]
         Task {
             let answer = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             if let options = answer?["options"] as? [String: Any] { cardOptions = Self.json(options) }
@@ -1468,18 +1630,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// the piece is open.
     @Published var focusRoll = false
 
-    /// Expand on the roll drawer: the selection, or with none the phrase the playhead is in (the first before any playing),
-    /// in focus as a roll.
-    func expandRoll(at tick: Double) {
+    /// Expand on the roll drawer: the selection in focus as a roll, its way back Collapse (#521 17). Only with a selection
+    /// (#521 19.1): without one the button says so instead (showNotice).
+    func expandRoll() {
+        guard selection != nil else { return }
         focusRoll = true
-        if selection != nil {
-            enterFocus()
-            return
-        }
-        guard let units = phrases?.units, let unit = units.first(where: { $0.onset <= tick && tick < $0.end }) ?? units.first else { return }
-        Task {
-            await select(unit.selectableOnset, unit.selectableEnd)
-            enterFocus()
+        enterFocus(from: .roll)
+    }
+
+    /// Shows a word of guidance over the pill for a moment, as the hint to hold.
+    func showNotice(_ key: String) {
+        let shown = Notice(key: key)
+        notice = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
+            if self?.notice == shown { self?.notice = nil }
         }
     }
 
@@ -1506,27 +1671,61 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     var canStepOn: Bool { focusUnit.map { $0.number < (phrases?.units.count ?? 0) } ?? false }
 
-    /// Previous or next at the level shown: the card moves on to that unit.
+    /// Previous or next at the level shown: the card moves on to that unit. Outside focus (the pill's arrows, #328) the
+    /// page brings it into view.
     func step(_ direction: Int) {
         guard let unit = focusUnit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
-        Task { await select(next.selectableOnset, next.selectableEnd) }
+        Task {
+            await select(next.selectableOnset, next.selectableEnd)
+            if !focused { await reveal(next.selectableOnset) }
+        }
     }
 
-    /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
-    private var turningToPlaying = false
+    /// Scrolls the page smoothly to where a tick is, without a jump of page.
+    private func reveal(_ tick: Double) async {
+        _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": tick]], contentWorld: .page)
+    }
 
-    /// While the piece plays on past the phrase in focus (nothing loops), the card turns to the unit now sounding, as Next
-    /// would, so Notes and Piano roll show the same place (testing item 27). A variation in the card keeps it where it is.
-    func followPlaying(_ tick: Double) {
-        guard focused, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
-              let shown = focusUnit,
-              let sounding = phrases?.units.last(where: { $0.onset <= tick }), sounding.number != shown.number
-        else { return }
-        turningToPlaying = true
-        Task {
-            await select(sounding.selectableOnset, sounding.selectableEnd)
-            turningToPlaying = false
+    // MARK: - Resume and beats (Settings · Experimental)
+
+    /// Whether the page is engraved and everything on it drawn, so a resume point can be shown on it (#327).
+    private(set) var rendered = false
+
+    /// The beat lines a selection snaps to (#349): the player's while selecting by beats is on, none otherwise.
+    var beatLines: [Double] = [] {
+        didSet {
+            guard beatLines != oldValue else { return }
+            Task { await applyBeats() }
         }
+    }
+
+    private func applyBeats() async {
+        guard shown else { return }
+        _ = try? await webView.callAsyncJavaScript("return motiff.beats(data)", arguments: ["data": ["lines": beatLines]], contentWorld: .page)
+    }
+
+    /// Back where the player stopped (#327): the passage selected and brought into view, and in focus when it was. It
+    /// waits for the page to be drawn, so the level the piece opens in does not move the selection afterwards.
+    func arrive(at place: ResumePlace) async {
+        var waited = 0
+        while !rendered && waited < 100 {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            waited += 1
+        }
+        guard rendered, piece != nil else { return }
+        guard let passage = place.passage else {
+            await reveal(place.at)
+            return
+        }
+        await select(passage.lowerBound, passage.upperBound, step: false)
+        guard let selection else { return }
+        await reveal(selection.onset)
+        if place.focused { enterFocus() }
+    }
+
+    /// The tick at the top of the pages in view: where the player was when nothing is selected.
+    func tickInView() async -> Double? {
+        await firstTick(onPage: pages.first)
     }
 
     /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.
@@ -1569,26 +1768,19 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// What play takes for the selection now: its span, with the bar before and the bar after while leading in.
+    /// What play takes for the selection now: its span.
     private func updatePlayRange() async {
         guard let selection else {
             playRange = nil
             return
         }
-        var range = selection.onset..<selection.end
-        if focused && leadIn,
-           let wider = try? await webView.callAsyncJavaScript("return motiff.lead(data)", arguments: ["data": ["start": selection.onset, "end": selection.end]], contentWorld: .page) as? [String: Any],
-           let start = (wider["start"] as? NSNumber)?.doubleValue, let end = (wider["end"] as? NSNumber)?.doubleValue, start < end {
-            range = start..<end
-        }
-        guard self.selection == selection else { return }
-        playRange = PlayRange(selection: selection, range: range)
+        playRange = PlayRange(selection: selection, range: selection.onset..<selection.end)
     }
 
     /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.
     private func setPageStill(_ still: Bool) {
         webView.scrollView.isScrollEnabled = !still
-        canvas.drawingGestureRecognizer.isEnabled = !still
+        ink.still = still
     }
 
     private static func json(_ object: [String: Any]) -> String? {
@@ -1647,14 +1839,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await showSelection()
     }
 
-    /// Draws the brackets, the selected one in the accent, and the band over the selection.
+    /// Draws the band over the selection. The phrases are not drawn as brackets (Andrei, 2026-11-13, #479 item 14).
     private func showSelection() async {
         guard shown else { return }
-        let units: [[String: Any]] = (phrases?.units ?? []).map { unit in
-            let current = selection.map { $0.onset == unit.selectableOnset && $0.end == unit.selectableEnd } ?? false
-            return ["start": unit.onset, "end": unit.end, "number": unit.number, "kind": unit.kind, "current": current, "label": label(of: unit)]
-        }
-        _ = try? await webView.callAsyncJavaScript("return motiff.phrases(data)", arguments: ["data": ["units": units]], contentWorld: .page)
         var band: Any = NSNull()
         if let selection {
             band = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]] as [String: Any]
@@ -1662,7 +1849,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
     }
 
-    /// What a screen reader says for a bracket: "Phrase 3, bars 9–12".
+    /// What a unit is called, as a screen reader and the assistant say it: "Phrase 3, bars 9–12".
     private func label(of unit: PhraseUnit) -> String {
         let name = unit.name.prefix(1).uppercased() + unit.name.dropFirst()
         let bars = unit.firstBar == unit.lastBar
@@ -1687,14 +1874,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             ) as? [String: Any]
             if let space = (laid?["space"] as? NSNumber)?.doubleValue, space > 0 {
                 staffSpace = space
-                applyTool()
             }
             shown = true
             if let tick = piece.landing?.tick {
                 // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
-                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
+                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick, "instant": true]], contentWorld: .page)
             }
+            if Landing.notesShowOnRender(piece.landing) { land() }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
+            applyInput()
+            await sendModeNow()
+            await sendPlayheadsNow()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
@@ -1705,9 +1895,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await applyLevel()
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
+            await applyBeats()
+            rendered = true
         } catch {
             problem = error.localizedDescription
+            land()
         }
+    }
+
+    /// Shows the pages held out of sight while they landed (#533 6), now that they stand where they open.
+    func land() {
+        webView.alpha = 1
     }
 
     /// Draws the marks music-core answered (`marks`, `ink.add`, `ink.remove`).
@@ -1730,108 +1928,185 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.notes(data)", arguments: ["data": ["notes": notes, "highlights": highlights]], contentWorld: .page)
     }
 
-    private func change(_ piece: Int32, _ call: String, _ request: [String: Any]) async {
+    /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
+    /// that make one change, so the page never shows it half done.
+    private func change(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
         let text = String(decoding: data, as: UTF8.self)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
-        await draw(answer)
+        if draws { await draw(answer) }
     }
 
     // MARK: - Strokes
 
-    /// A stroke PencilKit finished: its points in the page's pixels, then kept as a mark or, with the eraser, what it
-    /// passed over taken away.
-    private func strokeEnded(_ stroke: PKStroke) {
-        guard let piece, shown else { return }
-        let zoom = max(webView.scrollView.zoomScale, 0.01)
-        let points: [[String: Double]] = stroke.path.interpolatedPoints(by: .distance(1.5)).map { point in
-            let inCanvas = point.location.applying(stroke.transform)
-            let inPage = webView.scrollView.convert(inCanvas, from: canvas)
-            // UITouch force is about 1 for an ordinary press: pressure 0.5, as the web takes a pen without pressure.
-            return ["x": inPage.x / zoom, "y": inPage.y / zoom, "pressure": min(1, max(0, Double(point.force) / 2))]
+    /// A stroke the pen finished (InkInput), its points in the web view's coordinates: in the page's pixels, then kept as
+    /// a mark. The pen covers the whole page, so the Pencil writes in the margins too: a stroke begun left or right of a
+    /// line is kept against the line's first or last bar and drawn from that edge of its line in any layout (`anchorMark`
+    /// and `placeMark` in pencil-marks.ts), and music-core keeps its points thinned (`ink.add`). The stroke written stays
+    /// over the page until the page draws it as kept.
+    private func strokeEnded(_ samples: [InkSample]) {
+        guard let piece, shown, !samples.isEmpty else {
+            ink.live.dropOldest()
+            return
         }
-        guard !points.isEmpty else { return }
-        let tool = tool
-        Task {
-            switch tool {
-            case .eraser:
-                let ids = try? await webView.callAsyncJavaScript("return motiff.erase(data)", arguments: ["data": ["points": points]], contentWorld: .page) as? [String]
-                if let ids, !ids.isEmpty {
-                    added.removeAll { ids.contains($0) }
-                    canUndo = !added.isEmpty
-                    await change(piece.id, "ink.remove", ["ids": ids])
-                }
-            case .pen(let ink):
-                await add(piece.id, points, tool: "pen", colour: ink.rawValue, width: penWidth)
+        let points: [[String: Double]] = samples.map { sample in
+            var point = pagePoint(sample.point)
+            point["pressure"] = sample.pressure
+            return point
+        }
+        let pen = pen
+        inkQueue.then { [weak self] in
+            guard let self else { return }
+            switch pen.stroke {
+            case .pen(let colour):
+                await self.add(piece.id, points, tool: "pen", colour: colour.rawValue, width: pen.pencil.width)
             case .highlighter:
-                await add(piece.id, points, tool: "highlighter", colour: "amber", width: highlighterWidth)
+                await self.add(piece.id, points, tool: "highlighter", colour: "amber", width: pen.marker.width)
+            case .eraser:
+                // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
+                break
             }
+            self.ink.live.dropOldest()
         }
     }
 
+    /// A point of the web view in the page's pixels, as the page measures its bars and marks.
+    private func pagePoint(_ point: CGPoint) -> [String: Double] {
+        let zoom = max(webView.scrollView.zoomScale, 0.01)
+        let inPage = webView.scrollView.convert(point, from: webView)
+        return ["x": inPage.x / zoom, "y": inPage.y / zoom]
+    }
+
+    /// The eraser moved (InkInput, BUG-05): the page takes the marks under it at once (`motiff.rub`), cutting them where
+    /// it passes (#479 item 7), with nothing drawn for the eraser itself; when it lifts, the press is saved as one step.
+    /// Points that come while the page is still busy go together in the next send, so a fast eraser never queues up.
+    private func rubbed(_ points: [CGPoint], lifted: Bool) {
+        rubPoints += points.map(pagePoint)
+        if !rubQueued, !rubPoints.isEmpty {
+            rubQueued = true
+            inkQueue.then { [weak self] in await self?.sendRub() }
+        }
+        if lifted {
+            let piece = piece?.id
+            inkQueue.then { [weak self] in await self?.endRub(piece) }
+        }
+    }
+
+    private func sendRub() async {
+        rubQueued = false
+        let points = rubPoints
+        rubPoints = []
+        guard !points.isEmpty else { return }
+        _ = try? await webView.callAsyncJavaScript("return motiff.rub(data)", arguments: ["data": ["points": points]], contentWorld: .page)
+    }
+
+    /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
+    /// marks it cut, drawn once both are done), and Undo puts it back whole.
+    private func endRub(_ piece: Int32?) async {
+        guard let cut = try? await webView.callAsyncJavaScript("return motiff.rubEnd()", contentWorld: .page) as? [String: Any],
+              let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty, let piece
+        else { return }
+        let pieces = cut["added"] as? [[String: Any]] ?? []
+        if !pieces.isEmpty {
+            await change(piece, "ink.add", ["strokes": pieces], draws: false)
+        }
+        await change(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }])
+        steps.record(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces))
+        inkStepsChanged()
+    }
+
+    /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
     private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String, width: Int) async {
         let request: [String: Any] = ["points": points, "tool": tool, "colour": colour, "width": width]
         guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
-        added.append(id)
-        canUndo = true
+        steps.record(InkStep(added: [id], strokes: [mark]))
+        inkStepsChanged()
         await change(piece, "ink.add", ["strokes": [mark]])
     }
 
-    /// Who writes and who scrolls. The Pencil only writes: the score never scrolls under it.
-    private func applyInput() {
-        let pan = webView.scrollView.panGestureRecognizer
-        #if targetEnvironment(simulator)
-        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
-        // trackpad (or the wheel) scroll the score.
-        canvas.drawingPolicy = .anyInput
-        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
-        #else
-        canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
-        pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        pan.minimumNumberOfTouches = penOn ? 2 : 1
-        #endif
+    /// Who writes, selects and scrolls (InputRules, #479 item 18): the pen's gesture and the scroll view take the
+    /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
+    /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
+    func applyInput() {
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
+        ink.apply(rules)
+        toolChanged?(mode, penOn)
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
     }
 
-    /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom.
-    private func applyTool() {
+    /// Where the Pencil hovers over the window, for the stylus menu's place over the roll and the rest of the screen (#521 7).
+    func watchStylus(in window: UIWindow?) {
+        ink.pencil.watch(window)
+    }
+
+    /// A stroke of the pen began or ended (#521 10): while it is written playback does not move the page under it, and it
+    /// follows again as long after as after a scroll by hand.
+    private func penDown(_ down: Bool) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.writing(data)", arguments: ["data": ["on": down]], contentWorld: .page) }
+    }
+
+    /// Handles, given in the document's pixels, where they are on the screen now, in the web view's coordinates.
+    private func inView(_ spots: [CGPoint]) -> [CGPoint] {
         let zoom = webView.scrollView.zoomScale
+        return spots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
+    }
+
+    /// The mode as the page has it: "pen" while the Pen is on, none before the modes.
+    private func sendMode() {
+        guard shown else { return }
+        Task { await sendModeNow() }
+    }
+
+    private func sendModeNow() async {
+        var data: [String: Any] = [:]
+        if let mode {
+            data["name"] = penOn ? InteractionMode.pen.rawValue : mode.rawValue
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
+    }
+
+    /// The one playback position the page draws (v0.5.2, #479 item 19): `{ selection: {start, end} or null }`, inside which it
+    /// is the cobalt line and outside it the ink track under its bar; nil draws the one playhead as before.
+    func showPlayheads(_ data: [String: Any]?) {
+        playheadsWanted = data
+        guard shown else { return }
+        let key = data.map { fields in fields.keys.sorted().map { name in "\(name)=\(String(describing: fields[name] ?? ""))" }.joined(separator: ",") } ?? ""
+        guard key != playheadsShown else { return }
+        playheadsShown = key
+        Task { await sendPlayheadsNow() }
+    }
+
+    private func sendPlayheadsNow() async {
+        let value: Any = playheadsWanted.map { $0 as Any } ?? NSNull()
+        _ = try? await webView.callAsyncJavaScript("return motiff.playheads(data)", arguments: ["data": value], contentWorld: .page)
+    }
+
+    /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the
+    /// pencil in its ink with the page's grain from the page's top left corner, the highlighter opaque on a layer as
+    /// translucent as the page's. The eraser draws nothing: what it takes goes from the page as it moves (BUG-05).
+    private func liveStyle(at point: CGPoint) -> LiveInkView.Style? {
+        let zoom = webView.scrollView.zoomScale
+        let theme = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
+        let space = Double(staffSpace * zoom)
         switch tool {
-        case .pen(let ink):
-            canvas.tool = PKInkingTool(.pen, color: ink.color, width: PenSizes.pen[penWidth] * staffSpace * zoom * 1.6)
+        case .pen(let colour):
+            let origin = webView.scrollView.convert(CGPoint.zero, to: webView)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: theme),
+                radius: PenSizes.pen[pen.pencil.width] * space / 2, followsPressure: true,
+                grain: (origin: origin, tile: InkPaint.tile * zoom)
+            )
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: PenSizes.highlighter[highlighterWidth] * staffSpace * zoom)
+            return LiveInkView.Style(
+                colour: DesignTokens.dynamicColor("amber").resolvedColor(with: theme),
+                radius: PenSizes.highlighter[pen.marker.width] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
+            )
         case .eraser:
-            canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
-        }
-    }
-}
-
-extension ScoreController: PKCanvasViewDelegate {
-    nonisolated func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        MainActor.assumeIsolated {
-            guard !clearing, let stroke = canvasView.drawing.strokes.last else { return }
-            clearing = true
-            canvasView.drawing = PKDrawing()
-            clearing = false
-            strokeEnded(stroke)
-        }
-    }
-}
-
-extension ScoreController: UIPencilInteractionDelegate {
-    /// A double tap on the Pencil does what the player chose in the iPad's settings, as in 0015.
-    nonisolated func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
-        MainActor.assumeIsolated {
-            switch UIPencilInteraction.preferredTapAction {
-            case .switchEraser:
-                tool = tool == .eraser ? previousTool : .eraser
-            case .switchPrevious:
-                tool = previousTool
-            default:
-                break
-            }
+            return nil
         }
     }
 }
@@ -1895,4 +2170,105 @@ struct NoteEditorState: Equatable, Sendable {
     var changed = false
     var canReset = false
     var picked: String?
+}
+
+// MARK: - The selection's gestures and its Undo and Redo (#511 sections 2 and 11)
+
+extension ScoreController {
+    /// What a toast after a clear or a replace says, and which one it is.
+    struct SelectionToast: Equatable {
+        var replaced: Bool
+        var id = UUID()
+    }
+
+    /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
+    static let selectionToastSeconds = 6.0
+    static let holdHintSeconds = 2.0
+
+    /// The page's gesture messages: a hold outside took the selection away, a gesture was cancelled, or a pointer that
+    /// cannot scroll moved off the selection before the hold.
+    func receivedGesture(_ message: [String: Any]) {
+        if let cleared = message["cleared"] as? [String: Any] {
+            clearSelection(gesture: cleared["gesture"] as? String)
+        }
+        if let gesture = message["gestureCancelled"] as? String {
+            revertGesture(gesture)
+        }
+        if message["holdHint"] != nil {
+            showHoldHint()
+        }
+    }
+
+    /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a
+    /// replace shows «Вернуть»; any other step puts it away, as it would no longer take back the clear.
+    func noteSelectionChange(from before: ScoreSelection?, to after: ScoreSelection?, gesture: String?) {
+        guard let historyKey else { return }
+        let step = selectionSteps.record(from: SelectionSpan(before), to: SelectionSpan(after), gesture: gesture)
+        SelectionHistories.keep(selectionSteps, of: historyKey)
+        switch step?.kind {
+        case .clear?, .replace?:
+            showSelectionToast(replaced: step?.kind == .replace)
+        case nil where gesture == nil:
+            break
+        default:
+            selectionToast = nil
+        }
+    }
+
+    /// Undo of the selection (the Selection row, the Pencil's ring, ⌘Z, «Вернуть»): the selection before the last step,
+    /// selected again exactly; the score neither scrolls nor zooms.
+    func undoSelection() {
+        guard let step = selectionSteps.undo() else { return }
+        keepSteps()
+        Task { await restore(step.before) }
+    }
+
+    /// Redo of the selection (the Selection row, ⇧⌘Z).
+    func redoSelection() {
+        guard let step = selectionSteps.redo() else { return }
+        keepSteps()
+        Task { await restore(step.after) }
+    }
+
+    /// A gesture cancelled after its hold took the selection away: the selection comes back and no step stays.
+    func revertGesture(_ gesture: String) {
+        guard let step = selectionSteps.revert(gesture) else { return }
+        keepSteps()
+        Task { await restore(step.before) }
+    }
+
+    func closeSelectionToast() {
+        selectionToast = nil
+    }
+
+    private func keepSteps() {
+        selectionToast = nil
+        if let historyKey { SelectionHistories.keep(selectionSteps, of: historyKey) }
+    }
+
+    private func restore(_ span: SelectionSpan?) async {
+        guard let span else {
+            clearSelection(step: false)
+            return
+        }
+        await select(request: Self.beatsRequest(span.onset, span.end), step: false)
+    }
+
+    private func showSelectionToast(replaced: Bool) {
+        let toast = SelectionToast(replaced: replaced)
+        selectionToast = toast
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.selectionToastSeconds))
+            if self?.selectionToast == toast { self?.selectionToast = nil }
+        }
+    }
+
+    private func showHoldHint() {
+        let shown = UUID()
+        holdHint = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
+            if self?.holdHint == shown { self?.holdHint = nil }
+        }
+    }
 }

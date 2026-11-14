@@ -353,7 +353,7 @@ async function scoreWithRecording(page) {
     const drawer = page.locator(".perf-sheet");
     await drawer.getByRole("button", { name: "Add a source" }).click();
     const fromRecording = drawer.getByRole("region", { name: "From a recording" });
-    await expect(fromRecording).toContainText("The recording's sound, up to 7 minutes, goes to localhost and is deleted once heard.");
+    await expect(fromRecording).toContainText("The recording's sound, however long, goes to localhost part by part and is deleted once heard.");
     expect(await violations(page)).toEqual([]);
     await fromRecording.getByLabel("Choose an audio or video recording to add as a version").setInputFiles(await recording());
     // The whole piece was played: its opening, all that is printed here, agrees note for note.

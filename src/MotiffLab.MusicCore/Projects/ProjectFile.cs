@@ -30,6 +30,8 @@ public static partial class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// Within 15, "metadata" keeps the piece's title, composer and tags as the player set them in the library (version
+    /// 0.2); a file without it has none, and a build before it drops the field when it writes the file again;
     /// 15 adds the assembly of the player's own version from the piece's sources: its journal, the notes applied and
     /// the notes before the assembly (0024);
     /// 14 lets a correction add a note, with its track and hand (testing item 15);
@@ -59,6 +61,7 @@ public static partial class ProjectFile
     public static byte[] Write(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
+        project = project.AsFiled();
 
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
@@ -70,6 +73,7 @@ public static partial class ProjectFile
             json.WriteString("fileName", project.FileName);
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
+            WriteMetadata(json, project.Metadata);
             json.WriteBase64String("source", project.Source);
             if (project.Document is { } document)
             {
@@ -105,6 +109,11 @@ public static partial class ProjectFile
                 json.WriteEndArray();
                 json.WriteEndObject();
             }
+
+            WriteOriginals(json, project);
+            WritePartOf(json, project.PartOf);
+            WriteEditsOff(json, project);
+            WritePlayerTempo(json, project);
 
             List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
             WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
@@ -327,6 +336,8 @@ public static partial class ProjectFile
                 }
 
                 json.WriteEndArray();
+                WriteScanPages(json, scan.Pages);
+                WriteMadeFrom(json, scan.From, scan.At);
                 json.WriteEndObject();
             }
             else
@@ -359,6 +370,7 @@ public static partial class ProjectFile
                     }
 
                     json.WriteEndArray();
+                    WriteMeters(json, bars);
                     json.WriteEndObject();
                 }
                 else
@@ -377,6 +389,8 @@ public static partial class ProjectFile
                     json.WriteEndArray();
                 }
 
+                WriteMadeFrom(json, transcription.From, transcription.At);
+                WriteSentFrom(json, transcription);
                 json.WriteEndObject();
             }
             else
@@ -439,11 +453,6 @@ public static partial class ProjectFile
                 {
                     throw Damaged("document");
                 }
-            }
-
-            if (source.Length == 0 && pdf is null)
-            {
-                throw Damaged("source");
             }
 
             DocumentMarks documentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement)
@@ -530,7 +539,8 @@ public static partial class ProjectFile
                 DocumentPages = documentPages,
                 ReadFrom = readFrom,
                 Assembly = assembly,
-            });
+                Metadata = ReadMetadata(root),
+            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root).WithPlayerTempoIn(root)).Described();
         }
     }
 
@@ -617,6 +627,7 @@ public static partial class ProjectFile
 
         json.WriteEndArray();
         json.WriteNumber("pressure", stroke.Pressure);
+        WriteMargin(json, stroke.Margin);
         json.WriteEndObject();
     }
 
@@ -639,7 +650,10 @@ public static partial class ProjectFile
                 Number(stroke, "u"),
                 Number(stroke, "v"),
                 points,
-                Number(stroke, "pressure"));
+                Number(stroke, "pressure"))
+            {
+                Margin = ReadMargin(stroke),
+            };
         }
         catch (ArgumentException)
         {
@@ -781,7 +795,7 @@ public static partial class ProjectFile
 
         try
         {
-            Marks read = Marks.Empty.WithInk(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
+            Marks read = Marks.Empty.WithInkAsWritten(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
             return notes.Select(static note => note.Id).Concat(highlights.Select(static highlight => highlight.Id)).Distinct(StringComparer.Ordinal).Count() == notes.Count + highlights.Count
                 && fingering.Select(static finger => finger.NoteId).Distinct(StringComparer.Ordinal).Count() == fingering.Count
                 ? read
@@ -998,6 +1012,7 @@ public static partial class ProjectFile
             json.WriteEndObject();
         }
 
+        WriteMadeFrom(json, performance.From, performance.At);
         json.WriteEndObject();
     }
 
@@ -1071,6 +1086,8 @@ public static partial class ProjectFile
                 Dismissed = dismissed,
                 Taken = taken,
                 Merge = merge,
+                From = ReadMadeFrom(performance).From,
+                At = ReadMadeFrom(performance).At,
             };
         }
         catch (Exception exception) when (exception is FormatException or ArgumentException)
@@ -1271,7 +1288,8 @@ public static partial class ProjectFile
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        return new ScanOrigin(Text(scan, "engine"), bars);
+        (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
+        return new ScanOrigin(Text(scan, "engine"), bars) { From = from, At = at, Pages = ReadScanPages(scan) };
     }
 
     private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
@@ -1303,7 +1321,8 @@ public static partial class ProjectFile
 
         try
         {
-            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams };
+            (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
+            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
         }
         catch (ArgumentException)
         {
@@ -1345,7 +1364,7 @@ public static partial class ProjectFile
 
         try
         {
-            return new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat);
+            return WithMetersIn(new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat), bars);
         }
         catch (ArgumentException)
         {

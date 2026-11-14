@@ -3,7 +3,7 @@
 // rows in the Settings sheet. Both places change the same settings.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openFurElise, violations } from "./steps.mjs";
+import { closePopover, openFurElise, selectPhrase, violations } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
@@ -20,19 +20,20 @@ async function openSavedPiece(page) {
 
 test("the Phrases popover changes the level everywhere, or for this piece only", async ({ page }) => {
     const errors = await openSavedPiece(page);
-    const brackets = page.locator(".score button.bracket[aria-label]");
-    await expect(brackets.first()).toHaveAttribute("aria-label", /^Phrase 1/);
+    // The level the piece is shown at, as the popover's own choice says it (the score draws no brackets, #479 item 14).
+    const level = name => page.getByRole("dialog", { name: "Phrases" }).getByRole("radiogroup", { name: "Phrases", exact: true }).getByRole("radio", { name, exact: true });
 
     // A long press on the action, here a right click, opens the same popover a tap does.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click({ button: "right" });
     const popover = page.getByRole("dialog", { name: "Phrases" });
     const scope = popover.getByRole("radiogroup", { name: "Where it applies" });
+    await expect(level("Phrases")).toHaveAttribute("aria-checked", "true");
     await expect(scope.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
     expect(await violations(page)).toEqual([]);
 
     // Everywhere: the Settings sheet's level is the one chosen.
     await popover.getByRole("radio", { name: "Sentences" }).click();
-    await expect(brackets.first()).toHaveAttribute("aria-label", /^Sentence 1/);
+    await expect(level("Sentences")).toHaveAttribute("aria-checked", "true");
     await popover.getByRole("button", { name: "All settings" }).click();
     const sheet = page.getByRole("dialog", { name: "Settings" });
     await expect(sheet.getByRole("tab", { name: "Score" })).toHaveAttribute("aria-selected", "true");
@@ -46,19 +47,19 @@ test("the Phrases popover changes the level everywhere, or for this piece only",
     await popover.getByRole("button", { name: "All settings" }).click();
     await expect(sheet.getByText("This piece has its own", { exact: false })).toContainText("Phrases: Sentences");
     await sheet.getByRole("radio", { name: "Short" }).click();
-    await expect(brackets.first()).toHaveAttribute("aria-label", /^Sentence 1/);
     await sheet.getByRole("button", { name: "Close Settings" }).click();
 
-    // Everywhere again: the piece follows the sheet.
+    // Everywhere again: the piece, at Sentences still, follows the sheet.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
+    await expect(level("Sentences")).toHaveAttribute("aria-checked", "true");
     await scope.getByRole("radio", { name: "Everywhere" }).click();
-    await expect(brackets.first()).toHaveAttribute("aria-label", /^Short/);
+    await expect(level("Short")).toHaveAttribute("aria-checked", "true");
     expect(errors).toEqual([]);
 });
 
 test("a long press on the pill opens its settings without playing, and the roll's from its action", async ({ page }) => {
     const errors = await openFurElise(page);
-    await page.locator(".score button.bracket[aria-label]").first().click();
+    await selectPhrase(page);
     const pill = page.locator(".pill");
     const play = pill.getByRole("button", { name: "Play", exact: true });
     await expect(play).toBeVisible();

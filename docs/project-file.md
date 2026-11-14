@@ -17,7 +17,12 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "documentMarks": { "ink": [ … ], "bookmarks": [ … ] },  // only when the PDF's pages carry marks (version 13, 0023)
   "documentPages": [0, 15360, 29760],  // only a piece with both notes and a PDF: where each page starts, in ticks (0023)
   "readFrom": { "project": "p_…", "pages": [0, 15360, 29760] },  // only notes read from a PDF piece into a project of their own, 2026-11-05 to 2026-11-07 (0023)
+  "originals": [ … ],           // within version 15 (version 0.3): the descriptions of the piece's originals the piece's own data does not show
+  "partOf": { "original": "src_book", "pages": [6, 11] },   // within version 15 (version 0.4): only a piece made from a collection; or "ms": [from, to]
+  "editsOff": true,             // within version 15 (version 0.5): only while the player has turned the corrections off
+  "tempo": { "quarterNotesPerMinute": 92 },   // within version 15 (version 0.5.4): only once the player set the piece's tempo
   "createdAt": "…", "lastOpened": "…",
+  "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
   "variations": [ … ],          // chains of steps on a motif (version 2); an optional "key" { "fifths", "mode" } the steps read, as on a kept variation (read as none when absent)
   "observations": [ … ],        // ideas (version 6; factId since 12)
@@ -32,12 +37,148 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "performances": [ … ],        // version 13
   "assembly": { … },            // version 15; absent while the piece has no assembly
   "settings": { … },            // version 12
-  "scan": { … },                // only a scanned piece (version 7)
-  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12)
+  "scan": { … },                // only a scanned piece (version 7); "from" and "at" within version 15 (version 0.3); "pages" within 15 (version 0.4)
+  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12; "from" and "at" within 15; "bars"."meters" and "sentFromMs" within 15, version 0.5)
 }
 ```
 
 The transcription keeps `"seams": [ms, …]` when a long recording was sent in parts ([0016](decisions/0016-bars-for-transcribed-notes.md)): where each part after the first takes over, in milliseconds from the start of the stretch of the recording that was sent, ascending. The Check layer flags the bars on either side of each seam (`PartSeam`). The array is left out when the recording went in one part, and a file without it reads as no seams.
+
+## Originals (`originals`)
+
+Where each original of the piece is (version 0.3, local-first; Andrei approved it on 2026-11-11, 21:20 UTC, amending 0026 C3): only the description of each original is in the file and goes online with it; the bytes stay on the devices. It is kept within version 15 as optional fields, like `metadata`, because version 0.2 of both apps refuses a file of a later version but reads past fields it does not know: a v0.2 build opens such a file, and when it writes it again it drops `originals` and the `from` and `at` links (unknown fields are dropped on writing), which the next v0.3 read takes up again as below.
+
+```jsonc
+"originals": [
+  { "id": "src_pdf",                       // "src_pdf": the PDF in `document`; "src_file": the file the notes were imported from; a version's id for its recording or MIDI file
+    "kind": "pdf" | "images" | "audio" | "midi" | "musicxml",
+    "name": "…",                           // optional: the player's name for it
+    "fileName": "Nocturne.pdf",
+    "folder": "Шопен/Ноктюрны",            // optional (version 0.5): where the file was inside the folder the player imported
+    "sha256": "<64 lower-case hex digits>",  // optional: the fingerprint of the bytes as picked; a picked file is linked again by it
+    "bytes": 123456,                       // optional
+    "pages": 3,                            // optional: a PDF's or photos' pages
+    "durationMs": 61000,                   // optional: a recording's length
+    "addedAt": "…",
+    "kept": "file" | "device" | "link",    // file: inside the project file on the device (never online); device: beside it, on the device only; link (version 0.5): in the player's own folder
+    "held": [ { "device": "ipad" | "web", "at": "…" } ] }   // optional: the devices that hold the bytes, each writing only its own mark
+]
+```
+
+The piece's own data shows most originals, so a file without `originals` (every file before version 0.3, or one a v0.2 build wrote again) reads as: the PDF in `document` as `src_pdf` (kept in the file); the MIDI or MusicXML `source` of a piece imported from a file as `src_file` (not a scan's or a transcription's notes); each version from a recording (`audio`, kept on the device) or a MIDI file (`midi`, kept in the file) under the version's own id, so the web keeps the sound it stores under `<project>/<version>`. Those carry no fingerprint: the device that has the PDF works it out once (`Project.Fingerprinted`). The file writes only the descriptions that say more than that, so a piece with nothing more to say is written as before. The online copy of a piece with a PDF (`ForOnline`) writes them all, so another device shows the PDF it does not have.
+
+`scan`, `transcription` and each performance can say which original their notes were made from and when: `"from": "src_pdf"`, `"at": "…"`, both optional. A scan of the piece's own PDF says `src_pdf`; a recording version says its own id.
+
+In the sync (0026 S8) the descriptions are the player's data: a pull unites both copies by fingerprint, else by id, with no deletions (a different original with an id the other copy uses gets the next free one, `src_a_2`). The `held` marks are bookkeeping that only their own device writes: a pull takes this device's mark from its own copy and every other device's from the online copy. The iPad marks the PDF it keeps when it sends the copy online (`project.online`). An unknown `kind`, `kept` or `device` in a file of this version keeps the description whole as an unknown entity (S6). A piece that is only a PDF stayed on the device until version 0.5: its online copy has neither notes nor a PDF, which every build before 0.5 reads as damaged. Since 0.5 it goes online (see "PDF pieces online").
+
+## Pieces of a collection, page reports and margins (version 0.4)
+
+Three additions of version 0.4 kept within version 15 as optional fields, like `originals` and `metadata` (v0.4 design, step Ф1; Andrei approved it on 2026-11-12): versions 0.2 and 0.3 open such a file, and when they write it again they drop the fields (unknown fields are dropped on writing), so they lose only the links and the details; version 16 waits until no 0.2 build syncs. Checked by building music-core at the tags `v0.2` and `v0.3` and reading `tests/MotiffLab.MusicCore.Tests/Golden/v15-photos-parts.motiff.json` (see the golden README).
+
+```jsonc
+"partOf": { "original": "src_book",          // the collection's original: an id in this piece's own `originals`
+            "pages": [6, 11] },              // the collection's pages the piece takes, from 1, both ends included
+"partOf": { "original": "src_concert",
+            "ms": [750000, 1180000] },       // or the stretch of the collection's recording, in milliseconds, from < to
+"scan": { "engine": "homr 0.7.0", "confirmedBars": [ … ],
+          "pages": [                          // what the scan server saw of each page it read (its X-Page-Report), in page order
+            { "page": 1, "rotation": 0, "sharpness": 1.12, "contrast": 118, "staves": 6, "noteheads": 214,
+              "barLines": 38, "spacePx": 15.5, "measures": 9 } ] },
+"check": [ { "bar": 16, "source": "Scan", "reason": "PageQuality", "resolved": false } ],
+"marks": { "ink": [ { "id": "m1", …, "u": -0.2, "v": 1.5, …, "pressure": 0.5, "margin": "left" | "right" } ] }
+```
+
+- **`partOf`**: where a piece made with «Пьесы в файле» is in its collection. Each piece is an ordinary project with its own notes and bytes; `partOf` is only the link, so an older build sees a whole piece. Exactly one of `pages` and `ms`; a `partOf` with neither (another kind of place, from a later build) reads as none. Written only when set: `PieceParts` sets it on each part, pages for a PDF, photos or a scan with pages, `ms` for a recording heard (a recording that describes no original is then described as `src_book`, kind `audio`, held by no device), none for a score cut by bars without pages.
+- **`src_sound`** (version 0.5, values only, no new field): a piece cut by time from a concert heard (`PieceParts` with `FreshBars`, `HeardCut`) has bars and a tempo of its own in `transcription.bars`, found from its stretch alone, its own Check flags and `partOf` with `ms`. Its own stretch of the sound, cut on the web, is described in `originals` as `src_sound`, kind `audio`, kept `device`, `<title>.wav` with `bytes`, `durationMs` and `sha256` of the WAV, held by the device that cut it (`PieceParts.WithSound`). The sound itself is never in the file. The pieces layer is bookmarks in the category with the reserved id `pieces`, written with a name, so builds before 0.5 read it as a category of the player's own (`PieceLayer`).
+- **`scan.pages`**: the raw numbers of the scan server's report on each page (`PageReport`), never the music; a page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration. A field a report lacks reads as 0; `page` is the page's place in the notes, from 1, whatever the upload called it. Written only when there are reports: the notes read from a PDF piece with them (`Project.Recognised`, the facade's `document.read`), and a part of such a scan (`PieceParts`) with the reports of its own pages. On open the bars of a weak page are less sure (0.5) and those of a poor page flagged.
+- **`PageQuality`**: a Check reason for each bar on a page the report calls poor (`CheckFlag.FromScan` with the reports). A build before 0.4 keeps such a flag whole as an unknown flag and writes it back (S6, "Unknown enum values"); `resolved` is the player's and goes with the file.
+- **`margin`** on a stroke (`marks.ink`, `documentMarks.ink`): which margin of its line a stroke begun outside the bars is in; `u` then counts from that edge of the line the bar is on. Without it, as in every file before 0.4, a stroke with `u` below 0 or above 1 is placed as "Marks" describes. An unknown value keeps the stroke whole as an unknown entity.
+
+In the sync these are data the player made or imported: a pull keeps this device's `partOf` when the online copy has none, and this device's `scan.pages` when the online copy has none and its notes are the same import (the same `source`), as with `originals`. A margin goes with its stroke and the whole file, as every stroke does.
+
+## Corrections off, changes of signature and the stretch heard (version 0.5)
+
+Three additions of version 0.5 kept within version 15 as optional fields, as version 0.4's were (v0.5 data design, section 9; Andrei approved them on 2026-11-12): versions 0.2 to 0.4 open such a file and drop the fields when they write it. The golden is `tests/MotiffLab.MusicCore.Tests/Golden/v15-edits-meters.motiff.json` (`Projects/EditsAndMetersFormatTests.cs`).
+
+```jsonc
+"editsOff": true,                              // the player turned the corrections off for this piece; left out otherwise
+"transcription": { "engine": "…", "bars": { "origin": 960, "sixteenthMicroseconds": 125000, "signature": "4/4",
+                   "barStarts": [0, 64], "stepsPerBeat": 4, "beats": [],
+                   "meters": [ { "at": 64, "signature": "7/8" } ] },   // where the bars change signature, in order
+                   "sentFromMs": 754000 }        // where in the recording file the stretch heard started
+```
+
+- **`editsOff`** («Мои правки: вкл / выкл»): the piece opens with the notes as imported, its `edits` kept as they are. Written only when true; `false` reads as left out, any other value is damage. The web app opens a piece so while the experiment is on (and, as a fallback, when an earlier build kept the choice on that device); the facade does when `open` asks for `"edits": "piece"`. A build before 0.5 opens the piece with the corrections on, as it always did. In the sync it is bookkeeping: the copy saved last says it.
+- **`transcription.bars.meters`**: where a recording's bars change signature («Смена размера в записи»). Each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; from it on the bars are of its signature, before the first and without any of `signature`. Left out without a change. A change that is not so is damage. A build before 0.5 lays the same bars from the same starts in `signature`: the notes and their ticks are the same, only the bar lines after a change differ. In the sync it is import data: a pull keeps this device's when the online copy has the same bars without them and the same `source`; bars found again (another grid) drop them.
+- **`transcription.sentFromMs`**: where, in the recording file, the stretch sent to be heard started, in milliseconds, 0 or more; a `partOf` with `ms` counts from it, so `partOf.ms` plus it is the piece's stretch in the file, and another device that has the file (the same `sha256`) finds the piece's sound there. A piece cut from a recording heard keeps the recording's. The web app writes it when it saves a transcription (0 when the file was sent whole); the facade's `open` takes it as `transcription.sentFromMs`. Left out when not kept, as in every file before 0.5; any other value is damage. In the sync it is import data, kept from this device on a pull when the online copy has none and the same `source`.
+
+## The player's tempo (version 0.5.4)
+
+One addition of version 0.5.4 (#511 section 17, «Темп»), kept within version 15 as an optional field like version 0.5's: the tempo the player set for the piece, such as "♩ = 92" read from the printed notes when the scan could not read it (homr reads no tempo, so such a piece played at the default of 120, about 30 % too fast for a piece printed at 92).
+
+```jsonc
+"tempo": { "quarterNotesPerMinute": 92 }   // a whole number from 20 to 300; left out until the player sets one
+```
+
+- **What it does** (`MotiffLab.MusicCore.Playback.PlayerTempo`): it replaces the tempo at the start, whatever its source (notated, inferred from a recording, or the default assumed), and is the player's from then on: played, marked on the score as "♩ = 92" and named as the player's in the tempo control, with the piece's own beside it when the notes state one ("задан вами (в нотах 120)"). A tempo the notes state later on stays as stated; the tempos worked out from a recording follow it in proportion, so the recording's rubato keeps its shape. Nothing the file imported changes: clearing it plays the piece as it states again.
+- **Reading**: an object without a whole `quarterNotesPerMinute` from 20 to 300 is damage. A file without it reads as none, as every file before 0.5.4.
+- **Builds before 0.5.4** open the file and play the piece as it states, and drop the field when they write it (unknown fields are dropped on writing), as with `editsOff`.
+- **In the sync** it is the player's (`FieldClass.Player`): the copy saved last says it.
+
+The playback tempo the player chooses while practising (25 % to 150 %) is not this field: it stays a whole percentage on each resume point (`tempoPercent`).
+
+## Originals in the player's folder (version 0.5)
+
+Two additions of «Импорт папки» (version 0.5, the experiment `experimental.libraryImport`) kept within version 15 as optional fields, like the other 0.5 additions (Andrei approved the format change on 2026-11-12, 17:42 UTC): an original kept `"link"` and an original's `folder`. The goldens are `tests/MotiffLab.MusicCore.Tests/Golden/v15-linked-pdf.motiff.json` and `v15-folder-notes.motiff.json` (`Projects/LinkedOriginalsFormatTests.cs`).
+
+```jsonc
+"source": "",                                   // a PDF piece: no notes yet
+"originals": [ { "id": "src_pdf", "kind": "pdf", "fileName": "Bach - Prelude in C.pdf",
+                 "folder": "Бах/ХТК",           // inside the chosen folder, "/" between folders; "" for a file right in it
+                 "sha256": "…", "bytes": 34, "pages": 3, "addedAt": "…",
+                 "kept": "link",                // the file stays in the player's folder: its bytes are not in this file
+                 "held": [ { "device": "ipad", "at": "…" } ] } ]   // the device that links it
+```
+
+- **`kept: "link"`**: the bytes stay where the player keeps them (a folder on the computer, Files on the iPad, a Google Drive, OneDrive or Dropbox folder synced there); the device reads the file in place and never changes, renames, moves or deletes it, writes its properties or makes folders (Andrei, 2026-11-12). The PDF's bytes are never written into the file, even while the app holds them for an open piece (`Project.AsFiled`), and neither is its page map (`documentPages`) then. The 50 MB limit of a PDF kept in the file does not apply. In `held`, only the device that links the file marks it.
+- **A piece with no notes and no PDF in its file** is a piece when its file describes its PDF (`src_pdf`, known or kept whole as an unknown description): its PDF is linked in a folder or on another device. The library lists it (`project.summary`); the facade's `open` answers `originalAway` until the file is linked again (`Project.RelinkDocument`, by fingerprint). A file with no notes, no PDF and no description of one is damaged, as before.
+- **`folder`** on any original: where the file was inside the folder the player imported, so a fresh look at the folder finds each file at its place and links again the ones moved or renamed (`LibraryRelink`). Each name between the `/` is non-empty and not `.` or `..`, with no `\`; anything else is damage. Left out for a file not imported from a folder. In the sync it is the player's data, kept from either copy (`PieceOriginals.Merge`).
+
+What the builds before 0.5 do, checked on 2026-11-12 by building music-core at the tags `v0.2`, `v0.3` and `v0.4` and reading both goldens (see the golden README):
+
+| Build | `v15-folder-notes` (notes, a linked PDF) | `v15-linked-pdf` (a linked PDF only) |
+| --- | --- | --- |
+| `v0.2` | opens its notes; drops `originals` on writing | refused: "its source cannot be read" |
+| `v0.3`, `v0.4` | opens its notes; keeps the linked PDF's description whole (an unknown `kept`, S6) and drops `folder` from the imported file's | refused: "its source cannot be read" |
+
+A piece that is only a linked PDF therefore opens only in 0.5 and later, on every device it reaches (see "PDF pieces online").
+
+## PDF pieces online (version 0.5)
+
+Andrei, 2026-11-12, 17:45 UTC, amending [0026](decisions/0026-project-continuity.md) C3: a piece that is only a PDF syncs too, without the PDF, so a folder imported on the iPad reaches the web. Its online copy (`Project.ForOnline`) is the piece without `document` and `documentPages`, with its `metadata` (title, composer, tags, playlists), every original described (`originals`, the PDF with its `sha256`, worked out then if the file had none, its `kept`, `folder` and `held`) and `documentMarks`. The format does not change: it is the file of a PDF piece whose PDF is elsewhere, as "Originals in the player's folder" describes, and the golden is `tests/MotiffLab.MusicCore.Tests/Golden/v15-pdf-online.motiff.json` (`Projects/PdfPiecesOnlineTests.cs`).
+
+- **A device without the PDF** keeps the copy as it comes (`ProjectSync.Pulled` with nothing here), lists it in the library (`project.summary`, a PDF piece whose PDF is on another device) and opens nothing (`open` answers `originalAway`) until the player links the same file there (`Project.RelinkDocument`, by fingerprint; any other file is refused). The page marks are then shown as the writer's (`WritesDocumentMarks`).
+- **The device that has the PDF** keeps it, and its page marks when it writes them, when the online copy comes back, as for a recognised PDF.
+- **Builds before 0.5** read such a copy as damaged (checked with music-core at `v0.2`, `v0.3` and `v0.4`): their sync leaves it aside (the web's fetch answers a problem, the iPad's summary is empty) and the API built from them refuses it (400), so the API must run 0.5's music-core before the apps send such copies.
+
+## Title, composer, tags and playlists (`metadata`)
+
+What the player wrote about the piece in the library (version 0.2; Andrei approved the change on 2026-11-11): its title, its composer, their own tags and the playlists it is on, kept within version 15 as an optional field, like `merge` within version 14. Each is the player's: nothing is copied into it from the source file.
+
+```jsonc
+"metadata": {
+  "title": "Für Elise",          // optional: the player's title
+  "composer": "L. van Beethoven", // optional: the player's composer
+  "tags": ["Exam", "Romantic"],   // optional: the player's tags, in their order
+  "playlists": ["Recital"]        // optional: the playlists the piece is on, by name, in the player's order
+}
+```
+
+Every text is one line: runs of white space are one space and the ends are trimmed, so an empty text is none. Tags and playlists keep the player's order and are distinct whatever the letter case ("Exam" and "exam" are one tag, the first spelling kept). A playlist is its name: it exists while a piece is on it, so a piece is on many playlists without copies and its playlists travel with it; the order of the pieces within a playlist is not kept yet. A field is written only when it is set, and `metadata` only when one is; a file without it has none.
+
+What a library card shows (`Project.Details`, the facade's `title`, `composer`, `tags` and `playlists`) is the player's value where there is one, else what the imported file says (a MusicXML score's `<work-title>`, else `<movement-title>`, else a title credit; its `<creator type="composer">`, else a composer credit), else for the title the file's name without its extensions. The file's values are read from the source on every summary and never written into `metadata`, so clearing the player's value shows the file's again. A scanned or transcribed piece and a PDF piece take no title or composer from their source.
+
+A build before this field reads such a file as before and drops `metadata` when it writes the file again (unknown fields are dropped on writing), so the title, composer and tags are lost if the piece is saved by an older build of either app. Likewise a build before `playlists` reads the rest of `metadata` and drops the playlists when it writes the file again.
 
 ## Marks (`marks`)
 
@@ -67,6 +208,8 @@ Everything the player writes on the score, kept with the piece ([0018](decisions
 ```
 
 A stroke's anchor is its bar's start tick, so marks follow the piece through a new layout, the as-written and as-played scores and the PDF. Notes, highlights and fingering anchor to a span or to note ids, which the importers keep stable.
+
+A stroke begun in the margin of a line (version 0.4, same shape) is kept against the line's first bar with `u` below 0, or its last bar with `u` above 1. The apps draw such a stroke from that edge of whatever line its bar is on in the layout shown, so after another layout it stays in the margin rather than over a neighbouring bar's notes; a build before 0.4 draws it from its bar's edge, the same place while the bar is still at the line's edge. Music-core keeps every stroke an app hands in thinned (`InkThinning`: points within 0.05 staff spaces of the line through the others, and within 0.1 of its pressure, are left out); a file is read with its points as written.
 
 ## Bookmarks (`bookmarks`)
 
@@ -137,7 +280,8 @@ What the scan server, the transcription or a performance left for the player to 
   { "bar": 12, "source": "Scan" | "Transcription" | "Performance",
     "reason": "BarTooLong" | "BarTooShort" | "StavesDiffer" | "OutOfPianoRange" | "GraceNotes"   // scan
             | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed"                     // transcription
-            | "RecordingOctave" | "RecordingBarLength",                                           // a performance (version 13)
+            | "RecordingOctave" | "RecordingBarLength"                                            // a performance (version 13)
+            | "PageQuality",                                                                        // scan: a bar on a poor page (version 0.4, within 15)
     "resolved": false }
 ]
 ```
@@ -216,7 +360,7 @@ Only the per-piece overrides live in the file (prep item 5); the catalogue (`Mot
 
 Settings have three scopes. **Device** settings (layout, note names, pencil-only, pen ink, metronome, count-in, follow playback, theme, language, save online, analytics) stay on the device as one document, `{"version": 1, "values": {…}}`, written and read by `SettingsState`; the free tier has no cloud account, so they never leave it. **Account** settings (level, guidance, assistant answers) follow the player once there is an account; until then they are on the device too. **Piece** settings (phrase granularity, the layers) can be overridden per piece, here. The presets Learning, Practising and Clean set the governed settings together; a value that deviates from every preset shows as Custom.
 
-A piece added as a PDF to read as it is ([0023](decisions/0023-pdf-pieces.md)) keeps the PDF in `document`, exactly as the player picked it, and has an empty `source` until its notes are recognised: such a project has no notes to open, so the apps show it in their PDF view. `document` must start with `%PDF-`; a project with neither a `source` nor a `document` is damaged. The player's marks on the PDF's pages are kept in `documentMarks`, apart from `marks`, so the PDF view and the Notes view each keep their own: `ink` holds strokes in the shape of `marks.ink`, except that `bar` is the number of the page the stroke starts on (from 1), `u` its place across the page (0 to 1) and `v` its distance below the page's top edge in the page's own spaces (a hundred and twentieth of its width); `bookmarks` holds `{ "id": "pb_0001", "page": 3, "name"?: "Coda", "createdAt" }`, at most one per page, in page order. The field is left out when there are no such marks. The web app keeps a PDF on the device only, never online: a PDF can run to tens of megabytes, so a project without notes stays on the device, and the copy of a project with notes saved online leaves `document`, `documentPages` and `documentMarks` out.
+A piece added as a PDF to read as it is ([0023](decisions/0023-pdf-pieces.md)) keeps the PDF in `document`, exactly as the player picked it, and has an empty `source` until its notes are recognised: such a project has no notes to open, so the apps show it in their PDF view. `document` must start with `%PDF-`; a project with neither a `source` nor a `document` is damaged, unless it describes its PDF in `originals` (version 0.5, see "Originals in the player's folder"). The player's marks on the PDF's pages are kept in `documentMarks`, apart from `marks`, so the PDF view and the Notes view each keep their own: `ink` holds strokes in the shape of `marks.ink`, except that `bar` is the number of the page the stroke starts on (from 1), `u` its place across the page (0 to 1) and `v` its distance below the page's top edge in the page's own spaces (a hundred and twentieth of its width); `bookmarks` holds `{ "id": "pb_0001", "page": 3, "name"?: "Coda", "createdAt" }`, at most one per page, in page order. The field is left out when there are no such marks. The web app and the iPad keep a PDF on the device only, never online: a PDF can run to tens of megabytes, so the copy saved online leaves `document` and `documentPages` out (a project without notes stayed on the device until version 0.5; since then its copy goes online too, see "PDF pieces online"); when the sync brings the online copy back (version 0.2, `ProjectSync.Pulled`), the device's own PDF and its pages stay with the piece. Builds before 0.4 leave `documentMarks` out of the online copy too. Since version 0.4 (Andrei, 2026-11-12; a sync rule, the format does not change) the online copy carries `documentMarks`, so another device that has the same PDF, linked by its fingerprint, shows them: only one device writes them (`Project.WritesDocumentMarks`), the device that has the PDF, and the iPad when both have it (the PDF's original is marked held by the iPad); a pull keeps the writer's own marks and gives every other device the online copy's, except that an online copy with no `documentMarks` (as a build before 0.4 sends it) never clears a device's marks. The web shows such marks read only. What a device knows of a project's online copy for the sync (its ETag and save time) is kept on the device beside the projects, never in the project file, so the format does not change.
 
 A project can hold both notes and a PDF (since 2026-11-07, testing item 16; no change to the format, version 14): the notes read from its own PDF by the scan server, or a PDF the player kept inside a piece opened from a file or a recording (Sources, [0022](decisions/0022-score-and-performance.md) section 1). For notes read from the PDF, the MusicXML becomes `source` (with `fileName` ending `.musicxml`, the PDF's name with its extension changed) and `scan` says which engine read it. `documentPages` holds where each of the PDF's pages starts in the notes, in ticks: page 1 at 0, each page after the one before. It is the rough link the PDF and Notes views switch by: a page starts at the first bar the scan server marked with `<print new-page="yes"/>`, or, without such marks, the bars are shared evenly between the pages. `documentPages` needs both a `document` and a `source`; the PDF, `documentMarks` and the notes' own `marks` all stay.
 
@@ -245,6 +389,9 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | --- | --- |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
+| 15 without `metadata` | Written before the library kept a title, composer and tags: none; the card shows the file's title and composer, or its name. |
+| 15 without `originals` | Written before version 0.3, or written again by a version 0.2 build: the originals the piece's own data shows (see "Originals"), without fingerprints or marks. |
+| 15 without `folder` | Written before version 0.5, or written again by an earlier build: the originals say nowhere where they were in a folder; a fresh look at the folder links them by fingerprint (`LibraryRelink`). |
 | < 15 | No assembly. |
 | < 14 | No corrections that add a note. |
 | < 13 | No performances; no `Performance` flags. |

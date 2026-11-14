@@ -1,25 +1,22 @@
 // The sentence as the level above the phrase (#133, decision record 0013 sections 3 and 9; 0018 section 3): the
-// sentences music-core groups over the phrases, shown as brackets at the Sentences level and selected whole as the
+// sentences music-core groups over the phrases, stepped through at the Sentences level and selected whole as the
 // working context, and the Insights stream opening on the one observation to hear first, with a fact's Try button whose
 // way is heard and kept.
 import { expect, test } from "@playwright/test";
-import { closePopover, openFurElise, openInsights, openLenses } from "./steps.mjs";
+import { closePopover, openFurElise, openInsights, openLenses, selectPhrase } from "./steps.mjs";
 
 test("select a sentence, understand it now and try a way", async ({ page }) => {
     const errors = await openFurElise(page);
-    const brackets = page.locator(".score button.bracket[aria-label]");
     const selection = page.locator(".selection-status");
 
     // Für Elise's opening and its return make its first sentence, of four, at the Sentences level.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
     await page.getByRole("dialog", { name: "Phrases" }).getByRole("radio", { name: "Sentences" }).click();
+    await expect(page.getByRole("dialog", { name: "Phrases" })).toContainText("4 sentences in the piece");
     await closePopover(page);
-    await expect(brackets).toHaveCount(4);
-    await expect(brackets.first()).toHaveAccessibleName("Sentence 1, bars 0–8");
 
-    // Tapping it selects the sentence whole: nine bars, more than a range holds.
-    await brackets.first().click();
-    await expect(brackets.first()).toHaveAttribute("aria-pressed", "true");
+    // Page Down selects the sentence whole: nine bars, more than a range holds.
+    await selectPhrase(page);
     await expect(selection).toContainText("Selected sentence A, bars 0–8 (phrases 1–2)");
 
     // The stream opens on Main, the harmonic motion first with its kind and Evidence, then the facts by lens under Details.

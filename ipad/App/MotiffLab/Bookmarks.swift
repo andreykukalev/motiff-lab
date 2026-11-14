@@ -653,10 +653,10 @@ struct PagesStrip: View {
         (contents.shelf?.bookmarks ?? []).filter { page.start <= $0.onset && $0.onset < page.end }
     }
 
-    /// "p. 2 · phrases 3–5", the phrases named while the brackets show phrases.
+    /// "p. 2 · phrases 3–5", the phrases named while the level is Phrases and they are shown (not «Не показывать»).
     private func caption(_ page: ScoreController.PageOutline) -> String {
         let number = text.format("contents.page", String(page.page))
-        guard let phrases = score.phrases, phrases.level == "phrase" else { return number }
+        guard !score.phrasesHidden, let phrases = score.phrases, phrases.level == "phrase" else { return number }
         let starting = phrases.units.filter { page.start <= $0.onset && $0.onset < page.end }.map(\.number)
         guard let first = starting.first, let last = starting.last else { return number }
         let named = first == last ? text.format("contents.pagePhrase", String(first)) : text.format("contents.pagePhrases", String(first), String(last))
@@ -664,7 +664,8 @@ struct PagesStrip: View {
     }
 }
 
-/// A choice of two or three (ds.css `.seg`): the chosen one on the accent's strong tint.
+/// A choice of two or three (ds.css `.seg`): the chosen one on the accent's strong tint. Each option keeps the width of
+/// its word in the chosen weight, so the control does not change size when the choice moves (#479 item 11).
 struct SegmentedChoice<Value: Hashable>: View {
     let options: [(Value, String)]
     let chosen: Value
@@ -680,14 +681,22 @@ struct SegmentedChoice<Value: Hashable>: View {
                 Button {
                     choose(value)
                 } label: {
-                    Text(name)
-                        .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
-                        .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                        .lineLimit(1)
-                        .padding(.horizontal, CGFloat.ds("s-3"))
-                        .frame(maxHeight: .infinity)
-                        .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                        .contentShape(Capsule())
+                    ZStack {
+                        // The word in the chosen weight, unseen, holds the option's width either way.
+                        Text(name)
+                            .font(DesignTokens.font(weight: 600, size: 13, relativeTo: .callout))
+                            .lineLimit(1)
+                            .hidden()
+                            .accessibilityHidden(true)
+                        Text(name)
+                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+                            .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+                    .frame(maxHeight: .infinity)
+                    .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])

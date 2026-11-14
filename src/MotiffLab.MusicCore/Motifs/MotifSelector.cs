@@ -163,9 +163,21 @@ public static class MotifSelector
         return meter.BarAt(new Tick(Math.Max(0, end.Value - 1))).Number;
     }
 
-    /// <summary>The start of the beat that contains a position, never before its bar's start.</summary>
-    private static Tick BeatStart(MeterMap meter, Tick position)
+    /// <summary>
+    /// A passage on whole beats (#349): from the start of the beat its onset falls in to the first beat line at or after
+    /// its end, so a selection can start and end mid-bar, on a beat (a pickup, a phrase that ends on beat 3). A span on
+    /// beat lines stays as it is; one inside a beat takes that beat.
+    /// </summary>
+    public static TickSpan ToBeats(MeterMap meter, TickSpan span)
     {
+        ArgumentNullException.ThrowIfNull(meter);
+        return TickSpan.FromBounds(BeatStart(meter, span.Onset), BeatEnd(meter, span.End));
+    }
+
+    /// <summary>The start of the beat that contains a position, never before its bar's start.</summary>
+    public static Tick BeatStart(MeterMap meter, Tick position)
+    {
+        ArgumentNullException.ThrowIfNull(meter);
         Bar bar = meter.BarAt(position);
         long beatTicks = bar.Signature.BeatTicks;
         long offset = position.Value - bar.Span.Onset.Value + bar.LeadIn;
@@ -174,8 +186,9 @@ public static class MotifSelector
     }
 
     /// <summary>The first beat line at or after a position, never after its bar's end.</summary>
-    private static Tick BeatEnd(MeterMap meter, Tick position)
+    public static Tick BeatEnd(MeterMap meter, Tick position)
     {
+        ArgumentNullException.ThrowIfNull(meter);
         Tick start = BeatStart(meter, position);
         if (start == position)
         {

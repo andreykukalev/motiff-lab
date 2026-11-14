@@ -1,0 +1,255 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Localization
+
+@* A PDF piece whose file is not in its project (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-7-missing.png):
+   its PDF is read where it is in the player's folder and the piece opens; when it is not there, «Файл не найден. Возможно,
+   папку переорганизовали. Проверить папку?», which finds it again by its fingerprint and opens it, or offers a changed
+   file («Похоже, это та же пьеса»). A piece whose PDF was never on this browser («оригинал на другом устройстве») offers
+   «Привязать оригинал» and the folders this browser keeps. The player's files are only read. *@
+<div class="away-scrim" aria-hidden="true"></div>
+<section class="away-card" role="dialog" aria-modal="true" aria-labelledby="away-title" aria-describedby="away-lead">
+    @switch (_state)
+    {
+        case State.Looking:
+            <h2 id="away-title">@Title</h2>
+            <p id="away-lead" role="status">@Text["away.looking"]</p>
+            break;
+        case State.Ask:
+            <h2 id="away-title">@Text["away.askTitle"]</h2>
+            <p id="away-lead">@(FolderName is { } name ? Text.Format("away.askLead", name) : Text["away.askLeadFile"])</p>
+            <div class="acts">
+                <a class="btn quiet" href="">@Text["away.notNow"]</a>
+                <button class="btn primary" @onclick="AllowAsync">@Text["away.allow"]</button>
+            </div>
+            break;
+        case State.Alike when _alike is { } alike:
+            <h2 id="away-title">@Text["away.alikeTitle"]</h2>
+            <div class="pair" id="away-lead">
+                <div class="side">
+                    <p class="overline">@Text["away.inLibrary"]</p>
+                    <p class="t">@Title</p>
+                    <p class="m">@Described(Original?.Folder, Original?.Pages, Original?.Bytes)</p>
+                </div>
+                <div class="side">
+                    <p class="overline">@Text["away.inFolderNow"]</p>
+                    <p class="t">@NameOf(alike.Path)</p>
+                    <p class="m">@Described(DirectoryOf(alike.Path), alike.Pages, alike.Bytes)</p>
+                </div>
+            </div>
+            <p class="caption">@Text["away.alikeKeeps"]</p>
+            <div class="acts">
+                <a class="btn quiet" href="">@Text["away.notIt"]</a>
+                <button class="btn primary" @onclick="ConfirmAsync">@Text["away.itIs"]</button>
+            </div>
+            break;
+        case State.Missing:
+            <h2 id="away-title">@Text["away.missingTitle"]</h2>
+            <p id="away-lead">@(_note ?? Text["away.missingLead"])</p>
+            <p class="path">@Place</p>
+            <div class="acts">
+                <a class="btn quiet" href="">@Text["away.notNow"]</a>
+                @RelinkButton(_folder is null)
+                @if (_folder is not null)
+                {
+                    <button class="btn primary" @onclick="() => RecheckAsync(_folder)" disabled="@_busy">@Text["away.recheck"]</button>
+                }
+            </div>
+            break;
+        default:
+            <h2 id="away-title">@Text[Original?.IsHeldBy(HoldingDevice.Ipad) == true ? "away.onIpadTitle" : "away.awayTitle"]</h2>
+            <p id="away-lead">@(_note ?? Text["originals.relinkHint"])</p>
+            <p class="path">@Place</p>
+            <div class="acts">
+                <a class="btn quiet" href="">@Text["away.notNow"]</a>
+                @foreach (ChosenFolder kept in _kept)
+                {
+                    <button class="btn secondary" @onclick="() => RecheckAsync(kept.Id)" disabled="@_busy">@Text.Format("away.recheckNamed", kept.Name)</button>
+                }
+                @RelinkButton(true)
+            </div>
+            break;
+    }
+</section>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private OriginalFinder Finder { get; set; } = default!;
+
+    [Inject]
+    private PlayerFolders Folders { get; set; } = default!;
+
+    /// <summary>The piece as saved, without its PDF.</summary>
+    [Parameter, EditorRequired]
+    public Project Project { get; set; } = default!;
+
+    /// <summary>The piece with its PDF, once found: the reader shows it.</summary>
+    [Parameter]
+    public EventCallback<Project> Opened { get; set; }
+
+    private enum State
+    {
+        Looking,
+        Ask,
+        Missing,
+        Away,
+        Alike,
+    }
+
+    private State _state = State.Looking;
+    private string? _folder;
+    private string? _note;
+    private bool _busy;
+    private bool _keepsFiles;
+    private SamePiece? _alike;
+    private IReadOnlyList<ChosenFolder> _kept = [];
+
+    private PieceOriginal? Original => Project.FindOriginal(PieceOriginal.DocumentId);
+
+    private string Title => Project.Metadata.Title ?? Original?.FileName ?? Project.FileName;
+
+    private string? FolderName => _kept.FirstOrDefault(kept => kept.Id == _folder)?.Name;
+
+    /// <summary>"Ballade No. 1 · Ноты › Шопен › Баллады".</summary>
+    private string Place => string.Join(" › ", new[] { FolderName, Original?.Folder is { Length: > 0 } inside ? inside.Replace("/", " › ", StringComparison.Ordinal) : null }
+        .Where(static part => part is not null)) is { Length: > 0 } where ? $"{Original?.FileName} · {where}" : Original?.FileName ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _kept = [.. (await Folders.KeptAsync()).Where(static kept => kept.Kept)];
+        _keepsFiles = await Folders.CanKeepFilesAsync();
+        await FindAsync(ask: false);
+    }
+
+    private async Task FindAsync(bool ask)
+    {
+        Reached reached = await Finder.FindAsync(Project, ask);
+        _folder = reached.Folder;
+        switch (reached.State)
+        {
+            case Reach.Opened:
+                await Opened.InvokeAsync(reached.Project!);
+                return;
+            case Reach.Ask:
+                _state = State.Ask;
+                break;
+            case Reach.Missing:
+                _state = State.Missing;
+                break;
+            default:
+                _state = State.Away;
+                break;
+        }
+    }
+
+    private async Task AllowAsync()
+    {
+        _state = State.Looking;
+        await FindAsync(ask: true);
+    }
+
+    /// <summary>«Проверить папку»: the folder is looked through for this piece's file, which opens when found.</summary>
+    private async Task RecheckAsync(string folder)
+    {
+        _busy = true;
+        _note = null;
+        try
+        {
+            if (await Folders.PermissionAsync(folder) == "prompt" && !await Folders.AskPermissionAsync(folder))
+            {
+                _note = Text["folder.noAccess"];
+                return;
+            }
+
+            Rechecked found = await Finder.RecheckAsync(Project, folder);
+            if (found.Opened is { } opened)
+            {
+                await Opened.InvokeAsync(opened);
+                return;
+            }
+
+            _folder = folder;
+            if (found.Alike is { } alike)
+            {
+                _alike = alike;
+                _state = State.Alike;
+                return;
+            }
+
+            _note = Text["away.notInFolder"];
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>«Это она: открывать этот файл».</summary>
+    private async Task ConfirmAsync()
+    {
+        if (_alike is { } alike && await Finder.ConfirmAsync(Project, alike) is { } opened)
+        {
+            await Opened.InvokeAsync(opened);
+            return;
+        }
+
+        _state = State.Missing;
+        _note = Text["originals.unreadable"];
+    }
+
+    /// <summary>Chrome and Edge: their file picker, so the file is read where it is from now on.</summary>
+    private async Task ChooseAsync()
+    {
+        if (await Folders.ChooseOriginalAsync(Project.Id, Text["originals.kindPdf"]) is { } data)
+        {
+            await LinkAsync(data, handleKept: true);
+        }
+    }
+
+    /// <summary>Other browsers: the file input; a copy is kept on this device.</summary>
+    private async Task PickedAsync(InputFileChangeEventArgs args)
+    {
+        if (PdfDocument.CheckSize(args.File.Size) is not null)
+        {
+            _note = Text["folder.problemBig"];
+            return;
+        }
+
+        await using Stream stream = args.File.OpenReadStream(PdfDocument.MaxFileBytes);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        await LinkAsync(memory.ToArray(), handleKept: false);
+    }
+
+    private async Task LinkAsync(byte[] data, bool handleKept)
+    {
+        if (await Finder.LinkPickedAsync(Project, data, handleKept) is { } opened)
+        {
+            await Opened.InvokeAsync(opened);
+            return;
+        }
+
+        _note = Text["originals.otherFile"];
+    }
+
+    /// <summary>«Привязать оригинал»: Chrome's file picker, else the file input.</summary>
+    private RenderFragment RelinkButton(bool primary) => _keepsFiles
+        ? @<button class="btn @(primary ? "primary" : "secondary")" @onclick="ChooseAsync">@Text["originals.relink"]</button>
+        : @<label class="btn @(primary ? "primary" : "secondary") file">@Text["originals.relink"] <InputFile OnChange="PickedAsync" accept=".pdf,application/pdf" /></label>;
+
+    /// <summary>"Шопен · 3 стр. · 1,8 МБ".</summary>
+    private string Described(string? folder, int? pages, long? bytes) => string.Join(" · ", new[]
+    {
+        folder is { Length: > 0 } ? folder : null,
+        pages is { } count ? Text.Format("away.pages", count) : null,
+        bytes is { } size ? Text.Format("folder.megabytes", (size / 1048576.0).ToString("0.#", Text.Culture)) : null,
+    }.Where(static part => part is not null));
+
+    private static string NameOf(string path) => path[(path.LastIndexOf('/') + 1)..];
+
+    private static string DirectoryOf(string path) => path.LastIndexOf('/') is var slash and > 0 ? path[..slash] : "";
+}

@@ -130,7 +130,7 @@ public class PlaybackScoreTests
         PlaybackScore score = PlaybackScore.FromMidi(import);
 
         Assert.Equal(15, score.Notes.Count);
-        Assert.Equal(Tempo(0, 600_000), Assert.Single(score.Tempos));
+        Assert.Equal(Tempo(0, 600_000) with { Source = TempoSource.Notated }, Assert.Single(score.Tempos));
         Assert.Equal(import.End, score.End);
         Assert.Equal(15, score.Beats.Count);
         Assert.True(score.Beats[0].IsDownbeat);

@@ -28,7 +28,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
 /// <param name="Source">The imported file's bytes, exactly as picked.</param>
-public sealed record Project(
+public sealed partial record Project(
     string Id,
     string FileName,
     byte[] Source,
@@ -93,6 +93,33 @@ public sealed record Project(
     /// </summary>
     public ReadFromPdf? ReadFrom { get; init; }
 
+    /// <summary>
+    /// Where the piece is inside the collection it was made from (version 0.4, «Пьесы в файле», within version 15): the
+    /// collection's original and the pages or the stretch of the recording; null for a piece of its own.
+    /// </summary>
+    public PartOf? PartOf { get; init; }
+
+    /// <summary>
+    /// Whether the player turned the corrections off for this piece (version 0.5, «Мои правки: вкл / выкл», within version
+    /// 15): the piece opens with the notes as imported, its edit log kept. A build before 0.5 opens it with the corrections
+    /// on and drops the field when it writes the file.
+    /// </summary>
+    public bool EditsOff { get; init; }
+
+    /// <summary>
+    /// The tempo the player set for the piece, in quarter notes a minute (version 0.5.4, #511 section 17, within version
+    /// 15), such as "♩ = 92" from the printed notes when the scan could not read it: the piece plays and is marked at it
+    /// from its start (<see cref="Playback.PlayerTempo"/>); null to play as the piece states. A build before 0.5.4 plays
+    /// the piece as it states and drops the field when it writes the file.
+    /// </summary>
+    public int? PlayerTempo { get; init; }
+
+    /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
+    public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
+
+    /// <summary>The title, composer and tags a card shows, and where each comes from: the player, the file or its name.</summary>
+    public PieceDetails Details => PieceDetails.Of(this);
+
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
     public bool HasNotes => Source.Length > 0;
 
@@ -110,7 +137,7 @@ public sealed record Project(
             throw new ArgumentException("The file is not a PDF.", nameof(pdf));
         }
 
-        return new(id, fileName, [], now, now, [], []) { Document = pdf };
+        return new Project(id, fileName, [], now, now, [], []) { Document = pdf }.Fingerprinted();
     }
 
     /// <summary>
@@ -119,7 +146,17 @@ public sealed record Project(
     /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece.
     /// </summary>
     /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages)
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null) => Recognised(musicXml, engine, pages, at, null);
+
+    /// <summary>
+    /// The PDF piece with the notes the scan read from its pages, as <see cref="Recognised(byte[], string, PageMap, DateTimeOffset?)"/>,
+    /// and with <paramref name="reports"/>, the scan server's report on each page of the notes (its <c>X-Page-Report</c>,
+    /// version 0.4), kept by the scan (<see cref="ScanOrigin.Pages"/>) numbered by their place in the notes, so its check
+    /// (<see cref="ScanOrigin.CheckOf"/>) counts each page's quality on every open; the caller raises the Check flags from it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
+    /// <exception cref="ArgumentException">No notes, or not one report per page of the notes (<see cref="PageReport.ForScore"/>).</exception>
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at, IReadOnlyList<PageReport>? reports)
     {
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(pages);
@@ -137,7 +174,7 @@ public sealed record Project(
         {
             FileName = Path.ChangeExtension(FileName, ".musicxml"),
             Source = musicXml,
-            Scan = ScanOrigin.Read(engine),
+            Scan = ScanOrigin.Read(engine) with { From = PieceOriginal.DocumentId, At = at, Pages = reports is null ? [] : PageReport.ForScore(reports, musicXml) },
             DocumentPages = pages,
         };
     }
@@ -164,22 +201,129 @@ public sealed record Project(
         }
 
         bool same = Document is { } kept && kept.AsSpan().SequenceEqual(pdf);
-        return this with
+        Project changed = this with
         {
             Document = pdf,
             DocumentPages = pages,
             DocumentMarks = same ? DocumentMarks : DocumentMarks.Empty,
             ReadFrom = null,
+            KeptOriginals = same ? KeptOriginals : [.. KeptOriginals.Where(static original => original.Id != PieceOriginal.DocumentId)],
         };
+        return changed.Fingerprinted();
+    }
+
+    /// <summary>
+    /// The descriptions the file keeps of the piece's originals (version 0.3), as they are written: laid over the ones the
+    /// piece's own data shows (<see cref="PieceOriginals.Derived"/>). Apps read <see cref="Originals"/>.
+    /// </summary>
+    public IReadOnlyList<PieceOriginal> KeptOriginals { get; init; } = [];
+
+    /// <summary>
+    /// The piece's originals (version 0.3, local-first): the PDF, the file the notes came from, the recordings and MIDI
+    /// files of its versions, and those whose bytes are only on another device. Only their descriptions are in the file.
+    /// </summary>
+    public IReadOnlyList<PieceOriginal> Originals => PieceOriginals.Over(PieceOriginals.Derived(this), KeptOriginals);
+
+    public PieceOriginal? FindOriginal(string id) => Originals.FirstOrDefault(original => original.Id == id);
+
+    /// <summary>Whether an original's bytes are in this project file: the PDF here, the imported file, a MIDI version.</summary>
+    public bool HasInFile(PieceOriginal original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        return original.Kept == OriginalKept.File && original.Id switch
+        {
+            PieceOriginal.DocumentId => Document is not null,
+            PieceOriginal.SourceFileId => HasNotes,
+            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi },
+        };
+    }
+
+    /// <summary>The originals as a library row keeps them: what each is and where its bytes are.</summary>
+    public IReadOnlyList<OriginalSummary> OriginalSummaries =>
+        [.. Originals.Select(original => new OriginalSummary(original.Id, original.Kind, original.Kept, HasInFile(original), [.. original.Held.Select(static mark => mark.Device)]))];
+
+    /// <summary>The original a picked file is, by its fingerprint (<see cref="PieceOriginal.Fingerprint"/>); null when none matches.</summary>
+    public PieceOriginal? OriginalWithFingerprint(string sha256) => Originals.FirstOrDefault(original => original.Matches(sha256));
+
+    /// <summary>The project with an original's description added, or put in place of the one with its id.</summary>
+    public Project WithOriginal(PieceOriginal original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        List<PieceOriginal> kept = [.. KeptOriginals];
+        int index = kept.FindIndex(each => each.Id == original.Id);
+        if (index >= 0)
+        {
+            kept[index] = original;
+        }
+        else
+        {
+            kept.Add(original);
+        }
+
+        return this with { KeptOriginals = kept };
+    }
+
+    /// <summary>
+    /// The project with a device's mark on an original set (it holds the bytes) or taken back; the same project when the
+    /// mark is already so, so the apps save only on a change.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No original has the id.</exception>
+    public Project MarkHeld(string id, HoldingDevice device, bool held, DateTimeOffset at)
+    {
+        PieceOriginal original = FindOriginal(id) ?? throw new KeyNotFoundException($"There is no original {id}.");
+        return original.IsHeldBy(device) == held ? this : WithOriginal(held ? original.HeldBy(device, at) : original.NotHeldBy(device));
+    }
+
+    /// <summary>
+    /// The project with the PDF's fingerprint worked out when it is not known yet (a file saved before originals were
+    /// kept), once: the device that has the PDF does it, so another device can link the file the player picks again by
+    /// it. The PDF is the one original in the file that never goes online; the imported file and a MIDI version go with
+    /// the notes. The same project when nothing was missing.
+    /// </summary>
+    public Project Fingerprinted() =>
+        Document is { } document && FindOriginal(PieceOriginal.DocumentId) is { Sha256: null } original
+            ? WithOriginal(original with { Sha256 = PieceOriginal.Fingerprint(document), Bytes = document.Length })
+            : this;
+
+    /// <summary>
+    /// The piece with its PDF linked again from a file the player picked on this device (version 0.3, «Привязать оригинал»):
+    /// the bytes match the PDF's fingerprint, so the same piece gets its PDF back, its pages linked to the bars as
+    /// <paramref name="pages"/> says; null when the file is another one.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The piece has its PDF here already, or keeps no PDF original.</exception>
+    public Project? RelinkDocument(byte[] pdf, PageMap pages)
+    {
+        ArgumentNullException.ThrowIfNull(pdf);
+        ArgumentNullException.ThrowIfNull(pages);
+        if (Document is not null || FindOriginal(PieceOriginal.DocumentId) is not { Kind: OriginalKind.Pdf } original)
+        {
+            throw new InvalidOperationException("Only a piece whose PDF is on another device links it again.");
+        }
+
+        return PdfDocument.IsPdf(pdf) && original.Matches(PieceOriginal.Fingerprint(pdf))
+            ? this with { Document = pdf, DocumentPages = HasNotes ? pages : null }
+            : null;
     }
 
     /// <summary>
     /// The copy saved online (0014): the notes and everything made from them, without the PDF, which can run to tens of
-    /// megabytes and stays on the device with its marks. A piece that is only a PDF has nothing to save online.
+    /// megabytes and stays on the device. The originals' descriptions go with it (version 0.3), so another device shows
+    /// where the PDF is, and so do the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12), so another device that
+    /// has the same PDF shows them. A piece that is only a PDF goes online too (version 0.5; Andrei, 2026-11-12, amending
+    /// 0026 C3): its title, composer, tags, playlists, the PDF's description with its fingerprint and the page marks,
+    /// without the PDF, so another device lists it and opens it once the same file is linked there. Never null since 0.5.
     /// </summary>
-    public Project? ForOnline() => Document is null ? this
-        : HasNotes ? this with { Document = null, DocumentMarks = DocumentMarks.Empty, DocumentPages = null }
-        : null;
+    public Project? ForOnline() => Document is null ? this : WithoutDocument(HasNotes ? this : Fingerprinted());
+
+    /// <summary>
+    /// Whether <paramref name="device"/> writes the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12: only a
+    /// device that has the PDF writes them): it has the PDF, and it is the iPad, or the iPad does not hold the PDF. So the
+    /// marks have one writer; another device that has the same PDF shows them as the online copy brings them, read only.
+    /// With no device named, a device that has the PDF writes them, as before.
+    /// </summary>
+    public bool WritesDocumentMarks(HoldingDevice? device) =>
+        Document is not null
+        && (device != HoldingDevice.Web || FindOriginal(PieceOriginal.DocumentId) is not { } pdf || !pdf.IsHeldBy(HoldingDevice.Ipad));
 
     /// <summary>The PDF's file name: the piece's, as a PDF.</summary>
     public string DocumentFileName => Path.ChangeExtension(FileName, PdfDocument.Extension);
@@ -190,6 +334,9 @@ public sealed record Project(
         Origin = !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         ReadFrom = ReadFrom?.ProjectId,
+        Details = Details,
+        Originals = OriginalSummaries,
+        Part = FindOriginal(PartOf?.Original ?? PieceParts.OriginalId) is { } collection ? new PartSummary(collection, PartOf) : null,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -459,6 +606,7 @@ public sealed record Project(
         return this with
         {
             Performances = left,
+            KeptOriginals = [.. KeptOriginals.Where(original => original.Id != id)],
             Check = left.Count == 0 ? [.. (Check ?? []).Where(flag => flag.Source != CheckSource.Performance)] : Check,
         };
     }
@@ -558,7 +706,8 @@ public sealed record Project(
     /// as many 16ths as asked when given; null when the notes follow no beat.
     /// </summary>
     /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
-    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null)
+    /// <param name="search">How to follow a live performance (version 0.5, <see cref="BarGrid.FindLive"/>); null finds the beat once.</param>
+    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
     {
         if (Transcription is null)
         {
@@ -567,7 +716,7 @@ public sealed record Project(
 
         MidiImport heard = PieceImporter.Import(FileName, Source).Piece?.Midi
             ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
-        return BarGrid.Find(heard, signature, stepsPerBeat);
+        return BarGrid.Find(heard, signature, stepsPerBeat, search);
     }
 
     /// <summary>
@@ -588,7 +737,7 @@ public sealed record Project(
             throw new InvalidOperationException("The bars cannot change once something has been placed in them.");
         }
 
-        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams };
+        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams, From = heard.From, At = heard.At };
         Project changed = this with
         {
             Transcription = origin,
@@ -712,7 +861,26 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>For notes read from a PDF piece, that piece's id (0023), so the PDF view finds its notes; null otherwise.</summary>
     public string? ReadFrom { get; init; }
+
+    /// <summary>The title, composer and tags the card shows (<see cref="Project.Details"/>); null for a summary saved before they were kept.</summary>
+    public PieceDetails? Details { get; init; }
+
+    /// <summary>The piece's originals and where their bytes are (version 0.3); empty for a summary saved before they were kept.</summary>
+    public IReadOnlyList<OriginalSummary> Originals { get; init; } = [];
+
+    /// <summary>
+    /// For a piece made from a collection (version 0.4, «Пьесы в файле»), the collection's original it keeps and where it is
+    /// in it; null for a piece of its own, and for a summary saved before it was kept.
+    /// </summary>
+    public PartSummary? Part { get; init; }
 }
+
+/// <summary>
+/// A piece made from a collection, as its library row tells it (version 0.4): the collection's original as the piece keeps
+/// it (<see cref="PieceParts.OriginalId"/>) and its place there (<see cref="Projects.PartOf"/>), null for a part of a score
+/// cut by bars, whose place the format has no value for.
+/// </summary>
+public sealed record PartSummary(PieceOriginal Original, PartOf? Place);
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>
 public enum PieceOrigin
@@ -783,162 +951,6 @@ public sealed record SavedVariation(
         {
             Key = chain.Context.Key,
         };
-    }
-}
-
-/// <summary>A project opened for work: the source imported again, the edit log applied, and its motifs and variations rebuilt.</summary>
-/// <param name="Project">The project, with its Check flags worked out when the file it came from had none (before version 12).</param>
-/// <param name="Notes">The piece's notes with the project's corrections applied; <see cref="ImportedPiece.Notes"/> stays as imported.</param>
-public sealed record OpenedProject(
-    Project Project,
-    ImportedPiece Piece,
-    IReadOnlyList<Note> Notes,
-    IReadOnlyList<Motif> Motifs,
-    IReadOnlyList<(SavedVariation Saved, VariationChain Chain)> Variations)
-{
-    /// <summary>
-    /// Imports the project's source and rebuilds what was made from it. Throws
-    /// <see cref="ProjectFileException"/> when the source no longer imports or no longer matches.
-    /// </summary>
-    public static OpenedProject Open(Project project)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-        if (!project.HasNotes)
-        {
-            throw new ProjectFileException("This piece is a PDF read as it is: it has no notes to open.");
-        }
-
-        PieceImportResult imported = PieceImporter.Import(project.FileName, project.Source);
-        if (imported.Piece is not { } piece)
-        {
-            throw new ProjectFileException($"The piece in this project cannot be read: {imported.Rejection?.Message}");
-        }
-
-        if (project.Scan is { } scan)
-        {
-            if (piece.MusicXml is null)
-            {
-                throw new ProjectFileException("This project says it was scanned, but its piece is not MusicXML.");
-            }
-
-            piece = ScanCheck.Of(piece).Mark(piece, scan.ConfirmedBars);
-        }
-
-        if (project.Transcription is not null)
-        {
-            if (piece.Midi is null)
-            {
-                throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
-            }
-
-            if (project.Transcription.Bars is { } bars)
-            {
-                try
-                {
-                    piece = bars.Apply(piece);
-                }
-                catch (ArgumentException exception)
-                {
-                    throw new ProjectFileException($"The bars worked out for this transcription no longer fit its notes: {exception.Message}");
-                }
-            }
-
-            piece = Transcribed.Mark(piece);
-        }
-
-        piece = project.Assembly.Over(piece);
-        bool assembled = project.Assembly.Applied is not null;
-        IReadOnlyList<Note> notes;
-        try
-        {
-            notes = assembled ? project.Edits.Apply(piece.Notes) : Performance.PerformanceTake.Apply(project.Edits.Apply(piece.Notes), project.TakenBars);
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new ProjectFileException($"The note corrections in this project no longer fit the piece: {exception.Message}");
-        }
-
-        var motifs = new List<Motif>();
-        foreach (SavedMotif saved in project.Motifs)
-        {
-            MotifSelection selection = saved.Kind == MotifSelectionKind.Notes
-                ? MotifSelector.SelectNotes(notes, piece.Meter, saved.NoteIds)
-                : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter, MotifSelection.MaxStructureBars);
-            if (!selection.NoteIds.SequenceEqual(saved.NoteIds, StringComparer.Ordinal))
-            {
-                if (assembled)
-                {
-                    // An applied assembly may have changed the motif's notes (decision record 0024, section 7): it leaves the list.
-                    continue;
-                }
-
-                throw new ProjectFileException($"\"{saved.Name}\" no longer matches the notes of the piece.");
-            }
-
-            motifs.Add(Motif.Create(saved.Id, motifs.Count + 1, selection, saved.Kind, saved.Mode, notes) with { Name = saved.Name });
-        }
-
-        var variations = new List<(SavedVariation, VariationChain)>();
-        foreach (SavedVariation saved in project.Variations)
-        {
-            Motif? found = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId);
-            if (found is null && assembled)
-            {
-                continue;
-            }
-
-            Motif motif = found
-                ?? throw new ProjectFileException($"A variation refers to a motif ({saved.MotifId}) that is not in the project.");
-            VariationChain chain = VariationChain.Start(
-                VariationFacts.MotifNotes(notes, motif.Selection),
-                VariationContext.For(motif.Selection, saved.Keep.ToHashSet(), key: saved.Key));
-            foreach (SavedStep step in saved.Steps)
-            {
-                chain = Propose(chain, step).Accept();
-            }
-
-            if (saved.Pending is { } pending)
-            {
-                chain = Propose(chain, pending);
-            }
-
-            variations.Add((saved, chain));
-        }
-
-        var observations = new List<(Observation, VariationChain?)>();
-        foreach (Observation observation in project.Observations)
-        {
-            observations.Add((observation, observation.Restore(notes, piece.Meter)));
-        }
-
-        if (project.Check is null)
-        {
-            // A file from before version 12: the Check flags are worked out from the piece, a scan's resolved where the player confirmed the bar.
-            project = project with
-            {
-                Check = project.Scan is { } scanned ? CheckFlag.FromScan(ScanCheck.Of(piece), scanned.ConfirmedBars)
-                    : project.Transcription is { } heard ? CheckFlag.FromTranscription(heard, project.Source, piece)
-                    : [],
-            };
-        }
-
-        return new OpenedProject(project, piece, notes, motifs, variations) { Observations = observations };
-    }
-
-    /// <summary>The observations, in the project's order, each with its variation's chain rebuilt; null for a note alone.</summary>
-    public IReadOnlyList<(Observation Saved, VariationChain? Chain)> Observations { get; init; } = [];
-
-    /// <summary>A saved step proposed on the chain again; shared with <see cref="Observation.Restore"/>.</summary>
-    internal static VariationChain Propose(VariationChain chain, SavedStep step)
-    {
-        IVariationOperation operation = VariationOperations.Find(step.Operation)
-            ?? throw new ProjectFileException($"A variation uses an operation ({step.Operation}) this version of Motiff Lab does not have.");
-        if (chain.UnavailableReason(operation, step.Parameters) is { } reason)
-        {
-            throw new ProjectFileException($"A variation can no longer be made: {reason}");
-        }
-
-        return chain.Propose(operation, step.Parameters);
     }
 }
 

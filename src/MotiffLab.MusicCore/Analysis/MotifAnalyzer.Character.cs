@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>What character facts need beyond the notes and bars: the tempo map and the kind of file.</summary>
 /// <param name="Tempos">Tempo changes in order, the first at tick 0, as <see cref="PlaybackScore.Tempos"/> gives them; empty means 120 BPM throughout.</param>
-/// <param name="TempoAssumed">True when the file states no tempo at its start, so the first tempo is the 120 BPM default.</param>
+/// <param name="TempoAssumed">True when nothing states the tempo at the start, so the first tempo is a default (the piece's 80 BPM).</param>
 /// <param name="FromNotation">
 /// True for a notation file (MusicXML): its lengths are written note values and its velocities come
 /// from dynamics marks or a default, not from playing.
@@ -23,10 +23,10 @@ public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool 
     {
         ArgumentNullException.ThrowIfNull(piece);
 
-        bool assumed = piece.Midi is { } midi
-            ? midi.Tempos.Count == 0 || midi.Tempos[0].IsAssumed
-            : piece.MusicXml!.Tempos.Count == 0 || piece.MusicXml.Tempos[0].IsAssumed;
-        return new CharacterContext(PlaybackScore.FromPiece(piece).Tempos, assumed, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null);
+        // The tempo at the start as played says where it comes from (version 0.5.4): the player's own is neither assumed nor estimated.
+        PlaybackScore score = PlaybackScore.FromPiece(piece);
+        TempoSource source = score.StartTempo.Source;
+        return new CharacterContext(score.Tempos, source is TempoSource.Assumed or TempoSource.Default, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null && source != TempoSource.Player);
     }
 }
 
@@ -164,17 +164,18 @@ public static partial class MotifAnalyzer
                 : $"The tempo changes {w.Times(changes.Count)}, from {Bpm(values.Max(), w)} to {Bpm(values.Min(), w)} BPM.";
         }
 
-        string basis = w.T(
-            "Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.",
-            "Прочитано по темповой карте файла, в четвертях в минуту, с округлением до десятых для показа.");
+        string basis = tempos[first].Source == TempoSource.Player
+            ? w.T("The tempo you set for the piece, in quarter notes per minute; tempos the notes state later on stay as stated.", "Темп, который вы задали для пьесы, в четвертях в минуту; темпы, указанные в нотах дальше, остаются как указаны.")
+            : w.T("Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.", "Прочитано по темповой карте файла, в четвертях в минуту, с округлением до десятых для показа.");
+
         MotifFact fact = context.TempoEstimated && first == 0
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
                 "Worked out from the notes heard in the recording, with the bars: the beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.",
                 "Выведено из нот, услышанных в записи, вместе с тактами: доля, к которой лучше всего подходят их атаки, в четвертях в минуту, с округлением до десятых для показа."))
             : assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
-                $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM is assumed. {basis}",
-                $"В начале файла темп не указан, поэтому взят темп по умолчанию, {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM. {basis}"))
+                $"The file states no tempo at its start, so the default of {start} BPM is assumed. {basis}",
+                $"В начале файла темп не указан, поэтому взят темп по умолчанию, {start} BPM. {basis}"))
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, basis);
         return fact with { Places = places, Brief = brief };
     }

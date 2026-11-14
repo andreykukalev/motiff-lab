@@ -6,9 +6,9 @@ import XCTest
 /// The playback engine (decision record 0019 section 2.1), held to the web engine's own tests
 /// (tests/web/playback-processor.test.mjs): the same notes start on the same frames.
 final class PlaybackEngineTests: XCTestCase {
-    private let rate = 48_000.0
-    private let quarter = 24_000 // frames per quarter note at 120 BPM
-    private let spike = 40 // the test sample is silent but for one spike, this many frames after its start
+    let rate = 48_000.0
+    let quarter = 24_000 // frames per quarter note at 120 BPM
+    let spike = 40 // the test sample is silent but for one spike, this many frames after its start
 
     /// One sample at middle C: silence with a single spike, so every note shows as one spike in the output.
     private func testRegion() -> SampleRegion {
@@ -17,7 +17,7 @@ final class PlaybackEngineTests: XCTestCase {
         return SampleRegion(pitch: 60, tuneCents: 0, data: data, sampleRate: rate)
     }
 
-    private func engine(
+    func engine(
         tempos: [PlaybackTimeline.Tempo] = [.init(at: 0, microsecondsPerQuarter: 500_000)],
         beats: [PlaybackTimeline.Beat] = [],
         bars: [PlaybackTimeline.Bar] = [.init(start: 0, beatTicks: 480, beatsPerBar: 4)],
@@ -38,17 +38,17 @@ final class PlaybackEngineTests: XCTestCase {
         engine.handle(.source(id: id, notes: notes.map { PlaybackNote(onset: $0.0, duration: $0.1, pitch: 60, velocity: 127, track: $0.2) }))
     }
 
-    private func source(_ engine: PlaybackEngine, _ id: String, _ notes: [(Double, Double)]) {
+    func source(_ engine: PlaybackEngine, _ id: String, _ notes: [(Double, Double)]) {
         source(engine, id, notes.map { ($0.0, $0.1, 0) })
     }
 
     /// Frames where a note's spike lands, given as the note's start frame.
-    private func noteStarts(_ out: [Float]) -> [Int] {
+    func noteStarts(_ out: [Float]) -> [Int] {
         out.indices.filter { abs(out[$0]) > 0.01 }.map { $0 - spike }
     }
 
     /// Frames where a sound starts after at least `gap` frames of silence (for metronome clicks).
-    private func onsets(_ out: [Float], gap: Int = 1000) -> [Int] {
+    func onsets(_ out: [Float], gap: Int = 1000) -> [Int] {
         var found: [Int] = []
         var silent = gap
         for (i, value) in out.enumerated() {
@@ -62,7 +62,7 @@ final class PlaybackEngineTests: XCTestCase {
         return found
     }
 
-    private func frames(_ n: Double) -> Int { Int((n / 128).rounded(.up)) * 128 }
+    func frames(_ n: Double) -> Int { Int((n / 128).rounded(.up)) * 128 }
 
     func testNotesStartOnTheirExactFrame() {
         let e = engine()
@@ -155,23 +155,6 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(onsets(out), [1, quarter + 1, quarter * 2 + 1, quarter * 3 + 1, quarter * 4 + 1])
     }
 
-    func testCountInPlaysOneBarOfClicksThenTheMusic() {
-        let e = engine(bars: [.init(start: 0, beatTicks: 480, beatsPerBar: 3), .init(start: 1440, beatTicks: 480, beatsPerBar: 3)])
-        source(e, "a", [(1440, 240)])
-        e.handle(.activeSources(["a"]))
-        e.handle(.countIn(1))
-        e.handle(.seek(1440))
-        e.handle(.play)
-        XCTAssertEqual(e.transportState, .countingIn)
-
-        let out = e.render(frames: frames(Double(quarter * 3 + 1000)))
-
-        XCTAssertEqual(onsets(out).filter { $0 < quarter * 3 }, [1, quarter + 1, quarter * 2 + 1])
-        XCTAssertEqual(e.transportState, .playing)
-        let note = out.indices.first { $0 > quarter * 3 && abs(out[$0]) > 0.01 }
-        XCTAssertEqual(note.map { $0 - spike }, quarter * 3)
-    }
-
     func testMuteAndSoloPerTrack() {
         let cases: [([Int], [Int], [Int])] = [([1], [], [0]), ([], [1], [quarter]), ([], [], [0, quarter]), ([1], [1], [])]
         for (muted, soloed, expected) in cases {
@@ -217,6 +200,62 @@ final class PlaybackEngineTests: XCTestCase {
         let out = e.render(frames: frames(Double(quarter * 2)))
 
         XCTAssertEqual(noteStarts(out), [Int(((960 - paused) * Double(quarter) / 480).rounded(.up))])
+    }
+
+    /// One bar looping, a short note on each beat: what the playhead moved on the roll plays (v0.2).
+    private func loopedBar(rate: Double = 1) -> PlaybackEngine {
+        let e = engine()
+        source(e, "a", [(0, 120), (480, 120), (960, 120), (1440, 120)])
+        e.handle(.activeSources(["a"]))
+        e.handle(.rate(rate))
+        e.handle(.loop(start: 0, end: 1920))
+        return e
+    }
+
+    func testThePlayheadDraggedWhilePlayingPlaysOnFromThereKeepingTheLoopAndTheTempo() {
+        let e = loopedBar(rate: 0.5)
+        e.handle(.play)
+        let before = e.render(frames: frames(Double(quarter) / 2))
+        e.handle(.seek(1200))
+
+        let out = e.render(frames: frames(Double(quarter) * 5.5), startFrame: before.count)
+
+        // At half the tempo a quarter takes two: the beat at 1440, the loop's start again after its end, then its second beat.
+        XCTAssertEqual(noteStarts(out), [quarter, quarter * 3, quarter * 5])
+        XCTAssertEqual(e.transportState, .playing)
+    }
+
+    func testThePlayheadMovedWhilePausedWaitsThereAndPlayGoesOnFromItNotFromTheLoopsStart() {
+        let e = loopedBar()
+        e.handle(.play)
+        let before = e.render(frames: frames(Double(quarter) * 1.5))
+        e.handle(.pause)
+        e.handle(.seek(1300))
+        _ = e.render(frames: frames(Double(quarter)), startFrame: before.count)
+        XCTAssertEqual(e.tick, 1300)
+        XCTAssertEqual(e.transportState, .stopped)
+
+        e.handle(.play)
+        let out = e.render(frames: 60_000)
+
+        // 140 ticks to the beat at 1440, then 480 to the loop's end and its start again, then its second beat.
+        XCTAssertEqual(noteStarts(out), [7_000, 31_000, 55_000])
+    }
+
+    func testPausedInsideALoopPlayResumesWhereItPausedNotAtTheLoopsStart() {
+        let e = loopedBar()
+        e.handle(.play)
+        _ = e.render(frames: frames(Double(quarter) * 1.25))
+        e.handle(.pause)
+        let paused = e.tick
+        XCTAssertGreaterThan(paused, 480)
+
+        e.handle(.play)
+        let starts = noteStarts(e.render(frames: frames(Double(quarter))))
+
+        // The next beat, 960, from where it paused (to the frame), not the loop's start at 0.
+        XCTAssertEqual(starts.count, 1)
+        XCTAssertEqual(Double(starts.first ?? 0), (960 - paused) * Double(quarter) / 480, accuracy: 1)
     }
 
     func testPlaybackStopsAtTheEndAndReportsIt() {
@@ -285,6 +324,143 @@ final class PlaybackEngineTests: XCTestCase {
         let loudest = out.indices.max { abs(out[$0]) < abs(out[$1]) }
         XCTAssertEqual(Double(loudest ?? 0), 480, accuracy: 1)
     }
+
+    // MARK: - Scrubbing (#495 UX-09): the notes a dragged playhead passes
+
+    /// Notes as (onset, duration, pitch), full velocity, on track 0, made the one active source.
+    private func chords(_ engine: PlaybackEngine, _ notes: [(Double, Double, Int)]) {
+        engine.handle(.source(id: "a", notes: notes.map { PlaybackNote(onset: $0.0, duration: $0.1, pitch: $0.2, velocity: 127, track: 0) }))
+        engine.handle(.activeSources(["a"]))
+    }
+
+    /// An engine whose sample sounds steadily for four seconds, so how long a voice is held shows in the output.
+    private func sustained() -> PlaybackEngine {
+        let e = engine(samples: false)
+        e.handle(.samples([SampleRegion(pitch: 60, tuneCents: 0, data: [Float](repeating: 0.5, count: Int(rate) * 4), sampleRate: rate)]))
+        return e
+    }
+
+    func testADragForwardSoundsTheStartsItPassesAndGoesThere() {
+        let e = engine()
+        chords(e, [(0, 240, 60), (480, 240, 62), (960, 240, 64), (1440, 240, 65)])
+        e.handle(.scrub(from: 0, to: 1000))
+
+        XCTAssertEqual(e.tick, 1000)
+        XCTAssertEqual(e.transportState, .stopped)
+        XCTAssertEqual(e.voiceCount, 2, "the starts at 480 and 960: the one it left is behind it")
+        XCTAssertFalse(noteStarts(e.render(frames: 1024)).isEmpty, "they sound at once")
+    }
+
+    func testADragBackSoundsTheStartsItPassesTheOtherWay() {
+        let e = engine()
+        chords(e, [(0, 240, 60), (480, 240, 62), (960, 240, 64), (1440, 240, 65)])
+        e.handle(.scrub(from: 1440, to: 480))
+
+        XCTAssertEqual(e.tick, 480)
+        XCTAssertEqual(e.voiceCount, 2, "back, the place reached sounds and the one it left does not: 480 and 960")
+    }
+
+    func testAChordADragPassesSoundsWhole() {
+        let e = engine()
+        chords(e, [(480, 240, 60), (480, 240, 64), (480, 240, 67), (960, 240, 72)])
+        e.handle(.scrub(from: 0, to: 600))
+
+        XCTAssertEqual(e.voiceCount, 3)
+    }
+
+    func testAFastDragStrikesOnlyTheStartsNearestWhereItWent() {
+        let e = engine()
+        chords(e, (1...20).map { (Double($0 * 120), 120.0, 40 + $0) })
+        e.handle(.scrub(from: 0, to: 2400))
+
+        XCTAssertEqual(e.voiceCount, PlaybackEngine.scrubGroups)
+    }
+
+    func testMutedTracksAndTheMetronomeStaySilentWhileADragScrubs() {
+        let beats: [PlaybackTimeline.Beat] = [.init(at: 0, downbeat: true), .init(at: 480, downbeat: false), .init(at: 960, downbeat: false)]
+        let e = engine(beats: beats, samples: false)
+        e.handle(.metronome(true))
+        e.handle(.scrub(from: 0, to: 1000))
+        XCTAssertTrue(e.render(frames: 4096).allSatisfy { $0 == 0 }, "no click")
+
+        let muted = engine()
+        muted.handle(.source(id: "a", notes: [PlaybackNote(onset: 480, duration: 240, pitch: 60, velocity: 127, track: 1)]))
+        muted.handle(.activeSources(["a"]))
+        muted.handle(.tracks(muted: [1], soloed: []))
+        muted.handle(.scrub(from: 0, to: 1000))
+        XCTAssertEqual(muted.voiceCount, 0)
+    }
+
+    func testANoteADragStrikesSoundsItsLengthAtMostASecondAndAHalfThenFades() {
+        // 240 ticks at 120 BPM are a quarter of a second; 3840 are four seconds, held a second and a half.
+        for (duration, held) in [(240.0, 0.25), (3840.0, PlaybackEngine.scrubSeconds)] {
+            let e = sustained()
+            chords(e, [(480, duration, 60)])
+            e.handle(.scrub(from: 0, to: 480))
+            let out = e.render(frames: frames(rate * (held + 0.6)))
+            let full = abs(out[Int(rate * 0.01)])
+
+            XCTAssertGreaterThan(full, 0, "\(duration): it sounds")
+            XCTAssertEqual(abs(out[Int(rate * (held - 0.01))]), full, accuracy: full * 0.01, "\(duration): held its length")
+            XCTAssertLessThan(abs(out[Int(rate * (held + 0.5))]), full * 0.05, "\(duration): then fading")
+            _ = e.render(frames: frames(rate))
+            XCTAssertEqual(e.voiceCount, 0, "\(duration): no voice hangs")
+        }
+    }
+
+    func testLettingGoFadesWhatTheDragSounds() {
+        let e = sustained()
+        chords(e, [(480, 3840, 60)])
+        e.handle(.scrub(from: 0, to: 480))
+        let before = e.render(frames: frames(rate * 0.1))
+        e.handle(.scrubEnd)
+        let after = e.render(frames: frames(rate * 0.6))
+
+        XCTAssertLessThan(abs(after[after.count - 1]), abs(before[before.count - 1]) * 0.05)
+        _ = e.render(frames: frames(rate))
+        XCTAssertEqual(e.voiceCount, 0)
+        XCTAssertEqual(e.tick, 480, "the position stays where the drag left it")
+    }
+
+    func testADragIsIgnoredWhilePlaying() {
+        let e = engine()
+        chords(e, [(0, 1920, 60), (960, 240, 64)])
+        e.handle(.play)
+        _ = e.render(frames: frames(Double(quarter)))
+        let tick = e.tick
+        let voices = e.voiceCount
+
+        e.handle(.scrub(from: tick, to: 1500))
+
+        XCTAssertEqual(e.tick, tick)
+        XCTAssertEqual(e.voiceCount, voices)
+    }
+
+    func testPlayAfterADragStartsCleanFromWhereItWent() {
+        let e = engine()
+        // Past the end of the notes it struck, so playback has none of them still sounding to strike again. The note
+        // played next is middle C, the test sample's own pitch, so its spike lands `spike` frames after its start.
+        chords(e, [(480, 240, 62), (960, 240, 64), (1440, 240, 60)])
+        e.handle(.scrub(from: 0, to: 1250))
+        _ = e.render(frames: 1024)
+        e.handle(.play)
+
+        let out = e.render(frames: frames(Double(quarter * 2)))
+
+        XCTAssertEqual(noteStarts(out), [Int(((1440 - 1250) * Double(quarter) / 480).rounded(.up))], "the piece's next note, on its frame")
+    }
+
+    func testThePlayAfterADragFadesItsNotes() {
+        let e = sustained()
+        chords(e, [(480, 3840, 60)])
+        // Dragged past the note's end: playback from there has nothing of its own to sound.
+        e.handle(.scrub(from: 0, to: 4400))
+        let before = e.render(frames: frames(rate * 0.1))
+        e.handle(.play)
+        let after = e.render(frames: frames(rate * 0.6))
+
+        XCTAssertLessThan(abs(after[after.count - 1]), abs(before[before.count - 1]) * 0.05)
+    }
 }
 
 /// The piano, the playback score from music-core, and the project files.
@@ -317,6 +493,9 @@ final class PianoAndProjectTests: XCTestCase {
         XCTAssertFalse(score.timeline.bars.isEmpty)
         XCTAssertGreaterThan(score.timeline.end, 0)
         XCTAssertTrue(score.notes.allSatisfy { (21...108).contains($0.pitch) && $0.duration > 0 })
+        // Each beat names its bar and beat (v0.5.2): the pill and the roll write the position as bar.beat.
+        XCTAssertEqual(score.barBeats.marks.count, score.timeline.beats.count)
+        XCTAssertEqual(score.barBeats.at(0)?.beat, score.barBeats.marks.first?.place.beat)
     }
 
     func testAPieceSavedAsAProjectFileOpensAgainAsItself() async throws {
@@ -345,5 +524,21 @@ final class PianoAndProjectTests: XCTestCase {
         XCTAssertEqual(again.pages.count, first.pages.count)
         let file = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         XCTAssertEqual(file["version"] as? Int, 15)
+    }
+}
+
+/// Where the playhead may go when the player moves it on the roll (v0.2): inside the loop, before its end.
+final class PlayheadPlaceTests: XCTestCase {
+    func testThePlayheadStaysInsideTheLoopBeforeItsEnd() {
+        let loop = 1920.0..<3840.0
+        XCTAssertEqual(Player.place(2400, inside: loop), 2400)
+        XCTAssertEqual(Player.place(100, inside: loop), 1920)
+        XCTAssertEqual(Player.place(9000, inside: loop), 3839, "never on the loop's end, where playing would run past it")
+    }
+
+    func testWithNoLoopThePlayheadGoesAnywhereFromTheStart() {
+        XCTAssertEqual(Player.place(-5, inside: nil), 0)
+        XCTAssertEqual(Player.place(5000, inside: nil), 5000)
+        XCTAssertEqual(Player.place(700, inside: 960.0..<960.0), 700, "an empty loop is no loop")
     }
 }

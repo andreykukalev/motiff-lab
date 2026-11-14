@@ -1,29 +1,46 @@
 import XCTest
 @testable import MotiffLab
 
-/// The API as these tests answer it: each URL's status and body, and every request the app sent, kept in order. A URL
-/// with no answer fails as a missing connection does.
+/// The API as these tests answer it: each URL's status, body and headers ("PUT <url>" for a method other than GET), and
+/// every request the app sent with its body, kept in order. A URL with no answer fails as a missing connection does.
 final class StubAPI: URLProtocol {
     struct Answer {
         var status: Int
         var body: Data
+        var headers: [String: String] = [:]
     }
 
     private static let lock = NSLock()
     private static var answers: [String: Answer] = [:]
     private static var sent: [URLRequest] = []
+    private static var sentBodies: [Data] = []
 
     static func reset(_ given: [String: Answer] = [:]) {
         lock.lock()
         defer { lock.unlock() }
         answers = given
         sent = []
+        sentBodies = []
+    }
+
+    /// Adds or replaces answers while a test runs.
+    static func answer(_ given: [String: Answer]) {
+        lock.lock()
+        defer { lock.unlock() }
+        answers.merge(given) { _, new in new }
     }
 
     static var requests: [URLRequest] {
         lock.lock()
         defer { lock.unlock() }
         return sent
+    }
+
+    /// The bodies of the requests, in the same order (empty for a GET).
+    static var bodies: [Data] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sentBodies
     }
 
     static func session() -> URLSession {
@@ -39,10 +56,16 @@ final class StubAPI: URLProtocol {
     override func startLoading() {
         Self.lock.lock()
         Self.sent.append(request)
-        let answer = request.url.flatMap { Self.answers[$0.absoluteString] }
+        Self.sentBodies.append(request.httpBody ?? Self.read(request.httpBodyStream))
+        let method = request.httpMethod ?? "GET"
+        let answer = request.url.flatMap { url in
+            method == "GET" ? Self.answers[url.absoluteString] : Self.answers["\(method) \(url.absoluteString)"]
+        }
         Self.lock.unlock()
         guard let answer, let url = request.url,
-              let response = HTTPURLResponse(url: url, statusCode: answer.status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
+              let response = HTTPURLResponse(
+                  url: url, statusCode: answer.status, httpVersion: nil,
+                  headerFields: answer.headers.merging(["Content-Type": "application/json"]) { given, _ in given })
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
@@ -53,6 +76,20 @@ final class StubAPI: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    private static func read(_ stream: InputStream?) -> Data {
+        guard let stream else { return Data() }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 16_384)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count <= 0 { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
 }
 
 /// The projects saved online on the iPad (#335): listed when they are not here, downloaded as a new project file that

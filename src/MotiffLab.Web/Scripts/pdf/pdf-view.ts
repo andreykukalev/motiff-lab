@@ -5,44 +5,12 @@
 import { PencilLayer, type PencilState } from "../score/pencil-layer.js";
 import type { BarFrame } from "../score/pencil-marks.js";
 import { saveCover } from "../storage/project-store.js";
+import { openPdf, type PdfDocumentProxy, type PdfLoadingTask, type PdfRenderTask } from "./pdfjs.js";
+import { anchorAt, anchorOf, lineOf, type AnchorSpan, type ViewAnchor } from "../score/view-anchor.js";
 
 interface DotNetRef {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
 }
-
-/** The part of pdf.js the reader uses. */
-interface PdfViewport {
-    width: number;
-    height: number;
-}
-
-interface PdfRenderTask {
-    promise: Promise<void>;
-    cancel(): void;
-}
-
-interface PdfPage {
-    getViewport(options: { scale: number }): PdfViewport;
-    render(options: { canvas: HTMLCanvasElement; viewport: PdfViewport }): PdfRenderTask;
-}
-
-interface PdfDocumentProxy {
-    numPages: number;
-    getPage(number: number): Promise<PdfPage>;
-}
-
-/** What getDocument returns: the document to come, and the way to let go of it (pdf.js 6 has no destroy on the document). */
-interface PdfLoadingTask {
-    promise: Promise<PdfDocumentProxy>;
-    destroy(): Promise<void>;
-}
-
-interface PdfJs {
-    GlobalWorkerOptions: { workerSrc: string };
-    getDocument(options: Record<string, unknown>): PdfLoadingTask;
-}
-
-const PDFJS_BASE = new URL("../../lib/pdfjs/", import.meta.url);
 
 /** How far beyond the view a page is drawn before it scrolls in, as a share of the view's height. */
 const DRAW_AHEAD = "150% 0px";
@@ -59,20 +27,6 @@ const PAGE_SPACES = 120;
 /** The cover's width in pixels: enough for a library card at twice the density. */
 const COVER_WIDTH = 360;
 
-let pdfjs: Promise<PdfJs> | null = null;
-
-function loadPdfJs(): Promise<PdfJs> {
-    pdfjs ??= (async () => {
-        const module = (await import(new URL("pdf.min.mjs", PDFJS_BASE).href)) as PdfJs;
-        module.GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", PDFJS_BASE).href;
-        return module;
-    })();
-    // A failed download can be retried on the next open.
-    pdfjs.catch(() => {
-        pdfjs = null;
-    });
-    return pdfjs;
-}
 
 /** One page: its sheet on the desk, its size at scale 1, and the width it was last drawn at (0 for not drawn). */
 interface PageSheet {
@@ -123,19 +77,15 @@ export class PdfView {
         }
     }
 
-    /** Opens the PDF and lays out a sheet for each page, scrolled to the page given; the number of pages, or 0 when it cannot be read. */
-    async open(data: Uint8Array, startPage: number): Promise<number> {
+    /**
+     * Opens the PDF and lays out a sheet for each page, scrolled to the place the player left it at (PDF | Notes, #511
+     * section 10), else to the page given; the number of pages, or 0 when it cannot be read.
+     */
+    async open(data: Uint8Array, startPage: number, place: unknown = null): Promise<number> {
         this.close();
         let document: PdfDocumentProxy;
         try {
-            const pdf = await loadPdfJs();
-            const loading = pdf.getDocument({
-                data,
-                wasmUrl: new URL("wasm/", PDFJS_BASE).href,
-                standardFontDataUrl: new URL("standard_fonts/", PDFJS_BASE).href,
-                isEvalSupported: false,
-                enableXfa: false,
-            });
+            const loading = await openPdf(data);
             this.loading = loading;
             document = await loading.promise;
         } catch (error) {
@@ -175,7 +125,9 @@ export class PdfView {
         this.resize.observe(this.host);
 
         this.pencil.relayout();
-        this.showPage(startPage);
+        if (!this.showPlace(place)) {
+            this.showPage(startPage);
+        }
         this.reportPages();
         return document.numPages;
     }
@@ -195,6 +147,30 @@ export class PdfView {
         }
         const top = page.element.offsetTop - parseFloat(getComputedStyle(this.host).paddingTop || "0");
         this.host.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    }
+
+    /**
+     * Where the pages are scrolled to, as a place a new width keeps (#511 section 10): the page under the reading line, by its
+     * number, and how far down it the line is; null before the pages are laid out.
+     */
+    viewPlace(): ViewAnchor | null {
+        return anchorAt(this.pageSpans(), this.host.scrollTop + READING_LINE_PX);
+    }
+
+    /** Scrolls back to a place `viewPlace` gave, at once; false when there is none to go to. */
+    showPlace(place: unknown): boolean {
+        const anchor = anchorOf(place);
+        const line = anchor === null ? null : lineOf(this.pageSpans(), anchor);
+        if (line === null) {
+            return false;
+        }
+        this.host.scrollTo({ top: Math.max(0, line - READING_LINE_PX), behavior: "instant" });
+        return true;
+    }
+
+    /** Each page from top to bottom in the view's content pixels, by its number. */
+    private pageSpans(): AnchorSpan[] {
+        return this.pageFrames().map((frame) => ({ key: frame.tick, top: frame.top, bottom: frame.bottom }));
     }
 
     /** Keeps page 1 as the piece's cover in the library, as the score keeps its first page. */

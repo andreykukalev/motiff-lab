@@ -8,6 +8,12 @@ PRODUCT_BUNDLE_IDENTIFIER = com.andreykukalev.motifflab
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
 
+// Which build this is, for Settings · About (About.swift): ipad/build-version.sh sets them from the tag, the commit and
+// the time it built; a build from Xcode alone leaves them empty and says "dev".
+MOTIFF_BUILD_VERSION =
+MOTIFF_BUILD_COMMIT =
+MOTIFF_BUILD_DATE =
+
 // Your Apple developer team: set it in Local.xcconfig, or pick it in Xcode under Signing & Capabilities.
 DEVELOPMENT_TEAM =
 

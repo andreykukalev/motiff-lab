@@ -9,6 +9,7 @@ internal sealed class InMemoryProjectStore : IProjectStore
 {
     private readonly ConcurrentDictionary<(string Owner, string Id), (StoredSummary Summary, StoredProject Project)> _documents = new();
     private readonly ConcurrentDictionary<string, StoredProfile> _profiles = new();
+    private readonly ConcurrentDictionary<string, long> _resets = new();
     private int _version;
 
     public Task<IReadOnlyList<StoredSummary>> ListAsync(string ownerId, CancellationToken cancellationToken) =>
@@ -41,7 +42,18 @@ internal sealed class InMemoryProjectStore : IProjectStore
         var keys = _documents.Keys.Where(key => key.Owner == ownerId).ToList();
         keys.ForEach(key => _documents.TryRemove(key, out _));
         _profiles.TryRemove(ownerId, out _);
+        _resets.TryRemove(ownerId, out _);
         return Task.FromResult(keys.Count);
+    }
+
+    public Task<long?> GetResetAsync(string ownerId, CancellationToken cancellationToken) =>
+        Task.FromResult(_resets.TryGetValue(ownerId, out long stamp) ? stamp : (long?)null);
+
+    public async Task<int> ResetAsync(string ownerId, long stamp, CancellationToken cancellationToken)
+    {
+        int deleted = await DeleteAllAsync(ownerId, cancellationToken);
+        _resets[ownerId] = stamp;
+        return deleted;
     }
 
     public Task<StoredProfile?> GetProfileAsync(string ownerId, CancellationToken cancellationToken) =>
