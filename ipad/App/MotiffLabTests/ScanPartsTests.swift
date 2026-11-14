@@ -2,9 +2,9 @@ import PDFKit
 import XCTest
 @testable import MotiffLab
 
-/// A score longer than the scan server reads at a time (issue #479): planned in consecutive parts, each part a PDF of its
+/// A score sent a page a request (issue #479; v0.5.6, #533 section 1): planned in consecutive parts, each part a PDF of its
 /// own pages, the notes of the parts joined by music-core with each page of the PDF where it starts, scores of more than
-/// 100 pages refused, and the progress shown while it is read, in both languages.
+/// 100 pages refused, and the progress told only by the pages' answers, in both languages.
 final class ScanPartsTests: XCTestCase {
     private let english = UIText(language: "en")
     private let russian = UIText(language: "ru")
@@ -51,34 +51,56 @@ final class ScanPartsTests: XCTestCase {
         XCTAssertTrue(ScanProblem.tooManyPages(101).text(russian).hasPrefix("В этом PDF 101 стр."))
     }
 
-    func testAPartsProblemSaysWhichPagesAndTheStopsStayAsTheyAre() {
-        XCTAssertEqual(ScanProblem.server("The page is empty.").inPart(5...8, english), .server("Pages 5–8: The page is empty."))
-        XCTAssertEqual(ScanProblem.signIn.inPart(5...8, english), .signIn)
+    func testTheIPadSendsAPageARequest() {
+        XCTAssertEqual(ScanParts.pagesARequest, 1)
+        XCTAssertEqual(ScanParts.plan(pages: 3, maxPages: ScanParts.pagesARequest), [1...1, 2...2, 3...3])
     }
 
-    func testTheProgressMovesWithTheTimeAPageTakesAndNeverShowsTheScoreDone() {
-        let start = Date(timeIntervalSince1970: 1_800_000_000)
-        let first = ScanProgress(pages: 6, parts: [1...4, 5...6], part: 1, sent: start)
-        let second = ScanProgress(pages: 6, parts: [1...4, 5...6], part: 2, sent: start)
-
-        XCTAssertEqual(first.fraction(at: start), 0)
-        XCTAssertEqual(first.fraction(at: start.addingTimeInterval(60)), 60.0 / 180, accuracy: 0.001, "a minute of the three six pages take")
-        XCTAssertLessThan(first.fraction(at: start.addingTimeInterval(3600)), 4.0 / 6, "a part is not done before its notes are back")
-        XCTAssertEqual(second.pagesDone, 4)
-        XCTAssertEqual(second.fraction(at: start), 4.0 / 6, accuracy: 0.001)
-        XCTAssertEqual(first.minutesLeft(at: start), 3)
-        XCTAssertEqual(second.minutesLeft(at: start.addingTimeInterval(3600)), 1, "at least one")
+    func testAPagesProblemSaysWhichPageAndTheStopsStayAsTheyAre() {
+        XCTAssertEqual(ScanProblem.server("The page is empty.").onPage(5, english), .server("Page 5: The page is empty."))
+        XCTAssertEqual(ScanProblem.server("The page is empty.").onPage(5, russian), .server("Страница 5: The page is empty."))
+        XCTAssertEqual(ScanProblem.signIn.onPage(5, english), .signIn)
     }
 
-    func testTheProgressSaysThePartOrThePagesInBothLanguages() {
-        let parts = ScanProgress(pages: 6, parts: [1...4, 5...6], part: 2)
-        let whole = ScanProgress(pages: 3, parts: [1...3])
+    func testPagesReadAreDoneThePageSentIsCurrentAndTheRestWait() {
+        var progress = ScanProgress(pages: 4)
+        XCTAssertEqual(progress.current, 1)
+        XCTAssertEqual(progress.states, [.current, .waiting, .waiting, .waiting])
 
-        XCTAssertEqual(parts.line(english), "Part 2 of 2 · pages 5–6")
-        XCTAssertEqual(parts.line(russian), "Часть 2 из 2 · страницы 5–6")
-        XCTAssertEqual(whole.line(english), "3 pages")
-        XCTAssertEqual(whole.line(russian), "3 страницы")
-        for key in ["scan.progressLabel", "pdf.readLineHosted", "recognition.left"] {
+        progress = progress.read(after: 30_000)
+        XCTAssertEqual(progress.done, 1)
+        XCTAssertEqual(progress.states, [.done, .current, .waiting, .waiting])
+
+        progress = progress.read(after: 1).read(after: 1).read(after: 1)
+        XCTAssertNil(progress.current)
+        XCTAssertEqual(progress.read(after: 5), progress, "an answer after the last changes nothing")
+        XCTAssertEqual(ScanProgress(pages: 0).pages, 1)
+    }
+
+    func testThereIsNoEstimateBeforeTheFirstPageAndThenOnlyFromThePagesMeasured() {
+        var progress = ScanProgress(pages: 8)
+        XCTAssertNil(progress.minutesLeft)
+
+        // 30 s and 40 s: 35 s a page for the six pages not back yet is three and a half minutes, so about four.
+        progress = progress.read(after: 30_000).read(after: 40_000)
+        XCTAssertEqual(progress.minutesLeft, 4)
+        XCTAssertEqual(ScanProgress.minutes(measured: [30_000, 32_000], pagesLeft: 10), 6, "as music-core's PageProgress")
+        XCTAssertNil(ScanProgress.minutes(measured: [], pagesLeft: 3))
+        XCTAssertNil(ScanProgress.minutes(measured: [1_000], pagesLeft: 0))
+        XCTAssertEqual(ScanProgress.minutes(measured: [1], pagesLeft: 1), 1, "at least one")
+    }
+
+    func testTheProgressSaysThePageInBothLanguages() {
+        let reading = ScanProgress(pages: 8).read(after: 30_000).read(after: 30_000)
+        let first = ScanProgress(pages: 8)
+        let all = ScanProgress(pages: 2).read(after: 1).read(after: 1)
+
+        XCTAssertEqual(first.caption(english), "Page 1 of 8")
+        XCTAssertEqual(first.caption(russian), "Страница 1 из 8")
+        XCTAssertEqual(reading.caption(english), "Page 3 of 8 · about 3 min. left")
+        XCTAssertEqual(reading.caption(russian), "Страница 3 из 8 · ещё около 3 мин.")
+        XCTAssertEqual(all.line(english), "All 2 pages read")
+        for key in ["scan.progressLabel", "pdf.readLineHosted", "recognition.left", "recognition.readingPage", "recognition.pieceOf", "recognition.pageOf"] {
             XCTAssertNotEqual(english[key], key)
             XCTAssertNotEqual(russian[key], key)
         }

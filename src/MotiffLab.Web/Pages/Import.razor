@@ -69,7 +69,7 @@
                 <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanLineHere" : "import.scanLine", server)</p>
                 <label class="dropzone @(_scanning ? "busy" : null)">
                     <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" multiple="@PhotosOn" disabled="@(_reading || _scanning)" aria-label="@Text[PhotosOn ? "import.scanChoosePhotos" : "import.scanChoose"]" />
-                    <span>@(_scanning ? ScanBusy : Text[PhotosOn ? "import.scanDropPhotos" : "import.scanDrop"])</span>
+                    <span>@(_scanning ? Text["import.scanBusy"] : Text[PhotosOn ? "import.scanDropPhotos" : "import.scanDrop"])</span>
                 </label>
                 @if (_scanning && _scanProgress is { } progress)
                 {
@@ -102,17 +102,12 @@
             }
             else
             {
-                <p class="meta">@Text.Format("transcribe.line", listener)</p>
-                @if (!Scans.IsLocal)
-                {
-                    <label class="consent">
-                        <input type="checkbox" role="switch" class="switch" @bind="_sendSound" />
-                        <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))</span>
-                    </label>
-                }
+                @* Where the sound goes, as one line: choosing the recording and the stretch to hear sends it, with no switch to turn
+                   on first (v0.5.6, #533 section 8). *@
+                <p class="meta">@(Scans.IsHosted ? Text["transcribe.lineHosted"] : Text.Format("transcribe.line", listener))</p>
 
                 <label class="dropzone @(_transcribing || _decoding ? "busy" : null)">
-                    <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
+                    <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding)" aria-label="@Text["transcribe.choose"]" />
                     <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : HearingText(_hearing))</span>
                 </label>
 
@@ -162,7 +157,7 @@
                         <p class="meta">@Text["transcribe.rangeHow"]</p>
                         <p class="estimate">@Estimate(range)</p>
                         <div class="actions">
-                            <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing || !(Scans.IsLocal || _sendSound))">@Text["transcribe.hearRange"]</button>
+                            <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing)">@Text["transcribe.hearRange"]</button>
                         </div>
                     </section>
                 }
@@ -363,10 +358,9 @@
     private bool _scanning;
 
     /// <summary>How far a PDF's notes are read (v0.5, issue #479), while one is.</summary>
-    private MotiffLab.Web.Pdf.ScanProgress? _scanProgress;
+    private PageProgress? _scanProgress;
 
     /// <summary>Photos of pages (v0.5): the page being read and how many were picked; 0 while one file is read.</summary>
-    private (int Page, int Of) _photoPage;
 
     /// <summary>The photos whose pages could not be read, left out of the notes just read.</summary>
     private IReadOnlyList<LeftOutPage> _leftOut = [];
@@ -374,7 +368,6 @@
     /// <summary>Several photos of a piece's pages may be picked at once (the experiment «Фото страниц», v0.5).</summary>
     private bool PhotosOn => SettingsStore.IsOn(PhotoPages.Setting);
 
-    private string ScanBusy => _photoPage.Of > 1 ? Text.Format("import.scanPageBusy", _photoPage.Page, _photoPage.Of) : Text["import.scanBusy"];
 
     /// <summary>The engine that heard a transcribed recording (0014); null for anything else.</summary>
     private string? _transcriptionEngine;
@@ -410,7 +403,6 @@
     /// <summary>While a long recording is heard in parts: how many parts are heard of how many; null before the first word.</summary>
     private HearingProgress? _hearing;
     private bool _transcribing;
-    private bool _sendSound;
 
     /// <summary>The transcription as the engine wrote it, marked as heard, before any bars are worked out.</summary>
     private ImportedPiece? _heard;
@@ -611,9 +603,17 @@
         try
         {
             var watch = Stopwatch.StartNew();
+            // Each photo is one request (v0.5.6, #533 section 1): the bar moves as each page's answer comes back.
+            var pages = new PageProgress(photos.Count);
+            var each = Stopwatch.StartNew();
             PhotoPagesRead read = await PhotoPages.ReadAsync(Scans, photos, Text, page =>
             {
-                _photoPage = (page, photos.Count);
+                for (; pages.Done < page - 1; each.Restart())
+                {
+                    pages = pages.Read(each.ElapsedMilliseconds);
+                }
+
+                _scanProgress = pages;
                 StateHasChanged();
             });
             _elapsed = watch.Elapsed;
@@ -622,7 +622,7 @@
         }
         finally
         {
-            (_scanning, _photoPage) = (false, (0, 0));
+            (_scanning, _scanProgress) = (false, null);
         }
     }
 

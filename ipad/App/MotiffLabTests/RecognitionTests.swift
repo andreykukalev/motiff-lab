@@ -102,6 +102,35 @@ final class RecognitionTests: XCTestCase {
         XCTAssertEqual(RecognitionQueue.item(url, summary).pages, 12)
     }
 
+    func testTheBatchBarIsASegmentAPieceAndSaysThePieceAndPageBeingRead() {
+        var batch = RecognitionBatch(address: "https://scan.example.org/", hosted: false, items: [
+            RecognitionItem(file: "a.motiff.json", title: "A", pages: 2, state: .done),
+            RecognitionItem(file: "b.motiff.json", title: "B", pages: 4, state: .reading),
+            RecognitionItem(file: "c.motiff.json", title: "C", pages: 3),
+        ])
+        let reading = (file: "b.motiff.json", progress: ScanProgress(pages: 4).read(after: 40_000))
+        let english = UIText(language: "en")
+
+        XCTAssertEqual(RecognitionTop.segments(batch, reading), [
+            ProgressSegments.Segment(state: .done),
+            ProgressSegments.Segment(state: .current, filled: 0.25),
+            ProgressSegments.Segment(state: .waiting),
+        ])
+        XCTAssertEqual(RecognitionTop.reading(batch, reading, minutes: 4, english), "Piece 2 of 3 · page 2 of 4 · about 4 min. left")
+        XCTAssertNil(RecognitionTop.reading(batch, nil, minutes: nil, english), "no time is told before a page is timed")
+        batch.items[1].state = .failed
+        XCTAssertEqual(RecognitionTop.segments(batch, nil)[1], ProgressSegments.Segment(state: .done), "a piece that did not work is read too")
+    }
+
+    func testTheTimeLeftComesOnlyFromThePagesTimed() {
+        let queue = RecognitionQueue()
+        queue.root = base
+        XCTAssertNil(queue.minutesLeft)
+        queue.start([RecognitionItem(file: "a.motiff.json", title: "A", pages: 3)], address: URL(string: "https://scan.example.org/")!, hosted: false)
+        XCTAssertNil(queue.minutesLeft, "before the first page is back")
+        queue.stop()
+    }
+
     func testTheWordsOfTheBatchAreInBothLanguages() {
         var keys = ["queued", "reading", "done", "failed"].map { "recognition.state." + $0 }
         keys += ["limit", "offline", "signIn", "needsPro", "unreachable"].map { "recognition.stopped." + $0 }

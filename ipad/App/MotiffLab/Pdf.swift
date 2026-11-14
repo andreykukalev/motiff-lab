@@ -389,7 +389,7 @@ struct PdfScreen: View {
                 }
                 .presentationDetents([.large])
             } else {
-                readPanel(readNotes).presentationDetents([.medium])
+                readPanel(readNotes).fittedSheet()
             }
         }
         .sheet(isPresented: $referenceOpen) {

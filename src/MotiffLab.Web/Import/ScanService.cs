@@ -140,35 +140,6 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         }
     }
 
-    /// <summary>
-    /// How many pages of a PDF the server reads in one request (<c>maxPages</c> on its <c>/health</c>; 4 on Motiff Lab's
-    /// server, 0014), so a longer PDF goes in parts (<see cref="ScanParts"/>); <see cref="ScanParts.SafePages"/> when it does
-    /// not say or does not answer in time.
-    /// </summary>
-    public async Task<int> MaxPagesAsync(CancellationToken cancellation = default)
-    {
-        if (Address is not { } address)
-        {
-            return ScanParts.SafePages;
-        }
-
-        try
-        {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-            timeout.CancelAfter(TimeSpan.FromSeconds(10));
-            using HttpResponseMessage response = await s_http.GetAsync(new Uri(address, "health"), timeout.Token);
-            return response.IsSuccessStatusCode
-                && ValueOf(await response.Content.ReadAsByteArrayAsync(timeout.Token), "maxPages", JsonValueKind.Number) is { } most
-                && most.TryGetInt32(out int pages) && pages > 0
-                    ? pages
-                    : ScanParts.SafePages;
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
-        {
-            return ScanParts.SafePages;
-        }
-    }
-
     /// <summary>Sends the file to be read; the MusicXML and engine, or a plain reason it could not be read.</summary>
     public async Task<ScanResult> RecogniseAsync(string fileName, byte[] data, CancellationToken cancellation = default)
     {

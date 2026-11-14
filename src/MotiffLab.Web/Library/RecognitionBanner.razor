@@ -2,9 +2,10 @@
 @implements IDisposable
 
 @* The batch's line over the library (version 0.5, ux-prototype/v0.5/screens/import-web-5-status.png): «Распознаю ноты: готово
-   2 из 8», about how long is left, Pause; when it waits, why, in plain words: the day's pages on Motiff Lab's server are
-   used up (the rest tomorrow, or the player's own server, which has no limit), sign-in, Pro, the server, the folder.
-   Nothing shows while the experiment is off or there is no batch. *@
+   2 из 8», the piece and page being read and, once a page is timed, about how long is left (v0.5.6, #533 section 1), a
+   segment a piece, Pause; when it waits, why, in plain words: the day's pages on Motiff Lab's server are used up (the rest
+   tomorrow, or the player's own server, which has no limit), sign-in, Pro, the server, the folder. Nothing shows while the
+   experiment is off or there is no batch. *@
 @if (_on && Queue.Batch is { } batch)
 {
     <div class="run-bar recognition-bar" role="status" aria-live="polite">
@@ -28,7 +29,13 @@
         {
             <button class="btn quiet" @onclick="Queue.CloseAsync">@Text["library.done"]</button>
         }
-        <span class="track" aria-hidden="true"><span class="fill" style="--done: @(batch.Items.Count == 0 ? 100 : batch.Done * 100 / batch.Items.Count)%"></span></span>
+        @* A segment a piece (v0.5.6, #533 section 1): read, being read with its pages read filled in, or waiting. *@
+        <span class="pages @(batch.Items.Count > MotiffLab.Web.Pdf.ScanProgressBar.DensePages ? "dense" : null)" aria-hidden="true">
+            @foreach (RecognitionItem item in batch.Items)
+            {
+                <span class="page @Segment(item)" style="@(item.State == RecognitionState.Reading && item.Page > 0 ? $"--done: {(item.Page - 1) * 100 / Math.Max(1, item.Pages)}%" : null)"></span>
+            }
+        </span>
     </div>
 }
 
@@ -80,9 +87,39 @@
         : batch.Finished ? Text.Format("recognition.finished", batch.Read, batch.Items.Count)
         : Text.Format("recognition.stopped", batch.Done, batch.Items.Count);
 
+    /// <summary>
+    /// While it reads (v0.5.6, #533 section 1): the piece and page being read, «Пьеса 3 из 8 · страница 2 из 5», and about
+    /// how long is left once a page has been timed.
+    /// </summary>
+    private string? Reading(RecognitionBatch batch)
+    {
+        int index = batch.Items.ToList().FindIndex(static item => item.State == RecognitionState.Reading);
+        List<string> parts = [];
+        if (index >= 0 && batch.Items[index] is { Page: > 0 } item)
+        {
+            parts.Add(Text.Format("recognition.pieceOf", index + 1, batch.Items.Count));
+            parts.Add(Text.Format("recognition.pageOf", item.Page, item.Pages));
+        }
+
+        if (Queue.MinutesLeft is { } minutes)
+        {
+            parts.Add(Text.Format("recognition.left", minutes));
+        }
+
+        return parts.Count > 0 ? string.Join(" · ", parts) : null;
+    }
+
+    /// <summary>A piece's segment: read (its notes or its reason back), being read, or waiting.</summary>
+    private static string Segment(RecognitionItem item) => item.State switch
+    {
+        RecognitionState.Done or RecognitionState.Failed => "done",
+        RecognitionState.Reading => "current",
+        _ => "waiting",
+    };
+
     /// <summary>About how long is left while it reads; why it waits when it waits; how many did not work at the end.</summary>
     private string? Where(RecognitionBatch batch) =>
-        Queue.Running ? Text.Format("recognition.left", HostedPages.Minutes(batch.PagesLeft))
+        Queue.Running ? Reading(batch)
         : batch.Finished ? (batch.Failed > 0 ? Text.Count("recognition.failedCount", batch.Failed) : null)
         : batch.Stopped switch
         {

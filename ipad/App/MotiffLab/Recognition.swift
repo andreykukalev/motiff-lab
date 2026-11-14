@@ -104,6 +104,8 @@ final class RecognitionQueue: ObservableObject {
     @Published private(set) var revision = 0
     /// How far the piece being read is, by its project file's name (issue #479 item 10); nil between pieces.
     @Published private(set) var progress: (file: String, progress: ScanProgress)?
+    /// How long each page this batch read here took, from send to answer (v0.5.6, #533 section 1), for the time left.
+    private(set) var measured: [Int] = []
     var account: Account?
     var root = ImportFolders.root
     var links = OriginalLinks.folder
@@ -115,6 +117,14 @@ final class RecognitionQueue: ObservableObject {
     private(set) var open: String?
     /// The batch stopped only at the open piece, to go on once it closes.
     private var waiting = false
+
+    /// About how many minutes the batch's pages left take, from the pages timed so far, the piece being read's own among
+    /// them; nil before the first page is back (v0.5.6, #533 section 1).
+    var minutesLeft: Int? {
+        guard let batch else { return nil }
+        let current = progress?.progress
+        return ScanProgress.minutes(measured: measured + (current?.milliseconds ?? []), pagesLeft: batch.pagesLeft - (current?.done ?? 0))
+    }
 
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
@@ -136,6 +146,7 @@ final class RecognitionQueue: ObservableObject {
             batch = current
         } else {
             batch = RecognitionBatch(address: address.absoluteString, hosted: hosted, items: items)
+            measured = []
         }
         RecognitionStore.save(batch, in: root)
         Task { await run() }
@@ -167,6 +178,7 @@ final class RecognitionQueue: ObservableObject {
     /// Stops: the pieces not read yet stay without notes; those read keep theirs.
     func stop() {
         batch = nil
+        measured = []
         RecognitionStore.save(nil, in: root)
         revision += 1
     }
@@ -216,6 +228,7 @@ final class RecognitionQueue: ObservableObject {
                 progress: { [weak self] in self?.progress = (file, $0) },
                 isOpen: { self.open == file }
             )
+            if let timed = progress, timed.file == file { measured += timed.progress.milliseconds }
             progress = nil
             guard batch?.id == current.id, batch?.items.indices.contains(index) == true else { return }
             switch outcome {
@@ -239,7 +252,7 @@ final class RecognitionQueue: ObservableObject {
 
     /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
     /// ноты» on its PDF does: the pages sent, or why not. `isOpen` says, just before the notes are written, whether the piece
-    /// is open on screen now; `progress` hears as each part of a long PDF is sent.
+    /// is open on screen now; `progress` hears as each page is sent and read.
     static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {

@@ -40,6 +40,9 @@ async function scanServer(page, { maxPages = 8, hold = null } = {}) {
     return uploads;
 }
 
+/** The pages of the stand-in PDF an upload holds, each page drawn with its number. */
+const pagesIn = (upload) => Array.from({ length: 101 }, (_, index) => index + 1).filter((number) => upload.toString("latin1").includes(`(${number}) Tj`));
+
 async function addPdf(page, file) {
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
@@ -71,11 +74,12 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     expect(await violations(page)).toEqual([]);
     await panel.getByRole("button", { name: "Recognise notes" }).click();
 
-    // The notes open in the same piece with the bars to check, and Original PDF | Notes switches to its PDF.
+    // The notes open in the same piece with the bars to check, and Original PDF | Notes switches to its PDF. The PDF went a
+    // page a request (v0.5.6, #533 section 1), each page as it is.
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+&at=0$`));
-    expect(uploads).toHaveLength(1);
-    expect(uploads[0].includes(file)).toBe(true);
-    await expect(page.locator(".sheet.check-sheet").getByRole("heading", { level: 2 })).toHaveText("7 bars to review");
+    expect(uploads.map(pagesIn)).toEqual([[1], [2], [3]]);
+    // The stand-in answers each page with the same page of notes, so the three pages' bars are joined.
+    await expect(page.locator(".sheet.check-sheet").getByRole("heading", { level: 2 })).toHaveText("23 bars to review");
     await expect(page.locator(".sheet.check-sheet .scan-pages")).toHaveCount(0);
     await expect(page.locator(".score .score-page svg").first()).toBeVisible();
     await expect(bar.locator(".ttl")).toHaveText("Elise");
@@ -197,7 +201,7 @@ test("Add a version on a PDF reads its notes first, then opens Sources on the sa
     expect(errors).toEqual([]);
 });
 
-test("a PDF longer than the server reads at a time goes in parts, one after another, with a bar while it is read (#479)", async ({ page }) => {
+test("a PDF goes a page a request, and its bar is a segment a page that moves only as a page's notes come back (#533 1)", async ({ page }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(String(error)));
     let release;
@@ -205,24 +209,28 @@ test("a PDF longer than the server reads at a time goes in parts, one after anot
     const uploads = await scanServer(page, { maxPages: 4, hold });
     const pdfId = await addPdf(page, pdf(6));
 
-    // No switch to turn on: Recognise notes sends it, and the bar says which part is read and about how long is left.
+    // No switch to turn on: Recognise notes sends it. Page 1 is being read and the five others wait; no time is told
+    // before a page has been timed, and nothing fills by time alone.
     await page.locator(".bar").getByRole("button", { name: "Recognise notes" }).click();
     const panel = page.getByRole("dialog", { name: "Recognise notes" });
     await expect(panel.getByRole("switch")).toHaveCount(0);
     await panel.getByRole("button", { name: "Recognise notes" }).click();
-    await expect(panel.getByRole("progressbar", { name: "Recognising the notes" })).toBeVisible();
-    await expect(panel.locator(".scan-progress")).toContainText("Part 1 of 2 · pages 1–4");
-    await expect(panel.locator(".scan-progress")).toContainText(/about \d+ min\. left/);
+    const bar = panel.getByRole("progressbar", { name: "Recognising the notes" });
+    await expect(bar).toHaveAttribute("aria-valuenow", "0");
+    await expect(bar).toHaveAttribute("aria-valuemax", "6");
+    await expect(panel.locator(".scan-progress .page")).toHaveCount(6);
+    await expect(panel.locator(".scan-progress .page.current")).toHaveCount(1);
+    await expect(panel.locator(".scan-progress .page.waiting")).toHaveCount(5);
+    await expect(panel.locator(".scan-progress .caption")).toHaveText("Page 1 of 6");
+    await page.waitForTimeout(1500);
+    await expect(panel.locator(".scan-progress .page.done")).toHaveCount(0);
     expect(await violations(page)).toEqual([]);
     expect(uploads).toHaveLength(1);
     release();
 
-    // Two PDFs went, pages 1 to 4 and then 5 and 6, each with its pages as they are; the notes of both open as one piece.
+    // Six PDFs went, one a page, each with its page as it is; the notes of all open as one piece.
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+&at=0$`));
-    expect(uploads).toHaveLength(2);
-    const pagesIn = (upload) => [1, 2, 3, 4, 5, 6].filter((number) => upload.toString("latin1").includes(`(${number}) Tj`));
-    expect(pagesIn(uploads[0])).toEqual([1, 2, 3, 4]);
-    expect(pagesIn(uploads[1])).toEqual([5, 6]);
+    expect(uploads.map(pagesIn)).toEqual([[1], [2], [3], [4], [5], [6]]);
     await expect(page.locator(".score .score-page svg").first()).toBeVisible();
     expect(errors).toEqual([]);
 });

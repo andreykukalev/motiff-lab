@@ -4,23 +4,16 @@
 
 @* A recording as another version (0022): its sound goes to the scan server, as on Transcribe a recording, and the notes
    it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, however
-   long, in parts several at once (0014, version 0.3). What leaves the device is one line and one switch; on Motiff Lab's server it needs an account and Pro,
-   offered here. *@
+   long, in parts several at once (0014, version 0.3). What leaves the device is one line, and choosing the recording sends
+   it, with no switch to turn on first (v0.5.6, #533 section 8); on Motiff Lab's server it needs an account and Pro, offered
+   here. *@
 <section class="recording-version" aria-label="@Text["version.recordingHeading"]">
     <p class="overline">@Text["version.recordingHeading"]</p>
     <ScanReady Hearing="true">
         <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : Scans.Address!.Host)</p>
-        @if (!Scans.IsLocal)
-        {
-            <label class="consent">
-                <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_busy" />
-                <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", Scans.Address!.Host))</span>
-            </label>
-        }
-
         <label class="file btn secondary @(_busy ? "busy" : null)">
             @(_busy ? Progress : Text["version.addRecording"])
-            <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_busy || !(Scans.IsLocal || _send))" aria-label="@Text["version.chooseRecording"]" />
+            <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@_busy" aria-label="@Text["version.chooseRecording"]" />
         </label>
     </ScanReady>
 
@@ -36,7 +29,6 @@
 
 @code {
     private InputFile? _input;
-    private bool _send;
     private bool _busy;
     private bool _decoding;
     private HearingProgress? _hearing;

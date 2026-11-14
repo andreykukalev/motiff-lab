@@ -142,7 +142,6 @@
   "recognition.finished": "Ноты распознаны: {0} из {1}",
   "recognition.howLong": "Сколько ждать",
   "recognition.howLongLine": "Около {0} мин. Готовые пьесы можно открывать, пока остальные ждут.",
-  "recognition.minutesLeft": "ещё около {0} мин",
   "recognition.overLimit": "Сегодня осталось {0} страниц: остальное подождёт до завтра.",
   "recognition.pages.few": "{0} страницы",
   "recognition.pages.many": "{0} страниц",

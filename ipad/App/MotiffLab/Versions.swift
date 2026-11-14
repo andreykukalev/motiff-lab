@@ -321,7 +321,7 @@ struct VersionsDrawer: View {
                     return problem
                 }
             )
-            .presentationDetents([.medium])
+            .fittedSheet()
         }
         .onAppear {
             name = versions.shown?.name ?? ""

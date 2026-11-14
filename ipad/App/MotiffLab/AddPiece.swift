@@ -1,8 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Add piece (0018 section 9): opening a file runs on the device and is free. Scanning a page and hearing a recording come
-/// to the iPad in a later step; until then they are on the web app.
+/// Add piece (0018 section 9): opening a file runs on the device and is free; a folder, photos of pages and a recording heard
+/// by Motiff Lab's server (Pro) are the other ways in. Every way in is a card that acts on a tap, and the sheet is as tall
+/// as its cards, so all of them are in view the moment it opens (v0.5.6, #533 section 8).
 struct AddPieceSheet: View {
     let text: UIText
     let picked: (Result<URL, Error>) -> Void
@@ -16,6 +17,7 @@ struct AddPieceSheet: View {
     @State private var choosing = false
     @State private var photographing = false
     @State private var choosingFolder = false
+    @State private var choosingRecording = false
     @State private var progress: String?
     @State private var problem: String?
 
@@ -59,9 +61,9 @@ struct AddPieceSheet: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet))
             }
             .padding(CGFloat.ds("s-6"))
+            .fittedSheet()
         }
         .background(Color.ds("surface").ignoresSafeArea())
-        .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(progress != nil)
         .fullScreenCover(isPresented: $photographing) {
             PhotoReviewScreen(text: text) { url in picked(.success(url)) }
@@ -93,40 +95,33 @@ struct AddPieceSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// From a recording (0014): the scan server hears the sound of an audio or video file, however long, and
-    /// its notes become a new piece. Pro, as on the web; what it needs first is offered here.
+    /// From a recording (0014): the scan server hears the sound of an audio or video file, however long, and its notes
+    /// become a new piece. Pro, as on the web. The whole card picks the recording, as Open file picks a file: choosing it is
+    /// the player's yes to sending its sound, and the card says where the sound goes (v0.5.6, #533 section 8). What it
+    /// needs first (an account, Pro) is said on the card instead, and the card waits for it.
     private var fromRecording: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
-                Icon(name: "mic", size: CGFloat.ds("icon-l"))
-                    .foregroundStyle(Color.ds("accent"))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Text(text["library.fromRecording"])
-                            .dsType(.bodyStrong)
-                            .foregroundStyle(Color.ds("ink"))
-                        ProTag()
-                    }
-                    Text(text["library.fromRecordingHint"])
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
-                }
-                Spacer(minLength: 0)
+        let blocked = RecordingChooser.blocker(account, text)
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Button {
+                choosingRecording = true
+            } label: {
+                AddRoute(icon: "mic", title: text["library.fromRecording"], hint: progress ?? text["library.fromRecordingHint"], pro: true,
+                         line: blocked?.words ?? text["library.fromRecordingLineDevice"])
             }
-            RecordingChooser(
-                text: text,
-                line: text["library.fromRecordingLineDevice"],
-                button: text["library.chooseRecording"],
-                hint: text["transcribe.choose"],
-                progress: progress,
-                problem: problem
-            ) { url in
+            .buttonStyle(.plain)
+            .disabled(blocked != nil || progress != nil)
+            .accessibilityHint(text["transcribe.choose"])
+            .fileImporter(isPresented: $choosingRecording, allowedContentTypes: RecordingHearing.recordings) { result in
+                guard case .success(let url) = result else { return }
                 Task { await hear(url) }
             }
+            if let problem {
+                Text(problem)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("danger"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .padding(CGFloat.ds("s-4"))
-        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
     }
 
     private func hear(_ url: URL) async {
@@ -141,30 +136,44 @@ struct AddPieceSheet: View {
     }
 }
 
-/// One way in on Add piece: its icon, what it does and a line on it, on a card.
+/// One way in on Add piece: its icon, what it does and a line on it, on a card; Pro where Motiff Lab's server does it, and
+/// a second line where there is more to say, such as where a recording's sound goes.
 struct AddRoute: View {
     let icon: String
     let title: String
     let hint: String
+    var pro = false
+    var line: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
             Icon(name: icon, size: CGFloat.ds("icon-l"))
                 .foregroundStyle(Color.ds("accent"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .dsType(.bodyStrong)
-                    .foregroundStyle(Color.ds("ink"))
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Text(title)
+                        .dsType(.bodyStrong)
+                        .foregroundStyle(Color.ds("ink"))
+                    if pro { ProTag() }
+                }
                 Text(hint)
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
+                if let line {
+                    Text(line)
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, CGFloat.ds("s-1"))
+                }
             }
             Spacer(minLength: 0)
         }
         .padding(CGFloat.ds("s-4"))
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        .contentShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
     }
 }
 
@@ -183,4 +192,22 @@ struct SheetCloseButton: View {
         }
         .accessibilityLabel(text["library.close"])
     }
+}
+
+/// A sheet as tall as what it holds (v0.5.6, #533 sections 1 and 8): all of it in view the moment it opens, with no empty
+/// space under it and nothing below the edge to drag up for; the full height stays one drag away for larger text. Put it
+/// on the sheet's own content, inside any scroll view.
+struct FittedSheet: ViewModifier {
+    @State private var height: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            .presentationDetents(height > 0 ? [.height(height), .large] : [.medium, .large])
+    }
+}
+
+extension View {
+    /// The sheet as tall as this content (`FittedSheet`).
+    func fittedSheet() -> some View { modifier(FittedSheet()) }
 }

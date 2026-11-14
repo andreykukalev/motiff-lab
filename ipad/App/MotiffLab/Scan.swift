@@ -103,25 +103,29 @@ final class ScanServer: ObservableObject {
     }
 
     /// Sends the PDF to be read: the MusicXML and engine, or why it could not be read. To the hosted server it goes with
-    /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's. A PDF longer
-    /// than the server reads at once, up to 100 pages, goes in parts one after another and their notes are joined
-    /// (issue #479, `ScanParts.swift`); `progress`, or the task's `ScanProgress.listener`, hears as each part is sent.
+    /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's. A PDF of
+    /// more than one page, up to 100, goes a page a request and their notes are joined (v0.5.6, #533 section 1,
+    /// `ScanParts.swift`); `progress`, or the task's `ScanProgress.listener`, hears as each page is sent and read.
     static func recognise(fileName: String, data: Data, address: URL, account: Account, progress: ScanProgressListener? = nil) async -> Result<ScanResult, ScanProblem> {
         let report = progress ?? ScanProgress.listener
         // A file PDFKit cannot open goes whole, as before: the server says what is wrong with it.
         guard data.starts(with: Data("%PDF".utf8)), let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else {
-            report?(ScanProgress(pages: 1, parts: [1...1]))
-            return await recognisePage(fileName: fileName, data: data, address: address, account: account).result
+            return await whole(fileName: fileName, data: data, address: address, account: account, report: report)
         }
         let pages = document.pageCount
         guard pages <= ScanParts.mostPages else { return .failure(.tooManyPages(pages)) }
-        let most = pages > ScanParts.safePages ? await maxPages(address) : ScanParts.safePages
-        let plan = ScanParts.plan(pages: pages, maxPages: most)
-        guard plan.count > 1 else {
-            report?(ScanProgress(pages: pages, parts: plan))
-            return await recognisePage(fileName: fileName, data: data, address: address, account: account).result
-        }
-        return await recogniseParts(fileName: fileName, document: document, plan: plan, address: address, account: account, report: report)
+        guard pages > 1 else { return await whole(fileName: fileName, data: data, address: address, account: account, report: report) }
+        return await recognisePages(fileName: fileName, document: document, address: address, account: account, report: report)
+    }
+
+    /// One request for the whole file, as one page of the progress.
+    private static func whole(fileName: String, data: Data, address: URL, account: Account, report: ScanProgressListener?) async -> Result<ScanResult, ScanProblem> {
+        let progress = ScanProgress(pages: 1)
+        report?(progress)
+        let start = Date()
+        let answer = await recognisePage(fileName: fileName, data: data, address: address, account: account).result
+        if case .success = answer { report?(progress.read(after: ScanProgress.since(start))) }
+        return answer
     }
 
     /// Sends one file to be read, as `recognise`, with the server's page report (`X-Page-Report`), which comes with a page
@@ -193,10 +197,10 @@ enum ScanProblem: Error, Equatable {
         }
     }
 
-    /// The problem as one part of a PDF read in parts met it: the server's own words say which pages.
-    func inPart(_ pages: ClosedRange<Int>, _ text: UIText) -> ScanProblem {
+    /// The problem as one page of a PDF read a page a request met it: the server's own words say which page.
+    func onPage(_ page: Int, _ text: UIText) -> ScanProblem {
         guard case .server(let message) = self else { return self }
-        return .server(text.format("scan.partFailed", String(pages.lowerBound), String(pages.upperBound), message))
+        return .server(text.format("scan.pageFailed", String(page), message))
     }
 }
 
@@ -266,8 +270,9 @@ struct ScanPanel: View {
 /// Read the notes from a PDF piece (0011, 0023; the web app's RecognisePanel): the PDF goes to the scan server, and the
 /// notes it reads become a separate piece; the PDF piece stays as it is (Andrei, 2026-11-05). What leaves the device is one
 /// line naming the server set in Settings, and Recognise notes sends it: pressing the button is the player's yes, with no
-/// switch to turn on each time (issue #479 item 17). While it is read, a bar says which part and about how long is left
-/// (item 10). On Motiff Lab's server it needs an account and Pro, offered here.
+/// switch to turn on each time (issue #479 item 17). While it is read, a segment a page says which pages are read and
+/// which is being read, and, once a page is timed, about how long is left (v0.5.6, #533 section 1); its sheet is as tall
+/// as it is (`fittedSheet`). On Motiff Lab's server it needs an account and Pro, offered here.
 struct ReadNotesPanel: View {
     let address: URL?
     let hosted: Bool
@@ -336,7 +341,7 @@ struct ReadNotesPanel: View {
         return text.format(ScanServer.isLocal(address) ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString)
     }
 
-    /// Sends the PDF on the player's press, with the parts as they go to the bar.
+    /// Sends the PDF on the player's press, with the pages as they go to the bar.
     @MainActor
     private func send() async {
         reading = true
