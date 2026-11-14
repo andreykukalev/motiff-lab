@@ -58,6 +58,16 @@ export function rangeBars(bars: readonly NumberedBar[], anchor: number, current:
     return { first: inside[0].number, last: inside[inside.length - 1].number };
 }
 
+/**
+ * What a change of the selection from outside the press (the page's answer, setMotif or clearMotif) leaves of a drag across
+ * the roll (#543 9): an edge, anchored on the selection that was, goes with it; a new range does not depend on it and is
+ * kept. So the page's answer to a hold's clear, which can come after the press has begun to drag the new range, never drops
+ * the drag that replaces the selection: before, it did, and the press went on doing nothing.
+ */
+export function keptDrag<T extends { edge: boolean }>(drag: T | null): T | null {
+    return drag !== null && !drag.edge ? drag : null;
+}
+
 /** What the gesture asks of the roll. */
 export interface StripHost {
     /** The selection now, in ticks; null for none. */
@@ -97,9 +107,9 @@ export class RollStripGesture {
     constructor(private readonly host: StripHost) {}
 
     /**
-     * A press on a strip, at a tick across the roll. Every pointer selects here at once, as before (#479 item 23); in
-     * Navigate under the modes ("longPress", as the score there) a hold begins what a move begins elsewhere, and a move
-     * before it moves the roll.
+     * A press on a strip, at a tick across the roll. Every pointer selects here at once, as before (#479 item 23); with the
+     * rule "longPress" (as the score's finger) a hold begins what a move begins elsewhere, and a move before it moves the
+     * roll. Under the modes only Select's presses come here (#543 2): in Navigate the strips select nothing.
      */
     begin(event: PointerEvent, x: number, y: number, tick: number, rule: "now" | "longPress" = "now"): void {
         this.cancel();

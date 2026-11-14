@@ -88,6 +88,11 @@ test("the loop strip draws nothing without a selection and a handle at each end 
     // No loop sign inside the selection (#521 6): the strip, its two handles' fill and ring, and nothing else.
     assert.equal(one.drawn.discs.length, 3, "the strip's fill and the two handles");
     assert.equal(one.drawn.strokes, 3, "the strip's outline and the two handles' rings, no ring with an arrow");
+    // Outside Select the band stays and its handles go (#543 4.2).
+    const bare = recorder();
+    drawLoopLane(bare.context, frame, { start: 960, end: 1920 }, false, inks, false);
+    assert.equal(bare.drawn.discs.filter((disc) => disc.radius === 6).length, 0, "no handle drawn");
+    assert.equal(bare.drawn.strokes, 1, "only the strip's outline");
 });
 
 test("a tap on the whole piece finds its tick along the track, clamped to the piece", () => {

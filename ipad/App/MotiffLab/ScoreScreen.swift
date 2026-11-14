@@ -810,6 +810,9 @@ extension ScoreScreen {
             if let score, RollInput.rollNavigates(penOn: on, mode: roll.mode) { roll.choose(.navigate, score: score) }
         }
         score.rollEditing = { [weak roll] in roll?.shownMode == .edit }
+        // The bar's tool decides on the roll too (#543 2–4): only Select changes the selection there.
+        score.toolChanged = { [weak roll] mode, penOn in roll?.barTool = RollInput.barTool(mode: mode, penOn: penOn) }
+        roll.barTool = RollInput.barTool(mode: score.mode, penOn: score.penOn)
     }
 
     /// Space and the playhead on the roll. The playhead moved there (v0.2) stays inside the loop, and a tap in a selection that

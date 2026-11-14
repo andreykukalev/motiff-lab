@@ -184,13 +184,23 @@ enum RollMode: String, CaseIterable, Sendable {
 
 /// Who edits and who moves the roll (#479 item 23), by InputRules' reading of the iPad: with a stylus, the stylus edits in
 /// Edit notes and a finger always moves the roll; without one, one finger edits and two move it, so every edit works with
-/// a finger alone. In Navigate every pointer moves the roll, with one finger.
+/// a finger alone. In Navigate every pointer moves the roll, with one finger. The bar's tool decides on the roll too
+/// (#543 2–4): under the modes only Select changes the selection there; the roll's own Navigate and Edit notes are about
+/// editing notes.
 struct RollInput: Equatable, Sendable {
     var stylus: Bool
     var mode: RollMode
     /// Whether the bar's Pen is on (#511 4.1, #521 10): then the stylus is the Pen's, which draws nothing on the roll, so
     /// there it neither selects (bar numbers, loop strip, handles), nor moves the roll, nor edits; a finger still does all.
     var penOn = false
+    /// The bar's tool under the modes (RollInput.barTool); none before them, when every tool selects on the roll as before.
+    var tool: InputRules.Tool = .none
+
+    /// The bar's tool as the roll reads it: the Pen while it is on, else the mode; none while the experiment is off, even
+    /// with the Pen on (the Pen before the modes changes nothing else on the roll).
+    static func barTool(mode: InteractionMode?, penOn: Bool) -> InputRules.Tool {
+        mode == nil ? .none : InputRules.Tool(mode: mode, penOn: penOn)
+    }
 
     /// Whether a press of the pointer on the notes edits them; otherwise it moves the roll.
     func edits(_ pointer: InputRules.Pointer) -> Bool {
@@ -208,14 +218,27 @@ struct RollInput: Equatable, Sendable {
         pointer == .finger || !penOn
     }
 
-    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection.
+    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection: under the modes
+    /// only in Select (#543 2, lead decision 3), before them in every tool; never the Pen's stylus.
     func selects(_ pointer: InputRules.Pointer) -> Bool {
-        acts(pointer)
+        acts(pointer) && (tool == .none || tool == .select)
     }
 
-    /// What the roll is told (`roll.input`): `penSelects` false makes the stylus do nothing there (roll-modes.ts selectsOnRoll).
+    /// The bar's tool as the roll's page names it (roll-modes.ts, modeOf): empty before the modes. The iPad's bar has no
+    /// Edit notes (notes are edited in the roll's own mode), so that one, never chosen here, goes as Navigate.
+    var pageMode: String {
+        switch tool {
+        case .none: ""
+        case .navigate, .edit: "navigate"
+        case .select: "select"
+        case .pen: "pen"
+        }
+    }
+
+    /// What the roll is told (`roll.input`): `penSelects` false makes the stylus do nothing there (roll-modes.ts selectsOnRoll);
+    /// `mode` is the bar's tool, which decides what a press on the roll's strips and handles does (selectsOnRoll, navigatesOnRoll).
     var page: [String: Any] {
-        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers, "penSelects": acts(.stylus)]
+        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers, "penSelects": acts(.stylus), "mode": pageMode]
     }
 
     /// One tool at a time (#521 10): Edit notes on the roll and the bar's Pen are both tools that write, so choosing one puts

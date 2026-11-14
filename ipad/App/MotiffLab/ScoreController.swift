@@ -61,6 +61,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
     var penChanged: (@MainActor (Bool) -> Void)?
+    /// The bar's mode or the Pen changed: the roll reads presses by the same tool (#543 2, RollInput.barTool).
+    var toolChanged: (@MainActor (InteractionMode?, Bool) -> Void)?
     /// Whether the roll is in Edit notes: then Undo is the note edits' (#521 9).
     var rollEditing: (@MainActor () -> Bool)?
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
@@ -2030,6 +2032,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func applyInput() {
         let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
         ink.apply(rules)
+        toolChanged?(mode, penOn)
         guard shown else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
     }

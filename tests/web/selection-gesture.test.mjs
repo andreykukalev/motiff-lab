@@ -19,7 +19,8 @@ import {
 } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-gesture.js";
 
 globalThis.window ??= globalThis;
-const { RollStripGesture, rangeBars } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-strip-gesture.js");
+const { RollStripGesture, keptDrag, rangeBars } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-strip-gesture.js");
+const { holdKeepsSelection } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js");
 
 const selection = { start: 1920, end: 5760 };
 const bars = [0, 1920, 3840, 5760, 7680, 9600];
@@ -152,7 +153,7 @@ test("⌘Z undoes the selection and ⇧⌘Z or Ctrl+Y redoes it, outside a field
     assert.equal(undoFor(key("KeyZ", { metaKey: true, target: field })), null, "a field keeps its own Undo");
 });
 
-test("under the modes, in Navigate, the strips wait for the hold as the score does; a move before it moves the roll", () => {
+test("with the long-press rule the strips wait for the hold as the score does; a move before it moves the roll", () => {
     mock.timers.enable({ apis: ["setTimeout"] });
     try {
         const none = stripHost(null);
@@ -226,6 +227,70 @@ test("while the music plays a hold on the roll's strips never clears the selecti
         assert.deepEqual(mouse.calls, [], "nothing changes");
         assert.equal(heldGesture(pressGesture(selection, 8000, false, "now"), true), "pass");
         assert.equal(heldGesture(pressGesture(selection, 5000, true, "longPress"), true), "edit", "held inside, the edge still follows");
+    } finally {
+        mock.timers.reset();
+    }
+});
+
+test("#543 9: in Select, playing, a hold outside the selection on the roll's strips replaces it; before, it did nothing", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        // The roll's host before 0.5.7 kept the selection on a hold whenever the music played, whatever the tool: the stylus
+        // held over another bar in Select, playing, got no clear, no hint and no new selection.
+        const before = stripHost(selection, true);
+        const blocked = new RollStripGesture(before);
+        blocked.begin(press("pen"), 400, 10, 8000);
+        mock.timers.tick(HOLD_MS);
+        blocked.move(1, 460, 10);
+        assert.equal(blocked.end(1), false);
+        assert.deepEqual(before.calls, [], "nothing happened: the old selection stayed and the press seemed blocked");
+
+        // Now the host asks holdKeepsSelection: under Select the hold clears and the drag after it replaces, playing or not.
+        for (const playing of [true, false]) {
+            const host = stripHost(selection);
+            host.keepsSelection = () => holdKeepsSelection("select", playing);
+            const calls = host.calls;
+            const replacing = new RollStripGesture(host);
+            replacing.begin(press("pen"), 400, 10, 8000);
+            mock.timers.tick(HOLD_MS);
+            replacing.move(1, 460, 10);
+            assert.deepEqual(calls.map((call) => call.slice(0, 3)), [["clear", calls[0][1]], ["range", 8000, "replace"]], `playing ${playing}`);
+            assert.equal(calls[1][3], calls[0][1], "one gesture");
+            // A second new selection right after works as the first did.
+            replacing.end(1);
+            replacing.begin(press("pen"), 700, 10, 9000);
+            mock.timers.tick(HOLD_MS);
+            replacing.move(1, 760, 10);
+            assert.deepEqual(calls.slice(2).map((call) => call.slice(0, 3)), [["clear", calls[2][1]], ["range", 9000, "replace"]]);
+        }
+    } finally {
+        mock.timers.reset();
+    }
+});
+
+test("#543 9: the page's answer to a hold's clear never drops the new range the press drags; an edge goes with its selection", () => {
+    const range = { pointer: 1, anchor: 8000, current: 8400, edge: false, how: "replace" };
+    assert.equal(keptDrag(range), range, "the new range drags on to its end and is sent");
+    assert.equal(keptDrag({ pointer: 1, anchor: 1920, current: 6000, edge: true, how: "edit" }), null, "an edge anchored on the old selection goes");
+    assert.equal(keptDrag(null), null);
+});
+
+test("#543 9: a cancelled press, after its hold took the selection away, gives it back and leaves the next press free", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        const host = stripHost(selection);
+        const strip = new RollStripGesture(host);
+        strip.begin(press("pen"), 400, 10, 8000);
+        mock.timers.tick(HOLD_MS);
+        strip.cancel();
+        strip.cancel();
+        assert.deepEqual(host.calls.map((call) => call[0]), ["clear", "cancelled"], "given back once");
+        assert.equal(strip.move(1, 500, 10), false, "the cancelled press is gone");
+        assert.equal(strip.end(1), false);
+        strip.begin(press("pen"), 400, 10, 8000);
+        mock.timers.tick(HOLD_MS);
+        strip.move(1, 460, 10);
+        assert.deepEqual(host.calls.slice(2).map((call) => call.slice(0, 3)), [["clear", host.calls[2][1]], ["range", 8000, "replace"]]);
     } finally {
         mock.timers.reset();
     }

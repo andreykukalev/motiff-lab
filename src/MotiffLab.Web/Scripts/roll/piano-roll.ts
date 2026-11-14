@@ -27,15 +27,29 @@ import {
 import { THEME_CHANGED } from "../layout/theme.js";
 import { PRACTICE_EVENT, practiced, shownAt } from "../layout/practice-view.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
-import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
+import { PlayheadControl, beatAt, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import { actsOnRoll, drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, rollPlaces, selectsOnRoll, type RollGesture } from "./roll-modes.js";
+import {
+    actsOnRoll,
+    drawBox,
+    drawPlayheads,
+    gestureFor,
+    holdKeepsSelection,
+    modeSelects,
+    navigatesOnRoll,
+    notesInBox,
+    playheadKnobs,
+    rollPlaces,
+    selectsOnRoll,
+    type RollGesture,
+} from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, laneShown, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
+import { HoldToPlace } from "../playback/hold-place.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
-import { RollStripGesture, type StripHost } from "./roll-strip-gesture.js";
-import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
+import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
+import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
@@ -424,6 +438,8 @@ export class PianoRoll {
     });
     /** Where the press on a playhead's handle began, until it moves past a tap. */
     private lanePress: number | null = null;
+    /** A navigating press held still (#543 3.1, lead decision 2): the black playhead goes where it is held, then follows it. */
+    private readonly hold = new HoldToPlace((pointer, x) => this.holdPlaced(pointer, x));
     /** Where the playheads were drawn across the roll lately while the music played, for a press to find them (#533 4). */
     private drawnHeads: { at: number; black: number; blue: number | null }[] = [];
     private readonly resizeObserver: ResizeObserver;
@@ -609,6 +625,9 @@ export class PianoRoll {
         this.roll.addEventListener("pointercancel", this.onPointerCancel);
         // A playhead whose pointer the roll lost is let go, so nothing is left held (#495 UX-08), nor the view (#521 16).
         this.roll.addEventListener("lostpointercapture", (event) => {
+            if (this.hold.waits(event.pointerId)) {
+                this.hold.cancel();
+            }
             this.laneDrag.release(event.pointerId);
             this.holdEnded(event.pointerId);
         });
@@ -722,7 +741,12 @@ export class PianoRoll {
 
     /** The mode the bar chose (version 0.5, roll-modes.ts); a null mode keeps the roll as it was. */
     setRules(mode: string | null): void {
+        const before = this.mode;
         this.mode = modeOf(mode);
+        if (this.mode !== before) {
+            // Another tool reads presses its own way: one begun under the old tool leaves nothing behind (#543 9).
+            this.cancelPresses();
+        }
         if (this.mode === null) {
             this.laneDrag.release();
             delete this.roll.dataset.mode;
@@ -1128,9 +1152,17 @@ export class PianoRoll {
         return this.passage === null && (rules === null || (type === "touch" ? rules.touch : rules.pen));
     }
 
-    /** Whether a press of this pointer type may change the selection: not the stylus while the Pen is on (#511 4.1), none in Expand (#521 19.3). */
+    /**
+     * Whether a press of this pointer type may change the selection: only under Select with the modes (#543 2), not the
+     * stylus while the Pen is on (#511 4.1), none in Expand (#521 19.3).
+     */
     private selectsWith(type: string): boolean {
-        return selectsOnRoll(type, this.penHolds(), this.passage !== null);
+        return selectsOnRoll(type, this.penHolds(), this.passage !== null, this.mode);
+    }
+
+    /** Whether a press of this pointer type navigates under the bar's tool (#543 2, roll-modes.ts navigatesOnRoll). */
+    private navigates(type: string): boolean {
+        return navigatesOnRoll(this.mode, type);
     }
 
     /** Whether the bar's Pen holds the stylus, which then does nothing on the roll (#511 4.1, #521 10). */
@@ -1220,7 +1252,7 @@ export class PianoRoll {
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
         this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
-        this.drag = null;
+        this.drag = keptDrag(this.drag);
         // The zoom is the player's (#511 section 5.1): a selection never fits. Only a new one wholly out of view (made on the
         // score far away, a phrase stepped to) is brought into it; one whose edge moved stays where it is.
         if (moved && this.host.clientWidth > 0) {
@@ -1245,7 +1277,8 @@ export class PianoRoll {
         this.motif = null;
         this.keptSpan = null;
         this.motifPitches = null;
-        this.drag = null;
+        // The page's answer to a hold's clear (#543 9): a new range the press drags on after it is kept (keptDrag).
+        this.drag = keptDrag(this.drag);
         this.invalidate();
     }
 
@@ -2034,7 +2067,7 @@ export class PianoRoll {
         // Practice view (#533 11): the black playhead alone, without the loop strip and the blue one.
         const view = rollPlaces(practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
         if (this.laneShown()) {
-            drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
+            drawLoopLane(context, frame, this.motif, this.looping, this.stripInks(), modeSelects(this.mode));
         }
         drawPosition(context, frame, view, this.stripInks());
     }
@@ -2322,8 +2355,12 @@ export class PianoRoll {
             return false;
         }
         const motif = this.motif;
-        const gesture = box ? "box" : gestureFor(this.mode, motif !== null && tick >= motif.start && tick < motif.end);
+        const navigates = !box && this.navigates(event.pointerType);
+        const gesture = box ? "box" : gestureFor(navigates ? "navigate" : this.mode, motif !== null && tick >= motif.start && tick < motif.end);
         this.rulePress = { pointer: event.pointerId, x, y, tick, pitch, gesture, shift: event.shiftKey, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+        if (navigates) {
+            this.hold.begin(event.pointerId, x, y);
+        }
         return true;
     }
 
@@ -2371,8 +2408,11 @@ export class PianoRoll {
         return true;
     }
 
-    /** A click under the modes: in Edit notes on a note, the editor opens on it; anywhere else a playhead goes to the beat. */
-    private clickUnderRules(press: { tick: number; pitch: number; shift: boolean }): void {
+    /**
+     * A click under the modes: in Edit notes on a note, the editor opens on it; anywhere else a playhead goes to the beat. On
+     * the iPad's strips (the lanes) a click is a tap there (tapStrip).
+     */
+    private clickUnderRules(press: { tick: number; pitch: number; shift: boolean; y?: number }): void {
         const index = this.mode === "edit" ? this.model?.noteAt(press.tick, press.pitch) : undefined;
         if (index !== undefined && this.model !== null) {
             this.boxPicked.clear();
@@ -2380,7 +2420,46 @@ export class PianoRoll {
             void this.dotnet.invokeMethodAsync("OnRollNotesPicked", [this.editId]);
             return;
         }
+        if (this.lanes && press.y !== undefined && press.y < this.header) {
+            this.tapStrip(press.tick, press.y);
+            return;
+        }
         void this.dotnet.invokeMethodAsync("OnRollPlace", Math.round(press.tick), press.shift);
+    }
+
+    /**
+     * A navigating tap on the iPad's strips (#543 2): on the loop strip inside the selection the position goes there (T13);
+     * anywhere else on the bar numbers or the strip the black playhead goes to the beat under it (T12), as a click on the
+     * web's bar numbers does. It never selects.
+     */
+    private tapStrip(tick: number, y: number): void {
+        const model = this.model;
+        if (model === null || this.pressLoopLane(y, tick)) {
+            return;
+        }
+        this.playhead.go(beatAt(model.bars, tick), false);
+    }
+
+    /**
+     * A navigating press held still (#543 3.1, lead decision 2): the black playhead goes to the place under the pointer on the
+     * sixteenth grid (laneDragTick), inside the selection or not, and the press holds it from here: moved on, it scrubs as a
+     * taken playhead (T14–T16); playing, the music stands while it is held and plays on from where it is let go. Nothing
+     * else the press began goes on, and the selection stays as it is. In Expand it is the passage's playhead, kept inside it.
+     */
+    private holdPlaced(pointer: number, x: number): void {
+        const handle = this.passage === null ? "black" : "blue";
+        if (this.model === null || this.player === null || !this.laneDrag.grab(handle, pointer, this.playing())) {
+            return;
+        }
+        if (this.pan?.pointer === pointer) {
+            this.pan = null;
+        }
+        if (this.rulePress?.pointer === pointer) {
+            this.rulePress = null;
+        }
+        this.lanePress = null;
+        this.headDrag = { pointer, x };
+        this.dragLaneHeadTo(pointer, x);
     }
 
     /** The notes a box drawn in Edit notes takes, picked for the editor (not a selection); the editor opens on them. */
@@ -2851,6 +2930,9 @@ export class PianoRoll {
     private pressPanOrEdge(event: PointerEvent, x: number, y: number, tick: number, edits: boolean): boolean {
         if (this.touchReading && !edits && y >= this.header && event.pointerType !== "mouse") {
             this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            if (this.navigates(event.pointerType)) {
+                this.hold.begin(event.pointerId, x, y);
+            }
             return true;
         }
         const edge = !this.selectsWith(event.pointerType) || (this.editing && (this.pointerRules === null || y >= this.header)) ? null : this.edgeAt(x);
@@ -2865,9 +2947,6 @@ export class PianoRoll {
 
     /** A press on the bar numbers: a Check flag opens Check at its bar; else it begins selecting bars, or Shift extends. */
     private pressBarNumbers(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
-        if (this.inHiddenLane(y)) {
-            return;
-        }
         const width = this.host.clientWidth;
         const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
             .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
@@ -2875,9 +2954,16 @@ export class PianoRoll {
             void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
             return;
         }
-        // The strips follow the one selection gesture under the modes too (#511 2.1, 6.3); Edit notes and the Pen keep their rules.
-        const stripRule = this.mode === "navigate" ? "longPress" : "now";
-        const ruled = this.mode !== null && this.mode !== "navigate" && this.mode !== "select";
+        // In Navigate the strips select nothing (#543 2): a drag moves the roll, a tap moves the playhead, a hold puts it there.
+        if (this.navigates(event.pointerType)) {
+            this.beginNavigatePress(event, x, y, tick, pitch);
+            return;
+        }
+        if (this.inHiddenLane(y)) {
+            return;
+        }
+        // Select follows the one selection gesture on the strips (#511 2.1, 6.3); Edit notes and the Pen keep their rules.
+        const ruled = this.mode !== null && this.mode !== "select";
         if ((ruled && this.beginRulePress(event, x, y, tick, pitch)) || !this.selectsWith(event.pointerType)) {
             return;
         }
@@ -2887,8 +2973,21 @@ export class PianoRoll {
             return;
         }
         // Inside the selection a move edits it, outside a hold clears it; without one a press selects at once (#511 2.1).
-        this.strip.begin(event, x, y, tick, stripRule);
+        this.strip.begin(event, x, y, tick);
         this.invalidate();
+    }
+
+    /**
+     * A navigating press on the strips (#543 2): it moves the roll as a press on the notes does (a finger or the stylus on
+     * the iPad, the mouse on the web), a tap moves the playhead, and held still it puts the black playhead there.
+     */
+    private beginNavigatePress(event: PointerEvent, x: number, y: number, tick: number, pitch: number): void {
+        if (this.touchReading && event.pointerType !== "mouse") {
+            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            this.hold.begin(event.pointerId, x, y);
+            return;
+        }
+        this.beginRulePress(event, x, y, tick, pitch);
     }
 
     /**
@@ -2898,6 +2997,12 @@ export class PianoRoll {
     private pinched(event: PointerEvent, x: number, y: number): boolean {
         if (event.pointerType !== "touch") {
             return false;
+        }
+        if (this.touches.size > 0 && !this.touches.has(event.pointerId) && staleGesture({ pointerType: "touch" }, event)) {
+            // A first finger with fingers still counted down: their end was lost (#543 9). Without this every finger after
+            // would be taken for a pinch's second and the roll would answer no single finger again.
+            this.touches.clear();
+            this.cancelPresses();
         }
         this.touches.set(event.pointerId, { x, y });
         if (this.touches.size < 2) {
@@ -2914,6 +3019,7 @@ export class PianoRoll {
             this.cancelEditPress();
         }
         this.playhead.cancel();
+        this.hold.cancel();
         this.laneDrag.release();
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
@@ -3020,6 +3126,8 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
+        // A hold that fired made the press the playhead's: releasePlayhead lets it go; one still waiting is a tap.
+        this.hold.end(event.pointerId);
         this.pointerUp(event);
         this.headDrag = null;
         this.holdEnded(event.pointerId);
@@ -3085,6 +3193,16 @@ export class PianoRoll {
 
     private readonly onPointerCancel = (event: PointerEvent): void => {
         this.touches.delete(event.pointerId);
+        this.cancelPresses();
+        this.holdEnded(event.pointerId);
+        this.invalidate();
+    };
+
+    /**
+     * Every press the roll was reading is let go, sending nothing more (a cancel, a change of tool): no range, edge, pan,
+     * hold or held playhead is left to take the next press (#543 9). A selection a hold took away comes back.
+     */
+    private cancelPresses(): void {
         this.pinch = null;
         this.release(this.press?.sounding ?? null);
         this.release(this.editDrag?.sounding ?? null);
@@ -3096,15 +3214,18 @@ export class PianoRoll {
         this.rulePress = null;
         this.box = null;
         this.strip.cancel();
+        this.hold.cancel();
         this.playhead.cancel();
         this.laneDrag.release();
         this.headDrag = null;
-        this.holdEnded(event.pointerId);
-        this.invalidate();
-    };
+    }
 
-    /** A move of a pinch, or of a finger moving the roll in touch reading; true when it was one. */
+    /**
+     * A move of a pinch, or of a finger moving the roll in touch reading; true when it was one. Every move comes here first,
+     * so a press waiting for its hold to put the playhead there (HoldToPlace) hears it too.
+     */
     private movedByFingers(event: PointerEvent, x: number, y: number): boolean {
+        this.hold.move(event.pointerId, x, y);
         if (this.touches.has(event.pointerId)) {
             this.touches.set(event.pointerId, { x, y });
         }
@@ -3168,10 +3289,13 @@ export class PianoRoll {
         if (this.pan !== null && event.pointerId === this.pan.pointer) {
             // A tap or a move through the music: the selection stays as it is. A tap inside the loop or the selection plays
             // from there (Andrei, v0.2).
-            if (!this.pan.moving) {
-                this.playFrom(this.pan.x);
-            }
+            const pan = this.pan;
             this.pan = null;
+            if (!pan.moving && pan.y < this.header) {
+                this.tapStrip(this.tickAtX(pan.x), pan.y);
+            } else if (!pan.moving) {
+                this.playFrom(pan.x);
+            }
             return true;
         }
         return false;
@@ -3196,7 +3320,8 @@ export class PianoRoll {
     private edgeAt(x: number): "start" | "end" | null {
         const motif = this.motif;
         // The lanes' handles are the loop strip's: hidden with it in practice view, they take nothing (#543, 0.5.6 tail).
-        if (motif === null || (this.lanes && !this.laneShown())) {
+        // Only Select changes the selection, so outside it the handles take nothing (#543 2, 4.2).
+        if (motif === null || !modeSelects(this.mode) || (this.lanes && !this.laneShown())) {
             return null;
         }
         // The lanes' handles take a finger (WCAG 2.2, 2.5.8).
@@ -3224,7 +3349,7 @@ export class PianoRoll {
             clear: (gesture) => void this.dotnet.invokeMethodAsync("OnRollClear", gesture),
             cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnRollGestureCancelled", gesture),
             hint: () => void this.dotnet.invokeMethodAsync("OnRollHoldHint"),
-            keepsSelection: () => this.playing(),
+            keepsSelection: () => holdKeepsSelection(this.mode, this.playing()),
             tap: (tick, y, inside) => {
                 // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection,
                 // and under the modes places the playhead on the beat, as a click there always has.
@@ -3232,7 +3357,7 @@ export class PianoRoll {
                     return;
                 }
                 if (this.mode !== null) {
-                    this.clickUnderRules({ tick, pitch: -1, shift: false });
+                    this.clickUnderRules({ tick, pitch: -1, shift: false, y });
                 }
             },
         };

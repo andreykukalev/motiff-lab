@@ -63,10 +63,10 @@ export function laneShown(lanes: boolean, shown: PracticeShown): boolean {
 }
 
 /**
- * The loop strip: the selection's bounds as a rounded strip outlined in cobalt, tinted while it loops, and a handle at each
- * end; nothing without a selection.
+ * The loop strip: the selection's bounds as a rounded strip outlined in cobalt, tinted while it loops, and with `handles`
+ * (only while the bar's tool is Select, #543 4.2) a handle at each end; nothing without a selection.
  */
-export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame, selection: TickSpan | null, looping: boolean, inks: StripInks): void {
+export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame, selection: TickSpan | null, looping: boolean, inks: StripInks, handles = true): void {
     if (selection === null) {
         return;
     }
@@ -87,7 +87,7 @@ export function drawLoopLane(context: CanvasRenderingContext2D, frame: LaneFrame
     context.strokeStyle = inks.accent;
     context.lineWidth = 1.5;
     context.stroke();
-    for (const x of [start, end]) {
+    for (const x of handles ? [start, end] : []) {
         if (x >= frame.left && x <= frame.right) {
             context.beginPath();
             context.arc(x, middle, HANDLE_RADIUS, 0, 2 * Math.PI);
