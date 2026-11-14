@@ -15,7 +15,7 @@ export const MIN_RATE = 0.25;
 export const MAX_RATE = 1.5;
 export const MAX_VOICES = 96;
 
-export type TransportState = "stopped" | "countingIn" | "playing";
+export type TransportState = "stopped" | "playing";
 
 export interface SampleRegion {
     /** MIDI note the sample was recorded at. */
@@ -32,7 +32,7 @@ export interface TimelineMessage {
     tempos: number[];
     /** Pairs: tick, 1 for a downbeat or 0. */
     beats: number[];
-    /** Quads: start tick, duration, beat ticks, beats per bar. */
+    /** Quads: start tick, duration, beat ticks, beats per bar. The engine reads none of them since the count-in went (v0.5.5). */
     bars: number[];
     end: number;
 }
@@ -68,7 +68,6 @@ export type EngineMessage =
     | { type: "loopOff" }
     | { type: "alternate"; passes: LoopPass[] }
     | { type: "metronome"; on: boolean }
-    | { type: "countIn"; bars: number }
     | { type: "tracks"; muted: number[]; soloed: number[] }
     | { type: "noteOn"; pitch: number; velocity: number }
     | { type: "noteOff"; pitch: number }
@@ -130,9 +129,6 @@ interface Timeline {
     tempoUspq: Float64Array;
     beatTicks: Float64Array;
     beatDown: Uint8Array;
-    barStart: Float64Array;
-    barBeatTicks: Float64Array;
-    barBeats: Float64Array;
     end: number;
 }
 
@@ -240,17 +236,10 @@ export class Engine {
     private passes: LoopPass[] | null = null;
     private pass = -1;
     private metronome = false;
-    private countInBars = 0;
     private muted = new Set<number>();
     private soloed = new Set<number>();
 
     private beatCursor = 0;
-    private countInTotal = 0;
-    private countInDone = 0;
-    /** How far the count-in has gone, in beats: each block's frames count at the rate then, so a tempo changed while it counts applies to the next click. */
-    private countInBeats = 0;
-    private countInBeatTicks = 0;
-    private countInBeatsPerBar = 0;
 
     private voices: Voice[] = [];
     private clicks: Click[] = [];
@@ -339,9 +328,6 @@ export class Engine {
             case "metronome":
                 this.metronome = message.on;
                 break;
-            case "countIn":
-                this.countInBars = Math.max(0, Math.floor(message.bars));
-                break;
             case "tracks":
                 this.muted = new Set(message.muted);
                 this.soloed = new Set(message.soloed);
@@ -386,8 +372,6 @@ export class Engine {
             this.blockOffset = done;
             if (this.state === "playing") {
                 done += this.advancePlaying(done, frames - done);
-            } else if (this.state === "countingIn") {
-                done += this.advanceCountIn(done, frames - done);
             } else {
                 done = frames;
             }
@@ -427,15 +411,11 @@ export class Engine {
     private setTimeline(message: TimelineMessage): void {
         const tempoCount = message.tempos.length / 2;
         const beatCount = message.beats.length / 2;
-        const barCount = message.bars.length / 4;
         const timeline: Timeline = {
             tempoTicks: new Float64Array(tempoCount),
             tempoUspq: new Float64Array(tempoCount),
             beatTicks: new Float64Array(beatCount),
             beatDown: new Uint8Array(beatCount),
-            barStart: new Float64Array(barCount),
-            barBeatTicks: new Float64Array(barCount),
-            barBeats: new Float64Array(barCount),
             end: message.end,
         };
         for (let i = 0; i < tempoCount; i++) {
@@ -445,11 +425,6 @@ export class Engine {
         for (let i = 0; i < beatCount; i++) {
             timeline.beatTicks[i] = message.beats[2 * i];
             timeline.beatDown[i] = message.beats[2 * i + 1];
-        }
-        for (let i = 0; i < barCount; i++) {
-            timeline.barStart[i] = message.bars[4 * i];
-            timeline.barBeatTicks[i] = message.bars[4 * i + 2];
-            timeline.barBeats[i] = message.bars[4 * i + 3];
         }
         if (tempoCount === 0) {
             timeline.tempoTicks = Float64Array.of(0);
@@ -523,27 +498,11 @@ export class Engine {
         }
         this.relocate(false);
 
-        if (this.countInBars > 0) {
-            const bar = Math.max(0, lastAtOrBefore(this.timeline.barStart, this.position));
-            const beatTicks = this.timeline.barBeatTicks.length > 0 ? this.timeline.barBeatTicks[bar] : TICKS_PER_QUARTER;
-            const beatsPerBar = this.timeline.barBeats.length > 0 ? this.timeline.barBeats[bar] : 4;
-            this.countInBeatsPerBar = beatsPerBar;
-            this.countInTotal = beatsPerBar * this.countInBars;
-            this.countInDone = 0;
-            this.countInBeats = 0;
-            this.countInBeatTicks = beatTicks;
-            this.state = "countingIn";
-        } else {
-            this.startPlaying();
-        }
-        this.requestReport();
-    }
-
-    private startPlaying(): void {
         this.state = "playing";
         for (const id of this.active) {
             this.chase(id, this.sources.get(id)!);
         }
+        this.requestReport();
     }
 
     private pause(): void {
@@ -713,33 +672,6 @@ export class Engine {
                 this.startVoice(sourceId, source.pitch[i], source.velocity[i], source.track[i], end, 0);
             }
         }
-    }
-
-    /** The count-in's clicks for up to `available` frames, each beat as long as the tempo and rate say now; then the music. */
-    private advanceCountIn(offset: number, available: number): number {
-        const framesPerBeat = this.countInBeatTicks / this.ticksPerFrame(this.tempoIndex(this.position));
-        while (this.countInDone < this.countInTotal) {
-            const at = Math.max(0, Math.ceil((this.countInDone - this.countInBeats) * framesPerBeat - FRAME_EPSILON));
-            if (at >= available) {
-                break;
-            }
-            const accent = this.countInDone % this.countInBeatsPerBar === 0;
-            this.startClick(offset + at, accent);
-            this.countInDone++;
-        }
-
-        const remaining = (this.countInTotal - this.countInBeats) * framesPerBeat;
-        const used = Math.max(0, Math.ceil(remaining - FRAME_EPSILON));
-        if (used < available) {
-            this.countInBeats = this.countInTotal;
-            this.startPlaying();
-            this.blockOffset = offset + used;
-            this.requestReport();
-            return used;
-        }
-
-        this.countInBeats += available / framesPerBeat;
-        return available;
     }
 
     /** Plays up to `available` frames, stopping early at a tempo change, the loop end or the end of the piece. */

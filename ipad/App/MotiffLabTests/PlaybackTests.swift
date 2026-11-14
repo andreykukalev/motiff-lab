@@ -155,23 +155,6 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(onsets(out), [1, quarter + 1, quarter * 2 + 1, quarter * 3 + 1, quarter * 4 + 1])
     }
 
-    func testCountInPlaysOneBarOfClicksThenTheMusic() {
-        let e = engine(bars: [.init(start: 0, beatTicks: 480, beatsPerBar: 3), .init(start: 1440, beatTicks: 480, beatsPerBar: 3)])
-        source(e, "a", [(1440, 240)])
-        e.handle(.activeSources(["a"]))
-        e.handle(.countIn(1))
-        e.handle(.seek(1440))
-        e.handle(.play)
-        XCTAssertEqual(e.transportState, .countingIn)
-
-        let out = e.render(frames: frames(Double(quarter * 3 + 1000)))
-
-        XCTAssertEqual(onsets(out).filter { $0 < quarter * 3 }, [1, quarter + 1, quarter * 2 + 1])
-        XCTAssertEqual(e.transportState, .playing)
-        let note = out.indices.first { $0 > quarter * 3 && abs(out[$0]) > 0.01 }
-        XCTAssertEqual(note.map { $0 - spike }, quarter * 3)
-    }
-
     func testMuteAndSoloPerTrack() {
         let cases: [([Int], [Int], [Int])] = [([1], [], [0]), ([], [1], [quarter]), ([], [], [0, quarter]), ([1], [1], [])]
         for (muted, soloed, expected) in cases {

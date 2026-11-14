@@ -14,7 +14,6 @@ let ticksPerQuarter = 480.0
 
 enum TransportState: String, Sendable {
     case stopped
-    case countingIn
     case playing
 }
 
@@ -70,7 +69,6 @@ enum EngineMessage: Sendable {
     case loopOff
     case alternate([LoopPass])
     case metronome(Bool)
-    case countIn(Int)
     case tracks(muted: Set<Int>, soloed: Set<Int>)
     case noteOn(pitch: Int, velocity: Int)
     case noteOff(pitch: Int)
@@ -135,18 +133,10 @@ final class PlaybackEngine {
     private var passes: [LoopPass]?
     private var pass = -1
     private var metronome = false
-    private var countInBars = 0
     private var muted = Set<Int>()
     private var soloed = Set<Int>()
 
     private var beatCursor = 0
-    private var countInTotal = 0
-    private var countInDone = 0
-    /// How far the count-in has gone, in beats: each block's frames count at the rate then, so a tempo changed while it
-    /// counts applies to the next click (#511 section 17, as the web's engine).
-    private var countInBeats = 0.0
-    private var countInBeatTicks = 0.0
-    private var countInBeatsPerBar = 0
 
     private var voices: [Voice] = []
     private var clicks: [Click] = []
@@ -213,8 +203,6 @@ final class PlaybackEngine {
             alternate(passes)
         case .metronome(let on):
             metronome = on
-        case .countIn(let bars):
-            countInBars = max(0, bars)
         case .tracks(let muted, let soloed):
             self.muted = muted
             self.soloed = soloed
@@ -241,7 +229,6 @@ final class PlaybackEngine {
             blockOffset = done
             switch transportState {
             case .playing: done += advancePlaying(done, frames - done)
-            case .countingIn: done += advanceCountIn(done, frames - done)
             case .stopped: done = frames
             }
         }
@@ -300,9 +287,6 @@ final class PlaybackEngine {
             tempoUspq: message.tempos.map { $0.microsecondsPerQuarter },
             beatTicks: message.beats.map { $0.at },
             beatDown: message.beats.map { $0.downbeat },
-            barStart: message.bars.map { $0.start },
-            barBeatTicks: message.bars.map { $0.beatTicks },
-            barBeats: message.bars.map { $0.beatsPerBar },
             end: message.end
         )
         if timeline.tempoTicks.isEmpty {
@@ -357,28 +341,11 @@ final class PlaybackEngine {
             position = 0
         }
         relocate(chase: false)
-
-        if countInBars > 0 {
-            let bar = max(0, lastAtOrBefore(timeline.barStart, position))
-            let beatTicks = timeline.barBeatTicks.isEmpty ? ticksPerQuarter : timeline.barBeatTicks[bar]
-            let beatsPerBar = timeline.barBeats.isEmpty ? 4 : Int(timeline.barBeats[bar])
-            countInBeatsPerBar = max(1, beatsPerBar)
-            countInTotal = countInBeatsPerBar * countInBars
-            countInDone = 0
-            countInBeats = 0
-            countInBeatTicks = beatTicks
-            transportState = .countingIn
-        } else {
-            startPlaying()
-        }
-        requestReport()
-    }
-
-    private func startPlaying() {
         transportState = .playing
         for id in active {
             chase(id)
         }
+        requestReport()
     }
 
     private func pause() {
@@ -474,30 +441,6 @@ final class PlaybackEngine {
                 startVoice(id, note.pitch, note.velocity, note.track, end, 0)
             }
         }
-    }
-
-    /// The count-in's clicks for up to `available` frames, each beat as long as the tempo and rate say now; then the music.
-    private func advanceCountIn(_ offset: Int, _ available: Int) -> Int {
-        let framesPerBeat = countInBeatTicks / ticksPerFrame(tempoIndex(position))
-        while countInDone < countInTotal {
-            let at = max(0, Int(((Double(countInDone) - countInBeats) * framesPerBeat - Self.frameEpsilon).rounded(.up)))
-            if at >= available { break }
-            startClick(offset + at, accent: countInDone % countInBeatsPerBar == 0)
-            countInDone += 1
-        }
-
-        let remaining = (Double(countInTotal) - countInBeats) * framesPerBeat
-        let used = max(0, Int((remaining - Self.frameEpsilon).rounded(.up)))
-        if used < available {
-            countInBeats = Double(countInTotal)
-            startPlaying()
-            blockOffset = offset + used
-            requestReport()
-            return used
-        }
-
-        countInBeats += Double(available) / framesPerBeat
-        return available
     }
 
     /// Plays up to `available` frames, stopping early at a tempo change, the loop end or the end of the piece.
@@ -734,9 +677,6 @@ final class PlaybackEngine {
         var tempoUspq: [Double]
         var beatTicks: [Double]
         var beatDown: [Bool]
-        var barStart: [Double]
-        var barBeatTicks: [Double]
-        var barBeats: [Double]
         var end: Double
     }
 

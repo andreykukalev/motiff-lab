@@ -17,8 +17,8 @@ export interface Span {
     end: number;
 }
 
-/** The engine's transport; counting in counts as playing. */
-export type Transport = "stopped" | "countingIn" | "playing";
+/** The engine's transport. */
+export type Transport = "stopped" | "playing";
 
 /** The model's state: the selection and Цикл are the player's own, the tick and the transport the engine's. */
 export interface ModelState {

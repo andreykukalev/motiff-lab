@@ -16,6 +16,7 @@
 @inject NavigationManager Navigation
 @inject ScanService Scans
 @inject UiText Text
+@inject MotiffLab.Web.Playback.PieceMetronome Metronome
 @implements IDisposable
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
@@ -76,8 +77,12 @@
             <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]"
                     title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pdf.bookmarkPage"])"
                     @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0 || ReadOnlyMarks)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
-            <button class="act @(_metronomeOpen ? "on" : null)" aria-pressed="@(_metronomeOpen ? "true" : "false")" aria-label="@Text["metronome.label"]" title="@Text["metronome.label"]"
-                    @onclick="() => _metronomeOpen = !_metronomeOpen"><Icon Name="metronome" Size="IconSize.Large" /></button>
+            @* The metronome starts at once with its pill for the beats and the tapped tempo; held, a slide sets its tempo (#521 section 15). *@
+            <span class="metronome-button">
+                <button class="act @(Metronome.Running ? "on" : null)" aria-pressed="@(Metronome.Running ? "true" : "false")" aria-label="@Text["metronome.label"]"
+                        title="@Text["metronome.holdHint"]" data-metronome-hold @onclick="ToggleMetronomeAsync"><Icon Name="metronome" Size="IconSize.Large" /></button>
+                <MotiffLab.Web.Playback.MetronomeHeld />
+            </span>
             <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]"
                     title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pencil.hint"])" @onclick="TogglePenAsync" disabled="@ReadOnlyMarks"><Icon Name="pen" Size="IconSize.Large" /></button>
         }
@@ -87,7 +92,7 @@
 
     @if (_metronomeOpen && _project is { } piece)
     {
-        <MetronomePill PieceId="@piece.Id" Closed="() => _metronomeOpen = false" />
+        <MetronomePill PieceId="@piece.Id" Closed="CloseMetronomeAsync" />
     }
 
     @if (_popover != Popover.None)
@@ -223,10 +228,44 @@
     /// <summary>The page the player was last on in this PDF, kept on this device.</summary>
     private static string PageKey(string id) => $"pdf.page.{id}";
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         _leaving = Navigation.RegisterLocationChangingHandler(async _ => await KeepPlaceAsync());
+        Metronome.Changed += OnMetronomeChanged;
+    }
 
-    public void Dispose() => _leaving?.Dispose();
+    public void Dispose()
+    {
+        _leaving?.Dispose();
+        Metronome.Changed -= OnMetronomeChanged;
+        // The metronome is the page's: it stops as the page goes (#521 section 15).
+        _ = Metronome.StopAsync();
+    }
+
+    private void OnMetronomeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>The metronome's button: it clicks at once, its pill with it, and stops with the pill put away.</summary>
+    private async Task ToggleMetronomeAsync()
+    {
+        if (_project is not { } piece)
+        {
+            return;
+        }
+
+        if (Metronome.PieceId != piece.Id)
+        {
+            await Metronome.LoadAsync(piece.Id);
+        }
+
+        await Metronome.ToggleAsync();
+        _metronomeOpen = Metronome.Running;
+    }
+
+    private async Task CloseMetronomeAsync()
+    {
+        await Metronome.StopAsync();
+        _metronomeOpen = false;
+    }
 
     /// <summary>The place the pages are at, kept with the piece on this device (PDF | Notes, #511 section 10).</summary>
     private async Task KeepPlaceAsync()
@@ -280,6 +319,8 @@
                 : int.TryParse(await Preferences.GetAsync(PageKey(id)), out int page) && page > 0 ? page : 1;
             _startPlace = Page is > 0 ? null : await Preferences.PdfPlaceAsync(id);
             Show(project);
+            // The piece's metronome as kept, so its button can be held before it first clicks (#521 section 15).
+            await Metronome.LoadAsync(id);
         }
         catch (ProjectFileException exception)
         {

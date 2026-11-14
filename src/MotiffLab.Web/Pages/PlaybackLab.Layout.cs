@@ -92,7 +92,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     /// <summary>
     /// The pill shows with a selection or while playback runs, or only while it runs (the setting "guidance.transportPill", 0018 section 10).
-    /// Once playback has run it stays after a pause or the end of the piece, so tempo, metronome and count-in can be set before playing
+    /// Once playback has run it stays after a pause or the end of the piece, so the tempo and the metronome can be set before playing
     /// again, until a tap on the page where there is no music puts it away. Under the playback model (v0.5.2) it holds the one
     /// Play button, so it always shows, as on the iPad; and in focus, whose bar has no Play of its own (#511 section 8.1).
     /// </summary>

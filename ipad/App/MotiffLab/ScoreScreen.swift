@@ -5,7 +5,7 @@ import WebKit
 /// column in portrait and two to a row in landscape, with the pencil marks on them (0019 section 2.2). Verovio's SVG is in
 /// one web view that runs the web app's score modules (ScoreController, Web/score.js). Nothing is docked: the bar floats
 /// over the top with the way back, the title, the pages in view and the actions, and the pill floats at the bottom with
-/// play, the tempo, the metronome and the count-in. Colours come from the design kit's tokens, Daylight or Night with
+/// play, the tempo and the metronome. Colours come from the design kit's tokens, Daylight or Night with
 /// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
 /// page dimmed behind it, previous and next on the card's edges, and the bar becomes the focus bar. The piano roll opens
 /// in a drawer from the bottom (section 4), Insights in a sheet over the right third in landscape or the lower half in
@@ -342,9 +342,11 @@ struct ScoreScreen: View {
             .onDisappear {
                 let now = resumeNow()
                 let view = notesViewNow()
+                // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.
+                let handed = ClosedPieces.take(piece.id)
+                if !handed { Metronome.shared.stop() }
                 player.shutdown()
-                // Handed to its other view, the piece was saved and closed already (#511 section 10).
-                guard !ClosedPieces.take(piece.id) else { return }
+                guard !handed else { return }
                 // A variation only tried is not kept with the piece: it is left before the project file is written.
                 let file = piece.file
                 let id = piece.id
@@ -382,8 +384,8 @@ struct ScoreScreen: View {
         // selects nothing puts it away; the selection stays as it is (0018 section 6).
         let sheetOpen = $insightsOpen
         score.blankTapped = { [weak heard, weak shown] in
-            // With nothing selected and nothing playing, the tap puts away the pill kept after playback.
-            if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
+            // With nothing selected, nothing playing and the metronome still, the tap puts away the pill kept after playback.
+            if let heard, heard.state == .stopped, shown?.selection == nil, !Metronome.shared.running { heard.transportKept = false }
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
         // The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
@@ -446,7 +448,7 @@ struct ScoreScreen: View {
         // The bookmarks are drawn as brackets on the score, and again whenever they change.
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
-        await player.load(piece: piece.id)
+        await player.load(piece: piece.id, key: piece.own?.id)
         applyExperiments()
         await resume()
         await returnToNotesView()
@@ -1207,10 +1209,11 @@ struct BarActionStyle: ButtonStyle {
     }
 }
 
-/// The pill (ds.css `.pill`): play, the tempo, the metronome and the count-in, floating at the bottom of the score.
+/// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score.
 struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
+    @ObservedObject private var metronome = Metronome.shared
     let text: UIText
     @EnvironmentObject private var settings: DeviceSettings
 
@@ -1256,28 +1259,18 @@ struct Pill: View {
                 handsControls
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15).
             Button {
-                player.metronome.toggle()
+                metronome.toggle()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "metronome")
                     Text(text["transport.metronome"])
                 }
             }
-            .buttonStyle(DSItemStyle(on: player.metronome))
-            .accessibilityAddTraits(player.metronome ? .isSelected : [])
-            Button {
-                player.countIn.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "count")
-                    Text(text["transport.countIn"])
-                }
-            }
-            .buttonStyle(DSItemStyle(on: player.countIn))
-            .accessibilityAddTraits(player.countIn ? .isSelected : [])
-            .accessibilityHint(text["transport.countInHint"])
-            .help(text["transport.countInHint"])
+            .buttonStyle(DSItemStyle(on: metronome.running))
+            .accessibilityAddTraits(metronome.running ? .isSelected : [])
+            .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
         }
         .disabled(!player.ready)
         .padding(.leading, 6)

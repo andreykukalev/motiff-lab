@@ -232,10 +232,6 @@ export class Player {
         this.post({ type: "metronome", on });
     }
 
-    setCountIn(bars: number): void {
-        this.post({ type: "countIn", bars });
-    }
-
     setTracks(muted: number[], soloed: number[]): void {
         this.post({ type: "tracks", muted, soloed });
     }

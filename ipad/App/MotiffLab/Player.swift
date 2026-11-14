@@ -27,9 +27,9 @@ final class Player: ObservableObject {
         get { tempo.percent }
         set { tempo.percent = newValue }
     }
+    /// The engine's clicks on the piece's beats while it plays: on while the metronome (`Metronome.shared`) runs, which
+    /// keeps its own clicks silent then (#521 section 15).
     @Published var metronome = false { didSet { send(.metronome(metronome)) } }
-    /// One bar of clicks before the music, as the web app's Count-in.
-    @Published var countIn = false { didSet { send(.countIn(countIn ? 1 : 0)) } }
 
     init() {
         tempo.changed = { [weak self] percent in self?.send(.rate(Double(percent) / 100)) }
@@ -46,14 +46,19 @@ final class Player: ObservableObject {
     private(set) var beatLines: [Double] = []
     /// The piece played, for hearing one hand alone.
     private var piece: Int32?
+    /// The piece's project id, by which the metronome keeps its tempo on the device, and the first bar's time signature
+    /// numerator.
+    private(set) var pieceKey: String?
+    private(set) var firstBarBeats: Int?
 
     private let audio = AVAudioEngine()
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
     private var polling: Task<Void, Never>?
 
-    /// Starts the audio, loads the piano and the piece's playback score from music-core.
-    func load(piece: Int32) async {
+    /// Starts the audio, loads the piano and the piece's playback score from music-core; the metronome follows its piece
+    /// tempo, kept under `key`.
+    func load(piece: Int32, key: String? = nil) async {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default)
@@ -87,6 +92,9 @@ final class Player: ObservableObject {
             renderer.send(.source(id: "piece", notes: score.notes))
             renderer.send(.activeSources(["piece"]))
             ready = true
+            pieceKey = key
+            firstBarBeats = score.timeline.bars.first.map { Int($0.beatsPerBar) }
+            Metronome.shared.attach(self)
             startPolling()
         } catch {
             problem = (error as? PlayerError)?.message ?? error.localizedDescription
@@ -98,8 +106,8 @@ final class Player: ObservableObject {
         send(state == .stopped ? .play : .pause)
     }
 
-    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and Count-in and the
-    /// tempo with it); a tap on the page with nothing selected puts it away.
+    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and the tempo with
+    /// it); a tap on the page with nothing selected puts it away.
     @Published var transportKept = false
 
     /// Back to the start, playing on if it was playing.
@@ -350,6 +358,7 @@ final class Player: ObservableObject {
         handsHeld = score.hands
         send(.timeline(score.timeline))
         send(.source(id: Self.pieceSource, notes: score.notes))
+        Metronome.shared.pieceChanged(self)
     }
 
     /// The piece's notes for the hands chosen, in place of those that sounded: what plays or loops carries on (#328).
@@ -378,6 +387,7 @@ final class Player: ObservableObject {
         send(.pause)
         audio.stop()
         ready = false
+        Metronome.shared.detach(self)
     }
 
     /// The node that pulls blocks from the engine. It is made outside the main actor: its block runs on the audio thread.
@@ -413,6 +423,7 @@ final class Player: ObservableObject {
         if state != position.state {
             let started = state != .stopped
             state = position.state
+            Metronome.shared.playbackChanged(self)
             // Notes heard alone that came to their end give way to the piece.
             if hearingAlone && started && state == .stopped { setLoop(nil) }
         }
