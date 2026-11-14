@@ -134,11 +134,14 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>⌘Z and ⇧⌘Z (mode-keys.ts): the ink's Undo while the pen is on (it has no Redo), else the selection's; the assembly keeps its own.</summary>
+    /// <summary>
+    /// ⌘Z and ⇧⌘Z (mode-keys.ts): the ink's Undo while the pen is on (it has no Redo), else the selection's; the assembly keeps
+    /// its own. Nothing in Expand, which is bound to its selection and edits nothing (#521 19).
+    /// </summary>
     [JSInvokable]
     public async Task OnUndoKeyAsync(bool redo)
     {
-        if (_assembling || _score is null || NoteEditing)
+        if (_assembling || _score is null || NoteEditing || Focused)
         {
             return;
         }

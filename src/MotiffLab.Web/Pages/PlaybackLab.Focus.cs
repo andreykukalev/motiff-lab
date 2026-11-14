@@ -17,9 +17,11 @@ namespace MotiffLab.Web.Pages;
 /// phrase. The phrase lifts into a card across the screen with the page dimmed behind it; the focus bar carries Back, where
 /// the phrase is, Original / Variation / Alternate when there is a variation and Reading / As played for a transcription.
 /// A variation is engraved as an ossia above the original, bar for bar, from music-core's excerpt (<see cref="NotationGenerator"/>);
-/// the variations kept for the phrase are chips above the card that pick the one heard and shown. Previous and next walk
-/// the piece at the level shown; Lead-in on the pill plays a bar before and after. Enter with Focus in the contextual menu;
-/// leave with Back, a tap on the dimmed page or Escape.
+/// the variations kept for the phrase are chips above the card that pick the one heard and shown. Expand is a focused
+/// practice view bound to the exact selection it was opened on (#521 19): nothing in it steps to another phrase or changes
+/// the selection, and Play plays the passage once, from the playhead inside it or from its start, stopping at its end; Lead-in
+/// on the pill plays a bar before and after. Enter with Focus in the contextual menu (only with a selection); leave with
+/// Back, a tap on the dimmed page or Escape, and the loop is as it was before.
 /// </summary>
 public partial class PlaybackLab
 {
@@ -65,10 +67,6 @@ public partial class PlaybackLab
                 : bars;
         }
     }
-
-    private bool CanStepBack => FocusUnit is { Number: > 1 };
-
-    private bool CanStepOn => FocusUnit is { } unit && unit.Number < Levels!.Units(_level).Count;
 
     /// <summary>Whether the passage has a variation to hear: Original / Variation / Alternate shows only then (0018 section 7).</summary>
     private bool FocusHasVariation => _variation is { Notes.Count: > 0 };
@@ -134,20 +132,78 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>Lifts the selection into focus.</summary>
-    private void EnterFocus()
+    /// <summary>Whether the selection looped before Expand, so that the way back leaves the loop as it was (#521 17).</summary>
+    private bool _loopingBeforeFocus;
+
+    /// <summary>
+    /// Lifts the selection into focus, from the score or (<paramref name="fromRoll"/>) from the roll, bound to it (#521 19):
+    /// playing, the music plays on within the passage, from its start when it was elsewhere, and stops at its end.
+    /// </summary>
+    private async Task EnterFocusAsync(bool fromRoll = false)
     {
-        if (_selection is null || _penOn)
+        if (_selection is null || _penOn || _focus)
         {
             return;
         }
 
         _focus = true;
+        _focusFromRoll = fromRoll;
         _focusSpan = _selection.Span;
         _menuMore = false;
         _popover = Popover.None;
         _pillMenu = PillMenu.None;
+        _loopingBeforeFocus = _looping;
+        if (!Focused)
+        {
+            return;
+        }
+
+        // The playback model lets go in focus (v0.5.2): the passage is the loop here, played once.
+        await SyncModelAsync();
+        await KeepWithinPassageAsync();
     }
+
+    /// <summary>The passage as what plays (#521 19.4): once, from the playhead while it is inside, else from its start.</summary>
+    private async Task KeepWithinPassageAsync()
+    {
+        if (_answerLoop is not null || _selection is not { } selection)
+        {
+            return;
+        }
+
+        if (selection.NoteIds.Count > 0)
+        {
+            _looping = true;
+            await LoopSelectionAsync(selection);
+            return;
+        }
+
+        TickSpan range = WithLead(selection.Span);
+        await Player.SetLoopAsync(range, once: true);
+        if (!range.Contains(Player.Position))
+        {
+            await Player.SeekAsync(range.Onset);
+        }
+    }
+
+    /// <summary>
+    /// Play in Expand (#521 19.4): the passage once, from the playhead inside it or from its start, stopping at its end and
+    /// waiting at its start; while it plays, a pause.
+    /// </summary>
+    private async Task PlayPassageAsync()
+    {
+        if (Player.State != PlaybackState.Stopped || Transposed is not null)
+        {
+            await TogglePlayAsync();
+            return;
+        }
+
+        await KeepWithinPassageAsync();
+        await PlayAsync();
+    }
+
+    /// <summary>The pill's Play: in Expand the passage once, elsewhere play or pause.</summary>
+    private Task PillPlayAsync() => Focused ? PlayPassageAsync() : TogglePlayAsync();
 
     /// <summary>Back to the page, with the selection as it is; a loop that led in plays the selection alone again.</summary>
     private async Task LeaveFocusAsync()
@@ -158,6 +214,7 @@ public partial class PlaybackLab
         }
 
         _focus = false;
+        _focusFromRoll = false;
         _focusSpan = null;
         _focusCard = null;
         _focusCardKey = null;
@@ -170,9 +227,18 @@ public partial class PlaybackLab
             _hear = [Player.OriginalSource];
         }
 
+        if (!_loopingBeforeFocus && _answerLoop is null && !_scaleHeard && (_looping || Player.Loop is not null))
+        {
+            // Expand's passage played once: the loop that was not there before goes (#521 17).
+            _looping = false;
+            _alternating = false;
+            await Player.SetLoopAsync(null);
+            await Player.SelectSourcesAsync(_hear);
+        }
+
         // The playback model holds again out of focus (v0.5.2): it takes the selection and loops it as Цикл says.
         await SyncModelAsync();
-        if ((versionHeard || _leadIn || ModelHolds) && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
+        if (_looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
         {
             await LoopSelectionAsync(selection);
         }
@@ -190,7 +256,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>The menu's Focus.</summary>
-    private void MenuFocus() => EnterFocus();
+    private Task MenuFocusAsync() => EnterFocusAsync();
 
     /// <summary>A kept variation's chip: it is heard and shown as the ossia.</summary>
     private Task ShowKeptVariationAsync(Observation observation) =>
