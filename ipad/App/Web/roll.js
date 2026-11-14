@@ -6,6 +6,7 @@
 // roll is also where notes are edited: Swift says which pointer edits (`input`), draws the zoom on each axis from what the
 // roll reports (`zoom` both ways), and takes a drag across the bar numbers by its ticks, to select by beats.
 import { createPianoRoll, keptRollFrame, restoreRollFrame } from "../roll/piano-roll.js";
+import { rangeBars } from "../roll/roll-strip-gesture.js";
 import { THEME_CHANGED } from "../layout/theme.js";
 
 const MODES = ["hand", "track", "voice"];
@@ -28,14 +29,14 @@ const host = {
     invokeMethodAsync(method, ...args) {
         switch (method) {
             case "OnRollRange": {
-                const [anchor, current, click, extend, , gesture] = args;
-                const first = barAt(Math.min(anchor, current));
-                const last = click ? first : barAt(Math.max(Math.min(anchor, current), Math.max(anchor, current) - 1));
-                if (first !== undefined && last !== undefined) {
+                const [anchor, current, click, extend, how, gesture] = args;
+                // By bars an edge moved goes to the nearer barline, a bar counting once half of it is covered (#521 3).
+                const bars = rangeBars(numberedBars(), anchor, current, Boolean(click), how === "edit");
+                if (bars !== undefined) {
                     // The ticks too: a drag across the bar numbers or a handle selects by beats where the score does (#479 item 23).
                     const from = Math.min(anchor, current);
                     const to = Math.max(anchor, current);
-                    post({ range: { first, last, extend: Boolean(extend), click: Boolean(click), from, to, gesture } });
+                    post({ range: { first: bars.first, last: bars.last, extend: Boolean(extend), click: Boolean(click), from, to, gesture } });
                 }
                 break;
             }
@@ -99,17 +100,14 @@ view.setTouchReading(true);
 // reports, and a pinch zooms the axis it spreads along while two fingers move the roll.
 view.setAxisZoom(true);
 
-/** The number of the bar that holds a tick, the last bar for a tick at or past the end. */
-function barAt(tick) {
+/** The piece's bars in time order, each its [onset, end) in ticks and its number, from the packed bars music-core sent. */
+function numberedBars() {
     const bars = state.payload?.bars ?? [];
-    let number;
+    const numbered = [];
     for (let at = 0; at + BAR_FIELDS <= bars.length; at += BAR_FIELDS) {
-        if (bars[at] > tick && number !== undefined) {
-            break;
-        }
-        number = bars[at + 3];
+        numbered.push({ onset: bars[at], end: bars[at] + bars[at + 1], number: bars[at + 3] });
     }
-    return number;
+    return numbered;
 }
 
 /** The colour schemes that tell notes apart in this piece: those with two lanes or more. */
@@ -231,7 +229,10 @@ function input({ touch, pen, scrollFingers, penSelects }) {
     view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1, penSelects: penSelects !== false });
 }
 
-/** A step of the zoom from Swift's controls (#479 item 23): "time" or "pitch", +1 in or −1 out; "fit" is Fit. */
+/**
+ * A step of the zoom from Swift's controls (#479 item 23): "time" or "pitch", +1 in or −1 out; "fit" is Fit, and "overview"
+ * Zoom Out to the general overview, the selection kept (#521 2.2).
+ */
 function zoom({ axis, direction }) {
     const step = direction > 0 ? 1 : -1;
     if (axis === "time") {
@@ -240,6 +241,8 @@ function zoom({ axis, direction }) {
         view.zoomPitch(step);
     } else if (axis === "fit") {
         view.fit();
+    } else if (axis === "overview") {
+        view.zoomOutToOverview();
     }
 }
 

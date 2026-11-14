@@ -173,9 +173,9 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
-    /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, or Fit.
+    /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, Fit, or Zoom Out (#521 2.2).
     enum ZoomAxis: String {
-        case time, pitch, fit
+        case time, pitch, fit, overview
     }
 
     func zoomStep(_ axis: ZoomAxis, _ direction: Int) {
@@ -297,7 +297,7 @@ final class RollController: NSObject, ObservableObject {
     static func labels(_ text: UIText) -> [String: String] {
         let names = [
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
-            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
+            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint", "overview", "overviewHint",
             "playhead", "playheadAt",
         ]
         var labels = Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })

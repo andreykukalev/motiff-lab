@@ -2,7 +2,17 @@
 // output: the black and the blue playheads of the playback model; the loop strip; the whole piece in one line.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { drawLoopLane, drawOverview, drawPosition, insideOf, overviewTick, overviewTrack } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-strips.js";
+import {
+    drawLoopLane,
+    drawOverview,
+    drawPosition,
+    insideOf,
+    overviewGrab,
+    overviewTick,
+    overviewTrack,
+    overviewX,
+    viewGrabOffset,
+} from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-strips.js";
 
 /** A canvas context that keeps the colour of each line and disc drawn, and each text written. */
 function recorder() {
@@ -68,6 +78,9 @@ test("the loop strip draws nothing without a selection and a handle at each end 
     const handles = one.drawn.discs.filter((disc) => disc.radius === 6);
     assert.deepEqual(handles.map((disc) => disc.x), [158, 254]);
     assert.equal(one.drawn.discs[0].colour, "tint", "tinted while it loops");
+    // No loop sign inside the selection (#521 6): the strip, its two handles' fill and ring, and nothing else.
+    assert.equal(one.drawn.discs.length, 3, "the strip's fill and the two handles");
+    assert.equal(one.drawn.strokes, 3, "the strip's outline and the two handles' rings, no ring with an arrow");
 });
 
 test("a tap on the whole piece finds its tick along the track, clamped to the piece", () => {
@@ -85,4 +98,16 @@ test("the whole piece writes the position and its black dot in ink, also inside 
     assert.deepEqual(drawn.texts.map((text) => [text.text, text.colour]), [["9.2", "ink"], ["105", "muted"]]);
     assert.equal(drawn.discs.at(-2).colour, "ink", "the black dot");
     assert.equal(drawn.discs.at(-1).colour, "surface", "stopped, the dot is hollow");
+});
+
+test("on the whole piece the black dot and the frame are two targets: the dot takes the position, the rest the view (#521 1)", () => {
+    const width = 1048;
+    const end = 96000;
+    const dot = overviewX(48000, width, end);
+    assert.equal(dot, 528);
+    assert.equal(overviewGrab(dot + 10, width, 48000, end, 22), "position");
+    assert.equal(overviewGrab(dot + 30, width, 48000, end, 22), "view", "next to the dot, inside the frame or not, the view");
+    const view = { start: 40000, end: 56000 };
+    assert.equal(viewGrabOffset(44000, view), 4000, "taken inside the frame, it keeps its place under the pointer");
+    assert.equal(viewGrabOffset(80000, view), 8000, "taken outside it, by its middle: the frame comes to the pointer");
 });

@@ -13,10 +13,11 @@ import {
     nearerEdge,
     nextGestureId,
     pressGesture,
+    snapEdge,
 } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-gesture.js";
 
 globalThis.window ??= globalThis;
-const { RollStripGesture } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-strip-gesture.js");
+const { RollStripGesture, rangeBars } = await import("../../src/MotiffLab.Web/wwwroot/js/roll/roll-strip-gesture.js");
 
 const selection = { start: 1920, end: 5760 };
 const bars = [0, 1920, 3840, 5760, 7680, 9600];
@@ -64,11 +65,12 @@ test("every gesture has its own name, so the owner keeps each as one step", () =
     assert.notEqual(nextGestureId(), nextGestureId());
 });
 
-function stripHost(range) {
+function stripHost(range, playing = false) {
     const calls = [];
     return {
         calls,
         selection: () => range,
+        keepsSelection: () => playing,
         beginRange: (pointer, x, tick, how, gesture) => calls.push(["range", tick, how, gesture]),
         beginEdge: (pointer, anchor, offset, gesture) => calls.push(["edge", anchor, offset, gesture]),
         beginPan: () => calls.push(["pan"]),
@@ -169,6 +171,59 @@ test("under the modes, in Navigate, the strips wait for the hold as the score do
         editing.begin(press("touch"), 100, 10, 5000, "longPress");
         mock.timers.tick(HOLD_MS);
         assert.deepEqual(held.calls.map((call) => call[0]), ["edge"], "held inside, the edge follows");
+    } finally {
+        mock.timers.reset();
+    }
+});
+
+test("an edge snaps by the share of the bar it covers: under half back, half or more on (#521 3)", () => {
+    // Bars of 1920 ticks: the end edge 40 % into the next bar goes back, 60 % goes on, exactly 50 % goes on.
+    assert.equal(snapEdge(bars, "end", 5760 + 768), 5760);
+    assert.equal(snapEdge(bars, "end", 5760 + 1152), 7680);
+    assert.equal(snapEdge(bars, "end", 5760 + 960), 7680, "at exactly half the end takes the bar");
+    // The start edge covers a bar from its end: 40 % of it covered stays out, 60 % takes it, exactly half takes it.
+    assert.equal(snapEdge(bars, "start", 1920 - 768), 1920);
+    assert.equal(snapEdge(bars, "start", 1920 - 1152), 0);
+    assert.equal(snapEdge(bars, "start", 1920 - 960), 0, "at exactly half the start takes the bar");
+    assert.equal(snapEdge([], "end", 100), undefined);
+    assert.deepEqual(editedRange(selection, "end", 5000, 5000 + 960, bars), { start: 1920, end: 7680 }, "the score's edges follow the same rule");
+    assert.deepEqual(editedRange(selection, "start", 2000, 2000 - 960, bars), { start: 0, end: 5760 });
+});
+
+test("the iPad's roll by bars: a tap its bar, a new range every bar it touches, a moved edge by the share covered (#521 3)", () => {
+    const numbered = [0, 1, 2, 3, 4].map((index) => ({ onset: index * 1920, end: (index + 1) * 1920, number: index + 1 }));
+    assert.deepEqual(rangeBars(numbered, 2000, 2000, true, false), { first: 2, last: 2 });
+    assert.deepEqual(rangeBars(numbered, 2000, 5800, false, false), { first: 2, last: 4 }, "a new range takes every bar it touches, as before");
+    // The selection is bars 2–3 (1920–5760); its end edge dragged a little into bar 4 stays, past half of it takes it.
+    assert.deepEqual(rangeBars(numbered, 1920, 5760 + 200 - 1, false, true), { first: 2, last: 3 });
+    assert.deepEqual(rangeBars(numbered, 1920, 5760 + 1200 - 1, false, true), { first: 2, last: 4 });
+    assert.deepEqual(rangeBars(numbered, 1920, 5760 + 960 - 1, false, true), { first: 2, last: 4 }, "exactly half takes the bar");
+    // Its start edge (the roll sends the end's last tick as the anchor) a little into bar 1 stays, past half takes it.
+    assert.deepEqual(rangeBars(numbered, 5759, 1920 - 300, false, true), { first: 2, last: 3 });
+    assert.deepEqual(rangeBars(numbered, 5759, 1920 - 1500, false, true), { first: 1, last: 3 });
+    assert.deepEqual(rangeBars(numbered, 5759, 5700, false, true), { first: 3, last: 3 }, "edges that meet leave one bar");
+    assert.equal(rangeBars([], 0, 10, false, true), undefined);
+});
+
+test("while the music plays a hold on the roll's strips never clears the selection, and letting go does nothing (#521 16.4)", () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        const finger = stripHost(selection, true);
+        const held = new RollStripGesture(finger);
+        held.begin(press("touch"), 400, 10, 8000);
+        mock.timers.tick(HOLD_MS);
+        assert.deepEqual(finger.calls.map((call) => call[0]), ["pan"], "the finger moves the roll instead");
+        assert.equal(held.end(1), false, "the press is the roll's from the hold on: no tap, no clear");
+        assert.deepEqual(finger.calls.map((call) => call[0]), ["pan"]);
+
+        const mouse = stripHost(selection, true);
+        const kept = new RollStripGesture(mouse);
+        kept.begin(press("mouse"), 400, 10, 8000);
+        mock.timers.tick(HOLD_MS);
+        kept.end(1);
+        assert.deepEqual(mouse.calls, [], "nothing changes");
+        assert.equal(heldGesture(pressGesture(selection, 8000, false, "now"), true), "pass");
+        assert.equal(heldGesture(pressGesture(selection, 5000, true, "longPress"), true), "edit", "held inside, the edge still follows");
     } finally {
         mock.timers.reset();
     }

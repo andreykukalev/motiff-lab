@@ -1682,6 +1682,11 @@ h1, h2, .app-title strong {
     border-radius: 0 var(--r-pill) var(--r-pill) 0;
 }
 
+/* Fit with Zoom Out after it (#521 2.2): Zoom Out ends the group, so Fit's right end is square. */
+.roll .roll-fit:has(+ .roll-fit:not([hidden])) {
+    border-radius: 0;
+}
+
 /* Import screen (Pages/Import.razor, N2): a drop zone over the native file input, then the report. */
 .import .dropzone {
     position: relative;

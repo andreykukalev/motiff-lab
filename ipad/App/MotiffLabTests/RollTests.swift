@@ -100,6 +100,9 @@ final class RollTests: XCTestCase {
         let read = try XCTUnwrap(RollZoom(["bars": 9, "octaves": 3, "timeIn": true, "timeOut": false, "pitchIn": true, "pitchOut": true]))
         XCTAssertEqual(read, RollZoom(bars: 9, octaves: 3, timeOut: false))
         XCTAssertNil(RollZoom(["bars": 9]), "a report without the octaves is not read")
+        XCTAssertFalse(read.zoomOut, "Zoom Out hidden unless the roll says it shows")
+        let fitted = try XCTUnwrap(RollZoom(["bars": 4, "octaves": 2, "zoomOut": true]))
+        XCTAssertEqual(fitted, RollZoom(bars: 4, octaves: 2, zoomOut: true), "after Fit of a selection (#521 2.2)")
     }
 
     func testADragOnTheRollSelectsByBeatsWhereTheScoreDoesAndATapSelectsItsBar() {

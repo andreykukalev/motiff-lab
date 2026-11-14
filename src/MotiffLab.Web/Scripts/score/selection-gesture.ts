@@ -86,10 +86,18 @@ export function pressGesture(selection: TickRange | null, pressTick: number, ins
     return { rule, selection, pressTick, inside: within, edge: selection === null ? "end" : nearerEdge(selection, pressTick), phase: "waiting", cleared: false };
 }
 
-/** The press has been held still for HOLD_MS. */
-export function heldGesture(gesture: SelectionGesture): GestureStep {
+/**
+ * The press has been held still for HOLD_MS. With `keep` (the roll while the music plays, #521 16.4) a hold outside the
+ * selection leaves it: the pointer goes to what it does without a selection ("pass", a finger moves the roll), and letting
+ * go does nothing.
+ */
+export function heldGesture(gesture: SelectionGesture, keep = false): GestureStep {
     if (gesture.phase !== "waiting") {
         return "none";
+    }
+    if (keep && gesture.selection !== null && !gesture.inside) {
+        gesture.phase = "passed";
+        return "pass";
     }
     if (gesture.selection === null) {
         if (gesture.rule === "longPress") {
@@ -143,17 +151,35 @@ export function gestureChange(gesture: SelectionGesture): SelectionChange {
 }
 
 /**
+ * The line an edge of the selection goes to from where the pointer puts it (#521 3): the nearest of `lines` (in time order),
+ * so a bar, or a beat, counts once half of it or more is covered and not under half. At exactly half it counts: the end goes
+ * on to the next line and the start back to the one before. Undefined without lines.
+ */
+export function snapEdge(lines: readonly number[], edge: "start" | "end", target: number): number | undefined {
+    let best: number | undefined;
+    for (const line of lines) {
+        const away = Math.abs(line - target);
+        const bestAway = best === undefined ? Infinity : Math.abs(best - target);
+        const onward = best === undefined || (edge === "end" ? line > best : line < best);
+        if (away < bestAway || (away === bestAway && onward)) {
+            best = line;
+        }
+    }
+    return best;
+}
+
+/**
  * The selection with its `edge` moved by the pointer from `pressTick` to `tick` (no jump: the edge moves as far as the
- * pointer), to the nearest of the `lines` (the barlines, or the beat lines while selecting by beats, in time order),
- * never onto or past the other edge.
+ * pointer), to the line it snaps to among `lines` (the barlines, or the beat lines while selecting by beats, in time order;
+ * snapEdge), never onto or past the other edge.
  */
 export function editedRange(selection: TickRange, edge: "start" | "end", pressTick: number, tick: number, lines: readonly number[]): TickRange {
     const target = selection[edge] + tick - pressTick;
     const allowed = lines.filter((line) => (edge === "start" ? line < selection.end : line > selection.start));
-    if (allowed.length === 0) {
+    const nearest = snapEdge(allowed, edge, target);
+    if (nearest === undefined) {
         return selection;
     }
-    const nearest = allowed.reduce((best, line) => (Math.abs(line - target) < Math.abs(best - target) ? line : best));
     return edge === "start" ? { start: nearest, end: selection.end } : { start: selection.start, end: nearest };
 }
 

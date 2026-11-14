@@ -33,7 +33,7 @@ test("the roll's head: Note names, the colour by hand, the overflow with Colour 
     await zoom.getByRole("button", { name: "Zoom out" }).click();
     await zoom.getByRole("button", { name: "Zoom out" }).click();
     await expect(zoom).toContainText("80 %");
-    // Fit lays the phrase in view across the roll: the zoom changes from where it was.
+    // Fit without a selection shows the overview round the playhead (#521 2.1): the zoom changes from where it was.
     await zoom.getByRole("button", { name: "Fit" }).click();
     await expect(zoom).not.toContainText("80 %");
     expect(errors).toEqual([]);
