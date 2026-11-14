@@ -82,7 +82,7 @@ public static class AssistantTools
     public const int AddedVelocity = 80;
 
     /// <summary>Every tool, in the order of the catalogue: reading, proposing, checking, suggesting.</summary>
-    public static IReadOnlyList<AssistantTool> All => s_all ??= [.. ReadingTools.All(), .. VariationTools.All(), .. NoteTools.All()];
+    public static IReadOnlyList<AssistantTool> All => s_all ??= [.. ReadingTools.All(), .. VariationTools.All(), .. NoteTools.All(), .. Repairs.RepairTools.All()];
 
     private static IReadOnlyList<AssistantTool>? s_all;
 
