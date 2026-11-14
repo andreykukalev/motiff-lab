@@ -3073,6 +3073,11 @@ h1:focus {
     color: var(--ink-2);
 }
 
+.workspace .pill .tempo-control .field :is(.pre, .post) {
+    flex: none;
+    white-space: nowrap;
+}
+
 .workspace .pill .tempo-control .field input {
     width: 100%;
     min-width: var(--s-12);
