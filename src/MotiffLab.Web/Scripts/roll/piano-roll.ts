@@ -2440,7 +2440,7 @@ export class PianoRoll {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const y = event.clientY - box.top;
-        if (this.pinched(event, x, y)) {
+        if (this.pinched(event, x, y) || this.pensOwn(event)) {
             return;
         }
         const { high, row } = this.pitchRange();
@@ -2485,6 +2485,15 @@ export class PianoRoll {
         const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
         this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
+
+    /** While the Pen is on, the stylus is the Pen's: a gesture belongs to one tool, so on the roll it does nothing (#521 10). */
+    private pensOwn(event: PointerEvent): boolean {
+        if (this.selectsWith(event.pointerType)) {
+            return false;
+        }
+        event.preventDefault();
+        return true;
+    }
 
     /**
      * A press that moves the roll or drags an edge of the selection; true when it was one. In touch reading a finger on the

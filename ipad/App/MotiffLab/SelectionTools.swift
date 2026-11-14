@@ -119,6 +119,14 @@ extension ScoreController {
     }
 }
 
+extension RollController {
+    /// A mode chosen on the roll's switch, one tool at a time (#521 10): Edit notes turns the bar's Pen off first.
+    func chooseTool(_ mode: RollMode, score: ScoreController) {
+        if RollInput.penOff(choosing: mode) { score.penOn = false }
+        choose(mode, score: score)
+    }
+}
+
 /// The options of the mode in force under the bar (#511 4.2, option B): the pen palette while the Pen is on, Select's row
 /// in Select; Navigate has none.
 struct ModeOptions: View {

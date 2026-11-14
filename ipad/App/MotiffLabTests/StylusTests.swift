@@ -111,6 +111,22 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(RollInput(stylus: true, mode: .navigate).page["penSelects"] as? Bool, true)
     }
 
+    func testAGestureBelongsToOneToolSoThePensStylusDoesNothingOnTheRoll() {
+        // #521 10: with the Pen on the stylus neither moves the roll, nor edits, nor selects there; a finger does as before.
+        let edit = RollInput(stylus: true, mode: .edit, penOn: true)
+        XCTAssertFalse(edit.acts(.stylus))
+        XCTAssertFalse(edit.edits(.stylus), "the Pen's stylus never edits notes")
+        XCTAssertEqual(edit.page["pen"] as? Bool, false)
+        XCTAssertTrue(RollInput(stylus: true, mode: .edit).edits(.stylus), "out of the Pen the stylus edits as before")
+        XCTAssertTrue(RollInput(stylus: false, mode: .edit, penOn: true).edits(.finger))
+        // Edit notes and the Pen put each other away.
+        XCTAssertTrue(RollInput.penOff(choosing: .edit))
+        XCTAssertFalse(RollInput.penOff(choosing: .navigate))
+        XCTAssertTrue(RollInput.rollNavigates(penOn: true, mode: .edit))
+        XCTAssertFalse(RollInput.rollNavigates(penOn: true, mode: .navigate))
+        XCTAssertFalse(RollInput.rollNavigates(penOn: false, mode: .edit))
+    }
+
     // MARK: - The stroke's outline
 
     func testThePressureSetsTheThicknessForThePencilOnly() {

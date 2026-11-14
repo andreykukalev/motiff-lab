@@ -17,16 +17,18 @@ function ownerOf(given) {
     const sent = [];
     const owner = new PlaybackOwner((step) => sent.push(step));
     const engine = { tick: given.tick, transport: given.transport };
+    // Made while the engine stands, as a selection made while it plays behind the position leaves Цикл off (#521 5).
+    const standing = { tick: given.tick, transport: "stopped" };
     if (given.selection !== null) {
         // A new selection turns Цикл on (T9); Цикл off is one press of it, which takes the position to the start (T7/T8).
-        owner.apply({ type: "select", selection: given.selection }, engine);
+        owner.apply({ type: "select", selection: given.selection }, standing);
         if (!given.loop) {
-            owner.apply({ type: "cycle" }, engine);
+            owner.apply({ type: "cycle" }, standing);
         }
     } else if (!given.loop) {
-        owner.apply({ type: "select", selection: { start: 0, end: 1 } }, engine);
-        owner.apply({ type: "cycle" }, engine);
-        owner.apply({ type: "select", selection: null }, engine);
+        owner.apply({ type: "select", selection: { start: 0, end: 1 } }, standing);
+        owner.apply({ type: "cycle" }, standing);
+        owner.apply({ type: "select", selection: null }, standing);
     }
     sent.length = 0;
     return { owner, sent, engine };

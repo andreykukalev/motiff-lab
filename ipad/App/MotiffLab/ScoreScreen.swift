@@ -408,7 +408,6 @@ struct ScoreScreen: View {
         }
         let id = piece.id
         let rolled = roll
-        score.penChanged = { [weak rolled] on in rolled?.penOn = on }
         let understood = insights
         score.notesChanged = { [weak heard, weak rolled, weak understood] in
             rolled?.notesChanged()
@@ -799,6 +798,13 @@ extension ScoreScreen {
         roll.cleared = { [weak score] gesture in score?.clearSelection(gesture: gesture) }
         roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
         roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
+        // The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:
+        // one tool at a time.
+        score.penChanged = { [weak roll, weak score] on in
+            guard let roll else { return }
+            roll.penOn = on
+            if let score, RollInput.rollNavigates(penOn: on, mode: roll.mode) { roll.choose(.navigate, score: score) }
+        }
     }
 
     /// Space and the playhead on the roll. The playhead moved there (v0.2) stays inside the loop, and a tap in a selection that
@@ -1556,7 +1562,7 @@ struct FocusRollCard: View {
     private func head(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Spacer(minLength: 0)
-            RollModeSwitch(chosen: roll.shownMode, text: text) { roll.choose($0, score: score) }
+            RollModeSwitch(chosen: roll.shownMode, text: text) { roll.chooseTool($0, score: score) }
             if let editor = score.noteEditor {
                 if roll.shownMode == .edit {
                     RollEditTools(score: score, editor: editor, text: text, compact: compact)

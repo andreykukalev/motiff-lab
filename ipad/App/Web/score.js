@@ -960,6 +960,14 @@ for (const name of ["touchmove", "wheel"]) {
 }
 
 /**
+ * A stroke of the pen began (`on`) or ended (#521 10): while it is written playback leaves the page where it is, so the
+ * music never moves under the pen, and after it for as long as after a scroll by hand.
+ */
+function writing({ on }) {
+    sounding.byHand = on ? Infinity : performance.now();
+}
+
+/**
  * Marks the notes sounding at `tick` on the page, or on the card in focus, as the web app's score view does; while
  * `playing`, the page keeps the system with them below the bar. Called about thirty times a second from Swift with the
  * player's position; `follow` true (a new Play) follows again at once after a scroll by hand. Returns the top the page
@@ -1339,5 +1347,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
