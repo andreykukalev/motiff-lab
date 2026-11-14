@@ -32,6 +32,14 @@ export function gestureFor(mode: InteractionMode, insideSelection: boolean): Rol
     }
 }
 
+/**
+ * Whether a press of this pointer type may change the selection on the roll, its bar numbers, its loop strip and its
+ * handles (#511 4.1): while the Pen is on the stylus writes on the score and never selects here; a finger and the mouse do.
+ */
+export function selectsOnRoll(pointerType: string, penOn: boolean): boolean {
+    return pointerType !== "pen" || !penOn;
+}
+
 /** A box drawn across the roll, in ticks and keys: from one corner to the other, either way round. */
 export interface RollBox {
     fromTick: number;

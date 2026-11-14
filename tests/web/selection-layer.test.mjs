@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dragStartOf, menuPlace, ordered } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-layer.js";
+import { dragStartOf, handleTakes, menuPlace, ordered } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-layer.js";
 import { barLines, beatAt, keyLines, nearestLine, spanOf, stepEdge } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-beats.js";
 import { BRACKET_LIFT } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 
@@ -110,4 +110,14 @@ test("a press starts a selection as the host's rule for its pointer says, else a
     assert.equal(dragStartOf("touch", undefined, false, false), "longPress");
     assert.equal(dragStartOf("touch", undefined, false, true), "now");
     assert.equal(dragStartOf("mouse", undefined, false, false), "now");
+});
+
+test("in the Pen the stylus and the mouse write over the handles and a finger still takes them (#511 4.1)", () => {
+    assert.equal(handleTakes("pen", undefined, true), false, "the pen writes at a handle while the Pen is on");
+    assert.equal(handleTakes("mouse", undefined, true), false);
+    assert.equal(handleTakes("touch", undefined, true), true, "a finger takes a handle in every tool");
+    assert.equal(handleTakes("pen", undefined, false), true, "out of the Pen the rules are as before");
+    assert.equal(handleTakes("mouse", undefined, false), true);
+    assert.equal(handleTakes("pen", false, false), false, "the iPad's rules decide where it gives them");
+    assert.equal(handleTakes("touch", true, true), true);
 });

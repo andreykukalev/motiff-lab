@@ -45,6 +45,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published var penOn = false {
         didSet {
             applyInput()
+            penChanged?(penOn)
             if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
             sendMode()
         }
@@ -58,6 +59,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             sendMode()
         }
     }
+    /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
+    var penChanged: (@MainActor (Bool) -> Void)?
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
     var placeTapped: (@MainActor (Range<Double>) -> Void)?
     /// A playhead's handle taken, dragged or let go on the page (#495 UX-08): the player runs the model (PlayheadDrag.swift).

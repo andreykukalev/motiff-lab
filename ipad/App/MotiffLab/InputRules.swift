@@ -5,8 +5,9 @@ import Foundation
 /// stylus does what the chosen tool does: in Navigate it moves the music as a finger does, in Select it selects by
 /// beats, with the Pen it writes. A finger never writes while the iPad is used with a stylus. Without one (the iPad's
 /// setting «Only draw with Apple Pencil» off) one finger takes the tool and two fingers scroll, so every tool works with
-/// a finger alone. The selection's handles move with any finger or stylus in any tool, and while one is held nothing
-/// writes. The same rules hold in Notes and on a PDF, where nothing can be selected.
+/// a finger alone. The selection's handles and the playheads' handles move with a finger in any tool and with the stylus
+/// wherever it does not write: with the Pen the stylus writes everywhere, at the handles too (#511 4.1), so a stroke never
+/// moves a selection's edge. The same rules hold in Notes and on a PDF, where nothing can be selected.
 struct InputRules: Equatable, Sendable {
     /// The tool chosen in the bar: none before the modes (the experiment off) with the Pen off.
     enum Tool: Equatable, Sendable {
@@ -92,11 +93,25 @@ struct InputRules: Equatable, Sendable {
         !writes(pointer)
     }
 
-    /// What the score page is told (`motiff.input`): for "touch" and "pen", how a press selects and whether a tap acts.
+    /// Whether a press of the pointer on a selection handle or a playhead's handle takes the handle (#511 4.1): a finger
+    /// always does; the stylus only where it does not write, so with the Pen it writes over the handles as everywhere.
+    func takesHandles(_ pointer: Pointer) -> Bool {
+        pointer == .finger || !writes(pointer)
+    }
+
+    /// Whether the pen's gesture takes a touch of the pointer at a point `nearHandle` (a selection's or a playhead's
+    /// handle, within `handleReach`) or not: only a pointer that writes reaches the gesture, and it leaves the handles to
+    /// the pointers that take them.
+    func inkTakes(_ pointer: Pointer, nearHandle: Bool) -> Bool {
+        writes(pointer) && !(nearHandle && takesHandles(pointer))
+    }
+
+    /// What the score page is told (`motiff.input`): for "touch" and "pen", how a press selects, whether a tap acts and
+    /// whether a press on a handle takes it.
     var page: [String: Any] {
         var rules: [String: Any] = [:]
         for pointer in Pointer.allCases {
-            rules[pointer.pageName] = ["select": selectStart(pointer).rawValue, "tap": taps(pointer)] as [String: Any]
+            rules[pointer.pageName] = ["select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer)] as [String: Any]
         }
         return rules
     }
@@ -144,6 +159,9 @@ enum RollMode: String, CaseIterable, Sendable {
 struct RollInput: Equatable, Sendable {
     var stylus: Bool
     var mode: RollMode
+    /// Whether the bar's Pen is on (#511 4.1): then the stylus writes on the score and never changes the selection on the
+    /// roll, its bar numbers, loop strip and handles; a finger still does.
+    var penOn = false
 
     /// Whether a press of the pointer on the notes edits them; otherwise it moves the roll.
     func edits(_ pointer: InputRules.Pointer) -> Bool {
@@ -156,8 +174,13 @@ struct RollInput: Equatable, Sendable {
         !stylus && mode == .edit ? 2 : 1
     }
 
+    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection.
+    func selects(_ pointer: InputRules.Pointer) -> Bool {
+        pointer == .finger || !penOn
+    }
+
     /// What the roll is told (`roll.input`).
     var page: [String: Any] {
-        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers]
+        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers, "penSelects": selects(.stylus)]
     }
 }

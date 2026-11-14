@@ -4,8 +4,8 @@ import UIKit.UIGestureRecognizerSubclass
 /// The pen on the score and on a PDF's pages (#479 items 7 and 18). The stroke is caught here rather than by PencilKit,
 /// and drawn while it is written with the very outline the page then keeps (InkOutline, the page's `outlinePath`), its
 /// pressure and its pencil grain, so it looks the same before and after the Pencil lifts. Who writes and who scrolls is
-/// InputRules': the gesture takes only the pointers that write, the scroll view's pan only those that scroll, and a touch
-/// on a selection handle is left to the handle. The eraser draws nothing here: its points go to the host as they come,
+/// InputRules': the gesture takes only the pointers that write, the scroll view's pan only those that scroll, and a finger
+/// on a selection handle is left to the handle (the Pencil writes there in the Pen, #511 4.1). The eraser draws nothing here: its points go to the host as they come,
 /// which takes the marks under it at once and saves the press when it lifts (BUG-05).
 @MainActor
 final class InkInput: NSObject, UIGestureRecognizerDelegate {
@@ -26,7 +26,8 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     /// The eraser's newest points in the host's coordinates, as they come, the reported ones only (never the predicted:
     /// the eraser takes only where it has been); `lifted` is true once, last, when it lifts or the touch is let go.
     var rubbed: (_ points: [CGPoint], _ lifted: Bool) -> Void = { _, _ in }
-    /// The selection handles' centres in the host's coordinates: a touch there moves the handle and never writes.
+    /// The selection handles' centres in the host's coordinates: a finger there moves the handle and never writes; the
+    /// Pencil writes there in the Pen (#511 4.1).
     var handles: () -> [CGPoint] = { [] }
     /// The playheads' handles' centres in the host's coordinates (#495 UX-08): a finger there drags the playhead and never
     /// writes; the Pencil writes there in the Pen, as the design has it (playback-model-v0.5.2, «Жест»).
@@ -123,14 +124,14 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
 
     // MARK: - UIGestureRecognizerDelegate
 
-    /// A touch on a selection handle (its 44 pt target) moves the handle, and a finger on a playhead's handle drags the
-    /// playhead: the pen does not take them.
+    /// A finger on a selection handle or a playhead's handle (its 44 pt target) moves the handle; the Pencil that writes
+    /// writes there too (#511 4.1, InputRules.inkTakes), so a stroke never moves an edge of the selection.
     func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard recognizer === gesture, let host else { return true }
         let at = touch.location(in: host)
         let near = { (spot: CGPoint) in hypot(spot.x - at.x, spot.y - at.y) <= InputRules.handleReach }
-        if touch.type != .pencil && heads().contains(where: near) { return false }
-        return !handles().contains(where: near)
+        let pointer: InputRules.Pointer = touch.type == .pencil ? .stylus : .finger
+        return rules.inkTakes(pointer, nearHandle: handles().contains(where: near) || heads().contains(where: near))
     }
 
     /// Two fingers scroll and pinch beside a finger writing, which then lets its stroke go.

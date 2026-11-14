@@ -74,6 +74,10 @@ final class RollController: NSObject, ObservableObject {
     private var editorState: NoteEditorState?
     /// Who edits and who moves the roll, as last told (RollInput).
     private var input: [String: Any] = [:]
+    /// The bar's Pen (#511 4.1): while it is on, the Pencil changes no selection on the roll.
+    var penOn = false {
+        didSet { if penOn != oldValue { applyInput() } }
+    }
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -160,7 +164,7 @@ final class RollController: NSObject, ObservableObject {
     /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
     /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode).page
+        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn).page
         guard loaded else { return }
         let data = input
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
@@ -273,7 +277,7 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
-            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode).page
+            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn).page
             _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
         } catch {
             problem = error.localizedDescription

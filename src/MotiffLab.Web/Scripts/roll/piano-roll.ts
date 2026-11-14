@@ -28,7 +28,7 @@ import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
-import { drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, type RollGesture } from "./roll-modes.js";
+import { drawBox, drawPlayheads, gestureFor, notesInBox, playheadKnobs, selectsOnRoll, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
@@ -47,6 +47,14 @@ import {
     viewOnLoad,
     type ViewFrame,
 } from "./roll-view.js";
+
+/** Who edits and who moves the iPad's roll (InputRules.swift RollInput), and whether the stylus selects (#511 4.1). */
+interface PointerRules {
+    touch: boolean;
+    pen: boolean;
+    scrollFingers: number;
+    penSelects?: boolean;
+}
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -387,7 +395,7 @@ export class PianoRoll {
      * stylus the stylus edits and a finger moves the roll; without one a finger edits and two move it. Null: every pointer
      * edits, as on the web.
      */
-    private pointerRules: { touch: boolean; pen: boolean; scrollFingers: number } | null = null;
+    private pointerRules: PointerRules | null = null;
     /** A finger's tap in the editor that adds or takes out a note when it is lifted, as a second finger may yet make it a scroll. */
     private editTap: { pointer: number; x: number; y: number; tick: number; pitch: number } | null = null;
     /**
@@ -874,8 +882,11 @@ export class PianoRoll {
         this.invalidate();
     }
 
-    /** Which pointers edit with the editor on ("touch", "pen") and how many fingers move the roll; null for every pointer, one finger. */
-    setPointerRules(rules: { touch: boolean; pen: boolean; scrollFingers: number } | null): void {
+    /**
+     * Which pointers edit with the editor on ("touch", "pen") and how many fingers move the roll; null for every pointer, one
+     * finger. `penSelects` false: the Pen is on, so the stylus changes no selection here (#511 4.1).
+     */
+    setPointerRules(rules: PointerRules | null): void {
         this.pointerRules = rules;
         this.cancelEditPress();
         this.invalidate();
@@ -938,6 +949,11 @@ export class PianoRoll {
     private editsWith(type: string): boolean {
         const rules = this.pointerRules;
         return rules === null || (type === "touch" ? rules.touch : rules.pen);
+    }
+
+    /** Whether a press of this pointer type may change the selection: not the stylus while the Pen is on (#511 4.1). */
+    private selectsWith(type: string): boolean {
+        return selectsOnRoll(type, this.mode === "pen" || this.pointerRules?.penSelects === false);
     }
 
     /** Whether a finger's tap in the editor waits to be lifted: two fingers move the roll, so a second may still come. */
@@ -2438,7 +2454,7 @@ export class PianoRoll {
             this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
             return true;
         }
-        const edge = this.editing && (this.pointerRules === null || y >= this.header) ? null : this.edgeAt(x);
+        const edge = !this.selectsWith(event.pointerType) || (this.editing && (this.pointerRules === null || y >= this.header)) ? null : this.edgeAt(x);
         if (edge === null || this.motif === null) {
             return false;
         }
@@ -2457,7 +2473,7 @@ export class PianoRoll {
             void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
             return;
         }
-        if (this.beginRulePress(event, x, y, tick, pitch)) {
+        if (this.beginRulePress(event, x, y, tick, pitch) || !this.selectsWith(event.pointerType)) {
             return;
         }
         // Shift-click on a bar number extends the selection to that bar.

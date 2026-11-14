@@ -213,10 +213,11 @@ function edit({ on, tool, picked }) {
 
 /**
  * Who edits and who moves the roll (#479 item 23, InputRules.swift `RollInput`): whether a finger ("touch") and the Pencil
- * ("pen") edit while the editor is on, and how many fingers move the roll.
+ * ("pen") edit while the editor is on, how many fingers move the roll, and whether the Pencil changes the selection (not
+ * while the Pen is on, #511 4.1).
  */
-function input({ touch, pen, scrollFingers }) {
-    view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1 });
+function input({ touch, pen, scrollFingers, penSelects }) {
+    view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1, penSelects: penSelects !== false });
 }
 
 /** A step of the zoom from Swift's controls (#479 item 23): "time" or "pitch", +1 in or −1 out; "fit" is Fit. */
