@@ -324,7 +324,7 @@ final class StylusTests: XCTestCase {
         pdf.pencilGesture(.eraser, at: nil)
         XCTAssertEqual(pdf.tool, .eraser)
         pdf.pencilGesture(.eraser, at: nil)
-        XCTAssertEqual(pdf.tool, .pen(.carmine), "the eraser again goes back to the tool before")
+        XCTAssertEqual(pdf.tool, .pen(.forest), "the eraser again goes back to the tool before, in the ink chosen last")
         pdf.pencilGesture(.previous, at: nil)
         XCTAssertEqual(pdf.tool, .eraser, "«switch to previous» goes to the tool before")
     }
