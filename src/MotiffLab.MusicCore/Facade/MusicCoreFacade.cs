@@ -57,6 +57,10 @@ public sealed class MusicCoreFacade
     /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
     /// Also within 12 (decision record 0029, the scan engine «Авто»), scan.vector on piece 0 reads a born-digital PDF's pages
     /// on the device and says which pages go to the scan server (<see cref="ScanRequest.Vector"/>), a call added.
+    /// Also within 12 (version 0.6, the assistant's first steps without a model, 0028), assistant.tools on piece 0 answers
+    /// the assistant's tool registry (<see cref="Assistant.AssistantTools"/>), and on an open piece assistant.call runs a tool
+    /// and answers what it read or its drafts (never applied), assistant.digest the facts digest of bars or of the piece, and
+    /// assistant.address a note's address (bar.hand.index) or the note at one, calls added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -218,6 +222,7 @@ public sealed class MusicCoreFacade
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),
                     "scan.vector" => ScanRequest.Vector(fields),
+                    "assistant.tools" => AssistantRequest.Tools(),
                     "parts.split" => PartsRequest.Split(fields),
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),
