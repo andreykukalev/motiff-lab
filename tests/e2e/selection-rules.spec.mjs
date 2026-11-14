@@ -57,17 +57,23 @@ test("the modes choose what a drag does, and only the handles, ✕ and Escape ch
     await expect(status(page)).toContainText(/Selected bar \d+, beat \d+, through bar \d+, beat \d+/);
     const selected = await named(page);
 
-    // A click inside or outside, and a drag that starts inside, leave it as it is.
+    // A click inside or outside, and a drag that starts outside, leave it as it is (#511 section 2.1, scenario C).
     await page.mouse.click(bars[3].left + 12, bars[3].middle);
     await page.mouse.click(bars[5].left + 12, bars[5].middle);
-    await drag(page, { x: bars[3].left + 12, y: bars[3].middle }, { x: bars[5].right - 4, y: bars[5].middle });
+    await drag(page, { x: bars[5].left + 12, y: bars[5].middle }, { x: bars[6].right - 4, y: bars[6].middle });
     await expect(status(page)).toContainText(selected);
+
+    // A drag that starts inside moves the edge nearer the press as far as the pointer goes (#511 section 2.1, scenario A;
+    // before 0.5.4 it left the selection as it was): from the last bar's first beat, the end moves on by the pointer's way.
+    await drag(page, { x: bars[4].left + 4, y: bars[4].middle }, { x: bars[5].left + 4, y: bars[5].middle });
+    await expect(status(page)).toContainText(/Selected bar 2, beat 1, through bar 5, beat \d+/);
+    const edited = await named(page);
 
     // Shift and a click in Select extend it to the beat clicked.
     await page.keyboard.down("Shift");
-    await page.mouse.click(bars[5].right - 6, bars[5].middle);
+    await page.mouse.click(bars[6].right - 6, bars[6].middle);
     await page.keyboard.up("Shift");
-    await expect(status(page)).not.toContainText(selected);
+    await expect(status(page)).not.toContainText(edited);
     const extended = await named(page);
 
     // Navigate again: a drag elsewhere moves nothing of the selection; ✕ in the menu removes it.

@@ -95,6 +95,7 @@ public partial class PlaybackLab
         Project checkedProject = project.Fingerprinted();
         DateTimeOffset now = DateTimeOffset.Now;
         bool anyHere = false;
+        List<(string Id, bool Here)> marks = [];
         try
         {
             IJSObjectReference module = await OriginalsAsync();
@@ -134,6 +135,7 @@ public partial class PlaybackLab
 
                 anyHere |= here && original.Kind is OriginalKind.Pdf or OriginalKind.Images or OriginalKind.Audio;
                 checkedProject = checkedProject.MarkHeld(original.Id, HoldingDevice.Web, here, now);
+                marks.Add((original.Id, here));
             }
 
             if (anyHere)
@@ -145,14 +147,45 @@ public partial class PlaybackLab
         {
             // The marks are a convenience: the piece works without them, and they are checked again on the next open.
             checkedProject = project;
+            marks.Clear();
         }
 
-        if (changed || !ReferenceEquals(checkedProject, project))
+        await SaveMarksAsync(project, !ReferenceEquals(checkedProject, project), marks, now, changed);
+    }
+
+    /// <summary>
+    /// Saves the marks the check found, when they or the piece changed. The check waits on the browser while the player works
+    /// on (a selection saved into the resume point as the piece opens), so the marks go onto the piece as it is now, not onto
+    /// the copy the check began with, which would undo that work.
+    /// </summary>
+    private async Task SaveMarksAsync(Project checkedFrom, bool fingerprint, List<(string Id, bool Here)> marks, DateTimeOffset now, bool changed)
+    {
+        if (_project is not { } current || current.Id != checkedFrom.Id)
         {
-            _project = checkedProject;
+            return;
+        }
+
+        Project marked = Marked(fingerprint ? current.Fingerprinted() : current, marks, now);
+        if (changed || !ReferenceEquals(marked, current))
+        {
+            _project = marked;
             CurrentPiece.Saved(_project);
             await Projects.SaveAsync(_project);
         }
+    }
+
+    /// <summary>The piece with this browser's marks on its originals, those it still has.</summary>
+    private static Project Marked(Project project, List<(string Id, bool Here)> marks, DateTimeOffset now)
+    {
+        foreach ((string id, bool here) in marks)
+        {
+            if (project.FindOriginal(id) is not null)
+            {
+                project = project.MarkHeld(id, HoldingDevice.Web, here, now);
+            }
+        }
+
+        return project;
     }
 
     /// <summary>«Привязать оригинал» for the PDF: the picked file is the piece's PDF by its fingerprint, and it is kept in the piece again.</summary>

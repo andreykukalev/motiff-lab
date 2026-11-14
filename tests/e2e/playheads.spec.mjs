@@ -90,7 +90,9 @@ test("one Play button whose colour follows the place, and Цикл that loops th
     await expect(play).not.toHaveClass(/\bpiece\b/);
     const inside = barOf(bars, await across(track));
     expect(inside === 4 || inside === 5).toBe(true);
-    expect(Math.abs((await across(blue)) - (await across(track))) < 16).toBe(true);
+    // Paused inside the selection, both playheads stand at one place (#511 section 3.2, kept as is): the blue line where
+    // the black track's dot is. The track is as wide as its bar, so its middle is the bar's, not the place.
+    expect(Math.abs((await across(blue)) - (await across(track.locator(".dot"))))).toBeLessThan(2);
 
     // Цикл off: the position stays; a click on a beat after the selection makes Play the piece's, in ink.
     await cycle.click();

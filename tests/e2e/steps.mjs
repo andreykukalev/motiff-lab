@@ -121,15 +121,29 @@ export async function withAudioDiagnostic(page, testInfo, steps) {
 
 /**
  * Clicks a bar number on the roll. By default the bars are Für Elise's: a pickup of one eighth, then
- * bars of 3/8; other pieces give their pickup and bar length in quarters.
+ * bars of 3/8; other pieces give their pickup and bar length in quarters. A selection there is is let go first: a tap
+ * outside it leaves it as it is (#511 section 2.1, scenarios B and C), so the press rests on the bar until the hold takes
+ * it away, and the click then selects the bar. A bar inside the selection cannot be selected so; the spec lets it go first.
  */
 export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } = {}) {
     await openRoll(page);
+    const status = page.locator(".selection-status");
     const roll = page.locator(".roll");
     const box = await roll.boundingBox();
     const quarters = pickup + (bar - 1) * barQuarters + 0.4;
-    await page.mouse.click(box.x + GUTTER + quarters * PIXELS_PER_QUARTER, box.y + HEADER / 2);
-    await expect(page.locator(".selection-status")).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
+    const x = box.x + GUTTER + quarters * PIXELS_PER_QUARTER;
+    const y = box.y + HEADER / 2;
+    if (SELECTED.test(await status.textContent() ?? "")) {
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        try {
+            await expect(status, `bar ${bar} lies outside the selection, so a hold on it lets the selection go`).not.toContainText(SELECTED, { timeout: 5_000 });
+        } finally {
+            await page.mouse.up();
+        }
+    }
+    await page.mouse.click(x, y);
+    await expect(status).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
 }
 
 /** The selection status line once something is selected, in English or Russian (selection.phrase, .sentence, .selected). */
