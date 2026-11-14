@@ -9,10 +9,20 @@ final class TempoSetting: ObservableObject {
     @Published var percent = 100 {
         didSet {
             let clamped = TempoReading.clamped(percent)
-            if clamped != percent { percent = clamped }
-            if percent != oldValue { changed?(percent) }
+            // Out of range: setting the clamped value runs this again, which tells the engine once.
+            if clamped != percent {
+                percent = clamped
+                return
+            }
+            if percent != told {
+                told = percent
+                changed?(percent)
+            }
         }
     }
+
+    /// The percent the engine was last told, so a value clamped back to it is not sent again.
+    private var told = 100
 
     /// The piece's tempo at the start and where it comes from, from music-core's playback score.
     @Published var reading: TempoReading?
