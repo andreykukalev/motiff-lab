@@ -22,6 +22,13 @@ public partial class PlaybackLab
     /// <summary>Practice view in force: only on the score page itself, not in Expand or while comparing, which have their own bars.</summary>
     private bool Practicing => _practice && !Focused && !_assembling;
 
+    /// <summary>
+    /// The bar's «Практика» lit, the kit's active state (#543 7): while the selection menu and the controls show, that is
+    /// practice view off; dark in practice view. Read from the one state every way in and out changes (the button, the menu's
+    /// Hide, the controls' Leave, F and Escape, Expand left), as the iPad's PracticeView.lit.
+    /// </summary>
+    private bool PracticeLit => !Practicing;
+
     /// <summary>The bar's «Практика» and the selection menu's Hide: in or out, and nothing else changes.</summary>
     private async Task TogglePracticeAsync()
     {

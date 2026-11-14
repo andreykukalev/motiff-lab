@@ -173,8 +173,9 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-                    @* Practice view (#533 11): in and out by one press, F too; the selection, playback and the loop go on as they are. *@
-                    <button class="act @(_practice ? "on" : null)" aria-pressed="@(_practice ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
+                    @* Practice view (#533 11): in and out by one press, F too; the selection, playback and the loop go on as they are.
+                       Lit while the selection menu and the controls show, dark in practice view (#543 7). *@
+                    <button class="act @(PracticeLit ? "on" : null)" aria-pressed="@(PracticeLit ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
                             @onclick="TogglePracticeAsync"><Icon Name="practice" Size="IconSize.Large" /></button>
                     @if (ReferenceOn)
                     {
