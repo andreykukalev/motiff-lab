@@ -4,7 +4,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { actsOnRoll, drawPlayheads, drawPositionLine, gestureFor, notesInBox, selectsOnRoll } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
+import { actsOnRoll, drawPlayheads, drawPositionLine, gestureFor, notesInBox, rollPlaces, selectsOnRoll } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
+import { viewOf } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-model.js";
+import { practiced } from "../../src/MotiffLab.Web/wwwroot/js/layout/practice-view.js";
 
 test("each mode begins its own gesture, and a press inside the selection only places a playhead in Select", () => {
     assert.equal(gestureFor("navigate", false), "pan");
@@ -32,28 +34,41 @@ function recorder() {
 const frame = { xOf: (tick) => 62 + tick / 10, header: 24, left: 62, right: 800, height: 300 };
 const inks = { ink: "ink", accent: "accent", surface: "surface", paper: "paper" };
 
-test("the black playhead on the roll is an ink line with a dot, hollow when it stands; no grey column (#479 item 19)", () => {
+test("the roll shows one playhead at the position: blue inside the selection, black outside, playing or stopped (#543 6)", () => {
+    const selection = { start: 960, end: 1920 };
+    const at = (tick, loop, transport) => rollPlaces(viewOf({ selection, loop, tick, transport }));
+    assert.deepEqual(at(1200, false, "playing"), { black: 1200, blue: 1200, playing: true }, "inside: blue, at the position");
+    assert.deepEqual(at(1200, true, "stopped"), { black: 1200, blue: 1200, playing: false });
+    assert.deepEqual(at(2400, false, "playing"), { black: 2400, blue: null, playing: true }, "past the end: black, no blue one waiting at the edge");
+    assert.deepEqual(at(480, true, "stopped"), { black: 480, blue: null, playing: false }, "before it with Цикл on: black, no blue one at the start");
+    assert.deepEqual(at(1920, false, "stopped"), { black: 1920, blue: null, playing: false }, "at the end is outside: black");
+    assert.deepEqual(rollPlaces(viewOf({ selection: null, loop: false, tick: 300, transport: "stopped" })), { black: 300, blue: null, playing: false });
+    // Across the selection's edge only the colour changes: the place is the position each frame.
+    const crossing = [1900, 1919, 1920, 1940].map((tick) => at(tick, false, "playing"));
+    assert.deepEqual(crossing.map((places) => places.blue ?? places.black), [1900, 1919, 1920, 1940]);
+    assert.deepEqual(crossing.map((places) => places.blue !== null), [true, true, false, false]);
+    // Practice view hides the selection's playhead: black inside too (#533 11).
+    assert.deepEqual(rollPlaces(practiced(viewOf({ selection, loop: false, tick: 1200, transport: "playing" }), "on")), { black: 1200, blue: null, playing: true });
+});
+
+
+test("outside the selection the web's roll draws an ink line with its dot, hollow when it stands; no grey column (#479 item 19)", () => {
     const { context, drawn } = recorder();
     drawPlayheads(context, frame, { black: 960, blue: null, playing: false }, inks);
     assert.deepEqual(drawn.rects, [{ x: 157, y: 24, w: 2, h: 276, colour: "ink" }], "one 2 px line, nothing a beat wide");
     assert.deepEqual(drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface"], "a ring, the dot, and its hollow middle");
 
     const playing = recorder();
-    drawPlayheads(playing.context, frame, { black: 960, blue: 1200, playing: true }, inks);
-    assert.deepEqual(playing.drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface", "accent"], "solid while playing; the blue knob in cobalt");
-    assert.deepEqual(playing.drawn.discs.map((disc) => disc.y), [24, 24, 24, 24], "apart, both knobs sit on the bar numbers");
+    drawPlayheads(playing.context, frame, { black: 960, blue: null, playing: true }, inks);
+    assert.deepEqual(playing.drawn.discs.map((disc) => disc.colour), ["surface", "ink"], "solid while playing");
 });
 
-test("where the two playheads of the model meet, the black dot hangs under the blue knob, so both show (#495 UX-10)", () => {
+test("inside it the one line is cobalt with its knob, and no black dot hangs under it (#543 6)", () => {
     const { context, drawn } = recorder();
     drawPlayheads(context, frame, { black: 1200, blue: 1200, playing: false }, inks);
-    const dot = drawn.discs.filter((disc) => disc.colour === "ink");
-    const knob = drawn.discs.filter((disc) => disc.colour === "accent");
-    assert.equal(dot.length, 1);
-    assert.equal(knob.length, 1);
-    assert.equal(dot[0].x, knob[0].x, "on the same line");
-    assert.equal(knob[0].y, 24);
-    assert.ok(dot[0].y - dot[0].radius >= knob[0].y + knob[0].radius, "the dot clear below the knob");
+    assert.deepEqual(drawn.rects.map((rect) => [rect.x, rect.colour]), [[181, "accent"]], "one line, cobalt");
+    assert.deepEqual(drawn.discs.map((disc) => disc.colour), ["surface", "accent"], "one knob, ringed");
+    assert.equal(drawn.discs.at(-1).y, 24, "on the bar numbers' edge");
 });
 
 test("a playback line off the notes is not drawn", () => {

@@ -7,6 +7,7 @@ import {
     drawOverview,
     drawPosition,
     insideOf,
+    laneShown,
     overviewGrab,
     overviewTick,
     overviewTrack,
@@ -51,22 +52,28 @@ test("inside the selection is from its start up to, not at, its end", () => {
     assert.equal(insideOf(null, 1000), false);
 });
 
-test("the black playhead is an ink line under the loop strip, and the blue one a cobalt line with its handle in it (#495 UX-10)", () => {
-    const alone = recorder();
-    drawPosition(alone.context, frame, { black: 480, blue: null, playing: true }, inks);
-    assert.deepEqual(alone.drawn.rects, [{ x: 109, y: 24 + 28, w: 2, h: 300 - 24 - 28, colour: "ink" }]);
-    assert.deepEqual(alone.drawn.discs, [], "the black dot is on the whole-piece strip");
+test("the roll's one playhead is a line with its marker in the loop strip, cobalt inside the selection and ink outside (#543 6)", () => {
+    const outside = recorder();
+    drawPosition(outside.context, frame, { black: 480, blue: null, playing: true }, inks);
+    assert.deepEqual(outside.drawn.rects, [{ x: 109, y: 24, w: 2, h: 300 - 24, colour: "ink" }], "from the loop strip down");
+    assert.deepEqual(outside.drawn.discs.map((disc) => [disc.x, disc.y, disc.colour]), [[110, 24 + 14, "surface"], [110, 24 + 14, "ink"]], "a black marker in the loop strip at the line");
 
-    const both = recorder();
-    drawPosition(both.context, frame, { black: 2400, blue: 1920, playing: true }, inks);
-    assert.deepEqual(both.drawn.rects.map((rect) => [rect.x, rect.colour]), [[301, "ink"], [253, "accent"]]);
-    assert.equal(both.drawn.discs.at(-1).y, 24 + 14, "the blue handle sits in the loop lane");
-    assert.equal(both.drawn.discs.at(-1).x, 254, "at the selection's end, the strip's right handle");
+    const inside = recorder();
+    drawPosition(inside.context, frame, { black: 1200, blue: 1200, playing: true }, inks);
+    assert.deepEqual(inside.drawn.rects.map((rect) => [rect.x, rect.colour]), [[181, "accent"]], "one cobalt line, no ink one under it");
+    assert.deepEqual(inside.drawn.discs.map((disc) => [disc.x, disc.colour]), [[182, "surface"], [182, "accent"]], "one blue marker at the line");
 
-    const together = recorder();
-    drawPosition(together.context, frame, { black: 1200, blue: 1200, playing: false }, inks);
-    assert.deepEqual(together.drawn.rects.map((rect) => rect.colour), ["ink", "accent"], "cobalt over ink where they meet");
-    assert.equal(together.drawn.discs.at(-1).colour, "surface", "stopped, the handle is hollow");
+    const stopped = recorder();
+    drawPosition(stopped.context, frame, { black: 2400, blue: null, playing: false }, inks);
+    assert.equal(stopped.drawn.discs.length, 3, "stopped, the marker still shows, hollow");
+    assert.equal(stopped.drawn.discs.at(-1).colour, "surface");
+});
+
+test("in practice view the loop strip is hidden and takes no press; with the lanes otherwise it is there (#543, 0.5.6 tail)", () => {
+    assert.equal(laneShown(true, "off"), true);
+    assert.equal(laneShown(true, "on"), false, "hidden, its handles, its tap and its drag take nothing");
+    assert.equal(laneShown(true, "reveal"), false, "nor while practice view shows its controls");
+    assert.equal(laneShown(false, "off"), false, "no lanes, no strip (the web's roll)");
 });
 
 test("the loop strip draws nothing without a selection and a handle at each end with one", () => {
