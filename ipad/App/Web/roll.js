@@ -28,14 +28,14 @@ const host = {
     invokeMethodAsync(method, ...args) {
         switch (method) {
             case "OnRollRange": {
-                const [anchor, current, click, extend] = args;
+                const [anchor, current, click, extend, , gesture] = args;
                 const first = barAt(Math.min(anchor, current));
                 const last = click ? first : barAt(Math.max(Math.min(anchor, current), Math.max(anchor, current) - 1));
                 if (first !== undefined && last !== undefined) {
                     // The ticks too: a drag across the bar numbers or a handle selects by beats where the score does (#479 item 23).
                     const from = Math.min(anchor, current);
                     const to = Math.max(anchor, current);
-                    post({ range: { first, last, extend: Boolean(extend), click: Boolean(click), from, to } });
+                    post({ range: { first, last, extend: Boolean(extend), click: Boolean(click), from, to, gesture } });
                 }
                 break;
             }
@@ -44,7 +44,14 @@ const host = {
                 post({ zoom: args[0] });
                 break;
             case "OnRollClear":
-                post({ clear: true });
+                // With the gesture that cleared it (#511 11): a hold and the drag after it are one step of the history.
+                post({ clear: { gesture: args[0] } });
+                break;
+            case "OnRollGestureCancelled":
+                post({ gestureCancelled: args[0] });
+                break;
+            case "OnRollHoldHint":
+                post({ holdHint: true });
                 break;
             case "OnRollSpace":
                 post({ space: true });

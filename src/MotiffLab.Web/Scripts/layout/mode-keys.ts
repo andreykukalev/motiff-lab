@@ -10,6 +10,7 @@ import type { InteractionMode } from "../score/score-modes.js";
 export interface ModeTarget {
     invokeMethodAsync(method: "OnModeKeyAsync", mode: InteractionMode): Promise<void>;
     invokeMethodAsync(method: "OnEscapeKeyAsync" | "OnSpaceKeyAsync"): Promise<void>;
+    invokeMethodAsync(method: "OnUndoKeyAsync", redo: boolean): Promise<void>;
 }
 
 type KeyPress = Pick<KeyboardEvent, "code" | "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target" | "defaultPrevented">;
@@ -50,10 +51,35 @@ export function playsOrPauses(event: KeyPress): boolean {
     return typeof target?.closest !== "function" || target.closest(SPACE_OWNERS) === null;
 }
 
+/**
+ * The selection's Undo by keyboard (#511 11): ⌘Z or Ctrl+Z, and Redo by ⇧⌘Z, Ctrl+Shift+Z or Ctrl+Y, by the key's place so
+ * a Russian layout works; outside a field or a dialog, whose Undo is its own, and not taken already. Null for another key.
+ */
+export function undoFor(event: KeyPress): "undo" | "redo" | null {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.defaultPrevented) {
+        return null;
+    }
+    const target = event.target as { closest?: (selector: string) => unknown } | null;
+    if (typeof target?.closest === "function" && target.closest(KEY_OWNERS) !== null) {
+        return null;
+    }
+    if (event.code === "KeyZ") {
+        return event.shiftKey ? "redo" : "undo";
+    }
+    return event.code === "KeyY" && event.ctrlKey && !event.shiftKey ? "redo" : null;
+}
+
 export class ModeKeys {
     private on = false;
 
     private readonly onKeyDown = (event: KeyboardEvent): void => {
+        const undo = undoFor(event);
+        if (undo !== null) {
+            // Undo works with the experiment off too: the page decides whose it is (the assembly's, the selection's).
+            event.preventDefault();
+            void this.target.invokeMethodAsync("OnUndoKeyAsync", undo === "redo");
+            return;
+        }
         if (!this.on || event.repeat) {
             return;
         }

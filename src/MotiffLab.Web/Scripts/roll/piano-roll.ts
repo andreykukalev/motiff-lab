@@ -33,6 +33,8 @@ import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, o
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { knobHeadAt, laneDragTick, laneHeadAt } from "./roll-head-drag.js";
+import { RollStripGesture, type StripHost } from "./roll-strip-gesture.js";
+import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
@@ -54,6 +56,18 @@ interface PointerRules {
     pen: boolean;
     scrollFingers: number;
     penSelects?: boolean;
+}
+
+/** A range dragged across the roll (see PianoRoll.drag). */
+interface RangeDrag {
+    pointer: number;
+    anchorX: number;
+    anchor: number;
+    current: number;
+    edge: boolean;
+    offset?: number;
+    how?: SelectionChange;
+    gesture?: string;
 }
 
 interface DotNetObject {
@@ -414,8 +428,13 @@ export class PianoRoll {
     private motif: { start: number; end: number; notes: Set<number>; alone: boolean } | null = null;
     /** The selection's span shown before the notes came back (BUG-04), until the selection is sent again: not a new one. */
     private keptSpan: Span | null = null;
-    /** A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the selection. */
-    private drag: { pointer: number; anchorX: number; anchor: number; current: number; edge: boolean } | null = null;
+    /**
+     * A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the
+     * selection, `offset` ticks from the pointer; how it changes the selection and the gesture it belongs to (#511 11).
+     */
+    private drag: RangeDrag | null = null;
+    /** The selection gesture on the strips (#511 2, 6.3). */
+    private readonly strip = new RollStripGesture(this.stripHost());
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
     private filtered: Set<number> | null = null;
     /** The range that plays for the selection [start, end), when it differs from what is selected; null for none. */
@@ -1381,7 +1400,7 @@ export class PianoRoll {
             return;
         }
         this.keepInView(bar.onset);
-        void this.dotnet.invokeMethodAsync("OnRollRange", bar.onset, bar.onset, true, extend && motif !== null);
+        void this.dotnet.invokeMethodAsync("OnRollRange", bar.onset, bar.onset, true, extend && motif !== null, extend && motif !== null ? "edit" : motif === null ? "create" : "replace", nextGestureId());
     }
 
     private keepInView(tick: number): void {
@@ -2421,12 +2440,14 @@ export class PianoRoll {
         }
         // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).
         const edits = this.editing && this.editsWith(event.pointerType);
-        if (this.pressPanOrEdge(event, x, y, tick, edits) || this.pressLoopLane(y, tick)) {
+        if (this.pressPanOrEdge(event, x, y, tick, edits)) {
             return;
         }
         if (y < this.header) {
             if (!this.editing) {
                 this.pressBarNumbers(event, model, x, y, tick, pitch);
+            } else {
+                this.pressLoopLane(y, tick);
             }
             return;
         }
@@ -2459,7 +2480,7 @@ export class PianoRoll {
             return false;
         }
         const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
-        this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
+        this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
         this.invalidate();
         return true;
     }
@@ -2478,10 +2499,11 @@ export class PianoRoll {
         }
         // Shift-click on a bar number extends the selection to that bar.
         if (event.shiftKey && this.motif !== null) {
-            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
+            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true, "edit", nextGestureId());
             return;
         }
-        this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
+        // Inside the selection a move edits it, outside a hold clears it; without one a press selects at once (#511 2.1).
+        this.strip.begin(event, x, y, tick);
         this.invalidate();
     }
 
@@ -2588,11 +2610,14 @@ export class PianoRoll {
                 this.press = null;
             }
         }
+        if (this.strip.move(event.pointerId, x, event.clientY - box.top)) {
+            return;
+        }
         if (this.drag === null || event.pointerId !== this.drag.pointer) {
             this.roll.style.cursor = x >= GUTTER && this.edgeAt(x) !== null ? "ew-resize" : "";
             return;
         }
-        this.drag.current = this.tickAtX(Math.max(GUTTER, x));
+        this.drag.current = Math.max(0, this.tickAtX(Math.max(GUTTER, x)) + (this.drag.offset ?? 0));
         // Dragging past either edge scrolls the roll along.
         if (x > this.host.clientWidth - 8 || x < GUTTER + 8) {
             this.keepInView(this.drag.current);
@@ -2605,7 +2630,7 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event)) {
+        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event) || this.strip.end(event.pointerId)) {
             return;
         }
         const press = this.press;
@@ -2634,7 +2659,7 @@ export class PianoRoll {
         const click = !drag.edge && Math.abs(x - drag.anchorX) < CLICK_SLOP;
         // An end edge let go on a beat line ends there, not a beat later: music-core rounds an end up to the next beat.
         const current = drag.edge && drag.current > drag.anchor ? Math.max(drag.anchor, drag.current - 1) : drag.current;
-        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false);
+        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false, drag.how ?? "create", drag.gesture ?? nextGestureId());
         this.drag = null;
         this.invalidate();
     };
@@ -2674,6 +2699,7 @@ export class PianoRoll {
         this.pan = null;
         this.rulePress = null;
         this.box = null;
+        this.strip.cancel();
         this.playhead.cancel();
         this.laneDrag.release();
         this.invalidate();
@@ -2777,6 +2803,32 @@ export class PianoRoll {
         return Math.abs(x - this.xOf(motif.start)) <= grab ? "start" : null;
     }
 
+    /** How the strips' selection gesture reaches the roll and the page. */
+    private stripHost(): StripHost {
+        return {
+            selection: () => (this.motif === null ? null : { start: this.motif.start, end: this.motif.end }),
+            beginRange: (pointer, x, tick, how, gesture) => {
+                this.drag = { pointer, anchorX: x, anchor: tick, current: tick, edge: false, how, gesture };
+                this.invalidate();
+            },
+            beginEdge: (pointer, anchor, offset, gesture) => {
+                this.drag = { pointer, anchorX: Number.NaN, anchor, current: anchor, edge: true, offset, how: "edit", gesture };
+            },
+            beginPan: (pointer, x, y) => {
+                this.pan = { pointer, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: true };
+            },
+            clear: (gesture) => void this.dotnet.invokeMethodAsync("OnRollClear", gesture),
+            cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnRollGestureCancelled", gesture),
+            hint: () => void this.dotnet.invokeMethodAsync("OnRollHoldHint"),
+            tap: (tick, y, inside) => {
+                // A tap inside the selection on the loop strip moves the position there; a tap elsewhere leaves the selection.
+                if (inside) {
+                    this.pressLoopLane(y, tick);
+                }
+            },
+        };
+    }
+
     /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
     private pressLoopLane(y: number, tick: number): boolean {
         const motif = this.motif;
@@ -2875,7 +2927,7 @@ export class PianoRoll {
             this.selectIndex(undefined, false);
         }
         if (this.motif !== null) {
-            void this.dotnet.invokeMethodAsync("OnRollClear");
+            void this.dotnet.invokeMethodAsync("OnRollClear", nextGestureId());
         }
     }
 

@@ -385,11 +385,14 @@ export class ScoreView {
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
-            chosen: (first, last, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle),
+            chosen: (first, last, byHandle, how, gesture) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle, how, gesture),
             marksTop: (band) => this.bookmarksTop(band),
             beats: () => this.rules.beatLines(),
             tickX: (tick) => this.playheadAt(tick)?.x,
-            chosenSpan: (start, end, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreSpanChosen", start, end, byHandle),
+            chosenSpan: (start, end, byHandle, how, gesture) => void this.dotnet.invokeMethodAsync("OnScoreSpanChosen", start, end, byHandle, how, gesture),
+            cleared: (gesture) => void this.dotnet.invokeMethodAsync("OnScoreSelectionCleared", gesture),
+            cancelled: (gesture) => void this.dotnet.invokeMethodAsync("OnScoreGestureCancelled", gesture),
+            hint: () => void this.dotnet.invokeMethodAsync("OnScoreHoldHint"),
             mode: () => this.rules.mode(),
         });
         this.host.classList.toggle("paged", this.paged);

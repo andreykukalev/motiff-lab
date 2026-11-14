@@ -78,6 +78,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     static let phrasesHiddenKey = "motiff.phrases.hidden"
     /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
+    /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
+    @Published private(set) var selectionSteps = SelectionHistory<SelectionSpan>()
+    /// «Выделение снято · Вернуть» for a while after a clear or a replace (#511 11); nil while none shows.
+    @Published private(set) var selectionToast: SelectionToast?
+    /// «Задержите касание…» for a moment after a pointer that cannot scroll moved off the selection (#511 2.1, C).
+    @Published private(set) var holdHint: UUID?
+    /// Select's «По тактам / По долям» (#511 4.2), and the beat lines and the experiment it chooses between (SelectionTools.swift).
+    @Published var selectsByBeats = SelectBy.saved()
+    var pieceBeatLines: [Double] = []
+    var beatsExperiment = false
+    /// The piece as its selection's history knows it (SelectionHistories.key).
+    private var historyKey: String?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
     /// nothing is selected or a drag is on.
     @Published private(set) var menuPlace: CGPoint?
@@ -320,7 +332,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.rubbed = { [weak self] points, lifted in self?.rubbed(points, lifted: lifted) }
         ink.handles = { [weak self] in self.map { $0.inView($0.handleSpots) } ?? [] }
         ink.heads = { [weak self] in self.map { $0.inView($0.headSpots) } ?? [] }
-        ink.pencil.perform = { [weak self] action, point in self?.pencilGesture(action, at: point) }
+        ink.pencil.perform = { [weak self] action, point in self?.scorePencilGesture(action, at: point) }
         applyInput()
 
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
@@ -332,6 +344,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            historyKey = SelectionHistories.key(piece)
+            selectionSteps = SelectionHistories.history(of: SelectionHistories.key(piece))
             rendered = false
             versions = VersionShelf()
             versionStatus = nil
@@ -375,13 +389,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
-            // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before.
+            // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before. The gesture's
+            // changes are one step of the selection's history (#511 11).
+            let gesture = chosen["gesture"] as? String
             if chosen["beats"] as? Bool == true {
-                selectBeats(start, end)
+                selectBeats(start, end, gesture: gesture)
             } else {
-                Task { await select(start, end) }
+                Task { await select(start, end, gesture: gesture) }
             }
         }
+        receivedGesture(message)
         // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
         // choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
@@ -481,34 +498,42 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { await select(unit.selectableOnset, unit.selectableEnd) }
     }
 
-    /// Selects a passage through music-core, which keeps it within what a selection may hold.
-    func select(_ start: Double, _ end: Double) async {
-        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}")
+    /// Selects a passage through music-core, which keeps it within what a selection may hold; with `gesture`, as part of
+    /// that gesture's step of the history.
+    func select(_ start: Double, _ end: Double, gesture: String? = nil, step: Bool = true) async {
+        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}", gesture: gesture, step: step)
     }
 
     /// Selects a passage by beats (#349): music-core takes its edges out to the beat lines. A drag on the score or on the
     /// roll's bar numbers and handles (#479 item 23), where the score selects by beats.
-    func selectBeats(_ start: Double, _ end: Double) {
-        Task { await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}") }
+    func selectBeats(_ start: Double, _ end: Double, gesture: String? = nil) {
+        Task { await select(request: Self.beatsRequest(start, end), gesture: gesture) }
+    }
+
+    /// A passage by beats, as music-core's `select` takes it: its edges out to the beat lines.
+    static func beatsRequest(_ start: Double, _ end: Double) -> String {
+        "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}"
     }
 
     /// Selects whole bars, as the piano roll picks them; a tap that extends takes the selection to the bar tapped.
-    func selectBars(_ first: Int, _ last: Int, extend: Bool) {
+    func selectBars(_ first: Int, _ last: Int, extend: Bool, gesture: String? = nil) {
         var from = first
         var to = last
         if extend, let selection {
             if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
         }
-        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}") }
+        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
     }
 
-    private func select(request: String) async {
+    /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo).
+    func select(request: String, gesture: String? = nil, step: Bool = true) async {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
         guard let chosen = ScoreSelection(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String
             return
         }
+        if step { noteSelectionChange(from: selection, to: chosen, gesture: gesture) }
         selection = chosen
         await showSelection()
         await updatePlayRange()
@@ -518,8 +543,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    func clearSelection() {
+    /// Takes the selection away: ✕, Escape, or a hold outside it (`gesture`, #511 2.1); `step` false for Undo.
+    func clearSelection(gesture: String? = nil, step: Bool = true) {
         guard selection != nil else { return }
+        if step { noteSelectionChange(from: selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
         leaveFocus()
         selection = nil
@@ -1636,7 +1663,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await reveal(place.at)
             return
         }
-        await select(passage.lowerBound, passage.upperBound)
+        await select(passage.lowerBound, passage.upperBound, step: false)
         guard let selection else { return }
         await reveal(selection.onset)
         if place.focused { enterFocus() }
@@ -2094,4 +2121,105 @@ struct NoteEditorState: Equatable, Sendable {
     var changed = false
     var canReset = false
     var picked: String?
+}
+
+// MARK: - The selection's gestures and its Undo and Redo (#511 sections 2 and 11)
+
+extension ScoreController {
+    /// What a toast after a clear or a replace says, and which one it is.
+    struct SelectionToast: Equatable {
+        var replaced: Bool
+        var id = UUID()
+    }
+
+    /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
+    static let selectionToastSeconds = 6.0
+    static let holdHintSeconds = 2.0
+
+    /// The page's gesture messages: a hold outside took the selection away, a gesture was cancelled, or a pointer that
+    /// cannot scroll moved off the selection before the hold.
+    func receivedGesture(_ message: [String: Any]) {
+        if let cleared = message["cleared"] as? [String: Any] {
+            clearSelection(gesture: cleared["gesture"] as? String)
+        }
+        if let gesture = message["gestureCancelled"] as? String {
+            revertGesture(gesture)
+        }
+        if message["holdHint"] != nil {
+            showHoldHint()
+        }
+    }
+
+    /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a
+    /// replace shows «Вернуть»; any other step puts it away, as it would no longer take back the clear.
+    func noteSelectionChange(from before: ScoreSelection?, to after: ScoreSelection?, gesture: String?) {
+        guard let historyKey else { return }
+        let step = selectionSteps.record(from: SelectionSpan(before), to: SelectionSpan(after), gesture: gesture)
+        SelectionHistories.keep(selectionSteps, of: historyKey)
+        switch step?.kind {
+        case .clear?, .replace?:
+            showSelectionToast(replaced: step?.kind == .replace)
+        case nil where gesture == nil:
+            break
+        default:
+            selectionToast = nil
+        }
+    }
+
+    /// Undo of the selection (the Selection row, the Pencil's ring, ⌘Z, «Вернуть»): the selection before the last step,
+    /// selected again exactly; the score neither scrolls nor zooms.
+    func undoSelection() {
+        guard let step = selectionSteps.undo() else { return }
+        keepSteps()
+        Task { await restore(step.before) }
+    }
+
+    /// Redo of the selection (the Selection row, ⇧⌘Z).
+    func redoSelection() {
+        guard let step = selectionSteps.redo() else { return }
+        keepSteps()
+        Task { await restore(step.after) }
+    }
+
+    /// A gesture cancelled after its hold took the selection away: the selection comes back and no step stays.
+    func revertGesture(_ gesture: String) {
+        guard let step = selectionSteps.revert(gesture) else { return }
+        keepSteps()
+        Task { await restore(step.before) }
+    }
+
+    func closeSelectionToast() {
+        selectionToast = nil
+    }
+
+    private func keepSteps() {
+        selectionToast = nil
+        if let historyKey { SelectionHistories.keep(selectionSteps, of: historyKey) }
+    }
+
+    private func restore(_ span: SelectionSpan?) async {
+        guard let span else {
+            clearSelection(step: false)
+            return
+        }
+        await select(request: Self.beatsRequest(span.onset, span.end), step: false)
+    }
+
+    private func showSelectionToast(replaced: Bool) {
+        let toast = SelectionToast(replaced: replaced)
+        selectionToast = toast
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.selectionToastSeconds))
+            if self?.selectionToast == toast { self?.selectionToast = nil }
+        }
+    }
+
+    private func showHoldHint() {
+        let shown = UUID()
+        holdHint = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
+            if self?.holdHint == shown { self?.holdHint = nil }
+        }
+    }
 }

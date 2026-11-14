@@ -36,11 +36,14 @@ final class RollController: NSObject, ObservableObject {
     @Published private(set) var canChangeColour = false
     @Published private(set) var problem: String?
 
-    /// A bar tapped or a stretch dragged on the roll's bar numbers or the selection's handles; `byBeats` says how a drag
-    /// selects (by beats where the score does).
-    var picked: (@MainActor (RollPick) -> Void)?
+    /// A bar tapped or a stretch dragged on the roll's bar numbers or the selection's handles, with its gesture for the
+    /// selection's history (#511 11); `byBeats` says how a drag selects (by beats where the score does).
+    var picked: (@MainActor (RollPick, _ gesture: String?) -> Void)?
     var byBeats: (@MainActor () -> Bool)?
-    var cleared: (@MainActor () -> Void)?
+    var cleared: (@MainActor (_ gesture: String?) -> Void)?
+    /// A hold's clear cancelled; a pointer that cannot scroll moved off the selection before the hold (roll-strip-gesture.ts).
+    var gestureCancelled: (@MainActor (String) -> Void)?
+    var holdHinted: (@MainActor () -> Void)?
     var spacePressed: (@MainActor () -> Void)?
     /// The playhead moved on the roll: to a tick, and with `play` a tap that plays from there.
     var playheadMoved: (@MainActor (_ tick: Double, _ play: Bool) -> Void)?
@@ -220,13 +223,19 @@ final class RollController: NSObject, ObservableObject {
 
     fileprivate func received(_ message: [String: Any]) {
         if let range = message["range"] as? [String: Any], let pick = RollPick(range, byBeats: byBeats?() ?? false) {
-            picked?(pick)
+            picked?(pick, range["gesture"] as? String)
         }
         if let report = message["zoom"] as? [String: Any], let read = RollZoom(report), read != zoom {
             zoom = read
         }
-        if message["clear"] != nil {
-            cleared?()
+        if let clear = message["clear"] {
+            cleared?((clear as? [String: Any])?["gesture"] as? String)
+        }
+        if let gesture = message["gestureCancelled"] as? String {
+            gestureCancelled?(gesture)
+        }
+        if message["holdHint"] != nil {
+            holdHinted?()
         }
         if message["space"] != nil {
             spacePressed?()

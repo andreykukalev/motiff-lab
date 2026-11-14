@@ -47,7 +47,7 @@ public partial class PlaybackLab
     {
         get
         {
-            if (!PlayheadsOn || _score is null)
+            if (!PlayheadsOn || _score is null || !SelectsByBeats)
             {
                 return null;
             }
