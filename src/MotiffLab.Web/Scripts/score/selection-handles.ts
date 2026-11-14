@@ -5,7 +5,7 @@
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import { type ScoreBeats, keyLines, stepEdge } from "./selection-beats.js";
-import { handleTakes, nextGestureId } from "./selection-gesture.js";
+import { handleTakes, handlesShown, nextGestureId } from "./selection-gesture.js";
 import type { ScoreSelection, SelectionHost } from "./selection-layer.js";
 
 /** What the handles need from the layer. */
@@ -22,6 +22,7 @@ export interface HandleSurface {
 
 export interface HandleDrag {
     pointerId: number;
+    pointerType: string;
     edge: "start" | "end";
     first: ScoreBar;
     last: ScoreBar;
@@ -40,9 +41,14 @@ function selectedBars(geometry: ScoreGeometry, selection: ScoreSelection | null)
     return first !== undefined && last !== undefined ? [first, last] : null;
 }
 
+/** The events that end a handle's drag. */
+const ENDS = ["pointerup", "pointercancel", "lostpointercapture"] as const;
+
 export class SelectionHandles {
     /** The handle being dragged, if one is. */
     drag: HandleDrag | null = null;
+    /** Ends the drag under way without a change, as a cancel does: a lost end (#543 9). */
+    private abandonDrag: (() => void) | null = null;
 
     constructor(private readonly surface: HandleSurface) {}
 
@@ -51,7 +57,7 @@ export class SelectionHandles {
         const geometry = this.surface.owner.geometry();
         const bars = geometry === null ? null : selectedBars(geometry, this.surface.selection());
         const selection = this.surface.selection();
-        if (bars === null || selection === null || (event.pointerType !== "touch" && event.button !== 0)) {
+        if (bars === null || selection === null || (event.pointerType !== "touch" && event.button !== 0) || !handlesShown(this.surface.owner.mode?.())) {
             return;
         }
         // A pointer that writes goes on to the pen's layer, which takes it over the handle.
@@ -60,9 +66,8 @@ export class SelectionHandles {
         }
         event.preventDefault();
         event.stopPropagation();
-        handle.setPointerCapture(event.pointerId);
         const drag: HandleDrag = {
-            pointerId: event.pointerId, edge: handle.dataset.edge === "start" ? "start" : "end", first: bars[0], last: bars[1], start: selection.start, end: selection.end,
+            pointerId: event.pointerId, pointerType: event.pointerType, edge: handle.dataset.edge === "start" ? "start" : "end", first: bars[0], last: bars[1], start: selection.start, end: selection.end,
         };
         this.drag = drag;
         handle.classList.add("dragging");
@@ -76,15 +81,17 @@ export class SelectionHandles {
                 this.moveEdge(now, drag, this.surface.point(moveEvent));
             }
         };
-        const end = (endEvent: PointerEvent): void => {
-            if (endEvent.pointerId !== drag.pointerId) {
+        const end = (endEvent: { type: string; pointerId: number }): void => {
+            if (endEvent.pointerId !== drag.pointerId || this.drag !== drag) {
                 return;
             }
             handle.removeEventListener("pointermove", move);
-            handle.removeEventListener("pointerup", end);
-            handle.removeEventListener("pointercancel", end);
+            for (const name of ENDS) {
+                handle.removeEventListener(name, end);
+            }
             handle.classList.remove("dragging");
             this.drag = null;
+            this.abandonDrag = null;
             const byBeats = this.surface.beats.lines() === null ? undefined : this.surface.owner.chosenSpan;
             const changed = byBeats ? drag.start !== selection.start || drag.end !== selection.end : drag.first !== bars[0] || drag.last !== bars[1];
             if (changed && endEvent.type === "pointerup" && byBeats) {
@@ -95,10 +102,23 @@ export class SelectionHandles {
                 this.surface.place();
             }
         };
+        // The capture lost (the handle taken off the page mid-drag) ends the drag as a cancel does, so it never stays held.
         handle.addEventListener("pointermove", move);
-        handle.addEventListener("pointerup", end);
-        handle.addEventListener("pointercancel", end);
+        for (const name of ENDS) {
+            handle.addEventListener(name, end);
+        }
+        this.abandonDrag = () => end({ type: "pointercancel", pointerId: drag.pointerId });
+        try {
+            handle.setPointerCapture(event.pointerId);
+        } catch {
+            this.abandon();
+        }
     };
+
+    /** Ends the drag under way with no change, as a cancel: its end was lost (#543 9) or the layer goes. */
+    abandon(): void {
+        this.abandonDrag?.();
+    }
 
     /** A handle dragged to a point: its edge goes to the barline, or the beat line, nearest it, never past the other edge. */
     private moveEdge(geometry: ScoreGeometry, drag: HandleDrag, at: { x: number; y: number }): void {

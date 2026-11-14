@@ -244,6 +244,16 @@ final class PencilTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(bands?.intValue ?? 0, 1)
         let handles = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
         XCTAssertEqual(handles?.intValue, 2)
+        // Under the modes only Select draws the handles (#543 4.2): in Navigate the band stays without them.
+        _ = try await call(view, "mode", ["name": "navigate"])
+        let inNavigate = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(inNavigate?.intValue, 0, "no handle to draw, take or report to the pen in Navigate")
+        let bandInNavigate = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-band').length") as? NSNumber
+        XCTAssertGreaterThanOrEqual(bandInNavigate?.intValue ?? 0, 1)
+        _ = try await call(view, "mode", ["name": "select"])
+        let inSelect = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(inSelect?.intValue, 2)
+        _ = try await call(view, "mode", [String: Any]())
         let brackets = try await view.evaluateJavaScript("document.querySelectorAll('body > .bracket').length") as? NSNumber
         XCTAssertEqual(brackets?.intValue, 0)
         let cleared = try await call(view, "select", NSNull()) as? NSNumber

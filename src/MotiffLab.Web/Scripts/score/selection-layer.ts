@@ -21,10 +21,12 @@ import {
     editedRange,
     gestureChange,
     handleTakes,
+    handlesShown,
     heldGesture,
     movedGesture,
     nextGestureId,
     pressGesture,
+    staleGesture,
 } from "./selection-gesture.js";
 
 export { menuClear, menuPlace, dragStartOf, handleTakes, type DragStart };
@@ -81,6 +83,7 @@ export function ordered(a: ScoreBar, b: ScoreBar): [ScoreBar, ScoreBar] {
 
 interface Drag {
     pointerId: number;
+    pointerType: string;
     /** Where the press started, in content pixels. */
     x: number;
     y: number;
@@ -244,6 +247,7 @@ export class SelectionLayer {
         if (this.drag !== null) {
             clearTimeout(this.drag.timer);
         }
+        this.handles.abandon();
         this.clear();
     }
 
@@ -287,7 +291,8 @@ export class SelectionLayer {
             }
             return;
         }
-        if (selection !== null) {
+        // Under the modes only Select shows the handles (#543 4.2): elsewhere none is drawn, so none takes a press.
+        if (selection !== null && handlesShown(this.owner.mode?.())) {
             this.host.append(this.handle("start", first.left, (first.top + first.bottom) / 2, selection.startLabel));
             this.host.append(this.handle("end", last.right, (last.top + last.bottom) / 2, selection.endLabel));
         }
@@ -318,6 +323,13 @@ export class SelectionLayer {
     }
 
     private readonly onPointerDown = (event: PointerEvent): void => {
+        // A gesture whose end was lost (#543 9) ends as cancelled before the new press, so it never blocks it.
+        if (this.drag !== null && staleGesture(this.drag, event)) {
+            this.cancelDrag(this.drag);
+        }
+        if (this.handles.drag !== null && staleGesture(this.handles.drag, event)) {
+            this.handles.abandon();
+        }
         if (this.drag !== null || this.handles.drag !== null) {
             return;
         }
@@ -338,7 +350,7 @@ export class SelectionLayer {
         }
         const selection = this.selection === null ? null : { start: this.selection.start, end: this.selection.end };
         const gesture = pressGesture(selection, tickAt(geometry, at.x, at.y), this.insideBand(at), start);
-        const drag: Drag = { pointerId: event.pointerId, x: at.x, y: at.y, gesture, id: nextGestureId(), edited: null, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
+        const drag: Drag = { pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, gesture, id: nextGestureId(), edited: null, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
         drag.timer = window.setTimeout(() => this.take(drag, heldGesture(drag.gesture)), HOLD_MS);
         this.drag = drag;
     };
@@ -522,15 +534,19 @@ export class SelectionLayer {
     private readonly onPointerCancel = (event: PointerEvent): void => {
         const drag = this.drag;
         if (drag !== null && event.pointerId === drag.pointerId) {
-            clearTimeout(drag.timer);
-            this.drag = null;
-            // A selection the hold took away comes back: a cancelled gesture is no step.
-            if (drag.gesture.cleared) {
-                this.owner.cancelled?.(drag.id);
-            }
-            this.place();
+            this.cancelDrag(drag);
         }
     };
+
+    /** The gesture ends with no step: a selection the hold took away comes back. */
+    private cancelDrag(drag: Drag): void {
+        clearTimeout(drag.timer);
+        this.drag = null;
+        if (drag.gesture.cleared) {
+            this.owner.cancelled?.(drag.id);
+        }
+        this.place();
+    }
 
     private readonly onTouchMove = (event: TouchEvent): void => {
         if (this.capturing()) {

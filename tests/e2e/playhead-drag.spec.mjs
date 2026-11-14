@@ -1,6 +1,6 @@
 // Dragging the playheads and hearing what they pass on the web (v0.5.2, #495 UX-08, UX-09 and UX-10, slice W3; the
-// experiment Two playheads and modes, Settings · Experimental). On the score the black dot is dragged inside the bar it
-// stands in and the blue knob inside the selection; on the roll the black dot goes anywhere and lands on the sixteenth
+// experiment Two playheads and modes, Settings · Experimental). On the score the black dot is dragged across bars (v0.5.7,
+// #543 5) and the blue knob inside the selection; on the roll the black dot goes anywhere and lands on the sixteenth
 // grid. A drag never selects a bar. The engine is told to scrub where the playhead goes and to let its notes fade when it
 // is let go; playing, playback stands while a handle is held and goes on from the new place. Mouse and touch both.
 import { expect, test } from "@playwright/test";
@@ -48,7 +48,7 @@ async function drag(page, from, to) {
     await page.mouse.up();
 }
 
-test("the black dot is dragged inside its bar and the blue knob inside the selection, each heard, and no bar is selected", async ({ page }) => {
+test("the black dot is dragged across bars and the blue knob inside the selection, each heard, and no bar is selected", async ({ page }) => {
     await withExperiment(page);
     const errors = await openFurElise(page);
     const bars = await firstSystem(page);
@@ -58,15 +58,23 @@ test("the black dot is dragged inside its bar and the blue knob inside the selec
     const status = page.locator(".selection-status");
     const cycle = page.locator(".pill").getByRole("button", { name: /^Loop \d+\.\d+ – \d+\.\d+$/ });
 
-    // A click on a bar moves the black playhead to it; the drag of its dot then keeps to that bar, past its end too.
+    // A click on a bar moves the black playhead to it; the drag of its dot goes on into the bar under the pointer (#543 5),
+    // while a black line stands across the staves; let go, the line fades.
     await page.mouse.click(bars[2].left + 12, bars[2].middle);
     await expect.poll(async () => barOf(bars, (await centre(dot)).x)).toBe(2);
     const from = await centre(dot);
     await posted(page);
-    await drag(page, from, { x: bars[4].left + 10, y: from.y });
+    const held = page.locator("div.score .ph-held");
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(bars[4].left + 10, from.y, { steps: 10 });
+    await expect(held).toHaveClass(/(^|\s)held(\s|$)/);
+    expect(barOf(bars, (await centre(held)).x)).toBe(4);
+    await page.mouse.up();
+    await expect(held).not.toHaveClass(/(^|\s)held(\s|$)/);
     const to = await centre(dot);
     expect(to.x).toBeGreaterThan(from.x + 8);
-    expect(barOf(bars, to.x)).toBe(2);
+    expect(barOf(bars, to.x)).toBe(4);
     await expect(status).toContainText("Nothing selected");
     const heard = await posted(page);
     expect(heard).toContain("scrub");
@@ -124,7 +132,7 @@ test("playing, a held playhead stands and plays on from where it was let go", as
 test.describe("by touch", () => {
     test.use({ hasTouch: true });
 
-    test("a finger drags the black dot along its bar, and the score does not scroll or select under it", async ({ page, browserName }) => {
+    test("a finger drags the black dot along the bars, and the score does not scroll or select under it", async ({ page, browserName }) => {
         test.skip(browserName !== "chromium", "touches are sent through Chromium's DevTools protocol");
         await withExperiment(page);
         const errors = await openFurElise(page);
@@ -145,7 +153,7 @@ test.describe("by touch", () => {
         await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 
         await expect.poll(async () => (await centre(dot)).x).toBeGreaterThan(from.x + 8);
-        expect(barOf(bars, (await centre(dot)).x)).toBe(2);
+        expect(barOf(bars, (await centre(dot)).x)).toBeGreaterThanOrEqual(2);
         await expect(page.locator(".selection-status")).toContainText("Nothing selected");
         expect(await page.locator("div.score").evaluate((score) => score.scrollTop)).toBe(scrolled);
         const heard = await posted(page);
