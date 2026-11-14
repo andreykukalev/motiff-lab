@@ -25,8 +25,8 @@ public partial class PlaybackLab
     {
         _readingMarks = SettingsStore.IsOn(ReadingMarksSetting);
         return _readingMarks
-            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant)
-            : NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias);
+            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant, tempos: played.Tempos)
+            : NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias, tempos: played.Tempos);
     }
 
     /// <summary>The experiment switched while a score for reading is shown: it is engraved again.</summary>

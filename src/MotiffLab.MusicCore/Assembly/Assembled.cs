@@ -256,7 +256,7 @@ public sealed record Assembled(SourceMusic Music, IReadOnlyDictionary<string, in
             IReadOnlyList<AssemblyBar> fragment = AssemblyBars.Moved(AssemblyBars.Cut(source.Bars, s0, s1), t0.Value - s0.Value);
             _bars = AssemblyBars.Splice(_bars, t0, t1, fragment);
             _tempos = [.. _tempos.Where(tempo => tempo.At < t0 || tempo.At >= t1 || tempo.At == Tick.Zero)
-                .Select(tempo => tempo.At >= t1 && tempo.At != Tick.Zero ? new PlaybackTempo(tempo.At.Offset(delta), tempo.MicrosecondsPerQuarter) : tempo)];
+                .Select(tempo => tempo.At >= t1 && tempo.At != Tick.Zero ? tempo with { At = tempo.At.Offset(delta) } : tempo)];
             _keys = [.. _keys.Where(key => key.At < t0 || key.At >= t1 || key.At == Tick.Zero)
                 .Select(key => key.At >= t1 && key.At != Tick.Zero ? key with { At = key.At.Offset(delta) } : key)];
             int[] leans = Leans([carry.To.Start.NoteId, carry.To.End?.NoteId]);

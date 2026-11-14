@@ -75,8 +75,8 @@ test("the score fills the screen, draws no phrase brackets, and the selection st
     await pill.getByRole("button", { name: "Loop" }).click();
     await expect(pill.getByRole("button", { name: "Loop" })).toHaveAttribute("aria-pressed", "true");
     await pill.getByRole("button", { name: "Tempo 100%" }).click();
-    await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "75%" }).click();
-    await expect(pill.locator(".mono")).toHaveText("75%");
+    await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "80", exact: true }).click();
+    await expect(pill.locator(".tempo-label")).toHaveText(/^80% · ♩\.? (≈ )?(\d+|\?)$/);
     await pill.getByRole("button", { name: "Play", exact: true }).click();
     await pill.getByRole("button", { name: "Pause", exact: true }).click();
     expect(errors).toEqual([]);

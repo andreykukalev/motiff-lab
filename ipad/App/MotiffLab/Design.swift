@@ -348,9 +348,10 @@ struct FloatingSurface: ViewModifier {
     }
 }
 
-/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber.
+/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber; a tempo's source plain from the notes and in
+/// amber's tint when the player set it (version 0.5.4).
 struct Tag: View {
-    enum Kind { case saved, warn, detected, assumed }
+    enum Kind { case saved, warn, detected, assumed, plain, player }
 
     let text: String
     let kind: Kind
@@ -362,6 +363,11 @@ struct Tag: View {
             .padding(.horizontal, CGFloat.ds("s-2"))
             .frame(minHeight: 22)
             .background(background, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+            .overlay {
+                if kind == .plain {
+                    RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong"))
+                }
+            }
     }
 
     private var foreground: Color {
@@ -369,16 +375,18 @@ struct Tag: View {
         case .saved: .ds("plum")
         case .warn: .ds("warning")
         case .detected: .ds("accent")
-        case .assumed: .ds("ink-2")
+        case .assumed, .plain: .ds("ink-2")
+        case .player: .ds("ink")
         }
     }
 
     private var background: Color {
         switch kind {
         case .saved: .ds("plum-tint")
-        case .warn: .ds("amber-tint")
+        case .warn, .player: .ds("amber-tint")
         case .detected: .ds("accent-tint")
         case .assumed: .ds("hairline")
+        case .plain: .clear
         }
     }
 }

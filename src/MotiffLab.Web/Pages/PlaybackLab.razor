@@ -678,7 +678,7 @@
                 {
                     @RecordingWave
                 }
-                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="@(Player.HearingRecording ? 100 : TempoPercent)"
+                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="@(Player.HearingRecording ? 100 : TempoPercent)" Tempo="TempoNow" HearingRecording="Player.HearingRecording" SetTempoPercent="SetTempoPercentAsync"
                               TogglePlay="ToggleAssemblyPlayAsync" ToggleLoop="ToggleAssemblyLoopAsync" Show="ShowSourceAsync" Hear="HearSourceAsync" />
             }
             else if (PillShown)
@@ -706,20 +706,11 @@
                     @* Tempo and Hands open their popovers over themselves, with the pointer at them (design/kit/ds.css .popover). *@
                     <span class="anchor">
                         <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
-                                @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono">@TempoPercent%</span></button>
+                                @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono tempo-label">@TempoPillText</span></button>
                         @if (_pillMenu == PillMenu.Tempo)
                         {
                             <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
-                                <div class="seg" role="group" aria-label="@Text["transport.tempo"]">
-                                    @foreach (int percent in s_tempoSteps)
-                                    {
-                                        <button class="@(TempoPercent == percent ? "on" : null)" aria-pressed="@(TempoPercent == percent ? "true" : "false")" @onclick="() => SetTempoPercentAsync(percent)">@percent%</button>
-                                    }
-                                </div>
-                                <label class="tempo">
-                                    <span class="visually-hidden">@Text["transport.tempo"]</span>
-                                    <input type="range" min="@MinTempo" max="@MaxTempo" step="5" value="@TempoPercent" @oninput="SetTempoAsync" />
-                                </label>
+                                <TempoControl Percent="TempoPercent" Reading="TempoNow" SetPercent="SetTempoPercentAsync" SetPlayerTempo="SetPlayerTempoAsync" Close="ClosePopover" />
                             </div>
                         }
                     </span>
@@ -2477,6 +2468,7 @@
     private async Task LoadPieceAsync(ImportedPiece piece, string? title = null)
     {
         string? scoreTitle = title ?? ScoreTitle.Of(piece.FileName);
+        _writtenXml = null;
         // MIDI cannot mark accents, so a MIDI piece has no accent fact rather than "no accents".
         _accents = piece.MusicXml?.AccentMarks;
         _characterContext = CharacterContext.FromPiece(piece);
@@ -2489,24 +2481,28 @@
         {
             // Notes made by an assembly (0024, section 7): engraved and played from the notes, in their own bars, keys and tempo.
             IEnumerable<KeyChange> keyChanges = piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-            await LoadAsync((PlaybackScore.Create(piece.Notes, tempos, piece.Meter, piece.End), piece.Meter, piece.Notes), title ?? piece.FileName,
-                NotationGenerator.Generate(piece.Notes, piece.Meter, keyChanges, piece.End, scoreTitle), musicXml: null, piece.Keys);
+            PlaybackScore made = PlaybackScore.Create(piece.Notes, tempos, piece.Meter, piece.End).WithPlayerTempo(piece.PlayerTempo);
+            await LoadAsync((made, piece.Meter, piece.Notes), title ?? piece.FileName,
+                NotationGenerator.Generate(piece.Notes, piece.Meter, keyChanges, piece.End, scoreTitle, tempos: made.Tempos), musicXml: null, piece.Keys);
             return;
         }
 
+        // The tempo is played and marked as music-core says, with the player's own for the piece (version 0.5.4).
         if (piece.Midi is { } midi)
         {
-            var score = PlaybackScore.FromMidi(midi);
+            PlaybackScore score = PlaybackScore.OwnTempoOf(piece, PlaybackScore.FromMidi(midi)).WithPlayerTempo(piece.PlayerTempo);
             GeneratedNotation notation = _heard
                 ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, scoreTitle, score)
-                : NotationGenerator.FromMidi(midi, scoreTitle);
+                : NotationGenerator.FromMidi(midi, scoreTitle, tempos: score.Tempos);
             await LoadAsync((score, piece.Meter, piece.Notes), title ?? piece.FileName, notation, musicXml: null, piece.Keys);
             return;
         }
 
         MusicXmlImport import = piece.MusicXml!;
         using var text = new StreamReader(new MemoryStream(piece.ScoreXml!), detectEncodingFromByteOrderMarks: true);
-        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), title ?? piece.FileName, NotationGenerator.FromMusicXml(import, scoreTitle), await text.ReadToEndAsync(), piece.Keys);
+        PlaybackScore written = PlaybackScore.FromMusicXml(import).WithPlayerTempo(piece.PlayerTempo);
+        _writtenXml = await text.ReadToEndAsync();
+        await LoadAsync((written, piece.Meter, piece.Notes), title ?? piece.FileName, NotationGenerator.FromMusicXml(import, scoreTitle, written.Tempos), WrittenTempo.With(_writtenXml, written), piece.Keys);
     }
 
     private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml, IReadOnlyList<KeySignature> keys)
@@ -2566,12 +2562,12 @@
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
     private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end, IReadOnlyList<NotationOssia>? ossias = null) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias);
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias, tempos: _score?.Tempos);
 
     private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played, IReadOnlyList<NotationOssia>? ossias = null) =>
         _readable
             ? ReadableNotation(notes, meter, keys, end, title, played, ossias: ossias)
-            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias);
+            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias, tempos: played.Tempos);
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
     private void SetReadable(bool readable)
@@ -2716,15 +2712,12 @@
     private Task SeekAsync(ChangeEventArgs args) =>
         long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
 
-    private Task SetTempoAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int percent) ? SetTempoPercentAsync(percent) : Task.CompletedTask;
+    /// <summary>The pill's tempo: "90 % · ♩ 83", the percentage and the beats a minute heard, "♩ ?" when not recognised (version 0.5.4).</summary>
+    private string TempoPillText => TempoNow is { } reading ? Text.Format("tempoControl.reading", TempoPercent, reading.HeardText(TempoPercent)) : $"{TempoPercent}%";
 
-    /// <summary>The slowest and fastest the tempo goes, as a percentage of the piece's; the pill's slider has the same range.</summary>
-    private const int MinTempo = 25;
-    private const int MaxTempo = 150;
-
+    /// <summary>The playback tempo, 25 % to 150 % of the piece's in 1 % steps; the engine changes its rate at once, also while playing.</summary>
     private Task SetTempoPercentAsync(int percent) =>
-        Player.SetTempoAsync(Math.Clamp(percent, MinTempo, MaxTempo) / 100.0);
+        Player.SetTempoAsync(Math.Clamp(percent, TempoControl.Min, TempoControl.Max) / 100.0);
 
     /// <summary>The phrase the selection stands for or lies mostly in, which Previous and Next phrase step from.</summary>
     private Phrase? StepFrom => _phrases is { } map && _selection is { } selection ? CurrentPhrase ?? map.Covering(selection.Span) : null;
@@ -3192,7 +3185,7 @@
             _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter, SelectionCap(current.Span));
         }
 
-        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
+        _score = PlaybackScore.Create(_notes, _score!.PieceTempos, _meter!, _score.End, _score.Pedal).WithPlayerTempo(_score.StartTempo.Source == TempoSource.Player ? _score.StartTempo.PerMinute : null);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         SuggestPhrases();
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));

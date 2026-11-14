@@ -113,6 +113,7 @@ public static partial class ProjectFile
             WriteOriginals(json, project);
             WritePartOf(json, project.PartOf);
             WriteEditsOff(json, project);
+            WritePlayerTempo(json, project);
 
             List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
             WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
@@ -539,7 +540,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
-            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root)).Described();
+            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root).WithPlayerTempoIn(root)).Described();
         }
     }
 

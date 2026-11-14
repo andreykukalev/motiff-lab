@@ -1137,6 +1137,22 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await drawVersions()
     }
 
+    /// The piece's tempo the player read in the printed notes, or nil to play it as it states again (version 0.5.4, #511
+    /// section 17, `tempo.set`): kept in the project file, heard from the player's next playback score and marked on the
+    /// score engraved again.
+    func setPieceTempo(_ perMinute: Int?) async {
+        guard let piece else { return }
+        let request = perMinute.map { "{\"perMinute\": \($0)}" } ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "tempo.set", request) }
+        if let failure = facadeObject(answer), failure["error"] != nil {
+            problem = failure["message"] as? String
+            return
+        }
+        notesChanged?()
+        await engraveScore()
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+    }
+
     /// The notes changed (bars taken or restored): the player and the roll take the new notes, and the score is engraved
     /// again and drawn with its marks.
     private func notesDidChange() async {

@@ -1245,19 +1245,11 @@ struct Pill: View {
                 .accessibilityHint(text["focus.leadInHint"])
                 .accessibilityAddTraits(score.leadIn ? .isSelected : [])
             }
-            Menu {
-                Picker(text["transport.tempo"], selection: $player.tempoPercent) {
-                    ForEach(Player.tempoChoices, id: \.self) { Text("\($0)%").tag($0) }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "tempo")
-                    Text("\(player.tempoPercent)%").monospacedDigit()
-                }
+            // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
+            TempoControl(tempo: player.tempo, text: text) { [weak score] perMinute in
+                Task { await score?.setPieceTempo(perMinute) }
             }
-            .menuStyle(.button)
-            .buttonStyle(DSItemStyle(on: player.tempoPercent != 100))
-            .accessibilityLabel(text.format("pill.tempoLabel", String(player.tempoPercent)))
+            .equatable()
             if settings.isOn("experimental.hands") {
                 handsControls
             }

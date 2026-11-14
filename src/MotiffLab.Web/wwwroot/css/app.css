@@ -2968,15 +2968,222 @@ h1:focus {
     transform: translateX(-50%) rotate(45deg);
 }
 
-/* The five tempo steps in one row. */
+/* A popover's choices in one row. */
 .workspace .pill .pill-popover .seg {
     flex-wrap: nowrap;
     white-space: nowrap;
 }
 
-.workspace .pill .pill-popover .tempo input {
+/* The tempo control (version 0.5.4, #511 section 17, the UX prototype's variant A): big numbers typed by a tap, − slider + by
+   1 %, coarse steps, the piece's tempo with its source, the printed tempo. */
+.workspace .pill .pill-popover:has(> .tempo-control) {
+    width: min(26rem, calc(100vw - 2 * var(--s-4)));
+}
+
+.workspace .pill .tempo-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    white-space: normal;
+}
+
+.workspace .pill .tempo-control :is(.tempo-head, .tempo-row, .tempo-fine, .tempo-steps, .tempo-entry, .tempo-base) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .pill .tempo-control :is(.tempo-head, .tempo-base) {
+    justify-content: space-between;
+}
+
+.workspace .pill .tempo-control .heading {
+    font: var(--t-heading);
+    color: var(--ink);
+}
+
+.workspace .pill .tempo-control .close {
+    width: var(--s-10);
+    height: var(--s-10);
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.workspace .pill .tempo-control .tempo-big {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+}
+
+.workspace .pill .tempo-control .tempo-big .num {
+    flex: 1;
+    display: grid;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-3);
+    border: 0;
+    border-radius: var(--r-m);
+    background: none;
+    text-align: start;
+    cursor: text;
+}
+
+.workspace .pill .tempo-control .tempo-big .num:hover:not(:disabled) {
+    background: var(--accent-tint);
+}
+
+.workspace .pill .tempo-control .tempo-big b {
+    font: var(--t-display);
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+.workspace .pill .tempo-control .tempo-big b span {
+    font: var(--t-title);
+    color: var(--ink-2);
+    margin-inline-start: var(--s-1);
+}
+
+.workspace .pill .tempo-control :is(.tempo-big small, .caption, .unit) {
+    font: var(--t-caption);
+    color: var(--ink-2);
+    margin: 0;
+}
+
+.workspace .pill .tempo-control .tempo-split {
+    width: 1px;
+    margin: var(--s-2) 0;
+    background: var(--hairline);
+}
+
+.workspace .pill .tempo-control .field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    flex: 1;
+    min-width: 0;
+    color: var(--ink-2);
+}
+
+.workspace .pill .tempo-control .field input {
     width: 100%;
+    min-width: var(--s-12);
+    height: var(--s-10);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-title);
+    font-variant-numeric: tabular-nums;
+}
+
+.workspace .pill .tempo-control .tempo-fine input[type="range"] {
+    flex: 1;
+    min-width: 0;
     accent-color: var(--accent);
+}
+
+/* − and + are 44 px targets, held to repeat (hold-repeat.ts): no callout or text selection while held. */
+.workspace .pill .tempo-control .step {
+    flex: none;
+    width: calc(var(--s-10) + var(--s-1));
+    height: calc(var(--s-10) + var(--s-1));
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-title);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
+
+.workspace .pill .tempo-control .step:disabled {
+    color: var(--ink-3);
+    cursor: default;
+}
+
+.workspace .pill .tempo-control .tempo-steps {
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+.workspace .pill .tempo-control .tempo-steps .chip {
+    min-width: var(--s-10);
+    height: var(--s-8);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.workspace .pill .tempo-control .tempo-steps .chip.on {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+.workspace .pill .tempo-control :is(.tempo-base, .tempo-printed) {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-3);
+    flex-wrap: wrap;
+}
+
+.workspace .pill .tempo-control .tempo-base .tempo-row {
+    flex-wrap: wrap;
+}
+
+.workspace .pill .tempo-control .tempo-printed {
+    display: grid;
+    gap: var(--s-2);
+}
+
+/* The source of the piece's tempo (design/kit/ds.css .tag): from the notes plain, a recording's as detected, the default as
+   assumed, the player's in amber, what the player marked. */
+.workspace .pill .tempo-control .tag {
+    display: inline-flex;
+    align-items: center;
+    height: calc(var(--s-5) + 2px);
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+.workspace .pill .tempo-control .tag.notated {
+    border: 1px solid var(--hairline-strong);
+    color: var(--ink-2);
+}
+
+.workspace .pill .tempo-control .tag.detected {
+    background: var(--accent-tint);
+    color: var(--accent);
+}
+
+.workspace .pill .tempo-control .tag.assumed {
+    background: var(--hairline);
+    color: var(--ink-2);
+}
+
+.workspace .pill .tempo-control .tag.player {
+    background: var(--amber-tint);
+    color: var(--ink);
 }
 
 /* The piano roll drawer: up from the bottom, 40% of the height in landscape and 30% in portrait. The pill rides above it. */

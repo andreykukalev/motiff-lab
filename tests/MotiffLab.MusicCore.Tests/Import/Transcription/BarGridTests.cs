@@ -4,6 +4,8 @@ using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -277,6 +279,20 @@ public class BarGridTests
         Assert.Contains("follows the playing (a quarter at about 100 a minute)", notice.Message);
         Assert.Equal(0, barred.Report.CountOf(MidiIssueCodes.TempoDefault));
         Assert.Equal(17, barred.Report.MeasureCount);
+    }
+
+    [Fact]
+    public void A_transcriptions_tempo_is_inferred_and_marked_about()
+    {
+        ImportedPiece piece = Import(Played(150_000, Waltz()));
+        ImportedPiece barred = BarGrid.Find(piece.Midi!)!.Apply(piece);
+
+        // Version 0.5.4 (#511 section 17): worked out from the playing, never taken for the notes' own or the default.
+        PlaybackScore heard = PlaybackScore.FromPiece(barred);
+        Assert.All(heard.Tempos, tempo => Assert.Equal(TempoSource.Inferred, tempo.Source));
+        TempoMark mark = Assert.Single(TempoMarks.Of(heard.Tempos));
+        Assert.True(mark.Approximate);
+        Assert.StartsWith("≈ ", mark.Text, StringComparison.Ordinal);
     }
 
     [Fact]

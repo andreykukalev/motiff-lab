@@ -31,8 +31,10 @@ public sealed class PlaybackScore
         IReadOnlyList<PlaybackBar> bars,
         MeterMap meter,
         Tick end,
-        IReadOnlyList<PlaybackPedal> pedal)
+        IReadOnlyList<PlaybackPedal> pedal,
+        IReadOnlyList<PlaybackTempo>? pieceTempos = null)
     {
+        PieceTempos = pieceTempos ?? tempos;
         Pedal = pedal;
         Meter = meter;
         Notes = notes;
@@ -48,8 +50,14 @@ public sealed class PlaybackScore
     /// <summary>Where the sustain pedal is held down, which every source on this timeline sounds with.</summary>
     public IReadOnlyList<PlaybackPedal> Pedal { get; }
 
-    /// <summary>Tempo changes in order; the first is at tick 0.</summary>
+    /// <summary>Tempo changes in order; the first is at tick 0. With the player's tempo (<see cref="WithPlayerTempo"/>), the tempo played.</summary>
     public IReadOnlyList<PlaybackTempo> Tempos { get; }
+
+    /// <summary>The tempo changes as the piece states them, before the player's tempo; the same as <see cref="Tempos"/> without one.</summary>
+    public IReadOnlyList<PlaybackTempo> PieceTempos { get; }
+
+    /// <summary>The tempo at the start, as played: what the tempo control's ♩ counts from (#511 section 17).</summary>
+    public PlaybackTempo StartTempo => Tempos[0];
 
     /// <summary>Every metronome beat before <see cref="End"/>, in order.</summary>
     public IReadOnlyList<PlaybackBeat> Beats { get; }
@@ -154,7 +162,7 @@ public sealed class PlaybackScore
     }
 
     /// <summary>Bars, beats and the end around notes and a tempo map that are already ordered and checked.</summary>
-    private static PlaybackScore Build(PlaybackNote[] ordered, PlaybackTempo[] tempoMap, MeterMap meter, Tick end, PlaybackPedal[] pedal)
+    private static PlaybackScore Build(PlaybackNote[] ordered, PlaybackTempo[] tempoMap, MeterMap meter, Tick end, PlaybackPedal[] pedal, IReadOnlyList<PlaybackTempo>? pieceTempos = null)
     {
         Tick last = ordered.Length == 0 ? end : ordered.Max(static note => note.Span.End);
         Tick scoreEnd = last > end ? last : end;
@@ -181,7 +189,7 @@ public sealed class PlaybackScore
             }
         }
 
-        return new PlaybackScore(ordered, tempoMap, beats, bars, meter, scoreEnd, pedal);
+        return new PlaybackScore(ordered, tempoMap, beats, bars, meter, scoreEnd, pedal, pieceTempos);
     }
 
     /// <summary>The playback score of an imported MIDI file: its shared-model notes, tempo map and meter.</summary>
@@ -191,7 +199,7 @@ public sealed class PlaybackScore
 
         return Create(
             import.Notes,
-            import.Tempos.Select(static tempo => new PlaybackTempo(tempo.At, tempo.MicrosecondsPerQuarter)),
+            import.Tempos.Select(static tempo => new PlaybackTempo(tempo.At, tempo.MicrosecondsPerQuarter, tempo.Source)),
             import.Meter,
             import.End,
             import.SustainPedal.Select(held => new PlaybackPedal(held.Span, PedalTrack(import, held))));
@@ -211,7 +219,7 @@ public sealed class PlaybackScore
 
         return Create(
             import.Notes,
-            import.Tempos.Select(static tempo => new PlaybackTempo(tempo.At, tempo.MicrosecondsPerQuarter)),
+            import.Tempos.Select(static tempo => new PlaybackTempo(tempo.At, tempo.MicrosecondsPerQuarter, tempo.Source)),
             import.Meter,
             import.End);
     }
@@ -220,22 +228,47 @@ public sealed class PlaybackScore
     /// The same timeline with other notes, for a second source such as a variation (S1-W5). The
     /// end is kept, or extended if the new notes run past it.
     /// </summary>
-    public PlaybackScore WithNotes(IEnumerable<Note> notes) => Create(notes, Tempos, Meter, End, Pedal);
+    public PlaybackScore WithNotes(IEnumerable<Note> notes) => Create(notes, PieceTempos, Meter, End, Pedal).WithTempos(Tempos);
 
     /// <summary>The same notes and timeline, running to <paramref name="end"/> when that is later than <see cref="End"/>.</summary>
-    public PlaybackScore ExtendedTo(Tick end) => end > End ? Build([.. Notes], [.. Tempos], Meter, end, [.. Pedal]) : this;
+    public PlaybackScore ExtendedTo(Tick end) => end > End ? Build([.. Notes], [.. Tempos], Meter, end, [.. Pedal], PieceTempos) : this;
+
+    /// <summary>
+    /// The same notes played at the tempo the player set for the piece (project file "tempo", version 0.5.4), or as the
+    /// piece states it when <paramref name="perMinute"/> is null; see <see cref="PlayerTempo.Over"/>.
+    /// </summary>
+    public PlaybackScore WithPlayerTempo(int? perMinute) =>
+        WithTempos(perMinute is { } given ? PlayerTempo.Over(PieceTempos, given) : PieceTempos);
+
+    private PlaybackScore WithTempos(IReadOnlyList<PlaybackTempo> tempos) =>
+        ReferenceEquals(tempos, Tempos) ? this : new PlaybackScore(Notes, tempos, Beats, Bars, Meter, End, Pedal, PieceTempos);
 
     /// <summary>The playback score of an imported piece, whichever format it came from.</summary>
     public static PlaybackScore FromPiece(ImportedPiece piece)
     {
         ArgumentNullException.ThrowIfNull(piece);
 
-        if (piece.AssembledTempos is { } tempos)
+        PlaybackScore score = piece.AssembledTempos is { } tempos ? Create(piece.Notes, tempos, piece.Meter, piece.End)
+            : piece.Midi is { } midi ? FromMidi(midi)
+            : FromMusicXml(piece.MusicXml!);
+        return OwnTempoOf(piece, score).WithPlayerTempo(piece.PlayerTempo);
+    }
+
+    /// <summary>
+    /// A recording's notes before their bars are worked out keep the transcription engine's clock as their tempo, which the
+    /// file writes as a tempo event but nobody stated: it is assumed, not notated (version 0.5.4).
+    /// </summary>
+    public static PlaybackScore OwnTempoOf(ImportedPiece piece, PlaybackScore score)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        ArgumentNullException.ThrowIfNull(score);
+        if (piece.Bars is not null || piece.AssembledTempos is not null || !Import.Transcription.Transcribed.IsHeard(piece) || score.PieceTempos.All(static tempo => tempo.Source != TempoSource.Notated))
         {
-            return Create(piece.Notes, tempos, piece.Meter, piece.End);
+            return score;
         }
 
-        return piece.Midi is { } midi ? FromMidi(midi) : FromMusicXml(piece.MusicXml!);
+        PlaybackTempo[] clock = [.. score.PieceTempos.Select(static tempo => tempo.Source == TempoSource.Notated ? tempo with { Source = TempoSource.Assumed } : tempo)];
+        return new PlaybackScore(score.Notes, clock, score.Beats, score.Bars, score.Meter, score.End, score.Pedal);
     }
 }
 
@@ -254,16 +287,24 @@ public readonly record struct PlaybackTempo
     /// <summary>120 BPM, the MIDI default.</summary>
     public const int DefaultMicrosecondsPerQuarter = 500_000;
 
-    public PlaybackTempo(Tick at, int microsecondsPerQuarter)
+    /// <param name="source">Where the tempo comes from (version 0.5.4); assumed unless something states it.</param>
+    public PlaybackTempo(Tick at, int microsecondsPerQuarter, TempoSource source = TempoSource.Assumed)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(microsecondsPerQuarter);
         At = at;
         MicrosecondsPerQuarter = microsecondsPerQuarter;
+        Source = source;
     }
 
-    public Tick At { get; }
+    public Tick At { get; init; }
 
     public int MicrosecondsPerQuarter { get; }
+
+    /// <summary>Where the tempo comes from: the notes, a recording, the default or the player (#511 section 17).</summary>
+    public TempoSource Source { get; init; }
+
+    /// <summary>Quarter notes a minute, rounded to the nearest whole one.</summary>
+    public int PerMinute => TempoSources.PerMinute(MicrosecondsPerQuarter);
 }
 
 /// <summary>A metronome beat; downbeats (beat 1 of a bar other than a pickup) are accented.</summary>

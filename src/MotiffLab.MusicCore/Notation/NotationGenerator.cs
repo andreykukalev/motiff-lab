@@ -75,21 +75,23 @@ public static partial class NotationGenerator
 
     /// <summary>Notation for a MIDI import, with its key signatures.</summary>
     /// <param name="asHeard">See <see cref="Generate"/>.</param>
-    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool asHeard = false)
+    /// <param name="tempos">The tempo marked on the score, as <see cref="Generate"/> takes it.</param>
+    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(import);
-        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard);
+        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard, tempos: tempos);
     }
 
     /// <summary>Notation for a MusicXML import, generated from its notes rather than engraved as written. Key signatures come from the first part.</summary>
-    public static GeneratedNotation FromMusicXml(MusicXmlImport import, string? title = null)
+    /// <param name="tempos">The tempo marked on the score, as <see cref="Generate"/> takes it.</param>
+    public static GeneratedNotation FromMusicXml(MusicXmlImport import, string? title = null, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(import);
         int firstTrack = import.KeySignatures.Count == 0 ? 0 : import.KeySignatures.Min(key => key.Track);
         IEnumerable<KeyChange> keys = import.KeySignatures
             .Where(key => key.Track == firstTrack)
             .Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        return Generate(import.Notes, import.Meter, keys, import.End, title);
+        return Generate(import.Notes, import.Meter, keys, import.End, title, tempos: tempos);
     }
 
     /// <param name="notes">The notes to write, in any order.</param>
@@ -136,7 +138,11 @@ public static partial class NotationGenerator
     /// For notes moved to another key (#351): each written as the original note was, moved by the interval's letters,
     /// rather than from the key signature alone.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null)
+    /// <param name="tempos">
+    /// The tempo the notes play at, as played (version 0.5.4): marked over the original's top staff as
+    /// <see cref="TempoMarks"/> says, "♩ = 92" at the start and at each change the notes state; none when null.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -179,13 +185,7 @@ public static partial class NotationGenerator
         PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false, marks);
         parts.Add(main);
 
-        var measures = new List<MeasurePlan>(written.Count);
-        for (int index = firstIndex; index <= lastIndex; index++)
-        {
-            Bar bar = allBars[index];
-            int fifths = KeyAt(keyChanges, bar.Span.Onset);
-            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths, spelling))]));
-        }
+        (List<MeasurePlan> measures, int markCount) = PlanMeasures(allBars, firstIndex, lastIndex, keyChanges, parts, spelling, tempos, meter);
 
         string mei = WriteMei(title ?? "Generated notation", parts, above, measures);
         return new GeneratedNotation(mei, main.StaffInfo, input.Length, main.Approximated, main.Shortened.Count, main.Heard.Held, main.Heard.Cut, main.Heard.Graces, asHeard)
@@ -195,12 +195,31 @@ public static partial class NotationGenerator
             TempoWordCount = main.Marks?.TempoWords.Count ?? 0,
             HairpinCount = main.Marks?.Hairpins.Count ?? 0,
             FermataCount = main.Marks?.Fermatas.Count ?? 0,
+            TempoMarkCount = markCount,
             TripletCount = main.Staves.Sum(staff => staff.Tuplets.Length),
             SlurCount = main.SlurCount,
             PedalCount = main.PedalCount,
             Excerpt = bars is null ? null : new BarRange(allBars[firstIndex].Number, allBars[lastIndex].Number),
             Ossias = [.. above.Select((ossia, index) => new GeneratedOssia(ossia.Label, parts[index].StaffInfo, ossiaNotes[index].Length, OssiaIdPrefix(index)))],
         };
+    }
+
+    /// <summary>The bars written, each with its key, its parts' measures and its metronome marks over the original's top staff (the last part).</summary>
+    private static (List<MeasurePlan> Measures, int TempoMarks) PlanMeasures(Bar[] allBars, int firstIndex, int lastIndex, KeyChange[] keyChanges, List<PartPlan> parts, TransposedSpelling? spelling, IReadOnlyList<PlaybackTempo>? tempos, MeterMap meter)
+    {
+        IReadOnlyList<TempoMark> tempoMarks = tempos is null ? [] : TempoMarks.Of(tempos, meter);
+        var measures = new List<MeasurePlan>(lastIndex - firstIndex + 1);
+        int markCount = 0;
+        for (int index = firstIndex; index <= lastIndex; index++)
+        {
+            Bar bar = allBars[index];
+            int fifths = KeyAt(keyChanges, bar.Span.Onset);
+            TempoMark[] inBar = [.. tempoMarks.Where(mark => bar.Span.Onset <= mark.At && mark.At < bar.Span.End)];
+            markCount += inBar.Length;
+            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths, spelling))]) { Tempos = inBar, TempoStaff = parts[^1].FirstStaff });
+        }
+
+        return (measures, markCount);
     }
 
     /// <summary>The prefix of an ossia's note ids: the first ossia's "ossia-", the second's "ossia2-".</summary>
@@ -1130,8 +1149,47 @@ public static partial class NotationGenerator
             WriteDirections(xml, measure.Bar, part);
         }
 
+        WriteTempos(xml, measure);
         xml.WriteEndElement();
     }
+
+    /// <summary>
+    /// The bar's metronome marks over the original's top staff, as Verovio writes a MusicXML metronome: the SMuFL quarter
+    /// note, then "= 92"; in 6/8 the dotted quarter, "♩. = 60", with "mm.dots".
+    /// </summary>
+    private static void WriteTempos(XmlWriter xml, MeasurePlan measure)
+    {
+        foreach (TempoMark mark in measure.Tempos)
+        {
+            string perMinute = Number(mark.PerMinute);
+            xml.WriteStartElement("tempo", MeiNamespace);
+            xml.WriteAttributeString("staff", Number(measure.TempoStaff));
+            xml.WriteAttributeString("place", "above");
+            xml.WriteAttributeString("tstamp", Beat(measure.Bar, Math.Max(mark.At.Value, measure.Bar.Span.Onset.Value)));
+            xml.WriteAttributeString("mm", perMinute);
+            xml.WriteAttributeString("mm.unit", "4");
+            bool dotted = mark.Beat == TempoBeat.DottedQuarter;
+            if (dotted)
+            {
+                xml.WriteAttributeString("mm.dots", "1");
+            }
+
+            // MIDI's beats a minute are quarter notes'.
+            xml.WriteAttributeString("midi.bpm", Number(mark.Beat.QuarterNotes(mark.PerMinute)));
+            xml.WriteStartElement("rend", MeiNamespace);
+            xml.WriteAttributeString("glyph.auth", "smufl");
+            xml.WriteString(dotted ? DottedQuarterNoteGlyph : QuarterNoteGlyph);
+            xml.WriteEndElement();
+            xml.WriteString(" " + mark.Text);
+            xml.WriteEndElement();
+        }
+    }
+
+    /// <summary>SMuFL's metNoteQuarterUp, the note of a metronome mark.</summary>
+    private const string QuarterNoteGlyph = "\uECA5";
+
+    /// <summary>metNoteQuarterUp and metAugmentationDot, as Verovio writes a dotted quarter's mark.</summary>
+    private const string DottedQuarterNoteGlyph = "\uECA5 \uECB7";
 
     /// <summary>A part's words, dynamics, hairpins, slurs and pedal marks in a bar, on the part's own staves.</summary>
     private static void WriteDirections(XmlWriter xml, Bar bar, PartMeasure part)
@@ -1436,7 +1494,14 @@ public static partial class NotationGenerator
         };
     }
 
-    private sealed record MeasurePlan(Bar Bar, int Fifths, PartMeasure[] Parts);
+    private sealed record MeasurePlan(Bar Bar, int Fifths, PartMeasure[] Parts)
+    {
+        /// <summary>The metronome marks in the bar (version 0.5.4).</summary>
+        public TempoMark[] Tempos { get; init; } = [];
+
+        /// <summary>The MEI number of the original's top staff, which the marks stand over.</summary>
+        public int TempoStaff { get; init; } = 1;
+    }
 
     /// <param name="FirstStaff">The MEI number of the part's top staff; the others follow it.</param>
     private sealed record PartMeasure(int FirstStaff, StaffMeasure[] Staves)

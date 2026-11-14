@@ -81,6 +81,7 @@ public static class ProjectSync
         ["originals"] = FieldClass.Import,
         ["partOf"] = FieldClass.Import,
         ["editsOff"] = FieldClass.Bookkeeping,
+        ["tempo"] = FieldClass.Player,
         ["motifs"] = FieldClass.Player,
         ["variations"] = FieldClass.Player,
         ["observations"] = FieldClass.Player,

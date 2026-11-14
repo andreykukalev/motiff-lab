@@ -147,7 +147,7 @@ public sealed record OpenedProject(
             piece = Heard(project.Transcription, piece);
         }
 
-        return project.Assembly.Over(piece);
+        return project.Assembly.Over(piece) with { PlayerTempo = project.PlayerTempo };
     }
 
     private static ImportedPiece Heard(TranscriptionOrigin transcription, ImportedPiece piece)

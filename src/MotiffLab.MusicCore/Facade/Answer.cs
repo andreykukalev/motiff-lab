@@ -1187,11 +1187,46 @@ internal static partial class Answer
     }
 
     /// <summary>
+    /// "tempo": {"perMinute", "source"} of the tempo at the start as played, quarter notes a minute; "piece": the same as
+    /// the piece states it, before the player's tempo; "player": the player's tempo for the piece, or null (version 0.5.4).
+    /// "beat": "quarter", or "dottedQuarter" in 6/8 and the other compound meters, the note the player reads and types the
+    /// tempo in (<see cref="TempoBeats"/>); "perMinute" and "player" stay quarter notes, "beatsPerMinute" counts the beat.
+    /// </summary>
+    public static void PlaybackTempoAnswer(Utf8JsonWriter json, PlaybackScore score)
+    {
+        TempoBeat beat = TempoBeats.At(score.Meter, Tick.Zero);
+        json.WriteStartObject("tempo");
+        json.WriteNumber("perMinute", score.StartTempo.PerMinute);
+        json.WriteString("source", score.StartTempo.Source.Name());
+        json.WriteString("beat", beat.Name());
+        json.WriteNumber("beatsPerMinute", beat.PerMinute(score.StartTempo.MicrosecondsPerQuarter));
+        json.WriteStartObject("piece");
+        json.WriteNumber("perMinute", score.PieceTempos[0].PerMinute);
+        json.WriteString("source", score.PieceTempos[0].Source.Name());
+        json.WriteNumber("beatsPerMinute", beat.PerMinute(score.PieceTempos[0].MicrosecondsPerQuarter));
+        json.WriteEndObject();
+        if (score.StartTempo.Source == TempoSource.Player)
+        {
+            json.WriteNumber("player", score.StartTempo.PerMinute);
+        }
+        else
+        {
+            json.WriteNull("player");
+        }
+
+        json.WriteEndObject();
+    }
+
+    /// <summary>
     /// A playback score: its end, notes, pedal, tempos, beats and bars. Within contract 12 (version 0.5.2, the iPad's one
     /// playback position) each beat also tells its "bar" and its "beat" in the bar, and each bar the "firstBeat" its start
     /// falls in, counted as <see cref="MeterMap.ToPosition"/> counts them, so an app writes a place as bar.beat ("16.2")
     /// without counting beats itself.
     /// </summary>
+    /// <remarks>
+    /// Within contract 12 (version 0.5.4, #511 section 17, fields added) each tempo tells its "source" ("notated",
+    /// "inferred", "assumed" or "player"), and "tempo" what the tempo control shows: see <see cref="PlaybackTempoAnswer"/>.
+    /// </remarks>
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)
     {
         json.WriteNumber("end", score.End.Value);
@@ -1225,10 +1260,12 @@ internal static partial class Answer
             json.WriteStartObject();
             json.WriteNumber("at", tempo.At.Value);
             json.WriteNumber("microsecondsPerQuarter", tempo.MicrosecondsPerQuarter);
+            json.WriteString("source", tempo.Source.Name());
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
+        PlaybackTempoAnswer(json, score);
         json.WriteStartArray("beats");
         foreach (PlaybackBeat beat in score.Beats)
         {
