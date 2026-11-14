@@ -141,11 +141,14 @@ enum RollPick: Equatable, Sendable {
     }
 }
 
-/// «Навигация | Правка нот» in the roll's head, as the bar's modes are drawn: the chosen mode with its icon and its name,
-/// the other with its icon alone (Andrei, 2026-11-13 14:33).
+/// «Навигация | Правка нот» in the roll's head, as the bar's modes are drawn (Andrei, 2026-11-13 14:33), steady since
+/// #521 18: each mode with its icon and its name (only the icons in the narrow head), so switching moves no icon and no
+/// word; the chosen one tinted in the switch's own capsule shape, never a square.
 struct RollModeSwitch: View {
     let chosen: RollMode
     let text: UIText
+    /// Whether the modes' names show beside their icons: everywhere but the narrow head.
+    var labels = true
     let choose: (RollMode) -> Void
 
     var body: some View {
@@ -168,18 +171,41 @@ struct RollModeSwitch: View {
         } label: {
             HStack(spacing: 6) {
                 Icon(name: mode.icon, size: CGFloat.ds("icon-m"))
-                if on {
-                    Text(text[mode.label]).dsType(.label).lineLimit(1).fixedSize()
+                if labels {
+                    ZStack {
+                        // The name in the chosen weight, unseen, holds its width either way.
+                        Text(text[mode.label]).font(Self.font(on: true)).lineLimit(1).fixedSize().hidden()
+                        Text(text[mode.label]).font(Self.font(on: on)).lineLimit(1).fixedSize()
+                    }
                 }
             }
-            .padding(.horizontal, on ? CGFloat.ds("s-3") : CGFloat.ds("s-2"))
-            .frame(minWidth: CGFloat.ds("h-control"), minHeight: CGFloat.ds("h-control"))
+            .padding(.horizontal, labels ? CGFloat.ds("s-3") : 0)
+            // The switch's rim (2 points each side) keeps it as tall as the head's other controls.
+            .frame(minWidth: CGFloat.ds("h-control") - 4, minHeight: CGFloat.ds("h-control") - 4)
         }
-        .buttonStyle(BarActionStyle(on: on))
+        .buttonStyle(RollSegmentStyle(on: on))
         .accessibilityLabel(text[mode.label])
         .accessibilityHint(text[mode.hint])
         .accessibilityAddTraits(on ? .isSelected : [])
         .help(text[mode.hint])
+    }
+
+    private static func font(on: Bool) -> Font {
+        DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout)
+    }
+}
+
+/// A mode of the roll's switch (#521 18.2): the accent and its tint while chosen, in a capsule as the switch is.
+private struct RollSegmentStyle: ButtonStyle {
+    let on: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Capsule())
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(Capsule())
     }
 }
 
