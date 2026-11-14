@@ -32,7 +32,7 @@ import { actsOnRoll, drawBox, drawPlayheads, gestureFor, notesInBox, playheadKno
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
-import { knobHeadAt, laneDragTick, laneHeadAt } from "./roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, type StripHost } from "./roll-strip-gesture.js";
 import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
@@ -257,6 +257,8 @@ let FIT_MARGIN = 16;
 /** The kit's motion (`--t-slow` for Fit and a selection brought into view, `--t-base` for following the playhead, `--ease`). */
 let GLIDE_MS = 320;
 let FOLLOW_MS = 200;
+/** How far back, in the kit's slow time (`--t-slow`), a press still finds a playhead that moves on while playing (#533 4). */
+let REACH_BACK_MS = 320;
 let EASE: (share: number) => number = (share) => share;
 /** The tokens the palette was last read from, so patterns are made again when the theme changes. */
 let paletteKey = "";
@@ -303,6 +305,7 @@ function readPalette(element: Element): boolean {
     KNOB_RADIUS = Number.parseFloat(t("r-xs")) || KNOB_RADIUS;
     FIT_MARGIN = Number.parseFloat(t("s-4")) || FIT_MARGIN;
     GLIDE_MS = milliseconds(t("t-slow"), GLIDE_MS);
+    REACH_BACK_MS = GLIDE_MS;
     FOLLOW_MS = milliseconds(t("t-base"), FOLLOW_MS);
     EASE = easing(t("ease"));
     return true;
@@ -416,6 +419,8 @@ export class PianoRoll {
     });
     /** Where the press on a playhead's handle began, until it moves past a tap. */
     private lanePress: number | null = null;
+    /** Where the playheads were drawn across the roll lately while the music played, for a press to find them (#533 4). */
+    private drawnHeads: { at: number; black: number; blue: number | null }[] = [];
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -1976,6 +1981,7 @@ export class PianoRoll {
      */
     private drawPlayhead(context: CanvasRenderingContext2D, width: number, height: number): void {
         const at = this.xOf(this.tickNow);
+        this.keepDrawnHeads();
         const playheadContext = this.playheadContext();
         if (playheadContext !== null) {
             const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
@@ -2054,7 +2060,7 @@ export class PianoRoll {
         this.holdBegan(event.pointerId);
         const x = this.overviewX(event);
         const width = this.host.clientWidth;
-        if (this.player !== null && overviewGrab(x, width, this.tickNow, model.end, TOUCH / 2) === "position" && this.laneDrag.grab("black", event.pointerId)) {
+        if (this.player !== null && overviewGrab(x, width, this.tickNow, model.end, TOUCH / 2) === "position" && this.laneDrag.grab("black", event.pointerId, this.playing())) {
             this.overviewPress = { pointer: event.pointerId, position: true, offset: 0 };
             return;
         }
@@ -2132,11 +2138,48 @@ export class PianoRoll {
         if (state !== null) {
             return this.pressModelHead(event, state, x, y);
         }
-        if (!onPlayhead(x, y, this.xOf(this.tickNow), BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
+        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
             return false;
         }
         this.playhead.begin(event.pointerId, x);
         return true;
+    }
+
+    /** Where the two playheads are drawn now, across the roll: the black one always, the blue one with the model's selection. */
+    private headsNow(): { black: number; blue: number | null } {
+        const playing = this.playing();
+        const state = this.lanes ? { selection: this.motif, loop: this.looping } : this.heldModel();
+        if (state === null) {
+            return { black: this.xOf(this.tickNow), blue: null };
+        }
+        const view = viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" });
+        return { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue) };
+    }
+
+    /** Keeps where the playheads are drawn while the music plays, for as long as a press may still find them there (#533 4). */
+    private keepDrawnHeads(): void {
+        if (!this.playing()) {
+            this.drawnHeads = [];
+            return;
+        }
+        const at = performance.now();
+        this.drawnHeads = this.drawnHeads.filter((drawn) => drawn.at >= at - REACH_BACK_MS);
+        this.drawnHeads.push({ at, ...this.headsNow() });
+    }
+
+    /**
+     * Where a press at `x` measures each playhead from (#533 4, roll-head-drag.ts reachedFrom): playing, the nearest place it
+     * was drawn at in the kit's slow time, at most a touch target behind or ahead of where it is now, as the finger lands
+     * where it saw the line; stopped, where it is.
+     */
+    private headsNear(x: number): { black: number; blue: number | null } {
+        const now = this.headsNow();
+        const since = performance.now() - REACH_BACK_MS;
+        const drawn = this.playing() ? this.drawnHeads : [];
+        const black = reachedFrom(x, now.black, drawn.map((head) => ({ at: head.at, x: head.black })), since, TOUCH);
+        const blue = now.blue === null ? null
+            : reachedFrom(x, now.blue, drawn.flatMap((head) => (head.blue === null ? [] : [{ at: head.at, x: head.blue }])), since, TOUCH);
+        return { black, blue };
     }
 
     /**
@@ -2144,8 +2187,8 @@ export class PianoRoll {
      * down its line, a touch target wide: the drag moves it on the sixteenth grid, not what lies under it.
      */
     private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
-        const view = viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: "stopped" });
-        const heads = { black: this.xOf(view.black), blue: view.blue === null ? null : this.xOf(view.blue), stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
+        const { black, blue } = this.headsNear(x);
+        const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
         return this.grabHead(laneHeadAt(x, y, heads), event.pointerId, x);
     }
 
@@ -2156,12 +2199,19 @@ export class PianoRoll {
      */
     private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
         const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, viewOf({ ...state, tick: this.tickNow }));
+        // Playing, each knob is found where it was drawn a moment ago too (headsNear); its height stays.
+        const near = this.headsNear(x);
+        const found = { black: { ...knobs.black, x: near.black }, blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue } };
         const reach = (event.pointerType === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
-        return this.grabHead(knobHeadAt(x, y, knobs, reach), event.pointerId, x);
+        return this.grabHead(knobHeadAt(x, y, found, reach), event.pointerId, x);
     }
 
+    /**
+     * A playhead taken by its handle (#533 4): while the music plays, it stands as soon as it is held, the press telling the
+     * player at once (T14), and plays on from where it is let go (T16); stopped, a tap on it moves nothing.
+     */
     private grabHead(handle: Handle | null, pointer: number, x: number): boolean {
-        if (handle === null || !this.laneDrag.grab(handle, pointer)) {
+        if (handle === null || !this.laneDrag.grab(handle, pointer, this.playing())) {
             return false;
         }
         this.lanePress = x;

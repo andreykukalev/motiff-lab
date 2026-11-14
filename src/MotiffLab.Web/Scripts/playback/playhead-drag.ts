@@ -44,10 +44,14 @@ export type DragMessage =
     | { phase: "move"; handle: Handle; tick: number }
     | { phase: "release"; handle: Handle };
 
-/** One held playhead: the pointer that holds it, and the place shown and sent (none before it moves), a send waiting. */
+/**
+ * One held playhead: the pointer that holds it, whether the host was told it is taken, and the place shown and sent (none
+ * before it moves), a send waiting.
+ */
 interface Held {
     handle: Handle;
     pointer: number;
+    taken: boolean;
     shown: number | null;
     sent: number | null;
     waiting: boolean;
@@ -80,14 +84,18 @@ export class PlayheadDrag {
 
     /**
      * A pointer takes a playhead; false when another one is held already. Until it moves, the player's place shows and the
-     * host hears nothing, so a tap on a handle neither pauses nor moves anything.
+     * host hears nothing, so a tap on a handle neither pauses nor moves anything; with `now` (the roll while the music plays,
+     * #533 4) the host is told at once, so playback stands as soon as the playhead is held, and a tap plays on.
      */
-    grab(handle: Handle, pointer: number): boolean {
+    grab(handle: Handle, pointer: number, now = false): boolean {
         if (this.held !== null) {
             return false;
         }
         this.kept = null;
-        this.held = { handle, pointer, shown: null, sent: null, waiting: false };
+        this.held = { handle, pointer, taken: now, shown: null, sent: null, waiting: false };
+        if (now) {
+            this.send({ phase: "grab", handle });
+        }
         return true;
     }
 
@@ -97,7 +105,8 @@ export class PlayheadDrag {
         if (held === null || held.pointer !== pointer || tick === held.shown) {
             return;
         }
-        if (held.shown === null) {
+        if (!held.taken) {
+            held.taken = true;
             this.send({ phase: "grab", handle: held.handle });
         }
         held.shown = tick;
@@ -114,11 +123,13 @@ export class PlayheadDrag {
             return;
         }
         this.held = null;
-        if (held.shown === null) {
+        if (!held.taken) {
             return;
         }
-        this.flush(held);
-        this.kept = { tick: held.shown, until: this.now() + HOLD_MS };
+        if (held.shown !== null) {
+            this.flush(held);
+            this.kept = { tick: held.shown, until: this.now() + HOLD_MS };
+        }
         this.send({ phase: "release", handle: held.handle });
     }
 
