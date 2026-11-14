@@ -23,6 +23,11 @@ export interface PlayheadPlaces {
     selectionAtEnd?: boolean;
     /** The playhead the score follows and reports out of sight; by default the one that plays. */
     follow?: "global" | "selection";
+    /**
+     * Whether the player holds the black playhead (its dot, or a long press on the notes): then a black line stands across
+     * the staves at its place, and fades when it is let go (v0.5.7, #543 5, the lead's decision 4).
+     */
+    held?: boolean;
 }
 
 /** A stretch of ticks [start, end). */
@@ -65,6 +70,10 @@ export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefi
     return beforeEnd === undefined ? atEnd : { ...beforeEnd, x: beforeEnd.bar.right };
 }
 
+/** The black line across the staves while the black playhead is held, and its class while it shows. */
+export const CURSOR_CLASS = "ph-held";
+export const HELD_CLASS = "held";
+
 /** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
 const TRACK_INSET = 3;
 const TRACK_GAP = 10;
@@ -98,6 +107,8 @@ export interface Grip {
 export class ScorePlayheadMarks {
     private track: { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } | null = null;
     private line: HTMLElement | null = null;
+    /** The black line across the staves while the black playhead is held. */
+    private cursor: HTMLElement | null = null;
 
     constructor(
         private readonly host: HTMLElement,
@@ -109,6 +120,7 @@ export class ScorePlayheadMarks {
         const global = places.global === null ? undefined : this.owner.at(places.global);
         const selection = this.selectionAt(places);
         this.placeGlobal(global, places.globalPlays);
+        this.placeCursor(global, places.held === true);
         this.placeSelection(selection);
         const follow = places.follow ?? (places.globalPlays || places.selection === null ? "global" : "selection");
         return follow === "global" ? global : selection;
@@ -123,7 +135,8 @@ export class ScorePlayheadMarks {
     }
 
     hide(): void {
-        hideAll(this.track?.element ?? null, this.line);
+        this.cursor?.classList.remove(HELD_CLASS);
+        hideAll(this.track?.element ?? null, this.line, this.cursor);
     }
 
     /** The handles shown, with their centres in the client's pixels, for the iPad to leave a touch there to them. */
@@ -146,6 +159,7 @@ export class ScorePlayheadMarks {
         this.hide();
         this.track?.element.remove();
         this.line?.remove();
+        this.cursor?.remove();
     }
 
     private placeGlobal(at: Playhead | undefined, plays: boolean): void {
@@ -161,6 +175,19 @@ export class ScorePlayheadMarks {
         size(track.fill, place.filled, null);
         transform(track.dot, place.filled, 0);
         track.element.classList.toggle("stop", !plays);
+    }
+
+    /** The held black playhead's line follows its place; let go, it stays where it was and fades (the stylesheet's --t-fast). */
+    private placeCursor(at: Playhead | undefined, held: boolean): void {
+        if (!held || at === undefined) {
+            this.cursor?.classList.remove(HELD_CLASS);
+            return;
+        }
+        const cursor = (this.cursor ??= mark(CURSOR_CLASS));
+        show(this.host, cursor);
+        transform(cursor, at.x - 1, at.top);
+        size(cursor, null, at.bottom - at.top);
+        cursor.classList.add(HELD_CLASS);
     }
 
     private placeSelection(at: Playhead | undefined): void {

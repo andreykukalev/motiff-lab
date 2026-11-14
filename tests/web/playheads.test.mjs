@@ -50,3 +50,63 @@ test("Space plays or pauses outside a field or a dialog, and not when the roll t
     assert.equal(playsOrPauses(space({ target: { closest: () => ({}) } })), false);
     assert.equal(playsOrPauses(space({ key: "a" })), false);
 });
+
+/** The few parts of the DOM the playheads' marks use. */
+class FakeMark {
+    constructor() {
+        this.className = "";
+        this.style = {};
+        this.hidden = false;
+        this.children = [];
+        this.parentElement = null;
+        this.listeners = {};
+        const owner = this;
+        this.classList = {
+            add: (name) => { owner.className = [...new Set([...owner.className.split(" ").filter(Boolean), name])].join(" "); },
+            remove: (name) => { owner.className = owner.className.split(" ").filter((one) => one && one !== name).join(" "); },
+            toggle: (name, on) => (on ? owner.classList.add(name) : owner.classList.remove(name)),
+            contains: (name) => owner.className.split(" ").includes(name),
+        };
+    }
+
+    setAttribute() {}
+
+    addEventListener(name, listener) {
+        this.listeners[name] = listener;
+    }
+
+    append(...children) {
+        for (const child of children) {
+            child.parentElement = this;
+            this.children.push(child);
+        }
+    }
+
+    remove() {
+        this.parentElement = null;
+    }
+}
+
+test("held, the black playhead stands as a line across the staves at its place, and let go the line fades (#543 5)", async () => {
+    globalThis.document = { createElement: () => new FakeMark() };
+    try {
+        const { ScorePlayheadMarks, CURSOR_CLASS, HELD_CLASS } = await import("../../src/MotiffLab.Web/wwwroot/js/score/playheads.js");
+        const host = new FakeMark();
+        const bar = { left: 100, right: 300, top: 50, bottom: 150, system: 0 };
+        const marks = new ScorePlayheadMarks(host, { at: (tick) => ({ x: 100 + tick / 10, top: 60, bottom: 140, bar }), lineBottom: () => 150 });
+        const cursor = () => host.children.find((child) => child.className.split(" ").includes(CURSOR_CLASS));
+        marks.place({ global: 480, selection: null, globalPlays: false });
+        assert.equal(cursor(), undefined, "hidden by default: the score is read without it");
+        marks.place({ global: 480, selection: null, globalPlays: false, held: true });
+        assert.ok(cursor().classList.contains(HELD_CLASS));
+        assert.equal(cursor().style.transform, "translate(147px, 60px)", "at the place, from the top staff");
+        assert.equal(cursor().style.height, "80px", "across the staves");
+        marks.place({ global: 1440, selection: null, globalPlays: true, held: true });
+        assert.equal(cursor().style.transform, "translate(243px, 60px)", "it follows the pen, playing or not");
+        marks.place({ global: 1440, selection: null, globalPlays: true });
+        assert.equal(cursor().classList.contains(HELD_CLASS), false, "let go, it fades where it was");
+        assert.equal(cursor().style.transform, "translate(243px, 60px)");
+    } finally {
+        delete globalThis.document;
+    }
+});

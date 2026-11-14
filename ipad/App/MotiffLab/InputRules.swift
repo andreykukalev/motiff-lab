@@ -5,9 +5,12 @@ import Foundation
 /// stylus does what the chosen tool does: in Navigate it moves the music as a finger does, in Select it selects by
 /// beats, with the Pen it writes. A finger never writes while the iPad is used with a stylus. Without one (the iPad's
 /// setting «Only draw with Apple Pencil» off) one finger takes the tool and two fingers scroll, so every tool works with
-/// a finger alone. The selection's handles and the playheads' handles move with a finger in any tool and with the stylus
-/// wherever it does not write: with the Pen the stylus writes everywhere, at the handles too (#511 4.1), so a stroke never
-/// moves a selection's edge. The same rules hold in Notes and on a PDF, where nothing can be selected.
+/// a finger alone. Under the modes only Select makes, changes or clears a selection (v0.5.7, #543 2-4, the lead's decisions
+/// 1-3): its handles show and move only there; in Navigate, and with the Pen for a pointer that does not write, a long
+/// press puts the black playhead at the place under it and never selects. The playheads' handles move with a finger in any
+/// tool and with the stylus wherever it does not write: with the Pen the stylus writes everywhere, at the handles too
+/// (#511 4.1). Before the modes the rules of before hold. The same rules hold in Notes and on a PDF, where nothing can be
+/// selected.
 struct InputRules: Equatable, Sendable {
     /// The tool chosen in the bar: none before the modes (the experiment off) with the Pen off.
     enum Tool: Equatable, Sendable {
@@ -79,12 +82,26 @@ struct InputRules: Equatable, Sendable {
         return effectiveTool == .none || effectiveTool == .navigate ? 1 : 2
     }
 
-    /// How a press of the pointer starts a selection: the stylus in Select and one finger in Select without a stylus at
-    /// once; otherwise a long press and a drag, in any tool, except where the pointer writes. Never on a PDF.
+    /// How a press of the pointer starts a selection: in Select the stylus, and one finger without a stylus, at once, and a
+    /// finger beside a stylus after a long press; in no other tool (#543 2.4: the tool decides, a long press alone is no
+    /// intent to select). Before the modes a long press and a drag, as before. Never where the pointer writes, never on a PDF.
     func selectStart(_ pointer: Pointer) -> SelectStart {
         guard surface == .notes, !writes(pointer) else { return .none }
-        guard effectiveTool == .select else { return .longPress }
-        return actsAsFinger(pointer) && stylus ? .longPress : .now
+        switch effectiveTool {
+        case .none:
+            return .longPress
+        case .select:
+            return actsAsFinger(pointer) && stylus ? .longPress : .now
+        case .navigate, .edit, .pen:
+            return .none
+        }
+    }
+
+    /// Whether a long press of the pointer puts the black playhead at the place under it (#543 3.1, the lead's decision 2):
+    /// in Navigate, and with the Pen for a pointer that does not write (a finger beside the stylus). On the notes only.
+    func holdsPlayhead(_ pointer: Pointer) -> Bool {
+        guard surface == .notes, !writes(pointer) else { return false }
+        return effectiveTool == .navigate || effectiveTool == .pen
     }
 
     /// Whether a tap of the pointer acts on the page (places the playhead, opens a note, selects a bar before the modes):
@@ -93,25 +110,35 @@ struct InputRules: Equatable, Sendable {
         !writes(pointer)
     }
 
-    /// Whether a press of the pointer on a selection handle or a playhead's handle takes the handle (#511 4.1): a finger
-    /// always does; the stylus only where it does not write, so with the Pen it writes over the handles as everywhere.
-    func takesHandles(_ pointer: Pointer) -> Bool {
+    /// Whether a press of the pointer on a playhead's handle (the black dot, the cobalt knob) takes it (#511 4.1): a finger
+    /// always does; the stylus only where it does not write, so with the Pen it writes over the handles as everywhere. The
+    /// playheads are playback, not the selection: they move in Navigate too (#543 2.3).
+    func takesPlayheads(_ pointer: Pointer) -> Bool {
         pointer == .finger || !writes(pointer)
     }
 
-    /// Whether the pen's gesture takes a touch of the pointer at a point `nearHandle` (a selection's or a playhead's
-    /// handle, within `handleReach`) or not: only a pointer that writes reaches the gesture, and it leaves the handles to
-    /// the pointers that take them.
-    func inkTakes(_ pointer: Pointer, nearHandle: Bool) -> Bool {
-        writes(pointer) && !(nearHandle && takesHandles(pointer))
+    /// Whether a press of the pointer on a selection handle takes it: under the modes only in Select, where the page alone
+    /// draws them (#543 4.2); before the modes as the playheads' handles.
+    func takesHandles(_ pointer: Pointer) -> Bool {
+        guard effectiveTool == .select || effectiveTool == .none else { return false }
+        return takesPlayheads(pointer)
     }
 
-    /// What the score page is told (`motiff.input`): for "touch" and "pen", how a press selects, whether a tap acts and
-    /// whether a press on a handle takes it.
+    /// Whether the pen's gesture takes a touch of the pointer at a point `nearHandle` (a selection's handle) or
+    /// `nearPlayhead` (a playhead's handle), within `handleReach`, or not: only a pointer that writes reaches the gesture,
+    /// and it leaves the handles to the pointers that take them.
+    func inkTakes(_ pointer: Pointer, nearHandle: Bool, nearPlayhead: Bool = false) -> Bool {
+        writes(pointer) && !(nearHandle && takesHandles(pointer)) && !(nearPlayhead && takesPlayheads(pointer))
+    }
+
+    /// What the score page is told (`motiff.input`): for "touch" and "pen", how a press selects, whether a tap acts, whether
+    /// a press on a selection handle takes it and whether a long press puts the black playhead (`hold`).
     var page: [String: Any] {
         var rules: [String: Any] = [:]
         for pointer in Pointer.allCases {
-            rules[pointer.pageName] = ["select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer)] as [String: Any]
+            rules[pointer.pageName] = [
+                "select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer), "hold": holdsPlayhead(pointer),
+            ] as [String: Any]
         }
         return rules
     }

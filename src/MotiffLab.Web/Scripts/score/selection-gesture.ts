@@ -27,6 +27,28 @@ export function handleTakes(pointerType: string, rule: boolean | undefined, penO
     return rule ?? (pointerType === "touch" || !penOn);
 }
 
+/**
+ * Whether the selection's handles show and take a press (v0.5.7, #543 4.2, the lead's decision 3): always before the modes
+ * (no mode), and under them only in Select; in Navigate, Edit notes and the Pen the band stays without them.
+ */
+export function handlesShown(mode: string | null | undefined): boolean {
+    return mode === null || mode === undefined || mode === "select";
+}
+
+/** A pointer as a gesture keeps it, and as a new press names it. */
+export interface PointerKind {
+    pointerType: string;
+}
+
+/**
+ * Whether a press means that the gesture under way lost its end (#543 9): a primary pointer of the same type as the one
+ * holding the gesture comes down only once that one has lifted (one pen, one mouse, a first finger with none down), so the
+ * gesture is stale, its pointerup or pointercancel lost, and it ends as cancelled instead of blocking every press after it.
+ */
+export function staleGesture(held: PointerKind, press: PointerKind & { isPrimary: boolean }): boolean {
+    return press.isPrimary && press.pointerType === held.pointerType;
+}
+
 /** How long a press rests outside the selection before the selection goes, and before a finger selects, in milliseconds. */
 export const HOLD_MS = 450;
 

@@ -49,7 +49,7 @@ import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { HoldToPlace } from "../playback/hold-place.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
-import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
+import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
@@ -2997,6 +2997,12 @@ export class PianoRoll {
     private pinched(event: PointerEvent, x: number, y: number): boolean {
         if (event.pointerType !== "touch") {
             return false;
+        }
+        if (this.touches.size > 0 && !this.touches.has(event.pointerId) && staleGesture({ pointerType: "touch" }, event)) {
+            // A first finger with fingers still counted down: their end was lost (#543 9). Without this every finger after
+            // would be taken for a pinch's second and the roll would answer no single finger again.
+            this.touches.clear();
+            this.cancelPresses();
         }
         this.touches.set(event.pointerId, { x, y });
         if (this.touches.size < 2) {
