@@ -297,7 +297,10 @@ struct VersionsDrawer: View {
             let pdf = choosingPdf
             adding = false
             Task {
-                if pdf {
+                if pdf, score.sources.document != nil {
+                    // A PDF kept already is never replaced, for the notes read from it keep its pages (0030): another is added beside it.
+                    await score.addAnotherPdf(data, fileName: fileName)
+                } else if pdf {
                     await score.keepDocument(data)
                 } else {
                     await score.addVersion(fileName: fileName, data: data)
@@ -492,7 +495,8 @@ struct VersionsDrawer: View {
                 choosing = true
             }
             .buttonStyle(DSButtonStyle(kind: .secondary))
-            Button(text[score.sources.document == nil ? "sources.addPdf" : "sources.replacePdf"]) {
+            // «Добавить ещё PDF», never «Заменить PDF» (version 0.6, with the switch on or off).
+            Button(score.sources.document == nil ? text["sources.addPdf"] : text["sources.sheet.addAnotherPdf"]) {
                 choosingPdf = true
                 relinking = nil
                 choosing = true
@@ -936,15 +940,27 @@ struct MergeToastView: View {
     let toast: ScoreController.MergeToast
 
     var body: some View {
+        UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { score.undoToast() } : nil) { score.closeToast() }
+    }
+}
+
+/// The score's toast: a light capsule with what was just done, a quiet «Отменить» where it can be undone, and ✕.
+struct UndoToast: View {
+    let words: String
+    let text: UIText
+    let undo: (() -> Void)?
+    let close: () -> Void
+
+    var body: some View {
         HStack(spacing: CGFloat.ds("s-3")) {
-            Text(toast.text)
+            Text(words)
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
-            if toast.undo != nil {
-                Button(text["merge.toastUndo"]) { score.undoToast() }
+            if let undo {
+                Button(text["merge.toastUndo"], action: undo)
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
-            Button { score.closeToast() } label: { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
+            Button(action: close) { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
                 .buttonStyle(BarActionStyle())
                 .accessibilityLabel(text["bar.close"])
         }

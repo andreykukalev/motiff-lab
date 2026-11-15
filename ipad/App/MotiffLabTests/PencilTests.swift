@@ -105,7 +105,8 @@ final class PencilTests: XCTestCase {
         // The project file keeps the stroke as it is, for the web app to draw in the same place.
         let file = await MusicCore.run { MusicCore.call(piece: piece.id, "project.save", #"{"now": "2026-11-04T12:00:00Z"}"#) }
         let saved = try XCTUnwrap(facadeObject(file))
-        let kept = (saved["marks"] as? [String: Any])?["ink"] as? [[String: Any]]
+        // Version 16 (0030): the marks on the score are the workspace's.
+        let kept = ((saved["workspace"] as? [String: Any])?["marks"] as? [String: Any])?["ink"] as? [[String: Any]]
         XCTAssertEqual(kept?.first?["bar"] as? NSNumber, mark["bar"] as? NSNumber)
     }
 
