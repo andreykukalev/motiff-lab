@@ -78,6 +78,17 @@ public sealed record Motif
     public SelectionFilter Filter => Selection.Filter;
 
     /// <summary>
+    /// Whether a selection that holds notes makes a motif: a range always; notes picked one by one only from
+    /// <see cref="MotifSelection.MinNotes"/> to <see cref="MotifSelection.MaxNotes"/> of them (a pick on the iPad may hold
+    /// one or more, <see cref="MotifSelector.SelectPicked"/>, and makes none).
+    /// </summary>
+    public static bool Holds(MotifSelection selection, MotifSelectionKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        return kind != MotifSelectionKind.Notes || selection.NoteIds.Count is >= MotifSelection.MinNotes and <= MotifSelection.MaxNotes;
+    }
+
+    /// <summary>
     /// Creates a motif from a selection. Throws when the selection holds no notes, or, for notes
     /// picked one by one, fewer than <see cref="MotifSelection.MinNotes"/> or more than
     /// <see cref="MotifSelection.MaxNotes"/>.
@@ -103,7 +114,7 @@ public sealed record Motif
             throw new ArgumentException("The selection holds no notes.", nameof(selection));
         }
 
-        if (kind == MotifSelectionKind.Notes && selection.NoteIds.Count is < MotifSelection.MinNotes or > MotifSelection.MaxNotes)
+        if (!Holds(selection, kind))
         {
             throw new ArgumentException($"A motif of single notes holds {MotifSelection.MinNotes} to {MotifSelection.MaxNotes} notes.", nameof(selection));
         }

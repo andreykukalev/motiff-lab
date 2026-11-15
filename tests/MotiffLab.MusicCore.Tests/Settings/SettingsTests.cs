@@ -88,6 +88,14 @@ public class SettingsTests
     }
 
     [Fact]
+    public void The_place_selection_experiment_is_off_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.placeSelection");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.False(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
     public void The_new_sources_experiment_is_off_on_the_device()
     {
         Setting setting = SettingsCatalogue.Get("experimental.sources");

@@ -266,7 +266,7 @@ struct SelectionToastView: View {
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
             } else if score.selectionToast != nil && score.selectionSteps.canUndo && !score.focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    Text(text["selection.clearedToast"]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Text(text[score.selectionToastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
