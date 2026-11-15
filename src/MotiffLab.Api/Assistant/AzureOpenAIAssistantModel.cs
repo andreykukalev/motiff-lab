@@ -74,14 +74,23 @@ internal static class AzureOpenAIRequest
         return request;
     }
 
-    /// <summary>The context first, then the history, in order.</summary>
+    /// <summary>The history in order, the context just before the question it belongs to (<see cref="ModelTurn.ContextAt"/>).</summary>
     private static IEnumerable<ResponseItem> Input(ModelTurn turn, ToolNames names)
     {
-        yield return ResponseItem.CreateUserMessageItem(
-            $"The context of the question, as music-core gives it (its facts digest and, for a passage, its notes):\n{turn.Context.GetRawText()}");
-        foreach (TurnEntry entry in turn.History)
+        int contextAt = turn.ContextAt;
+        for (int index = 0; index <= turn.History.Count; index++)
         {
-            foreach (ResponseItem item in Items(entry, names))
+            if (index == contextAt)
+            {
+                yield return ResponseItem.CreateUserMessageItem(turn.ContextText);
+            }
+
+            if (index == turn.History.Count)
+            {
+                yield break;
+            }
+
+            foreach (ResponseItem item in Items(turn.History[index], names))
             {
                 yield return item;
             }

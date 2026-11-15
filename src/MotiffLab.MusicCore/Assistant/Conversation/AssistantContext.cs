@@ -1,6 +1,8 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Assistant.Conversation;
 
@@ -27,6 +29,23 @@ public static class AssistantContext
             json.WritePropertyName("notes");
             ReadingTools.WriteNotes(json, piece, piece.Read(from, to, hand));
         });
+    }
+
+    /// <summary>
+    /// The context of a question about <paramref name="selection"/> (null: the whole piece) in <paramref name="scope"/>: the
+    /// bars it touches, read whole, or the piece's digest; null when the bars are more than a range may hold.
+    /// </summary>
+    public static JsonElement? OfQuestion(AssistantPiece piece, TickSpan? selection, AskScope scope, Hand? hand = null)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        ArgumentNullException.ThrowIfNull(scope);
+        if (scope.IsWholePiece(selection))
+        {
+            return OfPiece(piece);
+        }
+
+        BarRange bars = BarRange.Of(piece.Meter, selection!.Value);
+        return piece.RangeRefusal(bars.FirstBar, bars.LastBar) is null ? OfRange(piece, bars.FirstBar, bars.LastBar, hand) : null;
     }
 
     /// <summary>{"digest": the whole piece's digest}.</summary>

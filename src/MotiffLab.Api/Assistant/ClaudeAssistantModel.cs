@@ -80,13 +80,18 @@ internal static class ClaudeRequest
             Strict = true,
         });
 
-    /// <summary>The context first, then the history; entries of the same side in a row share one message.</summary>
+    /// <summary>The history, the context just before the question it belongs to (<see cref="ModelTurn.ContextAt"/>); entries of the same side in a row share one message.</summary>
     private static List<BetaMessageParam> Messages(ModelTurn turn, ToolNames names)
     {
         var messages = new ClaudeMessages();
-        messages.Add(Role.User, Text(Context(turn.Context)));
-        foreach (TurnEntry entry in turn.History)
+        int contextAt = turn.ContextAt;
+        foreach ((TurnEntry entry, int index) in turn.History.Select(static (entry, index) => (entry, index)))
         {
+            if (index == contextAt)
+            {
+                messages.Add(Role.User, Text(turn.ContextText));
+            }
+
             switch (entry.Kind)
             {
                 case TurnEntryKind.Question:
@@ -106,9 +111,6 @@ internal static class ClaudeRequest
 
         return messages.Build();
     }
-
-    private static string Context(JsonElement context) =>
-        $"The context of the question, as music-core gives it (its facts digest and, for a passage, its notes):\n{context.GetRawText()}";
 
     private static BetaContentBlockParam[] Text(string? text) =>
         string.IsNullOrWhiteSpace(text) ? [] : [new BetaTextBlockParam { Text = text }];

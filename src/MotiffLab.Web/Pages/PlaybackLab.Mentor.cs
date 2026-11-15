@@ -121,18 +121,11 @@ public partial class PlaybackLab
         _ => "mentor.unreachable",
     };
 
-    /// <summary>The context of the question: the selection's digest and notes, or the whole piece's digest; null when the selection is longer than a range may be.</summary>
-    private JsonElement? MentorContext(AssistantPiece piece)
-    {
-        if (_askWholePiece || _selection is not { } selection)
-        {
-            return AssistantContext.OfPiece(piece);
-        }
-
-        int from = _meter!.BarAt(selection.Span.Onset).Number;
-        int to = _meter.BarAt(new MusicCore.Time.Tick(Math.Max(selection.Span.Onset.Value, selection.Span.End.Value - 1))).Number;
-        return piece.RangeRefusal(from, to) is null ? AssistantContext.OfRange(piece, from, to) : null;
-    }
+    /// <summary>
+    /// The context of the question (music-core's <see cref="AssistantContext.OfQuestion"/>): the selected bars' digest and
+    /// notes, or the whole piece's digest when that is the scope; null when the selection is longer than a range may be.
+    /// </summary>
+    private JsonElement? MentorContext(AssistantPiece piece) => AssistantContext.OfQuestion(piece, _selection?.Span, _askScope);
 
     /// <summary>
     /// One question's turns: the device sends the turn, runs the tool calls that come back and sends their results, until the
