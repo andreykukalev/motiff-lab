@@ -395,8 +395,7 @@ struct ScoreScreen: View {
                 // «RU» and Undo), never above the keyboard itself (v0.6.4).
                 VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }.keyboardLift(barOnly: true)
                 .padding(.bottom, pillBottom)
-                .padding(.trailing, pillTrailing)
-                .padding(.leading, pillLeading)
+                .padding(.trailing, pillTrailing).padding(.leading, pillLeading)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
