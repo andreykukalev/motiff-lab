@@ -47,6 +47,8 @@ struct ScoreScreen: View {
     /// (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
     @State private var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
     @State private var drawerDrag: CGFloat?
+    /// How tall the transport floating at the bottom is now: the selection's toast stands above it (v0.6.4, spec 7).
+    @State private var transportHeight: CGFloat = 0
     /// The Insights sheet (0018 section 6), from the bar or the selection menu.
     @State private var insightsOpen = false
     @StateObject private var contents = ContentsController()
@@ -297,7 +299,8 @@ struct ScoreScreen: View {
                         .transition(.opacity)
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
-                    SelectionToastView(score: score, text: text).padding(.bottom, pillBottom + 56)
+                    // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
+                    SelectionToastView(score: score, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .fullScreenCover(isPresented: $score.comparing) {
@@ -387,7 +390,8 @@ struct ScoreScreen: View {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
                 // shows with a selection or while the music plays, or only while it plays (the setting
                 // "guidance.transportPill", 0018 section 10).
-                VStack(spacing: CGFloat.ds("s-2")) { transport }
+                // Measured, so the selection's toast stands above it (v0.6.4, spec 7).
+                VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }
                 .padding(.bottom, pillBottom)
                 .padding(.trailing, pillTrailing)
                 .padding(.leading, pillLeading)
@@ -1056,8 +1060,10 @@ extension ScoreScreen {
             }
         }
         roll.cleared = { [weak score] gesture in score?.clearSelection(gesture: gesture) }
-        // Notes a box, a lasso or a tap picked in the roll's Select (#601): the one selection, lit on the score too.
+        // Notes a lasso or a tap picked in the roll's Select (#601): the one selection, lit on the score too.
         roll.notesPicked = { [weak score] pick in score?.selectNotes(pick.ids, add: pick.add, gesture: pick.gesture, replaces: pick.replaces) }
+        // A span drawn there, notes or none (v0.6.4), and the score's tuplets for the roll's grid: one selection for both.
+        roll.sharePlaces(with: score)
         roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
         roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
         // The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:

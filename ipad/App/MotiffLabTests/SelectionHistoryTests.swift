@@ -141,15 +141,15 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(ink.done.map(\.added), [["a"], ["c"]])
     }
 
-    func testSelectsOptionsChooseBarsOrBeatsUnderTheModes() {
-        XCTAssertTrue(StylusRules.byBeats(modes: true, chosen: true, experiment: false))
-        XCTAssertFalse(StylusRules.byBeats(modes: true, chosen: false, experiment: true), "by bars as Select's options say")
-        XCTAssertTrue(StylusRules.byBeats(modes: false, chosen: false, experiment: true), "without the modes the experiment decides")
+    func testUnderTheModesTheScoreAlwaysHasTheBeatsAndTheOldChoiceIsForgotten() {
+        XCTAssertTrue(StylusRules.byBeats(modes: true, experiment: false), "one selection on the grid (v0.6.4): no bars or beats to choose")
+        XCTAssertTrue(StylusRules.byBeats(modes: false, experiment: true), "without the modes the experiment decides")
+        XCTAssertFalse(StylusRules.byBeats(modes: false, experiment: false))
         let defaults = UserDefaults(suiteName: "SelectionHistoryTests")!
         defaults.removePersistentDomain(forName: "SelectionHistoryTests")
-        XCTAssertTrue(SelectBy.saved(defaults), "by beats until bars are chosen")
-        SelectBy.keep(false, defaults)
-        XCTAssertFalse(SelectBy.saved(defaults))
+        defaults.set(false, forKey: SelectBy.key)
+        SelectBy.forget(defaults)
+        XCTAssertNil(defaults.object(forKey: SelectBy.key), "an iPad that chose «По тактам» keeps nothing of it")
     }
 
     /// The bug of the evaluation: outside the Pen, «switch to eraser» and «switch to previous» changed the tool unseen.

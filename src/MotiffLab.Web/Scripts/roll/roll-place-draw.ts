@@ -1,8 +1,9 @@
-// What the roll draws for selection by where you touch (#601, experimental.placeSelection; report E, «Что видно»): the
-// selected span's edges down the whole roll as on the score, a knob at the top of the start and the bottom of the end; the
-// picked notes ringed in the accent; and while a press goes on, the box or the lasso drawn (dashed over a wash), the span
-// it makes, the old selection dashed until it is replaced, and picked notes where a drag takes them. Colours come from the
-// kit's tokens through the roll (cobalt: pointing and selection only).
+// What the roll draws for selection by where you touch (#601; report E, «Что видно»), as the score shows it (v0.6.4, Andrei
+// 19:55Z: one look for both): at each edge of the span the kit's hollow handle at the middle of the edge (HANDLE, the
+// score's `.sel-edge`, ds.css `.handle`: Andrei's spec 5 and 6, never at a corner), filled while taken; the picked notes
+// ringed in the accent; and while a press goes on, the dashed rectangle from the press to the pointer (the score's
+// `.sel-trace`) or the lasso, the span it makes, the old selection dashed until it is replaced, and picked notes where a
+// drag takes them. Colours come from the kit's tokens through the roll (cobalt: pointing and selection only).
 
 import type { RollNote } from "./roll-model.js";
 import type { PlacePreview } from "./roll-place-gesture.js";
@@ -20,30 +21,44 @@ export interface PlaceFrame {
     height: number;
 }
 
-/** The kit's colours the drawing takes. */
+/** The kit's colours the drawing takes: the accent, the band's tint, the handle's surface and the notation's ink. */
 export interface PlaceInks {
     accent: string;
     tint: string;
     surface: string;
+    ink?: string;
 }
 
+/**
+ * The selection's handle, the one place its look is set on the roll: the kit's `.handle` (ds.css: 14 px across, a 2 px
+ * accent ring on the surface), as the score's `.sel-edge` draws it; `y` where it sits down the edge, the middle of the notes.
+ */
+export const HANDLE = { diameter: 14, ring: 2, y: (frame: PlaceFrame): number => frame.header + (frame.height - frame.header) / 2 };
+
 const EDGE_WIDTH = 2;
-const KNOB_RADIUS = 7;
-const RING = 2;
+/** The rectangle drawn: the notation's ink at this share, as the score's `.sel-trace` (color-mix 45%). */
+const TRACE_ALPHA = 0.45;
 const DASH = [4, 3];
 const WASH_ALPHA = 0.08;
 
-/** A selected span's edges down the whole roll, with the start's knob on top and the end's at the bottom (report H 2). */
-export function drawPlaceEdges(context: CanvasRenderingContext2D, frame: PlaceFrame, span: TickSpan, inks: PlaceInks): void {
-    const edges: [number, number][] = [[frame.xOf(span.start), KNOB_RADIUS + RING], [frame.xOf(span.end), frame.height - KNOB_RADIUS - RING]];
-    for (const [x, knobY] of edges) {
+/** A selected span's handles: at the middle of its start's edge and of its end's, the one taken (`hot`) filled. */
+export function drawPlaceEdges(context: CanvasRenderingContext2D, frame: PlaceFrame, span: TickSpan, inks: PlaceInks, hot: "start" | "end" | null = null): void {
+    const y = HANDLE.y(frame);
+    for (const [edge, tick] of [["start", span.start], ["end", span.end]] as const) {
+        const x = frame.xOf(tick);
         if (x < frame.left || x > frame.right) {
             continue;
         }
-        context.fillStyle = inks.accent;
-        context.fillRect(Math.round(x) - EDGE_WIDTH / 2, 0, EDGE_WIDTH, frame.height);
-        disc(context, x, knobY, KNOB_RADIUS + RING, inks.surface);
-        disc(context, x, knobY, KNOB_RADIUS, inks.accent);
+        const radius = (HANDLE.diameter - HANDLE.ring) / 2;
+        context.save();
+        context.beginPath();
+        context.arc(x, y, radius, 0, 2 * Math.PI);
+        context.fillStyle = edge === hot ? inks.accent : inks.surface;
+        context.fill();
+        context.lineWidth = HANDLE.ring;
+        context.strokeStyle = inks.accent;
+        context.stroke();
+        context.restore();
     }
 }
 
@@ -88,7 +103,10 @@ export function drawPlacePreview(context: CanvasRenderingContext2D, frame: Place
             context.fillStyle = inks.tint;
             context.fillRect(left, frame.header, right - left, frame.height - frame.header);
         }
-        drawPlaceEdges(context, frame, span, inks);
+        drawPlaceEdges(context, frame, span, inks, preview.kind === "span" ? preview.edge : null);
+    }
+    if (preview.kind === "span" && preview.trace !== null) {
+        drawTrace(context, frame, preview.trace, inks);
     }
     if (preview.kind === "shape") {
         drawShape(context, frame, preview.path, preview.shape === "box", inks);
@@ -105,6 +123,21 @@ function dashedSpan(context: CanvasRenderingContext2D, frame: PlaceFrame, span: 
     context.strokeStyle = inks.accent;
     context.lineWidth = 1;
     context.strokeRect(Math.round(left) + 0.5, frame.header + 0.5, Math.max(1, right - left - 1), frame.height - frame.header - 1);
+    context.restore();
+}
+
+/** The rectangle a new selection is drawn with, from the press to the pointer: thin, dashed, the notation's ink (the score's `.sel-trace`). */
+function drawTrace(context: CanvasRenderingContext2D, frame: PlaceFrame, [from, to]: readonly [RollPoint, RollPoint], inks: PlaceInks): void {
+    const x0 = frame.xOf(from.tick);
+    const x1 = frame.xOf(to.tick);
+    const y0 = frame.yOf(from.pitch) + frame.row / 2;
+    const y1 = frame.yOf(to.pitch) + frame.row / 2;
+    context.save();
+    context.setLineDash(DASH);
+    context.lineWidth = 1;
+    context.globalAlpha = TRACE_ALPHA;
+    context.strokeStyle = inks.ink ?? inks.accent;
+    context.strokeRect(Math.min(x0, x1) + 0.5, Math.min(y0, y1) + 0.5, Math.abs(x1 - x0), Math.abs(y1 - y0));
     context.restore();
 }
 
@@ -140,11 +173,4 @@ function drawShape(context: CanvasRenderingContext2D, frame: PlaceFrame, path: r
     context.strokeStyle = inks.accent;
     context.stroke();
     context.restore();
-}
-
-function disc(context: CanvasRenderingContext2D, x: number, y: number, radius: number, colour: string): void {
-    context.beginPath();
-    context.arc(x, y, radius, 0, 2 * Math.PI);
-    context.fillStyle = colour;
-    context.fill();
 }

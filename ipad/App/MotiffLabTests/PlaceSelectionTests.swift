@@ -7,8 +7,10 @@ import XCTest
 /// the page's rules. The gesture itself is the page's (tests/web/selection-places.test.mjs).
 final class PlaceSelectionTests: XCTestCase {
     func testTheOneSelectionIsSelectedAgainAsItWas() {
-        XCTAssertEqual(SelectionSpan(onset: 0, end: 1920).request, #"{"snap":"beat","span":{"end":1920,"onset":0}}"#)
-        XCTAssertEqual(SelectionSpan(onset: 480, end: 1920, hand: "left").request, #"{"filter":{"hand":"left"},"snap":"beat","span":{"end":1920,"onset":480}}"#)
+        XCTAssertEqual(SelectionSpan(onset: 0, end: 1920).request, #"{"span":{"end":1920,"onset":0}}"#)
+        // v0.6.4: the span exactly as the page drew it on the sixteenth grid, never taken out to the beats.
+        XCTAssertEqual(SelectionSpan(onset: 600, end: 840).request, #"{"span":{"end":840,"onset":600}}"#)
+        XCTAssertEqual(SelectionSpan(onset: 480, end: 1920, hand: "left").request, #"{"filter":{"hand":"left"},"span":{"end":1920,"onset":480}}"#)
         XCTAssertEqual(SelectionSpan(onset: 480, end: 960, hand: "right", picked: ["n1"]).request, #"{"notes":["n1"],"picked":true}"#)
         XCTAssertEqual(SelectionSpan.picking(["a", "b"]), #"{"notes":["a","b"],"picked":true}"#)
     }
@@ -110,6 +112,25 @@ final class PlaceSelectionTests: XCTestCase {
         // What version 0.6.1 kept: a span only.
         defaults.set(Data(#"{"selection": {"onset": 0, "end": 1920}, "zoom": 1, "left": 0, "position": 0, "loop": false, "rollOpen": false}"#.utf8), forKey: ViewStates.notesKey("p_2"))
         let old = try XCTUnwrap(ViewStates.notes("p_2", in: defaults)?.selection)
-        XCTAssertEqual(old.span.request, #"{"snap":"beat","span":{"end":1920,"onset":0}}"#)
+        XCTAssertEqual(old.span.request, #"{"span":{"end":1920,"onset":0}}"#)
+    }
+
+    func testARollSpanIsReadAsDrawnAndTheTupletsAsBlocks() throws {
+        let span = try XCTUnwrap(RollSpan(["start": 600, "end": 840, "how": "replace", "gesture": "g1"]))
+        XCTAssertEqual(span.start, 600)
+        XCTAssertEqual(span.end, 840)
+        XCTAssertEqual(span.how, "replace")
+        XCTAssertEqual(span.gesture, "g1")
+        XCTAssertEqual(RollSpan(["start": 600, "end": 840])?.how, "create", "a span without how is a new one")
+        XCTAssertNil(RollSpan(["start": 600, "end": 600]), "never an empty stretch")
+        XCTAssertNil(RollSpan(["start": 600]))
+        let blocks = ScoreController.tuplets([["start": 0, "end": 480], ["start": 960], ["start": 960, "end": 960]])
+        XCTAssertEqual(blocks, [["start": 0, "end": 480]], "only groups with both ends")
+    }
+
+    func testTheToastStandsAboveTheTransportAsTallAsItIs() {
+        XCTAssertEqual(ToastPlace.bottom(pillBottom: 16, transport: 52, gap: 12), 80, "above the pill with Loop and the metronome")
+        XCTAssertEqual(ToastPlace.bottom(pillBottom: 316, transport: 104, gap: 12), 432, "over a drawer, above a taller transport")
+        XCTAssertEqual(ToastPlace.bottom(pillBottom: 16, transport: 0, gap: 12), 16, "nothing floats: at the transport's place")
     }
 }

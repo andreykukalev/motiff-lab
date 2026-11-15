@@ -84,7 +84,7 @@ const geometry = {
     },
 };
 
-function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true, view } = {}) {
+function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true, view, grid } = {}) {
     const root = new FakeRoot();
     const said = [];
     const drawBand = (range) => {
@@ -115,6 +115,7 @@ function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true,
         cleared: () => said.push({ cleared: true }),
         zoom: () => said.push({ zoom: true }),
         view: view === undefined ? undefined : () => view,
+        grid: grid === undefined ? undefined : () => grid,
     });
     let time = 0;
     const event = (x, y, pointerType = "pen") => ({ pointerId: 1, pointerType, isPrimary: true, button: 0, clientX: x, clientY: y, target: null, timeStamp: (time += 100) });
@@ -313,4 +314,30 @@ test("the page scrolls by itself only at the edges of the part of the window the
     } finally {
         Object.assign(window, { requestAnimationFrame: () => 0, scrollBy() {} });
     }
+});
+
+// The sixteenth grid of v0.6.4 (selection-grid.ts) as the iPad's page passes it.
+const SIXTEENTHS = Array.from({ length: (4 * BAR) / 120 + 1 }, (_, i) => i * 120);
+
+test("with the host's grid an edge stops on any sixteenth, and a rectangle covers part of a bar", () => {
+    const { said, gesture } = page({ grid: SIXTEENTHS });
+    // The end edge at x 500 moved 30 px right: 30 / 200 of a bar is 288 ticks, the nearest sixteenth 240.
+    gesture([[500, 290], [530, 290]]);
+    assert.deepEqual(said.find((step) => step.chosen), { chosen: { start: BAR, end: 2 * BAR + 240, hand: null }, how: "edit" });
+    const drawn = page({ grid: SIXTEENTHS, selection: null });
+    drawn.gesture([[612, 140], [640, 150]]);
+    const chosen = drawn.said.find((step) => step.chosen).chosen;
+    assert.ok(chosen.start > 2 * BAR && chosen.end < 3 * BAR, "inside one bar");
+    assert.equal(chosen.start % 120, 0);
+    assert.equal(chosen.end % 120, 0);
+});
+
+test("an edge let go is where a press takes it again before the owner answers, never back where it was", () => {
+    const { said, gesture, layer } = page({ grid: SIXTEENTHS });
+    gesture([[500, 290], [600, 290]]);
+    assert.deepEqual(said.filter((step) => step.chosen).at(-1).chosen, { start: BAR, end: 2 * BAR + 960, hand: null });
+    // The owner has not answered: the band shows the new end at x 600, and the end is taken there and moved on.
+    gesture([[600, 290], [650, 290]]);
+    assert.deepEqual(said.filter((step) => step.chosen).at(-1).chosen, { start: BAR, end: 2 * BAR + 1440, hand: null });
+    layer.settle();
 });

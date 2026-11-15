@@ -78,6 +78,26 @@ struct RollNotesPick: Equatable, Sendable {
     var replaces: Bool { change == .replace }
 }
 
+/// A span of the one selection the roll's place rule drew on the grid (v0.6.4, Web/roll.js `span`: a rectangle, an
+/// extension, an edge moved, a bar tapped), selected exactly as it is, notes in it or none; `how` is "create", "replace" or
+/// "edit".
+struct RollSpan: Equatable, Sendable {
+    var start: Double
+    var end: Double
+    var how: String
+    var gesture: String?
+
+    /// From `{ start, end, how, gesture }`; nil without a span of time.
+    init?(_ message: Any?) {
+        guard let message = message as? [String: Any], let start = (message["start"] as? NSNumber)?.doubleValue,
+              let end = (message["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
+        self.start = start
+        self.end = end
+        how = message["how"] as? String ?? "create"
+        gesture = message["gesture"] as? String
+    }
+}
+
 extension RollNoteEdit {
     /// Picked notes let go moved (`moved.notes`: `[{ id, onset, pitch, length }]`), each a change on the draft, as a note
     /// moved in Edit notes is; a malformed entry is left out.

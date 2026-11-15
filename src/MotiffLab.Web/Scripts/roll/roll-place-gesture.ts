@@ -1,16 +1,18 @@
-// Selection by where you touch on the roll's Select (#601, the experiment experimental.placeSelection; report E and F): a
-// press is read by its place, by the score's one rule (score/selection-places.ts), over the whole roll, and nothing waits
-// for a hold. On the notes: outside the selected span a drag draws a box (or a lasso) that picks notes anew, the old
-// selection kept for Undo; inside it the box adds notes; an edge, taken anywhere down the roll, moves that boundary, picked
-// notes narrowing to those still inside; a tap on a note picks that note, and a drag of a picked note moves the picked
-// notes as an edit (a draft with Cancel and Save). On the bar numbers a drag is a span of time without narrowing to notes:
-// from outside a new one, from inside it extends (#582 item 9), an edge moves. A double tap inside lays the span across
-// the roll (Fit). The roll draws and sends; this decides what the press is. Nothing here touches the DOM.
+// Selection by where you touch on the roll's Select (#601; report E and F): a press is read by its place, by the score's
+// one rule (score/selection-places.ts), over the whole roll, and nothing waits for a hold. Since v0.6.4 (Andrei's spec 3-5
+// and 19:55Z: one selection, the same on the score and the roll) the selection is a span of time on the workspace, never a
+// matter of the notes under the pointer: from outside a drag draws a dashed rectangle, and the span is what its left and
+// right sides cover on the grid (score/selection-grid.ts: sixteenths, a tuplet one block), notes or none; from inside it
+// extends; an edge, taken anywhere down the roll, moves that boundary alone, to the grid line nearest the pointer. All of it
+// the same on the notes and on the bar numbers. A tap on a note picks that note, a tap elsewhere outside selects its bar, as
+// on the score; a drag of a picked note moves the picked notes as an edit (a draft with Cancel and Save); the lasso (the
+// head's «Рамка | Лассо») still picks the notes it rings, and a span when it rings none. A double tap inside lays the span
+// across the roll (Fit). The roll draws and sends; this decides what the press is. Nothing here touches the DOM.
 
 import { doubleTap, drawnRange, movedEdge, placeAt, placeChange, placeEnded, placeMoved, placePress, type Place, type PlaceEnd, type PlaceGesture, type Tap } from "../score/selection-places.js";
 import { DRAG_DISTANCE, extendedRange, nextGestureId, type TickRange } from "../score/selection-gesture.js";
 import type { RollNote } from "./roll-model.js";
-import { addedPicks, keptSteps, moveSteps, narrowedPicks, notesInShape, pickedSpan, type PickShape, type RollPoint, type TickSpan } from "./roll-place.js";
+import { addedPicks, keptSteps, moveSteps, notesInShape, pickedSpan, type PickShape, type RollPoint, type TickSpan } from "./roll-place.js";
 
 /** The selection as the roll shows it: its span, the notes lit in it, and whether it was chosen by notes. */
 export interface PlaceSelection extends TickSpan {
@@ -64,7 +66,7 @@ export interface PlaceHost {
 /** What the roll draws while a press goes on. */
 export type PlacePreview =
     | { kind: "shape"; shape: PickShape; path: readonly RollPoint[]; picks: readonly number[]; span: TickSpan | null; old: TickSpan | null }
-    | { kind: "span"; span: TickSpan; old: TickSpan | null }
+    | { kind: "span"; span: TickSpan; old: TickSpan | null; trace: readonly [RollPoint, RollPoint] | null; edge: "start" | "end" | null }
     | { kind: "move"; indices: readonly number[]; steps: MoveSteps };
 
 interface Press {
@@ -173,12 +175,14 @@ export class RollPlaceGesture {
             return null;
         }
         const old = press.selection === null || phase !== "draw" ? null : { start: press.selection.start, end: press.selection.end };
-        if (!press.strip && phase !== "edge") {
+        if (this.lassoes(press)) {
             const picks = this.shapePicks(press);
-            return { kind: "shape", shape: this.host.shape(), path: press.path, picks, span: pickedSpan(this.host.notes(), picks, this.host.lines()), old };
+            return { kind: "shape", shape: "lasso", path: press.path, picks, span: pickedSpan(this.host.notes(), picks, this.host.lines()) ?? this.spanOf(press), old };
         }
         const span = this.spanOf(press);
-        return span === null ? null : { kind: "span", span, old };
+        const trace = phase === "draw" && !press.strip ? ([press.from, press.to] as const) : null;
+        const edge = phase === "edge" ? (press.place === "edge-start" ? "start" : "end") : null;
+        return span === null ? null : { kind: "span", span, old, trace, edge };
     }
 
     /** The picked notes a press on one of them moves: on the notes, a note of a selection chosen by notes, not at an edge. */
@@ -235,36 +239,30 @@ export class RollPlaceGesture {
         }
     }
 
-    /** A drag let go: a box picks notes, a span or an edge changes the selection. */
+    /**
+     * A drag let go: the span it made is the selection, whatever notes it covers (v0.6.4, Andrei's spec 4): a rectangle drawn,
+     * an extension, an edge moved (a selection of picked notes becomes the span its edge now gives, so the edge stays where it
+     * was let go). Only the lasso picks the notes it rings, and its span when it rings none.
+     */
     private dragged(press: Press, ended: "edge" | "extend" | "draw"): void {
         const change = placeChange(ended, press.selection !== null);
-        if (!press.strip && ended !== "edge") {
+        if (this.lassoes(press)) {
             const picks = this.shapePicks(press);
-            // A box that takes nothing leaves the selection as it was (the mockup).
             if (picks.length > 0) {
                 this.host.pickNotes(picks, ended === "extend" ? "add" : change === "replace" ? "replace" : "create", press.gesture);
+                return;
             }
-            return;
         }
         const span = this.spanOf(press);
-        if (span === null) {
-            return;
-        }
-        if (ended === "edge" && press.selection?.picked === true) {
-            this.edgeOfPicks(press, press.selection, span);
+        if (span === null || (press.selection !== null && span.start === press.selection.start && span.end === press.selection.end)) {
             return;
         }
         this.host.pickSpan(span, change === "replace" || change === "create" ? change : "edit", press.gesture);
     }
 
-    /** An edge of a selection chosen by notes moved: the picked notes narrow to those still inside; none left, a plain span. */
-    private edgeOfPicks(press: Press, selection: PlaceSelection, span: TickSpan): void {
-        const narrowed = narrowedPicks(this.host.notes(), [...selection.lit].sort((a, b) => a - b), span);
-        if (narrowed.length > 0) {
-            this.host.pickNotes(narrowed, "edit", press.gesture);
-        } else {
-            this.host.pickSpan(span, "edit", press.gesture);
-        }
+    /** Whether the press rings notes with the lasso: on the notes, not at an edge, with the head's Lasso chosen. */
+    private lassoes(press: Press): boolean {
+        return !press.strip && press.rule.phase !== "edge" && this.host.shape() === "lasso";
     }
 
     /**
@@ -276,7 +274,7 @@ export class RollPlaceGesture {
         return press.rule.phase === "extend" && press.selection !== null ? addedPicks(press.selection.lit, taken) : taken;
     }
 
-    /** The span a drag on the bar numbers or an edge makes now, on the beat lines; null when there is none. */
+    /** The span a drag makes now, on the grid's lines (an edge to the nearest, a new one outward); null when there is none. */
     private spanOf(press: Press): TickRange | null {
         const lines = this.host.lines();
         const selection = press.selection;

@@ -90,6 +90,13 @@ const host = {
                 post({ notes: { ids, change, gesture } });
                 break;
             }
+            // A span of the selection exactly as the place rule drew it on the grid (v0.6.4): a rectangle, an extension, an edge
+            // moved, a bar tapped; with how it changes the selection ("create", "replace" or "edit").
+            case "OnRollSpan": {
+                const [start, end, how, gesture] = args;
+                post({ span: { start, end, how, gesture } });
+                break;
+            }
             case "OnRollNotesMoveBegan":
                 post({ moveBegan: true });
                 break;
@@ -295,5 +302,10 @@ function frame() {
     return keptRollFrame();
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, shape, zoom, frame, passage };
+/** The tuplet groups as blocks ([{ start, end }] in ticks, read on the score's page) the selection's grid never splits (v0.6.4). */
+function tuplets(spans) {
+    view.setTuplets(Array.isArray(spans) ? spans : []);
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, shape, zoom, frame, passage, tuplets };
 post("ready");

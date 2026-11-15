@@ -74,23 +74,21 @@ enum StylusRules {
         }
     }
 
-    /// Whether the selection under the modes goes by beats: as Select's options say; without the modes, as the
-    /// experiment Select by beats says (#349).
-    static func byBeats(modes: Bool, chosen: Bool, experiment: Bool) -> Bool {
-        modes ? chosen : experiment
+    /// Whether the score is sent the piece's beat lines: always under the modes, where the one selection's edges stop on
+    /// the sixteenth grid (v0.6.4, Andrei 19:53Z: no «По тактам / По долям»; the page draws the band and its beat ticks with
+    /// the lines); without the modes, as the experiment Select by beats says (#349).
+    static func byBeats(modes: Bool, experiment: Bool) -> Bool {
+        modes || experiment
     }
 }
 
-/// Select's «По тактам / По долям», kept on this device; by beats until the player chooses bars.
+/// Select's «По тактам / По долям» of before v0.6.4, kept on this device under `key`: no longer read (Andrei, 19:53Z, one
+/// selection on the sixteenth grid), and taken off the device once, so an iPad that chose bars keeps nothing of it.
 enum SelectBy {
     static let key = "selection.byBeats"
 
-    static func saved(_ defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: key) as? Bool ?? true
-    }
-
-    static func keep(_ byBeats: Bool, _ defaults: UserDefaults = .standard) {
-        defaults.set(byBeats, forKey: key)
+    static func forget(_ defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: key)
     }
 }
 
@@ -167,22 +165,12 @@ extension ScoreController {
         }
     }
 
-    /// «По тактам / По долям» chosen: kept on the device, and the score snaps to the beats or to the bars from now on.
-    func chooseSelectBy(beats: Bool) {
-        selectsByBeats = beats
-        SelectBy.keep(beats)
-        applyBeatLines()
-    }
-
-    /// The piece's beat lines and the experiment Select by beats, as the screen reads them; the lines the score snaps to follow.
+    /// The piece's beat lines and the experiment Select by beats, as the screen reads them; the lines the score is sent follow.
     func setBeatLines(_ lines: [Double], experiment: Bool) {
+        SelectBy.forget()
         pieceBeatLines = lines
         beatsExperiment = experiment
-        applyBeatLines()
-    }
-
-    private func applyBeatLines() {
-        beatLines = StylusRules.byBeats(modes: mode != nil, chosen: selectsByBeats, experiment: beatsExperiment) ? pieceBeatLines : []
+        beatLines = StylusRules.byBeats(modes: mode != nil, experiment: beatsExperiment) ? pieceBeatLines : []
     }
 }
 
@@ -211,7 +199,7 @@ struct ModeOptions: View {
 }
 
 /// Select's options under the bar (#511 4.2, option B): the selection's Undo and Redo, grey in place when there is
-/// nothing to take back, and whether a selection goes by bars or by beats. Navigate has none.
+/// nothing to take back. Navigate has none. «По тактам / По долям» went in v0.6.4 (Andrei, 19:53Z: one selection).
 struct SelectionOptionsRow: View {
     @ObservedObject var score: ScoreController
     let text: UIText
@@ -226,13 +214,6 @@ struct SelectionOptionsRow: View {
                 .buttonStyle(DSIconItemStyle())
                 .disabled(!score.selectionSteps.canRedo)
                 .accessibilityLabel(text["selection.redo"])
-            PaletteDivider()
-            ForEach([false, true], id: \.self) { beats in
-                let on = score.selectsByBeats == beats
-                Button(text[beats ? "selection.byBeats" : "selection.byBars"]) { score.chooseSelectBy(beats: beats) }
-                    .buttonStyle(DSItemStyle(on: on))
-                    .accessibilityAddTraits(on ? .isSelected : [])
-            }
         }
         .modifier(PaletteSurface())
         .accessibilityElement(children: .contain)
@@ -324,3 +305,20 @@ private struct ToastSurface: ViewModifier {
             .accessibilityElement(children: .contain)
     }
 }
+
+/// Where the selection's toast («Выделение заменено · Вернуть», «Выделение снято · Вернуть», a notice) stands over the bottom
+/// of the score (v0.6.4, Andrei's spec 7): above everything that floats there with the transport (the pill with Loop, the
+/// tempo and the metronome, the practice controls), as tall as that is now, and never under it; over the score's bottom
+/// edge or a drawer when nothing floats.
+enum ToastPlace {
+    /// The toast's bottom padding: the transport's own (`pillBottom`), then the transport's measured height and a gap.
+    static func bottom(pillBottom: CGFloat, transport: CGFloat, gap: CGFloat) -> CGFloat {
+        transport > 0 ? pillBottom + transport + gap : pillBottom
+    }
+
+    /// The toast's padding: `bottom` above the transport, and beside a sheet or a drawer at the side as the pill is.
+    static func insets(pillBottom: CGFloat, transport: CGFloat, gap: CGFloat, leading: CGFloat, trailing: CGFloat) -> EdgeInsets {
+        EdgeInsets(top: 0, leading: leading, bottom: bottom(pillBottom: pillBottom, transport: transport, gap: gap), trailing: trailing)
+    }
+}
+

@@ -33,8 +33,15 @@ extension ScoreController {
         return ((before ?? []) + ids).filter { seen.insert($0).inserted }
     }
 
-    /// Selects a passage by beats narrowed to a hand ("right", "left"; nil for both): a stroke within one staff on the
-    /// score (the page's `strokeHand`).
+    /// A span the roll's place rule drew (v0.6.4, `span` from Web/roll.js): selected exactly as drawn on the grid, notes in
+    /// it or none; an edit of the selection keeps its hand, a new one takes both (the roll has no staves), and a replace says
+    /// «Выделение заменено · Вернуть».
+    func selectRollSpan(_ span: RollSpan) {
+        selectSpan(span.start, span.end, hand: span.how == "edit" ? selection?.hand : nil, gesture: span.gesture, replaces: span.how == "replace")
+    }
+
+    /// Selects a passage exactly as the page drew it on the sixteenth grid (v0.6.4, selection-grid.ts; SelectionSpan.request),
+    /// narrowed to a hand ("right", "left"; nil for both): a stroke within one staff on the score (the page's `strokeHand`).
     func selectSpan(_ start: Double, _ end: Double, hand: String?, gesture: String? = nil, replaces: Bool = false) {
         Task { await select(request: SelectionSpan(onset: start, end: end, hand: hand).request, gesture: gesture, replaces: replaces) }
     }
@@ -66,6 +73,17 @@ extension ScoreController {
         }
         if message.keys.contains("zoomSelection") {
             zoomToSelection(message["zoomSelection"] as? [String: Any])
+        }
+        if let groups = message["tuplets"] as? [[String: Any]] {
+            tupletsRead?(Self.tuplets(groups))
+        }
+    }
+
+    /// The tuplet blocks the page read ({start, end} in ticks), the ones with both ends.
+    nonisolated static func tuplets(_ groups: [[String: Any]]) -> [[String: Double]] {
+        groups.compactMap { group in
+            guard let start = (group["start"] as? NSNumber)?.doubleValue, let end = (group["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
+            return ["start": start, "end": end]
         }
     }
 
@@ -120,5 +138,14 @@ extension ScoreController {
         func number(_ key: String) -> CGFloat? { (box?[key] as? NSNumber).map { CGFloat($0.doubleValue) } }
         guard let left = number("left"), let top = number("top"), let right = number("right"), let bottom = number("bottom"), right > left, bottom > top else { return nil }
         return CGRect(x: left, y: top, width: right - left, height: bottom - top).insetBy(dx: -margin, dy: -margin)
+    }
+}
+
+extension RollController {
+    /// The roll's part of the one selection (v0.6.4): a span drawn there is the score's selection, exactly as drawn, and the
+    /// tuplets the score's page read are the roll's blocks too, so both views stop on the same grid.
+    func sharePlaces(with score: ScoreController) {
+        spanPicked = { [weak score] span in score?.selectRollSpan(span) }
+        score.tupletsRead = { [weak self] spans in self?.tuplets(spans) }
     }
 }

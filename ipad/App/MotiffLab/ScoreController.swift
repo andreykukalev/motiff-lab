@@ -95,9 +95,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var key: String
         var id = UUID()
     }
-    /// Select's «По тактам / По долям» (#511 4.2), and the beat lines and the experiment it chooses between (SelectionTools.swift).
-    @Published var selectsByBeats = SelectBy.saved()
+    /// The piece's beat lines and the experiment Select by beats (SelectionTools.swift); the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
+    /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
+    var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
     var beatsExperiment = false
     /// Selection by the place of the touch (v0.6.2, #601; Select's way since v0.6.3, PlaceSelection.on): the page's rules follow it.
     var placeSelection = PlaceSelection.on {

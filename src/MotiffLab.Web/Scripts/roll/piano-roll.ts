@@ -53,6 +53,8 @@ import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-
 import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
 import { movedNote, type PickShape } from "./roll-place.js";
 import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
+import { type GridSpan, gridLines } from "../score/selection-grid.js";
+import { placeAt } from "../score/selection-places.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
@@ -184,6 +186,11 @@ const BAR_ROW = 24;
 const KNOB_WIDTH = 12;
 const KNOB_HEIGHT = 16;
 const KNOB_MOUSE = 20;
+/**
+ * How long a span let go is shown as the selection while the host has not answered (v0.6.4): long enough for music-core's
+ * answer behind a busy call, short enough that a span refused without an answer goes back by itself.
+ */
+const PLACED_MS = 2500;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
@@ -531,6 +538,16 @@ export class PianoRoll {
     private placeStylus = true;
     private pickShape: PickShape = "box";
     private picked = false;
+    /**
+     * A span let go and sent to the host, until the host's selection comes back (setMotif, clearMotif) or PLACED_MS pass
+     * (v0.6.4): the band and the edges show it, and a press meanwhile reads it as the selection, so the edge never jumps
+     * back on release and an edge taken again at once is taken where it now stands.
+     */
+    private placed: { start: number; end: number } | null = null;
+    private placedTimer = 0;
+    /** The tuplet groups as blocks (the score's, through the host), where the selection's grid has no line inside. */
+    private tuplets: GridSpan[] = [];
+    private gridMemo: { model: RollModel | null; lines: number[] } = { model: null, lines: [] };
     private readonly place = new RollPlaceGesture(this.placeHost());
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
     private filtered: Set<number> | null = null;
@@ -1117,6 +1134,66 @@ export class PianoRoll {
         this.invalidate();
     }
 
+    /** The tuplet groups as blocks, [start, end) in ticks, that the selection's grid never splits (v0.6.4, Andrei 19:54Z). */
+    setTuplets(spans: readonly GridSpan[]): void {
+        this.tuplets = spans.filter((span) => Number.isFinite(span.start) && Number.isFinite(span.end) && span.end > span.start).map((span) => ({ start: span.start, end: span.end }));
+        this.gridMemo = { model: null, lines: [] };
+    }
+
+    /** The lines the selection's edges stop at (score/selection-grid.ts): sixteenths from each bar's start, a tuplet one block. */
+    private selectionGrid(): number[] {
+        const model = this.model;
+        if (model === null) {
+            return [];
+        }
+        if (this.gridMemo.model !== model) {
+            this.gridMemo = { model, lines: gridLines(model.bars.map((bar) => ({ start: bar.onset, end: bar.end })), this.tuplets) };
+        }
+        return this.gridMemo.lines;
+    }
+
+    /** The span let go and not answered yet, or the selection the host gave; null for none. */
+    private placeSpan(): { start: number; end: number } | null {
+        return this.placed ?? this.motif;
+    }
+
+    /** A span let go: shown and read as the selection until the host answers (setMotif, clearMotif) or PLACED_MS pass. */
+    private keepPlaced(span: { start: number; end: number }): void {
+        this.placed = { start: span.start, end: span.end };
+        window.clearTimeout(this.placedTimer);
+        this.placedTimer = window.setTimeout(() => {
+            this.placed = null;
+            this.invalidate();
+        }, PLACED_MS);
+    }
+
+    private dropPlaced(): void {
+        window.clearTimeout(this.placedTimer);
+        this.placed = null;
+    }
+
+    /**
+     * A press on a playhead's handle or by the place rule; true when one took it. An edge of the selection wins over a
+     * playhead's handle in its reach (v0.6.4, as on the score's page): the blue playhead stands at the selection's start, and
+     * the edge there is still taken.
+     */
+    private pressHeadOrPlace(event: PointerEvent, x: number, y: number, tick: number): boolean {
+        if (this.onPlaceEdge(event, x, y) && this.beginPlace(event, x, y, tick)) {
+            return true;
+        }
+        return this.pressPlayhead(event, x, y) || this.beginPlace(event, x, y, tick);
+    }
+
+    /** Whether a press of this pointer at x lands on an edge of the selection by the place rule: there the edge wins over a playhead. */
+    private onPlaceEdge(event: PointerEvent, x: number, y: number): boolean {
+        const span = this.placeSpan();
+        if (!this.placeSelects(event.pointerType) || span === null || this.inHiddenLane(y)) {
+            return false;
+        }
+        const place = placeAt(span, x, y, [{ left: this.xOf(span.start), right: this.xOf(span.end), top: -Infinity, bottom: Infinity }]);
+        return place === "edge-start" || place === "edge-end";
+    }
+
     /** How Select picks notes: a box (the default) or a lasso, the switch in the roll's head (report «Рамка или лассо»). */
     setPickShape(shape: string): void {
         this.pickShape = shape === "lasso" ? "lasso" : "box";
@@ -1174,16 +1251,24 @@ export class PianoRoll {
         const notes = (): RollModel["notes"] => this.model?.notes ?? [];
         const ids = (indices: number[]): string[] => indices.map((index) => notes()[index].id);
         return {
-            selection: () => (this.motif === null ? null : { start: this.motif.start, end: this.motif.end, lit: this.motif.notes, picked: this.picked }),
+            selection: () => {
+                const span = this.placeSpan();
+                const motif = this.motif;
+                if (span === null) {
+                    return null;
+                }
+                const same = motif !== null && span.start === motif.start && span.end === motif.end;
+                return { start: span.start, end: span.end, lit: same ? motif.notes : new Set<number>(), picked: same && this.picked };
+            },
             notes,
             noteAt: (point) => this.model?.noteAt(point.tick, Math.round(point.pitch)),
             xOf: (tick) => this.xOf(tick),
-            lines: () => (this.model === null ? [] : [...this.model.grid(0, this.model.end).map((line) => line.tick), this.model.bars.at(-1)?.end ?? this.model.end]),
+            lines: () => this.selectionGrid(),
             shape: () => this.pickShape,
             now: () => performance.now(),
             pickNotes: (indices, change, gesture) => void this.dotnet.invokeMethodAsync("OnRollNotes", ids(indices), change, gesture),
-            // As a range dragged sends it: the later tick the last one inside, so music-core keeps the end on its beat.
-            pickSpan: (span, how, gesture) => void this.dotnet.invokeMethodAsync("OnRollRange", span.start, Math.max(span.start, span.end - 1), false, false, how, gesture),
+            // The span exactly as drawn on the grid (v0.6.4): the host selects it as it is, as the score's place rule does.
+            pickSpan: (span, how, gesture) => this.sendSpan(span, how, gesture),
             moveBegan: () => void this.dotnet.invokeMethodAsync("OnRollNotesMoveBegan"),
             moveNotes: (indices, steps, gesture) => void this.dotnet.invokeMethodAsync("OnRollNotesMoved", indices.map((index) => ({ id: notes()[index].id, ...movedNote(notes()[index], steps) })), gesture),
             tap: (point, strip, inside) => this.placeTap(point, strip, inside),
@@ -1198,11 +1283,21 @@ export class PianoRoll {
     private placeTap(point: PlacePoint, strip: boolean, inside: boolean): void {
         if (strip && inside) {
             this.pressLoopLane(point.y, point.tick);
-        } else if (strip) {
-            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(point.tick), Math.round(point.tick), true, false, this.motif === null ? "create" : "replace", nextGestureId());
-        } else if (!inside) {
-            this.playFrom(point.x);
+            return;
         }
+        // Outside the selection a tap selects its bar, on the bar numbers and on the notes alike, as a tap on the score's
+        // music does (v0.6.4, one selection for both); «Вернуть» brings back the one it replaced.
+        const bar = inside ? undefined : this.model?.barAt(point.tick);
+        if (bar !== undefined) {
+            this.sendSpan({ start: bar.onset, end: bar.end }, this.placeSpan() === null ? "create" : "replace", nextGestureId());
+        }
+    }
+
+    /** A span of the selection to the host, shown at once and held until the host's selection comes back. */
+    private sendSpan(span: { start: number; end: number }, how: SelectionChange, gesture: string): void {
+        this.keepPlaced(span);
+        this.invalidate();
+        void this.dotnet.invokeMethodAsync("OnRollSpan", span.start, span.end, how, gesture);
     }
 
     /** What selection by where you touch draws in Select: the edges down the roll, the picked notes, a press going on. */
@@ -1213,13 +1308,14 @@ export class PianoRoll {
         }
         const { high, row } = this.pitchRange();
         const frame = { xOf: (tick: number) => this.xOf(tick), yOf: (pitch: number) => this.header + (high - pitch) * row, row, header: this.header, left: GUTTER, right: width, height };
-        const inks = { accent: ACCENT, tint: SELECTION_BAND, surface: CHARCOAL };
+        const inks = { accent: ACCENT, tint: SELECTION_BAND, surface: CHARCOAL, ink: INK };
         const preview = this.place.preview();
+        const span = this.placeSpan();
         if (preview !== null) {
             drawPlacePreview(context, frame, preview, model.notes, inks);
-        } else if (this.motif !== null) {
-            drawPlaceEdges(context, frame, this.motif, inks);
-            if (this.picked) {
+        } else if (span !== null) {
+            drawPlaceEdges(context, frame, span, inks, null);
+            if (this.picked && this.motif !== null && span === this.motif) {
                 drawPickedNotes(context, frame, model.notes, this.motif.notes, inks);
             }
         }
@@ -1381,7 +1477,12 @@ export class PianoRoll {
             return;
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
-        const { moved } = selectionShift(this.motif ?? this.keptSpan, start, end);
+        const { moved } = selectionShift(this.placed ?? this.motif ?? this.keptSpan, start, end);
+        // The span let go stays until its answer: the same selection sent again meanwhile (with a new loop) keeps it.
+        const again = this.motif !== null && this.motif.start === start && this.motif.end === end;
+        if (!again || (this.placed !== null && this.placed.start === start && this.placed.end === end)) {
+            this.dropPlaced();
+        }
         this.keptSpan = null;
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
@@ -1408,6 +1509,7 @@ export class PianoRoll {
 
     clearMotif(): void {
         this.setZoomOut(zoomOutAfter("selectionCleared"));
+        this.dropPlaced();
         this.motif = null;
         this.keptSpan = null;
         this.motifPitches = null;
@@ -1979,7 +2081,7 @@ export class PianoRoll {
 
         // The selected range, or the range being dragged, shaded and marked on the bar numbers.
         // Not in Expand (#533 3): the passage on screen is the selection already, and nothing there changes it.
-        const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.place.drawing ? null : this.motif;
+        const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.place.drawing ? null : this.placeSpan();
         if (band !== null && this.passage === null) {
             const left = Math.max(GUTTER, this.xOf(band.start));
             const right = Math.min(width, this.xOf(band.end));
@@ -1991,8 +2093,9 @@ export class PianoRoll {
                 context.fillStyle = ACCENT;
                 context.fillRect(Math.round(left), 0, 1, height);
                 context.fillRect(Math.round(right) - 1, 0, 1, height);
-                // Grips on the bar numbers show that the edges can be dragged.
-                if (this.drag === null) {
+                // Grips on the bar numbers show that the edges can be dragged; under the place rule the handles at the
+                // edges' middles do (v0.6.4), never a mark at a corner.
+                if (this.drag === null && !this.placeOn) {
                     if (left > GUTTER) {
                         context.fillRect(Math.round(left), 0, 4, BAR_ROW);
                     }
@@ -3025,7 +3128,7 @@ export class PianoRoll {
             return;
         }
         const tick = this.tickAtX(x);
-        if (this.pressPlayhead(event, x, y) || this.beginPlace(event, x, y, tick)) {
+        if (this.pressHeadOrPlace(event, x, y, tick)) {
             return;
         }
         // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).

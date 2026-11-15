@@ -56,6 +56,8 @@ final class RollController: NSObject, ObservableObject {
     /// Selection by where you touch (#601, experimental.placeSelection): notes a box, a lasso or a tap picked in Select, with
     /// how they change the selection and the gesture for its history.
     var notesPicked: (@MainActor (RollNotesPick) -> Void)?
+    /// A span of time the place rule drew in Select (v0.6.4): the one selection, exactly as drawn on the grid.
+    var spanPicked: (@MainActor (RollSpan) -> Void)?
     /// Picked notes dragged in Select: the first step opens the note editor's draft, and where they were let go is its edits.
     var notesMoveBegan: (@MainActor () -> Void)?
     var notesMoved: (@MainActor ([RollNoteEdit]) -> Void)?
@@ -84,6 +86,8 @@ final class RollController: NSObject, ObservableObject {
     private var shownPiece: Int32?
     private var dark = false
     private var shownSelection: [String: Any]?
+    /// The tuplet blocks the score's page read (v0.6.4), which the roll's selection grid never splits.
+    private var shownTuplets: [[String: Double]] = []
     private var shownHighlight: [[String: Any]] = []
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
@@ -178,6 +182,14 @@ final class RollController: NSObject, ObservableObject {
         shownSelection = data
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The tuplet groups as blocks ({start, end} in ticks, the score's page read them, v0.6.4): the roll's selection grid
+    /// has no line inside one, as the score's has none.
+    func tuplets(_ spans: [[String: Double]]) {
+        shownTuplets = spans
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.tuplets(spans)", arguments: ["spans": spans], contentWorld: .page) }
     }
 
     /// Binds the roll to the passage Expand shows (#521 19), or lets it go (nil): bound, it lays the passage across itself,
@@ -317,8 +329,12 @@ final class RollController: NSObject, ObservableObject {
         receivedPlace(message)
     }
 
-    /// Selection by where you touch (#601): notes picked, and picked notes moved (the draft opens at the first step).
+    /// Selection by where you touch (#601): a span drawn (v0.6.4), notes picked, and picked notes moved (the draft opens at
+    /// the first step).
     private func receivedPlace(_ message: [String: Any]) {
+        if let span = RollSpan(message["span"]) {
+            spanPicked?(span)
+        }
         if let picked = RollNotesPick(message["notes"]) {
             notesPicked?(picked)
         }
@@ -358,6 +374,9 @@ final class RollController: NSObject, ObservableObject {
             }
             if practiceOn {
                 _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": true], contentWorld: .page)
+            }
+            if !shownTuplets.isEmpty {
+                _ = try? await webView.callAsyncJavaScript("return roll.tuplets(spans)", arguments: ["spans": shownTuplets], contentWorld: .page)
             }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
