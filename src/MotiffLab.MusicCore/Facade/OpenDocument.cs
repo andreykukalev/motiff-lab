@@ -79,6 +79,8 @@ internal sealed class OpenDocument
             Marks(json);
         }),
         "document.replace" => Replace(request),
+        // Version 0.6: the sources by the layers of 0030 for a piece that is only its PDF, as for a piece with notes.
+        "sources.layers" => Answer.Write(json => Answer.SourceLayers(json, Project, PieceViews.Of(Project, OpenPiece.DeviceOf(request), request.Texts("here")))),
         "document.marks" => Answer.Write(Marks),
         "document.ink.add" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
         "document.ink.remove" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),

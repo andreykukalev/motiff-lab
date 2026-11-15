@@ -20,6 +20,9 @@ internal sealed partial class OpenPiece
 {
     private EditsLayer _layer = EditsLayer.Strict;
 
+    /// <summary>How the corrections are laid over the notes the piece is open on.</summary>
+    internal EditsLayer Layer => _layer;
+
     /// <summary>The corrections laid one by one over the notes, for the log they were laid from.</summary>
     private (NoteEditLog Log, EditsApplied Applied)? _layered;
 

@@ -19,10 +19,10 @@ internal sealed partial class OpenPiece
         "sources" => SourcesAnswer(),
         "sources.document" => KeepDocument(request),
         "sources.documentNotes" => AddDocumentNotes(request),
-        "sources.pdf" => DocumentBytes(),
+        "sources.pdf" => request.Text("id") is { } id && id != PieceOriginal.DocumentId ? OriginalBytes(id) : DocumentBytes(),
         "sources.relink" => RelinkDocument(request),
         "sources.held" => MarkHeld(request),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
+        _ => CallOnSourceLayers(name, request) ?? throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
     /// <summary>
@@ -76,6 +76,21 @@ internal sealed partial class OpenPiece
         {
             json.WriteString("fileName", Project.DocumentFileName);
             json.WriteBase64String("pdf", pdf);
+        });
+    }
+
+    /// <summary>Another PDF or photos kept in the file (version 0.6, "id"): "fileName" and "pdf" (base64, the bytes as added).</summary>
+    private string OriginalBytes(string id)
+    {
+        if (Project.FindOriginal(id) is not { } original || !Project.Sources.Data.TryGetValue(id, out byte[]? bytes))
+        {
+            throw FacadeException.Unavailable($"The piece keeps no bytes of {id} in its file.");
+        }
+
+        return Answer.Write(json =>
+        {
+            json.WriteString("fileName", original.FileName);
+            json.WriteBase64String("pdf", bytes);
         });
     }
 
