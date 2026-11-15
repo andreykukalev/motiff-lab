@@ -105,6 +105,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
     var zoomedFrom: (scale: CGFloat, offset: CGPoint)?
+    /// The tool the Pencil's «switch to previous» left for Select, which its next one goes back to (StylusRules.selectTurn).
+    var toolBeforeSelect: InteractionMode?
     /// The piece as its selection's history knows it (SelectionHistories.key).
     private var historyKey: String?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
