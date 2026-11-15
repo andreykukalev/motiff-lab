@@ -354,7 +354,10 @@ internal sealed partial class OpenPiece
         MotifSelectionKind kind = MotifSelectionKind.Range;
         if (request.Has("notes"))
         {
-            selection = MotifSelector.SelectNotes(Notes, Piece.Meter, request.Texts("notes"));
+            // "picked": true (v0.6.2, #601, the iPad's selection by the place of the touch): one note or more, within the bars.
+            selection = request.Bool("picked") == true
+                ? MotifSelector.SelectPicked(Notes, Piece.Meter, request.Texts("notes"))
+                : MotifSelector.SelectNotes(Notes, Piece.Meter, request.Texts("notes"));
             kind = MotifSelectionKind.Notes;
         }
         else if (request.Span("span") is { } span)
@@ -692,7 +695,8 @@ internal sealed partial class OpenPiece
             motifs = [.. Project.Motifs];
             variations = [.. Project.Variations];
         }
-        else if (Selection is { NoteIds.Count: > 0 } selection)
+        // A pick of one note, or of more than a motif of single notes holds (the iPad, v0.6.2), is saved as no selection is.
+        else if (Selection is { NoteIds.Count: > 0 } selection && Motif.Holds(selection, _selectionKind))
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, _selectionKind, MotifMode.Discovery, Notes)));
             if (Chain is { Result: not null } chain)

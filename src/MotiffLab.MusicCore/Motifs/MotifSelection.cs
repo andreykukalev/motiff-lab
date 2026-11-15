@@ -50,6 +50,12 @@ public sealed record MotifSelection(
     /// <summary>The most notes a selection of single notes holds (S1-M3).</summary>
     public const int MaxNotes = 32;
 
+    /// <summary>
+    /// The fewest notes the iPad picks into a selection (v0.6.2, #601: a tap on a note selects that note, a box on the roll
+    /// the notes in it); such a pick has no most but the bars, <see cref="MaxBars"/>.
+    /// </summary>
+    public const int MinPickedNotes = 1;
+
     /// <summary>The number of bars the selection touches, counting partly covered bars.</summary>
     public int BarCount => LastBar - FirstBar + 1;
 }

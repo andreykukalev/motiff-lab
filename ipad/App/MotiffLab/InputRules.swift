@@ -53,6 +53,9 @@ struct InputRules: Equatable, Sendable {
     var stylus: Bool
     var tool: Tool
     var surface: Surface = .notes
+    /// Selection by the place of the touch (v0.6.2, #601, `experimental.placeSelection`): the page decides by where a press
+    /// lands in Select, never by how long it is held (Scripts/score/selection-places.ts); the rules above stay as they are.
+    var places = false
 
     /// The tool as this surface has it: a PDF has no bars to select or notes to edit, so there they move the pages.
     var effectiveTool: Tool {
@@ -140,6 +143,7 @@ struct InputRules: Equatable, Sendable {
                 "select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer), "hold": holdsPlayhead(pointer),
             ] as [String: Any]
         }
+        rules["places"] = places && surface == .notes
         return rules
     }
 

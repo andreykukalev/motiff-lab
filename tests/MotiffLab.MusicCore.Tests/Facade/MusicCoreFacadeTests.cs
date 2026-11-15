@@ -444,6 +444,26 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void ANotePickedOnTheIPadIsASelectionOfItsOwnThatSavesNoMotif()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        JsonElement bars = Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""").GetProperty("selection");
+        string id = bars.GetProperty("noteIds")[0].GetString()!;
+
+        // The web's pick of notes keeps its 2-32; the iPad's pick (v0.6.2, #601) takes one note.
+        Assert.Equal("badRequest", Error(facade, 1, "select", $$"""{"notes": ["{{id}}"]}"""));
+        JsonElement one = Call(facade, "select", $$"""{"notes": ["{{id}}"], "picked": true}""").GetProperty("selection");
+        Assert.Equal([id], one.GetProperty("noteIds").EnumerateArray().Select(note => note.GetString()));
+        Assert.True(one.GetProperty("end").GetInt64() > one.GetProperty("onset").GetInt64());
+
+        // A motif of single notes holds two or more: the pick of one is saved as no selection is, and the file opens again.
+        string saved = facade.Call(1, "project.save", """{"now": "2026-11-15T12:00:00Z"}""");
+        Assert.Equal(0, Json(saved).GetProperty("workspace").GetProperty("motifs").GetArrayLength());
+        JsonElement reopened = Json(new MusicCoreFacade().Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved)));
+        Assert.False(reopened.TryGetProperty("error", out JsonElement error), error.ToString());
+    }
+
+    [Fact]
     public void UnderstandGivesFactsInTheLanguageOfThePiece()
     {
         (MusicCoreFacade facade, _) = Open("""{"language": "ru"}""");

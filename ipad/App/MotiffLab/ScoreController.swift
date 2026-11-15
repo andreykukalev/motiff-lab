@@ -99,6 +99,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published var selectsByBeats = SelectBy.saved()
     var pieceBeatLines: [Double] = []
     var beatsExperiment = false
+    /// Selection by the place of the touch (v0.6.2, #601, `experimental.placeSelection`, PlaceSelection.swift): the page's rules follow it.
+    var placeSelection = false {
+        didSet { if placeSelection != oldValue { applyInput() } }
+    }
     /// The piece as its selection's history knows it (SelectionHistories.key).
     private var historyKey: String?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
@@ -559,15 +563,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
     }
 
-    /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo).
-    func select(request: String, gesture: String? = nil, step: Bool = true) async {
+    /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo);
+    /// `picked` for notes picked one by one (v0.6.2, PlaceSelection.swift), which the selection then names; `replaces` for
+    /// a new selection in place of the one there was (a replace with «Вернуть»).
+    func select(request: String, gesture: String? = nil, step: Bool = true, picked: Bool = false, replaces: Bool = false) async {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
-        guard let chosen = ScoreSelection(answer: answer) else {
+        guard var chosen = ScoreSelection(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String
             return
         }
-        if step { noteSelectionChange(from: selection, to: chosen, gesture: gesture) }
+        if picked { chosen.picked = chosen.noteIds }
+        if step { noteSelectionChange(from: selection, to: chosen, gesture: gesture, replaces: replaces) }
         selection = chosen
         await showSelection()
         await updatePlayRange()
@@ -2095,7 +2102,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
     /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn), places: placeSelection)
         ink.apply(rules)
         toolChanged?(mode, penOn)
         guard shown else { return }
@@ -2266,9 +2273,9 @@ extension ScoreController {
 
     /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a
     /// replace shows «Вернуть»; any other step puts it away, as it would no longer take back the clear.
-    func noteSelectionChange(from before: ScoreSelection?, to after: ScoreSelection?, gesture: String?) {
+    func noteSelectionChange(from before: ScoreSelection?, to after: ScoreSelection?, gesture: String?, replaces: Bool = false) {
         guard let historyKey else { return }
-        let step = selectionSteps.record(from: SelectionSpan(before), to: SelectionSpan(after), gesture: gesture)
+        let step = selectionSteps.record(from: SelectionSpan(before), to: SelectionSpan(after), gesture: gesture, replaces: replaces)
         SelectionHistories.keep(selectionSteps, of: historyKey)
         switch step?.kind {
         case .clear?, .replace?:
@@ -2316,7 +2323,7 @@ extension ScoreController {
             clearSelection(step: false)
             return
         }
-        await select(request: Self.beatsRequest(span.onset, span.end), step: false)
+        await select(request: span.request, step: false, picked: span.picked != nil)
     }
 
     private func showSelectionToast(replaced: Bool) {

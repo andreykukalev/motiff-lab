@@ -100,6 +100,27 @@ public class MotifTests
     }
 
     [Fact]
+    public void Notes_picked_on_the_iPad_are_one_or_more_within_the_bars_and_make_a_motif_only_as_a_pick_of_two_to_thirty_two()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 40).Select(i => Note($"n{i:D2}", 60 + (i % 12), (Bar / 2) + 120 + (i * 120), 120))];
+
+        MotifSelection one = MotifSelector.SelectPicked(notes, MeterMap.Default, ["n01"]);
+        Assert.Equal(["n01"], one.NoteIds);
+        Assert.Equal(TickSpan.FromBounds(new Tick(960), new Tick(1440)), one.Span);
+        Assert.Equal(40, MotifSelector.SelectPicked(notes, MeterMap.Default, notes.Select(note => note.Id)).NoteIds.Count);
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.SelectPicked(notes, MeterMap.Default, []));
+        Assert.Throws<ArgumentException>(() => MotifSelector.SelectPicked(notes, MeterMap.Default, ["n01", "n01"]));
+
+        Note[] far = [Note("a", 60, 0), Note("c", 64, 32 * Bar)];
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.SelectPicked(far, MeterMap.Default, ["a", "c"]));
+
+        Assert.False(Motif.Holds(one, MotifSelectionKind.Notes));
+        Assert.True(Motif.Holds(one, MotifSelectionKind.Range));
+        Assert.True(Motif.Holds(MotifSelector.SelectPicked(notes, MeterMap.Default, ["n01", "n02"]), MotifSelectionKind.Notes));
+        Assert.False(Motif.Holds(MotifSelector.SelectPicked(notes, MeterMap.Default, notes.Take(33).Select(note => note.Id)), MotifSelectionKind.Notes));
+    }
+
+    [Fact]
     public void Selected_notes_span_at_most_the_bars_a_selection_holds()
     {
         Note[] notes = [Note("a", 60, 0), Note("b", 62, 31 * Bar), Note("c", 64, 32 * Bar)];

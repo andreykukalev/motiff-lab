@@ -78,8 +78,12 @@ struct ScoreSelection: Equatable, Sendable {
     /// an older answer.
     var firstBeat: Int?
     var lastBeat: Int?
+    /// The one selection (v0.6.2, #601, PlaceSelection.swift): the hand it is narrowed to ("right", "left", music-core's
+    /// filter), nil for both; and the notes picked (a tap on a note, a box on the roll), nil for a passage.
+    var hand: String?
+    var picked: [String]?
 
-    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = [], firstBeat: Int? = nil, lastBeat: Int? = nil) {
+    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = [], firstBeat: Int? = nil, lastBeat: Int? = nil, hand: String? = nil, picked: [String]? = nil) {
         self.onset = onset
         self.end = end
         self.firstBar = firstBar
@@ -87,6 +91,8 @@ struct ScoreSelection: Equatable, Sendable {
         self.noteIds = noteIds
         self.firstBeat = firstBeat
         self.lastBeat = lastBeat
+        self.hand = hand
+        self.picked = picked
     }
 
     /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}.
@@ -101,7 +107,8 @@ struct ScoreSelection: Equatable, Sendable {
             lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0,
             noteIds: selection["noteIds"] as? [String] ?? [],
             firstBeat: (selection["firstBeat"] as? NSNumber)?.intValue,
-            lastBeat: (selection["lastBeat"] as? NSNumber)?.intValue
+            lastBeat: (selection["lastBeat"] as? NSNumber)?.intValue,
+            hand: (selection["filter"] as? [String: Any])?["hand"] as? String
         )
     }
 

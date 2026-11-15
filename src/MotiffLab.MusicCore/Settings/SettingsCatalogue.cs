@@ -167,6 +167,11 @@ public static class SettingsCatalogue
         // theme, the contrast, a sequence, the motif heard most often and the highest point, each card saying why from what
         // the engine measured. Off, the ideas are the openings heard most often, as before. On the device.
         Switch("experimental.musicalIdeas", SettingSection.Experimental, null, SettingScope.Device),
+        // Selection by the place of the touch (v0.6.2, #601, the iPad only): in Select the place a press lands decides, never
+        // how long it is held: from an edge it moves that edge, from inside it extends, from outside it draws a new selection
+        // (the old one comes back by «Вернуть»), a tap selects a bar or a note, a tap on the margin clears; a selection may
+        // narrow to a hand or to notes. Off, the selection works as in version 0.6.1. Nothing new is saved in the project.
+        Switch("experimental.placeSelection", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 
