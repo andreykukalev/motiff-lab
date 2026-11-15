@@ -66,7 +66,7 @@ public class BothLanguages
 
     private static void AssertNewerFileRefusedIn(string language)
     {
-        (_, JsonElement answer) = Player.TriesToOpen("v16-future.motiff.json", Player.Fixture("v16-future.motiff.json"), Language(language));
+        (_, JsonElement answer) = Player.TriesToOpen("v17-future.motiff.json", Player.Fixture("v17-future.motiff.json"), Language(language));
 
         Assert.Equal("import", answer.GetProperty("error").GetString());
         AssertIn(language, answer.GetProperty("message").GetString());
