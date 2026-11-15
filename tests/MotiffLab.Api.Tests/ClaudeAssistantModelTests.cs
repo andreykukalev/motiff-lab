@@ -1,9 +1,5 @@
 using System.Net;
-using System.Text;
 using System.Text.Json;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using MotiffLab.Api.Assistant;
 using MotiffLab.MusicCore.Assistant.Conversation;
@@ -38,39 +34,8 @@ public sealed class ClaudeAssistantModelTests
          "usage": {"input_tokens": 12, "output_tokens": 3}}
         """;
 
-    private static readonly JsonElement s_context = JsonDocument.Parse("""
-        {"digest": {"scope": "range", "items": [{"id": "chord.6.1", "text": "Am, bar 6, beat 1"}], "ids": ["chord.6.1"]}}
-        """).RootElement.Clone();
-
-    private static IReadOnlyList<TurnEntry> History() =>
-    [
-        TurnEntry.Question("Why does bar 6 sound so dark?"),
-        TurnEntry.Called([new ToolCall("toolu_1", "harmony.chords", Json("""{"bars": {"from": 6, "to": 6}}"""))]),
-        TurnEntry.Resulted([new ToolOutcome("toolu_1", "harmony.chords", Json("""{"tool": "harmony.chords", "ok": false, "refusal": "No bar 6."}"""))]),
-    ];
-
-    private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
-
-    private static JsonElement MentorTools()
-    {
-        using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
-        {
-            json.WriteStartObject();
-            AssistantRoles.WriteCatalogue(json, AssistantRole.Mentor);
-            json.WriteEndObject();
-        }
-
-        return Json(Encoding.UTF8.GetString(buffer.ToArray()));
-    }
-
-    private static ModelTurn Turn() => new("You are the mentor.", "en", MentorTools(), s_context, History());
-
-    private static IAssistantModel? Model(Dictionary<string, string?> settings, FakeProvider? provider = null) =>
-        AssistantModels.Create(new ConfigurationBuilder().AddInMemoryCollection(settings).Build(), NullLogger.Instance, provider).Model;
-
     private static IAssistantModel Anthropic(FakeProvider provider, string? effort = null) =>
-        Model(new() { ["Assistant:Provider"] = "anthropic", ["Assistant:Key"] = "test-key", ["Assistant:Effort"] = effort }, provider)!;
+        ModelTurns.Model(new() { ["Assistant:Provider"] = "anthropic", ["Assistant:Key"] = "test-key", ["Assistant:Effort"] = effort }, provider)!;
 
     [Fact]
     public async Task On_the_Claude_API_a_turn_is_one_cached_strict_request_with_the_history_as_messages()
@@ -79,7 +44,7 @@ public sealed class ClaudeAssistantModelTests
         IAssistantModel model = Anthropic(provider);
         Assert.Equal($"anthropic/{AssistantModels.DefaultModel}", model.Name);
 
-        await model.NextAsync(Turn(), CancellationToken.None);
+        await model.NextAsync(ModelTurns.Turn(), CancellationToken.None);
 
         Assert.Equal("https://api.anthropic.com/v1/messages", provider.Uri!.GetLeftPart(UriPartial.Path));
         Assert.Equal("Bearer test-key", provider.Header("Authorization"));
@@ -127,7 +92,7 @@ public sealed class ClaudeAssistantModelTests
     [Fact]
     public async Task Claudes_tool_calls_come_back_under_the_catalogues_names_with_the_tokens_they_cost()
     {
-        ModelReply reply = await Anthropic(new FakeProvider(ToolCallReply)).NextAsync(Turn(), CancellationToken.None);
+        ModelReply reply = await Anthropic(new FakeProvider(ToolCallReply)).NextAsync(ModelTurns.Turn(), CancellationToken.None);
 
         ToolCall call = Assert.Single(reply.Calls);
         Assert.Equal("toolu_2", call.Id);
@@ -141,12 +106,12 @@ public sealed class ClaudeAssistantModelTests
     [Fact]
     public async Task Claudes_answer_comes_back_as_its_text_and_a_refusal_as_no_text()
     {
-        ModelReply answer = await Anthropic(new FakeProvider(TextReply)).NextAsync(Turn(), CancellationToken.None);
+        ModelReply answer = await Anthropic(new FakeProvider(TextReply)).NextAsync(ModelTurns.Turn(), CancellationToken.None);
         Assert.Empty(answer.Calls);
         Assert.Equal("Bar 6 is A minor [[chord.6.1]].", answer.Text);
         Assert.Equal((12, 7), (answer.InputTokens, answer.OutputTokens));
 
-        ModelReply refused = await Anthropic(new FakeProvider(RefusalReply)).NextAsync(Turn(), CancellationToken.None);
+        ModelReply refused = await Anthropic(new FakeProvider(RefusalReply)).NextAsync(ModelTurns.Turn(), CancellationToken.None);
         Assert.Empty(refused.Calls);
         Assert.Null(refused.Text);
     }
@@ -155,7 +120,7 @@ public sealed class ClaudeAssistantModelTests
     public async Task On_Foundry_the_request_goes_to_the_resource_with_the_deployment_and_without_fallbacks()
     {
         var provider = new FakeProvider(TextReply);
-        IAssistantModel model = Model(
+        IAssistantModel model = ModelTurns.Model(
             new()
             {
                 ["Assistant:Provider"] = "foundry",
@@ -167,7 +132,7 @@ public sealed class ClaudeAssistantModelTests
             provider)!;
         Assert.Equal("foundry/mentor-deployment", model.Name);
 
-        await model.NextAsync(Turn(), CancellationToken.None);
+        await model.NextAsync(ModelTurns.Turn(), CancellationToken.None);
 
         Assert.Equal("https://motifflab-ai.services.ai.azure.com/anthropic/v1/messages", provider.Uri!.GetLeftPart(UriPartial.Path));
         Assert.Equal("foundry-key", provider.Header("x-api-key"));
@@ -181,7 +146,7 @@ public sealed class ClaudeAssistantModelTests
     public async Task A_provider_error_is_a_failed_request_the_relay_answers_with_the_template()
     {
         var provider = new FakeProvider("""{"type": "error", "error": {"type": "invalid_request_error", "message": "Bad."}}""", HttpStatusCode.BadRequest);
-        await Assert.ThrowsAsync<HttpRequestException>(() => Anthropic(provider).NextAsync(Turn(), CancellationToken.None));
+        await Assert.ThrowsAsync<HttpRequestException>(() => Anthropic(provider).NextAsync(ModelTurns.Turn(), CancellationToken.None));
     }
 
     [Theory]
@@ -193,7 +158,7 @@ public sealed class ClaudeAssistantModelTests
     [InlineData("foundry", "k", "not a resource!")]
     public void Without_a_provider_a_key_or_Foundrys_resource_there_is_no_model(string provider, string key, string? endpoint)
     {
-        Assert.Null(Model(new() { ["Assistant:Provider"] = provider, ["Assistant:Key"] = key, ["Assistant:Endpoint"] = endpoint }));
+        Assert.Null(ModelTurns.Model(new() { ["Assistant:Provider"] = provider, ["Assistant:Key"] = key, ["Assistant:Endpoint"] = endpoint }));
     }
 
     [Theory]
@@ -210,7 +175,7 @@ public sealed class ClaudeAssistantModelTests
     [Fact]
     public void The_schema_keeps_what_strict_tool_use_takes_and_moves_the_rest_into_descriptions()
     {
-        Dictionary<string, JsonElement> schema = ClaudeToolSchemas.Strict(Json("""
+        Dictionary<string, JsonElement> schema = StrictToolSchemas.ForClaude(ModelTurns.Json("""
             {"type": "object", "properties": {
                "picks": {"description": "Which.", "anyOf": [{"type": "array", "items": {"type": "integer", "enum": [1, 2]}, "minItems": 1, "maxItems": 4, "uniqueItems": true}, {"type": "null"}]},
                "many": {"type": "array", "items": {"type": "string", "pattern": "^[0-9]+$"}, "minItems": 2}},
@@ -226,29 +191,5 @@ public sealed class ClaudeAssistantModelTests
         Assert.False(many.TryGetProperty("minItems", out _));
         Assert.Equal("^[0-9]+$", many.GetProperty("items").GetProperty("pattern").GetString());
         Assert.Equal("Which.", schema["properties"].GetProperty("picks").GetProperty("description").GetString());
-    }
-
-    /// <summary>A provider that answers every request with one reply and keeps the last request.</summary>
-    private sealed class FakeProvider(string reply, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
-    {
-        public Uri? Uri { get; private set; }
-
-        public JsonElement Body { get; private set; }
-
-        private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
-
-        public string Header(string name) => _headers.GetValueOrDefault(name, "");
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Uri = request.RequestUri;
-            foreach ((string name, IEnumerable<string> values) in request.Headers)
-            {
-                _headers[name] = string.Join(",", values);
-            }
-
-            Body = Json(await request.Content!.ReadAsStringAsync(cancellationToken));
-            return new HttpResponseMessage(status) { Content = new StringContent(reply, Encoding.UTF8, "application/json") };
-        }
     }
 }

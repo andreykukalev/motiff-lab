@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- The OpenAI SDK marks its Responses API as evaluation (OPENAI001); the assistant's Azure OpenAI adapter is built on it. -->
+    <NoWarn>$(NoWarn);OPENAI001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,7 @@
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.63.3" />
     <!-- The Cosmos SDK needs Newtonsoft.Json present, though documents are written with System.Text.Json. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="OpenAI" Version="2.15.0" />
   </ItemGroup>
 
   <ItemGroup>
