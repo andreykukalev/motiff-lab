@@ -14,22 +14,23 @@ namespace MotiffLab.MusicCore.Projects;
 public static partial class ProjectFile
 {
     private const string NotesList = "notes";
-    private const string NotesPath = "notes/";
+    /// <summary>Where the unknown fields of a Notes stand in <see cref="Project.UnknownFields"/>: this and the Notes' id.</summary>
+    internal const string NotesPath = "notes/";
     private const string OriginalsPath = "originals/";
 
     private static void WriteOriginalsLayer(Utf8JsonWriter json, Project project)
     {
         List<(PieceOriginal Original, RemovedOriginal? Removed)> all =
-            [.. project.Originals.Select(static original => (original, (RemovedOriginal?)null)), .. project.RemovedOriginals.Select(static removed => (removed.Original, (RemovedOriginal?)removed))];
+            [.. project.Originals.Select(static original => (original, (RemovedOriginal?)null)), .. project.Sources.Removed.Select(static removed => (removed.Original, (RemovedOriginal?)removed))];
         List<UnknownEntity> unknown = KeptUnknown(project.Unknown, OriginalsList, all.Select(static entry => entry.Original.Id), null, out _);
         WriteList(json, OriginalsList, all, unknown, entry =>
         {
             json.WriteStartObject();
             WriteOriginalFields(json, entry.Original);
             bool pdf = entry.Removed is null && entry.Original.Id == PieceOriginal.DocumentId;
-            if (pdf && project.Document is { } document)
+            if ((pdf ? project.Document : entry.Removed is null ? project.Sources.Data.GetValueOrDefault(entry.Original.Id) : null) is { } data)
             {
-                json.WriteBase64String("data", document);
+                json.WriteBase64String("data", data);
             }
 
             DocumentMarks marks = entry.Removed?.Marks ?? (pdf ? project.DocumentMarks : DocumentMarks.Empty);
@@ -50,20 +51,27 @@ public static partial class ProjectFile
         });
     }
 
-    /// <summary>The working notes first, when the piece has notes, then the compared Notes in the order they were added.</summary>
+    /// <summary>
+    /// The working notes first, when the piece has notes, then the other Notes and the compared ones, each in the order
+    /// they were added.
+    /// </summary>
     private static void WriteNotesLayer(Utf8JsonWriter json, Project project)
     {
-        List<SavedPerformance?> entries = project.HasNotes ? [null, .. project.Performances] : [.. project.Performances];
-        IEnumerable<string> ids = entries.Select(entry => entry?.Id ?? project.NotesId);
+        List<object> entries = [.. project.HasNotes ? [project] : Array.Empty<object>(), .. project.Sources.Notes, .. project.Performances];
+        IEnumerable<string> ids = entries.Select(entry => entry switch { OtherNotes other => other.Id, SavedPerformance performance => performance.Id, _ => project.NotesId });
         WriteList(json, NotesList, entries, KeptUnknown(project.Unknown, NotesList, ids, null, out _), entry =>
         {
-            if (entry is null)
+            switch (entry)
             {
-                WriteWorkingNotes(json, project);
-            }
-            else
-            {
-                WritePerformanceNotes(json, project, entry);
+                case OtherNotes other:
+                    WriteOtherNotes(json, project, other);
+                    break;
+                case SavedPerformance performance:
+                    WritePerformanceNotes(json, project, performance);
+                    break;
+                default:
+                    WriteWorkingNotes(json, project);
+                    break;
             }
         });
     }
@@ -75,8 +83,42 @@ public static partial class ProjectFile
         WriteProvenance(json, project.WorkingProvenance);
         json.WriteBase64String("music", project.Source);
         WriteEdits(json, project.Edits);
-        WriteCheck(json, project);
-        if (project.Scan is { } scan)
+        WriteCheck(json, project.Check, KeptUnknown(project.Unknown, "check", [], null, out _));
+        WriteOrigin(json, project.Scan, project.Transcription);
+        WritePageMap(json, project.ReadFrom, project.DocumentPages);
+        WriteUnknownFields(json, project.UnknownFieldsAt(NotesPath + project.NotesId));
+        json.WriteEndObject();
+    }
+
+    /// <summary>Other Notes: the working notes' fields, with their name and the file name their music is read by.</summary>
+    private static void WriteOtherNotes(Utf8JsonWriter json, Project project, OtherNotes notes)
+    {
+        json.WriteStartObject();
+        json.WriteString("id", notes.Id);
+        if (notes.Name is { } name)
+        {
+            json.WriteString("name", name);
+        }
+
+        json.WriteString("fileName", notes.FileName);
+        WriteProvenance(json, notes.Provenance);
+        json.WriteBase64String("music", notes.Music);
+        WriteEdits(json, notes.Edits);
+        WriteCheck(json, notes.Check, []);
+        WriteOrigin(json, notes.Scan, notes.Transcription);
+        WritePageMap(json, notes.ReadFrom, notes.Pages);
+        if (!notes.Marks.IsEmpty || notes.Marks.Unknown.Count > 0)
+        {
+            WriteMarks(json, notes.Marks);
+        }
+
+        WriteUnknownFields(json, project.UnknownFieldsAt(NotesPath + notes.Id));
+        json.WriteEndObject();
+    }
+
+    private static void WriteOrigin(Utf8JsonWriter json, ScanOrigin? scan, TranscriptionOrigin? heard)
+    {
+        if (scan is not null)
         {
             json.WriteStartObject("scan");
             json.WriteStartArray("confirmedBars");
@@ -90,26 +132,21 @@ public static partial class ProjectFile
             json.WriteEndObject();
         }
 
-        if (project.Transcription is { } heard)
+        if (heard is not null)
         {
             WriteHeard(json, heard);
         }
-
-        WritePageMap(json, project);
-        WriteUnknownFields(json, project.UnknownFieldsAt(NotesPath + project.NotesId));
-        json.WriteEndObject();
     }
 
-    private static void WriteCheck(Utf8JsonWriter json, Project project)
+    private static void WriteCheck(Utf8JsonWriter json, IReadOnlyList<CheckFlag>? check, List<UnknownEntity> unknownFlags)
     {
-        List<UnknownEntity> unknownFlags = KeptUnknown(project.Unknown, "check", [], null, out _);
-        if (project.Check is null && unknownFlags.Count == 0)
+        if (check is null && unknownFlags.Count == 0)
         {
             json.WriteNull("check");
             return;
         }
 
-        WriteList(json, "check", project.Check ?? [], unknownFlags, flag =>
+        WriteList(json, "check", check ?? [], unknownFlags, flag =>
         {
             json.WriteStartObject();
             json.WriteNumber("bar", flag.Bar);
@@ -162,9 +199,9 @@ public static partial class ProjectFile
     }
 
     /// <summary>"pageMap": where each page of the piece's PDF starts in the working notes, or of another piece's PDF they were read from (0023).</summary>
-    private static void WritePageMap(Utf8JsonWriter json, Project project)
+    private static void WritePageMap(Utf8JsonWriter json, ReadFromPdf? readFrom, PageMap? documentPages)
     {
-        (PageMap? pages, string? other) = project.ReadFrom is { } read ? (read.Pages, read.ProjectId) : (project.DocumentPages, null);
+        (PageMap? pages, string? other) = readFrom is { } read ? (read.Pages, read.ProjectId) : (documentPages, null);
         if (pages is null)
         {
             return;

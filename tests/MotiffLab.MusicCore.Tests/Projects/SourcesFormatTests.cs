@@ -175,7 +175,7 @@ public class SourcesFormatTests
     {
         DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now);
         var book = new PieceOriginal("src_book", OriginalKind.Pdf, "Songbook.pdf", OriginalKept.Device, s_now) { Sha256 = new string('b', 64), Pages = 24 };
-        Project project = FurElise() with { RemovedOriginals = [new RemovedOriginal(book, s_now.AddHours(1)) { Marks = marks }] };
+        Project project = FurElise() with { Sources = new SourcesLayer { Removed = [new RemovedOriginal(book, s_now.AddHours(1)) { Marks = marks }] } };
 
         JsonObject file = Node(ProjectFile.Write(project));
         Project read = RoundTrip(project);
@@ -183,7 +183,7 @@ public class SourcesFormatTests
         JsonObject tombstone = file["originals"]![1]!.AsObject();
         Assert.Equal(("src_book", "2026-11-14T11:00:00.0000000+00:00"), (tombstone["id"]!.GetValue<string>(), tombstone["removed"]!["at"]!.GetValue<string>()));
         Assert.False(tombstone.ContainsKey("data"));
-        Assert.Equal(project.RemovedOriginals, read.RemovedOriginals);
+        Assert.Equal(project.Sources.Removed, read.Sources.Removed);
         Assert.Null(read.FindOriginal("src_book"));
         Assert.True(read.DocumentMarks.IsEmpty);
         Assert.Equal(ProjectFile.Write(project), ProjectFile.Write(read));

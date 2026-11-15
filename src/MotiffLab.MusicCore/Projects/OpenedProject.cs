@@ -187,6 +187,13 @@ public sealed record OpenedProject(
             var motifs = new List<Motif>();
             foreach (SavedMotif saved in project.Motifs)
             {
+                if (saved.Notes is { } other && other != project.NotesId)
+                {
+                    // Made on other Notes than the working ones (version 16): kept in the file until those are working again.
+                    _hidden.Add(saved.Id);
+                    continue;
+                }
+
                 MotifSelection selection = saved.Kind == MotifSelectionKind.Notes
                     ? MotifSelector.SelectNotes(notes, piece.Meter, saved.NoteIds)
                     : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter, MotifSelection.MaxStructureBars);
@@ -215,7 +222,7 @@ public sealed record OpenedProject(
             foreach (SavedVariation saved in project.Variations)
             {
                 Motif? found = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId);
-                if (found is null && (assembled || Forgiving))
+                if (found is null && (assembled || Forgiving || _hidden.Contains(saved.MotifId)))
                 {
                     _hidden.Add(saved.Id);
                     continue;
@@ -241,6 +248,13 @@ public sealed record OpenedProject(
             var observations = new List<(Observation, VariationChain?)>();
             foreach (Observation observation in project.Observations)
             {
+                if (observation.Variation is not null && observation.Notes is { } other && other != project.NotesId)
+                {
+                    // A variation kept on other Notes than the working ones waits with them (version 16).
+                    _hidden.Add(observation.Id);
+                    continue;
+                }
+
                 try
                 {
                     observations.Add((observation, observation.Restore(notes, piece.Meter)));

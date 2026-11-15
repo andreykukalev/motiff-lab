@@ -818,7 +818,10 @@ public static partial class ProjectFile
             Name<MotifMode>(motif, "mode"),
             span,
             filter,
-            noteIds);
+            noteIds)
+        {
+            Notes = motif.TryGetProperty("notes", out _) ? Text(motif, "notes") : null,
+        };
     }
 
     /// <summary>

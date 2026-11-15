@@ -166,7 +166,7 @@ public sealed record NotesProvenance(string Op)
         List<ProvenanceSource> from = [];
         if (original is not null)
         {
-            ProvenanceSource source = new(original) { Sha256 = project.FindOriginal(original)?.Sha256 ?? project.RemovedOriginals.FirstOrDefault(removed => removed.Original.Id == original)?.Original.Sha256 };
+            ProvenanceSource source = new(original) { Sha256 = project.FindOriginal(original)?.Sha256 ?? project.Sources.RemovedWith(original)?.Original.Sha256 };
             from.Add(working && project.PartOf is { } part && part.Original == original ? source with { Pages = part.Pages, Milliseconds = part.Milliseconds } : source);
         }
 
