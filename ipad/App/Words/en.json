@@ -288,6 +288,7 @@
   "padAssistant.sending": "Sending the question…",
   "padAssistant.answering": "The assistant is answering…",
   "padAssistant.lookingUp": "The assistant is looking in the score…",
+  "practice.switchesHint": "Opens the two switches: selection controls and playback controls, each on its own",
   "settings.language.ru": "Русский",
   "settings.language.en": "English",
   "settings.languagePadHint": "The interface and everything the app writes for you: facts, explanations, the assistant's answers. Until you pick one, the iPad's language. The piece open now is saved and opens again where it was."

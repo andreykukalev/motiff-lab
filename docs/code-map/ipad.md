@@ -19,7 +19,11 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   (l. ~437: the controllers' callbacks), `ScoreBar` (top bar, More, Ask about the piece), `SelectionMenu` (the menu over
   the selection; its More holds Highlight and Ask), `FocusBar` (Expand's bar). `ScoreScreenViews.swift`, `TopBar.swift`.
 - `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
-- `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10).
+- `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two switches
+  under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).
+- `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the model holds under the modes, Expand too
+  (`onePosition`), over its passage (`expandPassage`); the page's selection and Цикл only out of it (`holdsSelection`).
+  The card's black playhead: `score.js` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8).
 - `Insights.swift`: `InsightsController` (facts, Try ways, `trial`), `InsightsSheet` (the stream; Ask's foot).
 - `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures.
 - `PlaceSelection.swift` (v0.6.2; `PlaceSelection.on` since v0.6.3, no switch): the one selection (span, hand, notes picked) and

@@ -8,13 +8,16 @@ import SwiftUI
 /// the Play button. The model decides; this only shows it and sends the presses to the player.
 struct PositionTransport: View {
     @ObservedObject var player: Player
+    /// Expand's passage (v0.6.4, spec 8), nil out of Expand: the model over the passage as a selection that always loops
+    /// (ExpandRules.held), so Play plays it round from the playhead inside it and there is no Цикл to turn off (#533 2).
+    var passage: Range<Double>?
     let text: UIText
 
     var body: some View {
-        let view = PlaybackModel.view(of: player.model)
+        let view = PlaybackModel.view(of: PlaybackScope.shown(player.model, passage: passage))
         HStack(spacing: CGFloat.ds("s-1")) {
             play(view)
-            if let selection = player.selection, let span = player.barBeats.span(selection) {
+            if passage == nil, let selection = player.selection, let span = player.barBeats.span(selection) {
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
                 cycle(span)
             }
@@ -27,7 +30,7 @@ struct PositionTransport: View {
         let cobalt = view.context == .selection
         let place = player.barBeats.at(view.at)?.text ?? ""
         return Button {
-            player.apply(.press)
+            if let passage { player.playPassage(passage) } else { player.apply(.press) }
         } label: {
             HStack(spacing: CGFloat.ds("s-2")) {
                 Icon(name: view.playing ? "pause" : "playf", size: CGFloat.ds("icon-s"))
@@ -74,9 +77,49 @@ struct PositionTransport: View {
 }
 
 extension ScoreController {
-    /// Whether the playback model holds (v0.5.2): the modes are on (Settings · Experimental) and the score is not in focus,
-    /// which plays as before.
+    /// Whether the playback model holds (v0.5.2): the modes are on (Settings · Experimental), in Expand too (v0.6.4, spec 8,
+    /// the architect's slice I5): one Play by the place, the black playhead with its handle on the card, dragged as on the
+    /// page. Expand keeps its passage (`expandPassage`): the model over it as a selection that always loops (ExpandRules),
+    /// and the selection and Цикл outside it are left as they are (T18).
     var onePosition: Bool {
-        mode != nil && !focused
+        PlaybackScope.onePosition(modes: mode != nil)
+    }
+
+    /// Expand's passage while it is open (#521 19, #533 2): the selection it was opened on, which plays round and round and
+    /// which the playhead is kept inside; nil out of Expand.
+    var expandPassage: Range<Double>? {
+        PlaybackScope.expandPassage(focused: focused, playRange: playRange?.range)
+    }
+
+    /// Whether the playback model takes the score's selection and Цикл (T9–T11): under the modes and out of Expand, whose
+    /// passage loops on its own and leaves them as they are (T18).
+    var holdsSelection: Bool {
+        PlaybackScope.holdsSelection(modes: mode != nil, focused: focused)
+    }
+}
+
+/// Where the playback model holds on the score's screen (v0.5.2; Expand since v0.6.4, spec 8), the rules apart from the
+/// controller so that they are tested: one model everywhere under the modes; Expand holds it over its passage, which always
+/// loops, and leaves the selection and Цикл of the page as they are.
+enum PlaybackScope {
+    /// The one playback position under the modes, in Expand too: Expand has no playback of its own.
+    static func onePosition(modes: Bool) -> Bool {
+        modes
+    }
+
+    /// Expand's passage while it is open: the selection it was opened on; nil out of it.
+    static func expandPassage(focused: Bool, playRange: Range<Double>?) -> Range<Double>? {
+        focused ? playRange : nil
+    }
+
+    /// Whether the model takes the page's selection and Цикл (T9–T11): under the modes, out of Expand (T18).
+    static func holdsSelection(modes: Bool, focused: Bool) -> Bool {
+        modes && !focused
+    }
+
+    /// The model the pill's Play shows: in Expand the passage as a selection that always loops (ExpandRules.held), so its
+    /// Play is the selection's, cobalt, and names where it will play from; else the player's model.
+    static func shown(_ model: PlaybackModel.State, passage: Range<Double>?) -> PlaybackModel.State {
+        passage.map { ExpandRules.held($0, tick: model.tick, transport: model.transport) } ?? model
     }
 }
