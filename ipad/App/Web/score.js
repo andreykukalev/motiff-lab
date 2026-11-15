@@ -47,7 +47,8 @@
 // line is out of sight, the bar it is in goes to Swift (`playheadAway`, -1 when it is back), for the chip that returns
 // to it (`returnToPlayhead`). Under the modes the two playheads of the playback model are drawn (`playheads`), and their
 // handles are dragged (#495 UX-08): the handle taken, its places and its letting go go to Swift (`drag`), and where the
-// handles are (`heads`), so a finger there is never the pen's.
+// handles are (`heads`), so a finger there is never the pen's. In Expand the card has the page's black playhead too, dragged
+// inside the passage (v0.6.4, spec 8: `drawCardHeads`).
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -682,12 +683,15 @@ function playheads(value) {
         grabs.cancel();
         press.cancel();
         heads.hide();
+        cardGrabs.cancel();
+        cardHeads.hide();
         reportGrips();
     } else {
         placePlayhead(null);
         // A new selection or Цикл moves the blue playhead at once, playing or not (v0.6.3, #608 item 3): stopped, no position
         // comes to draw it again, and it stayed where the last selection had it.
         reportPlace(drawHeads(), !heard.playing);
+        drawCardHeads();
     }
 }
 
@@ -953,6 +957,8 @@ window.addEventListener("resize", () => {
     resizing = requestAnimationFrame(() => {
         layout();
         placeOssias();
+        layoutCard();
+        drawCardHeads();
         reportCardWidth();
     });
 });
@@ -966,7 +972,76 @@ focusLayer.hidden = true;
 focusLayer.innerHTML = '<button type="button" class="veil" tabindex="-1"></button><div class="stage"><section class="card"><div class="card-score"></div></section></div>';
 document.body.append(focusLayer);
 const cardScore = focusLayer.querySelector(".card-score");
-const card = { timeline: null, offset: 0, width: 0, ossias: [] };
+const card = { timeline: null, offset: 0, width: 0, ossias: [], pages: [], geometry: null };
+
+/**
+ * The black playhead on the card in Expand (v0.6.4, spec 8): the page's track under the system with its dot
+ * (Scripts/score/playheads.ts), at the position held inside the passage, Expand's selection that always loops (Swift's
+ * ExpandRules.held: the playback model's place kept to the passage), so where the music is while it is inside and at the
+ * passage's start while it is not. Its dot is dragged by the Pencil or a finger as on the page (playhead-grab.ts), inside the
+ * passage on the sixteenth grid, the notes passed sounding; Swift keeps it inside (Player.handle(_:within:)). The card's
+ * ticks count from its first bar, `card.offset` in the piece.
+ */
+const cardHeads = new ScorePlayheadMarks(cardScore, {
+    at: (tick) => (card.timeline === null ? undefined : card.geometry?.playhead(tick, (id) => card.timeline.onsetOf(id))),
+    lineBottom: (bar) => card.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
+    grab: (_handle, event) => cardGrabs.begin("blue", event),
+});
+
+const cardGrabs = new ScoreGrab({
+    geometry: () => card.geometry,
+    onsetOf: (id) => card.timeline?.onsetOf(id),
+    selection: () => cardPassage(),
+    // Nothing writes in Expand: the Pencil and a finger both take the dot.
+    takes: () => state.focus && state.heads !== null,
+    point: (event) => {
+        const view = cardScore.getBoundingClientRect();
+        return { x: event.clientX - view.left + cardScore.scrollLeft, y: event.clientY - view.top + cardScore.scrollTop };
+    },
+    moved: () => drawCardHeads(),
+}, new PlayheadDrag((message) => post({ drag: "tick" in message ? { ...message, tick: message.tick + card.offset } : message })));
+
+/** Expand's passage in the card's ticks: the selection it was opened on, as Swift's playheads give it; null without one. */
+function cardPassage() {
+    const chosen = state.heads?.selection ?? null;
+    return chosen === null ? null : { start: chosen.start - card.offset, end: chosen.end - card.offset };
+}
+
+/** Where every bar of the card sits, in the card's own pixels (it scrolls inside itself), as `layout` does for the pages. */
+function layoutCard() {
+    const timeline = card.timeline;
+    if (!state.focus || timeline === null) {
+        card.geometry = null;
+        return;
+    }
+    const view = cardScore.getBoundingClientRect();
+    const placements = [];
+    cardScore.querySelectorAll(":scope > .card-page > svg").forEach((svg, index) => {
+        const page = card.pages[index];
+        if (page === undefined) {
+            return;
+        }
+        const box = svg.getBoundingClientRect();
+        const scale = Math.min(box.width / page.width, box.height / page.height);
+        placements.push({
+            left: box.left - view.left + cardScore.scrollLeft + (box.width - page.width * scale) / 2,
+            top: box.top - view.top + cardScore.scrollTop + (box.height - page.height * scale) / 2,
+            scale,
+        });
+    });
+    card.geometry = new ScoreGeometry(card.pages, placements, (id) => timeline.measureOnset(id));
+}
+
+/** Draws the card's black playhead (Expand under the playback model), or hides it. */
+function drawCardHeads() {
+    if (!state.focus || state.heads === null || card.geometry === null) {
+        cardHeads.hide();
+        return;
+    }
+    const tick = cardGrabs.drag.heard(heard.tick - card.offset);
+    const view = viewOf({ selection: cardPassage(), loop: true, tick, transport: heard.playing ? "playing" : "stopped" });
+    cardHeads.place({ global: view.blue ?? view.black, selection: null, globalPlays: view.playing, held: cardGrabs.held !== null });
+}
 
 focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
 
@@ -981,9 +1056,16 @@ function focus({ open, label, back }) {
         grabs.cancel();
         press.cancel();
     }
+    // The page's playheads go under the veil and come back out of it (drawHeads), the card's go with it.
+    if (state.heads !== null) {
+        reportPlace(drawHeads(), !heard.playing);
+    }
     if (!state.focus) {
+        cardGrabs.cancel();
+        cardHeads.hide();
         cardScore.replaceChildren();
         card.timeline = null;
+        card.geometry = null;
         card.ossias = [];
         return {};
     }
@@ -998,6 +1080,8 @@ function focus({ open, label, back }) {
  * that holds `start`. Returns how many notes it engraved.
  */
 function showCard({ pages, timemap, start, ossias }) {
+    // A drag on the card engraved before lets go first: its dot goes with the old pages.
+    cardGrabs.cancel();
     sounding.card = new Set();
     sounding.key = "";
     cardScore.innerHTML = (pages ?? []).map((svg) => `<div class="card-page">${svg}</div>`).join("");
@@ -1007,6 +1091,8 @@ function showCard({ pages, timemap, start, ossias }) {
     card.ossias = ossias ?? [];
     placeOssias();
     tint(cardScore, card.timeline, new Set(card.ossias.flatMap((ossia) => ossia.added ?? [])), "version-added");
+    layoutCard();
+    drawCardHeads();
     return card.timeline.spans.length;
 }
 
@@ -1102,6 +1188,7 @@ function playing({ tick, playing, follow, auto = true }) {
     heard.playing = playing;
     if (state.heads !== null) {
         reportPlace(drawHeads(), !playing);
+        drawCardHeads();
     } else {
         // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
         const resting = !playing && playhead.played && tick > 0;

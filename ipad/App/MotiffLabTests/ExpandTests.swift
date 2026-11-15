@@ -62,6 +62,43 @@ final class ExpandTests: XCTestCase {
         XCTAssertEqual(ExpandRules.gesture(.release, in: passage, drag: nil, tick: 2400, transport: .stopped).steps, [], "nothing held, nothing to let go")
     }
 
+    /// v0.6.4 spec 8: the playback model holds in Expand too (one Play, the black playhead with its handle on the card), over
+    /// Expand's passage; the page's selection and Цикл are the model's only out of Expand (T18), and without the modes
+    /// nothing changes.
+    func testExpandHasThePlaybackModelOverItsPassage() {
+        let passage = 1920.0..<3840.0
+        XCTAssertTrue(PlaybackScope.onePosition(modes: true), "in Expand and out of it")
+        XCTAssertFalse(PlaybackScope.onePosition(modes: false))
+        XCTAssertEqual(PlaybackScope.expandPassage(focused: true, playRange: passage), passage)
+        XCTAssertNil(PlaybackScope.expandPassage(focused: false, playRange: passage))
+        XCTAssertTrue(PlaybackScope.holdsSelection(modes: true, focused: false))
+        XCTAssertFalse(PlaybackScope.holdsSelection(modes: true, focused: true), "Expand loops its passage and leaves Цикл as it is")
+        XCTAssertFalse(PlaybackScope.holdsSelection(modes: false, focused: false))
+
+        // The pill in Expand: the selection's cobalt Play, at the playhead inside the passage, else naming its start, even
+        // with Цикл off on the page; out of Expand the player's model as it is.
+        let pageModel = PlaybackModel.State(selection: passage, loop: false, tick: 5000, transport: .stopped)
+        let inExpand = PlaybackModel.view(of: PlaybackScope.shown(pageModel, passage: passage))
+        XCTAssertEqual(inExpand.context, .selection)
+        XCTAssertEqual(inExpand.at, 1920, "Play will start at the passage's start")
+        XCTAssertEqual(inExpand.blue, 1920, "the card's playhead waits at the passage's start")
+        let inside = PlaybackModel.view(of: PlaybackScope.shown(PlaybackModel.State(selection: passage, loop: false, tick: 2400, transport: .playing), passage: passage))
+        XCTAssertEqual(inside.blue, 2400)
+        XCTAssertEqual(inside.context, .selection)
+        XCTAssertEqual(PlaybackScope.shown(pageModel, passage: nil), pageModel)
+        XCTAssertEqual(PlaybackModel.view(of: pageModel).context, .piece, "out of Expand past the selection with Цикл off: ink")
+    }
+
+    /// v0.6.4 spec 8: the card's playhead taken while the position is outside the passage is taken where it is drawn, at
+    /// the passage's start, so the first move sounds only what lies inside.
+    func testThePlayheadTakenOutsideThePassageIsTakenAtItsStart() {
+        let passage = 1920.0..<3840.0
+        let taken = ExpandRules.gesture(.grab(.black), in: passage, drag: nil, tick: 100, transport: .stopped)
+        XCTAssertEqual(taken.drag, PlayheadDrag(handle: .blue, resume: false, last: 1920))
+        let moved = ExpandRules.gesture(.move(2400), in: passage, drag: taken.drag, tick: 100, transport: .stopped)
+        XCTAssertEqual(moved.steps, [.scrub(from: 1920, to: 2400)])
+    }
+
     /// No selection controls in the stylus menu, no Undo or Redo, and the roll in Navigate, edits waiting (#521 19.3).
     func testNothingInExpandChangesTheSelectionOrEditsNotes() {
         XCTAssertEqual(ExpandRules.ringControls(focused: true, otherwise: StylusRules.ringControls(.select)), [])

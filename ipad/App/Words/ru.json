@@ -309,5 +309,6 @@
   "padAssistant.serverError": "Сервер помощника ответил ошибкой. Ничего не потеряно — попробуйте ещё раз.",
   "padAssistant.sending": "Отправляю вопрос…",
   "padAssistant.answering": "Помощник отвечает…",
-  "padAssistant.lookingUp": "Помощник смотрит в ноты…"
+  "padAssistant.lookingUp": "Помощник смотрит в ноты…",
+  "practice.switchesHint": "Открывает два переключателя: управление выделением и управление воспроизведением, каждое отдельно"
 }

@@ -552,7 +552,7 @@ struct ScoreScreen: View {
             .onChange(of: score.focused) { _, focused in
                 expandChanged(focused)
             }
-            .onChange(of: score.practicing) { _, on in
+            .onChange(of: score.practicing, initial: true) { _, on in
                 // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
                 score.sendPractice()
                 roll.practice(on)
@@ -1029,7 +1029,8 @@ extension ScoreScreen {
 /// beats (#349).
 extension ScoreScreen {
     /// The playback model as the page and the roll draw it (v0.5.2, #495 UX-10): the selection the blue playhead keeps to and
-    /// Цикл, and the roll's lanes; nil and off for the one playhead of before, and in focus.
+    /// Цикл, and the roll's lanes; nil and off for the one playhead of before. In Expand the page draws the black playhead
+    /// on the card inside the selection, its passage (v0.6.4, spec 8); the roll there keeps its own playhead, without lanes.
     private func syncPlayheads() {
         let on = score.onePosition
         var data: [String: Any]?
@@ -1039,7 +1040,7 @@ extension ScoreScreen {
             data = ["selection": selection, "loop": player.cycle]
         }
         score.showPlayheads(data)
-        roll.lanes(on)
+        roll.lanes(score.holdsSelection)
         if rollShown { showRollPosition() }
     }
 
@@ -1105,7 +1106,15 @@ extension ScoreScreen {
         // A playhead dragged by its handle on the score or the roll (#495 UX-08, T14–T16): the player runs the model. The pages
         // send it only under the playback model, and a gesture that ends after the model went is still let go. On Expand's
         // roll it is held inside the passage, which goes on looping (#533 2).
-        score.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
+        // On Expand's card the black playhead is held inside the passage too (v0.6.4, spec 8), as on its roll.
+        score.playheadGestured = { [weak heard, weak shown] gesture in
+            guard let heard else { return }
+            if let passage = shown?.expandPassage {
+                heard.handle(gesture, within: passage)
+            } else {
+                heard.handle(gesture)
+            }
+        }
         roll.playheadGestured = { [weak heard, weak shown] gesture in
             guard let heard else { return }
             if shown?.focused == true, let passage = shown?.playRange?.range {
@@ -1118,7 +1127,7 @@ extension ScoreScreen {
 
     /// Where the player is, for the roll: with the lanes, also the place as bar.beat and whether the selection loops.
     private func showRollPosition() {
-        let on = score.onePosition
+        let on = score.holdsSelection
         roll.position(player.tick, playing: player.state == .playing, label: on ? player.placeLabel : "", looping: on && player.loop != nil)
     }
 
@@ -1153,7 +1162,7 @@ extension ScoreScreen {
         // Under the modes, Select's «По тактам / По долям» (#511 4.2); without them, the experiment Select by beats.
         score.setBeatLines(player.beatLines, experiment: settings.isOn("experimental.beats"))
         syncPlayheads()
-        if score.onePosition { player.hold(selection: score.playRange?.range) }
+        if score.holdsSelection { player.hold(selection: score.playRange?.range) }
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
     }
 
@@ -1426,9 +1435,10 @@ struct Pill: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            // Under the playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span.
+            // Under the playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span;
+            // in Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
             if score.onePosition {
-                PositionTransport(player: player, text: text)
+                PositionTransport(player: player, passage: score.expandPassage, text: text)
             } else {
                 Button {
                     // In Expand Play loops the passage, from the playhead inside it or its start (#533 2).
@@ -2014,11 +2024,12 @@ extension ScoreScreen {
             player.setLoop(nil)
         }
         syncPlayheads()
-        if score.onePosition {
+        if focused {
+            // Expand plays on round its passage; the model out of it is left as it is (T18).
+            if player.state != .stopped, let passage = score.playRange?.range { player.keepWithin(passage) }
+        } else if score.onePosition {
             player.hold(selection: score.playRange?.range)
-        } else if focused, player.state != .stopped, let passage = score.playRange?.range {
-            player.keepWithin(passage)
-        } else if !focused, let loop = loopBeforeFocus {
+        } else if let loop = loopBeforeFocus {
             player.setLoop(loop, play: false)
         }
         guard !focused else { return }

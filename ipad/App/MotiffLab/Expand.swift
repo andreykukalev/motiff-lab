@@ -3,8 +3,9 @@ import Foundation
 /// Expand as a focused practice view (#521 17, 19; #533 2, 3): the selection lifted over the page, as notes or as a roll,
 /// bound to the exact passage it was opened on. Only with a selection; nothing in it creates or changes the selection or
 /// the Loop, and no arrow steps to another phrase; the roll moves only within the passage (Scripts/roll/piano-roll.ts
-/// setPassage); Play plays the passage round and round, with no Loop to turn off; the playhead on the roll is taken and
-/// dragged inside the passage, the notes it passes sounding, and let go playback goes on from there. The way back is the
+/// setPassage); Play plays the passage round and round, with no Loop to turn off; the playhead on the roll, and since v0.6.4
+/// (spec 8) the black playhead on the notes card as on the page, is taken and dragged inside the passage, the notes it
+/// passes sounding, and let go playback goes on from there. The way back is the
 /// way in: from the score «К странице», from the roll «Свернуть», and either brings back the workspace as it was. The
 /// rules, apart from the views so that they are tested.
 enum ExpandEntry: Equatable, Sendable {
@@ -85,7 +86,10 @@ enum ExpandRules {
                 steps = Self.gesture(.release, in: passage, drag: drag, tick: tick, transport: transport).steps
                 standing = steps.last == .play ? .playing : transport
             }
-            let taken = PlayheadDrag(handle: .blue, resume: PlaybackModel.playing(standing), last: tick)
+            // Taken where it is drawn: the position, or the passage's start while the position is outside it (v0.6.4, spec 8),
+            // so the first move sounds only what lies inside the passage.
+            let shown = PlaybackModel.view(of: held(passage, tick: tick, transport: standing)).blue ?? tick
+            let taken = PlayheadDrag(handle: .blue, resume: PlaybackModel.playing(standing), last: shown)
             return (taken, steps + PlaybackModel.next(held(passage, tick: tick, transport: standing), .grab).steps)
         case .move(let at), .place(let at):
             guard var taken = drag else { return (nil, []) }

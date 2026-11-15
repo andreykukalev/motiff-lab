@@ -118,8 +118,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
     /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back.
     @Published private(set) var focused = false
-    /// Practice view (#533 11, PracticeView.swift): view state only, changed by `practise`; and the time its controls hide.
-    @Published var practice = PracticeView()
+    /// Practice view (#533 11, PracticeView.swift): view state, changed by `practise`, its two visibilities kept on the device
+    /// (v0.6.4, spec 9); and the time its controls hide.
+    @Published var practice = PracticeView.saved()
     var practiceTimer: Task<Void, Never>?
     /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
     @Published private(set) var expandEntry = ExpandEntry.notes
@@ -1967,6 +1968,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             applyInput()
             await sendModeNow()
             await sendPlayheadsNow()
+            await sendVisibilities()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
