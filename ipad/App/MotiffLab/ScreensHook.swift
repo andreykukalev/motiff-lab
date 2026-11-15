@@ -54,17 +54,14 @@ enum ScreensHook {
     }
 }
 
-#endif
-
-/// What the switch test reads from the app while it runs (Debug builds, `-ml-screens`): the screen shown and whether it
-/// is ready to read, the controllers alive, the score's renders, music-core's longest call and the app's memory.
+/// What the switch test reads from the app while it runs (Debug builds, `-ml-screens`): the screen shown last and whether
+/// it is ready to read, the controllers alive, the score's renders, music-core's longest call and the app's memory.
 @MainActor
 enum ScreensProbe {
-    /// The piece the library shows now (kept in every build, read only by the probe).
-    static var shown: OpenPiece?
-    #if DEBUG
-    static weak var score: ScoreController?
-    static weak var pdf: PdfController?
+    /// The screen that showed a piece last: "score" or "pdf", as its controller took the piece.
+    static var latest = "library"
+    static weak var score: ScoreController? { didSet { latest = "score" } }
+    static weak var pdf: PdfController? { didSet { latest = "pdf" } }
     /// The bar's old Play drawn on a score screen whose modes are on (the flash of v0.6.4 spec section 13).
     static var oldBarPlay = 0
 
@@ -77,18 +74,20 @@ enum ScreensProbe {
 
     /// One line for the test: `screen=score ready=1 piece=3 live=score:1,roll:1,pdf:0,player:1 renders=2 core=120/0 mem=210 oldbar=0`.
     static func line() -> String {
-        let screen = shown.map { $0.isDocument ? "pdf" : "score" } ?? "library"
-        let piece = shown?.id
+        let screen = latest
         var ready = false
-        if screen == "score", let score = Self.score, let piece {
-            ready = score.piece?.id == piece && score.rendered && score.webView.alpha > 0.99
-        } else if screen == "pdf", let pdf = Self.pdf, let piece {
-            ready = pdf.piece == piece && pdf.document != nil
+        var piece: Int32 = 0
+        if screen == "score", let score = Self.score {
+            piece = score.piece?.id ?? 0
+            ready = score.rendered && score.webView.alpha > 0.99
+        } else if screen == "pdf", let pdf = Self.pdf {
+            piece = pdf.piece
+            ready = pdf.document != nil
         }
         let counts = ProbeCounts.shared.snapshot()
         let live = ["score", "roll", "pdf", "player"].map { "\($0):\(counts[$0] ?? 0)" }.joined(separator: ",")
         let core = "\(ProbeCounts.shared.takeLongestCall())/\(counts["pending"] ?? 0)"
-        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece ?? 0) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay)"
+        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay)"
     }
 
     /// The app's own memory in MB, as the system counts it against the app (WebKit's processes not included).
@@ -100,10 +99,7 @@ enum ScreensProbe {
         }
         return result == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
     }
-    #endif
 }
-
-#if DEBUG
 
 /// The probe line, hidden over the whole window and read again four times a second.
 struct ScreensProbeView: View {

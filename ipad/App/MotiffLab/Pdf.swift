@@ -351,6 +351,19 @@ struct PdfScreen: View {
     /// The piece is being handed to its notes: a second press on the switch meanwhile does nothing (#582 item 2).
     @State private var handingOver = false
 
+    /// With the sources on, the switch of all views is drawn from the first frame as the notes' screen handed it over
+    /// (SourcesHandover, v0.6.4 spec section 13): before, PDF | Notes showed until the sources were read.
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, openRead: ((URL, Landing) async -> Void)? = nil, linked: Bool = false, readOnlyNote: String? = nil) {
+        self.piece = piece
+        self.switchView = switchView
+        self.openRead = openRead
+        self.linked = linked
+        self.readOnlyNote = readOnlyNote
+        let handed = linked ? nil : SourcesHandover.layers(for: piece.file)
+        _sources = StateObject(wrappedValue: SourcesController(layers: handed))
+        _sourcesOn = State(initialValue: handed != nil && switchView != nil && piece.other != nil && DeviceSettings.shared.isOn(SourceLayers.setting))
+    }
+
     var body: some View {
         GeometryReader { screen in
             ZStack(alignment: .top) {
@@ -444,6 +457,8 @@ struct PdfScreen: View {
         // A new interface language saves the piece and opens it again at this page (InterfaceLanguage).
         .handsOver(piece: piece.id) { await handOverForLanguage() }
         .onDisappear {
+            // The Sources panel's way back held this screen, its PDF and controllers with it (v0.6.4 spec section 11).
+            sources.reopen = nil
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
             metronome.stop()
@@ -726,6 +741,7 @@ struct PdfScreen: View {
         handingOver = true
         defer { handingOver = false }
         pdf.keepView()
+        if sourceLayers != nil { SourcesHandover.give(sources.layers, to: other.file) }
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
     }
@@ -749,6 +765,7 @@ struct PdfScreen: View {
         }
         sources.reopen = { await reopenHere() }
         await sources.load(piece: piece.id, file: piece.file)
+        SourcesHandover.drop(piece.file)
         await originals.load(piece)
         sourcesOn = true
         if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }

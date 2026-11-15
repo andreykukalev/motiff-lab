@@ -122,6 +122,34 @@ final class ViewStatesTests: XCTestCase {
         XCTAssertFalse(ClosedPieces.take(9_000_001), "asked once")
     }
 
+    /// v0.6.4 spec section 13: the next screen of the same file draws the switch of all views from its first frame, as
+    /// often as SwiftUI makes it, until it has read the sources itself; nothing is handed without working notes.
+    @MainActor
+    func testTheSwitchOfAllViewsIsHandedToTheNextScreenOfTheFile() throws {
+        let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("handover.motiff.json")
+        let none = try XCTUnwrap(SourceLayers(answer: #"{"views": []}"#))
+        SourcesHandover.give(none, to: file)
+        XCTAssertNil(SourcesHandover.layers(for: file), "layers without working notes are not handed over")
+        let layers = try XCTUnwrap(SourceLayers(answer: #"{"working": "n1", "views": [{"id": "src_pdf", "kind": "original"}, {"id": "n1", "kind": "notes"}]}"#))
+        SourcesHandover.give(layers, to: file)
+        XCTAssertEqual(SourcesHandover.layers(for: file), layers)
+        XCTAssertEqual(SourcesHandover.layers(for: URL(fileURLWithPath: file.path + "/../handover.motiff.json")), layers, "the same file by another spelling")
+        XCTAssertEqual(SourcesController(layers: SourcesHandover.layers(for: file)).layers, layers, "the next screen starts with them")
+        SourcesHandover.drop(file)
+        XCTAssertNil(SourcesHandover.layers(for: file))
+        XCTAssertEqual(SourcesController().layers, SourceLayers(), "a screen opened from the library reads its own")
+    }
+
+    /// v0.6.4 spec section 13: the score's screen knows its model before its first frame; with the modes on it opens in
+    /// Navigate, so the bar's old Play is never drawn while the sound loads.
+    @MainActor
+    func testTheScoreOpensInItsModeBeforeItsFirstFrame() {
+        let modes = ScoreController(mode: .navigate)
+        XCTAssertEqual(modes.mode, .navigate)
+        XCTAssertTrue(modes.onePosition, "the playback model holds from the start")
+        XCTAssertNil(ScoreController().mode, "without the modes, as before")
+    }
+
     @MainActor
     func testTheRollFrameWaitsForItsOwnPiecesRoll() throws {
         let frame = ["zoom": 48.0, "rowScale": 1.0, "scroll": 960.0, "pitchTop": 84.0]

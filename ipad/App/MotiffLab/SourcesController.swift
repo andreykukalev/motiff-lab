@@ -36,6 +36,24 @@ enum SourcesHandover {
         guard let file else { return nil }
         return views.removeValue(forKey: file.standardizedFileURL)
     }
+
+    /// The switch of all views as the screen handing over had it (v0.6.4 spec section 13): the next screen of the same
+    /// file draws it from its first frame, instead of PDF | Notes or no switch until it has read its own. Read as often as
+    /// the screen is made, and dropped once that screen has read the sources itself.
+    private static var layers: [URL: SourceLayers] = [:]
+
+    static func give(_ shown: SourceLayers, to file: URL?) {
+        guard let file, shown.working != nil else { return }
+        layers[file.standardizedFileURL] = shown
+    }
+
+    static func layers(for file: URL?) -> SourceLayers? {
+        file.flatMap { layers[$0.standardizedFileURL] }
+    }
+
+    static func drop(_ file: URL?) {
+        if let file { layers[file.standardizedFileURL] = nil }
+    }
 }
 
 /// The piece's sources on its screen (version 0.6, behind `experimental.sources`; decision record 0030): music-core's
@@ -62,6 +80,11 @@ final class SourcesController: ObservableObject {
     /// Keeps the screen's view and opens the piece's project file again in its place.
     var reopen: (() async -> Void)?
     private let text = UIText.current
+
+    /// `layers` are the ones the screen before handed over (SourcesHandover), shown until the piece's own are read.
+    init(layers handed: SourceLayers? = nil) {
+        if let handed { layers = handed }
+    }
 
     /// The ids of the originals whose sound is kept on this iPad, for music-core to count them here.
     var here: [String] { projectId.map { OriginalSounds.ids(project: $0) } ?? [] }

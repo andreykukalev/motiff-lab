@@ -300,6 +300,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var dark = false
     private var pageReady = false
     private var shown = false
+    /// The render under way (`scheduleRender`), and whether another is wanted after it.
+    private var rendering: Task<Void, Never>?
+    private var renderAgain = false
     /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
     @Published var pencilPalette: PencilPaletteCall?
     /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
@@ -374,7 +377,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Shows a piece's pages and its marks; again when the appearance changes.
     func show(_ piece: OpenPiece, dark: Bool) {
-        guard self.piece?.id != piece.id || self.dark != dark || !shown else { return }
+        let changed = self.piece?.id != piece.id || self.dark != dark
+        guard changed || !shown else { return }
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
@@ -400,7 +404,26 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             versionPlayback = nil
         }
         self.dark = dark
-        if pageReady { Task { await render() } }
+        // Every update of the web view came here until the first render had shown the pages, and each started another
+        // render over it: the pages sent and laid out again and again as the screen opened (v0.6.4 spec section 11).
+        if pageReady && (changed || rendering == nil) { scheduleRender() }
+    }
+
+    /// One render at a time; a piece or an appearance that changed meanwhile is drawn once it is done.
+    private func scheduleRender() {
+        guard rendering == nil else {
+            renderAgain = true
+            return
+        }
+        rendering = Task { [weak self] in
+            await self?.render()
+            guard let self else { return }
+            self.rendering = nil
+            if self.renderAgain {
+                self.renderAgain = false
+                self.scheduleRender()
+            }
+        }
     }
 
     /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
@@ -1955,7 +1978,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     fileprivate func pageDidLoad() {
         pageReady = true
-        if piece != nil { Task { await render() } }
+        if piece != nil { scheduleRender() }
     }
 
     private func render() async {

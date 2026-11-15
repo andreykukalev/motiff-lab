@@ -30,6 +30,13 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   `ScoreController.selectNotes`; the page's rule is `Scripts/score/selection-places.ts` (map: `docs/code-map/score.md`).
 - The roll in the drawer (`RollController`, `RollDrawer`, `RollTools`, `RollPlace`, `Web/roll.js`): `docs/code-map/roll.md`.
 
+## PDF | Notes (lifecycle, `docs/code-map/ui-review-2026-11.md`)
+
+- `LibraryView.switchView` → `openFile` → `show`: opens the other view, reads only that file's summary, closes the old
+  piece (`ClosedPieces`), swaps the navigation item. The screen's model is set in its `init` (`ScoreController(mode:)`,
+  the handed `SourcesHandover.layers`), never after an await; `onDisappear` clears `sources.reopen` (it held the screen).
+- `SwitchUITests` (Screens scheme) switches 20 times each way; `ScreensProbe` (Debug) reports readiness and resources.
+
 ## The assistant
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
