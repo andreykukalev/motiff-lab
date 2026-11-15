@@ -72,6 +72,9 @@ public sealed class MusicCoreFacade
     /// the sheet's calls too, and document, document.marks, ink.* and bookmark.* take an "original" (the first PDF when
     /// left out), so each PDF or photos original keeps its own page marks. The answer of sources and every other answer
     /// stay as they were, calls added.
+    /// Also within 12 (version 0.6.4, #614 item 4, the iPad's selection of time): select takes "empty": true, and a span or
+    /// bars with no notes in them are then selected as they are, noteIds empty; understand, circle and try answer
+    /// "unavailable" for such a selection, project.save keeps it as no selection, a field added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;

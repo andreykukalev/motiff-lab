@@ -184,6 +184,7 @@
   "rollZoom.time": "Time zoom",
   "rollZoom.timeIn": "Fewer bars",
   "rollZoom.timeOut": "More bars",
+  "insights.noNotes": "There are no notes in the selection.",
   "selection.noNotes": "No notes there: the selection stays as it was",
   "selection.replacedToast": "Selection replaced",
   "selection.tooLong": "A selection spans up to 32 bars: it stays as it was",

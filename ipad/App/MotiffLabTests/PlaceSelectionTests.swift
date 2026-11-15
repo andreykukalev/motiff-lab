@@ -7,10 +7,10 @@ import XCTest
 /// the page's rules. The gesture itself is the page's (tests/web/selection-places.test.mjs).
 final class PlaceSelectionTests: XCTestCase {
     func testTheOneSelectionIsSelectedAgainAsItWas() {
-        XCTAssertEqual(SelectionSpan(onset: 0, end: 1920).request, #"{"span":{"end":1920,"onset":0}}"#)
+        XCTAssertEqual(SelectionSpan(onset: 0, end: 1920).request, #"{"empty":true,"span":{"end":1920,"onset":0}}"#)
         // v0.6.4: the span exactly as the page drew it on the sixteenth grid, never taken out to the beats.
-        XCTAssertEqual(SelectionSpan(onset: 600, end: 840).request, #"{"span":{"end":840,"onset":600}}"#)
-        XCTAssertEqual(SelectionSpan(onset: 480, end: 1920, hand: "left").request, #"{"filter":{"hand":"left"},"span":{"end":1920,"onset":480}}"#)
+        XCTAssertEqual(SelectionSpan(onset: 600, end: 840).request, #"{"empty":true,"span":{"end":840,"onset":600}}"#)
+        XCTAssertEqual(SelectionSpan(onset: 480, end: 1920, hand: "left").request, #"{"empty":true,"filter":{"hand":"left"},"span":{"end":1920,"onset":480}}"#)
         XCTAssertEqual(SelectionSpan(onset: 480, end: 960, hand: "right", picked: ["n1"]).request, #"{"notes":["n1"],"picked":true}"#)
         XCTAssertEqual(SelectionSpan.picking(["a", "b"]), #"{"notes":["a","b"],"picked":true}"#)
     }
@@ -112,7 +112,7 @@ final class PlaceSelectionTests: XCTestCase {
         // What version 0.6.1 kept: a span only.
         defaults.set(Data(#"{"selection": {"onset": 0, "end": 1920}, "zoom": 1, "left": 0, "position": 0, "loop": false, "rollOpen": false}"#.utf8), forKey: ViewStates.notesKey("p_2"))
         let old = try XCTUnwrap(ViewStates.notes("p_2", in: defaults)?.selection)
-        XCTAssertEqual(old.span.request, #"{"span":{"end":1920,"onset":0}}"#)
+        XCTAssertEqual(old.span.request, #"{"empty":true,"span":{"end":1920,"onset":0}}"#)
     }
 
     func testARollSpanIsReadAsDrawnAndTheTupletsAsBlocks() throws {
