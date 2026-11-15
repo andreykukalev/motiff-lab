@@ -2834,6 +2834,13 @@ h1:focus {
     width: 19rem;
 }
 
+/* The workspace's two visibilities (#582 item 10): under «Практика», left of ⓘ and More. */
+.workspace .practice-popover {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    right: calc(var(--s-4) + 5 * var(--h-control));
+    width: 19rem;
+}
+
 /* A long popover scrolls rather than squeezing its rows below their touch size. */
 .workspace .popover > * {
     flex-shrink: 0;
@@ -2954,6 +2961,10 @@ h1:focus {
 /* Practice view (#533 11, Scripts/layout/practice-view.ts): the blue playhead of the selection goes, the black one of the piece
    stays to drag; its own Play/Pause and Leave show for a few seconds after a tap on the score, where the pill sits. */
 .lab.workspace:is([data-practice="on"], [data-practice="reveal"]) .score .ph-sel {
+    visibility: hidden;
+}
+/* The selection controls hidden (#582 item 10): the selection's handles go with its menu; the band stays. */
+.lab.workspace[data-selection-hidden] .score .sel-handle {
     visibility: hidden;
 }
 .lab.workspace .practice-controls {

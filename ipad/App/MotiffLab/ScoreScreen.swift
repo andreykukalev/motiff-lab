@@ -209,7 +209,7 @@ struct ScoreScreen: View {
     /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
     @ViewBuilder private var transport: some View {
         // Scrolled away from the playing, a chip leads back to it (testing item 4).
-        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.hints, let bar = player.barNumber(at: away) {
+        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.transport, let bar = player.barNumber(at: away) {
             Button {
                 score.returnToPlayhead()
             } label: {
@@ -236,9 +236,10 @@ struct ScoreScreen: View {
         }
     }
 
-    /// Whether the selection's menu is open: a selection, outside Expand and practice view, the roll's drawer closed.
+    /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed, and the selection
+    /// controls shown (#582 item 10: `ScoreController.selectionControlsShown`, whatever the playback controls do).
     private var selectionMenuOpen: Bool {
-        score.selection != nil && !score.focused && !rollOpen && !score.practicing
+        score.selection != nil && !score.focused && !rollOpen && score.selectionControlsShown
     }
 
     /// The score and everything that floats over it.
@@ -250,7 +251,8 @@ struct ScoreScreen: View {
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
-                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Practice view hides it (#533 11).
+                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
+                // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .modifier(MenuDrag(score: score))
@@ -539,6 +541,8 @@ struct ScoreScreen: View {
                 score.sendPractice()
                 roll.practice(on)
             }
+            // The selection controls (#582 item 10): the page's handles go with the menu.
+            .onChange(of: score.selectionControlsShown) { _, shown in score.sendSelectionControls(shown) }
             .onChange(of: score.focused && score.focusRoll) { _, shown in
                 expandRollShown(shown)
             }
@@ -1654,8 +1658,9 @@ struct SelectionMenu: View {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
             item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
-            // Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it.
-            item("practice", text["menu.hide"], on: false) { score.practise(.enter) }
+            // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
+            // item 10); ✕ is the one that clears it.
+            item("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
             ClearSelectionButton(score: score, text: text, iconOnly: true)
         }
     }

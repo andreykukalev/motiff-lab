@@ -97,7 +97,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -650,7 +650,8 @@ let handlesReported = "";
  * Pencil does not write there (#479 item 18).
  */
 function reportHandles() {
-    const handles = [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
+    // Hidden with the selection controls (#582 item 10), they take no touch and keep the Pencil from nothing.
+    const handles = !state.selectionControls ? [] : [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
     const key = JSON.stringify(handles);
     if (key !== handlesReported) {
         handlesReported = key;
@@ -1092,6 +1093,16 @@ function practice(shown) {
     reportGrips();
 }
 
+/**
+ * The selection controls (#582 item 10, PracticeView.swift): hidden, the selection's handles go with the menu (score.css),
+ * whatever practice view does; the selection's band stays.
+ */
+function selectionControls(shown) {
+    state.selectionControls = shown !== false;
+    document.body.toggleAttribute("data-selection-hidden", !state.selectionControls);
+    reportHandles();
+}
+
 /** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
 function placePlayhead(tick, resting = false) {
     const timeline = state.timeline;
@@ -1388,5 +1399,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, selectionControls, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

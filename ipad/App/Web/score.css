@@ -98,6 +98,8 @@ body.hide-check button.check-flag { display: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
 button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
 button.sel-handle.dragging { background: var(--accent); }
+/* The selection controls hidden (#582 item 10): the handles go with the menu; the band stays. */
+body[data-selection-hidden] .sel-handle { visibility: hidden; }
 /* Selection by beats (an experiment): a short cobalt tick down from the band's top at each beat inside it. */
 .sel-beat { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); transform: translateX(-50%); pointer-events: none; }
 
