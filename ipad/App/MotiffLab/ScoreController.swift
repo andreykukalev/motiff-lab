@@ -635,6 +635,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
     /// The open piece's title, for what the assistant knows.
     var pieceTitle: String { piece?.title ?? "" }
+    /// The piece open in music-core, as the assistant at the selection asks about it; nil while none is.
+    var pieceId: Int32? { piece?.id }
 
     /// The assistant's scope chip for the selection (testing item 23): "This phrase · bars 9–16" or "This selection · bar 3".
     var askLabel: String? {
@@ -908,6 +910,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Takes back the last correction.
     func undoCorrection() { correct("corrections.undo", [:], notes: true) }
+
+    /// Accepts a draft of the assistant (#582 item 17.3): music-core makes it again from its call over the notes as they
+    /// are now and adds its edits as corrections (`corrections.acceptDraft`), each undone like any other, and the score is
+    /// engraved again. Nil when it is accepted, else why not, in music-core's words (empty when it gave none).
+    func acceptAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard let piece, let body = draft.acceptRequest?.text else { return "" }
+        let id = piece.id
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.acceptDraft", body) }
+        guard NoteCorrections(answer: answer) != nil else {
+            return facadeObject(answer)?["message"] as? String ?? ""
+        }
+        await notesDidChange()
+        showNotice("padAssistant.accepted")
+        return nil
+    }
 
     private func correct(_ call: String, _ fields: [String: Any], notes: Bool = false) {
         guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }

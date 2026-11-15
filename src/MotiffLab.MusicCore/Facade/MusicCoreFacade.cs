@@ -61,7 +61,8 @@ public sealed class MusicCoreFacade
     /// the assistant's tool registry (<see cref="Assistant.AssistantTools"/>), and on an open piece assistant.call runs a tool
     /// and answers what it read or its drafts (never applied), assistant.digest the facts digest of bars or of the piece, and
     /// assistant.address a note's address (bar.hand.index) or the note at one, calls added. Version 0.6.1 (#582) adds
-    /// assistant.context, the context a turn sends for the selection or the whole piece, and the tool notes.join.
+    /// assistant.context, the context a turn sends for the selection or the whole piece, and the tool notes.join; and
+    /// corrections.acceptDraft, the player's Accept of an assistant's draft on the iPad, its edits added as corrections.
     /// Also within 12 (version 0.6, the sources by the layers of 0030, project file version 16): sources.layers answers the
     /// originals and Notes with their states and the views of the switch in order; sources.view.hide, sources.original.add,
     /// .remove, sources.notes.recognise, .hear (a recording already added heard into new Notes, as transcribe hears one),

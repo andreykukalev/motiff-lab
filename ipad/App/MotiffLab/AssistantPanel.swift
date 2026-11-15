@@ -74,6 +74,14 @@ struct AssistantPanel: View {
                     }
                     ForEach(exchanges) { exchange in
                         AssistantExchangeView(exchange: exchange, text: text)
+                        // The drafts its tool calls made, with «Помощник правит ноты» (#582 item 17.3).
+                        ForEach(exchange.drafts ?? []) { draft in
+                            AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
+                                Task { await assistant.accept(draft) }
+                            } cancel: {
+                                assistant.cancel(draft)
+                            }
+                        }
                     }
                     if assistant.busy {
                         Text(text["mentor.thinking"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).id("thinking")

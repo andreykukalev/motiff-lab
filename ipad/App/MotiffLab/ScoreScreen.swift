@@ -517,7 +517,7 @@ struct ScoreScreen: View {
         // The bookmarks are drawn as brackets on the score, and again whenever they change.
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
-        assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title)
+        assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
         await player.load(piece: piece.id, key: piece.own?.id)
         applyExperiments()
         await resume()
@@ -1607,6 +1607,9 @@ struct SelectionMenu: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
+            } else if assistant.here != nil, score.selection != nil {
+                // The assistant at the selection where the menu was (#582 items 17.2 and 17.4).
+                AssistantHereCard(assistant: assistant, score: score, text: text, ask: askHere)
             } else {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                     actions
@@ -1614,8 +1617,8 @@ struct SelectionMenu: View {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
                         Button {
-                            // With the assistant on (#582 item 17), it opens on the selection.
-                            if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
+                            // With the assistant on (#582 item 17.2), it opens at the selection.
+                            if AssistantSide.on(settings) { AssistantHereCard.open(assistant, score: score, settings: settings) } else { asking = true }
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "insight")
@@ -1653,6 +1656,11 @@ struct SelectionMenu: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["menu.label"])
+    }
+
+    private func askHere(_ question: String) {
+        guard let role = assistant.here?.role, let ask = AssistantHereCard.ask(score: score, text: text, role: role, relay: account.assistant) else { return }
+        Task { await assistant.askHere(question, about: ask) }
     }
 
     /// Where the selection starts and ends: as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); beat by

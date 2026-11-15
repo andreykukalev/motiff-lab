@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Assistant;
+using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
@@ -50,6 +52,7 @@ internal sealed partial class OpenPiece
         "corrections.discard" => EndDraft(request, keep: false),
         "corrections.reset" => Correct(request, _ => NoteEditLog.Empty),
         "corrections.add" => AddNote(request),
+        "corrections.acceptDraft" => AcceptDraft(request),
         "corrections.set" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Set(CorrectableNote(request), request))),
         "corrections.change" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Changed(CorrectableNote(request), request))),
         "corrections.remove" => Correct(request, edits => edits.Remove(Piece.Notes, CorrectableNote(request).Id)),
@@ -59,6 +62,31 @@ internal sealed partial class OpenPiece
             : Correct(request, edits => edits.IsEmpty ? throw FacadeException.Unavailable("There is no correction to undo.") : edits.Undo()),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
+
+    /// <summary>
+    /// corrections.acceptDraft {"bar", "tool", "parameters", "index"} (version 0.6.1, #582 item 17.3, the iPad's Accept of the
+    /// assistant's draft): the draft is made again from the call that made it (tools are pure) over the notes as they are, and
+    /// its edits join the corrections as the web app's Accept adds them, removed, changed, then added. Refused when the draft
+    /// no longer fits the notes or touches a note taken from a version. The model never calls this: only the player's Accept.
+    /// </summary>
+    private string AcceptDraft(Request request)
+    {
+        JsonElement parameters = request.Element("parameters") ?? throw FacadeException.BadRequest("Send \"parameters\", the tool's.");
+        var call = new SessionDraft("d1", request.Required("tool"), parameters, request.Int("index") ?? 0, DraftState.Proposed);
+        AssistantDraft draft = call.Make(new AssistantPiece(Piece, Notes, Project.Check ?? [], Words, Structure))
+            ?? throw FacadeException.Unavailable(Words.T("This draft no longer fits the notes. Ask again.", "Этот черновик больше не подходит к нотам. Спросите ещё раз."));
+        if (draft.Edits.Any(static edit => PerformanceTake.IsTaken(edit.NoteId)))
+        {
+            throw FacadeException.Unavailable(Words.T("The draft changes a note taken from a version.", "Черновик меняет ноту, взятую из версии."));
+        }
+
+        return Correct(request, edits => draft.Edits.Aggregate(edits, (log, edit) => edit.Kind switch
+        {
+            DraftEditKind.Remove => log.Remove(Piece.Notes, edit.NoteId),
+            DraftEditKind.Change => log.Change(Piece.Notes, edit.NoteId, edit.After!.Value),
+            _ => log.Add(Piece.Notes, edit.After!.Value, edit.Track, edit.Hand, out _),
+        }));
+    }
 
     private Bar CorrectionBar(Request request)
     {

@@ -26,7 +26,9 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`, the turn format v1, cited facts.
   `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`. `AssistantStore.swift`: conversations by piece in
   Application Support (never the project file). `AssistantPanel.swift`, `AssistantSide.swift`: the side panel (the score
-  narrowed in `ScoreScreen.layers`), the consent, the list.
+  narrowed in `ScoreScreen.layers`), the consent, the list. `AssistantContextual.swift`: the small chat at the selection
+  (`SelectionMenu` turns into it), `KeyboardLift`. `AssistantDrafts.swift` (`experimental.assistantActions`): the drafts
+  a question's tools made, Accept by `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features.
 
 ## Rules not to break

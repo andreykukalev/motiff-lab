@@ -261,10 +261,18 @@
   "testLibrary.confirmMessage": "Your copies in the test database and the test library on this iPad are deleted: its project files, marks and sync records, the folders added for import and the copies kept for playlists. The test library on your other devices (the web test site, another iPad) is cleared the next time they open the library or sync with this account. Signed out, only this iPad is cleared. Your original files (PDFs, recordings, folders added by link) are never touched, and the Main library stays as it is. This cannot be undone.",
   "testLibrary.hint": "Only in the test environment, for a new testing cycle: empties your data in the test database and the test library on every device you sign in with.",
   "testLibrary.notTest": "The iPad is not working in the test environment: nothing was deleted.",
-  "settings.assistantPadHint": "Ask about the piece (in More), Ask on the selection and Ask in Expand open the assistant in a panel beside the score: it answers about the selection or the whole piece with an AI model, and every answer cites the facts the app found. The piece's conversations stay on this iPad, not in the piece's file, and you can go back to earlier ones. Before the first question it shows exactly what is sent; nothing is sent until you agree and the assistant is switched on for your account (Pro).",
+  "settings.assistantPadHint": "Ask about the piece (in More) and Ask in Expand open the assistant in a panel beside the score: it answers about the selection or the whole piece with an AI model, and every answer cites the facts the app found. The piece's conversations stay on this iPad, not in the piece's file, and you can go back to earlier ones. Ask in the selection's menu opens a small one beside the selection for one question about those bars, with no conversation; Add to context carries the question and answer into the panel's conversation. Before the first question it shows exactly what is sent; nothing is sent until you agree and the assistant is switched on for your account (Pro).",
   "padAssistant.title": "Assistant",
   "padAssistant.conversations": "Conversations",
   "padAssistant.new": "New conversation",
   "padAssistant.noConversations": "No conversations about this piece yet.",
-  "padAssistant.open": "Ask the assistant"
+  "padAssistant.open": "Ask the assistant",
+  "padAssistant.addToContext": "Add to context",
+  "padAssistant.addToContextHint": "Moves this question and its answer into the assistant's open conversation, for the next question there.",
+  "padAssistant.accepted": "The draft is accepted. The correction is in My corrections.",
+  "padAssistant.cancelled": "Cancelled. The notes are as they were.",
+  "padAssistant.editRemove": "Remove {0}",
+  "padAssistant.editAdd": "Add {0} in bar {1}",
+  "padAssistant.editChange": "{0}: {1} → {2}",
+  "settings.assistantActionsPadHint": "With Assistant conversation on: ask the assistant to change the selected bars, such as removing a stray note, moving a note, changing its pitch or length, tying two notes, repairing a flagged bar or trying a variant. It chooses one of the app's operations; the app makes the notes and shows the draft under the answer, saying what changes. Accept adds it to My corrections, each change undone like any other; Cancel leaves the notes as they are. The assistant never writes notes itself."
 }
