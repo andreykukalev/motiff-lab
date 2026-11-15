@@ -246,28 +246,23 @@ final class SourcesController: ObservableObject {
         return OpenPiece(id: number, title: title, pages: [], timemap: "", isDocument: true)
     }
 
-    /// Other Notes to look at: a copy of the piece opened in music-core with them as its working notes, never saved, so
-    /// the piece itself stays as it is. Nil when they cannot be shown so (a merge applied, refused by music-core).
+    /// Other Notes to look at: opened by music-core under a number of their own only to be shown (`sources.notes.open`,
+    /// "readOnly"), so the piece itself stays as it is; the screen closes the number when it goes. Nil when they cannot
+    /// be shown, with why in `status`.
     func openNotes(_ notes: SourceLayers.Notes, title: String, at tick: Double?) async -> OpenPiece? {
-        guard let copy = await snapshot() else { return nil }
-        let id = notes.id
-        let language = text.language
+        let piece = self.piece
+        let request = Self.json(["id": notes.id])
         let evenBars = DeviceSettings.shared.isOn("score.evenBars")
         let opened: Result<OpenPiece, EngraveError> = await MusicCore.run {
-            let answer = MusicCore.open(fileName: "view.motiff.json", data: Data(copy.utf8), request: Self.json(["language": language]))
-            guard let number = (facadeObject(answer)?["piece"] as? NSNumber)?.int32Value, number > 0 else {
-                return .failure(EngraveError(message: facadeObject(answer)?["message"] as? String ?? "music-core did not open the copy."))
-            }
-            let swapped = facadeObject(MusicCore.call(piece: number, "sources.makeWorking", Self.json(["id": id])))
-            if swapped?["error"] != nil {
-                MusicCore.close(piece: number)
-                return .failure(EngraveError(message: swapped?["message"] as? String ?? ""))
+            let answer = facadeObject(MusicCore.call(piece: piece, "sources.notes.open", request))
+            guard let number = (answer?["piece"] as? NSNumber)?.int32Value, number > 0 else {
+                return .failure(EngraveError(message: answer?["message"] as? String ?? ""))
             }
             switch Engraver.engrave(piece: number, title: title, evenBars: evenBars) {
             case .success(let engraving):
                 return .success(OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap))
             case .failure(let error):
-                MusicCore.close(piece: number)
+                _ = MusicCore.close(piece: number)
                 return .failure(error)
             }
         }
