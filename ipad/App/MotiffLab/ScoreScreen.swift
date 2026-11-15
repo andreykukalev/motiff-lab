@@ -558,11 +558,8 @@ struct ScoreScreen: View {
             .onChange(of: score.focused) { _, focused in
                 expandChanged(focused)
             }
-            .onChange(of: score.practicing, initial: true) { _, on in
-                // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
-                score.sendPractice()
-                roll.practice(on)
-            }
+            // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
+            .onChange(of: score.practicing, initial: true) { _, on in score.sendPractice(); roll.practice(on) }
             // The selection controls (#582 item 10): the page's handles go with the menu.
             .onChange(of: score.selectionControlsShown) { _, shown in score.sendSelectionControls(shown) }
             .onChange(of: score.focused && score.focusRoll) { _, shown in

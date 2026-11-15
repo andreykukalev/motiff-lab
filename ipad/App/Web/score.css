@@ -164,10 +164,13 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .gtrack .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--notation) 62%, var(--paper)); }
 .gtrack .dot { position: absolute; left: 0; top: 50%; width: var(--s-3); height: var(--s-3); margin: calc(var(--s-3) / -2) 0 0 calc(var(--s-3) / -2); border-radius: 50%; background: var(--notation); box-shadow: 0 0 0 2px var(--paper); }
 .gtrack.stop .dot { background: var(--paper); box-shadow: inset 0 0 0 2px var(--notation), 0 0 0 2px var(--paper); }
-/* The cobalt line is placed across the staves and reaches beyond them here (#495 UX-07): above by a step and half its knob,
-   so the knob stands a step clear of the top staff line instead of on it, the same at every zoom; below by a step. */
-.ph-sel { --ph-lift: calc(var(--s-2) + 14px / 2); position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--ph-lift)); padding: var(--ph-lift) 0 var(--s-2); box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--accent); pointer-events: none; }
-.ph-sel .knob { position: absolute; left: 50%; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translate(-50%, -50%); }
+/* The cobalt line is placed across the staves and reaches beyond them here (#495 UX-07): above by the band's step, a gap and
+   its knob, so the knob stands clear of the top staff line and of the selection's band, the same at every zoom; below by a
+   step. The knob is the roll's tab (piano-roll.ts KNOB_*: square top, rounded foot) hanging from the line's top, never a
+   disc: resting at the selection's start it stood on the band's top-left corner and read as a corner handle beside the
+   band's hollow edge handles (v0.6.4, spec 5/6). */
+.ph-sel { --ph-lift: calc(var(--s-2) + var(--s-1) + var(--s-4)); position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--ph-lift)); padding: var(--ph-lift) 0 var(--s-2); box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--accent); pointer-events: none; }
+.ph-sel .knob { position: absolute; left: 50%; top: 0; width: var(--s-3); height: var(--s-4); border-radius: 0 0 var(--r-xs) var(--r-xs); background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translateX(-50%); }
 /* The black playhead held (v0.5.7, #543 5, as the web app's app.css .ph-held): a line in the notation's ink across the staves
    while the player holds its dot or a long press on the notes; let go, it fades. */
 .ph-held { position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--s-2)); padding: var(--s-2) 0; box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--notation); pointer-events: none; opacity: 0; transition: opacity var(--t-fast) var(--ease); }
