@@ -16,6 +16,20 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 - Only Andrei's subscription pays for models: no API keys, no purchased tokens.
 - GitHub and the repository's documents are in English; the chat with Andrei is in Russian, in plain words.
 
+## Documents
+
+- One living document per topic, named clearly by that topic; change it in place (same file, same artifact link),
+  never a parallel copy.
+- Each document opens with a status line: current, or replaced by <link>; the update date; what it replaces. Follow a
+  replaced document to its successor. If two documents conflict, the latest update date wins.
+- Changing a decision updates, in the same turn, its source document, the decision log and project memory.
+- A research report is a proposal; once built, its rules live in `docs/` and the report is marked "history, current:
+  docs/…".
+- Once per version the lead checks the current documents against the decision log and marks contradictions.
+- Working files that are no source of truth (drafts, mockups, screenshots, histories, discussion notes) go to
+  `/mnt/project-files/scratch/<date>-<topic>/`, one folder per task, never elsewhere. It is a cache: never cited as
+  current, may be cleared.
+
 ## Context and tokens
 
 Every step resends the whole context, so what you read once is paid again on every later step; the context is
