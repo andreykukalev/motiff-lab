@@ -15,7 +15,19 @@ public enum DraftState
 /// A draft a tool made during the conversation, kept as the call that made it (the tool, its arguments and which of its
 /// drafts), so the device makes it again exactly when it is needed: tools are pure. Its notes are never stored here.
 /// </summary>
-public sealed record SessionDraft(string Id, string Tool, JsonElement Arguments, int Index, DraftState State);
+public sealed record SessionDraft(string Id, string Tool, JsonElement Arguments, int Index, DraftState State)
+{
+    /// <summary>
+    /// The draft made again by its call over <paramref name="piece"/> as it is now (tools are pure), or null when the call
+    /// no longer makes it: the notes changed under it, so the player cannot accept a draft of notes that are gone.
+    /// </summary>
+    public AssistantDraft? Make(AssistantPiece piece)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        ToolResult result = AssistantTools.Call(piece, Tool, Arguments);
+        return result.Ok && Index < result.Drafts.Count && !result.Drafts[Index].IsEmpty ? result.Drafts[Index] : null;
+    }
+}
 
 /// <summary>
 /// The conversation as the device keeps it (0028 section 4): the history the next turn sends, and the drafts proposed so

@@ -95,8 +95,14 @@ public partial class PlaybackLab
     /// <summary>The bars the open repairs read and change.</summary>
     private TickSpan? RepairMeasure => _repairBar is { } bar && RepairOptionsOf(bar) is [{ } first, ..] ? first.Measure : null;
 
+    /// <summary>The draft shown now and its bars: the assistant's (#582 item 17.3) or the chosen repair; one at a time.</summary>
+    private (AssistantDraft Draft, TickSpan Measure)? ShownDraft =>
+        _aiDraft is { } ai ? (ai.Made, ai.Measure)
+        : RepairChosen is { } chosen && RepairMeasure is { } measure ? (chosen.Draft, measure)
+        : null;
+
     /// <summary>What is heard of the draft now: nothing once its loop gave way to another.</summary>
-    private RepairHearing RepairHeard => _answerLoop is { } loop && loop == RepairMeasure ? _repairHearing : RepairHearing.None;
+    private RepairHearing RepairHeard => _answerLoop is { } loop && loop == ShownDraft?.Measure ? _repairHearing : RepairHearing.None;
 
     /// <summary>What the switch shows for the draft.</summary>
     private CompareView RepairCompare => new(
@@ -104,8 +110,8 @@ public partial class PlaybackLab
         RepairHeard == RepairHearing.Draft,
         RepairHeard == RepairHearing.InTurn,
         RepairHeard == RepairHearing.InTurn && Player.Passes is not null ? Player.Pass == 1 : null,
-        Text["repair.asRead"],
-        Text["repair.draft"]);
+        Text[_aiDraft is null ? "repair.asRead" : "assistantDraft.asNow"],
+        Text[_aiDraft is null ? "repair.draft" : "assistantDraft.draft"]);
 
     /// <summary>What the card lights up as it sounds.</summary>
     private string RepairSounding => RepairHeard switch
@@ -115,12 +121,12 @@ public partial class PlaybackLab
         _ => "original",
     };
 
-    /// <summary>The flagged bars engraved alone with the chosen draft as an ossia above: what it changes plum, what it keeps grey, what it takes out plum below.</summary>
+    /// <summary>The flagged bars engraved alone with the chosen draft as an ossia above.</summary>
     private PhraseCardSource? RepairCard
     {
         get
         {
-            if (RepairChosen is not { } chosen || RepairMeasure is not { } measure || _notes is null || _meter is null || _score is null)
+            if (RepairChosen is not { } chosen || RepairMeasure is not { } measure)
             {
                 return null;
             }
@@ -130,28 +136,40 @@ public partial class PlaybackLab
                 return cached.Card;
             }
 
-            Variation variation = chosen.Draft.Variation;
-            Tick end = variation.Notes.Count == 0 ? _score.End : new Tick(Math.Max(_score.End.Value, variation.Notes.Max(note => note.Span.End.Value)));
-            BarRange bars = BarRange.Of(_meter, measure);
-            GeneratedNotation notation = NotationGenerator.Generate(_notes, _meter, NotationKeys(), end, bars: bars, ossias: [new NotationOssia("", variation.Notes)]);
-            string prefix = NotationGenerator.OssiaIdPrefix(0);
-            var changed = variation.Changes.Where(change => NoteValues.Of(change.Before) != NoteValues.Of(change.After)).Select(change => change.After.Id).Concat(variation.Added.Select(note => note.Id)).ToHashSet(StringComparer.Ordinal);
-            Dictionary<string, string> tints = variation.Notes.ToDictionary(note => prefix + note.Id, note => changed.Contains(note.Id) ? "version-added" : "repair-kept", StringComparer.Ordinal);
-            foreach (Note removed in variation.Removed)
-            {
-                tints[removed.Id] = "version-added";
-            }
-
-            PhraseCardSource card = PhraseCardSource.From(notation, _meter.GetBar(bars.FirstBar).Span.Onset, _ => Text["repair.ossia"]) with { Tints = tints };
-            _repairCard = (chosen, _notes, Text.Language, card);
+            PhraseCardSource? card = DraftCardOf(chosen.Draft, measure, Text["repair.ossia"]);
+            _repairCard = card is null ? null : (chosen, _notes, Text.Language, card);
             return card;
         }
+    }
+
+    /// <summary>The bars engraved alone with a draft as an ossia above: what it changes plum, what it keeps grey, what it takes out plum below.</summary>
+    private PhraseCardSource? DraftCardOf(AssistantDraft draft, TickSpan measure, string ossia)
+    {
+        if (_notes is null || _meter is null || _score is null)
+        {
+            return null;
+        }
+
+        Variation variation = draft.Variation;
+        Tick end = variation.Notes.Count == 0 ? _score.End : new Tick(Math.Max(_score.End.Value, variation.Notes.Max(note => note.Span.End.Value)));
+        BarRange bars = BarRange.Of(_meter, measure);
+        GeneratedNotation notation = NotationGenerator.Generate(_notes, _meter, NotationKeys(), end, bars: bars, ossias: [new NotationOssia("", variation.Notes)]);
+        string prefix = NotationGenerator.OssiaIdPrefix(0);
+        var changed = variation.Changes.Where(change => NoteValues.Of(change.Before) != NoteValues.Of(change.After)).Select(change => change.After.Id).Concat(variation.Added.Select(note => note.Id)).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, string> tints = variation.Notes.ToDictionary(note => prefix + note.Id, note => changed.Contains(note.Id) ? "version-added" : "repair-kept", StringComparer.Ordinal);
+        foreach (Note removed in variation.Removed)
+        {
+            tints[removed.Id] = "version-added";
+        }
+
+        return PhraseCardSource.From(notation, _meter.GetBar(bars.FirstBar).Span.Onset, _ => ossia) with { Tints = tints };
     }
 
     /// <summary>Repair on a flagged bar: its ways open under its entry, the bar selected; again, they close.</summary>
     private async Task ToggleRepairAsync(int bar)
     {
         await StopHearingRepairAsync();
+        _aiDraft = null;
         if (_repairBar == bar)
         {
             _repairBar = null;
@@ -180,10 +198,10 @@ public partial class PlaybackLab
     /// <summary>Gives the engine the piece with the chosen draft in place of the bar's notes.</summary>
     private async Task SetRepairSourceAsync()
     {
-        if (RepairChosen is { } chosen && _score is not null && _notes is not null)
+        if (ShownDraft is { } shown && _score is not null && _notes is not null)
         {
-            var replaced = chosen.Draft.Before.Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
-            await Player.SetSourceAsync(RepairSource, _score.WithNotes([.. _notes.Where(note => !replaced.Contains(note.Id)), .. chosen.Draft.Variation.Notes]));
+            var replaced = shown.Draft.Before.Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+            await Player.SetSourceAsync(RepairSource, _score.WithNotes([.. _notes.Where(note => !replaced.Contains(note.Id)), .. shown.Draft.Variation.Notes]));
         }
     }
 
@@ -194,7 +212,7 @@ public partial class PlaybackLab
     /// <summary>Loops the flagged bars as read, as the draft has them, or the two in turn; the same choice again stops.</summary>
     private async Task HearRepairAsync(RepairHearing choice)
     {
-        if (RepairChosen is null || RepairMeasure is not { } range)
+        if (ShownDraft is not { Measure: var range })
         {
             return;
         }

@@ -60,6 +60,18 @@ public sealed class AzureOpenAIAssistantModelTests
             provider)!;
 
     [Fact]
+    public async Task Every_tool_of_the_proposer_goes_to_the_provider_as_a_strict_tool()
+    {
+        var provider = new FakeProvider(TextReply);
+        await Azure(provider).NextAsync(ModelTurns.ProposerTurn(), CancellationToken.None);
+
+        JsonElement[] tools = [.. provider.Body.GetProperty("tools").EnumerateArray()];
+        Assert.Equal(AssistantRoles.ToolsOf(AssistantRole.Proposer).Select(static tool => tool.Name.Replace('.', '_')), tools.Select(static tool => tool.GetProperty("name").GetString()));
+        Assert.All(tools, static tool => Assert.True(tool.GetProperty("strict").GetBoolean()));
+        Assert.All(tools, static tool => Assert.False(tool.GetProperty("parameters").GetProperty("additionalProperties").GetBoolean()));
+    }
+
+    [Fact]
     public async Task A_turn_is_one_stateless_strict_Responses_request_with_the_history_as_input_items()
     {
         var provider = new FakeProvider(ToolCallReply);

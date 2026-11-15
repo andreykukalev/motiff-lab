@@ -20,6 +20,7 @@ internal static class AssistantRequest
         "assistant.call" => Run(request, piece),
         "assistant.digest" => Digest(request, piece),
         "assistant.address" => Address(request, piece),
+        "assistant.context" => Context(request, piece),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
@@ -60,6 +61,38 @@ internal static class AssistantRequest
         {
             json.WritePropertyName("digest");
             digest.Write(json);
+        });
+    }
+
+    /// <summary>
+    /// assistant.context {"selection": {"onset", "end"} in ticks, or absent for nothing selected; "wholePiece": the player
+    /// chose the whole piece for this selection}: {"context": …}, what a turn sends as its "context"
+    /// (<see cref="Assistant.Conversation.AssistantContext.OfQuestion"/>), the bars the selection touches or the piece's
+    /// digest; an error when the selection spans more bars than a range may hold.
+    /// </summary>
+    private static string Context(Request request, AssistantPiece piece)
+    {
+        Time.TickSpan? selection = null;
+        if (request.Has("selection"))
+        {
+            Request span = request.Object("selection");
+            long onset = span.Long("onset") ?? throw FacadeException.BadRequest("\"selection\" needs \"onset\".");
+            long end = span.Long("end") ?? throw FacadeException.BadRequest("\"selection\" needs \"end\".");
+            if (onset < 0 || end <= onset)
+            {
+                throw FacadeException.BadRequest("A selection ends after it starts.");
+            }
+
+            selection = Time.TickSpan.FromBounds(new Time.Tick(onset), new Time.Tick(end));
+        }
+
+        var scope = Assistant.Conversation.AskScope.Choose(request.Bool("wholePiece") ?? false, selection);
+        JsonElement context = Assistant.Conversation.AssistantContext.OfQuestion(piece, selection, scope)
+            ?? throw FacadeException.BadRequest(piece.Words.T("Select fewer bars: a question takes at most 32.", "Выделите меньше тактов: вопрос берёт не больше 32."));
+        return Answer.Write(json =>
+        {
+            json.WritePropertyName("context");
+            context.WriteTo(json);
         });
     }
 

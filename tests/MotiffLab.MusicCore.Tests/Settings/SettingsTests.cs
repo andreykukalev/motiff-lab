@@ -77,6 +77,7 @@ public class SettingsTests
     [InlineData("experimental.assistant")]
     [InlineData("experimental.assistantVariants")]
     [InlineData("experimental.musicalIdeas")]
+    [InlineData("experimental.assistantActions")]
     public void The_assistant_experiments_are_off_on_the_device(string id)
     {
         Setting setting = SettingsCatalogue.Get(id);

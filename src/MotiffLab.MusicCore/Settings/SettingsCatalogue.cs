@@ -144,6 +144,11 @@ public static class SettingsCatalogue
         // and facts digest only after the player's consent, and only when the API says a model is on for the account.
         Switch("experimental.assistant", SettingSection.Experimental, null, SettingScope.Device),
 
+        // The assistant edits the notes (v0.6.1, #582 item 17.3): with the conversation on, the assistant is the proposer and
+        // may choose a catalogue operation with in-range parameters (a repair, a variation, a note edit, a joined tie);
+        // music-core makes the notes as a draft over the bars, which only the player accepts into the corrections.
+        Switch("experimental.assistantActions", SettingSection.Experimental, null, SettingScope.Device),
+
         // «Что если» variants of a phrase (v0.6, the AI companion study, section 2.4): in phrase focus, engine operations make
         // variants with no AI, kept as ideas and taken into the working notes by a carry of the assembly journal. On the device.
         Switch("experimental.assistantVariants", SettingSection.Experimental, null, SettingScope.Device),

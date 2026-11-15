@@ -1,6 +1,8 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
 namespace MotiffLab.MusicCore.Assistant;
@@ -52,6 +54,21 @@ public sealed record AssistantDraft(string Tool, IReadOnlyList<Note> Before, Var
 
     /// <summary>True when the draft changes nothing.</summary>
     public bool IsEmpty => Edits.Count == 0;
+
+    /// <summary>The whole bars the draft covers (its range's notes before, and its notes after): the app engraves and loops them.</summary>
+    /// <exception cref="InvalidOperationException">The draft has no note before or after.</exception>
+    public TickSpan Measure(MeterMap meter)
+    {
+        ArgumentNullException.ThrowIfNull(meter);
+        Note[] notes = [.. Before, .. Variation.Notes];
+        if (notes.Length == 0)
+        {
+            throw new InvalidOperationException("A draft with no notes has no bars.");
+        }
+
+        BarRange bars = BarRange.Of(meter, TickSpan.FromBounds(notes.Min(static note => note.Span.Onset), notes.Max(static note => note.Span.End)));
+        return TickSpan.FromBounds(meter.GetBar(bars.FirstBar).Span.Onset, meter.GetBar(bars.LastBar).Span.End);
+    }
 
     private static DraftEdit[] EditsOf(Variation variation) =>
     [

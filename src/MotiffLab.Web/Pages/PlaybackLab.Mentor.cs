@@ -55,11 +55,13 @@ public partial class PlaybackLab
             return;
         }
 
-        if (!ReferenceEquals(_mentorPiece, MentorSource))
+        if (!ReferenceEquals(_mentorPiece, MentorSource) || _mentor.Role != AskRole)
         {
             _mentorPiece = MentorSource;
-            _mentor = AssistantSession.Start(AssistantRole.Mentor);
+            _mentor = AssistantSession.Start(AskRole);
             _mentorExchanges.Clear();
+            _aiDraft = null;
+            _aiDrafts = [];
         }
 
         _mentorBusy = true;
@@ -134,6 +136,7 @@ public partial class PlaybackLab
     private async Task<MentorExchange> ConverseAsync(AssistantPiece piece, JsonElement context, string question)
     {
         AssistantSession session = _mentor.Ask(question);
+        int draftsBefore = session.Drafts.Count;
         for (int step = 0; step <= AssistantRoles.MostToolCalls + 1; step++)
         {
             TurnRequest request = session.Request(Text.Language, context);
@@ -154,8 +157,9 @@ public partial class PlaybackLab
                     session = session.Called(reply.Calls).Resulted(TurnRunner.Run(piece, session.Role, reply.Calls, before));
                     continue;
                 default:
-                    CheckedAnswer answer = AnswerCheck.Check(reply.Text, request.KnownIds, context, Words);
+                    CheckedAnswer answer = AnswerCheck.Check(reply.Text, request.KnownIds, context, Words, request.Drafted);
                     _mentor = session.Answered(answer.Text);
+                    await OfferAiDraftsAsync(piece, draftsBefore);
                     return new MentorExchange(question, answer.Parts, reply.Fallback || answer.FellBack, CitedFacts.In(piece, answer.Parts, context, _mentor.ResultsInQuestion), null);
             }
         }
