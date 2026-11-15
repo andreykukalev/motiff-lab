@@ -147,6 +147,11 @@ public static class SettingsCatalogue
         // «Что если» variants of a phrase (v0.6, the AI companion study, section 2.4): in phrase focus, engine operations make
         // variants with no AI, kept as ideas and taken into the working notes by a carry of the assembly journal. On the device.
         Switch("experimental.assistantVariants", SettingSection.Experimental, null, SettingScope.Device),
+
+        // New sources (v0.6, decision record 0030): the switch of every view of the piece at the top of the score and the
+        // Sources sheet by originals and Notes (the facade's sources.layers), with another PDF, a recording recognised,
+        // recognising again, removing an original and «Сделать рабочими». Off, the apps show the sources as before.
+        Switch("experimental.sources", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

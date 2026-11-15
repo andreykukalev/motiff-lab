@@ -101,8 +101,19 @@ internal sealed partial class OpenPiece
     /// </summary>
     public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
     {
-        byte[] midi = JoinedParts(heard);
         string name = Path.ChangeExtension(string.IsNullOrWhiteSpace(fileName) ? "recording" : fileName, ".mid");
+        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = Heard(name, heard, words);
+        Project project = Project.Create(id, name, midi, now) with { Transcription = origin, Check = check };
+        return Open(ProjectFile.Write(project), words);
+    }
+
+    /// <summary>
+    /// The notes heard in a recording sent in parts ("milliseconds", "parts", "levels", "engine", "sentFromMs", "tempo"),
+    /// joined, with the bars worked out from them, the transcription's origin and the Check flags it raises.
+    /// </summary>
+    internal static (byte[] Midi, TranscriptionOrigin Origin, IReadOnlyList<CheckFlag> Check) Heard(string name, Request heard, Words words)
+    {
+        byte[] midi = JoinedParts(heard);
         PieceImportResult result = PieceImporter.Import(name, midi);
         if (result.Piece is not { } imported || imported.Midi is null)
         {
@@ -125,9 +136,7 @@ internal sealed partial class OpenPiece
             SentFromMilliseconds = sentFrom,
         };
         ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
-        Project project = Project.Create(id, name, midi, now) with { Transcription = origin };
-        project = project with { Check = CheckFlag.FromTranscription(origin, midi, piece) };
-        return Open(ProjectFile.Write(project), words);
+        return (midi, origin, CheckFlag.FromTranscription(origin, midi, piece));
     }
 
     /// <summary>

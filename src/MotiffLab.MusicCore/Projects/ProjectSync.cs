@@ -195,6 +195,14 @@ public static class ProjectSync
         kept = KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
         // Version 16: the bytes of the other originals stay on the device as the PDF does, and a removal travels as its tombstone.
         kept = here.Sources.Data.Count == 0 ? kept : kept with { Sources = kept.Sources with { Data = here.Sources.Data } };
+        // The marks on another PDF's pages go with the file; a copy with none for an original never clears this device's.
+        if (here.Sources.Marks.Keys.Except(kept.Sources.Marks.Keys).ToList() is { Count: > 0 } mine)
+        {
+            Dictionary<string, DocumentMarks> marks = new(kept.Sources.Marks, StringComparer.Ordinal);
+            mine.ForEach(id => marks[id] = here.Sources.Marks[id]);
+            kept = kept with { Sources = kept.Sources with { Marks = marks } };
+        }
+
         return SourcesMerge.WithTombstones(kept, here.Sources.Removed);
     }
 
