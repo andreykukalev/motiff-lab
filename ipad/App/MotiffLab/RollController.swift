@@ -112,6 +112,7 @@ final class RollController: NSObject, ObservableObject {
     private var naming = "auto"
 
     override init() {
+        ProbeCounts.shared.add("roll")
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -121,6 +122,10 @@ final class RollController: NSObject, ObservableObject {
         webView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/roll.html")))
+    }
+
+    deinit {
+        ProbeCounts.shared.add("roll", -1)
     }
 
     /// Shows a piece's notes; again when the appearance changes.

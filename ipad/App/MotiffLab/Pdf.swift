@@ -67,6 +67,15 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
 
+    override init() {
+        super.init()
+        ProbeCounts.shared.add("pdf")
+    }
+
+    deinit {
+        ProbeCounts.shared.add("pdf", -1)
+    }
+
     /// The bookmark on the page under the bar, if any.
     var currentBookmark: PageBookmarkEntry? { bookmarks.first { $0.page == page } }
 
@@ -76,6 +85,9 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// Loads the PDF piece's pages and marks; it opens at `page` when given (from PDF | Notes), else where the player left it.
     func load(piece: Int32, text: UIText, page: Int? = nil) async {
         self.piece = piece
+        #if DEBUG
+        ScreensProbe.pdf = self
+        #endif
         let answers = await MusicCore.run { (MusicCore.call(piece: piece, "document"), MusicCore.call(piece: piece, "project")) }
         guard let object = facadeObject(answers.0), object["error"] == nil,
               let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64),

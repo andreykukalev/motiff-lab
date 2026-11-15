@@ -1408,6 +1408,10 @@ struct ScoreBar: View {
 
     /// The bar's Play; none under the one playback position (v0.5.2, #479 item 22), where the pill, always shown, plays.
     @ViewBuilder private var barPlay: some View {
+        #if DEBUG
+        // The switch test counts the old Play drawn while the modes are on (v0.6.4 spec section 13).
+        let _ = ScreensProbe.drawn(oldBarPlay: !score.onePosition && !score.focused && settings.isOn("experimental.playheads"))
+        #endif
         if !score.onePosition {
             Button {
                 player.toggle()

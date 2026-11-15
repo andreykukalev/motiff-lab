@@ -23,6 +23,10 @@ struct MotiffLabApp: App {
             LibraryView()
                 // Built again in the language the player picks, the piece open then coming back where it was.
                 .id(language.id)
+                #if DEBUG
+                // What the switch test reads (ScreensProbe), over whichever screen shows.
+                .overlay(alignment: .topLeading) { if ScreensHook.active { ScreensProbeView() } }
+                #endif
                 .environmentObject(account)
                 .environmentObject(settings)
                 .preferredColorScheme(settings.colorScheme)

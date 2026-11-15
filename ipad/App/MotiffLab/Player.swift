@@ -32,7 +32,12 @@ final class Player: ObservableObject {
     @Published var metronome = false { didSet { send(.metronome(metronome)) } }
 
     init() {
+        ProbeCounts.shared.add("player")
         tempo.changed = { [weak self] percent in self?.send(.rate(Double(percent) / 100)) }
+    }
+
+    deinit {
+        ProbeCounts.shared.add("player", -1)
     }
 
     /// Which hands sound (#328, an experiment): the piece's notes as music-core gives them for both hands or for one
