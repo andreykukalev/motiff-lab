@@ -12,7 +12,8 @@ namespace MotiffLab.Api.Assistant;
 /// device sends the role, the language, the context of the question (the selected passage's facts digest and notes) and
 /// the history; the relay hands it to the model with the role's instructions and tools, and answers with the model's tool
 /// calls for the device to run (it never runs a tool) or with its answer, checked: an answer that cites a fact the turn did
-/// not give, or none, becomes the engine's template text. Only the mentor (read tools) in this step.
+/// not give, or none, becomes the engine's template text. Only the mentor (read tools) is served; the proposer (draft tools)
+/// is in the list of roles and is refused until a model provider exists.
 /// Gates: signed in with the API's scope, on the allow-list (Assistant:Allowed), Pro, a turn of at most
 /// <see cref="TurnRequest.MaxBytes"/>, at most Assistant:DailyRequests turns a day. With no model configured it answers
 /// "not configured" before reading the turn. It logs the outcome, counts and timing, never the turn's content.
@@ -62,6 +63,11 @@ internal static class AssistantEndpoints
         if (request is null)
         {
             return problem!;
+        }
+
+        if (!AssistantRoles.Served.Contains(request.Role))
+        {
+            return ProjectEndpoints.Problem(StatusCodes.Status403Forbidden, $"The {AssistantRoles.Id(request.Role)} is not open yet.", "roleClosed");
         }
 
         if (!usage.TryTake(player, options.DailyRequests))
