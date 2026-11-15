@@ -1,0 +1,362 @@
+import AVFoundation
+import SwiftUI
+
+/// The views switch in the bar (version 0.6, behind `experimental.sources`; sources sheet handoff, board s5b): every view
+/// of the piece music-core lists (`sources.layers`), the working notes first, then by file. Three views or fewer are the
+/// segmented choice of PDF | Notes, with a hairline between files and the working notes' dot after the word; four or
+/// more are a menu button with the shown view's pictogram, its word and a chevron, its popover grouped by file; one view
+/// is no switch. It sits after the title, where PDF | Notes was.
+struct SourcesViewSwitch: View {
+    let layers: SourceLayers
+    /// The view shown now: an original's, Notes' or a recording's id.
+    let current: String?
+    let text: UIText
+    let pick: (SourceLayers.ViewEntry) -> Void
+    let openSources: () -> Void
+    @State private var menuOpen = false
+
+    var body: some View {
+        let views = layers.shownViews
+        if views.count >= 4 {
+            menuButton(views)
+        } else if views.count >= 2 {
+            segmented(views)
+        }
+    }
+
+    private func isCurrent(_ view: SourceLayers.ViewEntry) -> Bool {
+        view.id == (current ?? layers.working)
+    }
+
+    /// Three views or fewer: today's segmented choice, a hairline between files.
+    private func segmented(_ views: [SourceLayers.ViewEntry]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(views.enumerated()), id: \.element.id) { index, view in
+                if index > 0 && views[index - 1].group != view.group {
+                    Rectangle().fill(Color.ds("hairline-strong")).frame(width: 1).padding(.vertical, CGFloat.ds("s-1"))
+                }
+                let on = isCurrent(view)
+                Button {
+                    if !on { pick(view) }
+                } label: {
+                    HStack(spacing: CGFloat.ds("s-1")) {
+                        ZStack {
+                            // The word in the chosen weight, unseen, holds the option's width either way.
+                            Text(SourceLayers.word(view, text)).dsType(.label).fontWeight(.semibold).lineLimit(1).hidden().accessibilityHidden(true)
+                            Text(SourceLayers.word(view, text))
+                                .dsType(.label)
+                                .fontWeight(on ? .semibold : .medium)
+                                .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                                .lineLimit(1)
+                        }
+                        if view.working { WorkingDot() }
+                    }
+                    .modifier(SegmentFill(on: on))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(label(view))
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .modifier(SegmentedCapsule())
+        .accessibilityLabel(text["pdf.views"])
+    }
+
+    /// Four views or more: the shown view's pictogram, word and dot, and a chevron, in the same capsule.
+    private func menuButton(_ views: [SourceLayers.ViewEntry]) -> some View {
+        let shown = views.first(where: isCurrent) ?? views[0]
+        return Button {
+            menuOpen.toggle()
+        } label: {
+            HStack(spacing: CGFloat.ds("s-1")) {
+                Icon(name: SourceLayers.pictogram(shown), size: CGFloat.ds("icon-s"))
+                Text(SourceLayers.word(shown, text)).dsType(.label).fontWeight(.semibold).lineLimit(1)
+                if shown.working { WorkingDot() }
+                Icon(name: "chevd", size: CGFloat.ds("icon-s"))
+            }
+            .foregroundStyle(Color.ds("ink"))
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .frame(height: CGFloat.ds("h-compact"))
+            .background(menuOpen ? Color.ds("accent-tint-strong") : Color.ds("surface"), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel(text["pdf.views"])
+        .accessibilityValue(label(shown))
+        .popover(isPresented: $menuOpen) {
+            SourcesViewMenu(layers: layers, views: views, current: shown.id, text: text) { view in
+                menuOpen = false
+                if view.id != shown.id { pick(view) }
+            } openSources: {
+                menuOpen = false
+                openSources()
+            }
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private func label(_ view: SourceLayers.ViewEntry) -> String {
+        let word = SourceLayers.word(view, text)
+        return view.working ? word + ", " + text["sources.sheet.working"] : word
+    }
+}
+
+/// The working notes' mark in the switch: a small dot in the ink after the word.
+struct WorkingDot: View {
+    var body: some View {
+        Circle().fill(Color.ds("ink")).frame(width: 5, height: 5).accessibilityHidden(true)
+    }
+}
+
+/// «Рабочие»: the working notes' tag, in the ink.
+struct WorkingTag: View {
+    let text: UIText
+
+    var body: some View {
+        Text(text["sources.sheet.working"])
+            .dsType(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.ds("surface"))
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .background(Color.ds("ink"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+    }
+}
+
+/// The switch's popover (300 pt, on the second surface): the working notes first with «Рабочие» and their file and date,
+/// then a group per file, its caption the file's icon and name, then its views; the shown view tinted with a check; at
+/// the foot «Источники», with how many views are hidden, which opens the sheet.
+struct SourcesViewMenu: View {
+    let layers: SourceLayers
+    let views: [SourceLayers.ViewEntry]
+    let current: String
+    let text: UIText
+    let pick: (SourceLayers.ViewEntry) -> Void
+    let openSources: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(views.filter(\.working)) { view in
+                item(view)
+                Divider().overlay(Color.ds("hairline"))
+            }
+            ForEach(groups, id: \.self) { group in
+                if let original = layers.original(group) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: SourceLayers.pictogram(kind: original.kind), size: CGFloat.ds("icon-s"))
+                        Text(original.shown).dsType(.caption).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+                    .padding(.top, CGFloat.ds("s-2"))
+                    .accessibilityAddTraits(.isHeader)
+                }
+                ForEach(views.filter { !$0.working && $0.group == group }) { view in item(view) }
+                Divider().overlay(Color.ds("hairline"))
+            }
+            ForEach(views.filter { !$0.working && $0.group == nil }) { view in item(view) }
+            Button(action: openSources) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "layers")
+                    Text(text["sources.title"]).dsType(.bodyStrong)
+                    Spacer(minLength: CGFloat.ds("s-2"))
+                    if layers.hiddenCount > 0 {
+                        Text(text.format("sources.sheet.hidden", String(layers.hiddenCount))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                    }
+                }
+                .foregroundStyle(Color.ds("ink"))
+                .padding(.horizontal, CGFloat.ds("s-3"))
+                .frame(minHeight: CGFloat.ds("h-touch"))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, CGFloat.ds("s-1"))
+        .frame(width: 300)
+        .background(Color.ds("surface-2"))
+    }
+
+    /// The files in the switch's order.
+    private var groups: [String] {
+        var seen: [String] = []
+        for view in views where !view.working {
+            if let group = view.group, !seen.contains(group) { seen.append(group) }
+        }
+        return seen
+    }
+
+    private func item(_ view: SourceLayers.ViewEntry) -> some View {
+        let on = view.id == current
+        let notes = layers.notes(view.id)
+        return Button { pick(view) } label: {
+            HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                Icon(name: SourceLayers.pictogram(view)).foregroundStyle(Color.ds("ink-2"))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Text(SourceLayers.word(view, text)).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+                        if view.working { WorkingTag(text: text) }
+                    }
+                    if let line = line(view, notes), !line.isEmpty {
+                        Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if on {
+                    Icon(name: "check", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("accent"))
+                }
+            }
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .padding(.vertical, CGFloat.ds("s-2"))
+            .frame(minHeight: CGFloat.ds("h-touch"))
+            .background(on ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .padding(.horizontal, CGFloat.ds("s-1"))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    /// The working notes: «{files} · {date}»; other Notes: «{engine} · {date}».
+    private func line(_ view: SourceLayers.ViewEntry, _ notes: SourceLayers.Notes?) -> String? {
+        guard let notes else { return nil }
+        let date = notes.at.map { SourceLayers.shortDate($0, text) }
+        if view.working {
+            return [layers.title(of: notes, text), date].compactMap { $0 }.joined(separator: " · ")
+        }
+        return [notes.engine, date].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// The Sources button after the switch: the layers icon and «Источники», tinted while the sheet is open. It stays when
+/// there is no switch.
+struct SourcesButton: View {
+    let open: Bool
+    let text: UIText
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Icon(name: "layers", size: CGFloat.ds("icon-m"))
+                Text(text["sources.title"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
+            }
+            .foregroundStyle(open ? Color.ds("accent-hover") : Color.ds("ink"))
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .frame(height: CGFloat.ds("h-control"))
+            .background(open ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityAddTraits(open ? .isSelected : [])
+    }
+}
+
+/// What was just done in the Sources sheet, as the score's toast (MergeToastView): a light capsule with a quiet
+/// «Отменить» and ✕.
+struct SourcesToastView: View {
+    @ObservedObject var sources: SourcesController
+    let toast: SourcesToast
+    let text: UIText
+
+    var body: some View {
+        UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { Task { await sources.undo() } } : nil) { sources.toast = nil }
+            .task(id: toast.id) {
+                // A toast without Undo goes by itself; one with Undo stays a while longer.
+                try? await Task.sleep(for: .seconds(toast.undo == nil ? 4 : 10))
+                if sources.toast?.id == toast.id { sources.toast = nil }
+            }
+    }
+}
+
+/// The «Исполнение» view on the iPad: the recording's sound kept on this iPad, heard as it is, from a capsule under the
+/// bar while the score stays the working notes. ✕ goes back to the notes.
+struct RecordingViewCapsule: View {
+    let url: URL
+    let title: String
+    let text: UIText
+    let close: () -> Void
+    @StateObject private var listening = RecordingListening()
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Button {
+                listening.toggle(url)
+            } label: {
+                Icon(name: listening.playing ? "pause" : "play", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: listening.playing))
+            .accessibilityLabel(listening.playing ? text["sources.sheet.pause"] : text.format("sources.sheet.listen", title))
+            Icon(name: "mic", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-2"))
+            Text(title).dsType(.label).foregroundStyle(Color.ds("ink")).lineLimit(1)
+            Text(SourceLayers.duration(listening.elapsed) + " / " + SourceLayers.duration(listening.length))
+                .dsType(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.ds("ink-2"))
+            Button(action: close) {
+                Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text["bar.close"])
+        }
+        .padding(.horizontal, CGFloat.ds("s-2"))
+        .frame(height: CGFloat.ds("h-touch"))
+        .modifier(FloatingSurface())
+        .onAppear { listening.load(url) }
+        .onDisappear { listening.stop() }
+    }
+}
+
+/// The sound of a recording kept on this iPad, heard as it is (AVAudioPlayer).
+@MainActor
+final class RecordingListening: ObservableObject {
+    @Published private(set) var playing = false
+    /// Where it is and how long it is, in milliseconds.
+    @Published private(set) var elapsed = 0
+    @Published private(set) var length = 0
+    private var player: AVAudioPlayer?
+    private var timer: Timer?
+
+    func load(_ url: URL) {
+        guard player == nil else { return }
+        player = try? AVAudioPlayer(contentsOf: url)
+        player?.prepareToPlay()
+        length = Int(((player?.duration ?? 0) * 1000).rounded())
+    }
+
+    func toggle(_ url: URL) {
+        load(url)
+        guard let player else { return }
+        if player.isPlaying {
+            player.pause()
+            playing = false
+            timer?.invalidate()
+        } else {
+            // Heard with the ring switch on silent too, as the score's own playback is (Player).
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try? AVAudioSession.sharedInstance().setActive(true)
+            player.play()
+            playing = true
+            timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.tick() }
+            }
+        }
+    }
+
+    func stop() {
+        player?.stop()
+        playing = false
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func tick() {
+        guard let player else { return }
+        elapsed = Int((player.currentTime * 1000).rounded())
+        if !player.isPlaying {
+            playing = false
+            timer?.invalidate()
+        }
+    }
+}

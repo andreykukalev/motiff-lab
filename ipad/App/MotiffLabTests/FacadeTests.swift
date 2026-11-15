@@ -219,16 +219,23 @@ final class FacadeTests: XCTestCase {
     }
 
     func testCheckListsTheBarsToReviewWithTheirReasonsAndResolvesThem() throws {
-        // A project file from a scan, with flags on bar 3 and one already checked on bar 6.
+        // A project file from a scan, with flags on bar 3 and one already checked on bar 6. Since version 16 (0030) the
+        // Check flags and the scan are the working notes' own (notes[0]), and the engine is in their provenance.
         var file = try object(MusicCore.call(piece: piece, "project.save"))
         let flags: [[String: Any]] = [
             ["bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false],
             ["bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false],
             ["bar": 6, "source": "Scan", "reason": "BarTooShort", "resolved": true],
         ]
-        let scan: [String: Any] = ["engine": "homr 0.7.0", "confirmedBars": [Int]()]
-        file["check"] = flags
-        file["scan"] = scan
+        var notes = try XCTUnwrap(file["notes"] as? [[String: Any]])
+        var working = try XCTUnwrap(notes.first)
+        var provenance = working["provenance"] as? [String: Any] ?? [:]
+        provenance["engine"] = "homr 0.7.0"
+        working["provenance"] = provenance
+        working["check"] = flags
+        working["scan"] = ["confirmedBars": [Int]()] as [String: Any]
+        notes[0] = working
+        file["notes"] = notes
         let data = try JSONSerialization.data(withJSONObject: file)
         let opened = try object(MusicCore.open(fileName: "elise.motiff.json", data: data, request: #"{"language": "ru"}"#))
         let scanned = Int32(opened["piece"] as? Int ?? 0)
@@ -439,9 +446,13 @@ final class FacadeTests: XCTestCase {
 
     func testAPdfAndTheNotesReadFromItFindEachOtherOnTheShelf() throws {
         // Notes read from a PDF piece name it and where each of its pages starts in them (PDF | Notes, 0023).
+        // In a file of version 16 the working notes' pageMap names the other piece's PDF (docs/project-file.md).
         let saved = MusicCore.call(piece: piece, "project.save")
-        let brace = try XCTUnwrap(saved.firstIndex(of: "{"))
-        let linked = saved.replacingCharacters(in: brace...brace, with: #"{"readFrom": {"project": "p_pdf", "pages": [0, 5760, 11520]}, "#)
+        var file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(saved.utf8)) as? [String: Any])
+        var entries = try XCTUnwrap(file["notes"] as? [[String: Any]])
+        entries[0]["pageMap"] = ["original": "src_pdf", "project": "p_pdf", "starts": [0, 5760, 11520]] as [String: Any]
+        file["notes"] = entries
+        let linked = String(decoding: try JSONSerialization.data(withJSONObject: file), as: UTF8.self)
         let body = try JSONSerialization.data(withJSONObject: ["file": linked])
         let notes = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: body, as: UTF8.self))))
         XCTAssertEqual(notes.readFrom, "p_pdf")

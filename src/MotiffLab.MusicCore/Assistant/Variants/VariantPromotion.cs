@@ -146,4 +146,41 @@ public static class VariantPromotion
     }
 
     private static Tick End(List<AssemblyBar> bars, TickSpan span) => bars.Count == 0 ? span.End : bars[^1].Span.End;
+
+    /// <summary>
+    /// The journal's sources for the variants it carries (<c>variant:o_0003</c>), from the ideas that keep them: each made
+    /// again over the notes it was built on (<see cref="VariantRecord.BuiltOn"/>: the working notes, else the notes before
+    /// the assembly), so the carry is rebuilt after a reload as it was made. A carried variant that is no longer kept or
+    /// cannot be made again has no source, as a removed version.
+    /// </summary>
+    /// <param name="notes">The working notes as they are.</param>
+    public static IReadOnlyList<(string SourceId, SourceMusic Music)> Sources(Project project, IReadOnlyList<Note> notes, MeterMap meter, Words words)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        List<(IReadOnlyList<Note> Notes, MeterMap Meter)> candidates = [(notes, meter)];
+        if (project.Assembly.Before is { } before)
+        {
+            candidates.Add((before.Notes, before.Meter));
+        }
+
+        List<(string, SourceMusic)> sources = [];
+        foreach (string id in Carried(project.Assembly.Steps))
+        {
+            if (project.Observations.FirstOrDefault(observation => observation.Id == id) is not { } observation
+                || VariantRecord.Read(observation, notes) is not { } variant)
+            {
+                continue;
+            }
+
+            (IReadOnlyList<Note> on, MeterMap bars) = VariantRecord.BuiltOn(variant, candidates);
+            if (Music(PhraseVariants.Replay(variant, on, bars, words), on, bars) is { } music)
+            {
+                sources.Add((SourceIdOf(id), music));
+            }
+        }
+
+        return sources;
+    }
 }

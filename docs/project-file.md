@@ -270,7 +270,35 @@ An idea is an observation kept on a passage ([0009](decisions/0009-exploration-l
 
 Any number of ideas can sit on one phrase. Which phrase an idea belongs to after the phrase level changes is worked out, not stored: the phrase that contains the idea's onset, else the phrase it overlaps most (`Observation.Home`).
 
-A kept variation belongs to the Notes it was built on (`notes`, research 4.6), beside their corrections; it is not Notes of its own. Every idea of version 16 is built on the working notes, and a file of an earlier version reads so. `provenance` is left out for an idea the player made in the app; a later build's assistant writes `"op": "assistant"` with `request` and `model` in `params`, and `inputs` naming the Notes, which this build keeps and writes back.
+A kept variation belongs to the Notes it was built on (`notes`, research 4.6), beside their corrections; it is not Notes of its own. Every idea of version 16 is built on the working notes, and a file of an earlier version reads so. `provenance` is left out for an idea the player made in the app, except a variant (below); a later build's assistant writes `"op": "assistant"` with `request` and `model` in `params`, and `inputs` naming the Notes, which this build keeps and writes back.
+
+### A variant of a phrase («Что если», version 0.6)
+
+A variant the player kept from the «Что если» panel (the AI companion study, sections 2.4 and 4.6; `MotiffLab.MusicCore.Assistant.Variants.VariantRecord`) is an idea whose `variation` is its whole chain of steps from the phrase's notes, whose `notes` are the Notes it was built on, and whose `provenance` is its record, with no field of its own:
+
+```jsonc
+"provenance": {
+  "op": "variation",                 // a «Что если» chip, no AI; "assistant" when the assistant chose the steps (0028)
+  "from": [],
+  "params": {
+    "chip": "v12.pedal",             // optional: the Try chip that made the last step
+    "request": "…", "model": "…",    // optional: "assistant" only, the player's words and the model that chose the tool calls
+    "seed": 0,                       // the seed the steps ran with
+    "parent": "o_0001",              // optional: the variant it was made from, an idea's id
+    "barChange": 1,                  // optional: whole bars added (or, negative, taken away) at its end, -8 to 8
+    "base": [ { "id": "n_0024", "pitch": 45, "onset": 2880, "duration": 120, "velocity": 80 }, … ]
+                                     // the notes under it when it was made, in the order of variation.noteIds;
+                                     // a note that was missing then has its id alone
+  },
+  "at": "2026-11-15T10:01:00Z"       // when it was made
+}
+```
+
+- The keys are written in this order, only those that are set, so the same variant gives the same bytes.
+- `base` is what tells that the notes under a variant changed, and what it is made again over: the working notes when they still hold those notes as they were, else the notes before the assembly (`assembly.before`), else the working notes with those notes given back their values. Taking a variant into work is a carry of the assembly journal whose `source` is `variant:` and the idea's id; after a reload the carry's music is the variant made again so, from this record.
+- Whether a variant is in the working notes is worked out from the journal, never stored.
+- An idea with no record (any earlier file, a provenance of another `op`, or `params` that do not read as a variant's) reads as before: its steps over the notes under its passage as they are now. This build keeps any provenance as it came and writes it back.
+
 
 ## Check (`check`)
 

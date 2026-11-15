@@ -186,7 +186,7 @@ struct LibraryView: View {
                     if piece.isDocument {
                         PdfScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, openRead: { file, landing in await openFile(file, at: landing) })
                     } else {
-                        ScoreScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
+                        ScoreScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, reopen: piece.file.map { file in { landing in await openFile(file, at: landing) } })
                     }
                 }
                 .id(piece.id)
