@@ -154,6 +154,19 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
     }
 
     [Fact]
+    public async Task The_proposer_is_refused_until_a_provider_exists_and_takes_no_turn_of_the_day()
+    {
+        HttpClient client = Client(_api, "allowed-1");
+        string proposer = Turn().Replace("\"role\": \"mentor\"", "\"role\": \"proposer\"", StringComparison.Ordinal);
+
+        HttpResponseMessage refused = await client.PostAsync("/assistant/turn", Body(proposer));
+
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal("roleClosed", (await JsonOf(refused)).GetProperty("code").GetString());
+        Assert.Equal(WithModel.DailyRequests, (await JsonOf(await client.GetAsync("/assistant/status"))).GetProperty("left").GetInt32());
+    }
+
+    [Fact]
     public async Task The_logs_hold_no_question_and_no_note()
     {
         HttpClient client = Client(_api, "allowed-5");
