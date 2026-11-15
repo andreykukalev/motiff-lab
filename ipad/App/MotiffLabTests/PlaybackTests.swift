@@ -523,7 +523,7 @@ final class PianoAndProjectTests: XCTestCase {
         XCTAssertEqual(again.title, "Für Elise")
         XCTAssertEqual(again.pages.count, first.pages.count)
         let file = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        XCTAssertEqual(file["version"] as? Int, 15)
+        XCTAssertEqual(file["version"] as? Int, 16)
     }
 }
 

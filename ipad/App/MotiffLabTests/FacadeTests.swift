@@ -219,16 +219,23 @@ final class FacadeTests: XCTestCase {
     }
 
     func testCheckListsTheBarsToReviewWithTheirReasonsAndResolvesThem() throws {
-        // A project file from a scan, with flags on bar 3 and one already checked on bar 6.
+        // A project file from a scan, with flags on bar 3 and one already checked on bar 6. Since version 16 (0030) the
+        // Check flags and the scan are the working notes' own (notes[0]), and the engine is in their provenance.
         var file = try object(MusicCore.call(piece: piece, "project.save"))
         let flags: [[String: Any]] = [
             ["bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false],
             ["bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false],
             ["bar": 6, "source": "Scan", "reason": "BarTooShort", "resolved": true],
         ]
-        let scan: [String: Any] = ["engine": "homr 0.7.0", "confirmedBars": [Int]()]
-        file["check"] = flags
-        file["scan"] = scan
+        var notes = try XCTUnwrap(file["notes"] as? [[String: Any]])
+        var working = try XCTUnwrap(notes.first)
+        var provenance = working["provenance"] as? [String: Any] ?? [:]
+        provenance["engine"] = "homr 0.7.0"
+        working["provenance"] = provenance
+        working["check"] = flags
+        working["scan"] = ["confirmedBars": [Int]()] as [String: Any]
+        notes[0] = working
+        file["notes"] = notes
         let data = try JSONSerialization.data(withJSONObject: file)
         let opened = try object(MusicCore.open(fileName: "elise.motiff.json", data: data, request: #"{"language": "ru"}"#))
         let scanned = Int32(opened["piece"] as? Int ?? 0)

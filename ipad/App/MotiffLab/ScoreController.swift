@@ -1096,6 +1096,23 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
     }
 
+    /// «Добавить ещё PDF» (version 0.6): with a PDF kept already, another one is added as an original of its own beside it
+    /// (`sources.original.add`), never in its place, so the notes read from the first keep their pages.
+    func addAnotherPdf(_ data: Data, fileName: String) async {
+        guard let piece else { return }
+        var fields: [String: Any] = ["kind": "pdf", "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": ISO8601DateFormatter().string(from: Date())]
+        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
+        let request = Self.json(fields) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.original.add", request) }
+        guard let object = facadeObject(answer), object["error"] == nil else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return
+        }
+        versionStatus = text.format("sources.sheet.toastAdded", fileName)
+        await readSources()
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+    }
+
     /// Read as a version: the PDF kept in the piece goes to the scan server, and the notes it reads are added as another
     /// version from a score, its pages linked to these bars (`sources.documentNotes`). Answers why not, or nil once added.
     func readDocumentVersion(address: URL, account: Account) async -> String? {

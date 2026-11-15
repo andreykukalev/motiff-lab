@@ -304,6 +304,8 @@ struct SettingsSheet: View {
             if settings.isOn(ScanServer.engineSetting) {
                 choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
             }
+            // Version 0.6: the switch of all the piece's views and the new Sources sheet (0030).
+            switchRow(SourceLayers.setting, text["settings.sources"], hint: text["settings.sourcesHint"])
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)

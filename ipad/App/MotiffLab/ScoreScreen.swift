@@ -15,6 +15,12 @@ struct ScoreScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
     var switchView: ((Landing) async -> Void)? = nil
+    /// The tag of a view of the switch shown on its own over the piece (version 0.6): other Notes, from a copy never
+    /// saved; nil for the piece itself.
+    var viewing: String? = nil
+    /// Opens the piece's project file again in this screen's place, at a place in the music (version 0.6: «Сделать
+    /// рабочими» and the Sources toast's Undo); nil where the library has none.
+    var reopen: ((Landing) async -> Void)? = nil
     private let text = UIText.current
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -63,6 +69,10 @@ struct ScoreScreen: View {
     @StateObject private var originals: OriginalsController
     /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
     @State private var resumeId: String?
+    /// The piece's sources by layers and the switch of all its views (version 0.6, `experimental.sources`).
+    @StateObject private var sources = SourcesController()
+    /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
+    @State private var shownView: ShownView?
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -131,7 +141,9 @@ struct ScoreScreen: View {
 
     /// What the sheet over the right holds: Check, Other versions, or Insights.
     @ViewBuilder private func sheetContent() -> some View {
-        if versionsOpen {
+        if versionsOpen && sourcesOn {
+            sourcesSheet
+        } else if versionsOpen {
             VersionsDrawer(
                 score: score, text: text, close: { versionsOpen = false },
                 back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
@@ -244,8 +256,13 @@ struct ScoreScreen: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                // What was just done with a version, with Undo (testing item 32).
-                if let toast = score.mergeToast {
+                // What was just done in the Sources sheet, with Undo where it can be undone (version 0.6); beside the sheet.
+                if let toast = sources.toast, sourcesOn {
+                    SourcesToastView(sources: sources, toast: toast, text: text)
+                        .padding(.bottom, pillBottom + 56)
+                        .padding(.trailing, pillTrailing)
+                        .transition(.opacity)
+                } else if let toast = score.mergeToast {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
@@ -281,8 +298,10 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil,
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing) { dismiss() }
                     }
+                    if sourcesOn && !score.focused { recordingCapsule }
                     if !score.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, text: text)
@@ -703,10 +722,164 @@ struct ScoreScreen: View {
 
 extension ScoreScreen {
     /// The piece's screen, its originals known from the piece's opening (#495 BUG-02).
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil) {
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil) {
         self.piece = piece
         self.switchView = switchView
+        self.viewing = viewing
+        self.reopen = reopen
         _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
+    }
+}
+
+/// The switch of all the piece's views and the Sources sheet (version 0.6, behind `experimental.sources`; decision record
+/// 0030). The working notes are this screen; the first PDF is the PDF view of PDF | Notes; another PDF or photos, and other
+/// Notes, open on a screen of their own over this one, read-only, from a copy never saved; a version opens its page in
+/// the sheet, as Other versions did; a recording's sound is heard from a capsule under the bar.
+extension ScoreScreen {
+    /// A view of the switch on a screen of its own over the score, its piece closed in music-core as it goes.
+    struct ShownView: Identifiable {
+        let piece: OpenPiece
+        /// Shown as a PDF (another original) rather than as notes.
+        let pdf: Bool
+        var id: Int32 { piece.id }
+    }
+
+    /// Whether the switch and the new sheet are on: never on a view shown over the piece.
+    var sourcesOn: Bool { settings.isOn(SourceLayers.setting) && viewing == nil }
+
+    /// The Sources sheet in Other versions' place.
+    var sourcesSheet: some View {
+        SourcesSheet(
+            sources: sources, score: score, originals: originals, text: text, current: currentView,
+            close: { versionsOpen = false },
+            back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
+            open: pickView
+        )
+    }
+
+    /// «Исполнение»: the recording's sound kept on this iPad, heard from under the bar.
+    @ViewBuilder var recordingCapsule: some View {
+        if let id = sources.performance, let projectId = sources.projectId, let url = OriginalSounds.file(project: projectId, original: id) {
+            RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
+                sources.performance = nil
+            }
+            .id(id)
+            .transition(.opacity)
+        }
+    }
+
+    /// The views shown over the score, the sources read as the screen opens, and a variation only tried left before the
+    /// Sources sheet writes the project file.
+    func sourcing(_ content: some View) -> some View {
+        content
+            .fullScreenCover(item: $shownView) { view in shownViewScreen(view) }
+            .task(id: sourcesOn) { await loadSources() }
+            .onChange(of: versionsOpen) { _, open in
+                if open && sourcesOn { Task { await insights.leave() } }
+            }
+    }
+
+    /// The view shown now: the recording heard, else the working notes.
+    var currentView: String? { sources.performance ?? sources.layers.working }
+
+    /// The views for the bar's switch, and what picking one does; nil while the switch is off.
+    var switchLayers: SourceLayers? { sourcesOn ? sources.layers : nil }
+    var switchPick: ((SourceLayers.ViewEntry) -> Void)? {
+        guard sourcesOn else { return nil }
+        return { view in pickView(view) }
+    }
+
+    /// The sources as the screen opens or the experiment is turned on, then what the screen before handed over: the toast
+    /// of what was done, the sheet to open, or a view picked on the PDF's switch.
+    func loadSources() async {
+        guard sourcesOn else { return }
+        sources.reopen = { await reopenHere() }
+        await sources.load(piece: piece.id, file: piece.file)
+        if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
+        if SourcesHandover.sheet(for: piece.file) { versionsOpen = true }
+        if let id = SourcesHandover.view(for: piece.file), let view = sources.layers.views.first(where: { $0.id == id }) {
+            pickView(view)
+        }
+    }
+
+    /// A view picked in the switch, its menu or the sheet's «Открыть».
+    func pickView(_ view: SourceLayers.ViewEntry) {
+        switch view.kind {
+        case "performance":
+            if player.state == .playing { player.toggle() }
+            sources.performance = view.id
+        case "original":
+            sources.performance = nil
+            if view.id == PdfScreen.documentView, let toPdf {
+                toPdf()
+            } else {
+                Task { await showOriginal(view.id) }
+            }
+        default:
+            sources.performance = nil
+            guard view.id != sources.layers.working else { return }
+            if sources.layers.notes(view.id)?.role == "version", score.versions.entries.contains(where: { $0.id == view.id }) {
+                versionsOpen = true
+                score.openVersionPage(view.id)
+            } else {
+                Task { await showNotes(view.id) }
+            }
+        }
+    }
+
+    /// Another PDF or photos kept in the piece, shown as they are; why not, in the sheet.
+    private func showOriginal(_ id: String) async {
+        guard let original = sources.layers.original(id) else { return }
+        if player.state == .playing { player.toggle() }
+        guard let opened = await sources.openOriginal(original, title: original.shown) else {
+            versionsOpen = true
+            return
+        }
+        shownView = ShownView(piece: opened, pdf: true)
+    }
+
+    /// Other Notes shown on their own, at the place in the music in view here; why not, in the sheet.
+    private func showNotes(_ id: String) async {
+        guard let notes = sources.layers.notes(id) else { return }
+        if player.state == .playing { player.toggle() }
+        let at = await score.tickInView()
+        guard let opened = await sources.openNotes(notes, title: sources.layers.title(of: notes, text), at: at) else {
+            versionsOpen = true
+            return
+        }
+        shownView = ShownView(piece: opened, pdf: false)
+    }
+
+    /// The screen of a view shown over the piece; its piece is closed in music-core once the screen has gone.
+    func shownViewScreen(_ view: ShownView) -> some View {
+        Group {
+            if view.pdf {
+                PdfScreen(piece: view.piece, linked: true, readOnlyNote: text["sources.sheet.viewOnly"])
+            } else {
+                ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"])
+            }
+        }
+        .environmentObject(account)
+        .environmentObject(settings)
+        .onDisappear {
+            let id = view.piece.id
+            Task {
+                // After the screen's own leaving, which still reads the piece.
+                try? await Task.sleep(for: .seconds(2))
+                _ = await MusicCore.run { MusicCore.close(piece: id) }
+            }
+        }
+    }
+
+    /// The piece opened again in this screen's place from its project file, as «Сделать рабочими» or the toast's Undo has
+    /// just left it: the "Notes" view is kept for it and nothing more is written to the file.
+    private func reopenHere() async {
+        guard let reopen else { return }
+        let at = await score.tickInView() ?? 0
+        let view = notesViewNow()
+        player.shutdown()
+        await keepNotesView(view)
+        await reopen(.tick(at))
     }
 }
 
@@ -719,7 +892,7 @@ extension ScoreScreen {
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
         let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
-        return following(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side)))
+        return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
     }
 
     /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in
@@ -971,6 +1144,13 @@ struct ScoreBar: View {
     let openDna: () -> Void
     /// The Reference's circle of fifths (an experiment, Settings · Experimental); nil while it is off.
     var openReference: (() -> Void)?
+    /// The piece's views for the switch of all views (version 0.6, `experimental.sources`), in PDF | Notes' place with
+    /// Sources after it; nil while the experiment is off.
+    var sourceLayers: SourceLayers? = nil
+    var currentView: String? = nil
+    var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
+    /// The read-only tag of a view shown over the piece; nil for the piece itself.
+    var viewing: String? = nil
     let back: () -> Void
     @State private var phrasesOpen = false
     /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
@@ -984,9 +1164,13 @@ struct ScoreBar: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             BarLeading(title: title, contentsOpen: $contentsOpen, text: text, back: back)
-            if let pdf {
+            if let sourceLayers, let pickView {
+                SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { versionsOpen = true }
+                SourcesButton(open: versionsOpen, text: text) { versionsOpen.toggle() }
+            } else if let pdf {
                 PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
+            if let viewing { Tag(text: viewing, kind: .assumed) }
             if let pageText { BarPages(text: pageText) }
             Spacer(minLength: CGFloat.ds("s-2"))
             actions

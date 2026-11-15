@@ -306,6 +306,11 @@ struct PdfScreen: View {
     /// The PDF linked where it lies in Files (version 0.3), shown as it is: marks and bookmarks on its pages are kept with
     /// a copy in the piece, so the pen and the bookmark are not offered here.
     var linked = false
+    /// What the read-only tag says in place of «Файлы» (version 0.6: another original shown as a view of the switch).
+    var readOnlyNote: String? = nil
+    /// The piece's views for the switch of all views (version 0.6, `experimental.sources`); nil while it is off or the
+    /// piece has no notes.
+    @State private var sourceLayers: SourceLayers?
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @ObservedObject private var settings = DeviceSettings.shared
@@ -407,9 +412,13 @@ struct PdfScreen: View {
             pdf.inkable = !linked
             pdf.family = piece.family
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
+            await readSourceLayers()
             metronome.load(piece: pdf.projectId)
             // Handed from the notes, the metronome may click already (#521 section 15): its pill shows with it.
             if metronome.running { metronomeOpen = true }
+        }
+        .onChange(of: settings.isOn(SourceLayers.setting)) { _, _ in
+            Task { await readSourceLayers() }
         }
         .onDisappear {
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
@@ -455,14 +464,18 @@ struct PdfScreen: View {
     private func barContent(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             barLeading
-            if let toNotes {
+            if let sourceLayers, toNotes != nil {
+                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
+                SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
+                SourcesButton(open: false, text: text, action: openSources)
+            } else if let toNotes {
                 PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
             }
             if let pageText { BarPages(text: pageText) }
             // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
-            if linked { Tag(text: text["originals.linkFiles"], kind: .assumed) }
+            if linked { Tag(text: readOnlyNote ?? text["originals.linkFiles"], kind: .assumed) }
             Spacer(minLength: CGFloat.ds("s-2"))
             // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
             if let readNotesAction, pdf.pageCount > 0 {
@@ -682,6 +695,38 @@ struct PdfScreen: View {
         pdf.keepView()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
+    }
+
+    /// The first PDF's view of the switch: the one this screen shows.
+    static let documentView = "src_pdf"
+
+    /// The piece's views as music-core lists them for this iPad (version 0.6, `experimental.sources`), for a PDF whose
+    /// notes the library holds; nil otherwise, and PDF | Notes stays as it was.
+    private func readSourceLayers() async {
+        guard settings.isOn(SourceLayers.setting), !linked, toNotes != nil else {
+            sourceLayers = nil
+            return
+        }
+        let here = pdf.projectId.map { OriginalSounds.ids(project: $0) } ?? []
+        let request = SourcesController.json(["device": "ipad", "here": here])
+        let id = piece.id
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "sources.layers", request) }
+        sourceLayers = SourceLayers(answer: answer).flatMap { $0.working == nil ? nil : $0 }
+    }
+
+    /// A view picked in the switch: the notes' screen shows it once the piece opens there, as only it holds the notes.
+    private func pickView(_ view: SourceLayers.ViewEntry) {
+        guard view.id != PdfScreen.documentView else { return }
+        if view.id != sourceLayers?.working, let file = piece.other?.file ?? piece.file {
+            SourcesHandover.show(view.id, on: file)
+        }
+        Task { await showNotes() }
+    }
+
+    /// Sources from the PDF: the sheet opens on the notes' screen, where its operations are.
+    private func openSources() {
+        if let file = piece.other?.file ?? piece.file { SourcesHandover.openSheet(on: file) }
+        Task { await showNotes() }
     }
 }
 
