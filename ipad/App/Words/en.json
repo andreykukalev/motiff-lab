@@ -287,5 +287,6 @@
   "padAssistant.serverError": "The assistant's server answered with an error. Nothing was lost: try again.",
   "padAssistant.sending": "Sending the question…",
   "padAssistant.answering": "The assistant is answering…",
-  "padAssistant.lookingUp": "The assistant is looking in the score…"
+  "padAssistant.lookingUp": "The assistant is looking in the score…",
+  "practice.switchesHint": "Opens the two switches: selection controls and playback controls, each on its own"
 }
