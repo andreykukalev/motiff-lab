@@ -560,7 +560,7 @@
             @if (_dna is { } dna && !_dnaAside)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync"
+                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" HearOnce="HearDnaCardAsync" Stop="StopDnaAsync" CardSounding="DnaCardSounding" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync"
                                                ShowInInsights="ShowDnaInInsightsAsync" AddBookmarks="AddFormBookmarksAsync" Status="@_dnaStatus"
                                                HearScale="HearDnaScaleAsync" ScalePlaying="_scaleHeard" />
             }
