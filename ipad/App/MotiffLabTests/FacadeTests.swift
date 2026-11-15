@@ -62,6 +62,20 @@ final class FacadeTests: XCTestCase {
         XCTAssertLessThanOrEqual(sentences.units.count, shown.units.count)
     }
 
+    /// v0.6.4 (#614 item 4): the iPad's span is a passage of time; with no notes in it, it is still the selection.
+    func testAPassageWithNoNotesIsSelectedAsTheIPadAsks() throws {
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
+        let first = try XCTUnwrap(shown.units.first)
+        // Ten ticks just after a note starts, where no other note starts.
+        let between = SelectionSpan(onset: first.selectableOnset + 10, end: first.selectableOnset + 20)
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", between.request)))
+        XCTAssertEqual(selected.onset, between.onset)
+        XCTAssertTrue(selected.noteIds.isEmpty)
+        let understood = try object(MusicCore.call(piece: piece, "understand"))
+        XCTAssertEqual(understood["error"] as? String, "unavailable")
+        XCTAssertEqual(ScoreController.refusal(understood["message"] as? String), "selection.noNotes")
+    }
+
     func testSelectAndUnderstandInRussian() throws {
         let selected = try call("select", #"{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}"#)
         let selection = try XCTUnwrap(selected["selection"] as? [String: Any])

@@ -195,6 +195,7 @@
   "rollZoom.time": "Масштаб по времени",
   "rollZoom.timeIn": "Меньше тактов",
   "rollZoom.timeOut": "Больше тактов",
+  "insights.noNotes": "В выделении нет нот.",
   "selection.noNotes": "Здесь нет нот: выделение осталось прежним",
   "selection.replacedToast": "Выделение заменено",
   "selection.tooLong": "Выделение — не больше 32 тактов: оно осталось прежним",

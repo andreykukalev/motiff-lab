@@ -72,7 +72,11 @@ internal sealed partial class OpenPiece
 
     public PhraseMap Phrases => Levels.Phrases;
 
+    /// <summary>The selection; since v0.6.4 (#614) it may hold no notes, when the iPad selected a passage of time ("empty").</summary>
     public MotifSelection? Selection { get; private set; }
+
+    /// <summary>The selection when it holds notes: what the analyses of the piece read about it.</summary>
+    private MotifSelection? NotedSelection => Selection is { NoteIds.Count: > 0 } selection ? selection : null;
 
     public VariationChain? Chain { get; private set; }
 
@@ -196,7 +200,7 @@ internal sealed partial class OpenPiece
         "roll" => Roll(request),
         "project.save" => Save(request),
         "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
-        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter)),
+        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, NotedSelection, NotedSelection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter)),
         _ => CallOnProject(name, request),
     };
 
@@ -379,9 +383,11 @@ internal sealed partial class OpenPiece
             selection = MotifSelector.Select(Notes, Piece.Meter, MotifSelector.Bars(Piece.Meter, first, last, Piece.End), filter);
         }
 
-        if (selection.NoteIds.Count == 0)
+        // "empty": true (v0.6.4, #614 item 4, the iPad's selection of time): a span or bars with no notes in them (rests, a
+        // hand resting, a place between notes) are selected as they are; the calls that read notes then answer NoNotes.
+        if (selection.NoteIds.Count == 0 && (kind == MotifSelectionKind.Notes || request.Bool("empty") != true))
         {
-            throw FacadeException.Unavailable("There are no notes in that passage.");
+            throw NoNotes();
         }
 
         Selection = selection;
@@ -397,9 +403,17 @@ internal sealed partial class OpenPiece
     private static KeyCircleView? Circle(InvitationContext context) =>
         KeyCircle.For(context.Selection, context.Notes, context.Meter, context.Motif.Key, context.Harmony, context.Words);
 
+    /// <summary>The refusal of a passage with no notes, and of a call that reads the notes of a selection that holds none.</summary>
+    private static FacadeException NoNotes() => FacadeException.Unavailable("There are no notes in that passage.");
+
     private InvitationContext Understood()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
+        if (selection.NoteIds.Count == 0)
+        {
+            throw NoNotes();
+        }
+
         // Fixing a note or resolving a Check flag changes the doubt, so the understanding is read again (#352).
         if (_understood is { } understood && _understoodFor is { } from && ReferenceEquals(from.Check, Project.Check) && ReferenceEquals(from.Notes, Notes))
         {

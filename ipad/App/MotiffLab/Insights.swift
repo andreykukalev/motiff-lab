@@ -378,7 +378,7 @@ struct InsightsSheet: View {
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
+                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true), noNotes: score.selection?.noteIds.isEmpty ?? false)
                         // The assistant is the stream's last voice: its foot leads to the assistant's panel (#582 item 17.1).
                         Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: score.selection) }
                             .dsType(.label)
@@ -414,6 +414,8 @@ struct InsightsStream: View {
     @ObservedObject var insights: InsightsController
     let text: UIText
     let hasSelection: Bool
+    /// A selection with no notes in it (v0.6.4, a passage of time): the stream says so instead of asking for one.
+    var noNotes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -496,7 +498,7 @@ struct InsightsStream: View {
             } else if let problem = insights.problem {
                 Text(problem).dsType(.label).foregroundStyle(Color.ds("danger"))
             } else if !hasSelection {
-                caption(text["insights.selectFirst"])
+                caption(text[noNotes ? "insights.noNotes" : "insights.selectFirst"])
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -178,13 +178,16 @@ internal sealed partial class OpenPiece
         return CorrectionsAnswer(LayerBar(request));
     }
 
-    /// <summary>The selection's passage over the notes as they are now; none when no note is left there.</summary>
+    /// <summary>
+    /// The selection's passage over the notes as they are now; none when no note is left there, unless it held none to begin
+    /// with (a passage of time, v0.6.4).
+    /// </summary>
     private void Reselect()
     {
         if (Selection is { } selection)
         {
             MotifSelection again = MotifSelector.Select(Notes, Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
-            Selection = again.NoteIds.Count > 0 ? again : null;
+            Selection = again.NoteIds.Count > 0 || selection.NoteIds.Count == 0 ? again : null;
         }
     }
 
