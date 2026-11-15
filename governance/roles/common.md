@@ -16,6 +16,19 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 - Only Andrei's subscription pays for models: no API keys, no purchased tokens.
 - GitHub and the repository's documents are in English; the chat with Andrei is in Russian, in plain words.
 
+## Context and tokens
+
+Every step resends the whole context, so what you read once is paid again on every later step; the context is
+compacted automatically at about 200K tokens.
+
+- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 2 KB):
+  goal, decisions with reasons, root causes found, the files and line ranges that matter, done and next, open
+  questions. Write it after you have studied the code, after each pull request and before any long step, so that a
+  compaction loses nothing you need. After a compaction read the note first, then only the ranges you need.
+- Read code and documents in ranges (`grep -n`, then `sed -n a,b`), not whole files and never several files in one
+  `cat`; print only the tail of build, test and CI output.
+- A lead keeps the same kind of note in the version's state file.
+
 ## Branches, commits and pull requests
 
 - One change, one branch (`claude/*`), one pull request to `develop` (to `main` only for a release or a hotfix).
