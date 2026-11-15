@@ -101,3 +101,40 @@ test("from the library card, in Russian, with no selection: the lanes are in Rus
     await expect(dna).toHaveCount(0);
     await expect(page.locator(".bar .ttl")).toHaveText("Waltz sketch");
 });
+
+test("a card's Hear becomes Stop in place, and comes back when it is stopped, when another starts and when it ends", async ({ page }) => {
+    // #582 item 14: playback is stopped where it was started; the map's own button has no Stop for a card's passage.
+    const errors = await openFurElise(page);
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Piece DNA" }).click();
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
+    const cards = dna.locator(".dna-card");
+    await expect.poll(() => cards.count()).toBeGreaterThan(1);
+    const first = cards.nth(0).locator(".dna-hear");
+    const second = cards.nth(1).locator(".dna-hear");
+    const map = dna.locator(".dna-actions .btn.primary");
+
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(map).toHaveText("Play the map");
+
+    await second.click();
+    await expect(second).toHaveText("Stop");
+    await expect(first).toHaveText("Hear");
+
+    await second.click();
+    await expect(second).toHaveText("Hear");
+
+    // Played once, the passage ends by itself and the card reads Hear again.
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(first).toHaveText("Hear", { timeout: 30_000 });
+
+    // The map plays with its own Stop, and a card started over it takes over in place.
+    await map.click();
+    await expect(map).toHaveText("Stop");
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(map).toHaveText("Play the map");
+    expect(errors).toEqual([]);
+});
