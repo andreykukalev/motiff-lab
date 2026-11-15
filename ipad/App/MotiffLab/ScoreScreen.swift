@@ -1033,10 +1033,10 @@ extension ScoreScreen {
     /// Цикл, and the roll's lanes; nil and off for the one playhead of before, and in focus.
     private func syncPlayheads() {
         let on = score.onePosition
-        let range = score.playRange?.range
         var data: [String: Any]?
         if on {
-            let selection: Any = range.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
+            // The hand the selection is narrowed to (v0.6.2): its band covers that staff, and the blue playhead with it (#608).
+            let selection: Any = score.playRange.map { PlayheadsShown.selection($0.range, hand: $0.selection.hand) as Any } ?? NSNull()
             data = ["selection": selection, "loop": player.cycle]
         }
         score.showPlayheads(data)

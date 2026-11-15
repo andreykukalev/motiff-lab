@@ -308,3 +308,14 @@ struct BarBeats: Equatable, Sendable {
         return BarBeats(marks: marks)
     }
 }
+
+/// What the score's page is told of the selection for its playheads (`motiff.playheads`, ScoreScreen.syncPlayheads): the span
+/// the blue playhead keeps to and, narrowed to a hand (v0.6.2), that hand, whose staff alone the band and the blue playhead
+/// cover (v0.6.3, #608 item 3).
+enum PlayheadsShown {
+    static func selection(_ range: Range<Double>, hand: String?) -> [String: Any] {
+        var selection: [String: Any] = ["start": range.lowerBound, "end": range.upperBound]
+        if let hand { selection["hand"] = hand }
+        return selection
+    }
+}

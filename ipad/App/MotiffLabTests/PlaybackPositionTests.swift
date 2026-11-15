@@ -182,4 +182,13 @@ final class PlaybackPositionTests: XCTestCase {
         XCTAssertNil(BarBeats().at(100))
         XCTAssertTrue(BarBeats.read([["at": 0]]).marks.isEmpty, "an older answer without bar and beat")
     }
+
+    func testThePageIsToldTheHandTheSelectionIsNarrowedTo() {
+        // The blue playhead covers the band's staff alone for a selection of one hand (#608 item 3).
+        let one = PlayheadsShown.selection(960..<1920, hand: "left")
+        XCTAssertEqual(one["start"] as? Double, 960)
+        XCTAssertEqual(one["end"] as? Double, 1920)
+        XCTAssertEqual(one["hand"] as? String, "left")
+        XCTAssertNil(PlayheadsShown.selection(960..<1920, hand: nil)["hand"], "both hands: no hand, every staff")
+    }
 }

@@ -56,7 +56,7 @@ import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
-import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
+import { ScorePlayheadMarks, bandOf, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
 import { pressPlaces } from "../playback/playhead-press.js";
 import { PRACTICE_ATTRIBUTE } from "../layout/practice-view.js";
@@ -154,6 +154,10 @@ function layout() {
     placeRings();
     markPicked();
     selection.place();
+    // The playheads go where their places are on the pages now, as the band does (v0.6.3, #608 item 3).
+    if (state.heads !== null) {
+        reportPlace(drawHeads(), !heard.playing);
+    }
     reportPages();
     return { bars: state.frames.length, space: state.frames[0]?.space ?? 0 };
 }
@@ -666,6 +670,9 @@ function playheads(value) {
         reportGrips();
     } else {
         placePlayhead(null);
+        // A new selection or Цикл moves the blue playhead at once, playing or not (v0.6.3, #608 item 3): stopped, no position
+        // comes to draw it again, and it stayed where the last selection had it.
+        reportPlace(drawHeads(), !heard.playing);
     }
 }
 
@@ -1113,10 +1120,31 @@ function drawHeads() {
         const chosen = state.heads.selection ?? null;
         const tick = grabs.drag.heard(heard.tick);
         const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: heard.playing ? "playing" : "stopped" });
-        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black" });
+        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black", band: headsBand(chosen) });
     }
     reportGrips();
     return at;
+}
+
+/** The band the blue playhead keeps to, for the selection, the layout and the beats it was worked out for. */
+const keptBand = { selection: null, geometry: null, beats: null, runs: undefined };
+
+/**
+ * The selection's band as the page draws it (Scripts/score/playheads.ts bandOf): the blue playhead is drawn inside it, on
+ * the staves of its hand and not past its ends, which a selection by beats puts just before the next beat's notes (v0.6.3,
+ * #608 item 3). Worked out again only when one of them changes, not thirty times a second.
+ */
+function headsBand(chosen) {
+    if (chosen === null || state.geometry === null) {
+        return undefined;
+    }
+    if (keptBand.selection !== chosen || keptBand.geometry !== state.geometry || keptBand.beats !== state.beats) {
+        keptBand.selection = chosen;
+        keptBand.geometry = state.geometry;
+        keptBand.beats = state.beats;
+        keptBand.runs = bandOf(state.geometry, selection.beats, chosen);
+    }
+    return keptBand.runs;
 }
 
 let gripsReported = "";
