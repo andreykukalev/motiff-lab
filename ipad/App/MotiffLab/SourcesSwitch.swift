@@ -293,6 +293,7 @@ struct RecordingViewCapsule: View {
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["bar.close"])
         }
+        .controlShape(.capsule)
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())

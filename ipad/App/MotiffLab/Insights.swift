@@ -762,13 +762,9 @@ struct HearingSwitch: View {
         return Button {
             player.hear(hearing, over: range)
         } label: {
-            Text(text[key])
-                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+            SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(maxHeight: .infinity)
-                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                .contentShape(Capsule())
+                .modifier(SegmentFill(on: on))
         }
         .buttonStyle(.plain)
         .accessibilityHint(hint)

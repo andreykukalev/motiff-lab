@@ -170,8 +170,7 @@ struct SettingsSheet: View {
                 Button {
                     section = item
                 } label: {
-                    Text(name(item))
-                        .font(DesignTokens.font(weight: on ? 600 : 500, size: 15, relativeTo: .body))
+                    SteadyWord(text: name(item), on: on, size: 15, relativeTo: .body, alignment: .leading)
                         .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
                         .padding(.horizontal, CGFloat.ds("s-3"))
                         .frame(minHeight: CGFloat.ds("h-control"))

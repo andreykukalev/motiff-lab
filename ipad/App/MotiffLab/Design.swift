@@ -280,14 +280,104 @@ struct DSButtonStyle: ButtonStyle {
     }
 }
 
-/// An item of the pill or a palette (ds.css `.pill .it`): quiet ink, and the accent's tint while it is on.
+/// The shape a control's active and pressed tint fills (#582 item 3): the control's own outline, so the tint never runs past
+/// it. A bar action is a rounded square (ds.css `.bar .act`); inside a capsule (the modes, a floating capsule) its controls
+/// are capsules, the tint concentric with the capsule's ends; an icon on its own is a circle. A container that is a
+/// capsule says so once (`controlShape(.capsule)`), and every control in it follows.
+enum ControlShape: Sendable {
+    case rounded, capsule, circle
+
+    var shape: AnyShape {
+        switch self {
+        case .rounded: AnyShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+        case .capsule: AnyShape(Capsule())
+        case .circle: AnyShape(Circle())
+        }
+    }
+}
+
+private struct ControlShapeKey: EnvironmentKey {
+    static let defaultValue = ControlShape.rounded
+}
+
+extension EnvironmentValues {
+    /// The outline the controls inside a container take for their tint (ControlShape).
+    var controlShape: ControlShape {
+        get { self[ControlShapeKey.self] }
+        set { self[ControlShapeKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// The controls inside take this outline for their active and pressed tint (#582 item 3).
+    func controlShape(_ shape: ControlShape) -> some View {
+        environment(\.controlShape, shape)
+    }
+}
+
+/// An action in the bar (ds.css `.bar .act`): the ink, and the accent on its tint while it is on, the tint in the control's
+/// own outline (ControlShape: a rounded square, or a capsule inside a capsule, #582 item 3).
+struct BarActionStyle: ButtonStyle {
+    var on = false
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.controlShape) private var outline
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(outline.shape)
+    }
+}
+
+/// A word whose weight shows the choice (ds.css `.seg button.on`, `.pill .it.on`): it keeps the width of its bolder weight
+/// either way, so a control keeps its size as it is chosen or left (#479 item 11, #582 item 3).
+struct SteadyWord: View {
+    let text: String
+    let on: Bool
+    var size: CGFloat = 13
+    var offWeight = 500
+    var relativeTo: Font.TextStyle = .callout
+    var alignment: Alignment = .center
+
+    var body: some View {
+        ZStack(alignment: alignment) {
+            Text(text)
+                .font(DesignTokens.font(weight: 600, size: size, relativeTo: relativeTo))
+                .lineLimit(1)
+                .hidden()
+                .accessibilityHidden(true)
+            Text(text)
+                .font(DesignTokens.font(weight: on ? 600 : offWeight, size: size, relativeTo: relativeTo))
+                .lineLimit(1)
+        }
+    }
+}
+
+/// A button style's label in a weight that shows the choice, at the width of the bolder weight either way (SteadyWord for
+/// a label of any kind).
+struct SteadyLabel<Label: View>: View {
+    let label: Label
+    let on: Bool
+    var size: CGFloat = 13
+
+    var body: some View {
+        ZStack {
+            label.font(DesignTokens.font(weight: 600, size: size, relativeTo: .callout)).hidden().accessibilityHidden(true)
+            label.font(DesignTokens.font(weight: on ? 600 : 500, size: size, relativeTo: .callout))
+        }
+    }
+}
+
+/// An item of the pill or a palette (ds.css `.pill .it`): quiet ink, and the accent's tint while it is on, at the same width
+/// either way (#582 item 3).
 struct DSItemStyle: ButtonStyle {
     var on = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+        SteadyLabel(label: configuration.label, on: on)
             .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
             .padding(.horizontal, CGFloat.ds("s-3"))
             .frame(minHeight: 36)

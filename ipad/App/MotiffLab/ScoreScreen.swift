@@ -1354,20 +1354,6 @@ struct ScoreBar: View {
     }
 }
 
-/// An action in the bar (ds.css `.bar .act`): the ink, and the accent on its tint while it is on.
-struct BarActionStyle: ButtonStyle {
-    var on = false
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
-            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(Rectangle())
-    }
-}
-
 /// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score.
 struct Pill: View {
     @ObservedObject var player: Player
@@ -1721,13 +1707,9 @@ struct FocusShowAs: View {
         return Button {
             score.focusRoll = roll
         } label: {
-            Text(text[key])
-                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+            SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(maxHeight: .infinity)
-                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                .contentShape(Capsule())
+                .modifier(SegmentFill(on: on))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])

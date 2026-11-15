@@ -906,8 +906,7 @@ struct MergeShowSwitch: View {
                 Button { score.showMergeView(view) } label: {
                     HStack(spacing: 4) {
                         Circle().fill(mergeViewColor(view)).frame(width: 8, height: 8)
-                        Text(text["merge.view.\(view)"])
-                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13))
+                        SteadyWord(text: text["merge.view.\(view)"], on: on)
                             .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
                     }
                     .padding(.horizontal, CGFloat.ds("s-2"))

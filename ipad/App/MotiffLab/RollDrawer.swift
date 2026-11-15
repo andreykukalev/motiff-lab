@@ -233,8 +233,8 @@ struct RollHeadStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+        // At the width of the chosen weight either way, so the head keeps its size (#582 item 3).
+        SteadyLabel(label: configuration.label, on: on)
             .foregroundStyle(on ? Color.ds("accent") : Color.ds(outlined ? "ink" : "ink-2"))
             .lineLimit(1)
             .padding(.horizontal, round ? 0 : CGFloat.ds("s-3"))
