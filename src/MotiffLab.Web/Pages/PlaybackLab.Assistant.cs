@@ -35,6 +35,13 @@ public partial class PlaybackLab
     /// <summary>The popover at the place Ask was pressed: the selection's menu, the focus bar, Piece DNA, More or the keyboard.</summary>
     private void OpenAskPopover(MouseEventArgs? at, bool wholePiece)
     {
+        if (MentorOn)
+        {
+            // The conversation (an experiment) lives in the Insights sheet, where its answers and their citations have room.
+            OpenAsk(wholePiece);
+            return;
+        }
+
         _popover = Popover.None;
         _menuMore = false;
         _askWholePiece = wholePiece || _selection is null;
@@ -134,8 +141,22 @@ public partial class PlaybackLab
     /// <summary>Ask about the piece in More: the popover where More was.</summary>
     private void AskAboutPiece(MouseEventArgs at) => OpenAskPopover(at, wholePiece: true);
 
-    /// <summary>Ask about the piece from Piece DNA: the popover at the button, the map open under it with what it showed going with the question.</summary>
-    private void AskFromDna(MouseEventArgs at) => OpenAskPopover(at, wholePiece: true);
+    /// <summary>
+    /// Ask about the piece from Piece DNA: the popover at the button, the map open under it with what it showed going with the
+    /// question. With the conversation on (an experiment), it goes on in the Insights sheet, Piece DNA waiting under it.
+    /// </summary>
+    private Task AskFromDnaAsync(MouseEventArgs at)
+    {
+        if (!MentorOn)
+        {
+            OpenAskPopover(at, wholePiece: true);
+            return Task.CompletedTask;
+        }
+
+        _askWholePiece = true;
+        _askMap = null;
+        return AskInInsightsAsync();
+    }
 
     /// <summary>‹ in the assistant: back where it was opened from, or to the Insights stream it is the last voice of.</summary>
     private Task AskBackAsync()

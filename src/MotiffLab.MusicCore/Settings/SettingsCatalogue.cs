@@ -138,6 +138,11 @@ public static class SettingsCatalogue
         // offers music-core's ways for the flag's reason (Assistant.Repairs.CheckRepairs) as a draft over the bar; Accept adds
         // them to the corrections. Worked out on the device; nothing is sent anywhere.
         Switch("experimental.assistantRepairs", SettingSection.Experimental, null, SettingScope.Device),
+
+        // The assistant's conversation (v0.6, 0028 section 4): Ask opens the mentor in the Insights sheet, which asks the Motiff
+        // Lab API (POST /assistant/turn) and runs the model's read tools on the device; it sends the selected passage's notes
+        // and facts digest only after the player's consent, and only when the API says a model is on for the account.
+        Switch("experimental.assistant", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

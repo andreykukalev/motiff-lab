@@ -35,6 +35,9 @@ public sealed record AssistantSession(AssistantRole Role, IReadOnlyList<TurnEntr
     /// <summary>The tool calls made since the last question.</summary>
     public int ToolCallsInQuestion => TurnRequest.CallsSinceQuestion(History);
 
+    /// <summary>The tool results the device sent since the last question: with the context, where its answer's citations are found (<see cref="CitedFacts"/>).</summary>
+    public IReadOnlyList<ToolOutcome> ResultsInQuestion => [.. History.Skip(TurnRequest.LastQuestion(History)).SelectMany(static entry => entry.Results)];
+
     /// <summary>The questions and answers, in order, for the conversation's view.</summary>
     public IEnumerable<TurnEntry> Exchanges => History.Where(static entry => entry.Kind is TurnEntryKind.Question or TurnEntryKind.Answer);
 

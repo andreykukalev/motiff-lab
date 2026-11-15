@@ -72,10 +72,12 @@ public class SettingsTests
         Assert.Null(SettingsCatalogue.Find("experimental.pieceParts"));
     }
 
-    [Fact]
-    public void The_repairs_experiment_is_off_on_the_device()
+    [Theory]
+    [InlineData("experimental.assistantRepairs")]
+    [InlineData("experimental.assistant")]
+    public void The_assistant_experiments_are_off_on_the_device(string id)
     {
-        Setting setting = SettingsCatalogue.Get("experimental.assistantRepairs");
+        Setting setting = SettingsCatalogue.Get(id);
         Assert.Equal(SettingSection.Experimental, setting.Section);
         Assert.Equal(SettingScope.Device, setting.Scope);
         Assert.False(SettingsState.Default.IsOn(setting.Id));
