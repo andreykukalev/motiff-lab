@@ -116,11 +116,14 @@ export class ScoreBeats {
         return bar === undefined ? undefined : nearestLine(barLines(lines, bar), (tick) => this.lineX(bar, tick), x);
     }
 
-    /** The band's runs cut to the beats where the passage starts and ends inside a bar, and a tick for each beat inside it. */
-    cut(geometry: ScoreGeometry, runs: Run[], start: number, end: number): HTMLElement[] {
+    /**
+     * The band's runs cut, in place, to the beats where the passage starts and ends inside a bar; returns the beat lines, or
+     * null while the selection takes whole bars and nothing is cut. The blue playhead keeps to the same edges (score.js).
+     */
+    cutEdges(geometry: ScoreGeometry, runs: Run[], start: number, end: number): readonly number[] | null {
         const lines = this.lines();
         if (lines === null || runs.length === 0) {
-            return [];
+            return null;
         }
         const first = geometry.barAt(start);
         if (first !== undefined && start > first.tick) {
@@ -129,6 +132,15 @@ export class ScoreBeats {
         const last = geometry.barAt(end - 1);
         if (last !== undefined && end < last.end) {
             runs[runs.length - 1].right = this.lineX(last, end);
+        }
+        return lines;
+    }
+
+    /** The band's runs cut to the beats where the passage starts and ends inside a bar, and a tick for each beat inside it. */
+    cut(geometry: ScoreGeometry, runs: Run[], start: number, end: number): HTMLElement[] {
+        const lines = this.cutEdges(geometry, runs, start, end);
+        if (lines === null) {
+            return [];
         }
         const ticks: HTMLElement[] = [];
         for (const line of lines) {
