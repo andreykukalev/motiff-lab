@@ -86,6 +86,11 @@ Private, in Russian, in the project files (`/mnt/project-files/product/`), not i
 Bugs and development tasks are GitHub issues. A claim about the product cites a record; a claim about the code is
 checked in the code. At each stable version the lead tidies `concept.md` and `ideas.md`.
 
+## Platform focus
+
+Now: **iPad**. The web follows later. Only Andrei changes this line; the lead edits it on his word.
+How tracks use it: `roles/common.md`, "Platform focus".
+
 ## Agents and models
 
 Sonnet is not used. `model` and `effort` are set at the start of each thread by the project instructions.

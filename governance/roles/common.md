@@ -29,6 +29,17 @@ compacted automatically at about 200K tokens.
   `cat`; print only the tail of build, test and CI output.
 - A lead keeps the same kind of note in the version's state file.
 
+## Platform focus
+
+- Every track in a version plan has an area: iPad, web, core or shared. Without Andrei's explicit word it is the focus
+  in `governance/README.md`; «shared» only when he asks for both platforms at once.
+- An iPad track reads and changes `ipad/`, `src/MotiffLab.MusicCore` and the score and roll modules the iPad page runs
+  (`Scripts/score`, `Scripts/roll`, checked by node tests); it does not read or change the web pages and components or
+  run the web Playwright suites. A web track mirrors this.
+- A change with a counterpart on the other platform is not ported: append one line to
+  `/mnt/project-files/product/web-backlog.md` (or `ipad-backlog.md`): what changed, the pull request, the shared code
+  touched. A porting version is planned from that list.
+
 ## Branches, commits and pull requests
 
 - One change, one branch (`claude/*`), one pull request to `develop` (to `main` only for a release or a hotfix).
