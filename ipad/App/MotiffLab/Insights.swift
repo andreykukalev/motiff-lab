@@ -355,6 +355,8 @@ struct InsightsSheet: View {
     let range: Range<Double>?
     let text: UIText
     let close: () -> Void
+    @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -382,8 +384,15 @@ struct InsightsSheet: View {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
                         // The assistant is the stream's last voice: the conversation the Ask popovers add to, and its field.
-                        AskStreamFoot(conversation: conversation, account: account, text: text) {
-                            withAnimation(.ds("t-fast")) { reader.scrollTo(AskStreamFoot.fieldId, anchor: .bottom) }
+                        if AssistantSide.on(settings) {
+                            // With the assistant on (#582 item 17.1), the stream's foot leads to its panel.
+                            Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false) }
+                                .dsType(.label)
+                                .foregroundStyle(Color.ds("accent"))
+                        } else {
+                            AskStreamFoot(conversation: conversation, account: account, text: text) {
+                                withAnimation(.ds("t-fast")) { reader.scrollTo(AskStreamFoot.fieldId, anchor: .bottom) }
+                            }
                         }
                     }
                     .padding(.leading, CGFloat.ds("s-6"))

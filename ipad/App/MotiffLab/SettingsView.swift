@@ -300,6 +300,8 @@ struct SettingsSheet: View {
             switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
             // Version 0.6.1 (#582 item 15): Piece DNA's ideas by what they are in the music, each card saying why.
             switchRow("experimental.musicalIdeas", text["settings.musicalIdeas"], hint: text["settings.musicalIdeasHint"])
+            // Version 0.6.1 (#582 item 17): the assistant with its AI model, as on the web, in a side panel beside the score.
+            switchRow(AssistantController.setting, text["settings.assistant"], hint: text["settings.assistantPadHint"])
             // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
             switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
             if settings.isOn(ScanServer.engineSetting) {
