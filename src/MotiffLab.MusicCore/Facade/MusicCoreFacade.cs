@@ -226,6 +226,8 @@ public sealed class MusicCoreFacade
                     "project.sync" => SyncRequest.Next(fields),
                     "project.pulled" => SyncRequest.Pulled(fields),
                     "project.resolve" => SyncRequest.Resolve(fields),
+                    "project.same" => SyncRequest.Same(fields),
+                    "project.join" => SyncRequest.Join(fields),
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),

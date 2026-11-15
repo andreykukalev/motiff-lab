@@ -90,6 +90,10 @@ struct CloudSync {
             // A piece that is not synced (only a PDF) keeps no record.
             if records[id] == SyncRecord() { records[id] = nil }
         }
+        for id in await join(&records) {
+            here[id] = nil
+            outcome.changed = true
+        }
         SyncRecords.save(records, to: recordsURL)
         outcome.overQuota = records.filter { here[$0.key] != nil && $0.value.overQuota }.count
         return outcome
@@ -198,6 +202,56 @@ struct CloudSync {
             records[id] = SyncRecord(etag: fetched.etag, savedAt: row.savedAt, hash: Self.hash(Data(kept.utf8)))
         }
         return changed
+    }
+
+    /// One piece, one entry (version 0.6.1, #582 item 1), as the web app does it (Account/CloudSync.cs): the project files
+    /// here that are the same piece by the files they were made from (`pieceKeys`, grouped by `project.same`), such as the
+    /// same PDF added on the web and on this iPad, become one when one of them carries nothing of the player's own
+    /// (`project.join`, music-core's `SamePiece`). The other is written in place with its PDF and details, and the copy that
+    /// joined it is deleted here and online, so no device fetches it again; where the app may not write online, what this
+    /// iPad knows of that online copy stays, so this iPad does not fetch it again either. A copy whose bytes are kept beside
+    /// its file on this iPad (a linked PDF, a copy for playing offline, a recording's sound) stays, though another may join
+    /// it. Answers the ids of the projects that went.
+    private func join(_ records: inout [String: SyncRecord]) async -> [String] {
+        var pieces: [(url: URL, id: String, keys: [String])] = []
+        // The most recently changed file first, as the pass reads them.
+        for entry in ProjectFiles.list(in: folder) {
+            guard let summary = await PieceSummary.read(entry.url), let id = summary.id, !pieces.contains(where: { $0.id == id }) else { continue }
+            pieces.append((url: entry.url, id: id, keys: summary.pieceKeys))
+        }
+        let rows: [[String: Any]] = pieces.filter { !$0.keys.isEmpty }.map { ["id": $0.id, "keys": $0.keys] }
+        guard rows.count > 1, let groups = await Self.core("project.same", ["pieces": rows])?["groups"] as? [[String]] else { return [] }
+        var gone: [String] = []
+        for group in groups {
+            let members = group.compactMap { id in pieces.first { $0.id == id } }
+            let files = members.compactMap { try? String(contentsOf: $0.url, encoding: .utf8) }
+            guard members.count > 1, files.count == members.count else { continue }
+            let stay = members.indices.filter { Self.keptBeside(members[$0].id) }
+            guard let joined = await Self.core("project.join", ["files": files, "stay": stay])?["joined"] as? [[String: Any]] else { continue }
+            for piece in joined {
+                guard let keeper = (piece["keeper"] as? NSNumber)?.intValue, members.indices.contains(keeper),
+                      let file = piece["file"] as? String, write(file, to: members[keeper].url, title: members[keeper].id) != nil
+                else { continue }
+                for index in (piece["from"] as? [NSNumber] ?? []).map(\.intValue) where members.indices.contains(index) && index != keeper {
+                    let id = members[index].id
+                    do {
+                        try FileManager.default.removeItem(at: members[index].url)
+                    } catch {
+                        continue
+                    }
+                    gone.append(id)
+                    if online.writable, await online.delete(id) { records[id] = nil }
+                }
+            }
+        }
+        return gone
+    }
+
+    /// Whether the project has bytes kept beside its file on this iPad: a linked PDF, a copy of one kept for playing with no
+    /// connection, or a recording's sound.
+    private static func keptBeside(_ id: String) -> Bool {
+        let links = OriginalLinks.folder.appendingPathComponent(OriginalLinks.safe(id), isDirectory: true)
+        return FileManager.default.fileExists(atPath: links.path) || KeptCopies.has(project: id) || !OriginalSounds.ids(project: id).isEmpty
     }
 
     /// Writes a project file in place, or as a new file named by its title; nil when it could not be written.

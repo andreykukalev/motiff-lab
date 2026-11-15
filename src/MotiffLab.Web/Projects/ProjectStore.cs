@@ -80,6 +80,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             Playlists = summary.Details?.Playlists,
             Originals = [.. summary.Originals.Select(original => StoredOriginalOf(original, project.FindOriginal(original.Id)))],
             Part = StoredPartOf(summary.Part),
+            PieceKeys = SamePiece.Keys(project),
         };
     }
 
@@ -123,6 +124,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             Details = DetailsOf(row),
             Originals = OriginalsOf(row),
             Part = PartSummaryOf(row.Part),
+            PieceKeys = row.PieceKeys,
         })];
     }
 
@@ -334,6 +336,9 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
 
         /// <summary>For a piece made from a collection, the collection's original and the piece's place there (version 0.4); rows saved before have none.</summary>
         public StoredPart? Part { get; init; }
+
+        /// <summary>What the piece is known by on every device (version 0.6.1, <c>SamePiece.Keys</c>); rows saved before have none.</summary>
+        public IReadOnlyList<string>? PieceKeys { get; init; }
     }
 
     private sealed record StoredPart(string Kind, string FileName, string? Name, string AddedAt, string? Sha256, int? FirstPage, int? LastPage, long? From, long? To);

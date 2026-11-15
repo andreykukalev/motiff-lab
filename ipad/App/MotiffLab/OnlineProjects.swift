@@ -115,6 +115,17 @@ struct OnlineProjects {
             .mapError(Self.failure)
     }
 
+    /// Deletes the project's online copy (version 0.6.1: a copy that joined the same piece, `CloudSync`); true once it is
+    /// gone, also when it was gone already.
+    func delete(_ id: String) async -> Bool {
+        guard let path = Self.path(of: id) else { return false }
+        switch await send(path, { request in request.httpMethod = "DELETE" }) {
+        case .success: return true
+        case .failure(.failed(.notFound)): return true
+        case .failure: return false
+        }
+    }
+
     /// Sends the copy saved online (`project.online`) as the project's file, over the online copy with `ifMatch` when given.
     func upload(_ id: String, file: String, ifMatch: String?) async -> Sent {
         guard let path = Self.path(of: id) else { return .failed(.notFound) }

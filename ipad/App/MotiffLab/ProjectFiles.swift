@@ -113,6 +113,9 @@ struct PieceSummary: Equatable, Sendable {
     /// Where a piece made with «Пьесы в файле» is in its collection (version 0.4, within contract 12); nil for a piece of
     /// its own.
     var partOf: PartOfEntry?
+    /// What the piece is known by on every device (version 0.6.1, #582 item 1; music-core's `SamePiece.Keys`, within
+    /// contract 12): the fingerprints of the files it was made from, so a sync pass finds the projects that are one piece.
+    var pieceKeys: [String] = []
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
@@ -146,6 +149,7 @@ struct PieceSummary: Equatable, Sendable {
         playlists = project["playlists"] as? [String] ?? []
         originals = OriginalEntry.list(project["originals"])
         partOf = PartOfEntry(project["partOf"])
+        pieceKeys = project["pieceKeys"] as? [String] ?? []
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.

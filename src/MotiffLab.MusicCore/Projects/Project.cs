@@ -881,6 +881,13 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
     /// in it; null for a piece of its own, and for a summary saved before it was kept.
     /// </summary>
     public PartSummary? Part { get; init; }
+
+    /// <summary>
+    /// What the piece is known by on every device (version 0.6.1, <see cref="SamePiece.Keys"/>), so the library finds the
+    /// projects that may be one piece without reading them; null for a summary saved before it was kept. The apps fill it from
+    /// the project; <see cref="Project.Summary"/> leaves it out.
+    /// </summary>
+    public IReadOnlyList<string>? PieceKeys { get; init; }
 }
 
 /// <summary>
