@@ -33,7 +33,10 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 ## The assistant
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
-  (UITextField, Scribble declined so the Pencil opens the keyboard), `AskInputRow` (field + Send), `KeyboardRoom`.
+  (UITextField, Scribble declined so the Pencil opens the keyboard; focused only by a press), `AskInputRow` (the kit's
+  field `DSFieldLook` + microphone + Send), `KeyboardRoom`. `TypingFocus.swift` (v0.6.4): the app's one keyboard rule,
+  `Typing` (a tap outside any focused field hides the keyboard), `TypingShield` (over the score's and roll's web views).
+  `Dictation.swift` (`experimental.dictation`, on): `DictationFlow`, `Dictation` (SFSpeech on the device only).
 - Every Ask opens the real assistant, no switch (v0.6.3): selection menu → `AssistantHereCard`, others → the panel.
 - `AssistantStates.swift`: `AssistantScope` (core AskScope), `AssistantPhase` (no streaming), `AssistantRecovery`.
 - `AssistantController.swift`: panel state, `scope`, `phase`, `standing` (`check`: `/assistant/status`), the piece's
@@ -48,6 +51,8 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 
 ## Rules not to break
 
-- The score's screen never resizes for the keyboard: a chat keeps itself clear of it (`AskFlow`, `KeyboardRoom`).
+- The score's screen never resizes for the keyboard: a chat keeps itself clear of it (`AskFlow`, `KeyboardRoom`); the
+  pill rises only above a hidden keyboard's bar (`KeyboardLift(barOnly:)`). The tap that hides the keyboard never acts on
+  the music (`TypingShield`); no field takes the focus by itself. Dictation never leaves the device.
 - Nothing in `ipad/App` changes analysis or variation data; drafts come from music-core and only the player accepts them.
 - Every interface string in English and Russian; colours, sizes and timings are tokens.

@@ -172,6 +172,10 @@ public static class SettingsCatalogue
         // (the old one comes back by «Вернуть»), a tap selects a bar or a note, a tap on the margin clears; a selection may
         // narrow to a hand or to notes. Off, the selection works as in version 0.6.1. Nothing new is saved in the project.
         Switch("experimental.placeSelection", SettingSection.Experimental, null, SettingScope.Device),
+        // Dictation into the assistant's field (v0.6.4, the iPad only): a microphone beside the field hears the player in the
+        // interface's language and writes the words into the field; speech is recognised on the iPad itself only, and nothing
+        // heard leaves it. On until turned off: the lead's instruction for Andrei's request, the exception to the rule.
+        Switch("experimental.dictation", SettingSection.Experimental, null, SettingScope.Device, on: true),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

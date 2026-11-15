@@ -261,7 +261,8 @@ struct ScoreScreen: View {
         let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : side
         let pillLeading: CGFloat = contentsPlace == .side ? Self.contentsWidth + gap : 0
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
-            .padding(.trailing, side)
+            // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
+            .padding(.trailing, side).overlay { TypingShield() }
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
@@ -390,11 +391,11 @@ struct ScoreScreen: View {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
                 // shows with a selection or while the music plays, or only while it plays (the setting
                 // "guidance.transportPill", 0018 section 10).
-                // Measured, so the selection's toast stands above it (v0.6.4, spec 7).
-                VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }
+                // Measured, so the selection's toast stands above it (v0.6.4, spec 7); above a hidden keyboard's bar (iPadOS's
+                // «RU» and Undo), never above the keyboard itself (v0.6.4).
+                VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }.keyboardLift(barOnly: true)
                 .padding(.bottom, pillBottom)
-                .padding(.trailing, pillTrailing)
-                .padding(.leading, pillLeading)
+                .padding(.trailing, pillTrailing).padding(.leading, pillLeading)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
