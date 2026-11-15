@@ -42,6 +42,7 @@ builder.Services.AddScoped<CloudAccount>();
 builder.Services.AddScoped<TestReset>();
 builder.Services.AddScoped<OnlineProjects>();
 builder.Services.AddScoped<CloudSync>();
+builder.Services.AddScoped<AssistantRelay>();
 if (account.IsConfigured)
 {
     builder.Services.AddMsalAuthentication(options =>

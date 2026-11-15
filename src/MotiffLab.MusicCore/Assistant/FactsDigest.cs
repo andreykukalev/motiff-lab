@@ -102,13 +102,16 @@ public sealed class FactsDigest
             Unique($"key.{index + 1}", ids),
             "key",
             key.KeyInferred || key.ModeInferred ? "inferred" : "detected",
-            $"{key.Key.NameIn(w)}, {Bars(key.FirstBar, key.LastBar, w)}")));
-        items.AddRange(dna.Form.Select(section => new DigestItem(Unique($"form.{section.Id}", ids), "form", "inferred", $"{section.Label}, {Bars(section.FirstBar, section.LastBar, w)}")));
+            $"{key.Key.NameIn(w)}, {Bars(key.FirstBar, key.LastBar, w)}")
+        { Bars = (key.FirstBar, key.LastBar) }));
+        items.AddRange(dna.Form.Select(section => new DigestItem(Unique($"form.{section.Id}", ids), "form", "inferred", $"{section.Label}, {Bars(section.FirstBar, section.LastBar, w)}")
+        { Bars = (section.FirstBar, section.LastBar) }));
         items.AddRange(dna.Cadences.Select(cadence => new DigestItem(
             Unique(string.Create(CultureInfo.InvariantCulture, $"cadence.{cadence.Bar}"), ids),
             "cadence",
             "inferred",
-            cadence.Kind == CloseKind.Full ? w.T($"full close in bar {cadence.Bar}", $"полная каденция в такте {cadence.Bar}") : w.T($"half close in bar {cadence.Bar}", $"половинная каденция в такте {cadence.Bar}"))));
+            cadence.Kind == CloseKind.Full ? w.T($"full close in bar {cadence.Bar}", $"полная каденция в такте {cadence.Bar}") : w.T($"half close in bar {cadence.Bar}", $"половинная каденция в такте {cadence.Bar}"))
+        { Bars = (cadence.Bar, cadence.Bar) }));
         items.AddRange(ChecksIn(piece, piece.FirstBar, piece.LastBar, ids, openOnly: true));
         return new FactsDigest("piece", piece.FirstBar, piece.LastBar, null, items, header);
     }
@@ -172,6 +175,7 @@ public sealed class FactsDigest
             $"{chord.Symbol(spelling)}, {place}")
         {
             Doubt = chord.Doubt,
+            Bars = (at.Bar, at.Bar),
             Places = [new DigestPlace(place, [.. chord.NoteIds.Select(piece.Addresses.TextOf).OfType<string>()])],
         };
     }
@@ -183,7 +187,8 @@ public sealed class FactsDigest
             Unique(string.Create(CultureInfo.InvariantCulture, $"check.{flag.Bar}.{ToolSchema.Camel(flag.Reason.ToString())}"), ids),
             "check",
             flag.Resolved ? "resolved" : "open",
-            $"{CheckFlag.NameOf(flag.Reason, piece.Words)}, {piece.Words.T("bar", "такт")} {flag.Bar}"));
+            $"{CheckFlag.NameOf(flag.Reason, piece.Words)}, {piece.Words.T("bar", "такт")} {flag.Bar}")
+        { Bars = (flag.Bar, flag.Bar) });
 
     /// <summary>Each hand's (or track's) notes in the range: how many, the lowest and the highest.</summary>
     private static IEnumerable<DigestItem> Lines(IReadOnlyList<Note> notes, HashSet<string> ids, Words w) => notes
@@ -228,6 +233,9 @@ public sealed record DigestItem(string Id, string Kind, string Certainty, string
 
     public IReadOnlyList<DigestPlace> Places { get; init; } = [];
 
+    /// <summary>The bars the item is about, when it names bars rather than notes (a key, a section, a close, a chord, a flag); null otherwise.</summary>
+    public (int From, int To)? Bars { get; init; }
+
     internal void Write(Utf8JsonWriter json)
     {
         json.WriteStartObject();
@@ -238,6 +246,14 @@ public sealed record DigestItem(string Id, string Kind, string Certainty, string
         if (Doubt is not null)
         {
             json.WriteString("doubt", Doubt);
+        }
+
+        if (Bars is { } bars)
+        {
+            json.WriteStartObject("bars");
+            json.WriteNumber("from", bars.From);
+            json.WriteNumber("to", bars.To);
+            json.WriteEndObject();
         }
 
         if (Places.Count > 0)

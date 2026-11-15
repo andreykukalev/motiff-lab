@@ -524,7 +524,7 @@
             @if (_dna is { } dna && !_dnaAside)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDna"
+                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync"
                                                ShowInInsights="ShowDnaInInsightsAsync" AddBookmarks="AddFormBookmarksAsync" Status="@_dnaStatus"
                                                HearScale="HearDnaScaleAsync" ScalePlaying="_scaleHeard" />
             }
@@ -560,7 +560,13 @@
             {
                 @* The Insights sheet (0018 section 6) over the right of the score: one stream of facts, Try chips and ideas for the selection. *@
                 <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection data-menu-clear="auto">
-                @if (_asking)
+                @if (_asking && MentorOn)
+                {
+                    <MentorPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                                 Exchanges="MentorExchanges" Busy="_mentorBusy" Suggestions="AskSuggestions" Asked="AskMentorAsync" Cite="ShowCitedAsync"
+                                 BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
+                }
+                else if (_asking)
                 {
                     <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
                                     Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
@@ -3401,6 +3407,7 @@
     /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
     private async Task ChooseFactAsync(FactChoice? choice)
     {
+        _highlightCited = false;
         _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
         if (choice?.Place is { } place)
         {
