@@ -226,6 +226,31 @@ struct SelectionOptionsRow: View {
     }
 }
 
+/// The selection menu moved aside (#582 item 7): pressed and dragged with a finger or the Pencil it follows, and let go it
+/// stays there (ScoreController.moveMenu; the page keeps the place inside the window, Scripts/score/menu-drag.ts) until the
+/// menu closes, when the next one opens over its band again. A tap still reaches the menu's buttons: the drag begins only
+/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts).
+struct MenuDrag: ViewModifier {
+    let score: ScoreController
+    @State private var moved = CGSize.zero
+
+    /// How far a touch on the menu moves before it drags the menu, in points.
+    static let distance: CGFloat = 6
+
+    func body(content: Content) -> some View {
+        content
+            .offset(moved)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: Self.distance, coordinateSpace: .global)
+                    .onChanged { value in moved = value.translation }
+                    .onEnded { value in
+                        score.moveMenu(by: value.translation)
+                        moved = .zero
+                    }
+            )
+    }
+}
+
 /// After a clear or a replace, «Выделение снято · Вернуть» for six seconds (#511 11): one tap brings the selection back,
 /// with any pointer; no Redo here. While a pointer that cannot scroll moves off the selection before the hold, the hint
 /// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there.

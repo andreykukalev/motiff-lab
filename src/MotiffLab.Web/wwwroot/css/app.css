@@ -4030,6 +4030,15 @@ h1:focus {
     transform: translateX(-50%) rotate(45deg);
 }
 
+/* Moved aside by the player (#582 item 7): it no longer points at the band; a finger on it drags it, not the page. */
+.workspace .ctx[data-pinned="true"] .menu::after {
+    display: none;
+}
+
+.workspace .ctx .menu {
+    touch-action: none;
+}
+
 .workspace .ctx[data-below="true"] .menu::after {
     bottom: auto;
     top: -7px;
