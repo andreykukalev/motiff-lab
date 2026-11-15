@@ -5,6 +5,7 @@
 
 import { done, result } from "./idb.js";
 
+export { deleteConversations } from "./conversation-store.js";
 export { deleteMarks } from "./pencil-store.js";
 export { deleteRecordings } from "./recording-store.js";
 

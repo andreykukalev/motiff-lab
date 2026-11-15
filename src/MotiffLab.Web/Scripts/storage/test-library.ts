@@ -8,8 +8,8 @@
 import { done } from "./idb.js";
 import { isTestSite } from "../layout/test-site.js";
 
-/** The app's IndexedDB databases: projects, pencil marks, recordings, the parts of a recording heard, the folder import. */
-export const LIBRARY_DATABASES = ["motiff-lab", "motiff-lab-pencil", "motiff-lab-recordings", "motiff-lab-heard-parts", "motiff-lab-import"];
+/** The app's IndexedDB databases: projects, pencil marks, recordings, the parts of a recording heard, the folder import, the assistant's conversations. */
+export const LIBRARY_DATABASES = ["motiff-lab", "motiff-lab-pencil", "motiff-lab-recordings", "motiff-lab-heard-parts", "motiff-lab-import", "motiff-lab-assistant"];
 
 const PREFIX = "motiff-lab:";
 /** Local storage entries of the library itself: the sync records and the originals kept on this device. */
