@@ -51,6 +51,7 @@
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
+import { PlaceLayer } from "../score/selection-place-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
@@ -97,7 +98,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false, selectionControls: true };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -151,6 +152,7 @@ function layout() {
     placeBookmarks();
     placeNotes();
     placeRings();
+    markPicked();
     selection.place();
     reportPages();
     return { bars: state.frames.length, space: state.frames[0]?.space ?? 0 };
@@ -512,7 +514,59 @@ const selection = new SelectionLayer(document.body, {
     dragStart: (pointerType) => (state.focus ? "none" : state.input?.[pointerType]?.select),
     // A finger takes a handle; the Pencil does where it does not write (#511 4.1): in the Pen it writes over the handles.
     takesHandle: (pointerType) => state.input?.[pointerType]?.handles,
+    // Selection by the place of the touch (v0.6.2, #601): the place layer below takes the presses, and draws the edges.
+    places: () => placesOn(),
 });
+
+/** Whether the place rule takes the presses (v0.6.2, Settings · Experimental, `input.places`): in Select, not in focus. */
+function placesOn() {
+    return state.input?.places === true && state.mode === "select" && !state.focus;
+}
+
+/**
+ * Selection by the place of the touch (v0.6.2, #601, Scripts/score/selection-place-layer.ts): an edge, inside or outside
+ * decides what a press does, with no hold for the Pencil; what it chose goes to Swift as `chosen` (with its hand and how
+ * the selection changed), a note head tapped as `picked`, a tap on the margin as `cleared`, a double tap inside as
+ * `zoomSelection` (the band's box in the document's pixels).
+ */
+const places = new PlaceLayer(document.body, {
+    geometry: () => state.geometry,
+    beats: selection.beats,
+    on: () => placesOn(),
+    rule: (pointerType) => {
+        const rule = state.input?.[pointerType]?.select;
+        return rule === "now" || rule === "longPress" ? rule : "none";
+    },
+    selection: () => (state.chosen ? { start: state.chosen.start, end: state.chosen.end, hand: state.chosen.hand ?? null } : null),
+    show: (range) => selection.showPlaced(range),
+    chosen: (range, how, gesture) => post({ chosen: { start: range.start, end: range.end, beats: true, places: true, hand: range.hand, how, gesture } }),
+    picked: (id, how, gesture) => post({ picked: { id: noteIdOf(id), how, gesture } }),
+    cleared: (gesture) => post({ cleared: { gesture } }),
+    zoom: () => post({ zoomSelection: bandBox() }),
+});
+
+/** The note an engraved note head belongs to: a later piece of a tied note ("…-2") is the note's. */
+function noteIdOf(id) {
+    const base = id.replace(/-\d+$/, "");
+    return base !== id && state.timeline?.spans.some((span) => span.id === base) ? base : id;
+}
+
+/** The box round the selection's band, in the document's pixels; null for none. */
+function bandBox() {
+    const bands = [...document.querySelectorAll("body > .sel-band")].map((band) => band.getBoundingClientRect());
+    if (bands.length === 0) {
+        return null;
+    }
+    const view = document.body.getBoundingClientRect();
+    const left = Math.min(...bands.map((band) => band.left)) - view.left;
+    const top = Math.min(...bands.map((band) => band.top)) - view.top;
+    return { left, top, right: Math.max(...bands.map((band) => band.right)) - view.left, bottom: Math.max(...bands.map((band) => band.bottom)) - view.top };
+}
+
+/** The notes picked into the selection (v0.6.2), cobalt on the page. */
+function markPicked() {
+    tint(document.getElementById("pages"), state.timeline, new Set(state.chosen?.picked ?? []), "sel-picked");
+}
 
 /** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
 const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
@@ -639,6 +693,7 @@ function beats({ lines }) {
 const placeMenu = selection.placeMenu.bind(selection);
 selection.placeMenu = () => {
     placeMenu();
+    places.decorate();
     reportMenu();
     reportHandles();
 };
@@ -675,6 +730,9 @@ function clearLeft({ width }) {
 
 /** The selection's span in ticks, with what a screen reader says for each handle; null for none. */
 function select(chosen) {
+    state.chosen = chosen ?? null;
+    markPicked();
+    selection.showPlaced(null);
     selection.setSelection(chosen ?? null);
     return chosen ? document.querySelectorAll("body > .sel-band").length : 0;
 }
@@ -757,7 +815,8 @@ document.body.addEventListener("click", (event) => {
     // A press on a playhead's handle is the handle's, a tap on it included: it never places the playhead or selects a bar.
     // The release of a long press that put the playhead is no tap on a beat (#543 3.1).
     const pressed = press.swallowsClick();
-    if (selection.swallowsClick() || pressed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
+    const placed = places.swallowsClick();
+    if (selection.swallowsClick() || pressed || placed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
     if (state.mode !== null) {

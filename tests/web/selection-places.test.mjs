@@ -174,3 +174,26 @@ test("a note head is taken within its reach, the nearest of two", () => {
     assert.equal(headAt(heads, 100, 108), undefined);
     assert.equal(headAt([], 0, 0), undefined);
 });
+
+test("a gesture near the top or the bottom of the view scrolls the page, faster nearer the edge", async () => {
+    const { scrollStep, SCROLL_ZONE, SCROLL_STEP } = await import("../../src/MotiffLab.Web/wwwroot/js/score/selection-places.js");
+    assert.equal(scrollStep(500, 0, 1000), 0);
+    assert.equal(scrollStep(SCROLL_ZONE, 0, 1000), 0);
+    assert.equal(scrollStep(0, 0, 1000), -SCROLL_STEP);
+    assert.ok(scrollStep(SCROLL_ZONE / 2, 0, 1000) < 0 && scrollStep(SCROLL_ZONE / 2, 0, 1000) > -SCROLL_STEP);
+    assert.equal(scrollStep(1000, 0, 1000), SCROLL_STEP);
+    assert.equal(scrollStep(-40, 0, 1000), -SCROLL_STEP, "never faster than the step");
+});
+
+test("a hand narrows the band to its staff of two; both hands, or a system that is not two staves, take every staff", async () => {
+    const { handStaves, onMusic, MUSIC_REACH } = await import("../../src/MotiffLab.Web/wwwroot/js/score/selection-boxes.js");
+    const two = { staves: [{ n: 1 }, { n: 2 }] };
+    const geometry = { barAt: (tick) => (tick < 1920 ? two : { staves: [{ n: 1 }] }), systems: [{ left: 100, right: 900, top: 100, bottom: 300 }] };
+    assert.deepEqual(handStaves(geometry, 0, "right"), [1]);
+    assert.deepEqual(handStaves(geometry, 0, "left"), [2]);
+    assert.equal(handStaves(geometry, 0, null), undefined);
+    assert.equal(handStaves(geometry, 1920, "right"), undefined);
+    assert.equal(onMusic(geometry, 500, 200), true);
+    assert.equal(onMusic(geometry, 100 - MUSIC_REACH, 300 + MUSIC_REACH), true);
+    assert.equal(onMusic(geometry, 500, 300 + MUSIC_REACH + 1), false, "the page's margin");
+});

@@ -271,3 +271,21 @@ export function headAt(heads: readonly NoteHead[], x: number, y: number, reach =
     }
     return best;
 }
+
+/** How near the top or the bottom of the view a gesture scrolls the page, and how far at most in a frame, in pixels. */
+export const SCROLL_ZONE = 48;
+export const SCROLL_STEP = 18;
+
+/**
+ * How far a gesture at `y` (in the window) scrolls the page this frame (section F, Край экрана): up within SCROLL_ZONE
+ * of the view's `top`, down within it of its `bottom`, faster nearer the edge; 0 elsewhere.
+ */
+export function scrollStep(y: number, top: number, bottom: number, zone = SCROLL_ZONE, most = SCROLL_STEP): number {
+    if (y < top + zone) {
+        return -Math.ceil(most * Math.min(1, (top + zone - y) / zone));
+    }
+    if (y > bottom - zone) {
+        return Math.ceil(most * Math.min(1, (y - (bottom - zone)) / zone));
+    }
+    return 0;
+}
