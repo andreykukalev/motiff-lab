@@ -15,7 +15,7 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 - `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10).
 - `Insights.swift`: `InsightsController` (facts, Try ways, `trial`), `InsightsSheet` (the stream; Ask's foot).
 - `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures.
-- `PlaceSelection.swift` (v0.6.2, `experimental.placeSelection`): the one selection (span, hand, notes picked) and
+- `PlaceSelection.swift` (v0.6.2; `PlaceSelection.on` since v0.6.3, no switch): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`; the page's rule is `Scripts/score/selection-places.ts` (map: `docs/code-map/score.md`).
 - The roll in the drawer (`RollController`, `RollDrawer`, `RollTools`, `RollPlace`, `Web/roll.js`): `docs/code-map/roll.md`.
 

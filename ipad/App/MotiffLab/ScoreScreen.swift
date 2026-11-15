@@ -1153,7 +1153,6 @@ extension ScoreScreen {
         }
         // Under the modes, Select's «По тактам / По долям» (#511 4.2); without them, the experiment Select by beats.
         score.setBeatLines(player.beatLines, experiment: settings.isOn("experimental.beats"))
-        score.placeSelection = settings.isOn(PlaceSelection.setting)
         syncPlayheads()
         if score.onePosition { player.hold(selection: score.playRange?.range) }
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }

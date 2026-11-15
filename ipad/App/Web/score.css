@@ -115,6 +115,9 @@ body[data-selection-hidden] .sel-handle { visibility: hidden; }
 body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }
 .sel-add { background: var(--accent-tint); }
+/* The rectangle a new selection is drawn with (v0.6.3, the approved mockup's .trace): from the press to the stylus, thin and
+   dashed in the notation's ink, over the band growing under it. */
+.sel-trace { position: absolute; z-index: 2; box-sizing: border-box; border: 1px dashed color-mix(in srgb, var(--notation) 45%, transparent); border-radius: var(--r-xs); pointer-events: none; }
 .sel-target { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); opacity: 0.45; transform: translate(-50%, -100%); pointer-events: none; }
 .page :is(g.note, g.chord).sel-picked { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
 
