@@ -109,16 +109,6 @@ struct ScoreScreen: View {
         .onChange(of: insightsOpen || checkOpen || versionsOpen) { _, open in if open { assistant.close() } }
     }
 
-    /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
-    private func askAssistant(_ question: String) {
-        let whole = assistant.wholePiece || score.selection == nil
-        let ask = AssistantAsk(
-            piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
-            language: text.language, role: AssistantSide.role(settings), relay: account.assistant
-        )
-        Task { await assistant.ask(question, about: ask) }
-    }
-
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.
     enum SheetPlace: Equatable {
         case none, side
@@ -972,6 +962,16 @@ extension ScoreScreen {
             }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
         return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
+    }
+
+    /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
+    private func askAssistant(_ question: String) {
+        let whole = assistant.wholePiece || score.selection == nil
+        let ask = AssistantAsk(
+            piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
+            language: text.language, role: AssistantSide.role(settings), relay: account.assistant
+        )
+        Task { await assistant.ask(question, about: ask) }
     }
 
     /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in
