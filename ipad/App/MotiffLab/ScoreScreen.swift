@@ -34,6 +34,8 @@ struct ScoreScreen: View {
     /// Whether Check, Other versions or Settings was opened from More, so it shows "‹ More" (testing item 20).
     @State private var fromMore = false
     @StateObject var insights = InsightsController()
+    /// The model-backed assistant (#582 item 17, Settings · Experimental): its side panel and the piece's conversations.
+    @StateObject var assistant = AssistantController()
     /// The piano roll's drawer (0018 section 4), from the bar or the selection menu.
     @State var rollOpen = false
     /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
@@ -101,6 +103,10 @@ struct ScoreScreen: View {
         // as landscape and the sheets, the drawer, the pill and the page's room moved, and back again as it went. A chat
         // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
         .ignoresSafeArea(.keyboard)
+        .environmentObject(assistant)
+        // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
+        .onChange(of: assistant.panelOpen) { _, open in if open { insightsOpen = false; checkOpen = false; versionsOpen = false } }
+        .onChange(of: insightsOpen || checkOpen || versionsOpen) { _, open in if open { assistant.close() } }
     }
 
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.
@@ -250,9 +256,12 @@ struct ScoreScreen: View {
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
         let pillBottom = covered > 0 ? covered + gap : CGFloat.ds("s-4")
-        let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : 0
+        // The full assistant's panel sits beside the score, which keeps the rest of the width (#582 item 17.1).
+        let side = assistant.panelOpen ? Self.assistantWidth(landscape: screen.width > screen.height) + gap : 0
+        let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : side
         let pillLeading: CGFloat = contentsPlace == .side ? Self.contentsWidth + gap : 0
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
+            .padding(.trailing, side)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
@@ -508,6 +517,7 @@ struct ScoreScreen: View {
         // The bookmarks are drawn as brackets on the score, and again whenever they change.
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
+        assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title)
         await player.load(piece: piece.id, key: piece.own?.id)
         applyExperiments()
         await resume()
@@ -944,8 +954,24 @@ extension ScoreScreen {
         // The chain is cut into parts so the compiler type-checks each on its own.
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
         let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
+            .overlay(alignment: .bottomTrailing) {
+                // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
+                if assistant.panelOpen {
+                    AssistantSide(assistant: assistant, text: text, selection: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                }
+            }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
         return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
+    }
+
+    /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
+    private func askAssistant(_ question: String) {
+        let whole = assistant.wholePiece || score.selection == nil
+        let ask = AssistantAsk(
+            piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
+            language: text.language, role: AssistantSide.role(settings), relay: account.assistant
+        )
+        Task { await assistant.ask(question, about: ask) }
     }
 
     /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in
@@ -1213,6 +1239,8 @@ struct ScoreBar: View {
     /// The list of extra information under the ⓘ button's chevron.
     @State private var extraOpen = false
     @EnvironmentObject private var account: Account
+    @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
     /// in the same places in both views, then the pages in view, and each view's own actions at the right.
@@ -1355,6 +1383,11 @@ struct ScoreBar: View {
                 openDna()
             } askAboutPiece: {
                 more = false
+                // With the assistant on (#582 item 17.1), its panel opens on the whole piece.
+                if AssistantSide.on(settings) {
+                    assistant.open(wholePiece: true)
+                    return
+                }
                 // Once More's popover has gone, the assistant's opens where it was.
                 Task {
                     try? await Task.sleep(for: .milliseconds(350))
@@ -1553,6 +1586,7 @@ struct SelectionMenu: View {
     @State private var asking = false
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         Group {
@@ -1580,7 +1614,8 @@ struct SelectionMenu: View {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
                         Button {
-                            asking = true
+                            // With the assistant on (#582 item 17), it opens on the selection.
+                            if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "insight")
@@ -1776,6 +1811,8 @@ struct FocusBar: View {
     /// Ask on the phrase in focus: the assistant's popover at the button (testing item 23).
     @State private var asking = false
     @EnvironmentObject private var account: Account
+    @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -1813,7 +1850,7 @@ struct FocusBar: View {
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
-                asking = true
+                if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
             } label: {
                 Text(text["ask.menu"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 40)
             }

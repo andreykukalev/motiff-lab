@@ -21,6 +21,12 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
   (UITextField, Scribble declined so the Pencil opens the keyboard), `AskInputRow` (field + Send), `KeyboardRoom`.
 - `Ask.swift`: `AskConversation`, `AskContext`, `AskPopover` (Ask without the model), `AskStreamFoot`.
+- `AssistantController.swift` (experiment `experimental.assistant`): the panel's state, the piece's conversations,
+  `ask` (status → `assistant.context` → turns), `add` («Добавить в контекст»). `AssistantTurns.swift`: one question's
+  turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`, the turn format v1, cited facts.
+  `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`. `AssistantStore.swift`: conversations by piece in
+  Application Support (never the project file). `AssistantPanel.swift`, `AssistantSide.swift`: the side panel (the score
+  narrowed in `ScoreScreen.layers`), the consent, the list.
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features.
 
 ## Rules not to break

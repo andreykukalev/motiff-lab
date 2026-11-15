@@ -455,6 +455,13 @@ final class Account: ObservableObject {
             session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) }, writable: writes, resetApplied: resets)
     }
 
+    /// The assistant's relay on the API in the environment the app works in now, with the player's token (#582 item 17):
+    /// nothing is sent while nobody is signed in, and its requests stop once the app switches environment.
+    var assistant: AssistantRelay {
+        let environment = self.environment
+        return AssistantRelay(session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) })
+    }
+
     /// Adds a tester's choice to a request for the API or the hosted scan server; nothing when there is none.
     func addPlanChoice(to request: inout URLRequest) {
         if let choice { request.setValue(choice.rawValue, forHTTPHeaderField: Self.planHeader) }
