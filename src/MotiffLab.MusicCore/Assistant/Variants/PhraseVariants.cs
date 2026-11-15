@@ -96,7 +96,7 @@ public static class PhraseVariants
         {
             VariationChain chain = VariationChain.Start(
                 VariationFacts.MotifNotes(notes, selection),
-                VariationContext.For(selection, variant.Keep.ToHashSet(), key: variant.Key, meter: meter, words: words));
+                VariationContext.For(selection, variant.Keep.ToHashSet(), variant.Provenance.Seed, variant.Key, meter, words));
             foreach (SavedStep step in variant.Steps)
             {
                 IVariationOperation? operation = VariationOperations.Find(step.Operation);
