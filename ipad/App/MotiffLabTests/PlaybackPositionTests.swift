@@ -42,6 +42,7 @@ final class PlaybackPositionTests: XCTestCase {
     func testAPlayheadGestureIsReadFromThePagesMessage() {
         XCTAssertEqual(PlayheadGesture(message: ["phase": "grab", "handle": "blue"] as [String: Any]), .grab(.blue))
         XCTAssertEqual(PlayheadGesture(message: ["phase": "move", "handle": "black", "tick": 960] as [String: Any]), .move(960))
+        XCTAssertEqual(PlayheadGesture(message: ["phase": "place", "handle": "black", "tick": 3840] as [String: Any]), .place(3840), "a long press puts it down (#582 item 12)")
         XCTAssertEqual(PlayheadGesture(message: ["phase": "release", "handle": "black", "tick": NSNull()] as [String: Any]), .release)
         XCTAssertNil(PlayheadGesture(message: ["phase": "grab", "handle": "green"] as [String: Any]), "no such playhead")
         XCTAssertNil(PlayheadGesture(message: ["phase": "move", "handle": "black"] as [String: Any]), "a move without its tick")
@@ -123,7 +124,7 @@ final class PlaybackPositionTests: XCTestCase {
             return .grab
         case "drag":
             guard let handle, let at = number(object["at"]) else { return nil }
-            return .drag(handle, to: at)
+            return .drag(handle, to: at, jump: object["jump"] as? Bool ?? false)
         default:
             guard let handle, let resume = object["resume"] as? Bool else { return nil }
             return .release(handle, resume: resume)

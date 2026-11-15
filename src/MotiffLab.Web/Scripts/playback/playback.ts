@@ -222,7 +222,7 @@ export class Player {
             void this.resume();
         }
         const decided = this.owner.gesture(message, this.place());
-        if (decided === null || message.phase === "move") {
+        if (decided === null || message.phase === "move" || message.phase === "place") {
             return;
         }
         this.modelReported = "";

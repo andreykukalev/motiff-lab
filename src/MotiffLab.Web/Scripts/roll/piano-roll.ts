@@ -434,7 +434,7 @@ export class PianoRoll {
             this.player.drag(message, this.passage);
             return;
         }
-        void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, message.phase === "move" ? message.tick : null);
+        void this.dotnet.invokeMethodAsync("OnRollDrag", message.phase, message.handle, "tick" in message ? message.tick : null);
     });
     /** Where the press on a playhead's handle began, until it moves past a tap. */
     private lanePress: number | null = null;
@@ -2132,7 +2132,7 @@ export class PianoRoll {
             return;
         }
         const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
-        const place = laneDragTick("black", tick, bars, this.motif, model.end);
+        const place = laneDragTick("black", tick, bars, this.motif, model.end, model.onsets);
         if (place !== undefined) {
             this.laneDrag.move(event.pointerId, place);
             this.scrollTo(viewAlong(this.scroll, this.visibleTicks(), place, this.maxScroll()));
@@ -2303,8 +2303,11 @@ export class PianoRoll {
         return true;
     }
 
-    /** The held playhead goes to the place under a point across the roll, on its grid and inside its band. */
-    private dragLaneHeadTo(pointer: number, x: number): void {
+    /**
+     * The held playhead goes to the place under a point across the roll, on its grid and inside its band; `place` puts it
+     * down there (a long press, #582 item 12), silent over what it jumped.
+     */
+    private dragLaneHeadTo(pointer: number, x: number, place = false): void {
         const handle = this.laneDrag.handle;
         const model = this.model;
         if (handle === null || model === null) {
@@ -2312,9 +2315,13 @@ export class PianoRoll {
         }
         const bars = model.bars.map((bar) => ({ start: bar.onset, end: bar.end }));
         const selection = this.passage ?? (this.lanes ? this.motif : (this.heldModel()?.selection ?? this.motif));
-        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end);
+        const tick = laneDragTick(handle, this.tickAtX(Math.max(GUTTER, x)), bars, selection, model.end, model.onsets);
         if (tick !== undefined) {
-            this.laneDrag.move(pointer, tick);
+            if (place) {
+                this.laneDrag.place(pointer, tick);
+            } else {
+                this.laneDrag.move(pointer, tick);
+            }
             this.invalidate();
         }
     }
@@ -2459,7 +2466,7 @@ export class PianoRoll {
         }
         this.lanePress = null;
         this.headDrag = { pointer, x };
-        this.dragLaneHeadTo(pointer, x);
+        this.dragLaneHeadTo(pointer, x, true);
     }
 
     /** The notes a box drawn in Edit notes takes, picked for the editor (not a selection); the editor opens on them. */

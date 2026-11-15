@@ -31,7 +31,7 @@ export interface ScoreGrabHost {
 /**
  * The tick a playhead dragged to a point goes to, or undefined off the bars: along the bar under the point (on the system
  * nearest it), the blue one held to the selection, the bar the selection starts or ends in when the point is beyond it.
- * On the sixteenth grid of that bar.
+ * On the sixteenth grid of that bar, or on a note's start where that is nearer (#582 item 12).
  */
 export function scoreDragTick(geometry: ScoreGeometry, onsetOf: (id: string) => number | undefined, handle: Handle,
     point: { x: number; y: number }, selection: Span | null): number | undefined {
@@ -44,7 +44,7 @@ export function scoreDragTick(geometry: ScoreGeometry, onsetOf: (id: string) => 
         tick = tick < selection.start ? selection.start : selection.end - 1;
         bar = geometry.barAt(tick) ?? bar;
     }
-    return snapTick(tick, { start: bar.tick, end: bar.end }, handle === "blue" ? selection : null);
+    return snapTick(tick, { start: bar.tick, end: bar.end }, handle === "blue" ? selection : null, geometry.onsets(bar, onsetOf));
 }
 
 /** A press that moves less than this, in pixels, is a tap on the handle: it moves nothing. */

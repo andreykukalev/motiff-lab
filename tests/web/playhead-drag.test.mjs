@@ -63,6 +63,7 @@ function fakeGeometry() {
         barNear: (x) => (x < 500 ? first : second),
         barAt: (tick) => bars.find((one) => tick >= one.tick && tick < one.end),
         tickAt: (one, x) => tickInBar(one, [], x),
+        onsets: () => [],
         playhead: (tick) => ({ x: 0, top: 0, bottom: 80, bar: bars.find((one) => tick >= one.tick && tick < one.end) }),
     };
 }

@@ -219,6 +219,8 @@ export class RollModel {
     readonly end: number;
     readonly lowest: number;
     readonly highest: number;
+    /** Each start of a note once, in time order: where a dragged playhead may stand on a note (#582 item 12). */
+    readonly onsets: readonly number[];
     private readonly longest: number;
     private readonly indexById: Map<string, number>;
 
@@ -231,6 +233,7 @@ export class RollModel {
         this.highest = notes.reduce((high, note) => Math.max(high, note.pitch), notes.length > 0 ? 0 : 72);
         this.longest = notes.reduce((longest, note) => Math.max(longest, note.end - note.onset), 0);
         this.indexById = new Map(notes.map((note, index) => [note.id, index]));
+        this.onsets = notes.map((note) => note.onset).filter((onset, index, all) => index === 0 || onset !== all[index - 1]);
     }
 
     static fromPayload(payload: RollPayload): RollModel {
