@@ -40,6 +40,16 @@ compacted automatically at about 200K tokens.
   `/mnt/project-files/product/web-backlog.md` (or `ipad-backlog.md`): what changed, the pull request, the shared code
   touched. A porting version is planned from that list.
 
+## Code maps and tracks
+
+- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, web), under 3 KB: which files do what, the
+  key functions with line ranges, the rules not to break. Read your area's map before the code. A pull request that
+  adds, moves or splits structure updates the map in the same pull request; the first agent in an area with no map
+  writes it from what it studied, in its first pull request.
+- A lead splits a version into tracks by code area, not by spec item: items that touch the same files go to one agent
+  in sequence (up to about three pull requests, the track note between them); parallel agents only on files that do
+  not overlap.
+
 ## Branches, commits and pull requests
 
 - One change, one branch (`claude/*`), one pull request to `develop` (to `main` only for a release or a hotfix).
