@@ -149,6 +149,11 @@ public static class SettingsCatalogue
         // music-core makes the notes as a draft over the bars, which only the player accepts into the corrections.
         Switch("experimental.assistantActions", SettingSection.Experimental, null, SettingScope.Device),
 
+        // The assistant at the selection, and kept conversations (v0.6.1, #582 items 17.1 and 17.2): with the conversation on,
+        // Ask on a selection opens a compact popup there that keeps nothing, whose Add to context moves its exchange into the
+        // full assistant's conversation; that conversation is kept on the device by piece, never in the project file.
+        Switch("experimental.assistantContext", SettingSection.Experimental, null, SettingScope.Device),
+
         // «Что если» variants of a phrase (v0.6, the AI companion study, section 2.4): in phrase focus, engine operations make
         // variants with no AI, kept as ideas and taken into the working notes by a carry of the assembly journal. On the device.
         Switch("experimental.assistantVariants", SettingSection.Experimental, null, SettingScope.Device),

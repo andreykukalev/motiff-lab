@@ -1,0 +1,111 @@
+@using MotiffLab.MusicCore.Assistant.Conversation
+@inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Projects.Preferences Preferences
+
+@* The contextual assistant (an experiment; #582 item 17.2, the lead's decision 5): a compact popup at the selection, for one
+   thing at a time. Its context is the selection; it keeps no conversation and nothing on the device: a new question takes
+   the place of the last, and closing it forgets it. Its answer is the full assistant's, cited facts and all, and its
+   draft, when it made one, is shown under it (#582 item 17.3). Add to context moves the question and answer into the full
+   assistant's conversation about this piece. The consent is the full assistant's, asked once. The page does the asking. *@
+<section class="assistant compact mentor context-assistant" aria-labelledby="ask-pop-title">
+    <div class="ask-head">
+        <h2 id="ask-pop-title" class="overline">@Text["context.title"]</h2>
+        <span class="sp"></span>
+        <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
+    </div>
+    @if (SelectionLabel is { } selection)
+    {
+        <p class="caption context-about">@Text.Format("context.about", selection)</p>
+    }
+
+    @if (_consented is false)
+    {
+        <MentorConsent IdPrefix="context" Agreed="() => _consented = true" NotNow="() => Closed.InvokeAsync()" />
+    }
+    else if (_consented is true)
+    {
+        <form class="ask-input" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+            <input type="text" maxlength="@TurnRequest.MaxQuestion" disabled="@Busy" aria-label="@Text["context.placeholder"]" placeholder="@Text["context.placeholder"]" @bind="_draft" />
+            <button type="submit" class="btn quiet icon" disabled="@Busy" aria-label="@Text["mentor.send"]" title="@Text["mentor.send"]"><Icon Name="fwd" /></button>
+        </form>
+
+        <div class="mentor-talk" aria-live="polite">
+            @if (Busy)
+            {
+                <p class="mentor-note" role="status">@Text["mentor.thinking"]</p>
+            }
+            else if (Exchange is { } exchange)
+            {
+                <MentorExchangeView Exchange="exchange" Cite="Cite" />
+                @DraftContent
+                @if (exchange.Note is null)
+                {
+                    <div class="row context-add">
+                        @if (Added)
+                        {
+                            <p class="caption" role="status">@Text["context.added"]</p>
+                        }
+                        else
+                        {
+                            <button class="btn quiet compact" @onclick="() => AddToContext.InvokeAsync()">@Text["context.add"]</button>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="caption">@Text["context.empty"]</p>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>Whether the player agreed to what a question sends; null until it is read.</summary>
+    private bool? _consented;
+
+    private string _draft = "";
+
+    /// <summary>"This phrase · 9–16" or "This selection · 9–16": what the question is about.</summary>
+    [Parameter]
+    public string? SelectionLabel { get; set; }
+
+    /// <summary>The last question and what came of it; null before the first.</summary>
+    [Parameter]
+    public MentorExchange? Exchange { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>Whether the exchange was added to the full assistant's conversation.</summary>
+    [Parameter]
+    public bool Added { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Asked { get; set; }
+
+    [Parameter]
+    public EventCallback<CitedFact> Cite { get; set; }
+
+    /// <summary>The assistant's draft for the question, when it made one, under the answer.</summary>
+    [Parameter]
+    public RenderFragment? DraftContent { get; set; }
+
+    [Parameter]
+    public EventCallback AddToContext { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    protected override async Task OnInitializedAsync() => _consented = await MentorConsent.GivenAsync(Preferences);
+
+    private async Task SubmitAsync()
+    {
+        string question = _draft.Trim();
+        if (_consented is true && !Busy && question.Length > 0)
+        {
+            _draft = "";
+            await Asked.InvokeAsync(question);
+        }
+    }
+}

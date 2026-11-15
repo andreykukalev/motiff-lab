@@ -12682,3 +12682,69 @@ body:has(> #app > .library) {
         left: calc(50% - (380px + var(--s-3) + var(--s-4)) / 2);
     }
 }
+
+/* The full assistant's kept conversations (#582 item 17.1): New conversation, and the list of the piece's conversations by
+   their first question and when, the one on show marked in the selection's tint. */
+.workspace .assistant .mentor-history {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .mentor-history .row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .mentor-history .sp {
+    flex: 1;
+}
+
+.workspace .assistant .mentor-conversations {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .assistant .mentor-conversation {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-1);
+    width: 100%;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: start;
+    cursor: pointer;
+}
+
+.workspace .assistant .mentor-conversation:hover,
+.workspace .assistant .mentor-conversation.on {
+    background: var(--accent-tint);
+}
+
+.workspace .assistant .mentor-conversation .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The contextual assistant (#582 item 17.2): the popup at the selection, one question at a time, Add to context under the answer. */
+.workspace .assistant.context-assistant .context-about,
+.workspace .assistant.context-assistant .context-add .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant.context-assistant .context-add {
+    display: flex;
+    justify-content: flex-end;
+}

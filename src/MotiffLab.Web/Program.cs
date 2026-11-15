@@ -43,6 +43,7 @@ builder.Services.AddScoped<TestReset>();
 builder.Services.AddScoped<OnlineProjects>();
 builder.Services.AddScoped<CloudSync>();
 builder.Services.AddScoped<AssistantRelay>();
+builder.Services.AddScoped<MotiffLab.Web.Insights.AssistantHistory>();
 if (account.IsConfigured)
 {
     builder.Services.AddMsalAuthentication(options =>

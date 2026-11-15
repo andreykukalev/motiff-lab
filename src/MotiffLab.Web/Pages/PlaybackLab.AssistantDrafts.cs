@@ -23,7 +23,8 @@ public partial class PlaybackLab
     public const string ActionsSetting = "experimental.assistantActions";
 
     /// <summary>A draft of the assistant on show: the call that made it, its notes as made now, its bars, and the question it answers.</summary>
-    private sealed record AiDraft(SessionDraft Call, AssistantDraft Made, TickSpan Measure);
+    /// <param name="InConversation">Whether it was made in the full assistant's conversation, which keeps the player's decision on it; the popup at the selection keeps nothing.</param>
+    private sealed record AiDraft(SessionDraft Call, AssistantDraft Made, TickSpan Measure, bool InConversation);
 
     /// <summary>The assistant's draft on show; null when none is.</summary>
     private AiDraft? _aiDraft;
@@ -69,10 +70,10 @@ public partial class PlaybackLab
     private string AiDraftBars => _aiDraft is { } shown && _meter is not null ? BarsOf(shown.Measure) : "";
 
     /// <summary>
-    /// The drafts the question's calls made (those after <paramref name="before"/> in the conversation), made again over the
+    /// The drafts the question's calls made (those after <paramref name="before"/> in <paramref name="session"/>), made again over the
     /// notes as they are; the first is shown, and the repair on show, if any, gives way to it.
     /// </summary>
-    private async Task OfferAiDraftsAsync(AssistantPiece piece, int before)
+    private async Task OfferAiDraftsAsync(AssistantPiece piece, AssistantSession session, int before, bool inConversation)
     {
         if (_meter is null)
         {
@@ -80,8 +81,8 @@ public partial class PlaybackLab
         }
 
         MeterMap meter = _meter;
-        _aiDrafts = [.. _mentor.Drafts.Skip(before)
-            .Select(call => call.Make(piece) is { } made ? new AiDraft(call, made, made.Measure(meter)) : null)
+        _aiDrafts = [.. session.Drafts.Skip(before)
+            .Select(call => call.Make(piece) is { } made ? new AiDraft(call, made, made.Measure(meter), inConversation) : null)
             .OfType<AiDraft>()];
         if (_aiDrafts.Count == 0)
         {
@@ -154,7 +155,7 @@ public partial class PlaybackLab
 
     private void CloseAiDraft(DraftState state)
     {
-        foreach (AiDraft offered in _aiDrafts)
+        foreach (AiDraft offered in _aiDrafts.Where(static offered => offered.InConversation))
         {
             _mentor = _mentor.Decided(offered.Call.Id, offered == _aiDraft ? state : DraftState.Dismissed);
         }

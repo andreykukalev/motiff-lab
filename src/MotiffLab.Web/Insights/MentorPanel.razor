@@ -12,51 +12,18 @@
 
     @if (_consented is false)
     {
-        <div class="mentor-consent" role="group" aria-labelledby="mentor-consent-title">
-            <h3 id="mentor-consent-title">@Text["mentor.consentTitle"]</h3>
-            <p>@Text["mentor.consentLead"]</p>
-            <ul>
-                <li>@Text["mentor.consentNotes"]</li>
-                <li>@Text["mentor.consentDigest"]</li>
-                <li>@Text["mentor.consentQuestion"]</li>
-            </ul>
-            <p>@Text["mentor.consentWhere"]</p>
-            <p class="caption">@Text["mentor.consentNot"]</p>
-            <div class="row">
-                <button class="btn primary compact" @onclick="AgreeAsync">@Text["mentor.agree"]</button>
-                <button class="btn quiet compact" @onclick="() => Back.InvokeAsync()">@Text["mentor.notNow"]</button>
-            </div>
-        </div>
+        <MentorConsent Agreed="() => _consented = true" NotNow="() => Back.InvokeAsync()" />
     }
     else if (_consented is true)
     {
+        @if (Kept)
+        {
+            <ConversationList Conversations="Conversations" Current="@Current" CanStartNew="Exchanges.Count > 0" Busy="Busy" Open="OpenConversation" New="NewConversation" />
+        }
         <div class="mentor-talk" aria-live="polite">
             @foreach (MentorExchange exchange in Exchanges)
             {
-                <p class="mentor-question">@exchange.Question</p>
-                @if (exchange.Note is { } note)
-                {
-                    <p class="mentor-note" role="status">@Text[note]</p>
-                }
-                else
-                {
-                    <article class="mentor-answer @(exchange.Fallback ? "fallback" : null)" aria-label="@Text[exchange.Fallback ? "mentor.engineFacts" : "mentor.interpretation"]">
-                        <p class="overline">@Text[exchange.Fallback ? "mentor.engineFacts" : "mentor.interpretation"]</p>
-                        <p class="mentor-text">
-                            @foreach (AnswerPart part in exchange.Parts)
-                            {
-                                if (part.Cites is { } id)
-                                {
-                                    @Citation(exchange, id)
-                                }
-                                else
-                                {
-                                    @part.Text
-                                }
-                            }
-                        </p>
-                    </article>
-                }
+                <MentorExchangeView Exchange="exchange" Cite="Cite" />
             }
             @DraftContent
             @if (Busy)
@@ -88,11 +55,6 @@
 </section>
 
 @code {
-    /// <summary>The key of the player's consent on this device, and its value once given.</summary>
-    public const string ConsentKey = "ml-assistant-consent";
-
-    public const string Consented = "yes";
-
     /// <summary>Whether the player agreed to what a question sends; null until it is read.</summary>
     private bool? _consented;
 
@@ -131,6 +93,28 @@
     [Parameter]
     public RenderFragment? DraftContent { get; set; }
 
+    /// <summary>Whether the piece's conversations are kept on this device (#582 item 17.1), so the list is shown.</summary>
+    [Parameter]
+    public bool Kept { get; set; }
+
+    /// <summary>The piece's kept conversations, newest first.</summary>
+    [Parameter]
+    public IReadOnlyList<ConversationEntry> Conversations { get; set; } = [];
+
+    /// <summary>The id of the conversation on show; null for one not kept yet.</summary>
+    [Parameter]
+    public string? Current { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OpenConversation { get; set; }
+
+    [Parameter]
+    public EventCallback NewConversation { get; set; }
+
+    /// <summary>The panel opened: the page follows the piece, so the latest conversation is there.</summary>
+    [Parameter]
+    public EventCallback Opened { get; set; }
+
     [Parameter]
     public EventCallback Back { get; set; }
 
@@ -140,17 +124,15 @@
     [Parameter]
     public EventCallback Closed { get; set; }
 
-    protected override async Task OnInitializedAsync() => _consented = await Preferences.GetAsync(ConsentKey) == Consented;
-
-    private async Task AgreeAsync()
+    protected override async Task OnInitializedAsync()
     {
-        await Preferences.SetAsync(ConsentKey, Consented);
-        _consented = true;
+        _consented = await MentorConsent.GivenAsync(Preferences);
+        await Opened.InvokeAsync();
     }
 
     private async Task WithdrawAsync()
     {
-        await Preferences.SetAsync(ConsentKey, null);
+        await Preferences.SetAsync(MentorConsent.ConsentKey, null);
         _consented = false;
     }
 
@@ -168,22 +150,4 @@
             await Asked.InvokeAsync(question);
         }
     }
-
-    /// <summary>A cited fact: a chip with the engine's line that rings its places, or its line alone when it names none.</summary>
-    private RenderFragment Citation(MentorExchange exchange, string id) => __builder =>
-    {
-        if (exchange.Cited.FirstOrDefault(fact => fact.Id == id) is not { } fact)
-        {
-            return;
-        }
-
-        if (fact.Places.Count > 0)
-        {
-            <button class="cite" title="@Text["mentor.showInScore"]" @onclick="() => Cite.InvokeAsync(fact)">@fact.Text</button>
-        }
-        else
-        {
-            <span class="cite">@fact.Text</span>
-        }
-    };
 }

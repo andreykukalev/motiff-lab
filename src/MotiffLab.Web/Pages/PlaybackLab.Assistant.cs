@@ -39,13 +39,15 @@ public partial class PlaybackLab
     /// <summary>The popover at the place Ask was pressed: the selection's menu, the focus bar, Piece DNA, More or the keyboard.</summary>
     private void OpenAskPopover(MouseEventArgs? at, bool wholePiece)
     {
-        if (MentorOn)
+        if (MentorOn && !OpensContext(wholePiece))
         {
-            // The conversation (an experiment) lives in the Insights sheet, where its answers and their citations have room.
+            // The conversation (an experiment) lives in the Insights sheet, where its answers and their citations have room;
+            // with the contextual assistant on (#582 item 17.2), a question about the selection is asked in the popup there.
             OpenAsk(wholePiece);
             return;
         }
 
+        ForgetContext();
         _popover = Popover.None;
         _menuMore = false;
         _askScope = AskScope.Choose(wholePiece, _selection?.Span);
@@ -53,13 +55,19 @@ public partial class PlaybackLab
         _askAt = at is { ClientX: > 0 } or { ClientY: > 0 } ? (at.ClientX, at.ClientY) : (0, 0);
     }
 
-    private void CloseAskPopover() => _askAt = null;
+    /// <summary>The popover put away; the contextual assistant's question, answer and draft go with it (#582 item 17.2).</summary>
+    private async Task CloseAskPopoverAsync()
+    {
+        _askAt = null;
+        ForgetContext();
+        await DropContextDraftAsync();
+    }
 
-    private void AskPopoverKey(KeyboardEventArgs args)
+    private async Task AskPopoverKeyAsync(KeyboardEventArgs args)
     {
         if (args.Key == "Escape")
         {
-            CloseAskPopover();
+            await CloseAskPopoverAsync();
         }
     }
 
@@ -125,6 +133,14 @@ public partial class PlaybackLab
     private void OpenAsk(bool wholePiece)
     {
         _askAt = null;
+        ForgetContext();
+        if (_aiDraft is { InConversation: false })
+        {
+            // The popup's draft goes with the popup (#582 item 17.2).
+            _aiDraft = null;
+            _aiDrafts = [];
+        }
+
         _insightsOpen = true;
         _contentsOpen = false;
         _checkOpen = false;

@@ -34,6 +34,9 @@ public partial class PlaybackLab
 
     private bool _mentorBusy;
 
+    /// <summary>How many drafts the conversation held before the question being answered.</summary>
+    private int _mentorDraftsBefore;
+
     /// <summary>Whether the highlight on the score is a cited fact's, which the Insights stream does not show as its own.</summary>
     private bool _highlightCited;
 
@@ -55,20 +58,26 @@ public partial class PlaybackLab
             return;
         }
 
-        if (!ReferenceEquals(_mentorPiece, MentorSource) || _mentor.Role != AskRole)
+        await FollowPieceAsync();
+        if (_mentor.Role != AskRole)
         {
-            _mentorPiece = MentorSource;
-            _mentor = AssistantSession.Start(AskRole);
-            _mentorExchanges.Clear();
-            _aiDraft = null;
-            _aiDrafts = [];
+            // A conversation keeps the tools of its role: another role starts a new one.
+            StartConversation();
         }
 
         _mentorBusy = true;
         StateHasChanged();
         try
         {
-            _mentorExchanges.Add(await MentorAnswerAsync(question));
+            (MentorExchange exchange, AssistantSession? session) = await MentorAnswerAsync(_mentor, question);
+            if (session is not null)
+            {
+                _mentor = session;
+                await OfferAiDraftsAsync(MentorPiece()!, session, _mentorDraftsBefore, inConversation: true);
+            }
+
+            _mentorExchanges.Add(exchange);
+            await KeepConversationAsync(exchange);
         }
         finally
         {
@@ -76,29 +85,35 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>The answer, or why there is none; nothing is sent without consent, a model on for the account and a passage the turn can carry.</summary>
-    private async Task<MentorExchange> MentorAnswerAsync(string question)
+    /// <summary>The piece as the assistant's tools read it now, or null with no piece open.</summary>
+    private AssistantPiece? MentorPiece() =>
+        MentorSource is { } imported && _notes is not null && _meter is not null ? new AssistantPiece(imported, _notes, _project?.Check ?? [], Words) : null;
+
+    /// <summary>
+    /// The answer to <paramref name="question"/> asked in <paramref name="from"/>, with the session after it; or why there is
+    /// none, and no session: nothing is sent without consent, a model on for the account and a passage the turn can carry.
+    /// </summary>
+    private async Task<(MentorExchange Exchange, AssistantSession? Session)> MentorAnswerAsync(AssistantSession from, string question)
     {
-        if (await Preferences.GetAsync(MentorPanel.ConsentKey) != MentorPanel.Consented)
+        if (!await MentorConsent.GivenAsync(Preferences))
         {
-            return MentorExchange.Unanswered(question, "mentor.noConsent");
+            return (MentorExchange.Unanswered(question, "mentor.noConsent"), null);
         }
 
         (AssistantStatus? status, RelayProblem problem) = await Relay.StatusAsync();
         if (StatusNote(status, problem) is { } note)
         {
-            return MentorExchange.Unanswered(question, note);
+            return (MentorExchange.Unanswered(question, note), null);
         }
 
-        if (MentorSource is not { } imported || _notes is null || _meter is null)
+        if (MentorPiece() is not { } piece)
         {
-            return MentorExchange.Unanswered(question, "mentor.noPiece");
+            return (MentorExchange.Unanswered(question, "mentor.noPiece"), null);
         }
 
-        var piece = new AssistantPiece(imported, _notes, _project?.Check ?? [], Words);
         return MentorContext(piece) is { } context
-            ? await ConverseAsync(piece, context, question)
-            : MentorExchange.Unanswered(question, "mentor.tooManyBars");
+            ? await ConverseAsync(from, piece, context, question)
+            : (MentorExchange.Unanswered(question, "mentor.tooManyBars"), null);
     }
 
     /// <summary>Why the status forbids sending, as a UI text key; null when a question may go.</summary>
@@ -130,41 +145,42 @@ public partial class PlaybackLab
     private JsonElement? MentorContext(AssistantPiece piece) => AssistantContext.OfQuestion(piece, _selection?.Span, _askScope);
 
     /// <summary>
-    /// One question's turns: the device sends the turn, runs the tool calls that come back and sends their results, until the
-    /// answer. The conversation keeps the question only once it is answered, so a turn that fails leaves it as it was.
+    /// One question's turns in <paramref name="from"/>: the device sends the turn, runs the tool calls that come back and
+    /// sends their results, until the answer. The session after it comes back only with the answer, so a turn that fails
+    /// leaves the conversation as it was.
     /// </summary>
-    private async Task<MentorExchange> ConverseAsync(AssistantPiece piece, JsonElement context, string question)
+    private async Task<(MentorExchange Exchange, AssistantSession? Session)> ConverseAsync(AssistantSession from, AssistantPiece piece, JsonElement context, string question)
     {
-        AssistantSession session = _mentor.Ask(question);
-        int draftsBefore = session.Drafts.Count;
+        AssistantSession session = from.Ask(question);
+        _mentorDraftsBefore = session.Drafts.Count;
         for (int step = 0; step <= AssistantRoles.MostToolCalls + 1; step++)
         {
             TurnRequest request = session.Request(Text.Language, context);
             if (request.ToJson().Length > TurnRequest.MaxBytes)
             {
-                return MentorExchange.Unanswered(question, "mentor.tooLarge");
+                return (MentorExchange.Unanswered(question, "mentor.tooLarge"), null);
             }
 
             (TurnReply? reply, RelayProblem problem) = await Relay.TurnAsync(request);
             switch (reply?.Kind)
             {
                 case null:
-                    return MentorExchange.Unanswered(question, ProblemNote(problem));
+                    return (MentorExchange.Unanswered(question, ProblemNote(problem)), null);
                 case TurnReplyKind.NotConfigured:
-                    return MentorExchange.Unanswered(question, "mentor.notConfigured");
+                    return (MentorExchange.Unanswered(question, "mentor.notConfigured"), null);
                 case TurnReplyKind.ToolCalls:
                     int before = session.ToolCallsInQuestion;
                     session = session.Called(reply.Calls).Resulted(TurnRunner.Run(piece, session.Role, reply.Calls, before));
                     continue;
                 default:
                     CheckedAnswer answer = AnswerCheck.Check(reply.Text, request.KnownIds, context, Words, request.Drafted);
-                    _mentor = session.Answered(answer.Text);
-                    await OfferAiDraftsAsync(piece, draftsBefore);
-                    return new MentorExchange(question, answer.Parts, reply.Fallback || answer.FellBack, CitedFacts.In(piece, answer.Parts, context, _mentor.ResultsInQuestion), null);
+                    AssistantSession answered = session.Answered(answer.Text);
+                    var exchange = new MentorExchange(question, answer.Parts, reply.Fallback || answer.FellBack, CitedFacts.In(piece, answer.Parts, context, answered.ResultsInQuestion), null);
+                    return (exchange, answered);
             }
         }
 
-        return MentorExchange.Unanswered(question, "mentor.unreachable");
+        return (MentorExchange.Unanswered(question, "mentor.unreachable"), null);
     }
 
     /// <summary>A cited fact tapped: its places are ringed in the score and the playhead goes to the first, as a fact of the stream does.</summary>
