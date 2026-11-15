@@ -12213,3 +12213,443 @@ body:has(> #app > .library) {
     gap: 2px;
     margin-left: var(--s-1);
 }
+
+/* The new sources (version 0.6, behind experimental.sources; sources sheet, 2026-11-14). The switch of all the piece's
+   views where PDF | Notes stood: today's segmented control up to three views, a hairline between files and a dot after
+   the working notes; a menu button from four views, in the same capsule. */
+.lab.workspace .bar .views-seg .file-rule {
+    flex: none;
+    align-self: stretch;
+    width: 1px;
+    margin: var(--s-1) 2px;
+    background: var(--hairline-strong);
+}
+
+.lab.workspace .working-dot {
+    display: inline-block;
+    flex: none;
+    width: 5px;
+    height: 5px;
+    margin-left: var(--s-1);
+    border-radius: 50%;
+    background: var(--ink);
+    vertical-align: middle;
+}
+
+.lab.workspace .bar .views-menu {
+    position: relative;
+    flex: none;
+    align-self: center;
+    margin-left: var(--s-2);
+}
+
+.lab.workspace .bar .views-menu .views-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    width: auto;
+    height: 32px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.lab.workspace .bar .views-menu .views-scrim {
+    position: fixed;
+}
+
+.lab.workspace .views-popover {
+    position: absolute;
+    z-index: 6;
+    top: calc(100% + var(--s-2));
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 300px;
+    box-sizing: border-box;
+    padding: var(--s-2);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-menu);
+    color: var(--ink);
+}
+
+.lab.workspace .views-popover hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.lab.workspace .views-popover .views-group {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    margin: 0;
+    padding: var(--s-1) var(--s-2) 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .bar .views-popover button.views-item {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    height: auto;
+    min-height: 40px;
+    padding: var(--s-1) var(--s-2);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+}
+
+.lab.workspace .bar .views-popover button.views-item:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .views-popover button.views-item.on {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .views-popover .views-item.on > .ic:last-child {
+    color: var(--accent);
+}
+
+.lab.workspace .views-popover .views-item .what {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lab.workspace .views-popover .views-item .word {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body-strong);
+}
+
+.lab.workspace .views-popover .views-item .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .views-popover .views-foot {
+    grid-template-columns: 20px 1fr auto;
+}
+
+.lab.workspace .tag.working {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--ink);
+    color: var(--surface);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* The Sources button follows the switch, even when there is none: the layers and the word, lit while the sheet is open. */
+.lab.workspace .bar .sources-button {
+    flex: none;
+    margin-left: var(--s-2);
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* The Sources sheet in today's side sheet: the title, Add an original and close; then Originals and Notes as rows split
+   by hairlines, no cards. */
+.workspace .sources-sheet {
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .sources-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+}
+
+.workspace .sources-sheet .sources-head h2 {
+    flex: 1;
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.workspace .sources-sheet .add-original {
+    position: relative;
+}
+
+.workspace .sources-sheet .overline {
+    margin: var(--s-3) 0 0;
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.workspace .sources-sheet .source-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .sources-sheet .source-row {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.workspace .sources-sheet .source-row:last-child {
+    border-bottom: 0;
+}
+
+.workspace .sources-sheet .source-row.fresh {
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+/* The view shown wins over the fresh frame: new notes made working are tinted as shown. */
+.workspace .sources-sheet .source-row.selected {
+    border-color: transparent;
+    border-radius: var(--r-s);
+    background: var(--accent-tint);
+}
+
+.workspace .sources-sheet .source-row .op {
+    padding-top: 2px;
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .source-row .body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+}
+
+.workspace .sources-sheet .title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .title-line .name {
+    flex: 1;
+    min-width: 0;
+    font: var(--t-body-strong);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.workspace .sources-sheet .source-row.removed .name {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .title-line .acts {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+/* The eye and ⋯ are quiet icons on the row, as drawn; only «Открыть» is a button with a frame. */
+.lab.workspace .sources-sheet .acts .btn.icon {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-2);
+}
+
+.lab.workspace .sources-sheet .acts .btn.icon:hover, .lab.workspace .sources-sheet .acts .btn.icon.on {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .sources-sheet .eye.off {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .source-row .caption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .state-changed {
+    color: var(--warning);
+}
+
+.workspace .sources-sheet .state-gone {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .held {
+    align-self: flex-start;
+    margin: 0;
+    padding: 0 var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .source-row .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .tag.pro {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* ⋯ and Add an original open a menu under their button, right-aligned to it. */
+.workspace .sources-sheet .sources-menu {
+    position: absolute;
+    z-index: 3;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 220px;
+    padding: var(--s-1);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-menu);
+}
+
+.workspace .sources-sheet .row-menu {
+    top: calc(var(--s-8) + var(--s-1));
+}
+
+.workspace .sources-sheet .add-menu {
+    top: calc(100% + var(--s-1));
+    width: 320px;
+}
+
+.workspace .sources-sheet .sources-menu hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.lab.workspace .sources-sheet .sources-menu .btn {
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    align-items: start;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice strong {
+    display: block;
+    font: var(--t-body-strong);
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice .caption {
+    display: block;
+}
+
+.lab.workspace .sources-sheet .recognise-inline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-1);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+}
+
+.lab.workspace .sources-sheet .recognise-inline .row {
+    align-items: center;
+}
+
+/* The delete warning in the «Сделать нотами» frame, 440px: what goes with the original, then the choices one under another. */
+.workspace .apply-dialog.delete-original {
+    width: 440px;
+}
+
+.workspace .apply-dialog.delete-original .made-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .apply-dialog.delete-original .made-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .apply-dialog.delete-original .made-list .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .apply-dialog.delete-original .btn {
+    justify-content: center;
+    width: 100%;
+}
+
+.lab.workspace .btn.danger-outline {
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+}
+
+/* The toast centres itself on what the sheet leaves of the score, as the pill does. */
+@media (orientation: landscape) {
+    .workspace.insights-open:has(.sources-sheet) .merge-toast {
+        left: calc(50% - (380px + var(--s-3) + var(--s-4)) / 2);
+    }
+}
