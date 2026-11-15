@@ -31,7 +31,6 @@ final class AssistantActionsTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
         let assistant = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
         assistant.load(piece: "p1")
-        assistant.keeping(true)
         return (assistant, folder)
     }
 
@@ -85,16 +84,17 @@ final class AssistantActionsTests: XCTestCase {
         XCTAssertNil(assistant.current?.exchanges.last?.drafts, "as on the web, the question and answer move, not the drafts")
     }
 
-    func testTheConversationsAreKeptOnlyWithTheSwitch() {
+    func testTheConversationsAreKeptOnTheIPadWithNoSwitch() {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("assistant-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: folder) }
         let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
         let assistant = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
         assistant.load(piece: "p1")
         assistant.add(AssistantExchange(id: "e1", question: "Why?", scope: "Bar 3"), answer: "Because", role: "mentor")
-        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1"), [], "held only while the piece is open")
-        assistant.keeping(true)
-        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 1, "kept once the switch is on")
+        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 1, "kept on the iPad by piece (version 0.6.3: no switch)")
+        let again = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
+        again.load(piece: "p1")
+        XCTAssertEqual(again.current?.exchanges.map(\.question), ["Why?"], "the piece opens again on its newest conversation")
     }
 
     func testTheAssistantAtTheSelectionOpensFollowsAndCloses() {

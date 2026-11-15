@@ -33,7 +33,7 @@ struct AssistantStatus: Equatable, Sendable {
 
 /// Why the API did not answer, as the conversation says it (the web app's RelayProblem).
 enum RelayProblem: String, Equatable, Sendable {
-    case notSignedIn, unreachable, notAllowed, pro, tooLarge, dailyCap, refused
+    case notSignedIn, unreachable, notAllowed, pro, tooLarge, dailyCap, refused, server
 
     /// The UI text key that says it; every one ends with what was (not) sent.
     var note: String {
@@ -45,17 +45,19 @@ enum RelayProblem: String, Equatable, Sendable {
         case .dailyCap: "mentor.dailyCap"
         case .refused: "mentor.refused"
         case .unreachable: "mentor.unreachable"
+        case .server: "padAssistant.serverError"
         }
     }
 
-    /// The problem an API answer names in its "code", or what its status says.
+    /// The problem an API answer names in its "code", or what its status says: the server's own error (5xx, a cold
+    /// start's 502 or 503 too) is tried again, a request it refused (4xx) is asked another way.
     static func of(status: Int, body: Data) -> RelayProblem {
         switch JSONValue.parse(body)?["code"]?.string {
         case "notAllowed": .notAllowed
         case "pro": .pro
         case "tooLarge": .tooLarge
         case "dailyCap": .dailyCap
-        default: status == 401 ? .notSignedIn : .refused
+        default: status == 401 ? .notSignedIn : status == 413 ? .tooLarge : status >= 500 ? .server : .refused
         }
     }
 }
@@ -75,7 +77,7 @@ struct AssistantRelay {
         guard let request = await self.request("assistant/status") else { return (nil, .notSignedIn) }
         let (answer, problem) = await send(request)
         guard let answer else { return (nil, problem) }
-        return (AssistantStatus(answer), AssistantStatus(answer) == nil ? .unreachable : nil)
+        return (AssistantStatus(answer), AssistantStatus(answer) == nil ? .server : nil)
     }
 
     /// The server's reply to the turn's body, or the problem with it.
@@ -86,7 +88,7 @@ struct AssistantRelay {
         request.httpBody = body
         let (answer, problem) = await send(request)
         guard let answer else { return (nil, problem) }
-        guard let reply = AssistantReply(answer) else { return (nil, .unreachable) }
+        guard let reply = AssistantReply(answer) else { return (nil, .server) }
         return (reply, nil)
     }
 
@@ -98,7 +100,7 @@ struct AssistantRelay {
         }
         let body = answered.0
         guard (200..<300).contains(status) else { return (nil, RelayProblem.of(status: status, body: body)) }
-        guard let answer = JSONValue.parse(body) else { return (nil, .unreachable) }
+        guard let answer = JSONValue.parse(body) else { return (nil, .server) }
         return (answer, nil)
     }
 }

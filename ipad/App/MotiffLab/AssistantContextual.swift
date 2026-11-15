@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The assistant at the selection (#582 items 17.2 and 17.4, with «Разговор с помощником» on): Ask in the selection's menu
+/// The assistant at the selection (#582 items 17.2 and 17.4; with no switch since version 0.6.3): Ask in the selection's menu
 /// turns the menu into a small chat where the menu was, which the page places beside the selection rather than over it.
 /// It looks at the selected bars, takes one question at a time with no conversation before it (the field, Send and the
 /// keyboard's own dictation), and shows the answer with the facts it cites and any draft the assistant made, to accept or
@@ -16,6 +16,9 @@ struct AssistantHereCard: View {
     let text: UIText
     let ask: (String) -> Void
     @State private var flow = AskFlow(surface: .contextual)
+    @EnvironmentObject private var account: Account
+
+    private var canAsk: Bool { !assistant.busy && !AssistantRecovery.stopsAsking(assistant.standing) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -24,15 +27,20 @@ struct AssistantHereCard: View {
                 ScrollView { AssistantConsent(text: text) { assistant.consent($0) } }
                     .frame(maxHeight: Self.answerHeight)
             } else {
-                if let exchange = assistant.here?.exchange {
+                if let asking = assistant.here?.asking {
+                    AssistantPendingView(question: asking, phase: assistant.phase, text: text)
+                } else if let exchange = assistant.here?.exchange {
                     ScrollView { answer(exchange) }
                         .frame(maxHeight: Self.answerHeight)
                         .scrollDismissesKeyboard(.never)
                 }
-                if assistant.busy {
-                    Text(text["mentor.thinking"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                if assistant.here?.exchange == nil, let standing = assistant.standing, AssistantRecovery.stopsAsking(standing) {
+                    // Why nothing may be asked now, said before anything is typed (the lead's decision 3).
+                    AssistantProblemLine(note: standing, text: text, enabled: !assistant.checking, signIn: signIn) {
+                        Task { await assistant.check(account.assistant) }
+                    }
                 }
-                AskInputRow(flow: $flow, text: text, enabled: !assistant.busy, send: ask)
+                AskInputRow(flow: $flow, text: text, enabled: canAsk, send: ask)
                 Text(text["mentor.sentNote"]).dsType(.caption).foregroundStyle(Color.ds("ink-3"))
             }
         }
@@ -42,6 +50,8 @@ struct AssistantHereCard: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
         .keyboardLift()
         .onAppear { flow.apply(.open) }
+        // What the API says the player may do, asked again once they sign in or out.
+        .task(id: account.player) { await assistant.check(account.assistant) }
         // The passage, not its notes: an accepted draft changes the notes under the same selection.
         .onChange(of: score.selection.map { [$0.onset, $0.end] }) { _, _ in
             if let now = score.selection, flow.focused || !flow.question.isEmpty { assistant.follow(now) } else { close() }
@@ -71,7 +81,7 @@ struct AssistantHereCard: View {
 
     private func answer(_ exchange: AssistantExchange) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            AssistantExchangeView(exchange: exchange, text: text)
+            AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn) { ask(exchange.question) }
             ForEach(exchange.drafts ?? []) { draft in
                 AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
                     // Accepted, it stays with Undo until the player moves on; refused, it says why.
@@ -102,11 +112,13 @@ struct AssistantHereCard: View {
         assistant.closeHere()
     }
 
-    /// Ask in the selection's menu with the assistant and «Помощник у выделения и беседы» on: it opens at the selection, in
-    /// the role «Помощник правит ноты» sets.
+    private func signIn() {
+        Task { await account.signIn() }
+    }
+
+    /// Ask in the selection's menu: the assistant opens at the selection, in the role «Помощник правит ноты» sets.
     @MainActor static func open(_ assistant: AssistantController, score: ScoreController, settings: DeviceSettings) {
         guard let selection = score.selection else { return }
-        assistant.keeping(true)
         assistant.openHere(on: selection, role: AssistantSide.role(settings))
     }
 

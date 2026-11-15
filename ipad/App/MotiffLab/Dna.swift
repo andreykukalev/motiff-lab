@@ -192,8 +192,6 @@ struct DnaScreen: View {
     let map: DnaMap
     let title: String
     @ObservedObject var player: Player
-    @ObservedObject var conversation: AskConversation
-    @ObservedObject var account: Account
     let text: UIText
     /// ‹ More when the map was opened from More; nil for the score.
     let back: (label: String, action: () -> Void)?
@@ -202,15 +200,14 @@ struct DnaScreen: View {
     let showInScore: (Range<Double>, Bool) -> Void
     /// Add Structure bookmarks: answers what was added, in words.
     let addBookmarks: () async -> String?
-    /// Open in Insights from the assistant's popover.
-    let askInInsights: () -> Void
+    /// Ask about the piece: the map closes for the score, with the assistant beside it on the whole piece.
+    let ask: () -> Void
 
     @State private var heard: Range<Double>?
     @State private var playing = false
     /// The passage a card's Hear plays once: that button reads Stop while it sounds, in place (#582 item 14).
     @State private var cardHeard: Range<Double>?
     @State private var moreLanes = false
-    @State private var asking = false
     @State private var status: String?
     @ObservedObject private var settings = DeviceSettings.shared
     /// The circle of fifths open over the map, and the chord picked on it by number.
@@ -1112,7 +1109,8 @@ struct DnaScreen: View {
                 .buttonStyle(DSButtonStyle(kind: .secondary))
             }
             Button {
-                asking = true
+                stop()
+                ask()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "insight")
@@ -1120,19 +1118,6 @@ struct DnaScreen: View {
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .secondary))
-            .popover(isPresented: $asking) {
-                AskPopover(
-                    conversation: conversation, account: account, text: text,
-                    context: AskContext(selection: nil, wholePiece: true, title: title,
-                                        map: text.format("ask.knowsMap", text.count("dna.ideas", map.ideas.count)), form: map.form),
-                    openInInsights: {
-                        asking = false
-                        stop()
-                        askInInsights()
-                    },
-                    close: { asking = false }
-                )
-            }
             if let status {
                 Text(status).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             }

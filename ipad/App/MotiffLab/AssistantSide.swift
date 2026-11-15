@@ -13,7 +13,9 @@ extension ScoreScreen {
 struct AssistantSide: View {
     @ObservedObject var assistant: AssistantController
     let text: UIText
-    let selection: String?
+    /// The selection, and its chip's words ("This selection · bars 3–4"); nil for none.
+    let selection: ScoreSelection?
+    let label: String?
     let landscape: Bool
     /// The roll's drawer's height when it is open (0 when not): the panel stays above it.
     let drawer: CGFloat
@@ -21,7 +23,7 @@ struct AssistantSide: View {
 
     var body: some View {
         let gap = CGFloat.ds("s-3")
-        AssistantPanel(assistant: assistant, text: text, selection: selection, ask: ask)
+        AssistantPanel(assistant: assistant, text: text, selection: selection, label: label, ask: ask)
             .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             .dsShadow("shadow-sheet")
@@ -30,16 +32,6 @@ struct AssistantSide: View {
             .padding(.trailing, gap)
             .padding(.bottom, drawer > 0 ? drawer + gap : gap)
             .transition(.move(edge: .trailing).combined(with: .opacity))
-    }
-
-    /// Whether the assistant is on (Settings · Experimental «Разговор с помощником»).
-    @MainActor static func on(_ settings: DeviceSettings) -> Bool {
-        settings.isOn(AssistantController.setting)
-    }
-
-    /// Whether the assistant is at the selection and the conversations are kept («Помощник у выделения и беседы»).
-    @MainActor static func keeps(_ settings: DeviceSettings) -> Bool {
-        settings.isOn(AssistantController.contextSetting)
     }
 
     /// The role a new conversation takes: the proposer, which may make drafts, with «Помощник правит ноты» on.
