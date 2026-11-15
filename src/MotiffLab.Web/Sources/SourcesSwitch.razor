@@ -4,7 +4,8 @@
 @* The switch of all the piece's views (version 0.6; sources sheet, 2026-11-14), where PDF | Notes stood: three views or
    fewer as today's segmented control, a hairline between files and a dot after the working notes; four or more as a menu
    button with the shown view's pictogram, its word and a chevron, opening a list grouped by file with Sources at its
-   foot; one view, no switch. The Sources button follows it always. *@
+   foot; one view, no switch. The Sources button follows it always. In music-core's order: a PDF before the Notes read
+   from it (#582 item 2). *@
 @if (Views.Count is > 1 and <= 3)
 {
     <div class="seg view-switch views-seg" role="radiogroup" aria-label="@Text["pdf.views"]">
@@ -12,7 +13,7 @@
         {
             SwitchView view = Views[index];
             bool on = view.Key == Shown;
-            @if (index > 0 && Views[index - 1].Group != view.Group && !Views[index - 1].Working)
+            @if (index > 0 && Views[index - 1].Group != view.Group)
             {
                 <span class="file-rule" aria-hidden="true"></span>
             }
@@ -33,13 +34,12 @@ else if (Views.Count > 3 && Views.FirstOrDefault(view => view.Key == Shown) is v
         {
             <button class="scrim views-scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="() => _open = false"></button>
             <div class="views-popover" role="menu" aria-label="@Text["pdf.views"]">
-                @foreach (SwitchView view in Views.Where(view => view.Working))
+                @foreach (IGrouping<string?, SwitchView> group in Views.GroupBy(view => view.Group))
                 {
-                    @Item(view)
-                }
-                @foreach (IGrouping<string?, SwitchView> group in Views.Where(view => !view.Working).GroupBy(view => view.Group))
-                {
-                    <hr />
+                    @if (group.Key != Views[0].Group)
+                    {
+                        <hr />
+                    }
                     @if (group.First() is { GroupName: { } name, GroupIcon: { } icon })
                     {
                         <p class="views-group"><Icon Name="@icon" Size="IconSize.Small" /> @name</p>

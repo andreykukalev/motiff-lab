@@ -44,14 +44,15 @@ public class SourceLayersFacadeTests
     private static string Recognise() => JsonSerializer.Serialize(new { original = "src_pdf", musicXml = Convert.ToBase64String(Scanned()), engine = "homr 0.8.0", pages = 1, now = "2026-11-15T10:00:00Z" });
 
     [Fact]
-    public void The_layers_list_the_originals_and_notes_with_their_states_and_the_views_with_the_working_notes_first()
+    public void The_layers_list_the_originals_and_notes_with_their_states_and_the_views_pdf_before_notes()
     {
         MusicCoreFacade facade = Opened();
 
         JsonElement layers = Call(facade, "sources.layers");
 
         Assert.Equal("n_1", layers.GetProperty("working").GetString());
-        Assert.Equal(["notes:n_1", "original:src_pdf"], Views(layers));
+        Assert.Equal(["original:src_pdf", "notes:n_1"], Views(layers));
+        Assert.Equal("src_pdf", Item(layers, "views", "n_1").GetProperty("group").GetString());
         JsonElement pdf = Item(layers, "originals", "src_pdf");
         Assert.Equal(("here", "pdf"), (pdf.GetProperty("state").GetString(), pdf.GetProperty("kind").GetString()));
         Assert.Equal(["n_1"], pdf.GetProperty("notes").EnumerateArray().Select(id => id.GetString()));
@@ -82,7 +83,7 @@ public class SourceLayersFacadeTests
 
         JsonElement again = Call(facade, "sources.notes.recognise", Recognise());
         Assert.Equal("n_2", again.GetProperty("id").GetString());
-        Assert.Equal(["notes:n_1", "original:src_pdf", "notes:n_2"], Views(again));
+        Assert.Equal(["original:src_pdf", "notes:n_1", "notes:n_2"], Views(again));
         Assert.Equal("src_pdf", Item(again, "views", "n_2").GetProperty("group").GetString());
         Assert.Equal("other", Item(again, "notes", "n_2").GetProperty("role").GetString());
 
@@ -96,7 +97,7 @@ public class SourceLayersFacadeTests
         JsonElement swapped = Call(facade, "sources.layers");
         Assert.Equal("n_2", swapped.GetProperty("working").GetString());
         Assert.Equal(0, swapped.GetProperty("hidden").GetInt32());
-        Assert.Equal(["notes:n_2", "original:src_pdf", "notes:n_1"], Views(swapped));
+        Assert.Equal(["original:src_pdf", "notes:n_2", "notes:n_1"], Views(swapped));
 
         Call(facade, "sources.makeWorking", """{"id": "n_1"}""");
         Assert.Equal("n_1", Call(facade, "sources.layers").GetProperty("working").GetString());
@@ -121,7 +122,7 @@ public class SourceLayersFacadeTests
 
         JsonElement second = Call(facade, "sources.original.add", JsonSerializer.Serialize(new { kind = "pdf", fileName = "Henle.pdf", data = Convert.ToBase64String(s_otherPdf), now = "2026-11-15T12:00:00Z" }));
         Assert.Equal("src_pdf_2", second.GetProperty("id").GetString());
-        Assert.Equal(["notes:n_1", "original:src_pdf", "original:src_pdf_2"], Views(second));
+        Assert.Equal(["original:src_pdf", "notes:n_1", "original:src_pdf_2"], Views(second));
         Assert.Equal(Convert.ToBase64String(s_otherPdf), Call(facade, "sources.pdf", """{"id": "src_pdf_2"}""").GetProperty("pdf").GetString());
         Assert.Equal(Convert.ToBase64String(s_pdf), Call(facade, "sources.pdf").GetProperty("pdf").GetString());
         Assert.Equal("unavailable", Error(facade, "sources.original.remove", """{"id": "src_pdf", "withNotes": true}"""));
@@ -133,9 +134,9 @@ public class SourceLayersFacadeTests
         MusicCoreFacade facade = Opened();
         Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "durationMs": 161000, "now": "2026-11-15T12:00:00Z"}""");
 
-        Assert.Equal(["notes:n_1", "original:src_pdf"], Views(Call(facade, "sources.layers")));
+        Assert.Equal(["original:src_pdf", "notes:n_1"], Views(Call(facade, "sources.layers")));
         JsonElement here = Call(facade, "sources.layers", """{"here": ["src_rec"]}""");
-        Assert.Equal(["notes:n_1", "original:src_pdf", "performance:src_rec"], Views(here));
+        Assert.Equal(["original:src_pdf", "notes:n_1", "performance:src_rec"], Views(here));
         Assert.Equal("nowhere", Item(Call(facade, "sources.layers"), "originals", "src_rec").GetProperty("state").GetString());
     }
 
@@ -170,7 +171,7 @@ public class SourceLayersFacadeTests
         Assert.Equal("n_2", heard.GetProperty("id").GetString());
         JsonElement notes = Item(heard, "notes", "n_2");
         Assert.Equal(("audioRecognition", "transkun", "src_rec"), (notes.GetProperty("op").GetString(), notes.GetProperty("engine").GetString(), notes.GetProperty("original").GetString()));
-        Assert.Equal(["notes:n_1", "original:src_pdf", "performance:src_rec", "notes:n_2"], Views(Call(facade, "sources.layers", """{"here": ["src_rec"]}""")));
+        Assert.Equal(["original:src_pdf", "notes:n_1", "performance:src_rec", "notes:n_2"], Views(Call(facade, "sources.layers", """{"here": ["src_rec"]}""")));
         Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
         OtherNotes other = Assert.Single(saved.Sources.Notes);
         Assert.Equal((30_000L, 90_000L), other.Provenance.Original!.Milliseconds);

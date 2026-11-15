@@ -82,7 +82,9 @@ extension ScoreScreen {
     /// web app's `ShowPdfAsync`), once the "Notes" view, the resume point and the piece are saved: the library closes the
     /// piece as the PDF opens (ClosedPieces).
     func showPdf() async {
-        guard let switchView else { return }
+        guard let switchView, !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
         let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
         let now = resumeNow()

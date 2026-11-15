@@ -2537,7 +2537,8 @@ h1:focus {
     }
 }
 
-/* The piece's name in the serif, as on its cover (design/kit/ds.css .bar .ttl); it opens the Contents, so it hovers like a button. */
+/* The piece's name in the serif, as on its cover (design/kit/ds.css .bar .ttl); it opens the Contents, so it hovers like a button.
+   It never gives way to the actions (#582 item 2): whole up to a quarter of the bar, the same on the notes and on the PDF. */
 .workspace .bar .ttl, .lab.workspace .bar button.ttl {
     font: var(--t-title);
     font-size: 17px;
@@ -2545,7 +2546,8 @@ h1:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    flex-shrink: 0;
+    max-width: 25%;
 }
 
 .workspace .bar .pg {

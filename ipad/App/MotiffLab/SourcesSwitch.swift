@@ -5,7 +5,8 @@ import SwiftUI
 /// of the piece music-core lists (`sources.layers`), the working notes first, then by file. Three views or fewer are the
 /// segmented choice of PDF | Notes, with a hairline between files and the working notes' dot after the word; four or
 /// more are a menu button with the shown view's pictogram, its word and a chevron, its popover grouped by file; one view
-/// is no switch. It sits after the title, where PDF | Notes was.
+/// is no switch. It sits after the title, where PDF | Notes was, in music-core's order: a PDF before the Notes read from
+/// it (#582 item 2).
 struct SourcesViewSwitch: View {
     let layers: SourceLayers
     /// The view shown now: an original's, Notes' or a recording's id.
@@ -124,9 +125,9 @@ struct WorkingTag: View {
     }
 }
 
-/// The switch's popover (300 pt, on the second surface): the working notes first with «Рабочие» and their file and date,
-/// then a group per file, its caption the file's icon and name, then its views; the shown view tinted with a check; at
-/// the foot «Источники», with how many views are hidden, which opens the sheet.
+/// The switch's popover (300 pt, on the second surface): a group per file in the switch's order, its caption the file's
+/// icon and name, then its views, the working notes with «Рабочие» and their file and date, then the Notes of no file;
+/// the shown view tinted with a check; at the foot «Источники», with how many views are hidden, which opens the sheet.
 struct SourcesViewMenu: View {
     let layers: SourceLayers
     let views: [SourceLayers.ViewEntry]
@@ -137,10 +138,6 @@ struct SourcesViewMenu: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(views.filter(\.working)) { view in
-                item(view)
-                Divider().overlay(Color.ds("hairline"))
-            }
             ForEach(groups, id: \.self) { group in
                 if let original = layers.original(group) {
                     HStack(spacing: CGFloat.ds("s-2")) {
@@ -152,10 +149,11 @@ struct SourcesViewMenu: View {
                     .padding(.top, CGFloat.ds("s-2"))
                     .accessibilityAddTraits(.isHeader)
                 }
-                ForEach(views.filter { !$0.working && $0.group == group }) { view in item(view) }
+                ForEach(views.filter { $0.group == group }) { view in item(view) }
                 Divider().overlay(Color.ds("hairline"))
             }
-            ForEach(views.filter { !$0.working && $0.group == nil }) { view in item(view) }
+            ForEach(views.filter { $0.group == nil }) { view in item(view) }
+            if views.contains(where: { $0.group == nil }) { Divider().overlay(Color.ds("hairline")) }
             Button(action: openSources) {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Icon(name: "layers")
@@ -177,10 +175,10 @@ struct SourcesViewMenu: View {
         .background(Color.ds("surface-2"))
     }
 
-    /// The files in the switch's order.
+    /// The files in the switch's order: a PDF before the Notes read from it, the working ones among them (#582 item 2).
     private var groups: [String] {
         var seen: [String] = []
-        for view in views where !view.working {
+        for view in views {
             if let group = view.group, !seen.contains(group) { seen.append(group) }
         }
         return seen
@@ -228,8 +226,9 @@ struct SourcesViewMenu: View {
     }
 }
 
-/// The Sources button after the switch: the layers icon and «Источники», tinted while the sheet is open. It stays when
-/// there is no switch.
+/// The Sources button after the switch: the layers icon, as the bar's other actions, tinted while the sheet is open, and
+/// «Источники» for VoiceOver and the pointer (#582 item 2: with its word it took the room the title needs on the score).
+/// It stays when there is no switch.
 struct SourcesButton: View {
     let open: Bool
     let text: UIText
@@ -237,18 +236,12 @@ struct SourcesButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Icon(name: "layers", size: CGFloat.ds("icon-m"))
-                Text(text["sources.title"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
-            }
-            .foregroundStyle(open ? Color.ds("accent-hover") : Color.ds("ink"))
-            .padding(.horizontal, CGFloat.ds("s-2"))
-            .frame(height: CGFloat.ds("h-control"))
-            .background(open ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .contentShape(Rectangle())
+            Icon(name: "layers", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BarActionStyle(on: open))
         .fixedSize()
+        .help(text["sources.title"])
+        .accessibilityLabel(text["sources.title"])
         .accessibilityAddTraits(open ? .isSelected : [])
     }
 }

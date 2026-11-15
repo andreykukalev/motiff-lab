@@ -54,9 +54,9 @@ test("the Sources sheet lists the originals and the notes, adds a PDF, recognise
     await recognisedPiece(page);
     const bar = page.locator(".bar");
 
-    // Two views, the working notes first with their dot, then the PDF; the Sources button after them, and no «N версии».
+    // Two views, the PDF first, then the working notes with their dot (#582 item 2); the Sources button after them, and no «N версии».
     const views = bar.getByRole("radiogroup", { name: "View" });
-    await expect(views.getByRole("radio")).toHaveText(["Notes", "PDF"]);
+    await expect(views.getByRole("radio")).toHaveText(["PDF", "Notes"]);
     await expect(views.getByRole("radio", { name: "Notes" })).toHaveAttribute("aria-checked", "true");
     await expect(views.locator(".working-dot")).toHaveCount(1);
     const sourcesButton = bar.locator(".sources-button");
@@ -93,14 +93,14 @@ test("the Sources sheet lists the originals and the notes, adds a PDF, recognise
     const henle = originals.locator(".source-row", { hasText: "Henle.pdf" });
     await expect(henle.locator(".caption").first()).toHaveText("PDF · 2 pages");
     await expect(page.locator(".merge-toast")).toContainText("“Henle.pdf” added");
-    await expect(views.getByRole("radio")).toHaveText(["Notes", "PDF", "PDF"]);
+    await expect(views.getByRole("radio")).toHaveText(["PDF", "Notes", "PDF"]);
 
     // The eye hides it from the switch, and shows it again.
     await henle.getByRole("button", { name: "Show in the switch" }).click();
     await expect(henle.getByRole("button", { name: "Show in the switch" })).toHaveAttribute("aria-pressed", "false");
-    await expect(views.getByRole("radio")).toHaveText(["Notes", "PDF"]);
+    await expect(views.getByRole("radio")).toHaveText(["PDF", "Notes"]);
     await henle.getByRole("button", { name: "Show in the switch" }).click();
-    await expect(views.getByRole("radio")).toHaveText(["Notes", "PDF", "PDF"]);
+    await expect(views.getByRole("radio")).toHaveText(["PDF", "Notes", "PDF"]);
 
     // Recognise: one line says where the pages go, the button sends them, and the new notes stand beside the working ones.
     await henle.getByRole("button", { name: "Recognise" }).click();
@@ -115,14 +115,14 @@ test("the Sources sheet lists the originals and the notes, adds a PDF, recognise
     await expect(read.locator(".caption").first()).toContainText("homr 0.7.0");
     await expect(henle.getByRole("button", { name: "Recognise" })).toHaveCount(0);
 
-    // Four views: the switch is a menu now, the working notes first, then a group per file; the foot opens Sources.
+    // Four views: the switch is a menu now, a group per file, each PDF before its notes; the foot opens Sources.
     await expect(views).toHaveCount(0);
     const viewsButton = bar.getByRole("button", { name: "View: Notes" });
     await viewsButton.click();
     const list = bar.getByRole("menu", { name: "View" });
     await expect(list.locator(".views-group")).toHaveText(["Elise.pdf", "Henle.pdf"]);
     await expect(list.getByRole("menuitemradio")).toHaveCount(4);
-    await expect(list.getByRole("menuitemradio").first()).toHaveAttribute("aria-checked", "true");
+    await expect(list.getByRole("menuitemradio").nth(1)).toHaveAttribute("aria-checked", "true");
     await expect(list.getByRole("menuitem")).toHaveText(/Sources/);
     expect(await violations(page)).toEqual([]);
     await shoot(page, "4-switch-menu");
@@ -187,7 +187,7 @@ test("in Russian the sheet and the switch speak Russian", async ({ page }) => {
     await page.locator(".bar").getByRole("button", { name: "Распознать ноты" }).click();
     await page.getByRole("dialog", { name: "Распознать ноты" }).getByRole("button", { name: "Распознать ноты" }).click();
     await expect(page.locator(".score .score-page svg").first()).toBeVisible();
-    await expect(page.locator(".bar").getByRole("radiogroup", { name: "Вид" }).getByRole("radio")).toHaveText(["Ноты", "PDF"]);
+    await expect(page.locator(".bar").getByRole("radiogroup", { name: "Вид" }).getByRole("radio")).toHaveText(["PDF", "Ноты"]);
     await page.locator(".bar .sources-button").click();
     const sheet = page.locator("aside.sources-sheet");
     await expect(sheet.locator(".overline")).toHaveText(["Оригиналы · 1", "Ноты · 1"]);

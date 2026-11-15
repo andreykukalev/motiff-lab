@@ -55,6 +55,9 @@ final class Player: ObservableObject {
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
     private var polling: Task<Void, Never>?
+    /// The screen has gone (`shutdown`): a load still on its way starts nothing (#582 item 2: a view switched while the
+    /// notes were loading left a player clicking the metronome for a screen no longer there).
+    private var shutDown = false
 
     /// Starts the audio, loads the piano and the piece's playback score from music-core; the metronome follows its piece
     /// tempo, kept under `key`.
@@ -77,10 +80,15 @@ final class Player: ObservableObject {
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
             let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
+            let samples = try await piano.value
+            guard !shutDown else {
+                audio.stop()
+                return
+            }
             guard let score = PlaybackScore.read(answer) else {
                 throw PlayerError(message: facadeObject(answer)?["message"] as? String ?? "music-core gave no playback score.")
             }
-            renderer.send(.samples(try await piano.value))
+            renderer.send(.samples(samples))
             renderer.send(.timeline(score.timeline))
             renderer.send(.rate(Double(tempo.percent) / 100))
             tempo.reading = score.tempo
@@ -379,6 +387,7 @@ final class Player: ObservableObject {
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
+        shutDown = true
         // A playhead held as the screen closes is let go where it is: what the drag sounds fades, the pause ends the rest.
         if drag != nil { send(.scrubEnd) }
         drag = nil

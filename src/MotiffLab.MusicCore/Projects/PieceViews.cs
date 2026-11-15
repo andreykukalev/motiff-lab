@@ -61,7 +61,7 @@ public sealed record SourceNotes(string Id, NotesRole Role, string? Name, NotesP
 
 /// <summary>A view of the switch: what it shows, the original it is grouped under, and whether it is working or hidden.</summary>
 /// <param name="Id">The original's id for an original or a recording's sound, the Notes' id for Notes.</param>
-/// <param name="Group">The original whose group it is in («PDF» and the notes read from it); null for the working notes and Notes of no original here.</param>
+/// <param name="Group">The original whose group it is in («PDF» and the notes read from it, the working ones too); null for Notes of no original here.</param>
 /// <param name="Operation">What made it, for its pictogram: the Notes' operation (<see cref="NotesProvenance.Op"/>), "pdf" or "recording".</param>
 public sealed record SourceView(string Id, ViewKind Kind, string? Group, bool Working, bool Hidden, string Operation);
 
@@ -78,10 +78,11 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
     /// <summary>
     /// The sources of <paramref name="project"/> as <paramref name="device"/> sees them. An original is here when its bytes
     /// are in the project file, the device holds it, or it is one of <paramref name="here"/> (the ids of the originals whose
-    /// bytes the app has on this device, such as a recording's sound it keeps beside the file). The views: the working notes
-    /// first; then by original, a PDF here (or photos) followed by the Notes read from it, a recording here followed by its
-    /// sound and the Notes heard from it; then Notes of no original here; an assembly that is not working last. A
-    /// recording or PDF that is not here, and a removed original, are no views.
+    /// bytes the app has on this device, such as a recording's sound it keeps beside the file). The views, PDF before Notes
+    /// (Andrei, 0.6.1 #582 item 2): by original, a PDF here (or photos) followed by the Notes read from it, the working ones
+    /// first, a recording here followed by its sound and the Notes heard from it; then Notes of no original here, the
+    /// working ones first; an assembly that is not working last. A recording or PDF that is not here, and a removed
+    /// original, are no views.
     /// </summary>
     public static PieceViews Of(Project project, HoldingDevice device, IReadOnlyCollection<string>? here = null)
     {
@@ -147,12 +148,6 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
     {
         List<SourceView> views = [];
         HashSet<string> placed = [];
-        foreach (SourceNotes working in notes.Where(static each => each.Role == NotesRole.Working))
-        {
-            views.Add(new SourceView(working.Id, ViewKind.Notes, null, Working: true, Hidden: false, working.Provenance.Op));
-            placed.Add(working.Id);
-        }
-
         foreach (SourceOriginal original in originals.Where(static each => each.State == SourceState.Here))
         {
             ViewKind? kind = original.Original.Kind switch
@@ -166,18 +161,21 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
                 views.Add(new SourceView(original.Original.Id, shown, original.Original.Id, Working: false, original.Hidden, shown == ViewKind.Original ? "pdf" : "recording"));
             }
 
-            foreach (SourceNotes made in notes.Where(each => each.Original == original.Original.Id && !placed.Contains(each.Id) && !IsAssembly(each)))
+            IEnumerable<SourceNotes> made = notes.Where(each => each.Original == original.Original.Id && !placed.Contains(each.Id) && (IsWorking(each) || !IsAssembly(each)));
+            foreach (SourceNotes each in made.OrderBy(static each => IsWorking(each) ? 0 : 1))
             {
-                views.Add(new SourceView(made.Id, ViewKind.Notes, original.Original.Id, Working: false, made.Hidden, made.Provenance.Op));
-                placed.Add(made.Id);
+                views.Add(new SourceView(each.Id, ViewKind.Notes, original.Original.Id, IsWorking(each), !IsWorking(each) && each.Hidden, each.Provenance.Op));
+                placed.Add(each.Id);
             }
         }
 
         IEnumerable<SourceNotes> rest = notes.Where(each => !placed.Contains(each.Id));
-        views.AddRange(rest.OrderBy(static each => IsAssembly(each) ? 1 : 0)
-            .Select(static each => new SourceView(each.Id, ViewKind.Notes, null, Working: false, each.Hidden, each.Provenance.Op)));
+        views.AddRange(rest.OrderBy(static each => IsWorking(each) ? 0 : IsAssembly(each) ? 2 : 1)
+            .Select(static each => new SourceView(each.Id, ViewKind.Notes, null, IsWorking(each), !IsWorking(each) && each.Hidden, each.Provenance.Op)));
         return views;
     }
 
     private static bool IsAssembly(SourceNotes notes) => notes.Provenance.Op == NotesProvenance.Assembly;
+
+    private static bool IsWorking(SourceNotes notes) => notes.Role == NotesRole.Working;
 }
