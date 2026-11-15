@@ -331,6 +331,8 @@ struct PdfScreen: View {
     @State private var referenceOpen = false
     /// The floating bar's bottom edge as laid out, in the screen's space; nil before it is.
     @State private var measuredBarBottom: CGFloat?
+    /// The piece is being handed to its notes: a second press on the switch meanwhile does nothing (#582 item 2).
+    @State private var handingOver = false
 
     var body: some View {
         GeometryReader { screen in
@@ -352,7 +354,7 @@ struct PdfScreen: View {
                         .accessibilityAddTraits(.isStaticText)
                 }
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
-                    bar
+                    bar(width: screen.size.width - 2 * CGFloat.ds("s-4"))
                     if pdf.penOn {
                         PdfPenPalette(pdf: pdf, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -437,11 +439,26 @@ struct PdfScreen: View {
         }
     }
 
-    private var bar: some View {
-        // Recognise notes with its word where the whole bar fits, else its icon alone.
-        ViewThatFits(in: .horizontal) {
-            barContent(compact: false)
-            barContent(compact: true)
+    private func bar(width: CGFloat) -> some View {
+        TopBar(width: width, pages: pageText) {
+            barLeading
+            if let sourceLayers, toNotes != nil {
+                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
+                SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
+                SourcesButton(open: false, text: text, action: openSources)
+            } else if let toNotes {
+                PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
+            } else {
+                Tag(text: text["pdf.title"], kind: .assumed)
+            }
+            // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
+            if linked { Tag(text: readOnlyNote ?? text["originals.linkFiles"], kind: .assumed) }
+        } actions: {
+            readNotesButton(compact: false)
+            barActions
+        } compact: {
+            readNotesButton(compact: true)
+            barActions
         }
         // Where it ends, for the pages to rest below it (#495 UX-12).
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(pdfScreenSpace)).maxY } action: { measuredBarBottom = $0 }
@@ -459,47 +476,26 @@ struct PdfScreen: View {
         return { Task { await showNotes() } }
     }
 
-    /// Laid out as the score's bar (ScoreBar, #479 item 13): Back, the Contents, the title and PDF | Notes in the same places
-    /// in both views, then the pages in view, and this view's own actions at the right.
-    private func barContent(compact: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            barLeading
-            if let sourceLayers, toNotes != nil {
-                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
-                SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
-                SourcesButton(open: false, text: text, action: openSources)
-            } else if let toNotes {
-                PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
-            } else {
-                Tag(text: text["pdf.title"], kind: .assumed)
-            }
-            if let pageText { BarPages(text: pageText) }
-            // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
-            if linked { Tag(text: readOnlyNote ?? text["originals.linkFiles"], kind: .assumed) }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
-            if let readNotesAction, pdf.pageCount > 0 {
-                Button(action: readNotesAction) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "roll", size: CGFloat.ds("icon-l"))
-                        if !compact {
-                            Text(text["pdf.readNotes"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
-                        }
-                        if hosted { Tag(text: "Pro", kind: .saved) }
+    /// Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found):
+    /// with its word where the bar has room, else its icon alone.
+    @ViewBuilder private func readNotesButton(compact: Bool) -> some View {
+        if let readNotesAction, pdf.pageCount > 0 {
+            Button(action: readNotesAction) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "roll", size: CGFloat.ds("icon-l"))
+                    if !compact {
+                        Text(text["pdf.readNotes"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
                     }
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: CGFloat.ds("h-control"))
+                    if hosted { Tag(text: "Pro", kind: .saved) }
                 }
-                .buttonStyle(BarActionStyle(on: readingOpen))
-                .disabled(pdf.original == nil)
-                .accessibilityLabel(text["pdf.readNotes"])
-                .accessibilityValue(hosted ? "Pro" : "")
+                .padding(.horizontal, CGFloat.ds("s-2"))
+                .frame(height: CGFloat.ds("h-control"))
             }
-            barActions
+            .buttonStyle(BarActionStyle(on: readingOpen))
+            .disabled(pdf.original == nil)
+            .accessibilityLabel(text["pdf.readNotes"])
+            .accessibilityValue(hosted ? "Pro" : "")
         }
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
     }
 
     /// Back, the Contents and the title, which opens them too, as on the score.
@@ -691,7 +687,9 @@ struct PdfScreen: View {
     /// The notes read from the PDF as the player left them (#511 section 10), or the first time where the page under the bar
     /// starts in them, once the piece is saved and the PDF's place kept (the web app's `ShowNotesAsync`).
     private func showNotes() async {
-        guard let other = piece.other, let switchView else { return }
+        guard let other = piece.other, let switchView, !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
         pdf.keepView()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))

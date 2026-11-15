@@ -502,7 +502,10 @@ struct LibraryView: View {
     }
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
+    /// Only the screen shown asks, and only once at a time (#582 item 2): a second press while the first was still opening
+    /// opened the piece twice, the second time closing in music-core the piece the first had just put on screen.
     private func switchView(from current: OpenPiece, to landing: Landing) async {
+        guard !opening, piece?.id == current.id else { return }
         // A PDF kept in the piece since it was opened is in its own file: the PDF view of the same piece.
         guard let file = current.other?.file ?? current.file else { return }
         await openFile(file, at: landing)

@@ -110,4 +110,11 @@ final class DesignTests: XCTestCase {
         XCTAssertEqual(LibraryView.statusBar(0), CGFloat.ds("s-6"))
         XCTAssertEqual(LibraryView.statusBar(CGFloat.ds("s-12")), CGFloat.ds("s-12"))
     }
+
+    /// #582 item 2: the title's room in the bar comes from the bar's width alone, so the notes and the PDF give it the same.
+    func testTheBarGivesTheTitleAQuarterOfItsWidthInEitherView() {
+        XCTAssertEqual(BarFit.titleCap(barWidth: 1148), 287)
+        XCTAssertEqual(BarFit.titleCap(barWidth: 802), 200)
+        XCTAssertEqual(BarFit.titleCap(barWidth: 0), .infinity, "before the bar has a width nothing is cut")
+    }
 }

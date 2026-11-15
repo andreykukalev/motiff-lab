@@ -65,7 +65,7 @@ struct SourceLayers: Equatable, Sendable {
         var id: String
         /// "original", "notes" or "performance".
         var kind: String
-        /// The original whose group it is in; nil for the working notes and Notes of no original here.
+        /// The original whose group it is in, the working notes' too (PDF before Notes, #582 item 2); nil for Notes of no original here.
         var group: String?
         var working: Bool
         var hidden: Bool

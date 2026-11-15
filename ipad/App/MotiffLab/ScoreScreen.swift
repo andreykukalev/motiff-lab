@@ -73,6 +73,9 @@ struct ScoreScreen: View {
     @StateObject private var sources = SourcesController()
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
+    /// The piece is being handed to its other view (PDF | Notes): a second press on the switch meanwhile does nothing
+    /// (#582 item 2), as the first is already saving, closing and opening the piece.
+    @State var handingOver = false
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -299,7 +302,8 @@ struct ScoreScreen: View {
                         FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil,
-                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing) { dismiss() }
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
+                                 width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if sourcesOn && !score.focused { recordingCapsule }
                     if !score.focused {
@@ -1151,6 +1155,8 @@ struct ScoreBar: View {
     var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
     /// The read-only tag of a view shown over the piece; nil for the piece itself.
     var viewing: String? = nil
+    /// The bar's width, the screen's less its margins (TopBar).
+    var width: CGFloat = 0
     let back: () -> Void
     @State private var phrasesOpen = false
     /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
@@ -1159,10 +1165,10 @@ struct ScoreBar: View {
     @State private var extraOpen = false
     @EnvironmentObject private var account: Account
 
-    /// The bar is laid out as the PDF's (PdfScreen's bar, #479 item 13): Back, the Contents, the title and PDF | Notes in
-    /// the same places in both views, then the pages in view, and each view's own actions at the right.
+    /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
+    /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
+        TopBar(width: width, pages: pageText) {
             BarLeading(title: title, contentsOpen: $contentsOpen, text: text, back: back)
             if let sourceLayers, let pickView {
                 SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { versionsOpen = true }
@@ -1171,25 +1177,22 @@ struct ScoreBar: View {
                 PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
             if let viewing { Tag(text: viewing, kind: .assumed) }
-            if let pageText { BarPages(text: pageText) }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            actions
+        } actions: {
+            actions(compact: false)
+        } compact: {
+            actions(compact: true)
         }
-        .padding(.leading, CGFloat.ds("s-2"))
-        .padding(.trailing, CGFloat.ds("s-2"))
-        .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
     }
 
     /// In groups without captions, as the approved mockup v0.5.2 (#479 item 21): what the score shows (Phrases, the extra
     /// information, the piano roll), then how the score is used (the modes, or the Pen before them), then the Circle and
-    /// Insights, then Play and More.
-    @ViewBuilder private var actions: some View {
+    /// Insights, then Play and More. Compact where the bar is short (#582 item 2): the chosen mode by its icon alone.
+    @ViewBuilder private func actions(compact: Bool) -> some View {
         viewButtons
         PaletteDivider()
         if score.mode != nil {
             // The modes of version 0.5 (Settings · Experimental): one group for the score and the roll, the Pen in it.
-            ModeGroup(score: score, text: text)
+            ModeGroup(score: score, text: text, compact: compact)
         } else {
             Button {
                 score.penOn.toggle()
@@ -1348,61 +1351,6 @@ struct ScoreBar: View {
         return pages.first == pages.last
             ? text.format("bar.page", String(pages.first), String(pages.count))
             : text.format("bar.pages", String(pages.first), String(pages.last), String(pages.count))
-    }
-}
-
-/// The start of the bar on the score and on a PDF alike (#479 item 13): Back, the Contents at the left by the way back, as
-/// in a reader (testing item 21), and the title, which opens the Contents too.
-struct BarLeading: View {
-    let title: String
-    @Binding var contentsOpen: Bool
-    let text: UIText
-    let back: () -> Void
-
-    var body: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Button(action: back) {
-                Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["nav.library"])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text["bar.contents"])
-            .accessibilityAddTraits(contentsOpen ? .isSelected : [])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Text(title)
-                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                    .lineLimit(1)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text.format("contents.open", title))
-            .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
-        }
-    }
-}
-
-/// The pages in view, after PDF | Notes in the bar: the first to give way where the bar is short of room, so the places
-/// the two views share do not move (#479 item 13).
-struct BarPages: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .dsType(.label)
-            .foregroundStyle(Color.ds("ink-2"))
-            .lineLimit(1)
-            .padding(.leading, CGFloat.ds("s-2"))
-            .layoutPriority(-1)
     }
 }
 

@@ -8,6 +8,8 @@ struct ModeCapsule: View {
     let text: UIText
     /// The modes this view does not have (Select on a PDF's pages), shown and not chosen.
     var unavailable: Set<InteractionMode> = []
+    /// Where the bar is short (TopBar, #582 item 2): the chosen mode by its icon alone, its name for VoiceOver.
+    var compact = false
     let choose: (InteractionMode) -> Void
 
     var body: some View {
@@ -30,11 +32,11 @@ struct ModeCapsule: View {
         } label: {
             HStack(spacing: 6) {
                 Icon(name: mode.icon, size: CGFloat.ds("icon-l"))
-                if on {
+                if on && !compact {
                     Text(text[mode.label]).dsType(.label).lineLimit(1).fixedSize()
                 }
             }
-            .padding(.horizontal, on ? CGFloat.ds("s-2") : 0)
+            .padding(.horizontal, on && !compact ? CGFloat.ds("s-2") : 0)
             .frame(minWidth: 40, minHeight: 40)
         }
         .buttonStyle(BarActionStyle(on: on))
@@ -55,9 +57,10 @@ struct ModeCapsule: View {
 struct ModeGroup: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    var compact = false
 
     var body: some View {
-        ModeCapsule(chosen: score.penOn ? .pen : score.mode ?? .navigate, text: text) { mode in
+        ModeCapsule(chosen: score.penOn ? .pen : score.mode ?? .navigate, text: text, compact: compact) { mode in
             if mode == .pen {
                 score.penOn = true
             } else {
