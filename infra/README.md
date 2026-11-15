@@ -127,7 +127,7 @@ The assistant's relay (`POST /assistant/turn`, [0028](../docs/decisions/0028-ai-
    - `ASSISTANT_MODEL`: the model or deployment name;
    - `ASSISTANT_ENDPOINT`: only if the provider needs one;
    - `ASSISTANT_ALLOWED`: the object ids of the accounts allowed, comma-separated. Find yours in the [Entra admin center](https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers): switch to the `motifflab` tenant, open *Users*, then your account, and copy *Object ID*.
-4. Re-run the [API workflow](https://github.com/andreykukalev/motiff-lab/actions/workflows/api.yml). `.github/workflows/api.yml` passes the secret and the variables to `api.bicep` (parameters `assistantKey`, `assistantProvider`, `assistantModel`, `assistantEndpoint` and `assistantAllowed`).
+4. Merge the pull request *API deploy: pass the assistant's model settings*. It changes `.github/workflows/api.yml`, so Andrei merges it. With it, the workflow passes the secret and the variables to `api.bicep` (parameters `assistantKey`, `assistantProvider`, `assistantModel`, `assistantEndpoint` and `assistantAllowed`), and the merge deploys the API with them. After a later change of the key or a variable, re-run the [API workflow](https://github.com/andreykukalev/motiff-lab/actions/workflows/api.yml).
 
 Limits are settings of the API: `Assistant:DailyRequests` (200 turns a day for each account by default) and `Assistant:TimeoutSeconds` (30 by default). A turn is at most 128 KB, and a question takes at most 8 tool calls. The API logs the outcome, counts, tokens and timing of each turn, never its content. To switch the model off, delete the secret, or empty `ASSISTANT_PROVIDER`, and re-run the workflow.
 
