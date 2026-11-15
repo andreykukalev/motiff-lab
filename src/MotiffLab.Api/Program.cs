@@ -6,10 +6,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Cosmos;
 
 using MotiffLab.Api;
+using MotiffLab.Api.Assistant;
 
 // The Motiff Lab API (decision record 0014): a signed-in player's projects, with their sessions and sources,
 // saved in Cosmos DB. Players sign in through Microsoft Entra External ID; every document is the player's own.
 // Saving online is Pro (0018, section 12): the account's plan is an app role in the token (MotiffLab.MusicCore.Accounts.Plans).
+// The assistant's relay (0028) passes one turn of a conversation to the model behind IAssistantModel; it stores nothing.
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 IConfiguration config = builder.Configuration;
 
@@ -45,6 +47,12 @@ builder.Services.AddSingleton<IProjectStore>(_ =>
     return new CosmosProjectStore(client.GetContainer(config["Cosmos:Database"] ?? "motifflab", config["Cosmos:Container"] ?? "projects"));
 });
 
+// The assistant's relay (0028 section 4): the model, if any (none until a provider's adapter is added), its gates and counts.
+builder.Services.AddSingleton(services => AssistantModels.Create(config, services.GetRequiredService<ILoggerFactory>().CreateLogger("MotiffLab.Api.Assistant")));
+builder.Services.AddSingleton(_ => AssistantOptions.From(config));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<AssistantUsage>();
+
 WebApplication app = builder.Build();
 app.UseCors();
 app.UseAuthentication();
@@ -53,6 +61,7 @@ app.MapGet("/health", () => Results.Ok(new { service = "motiff-lab-api" }));
 app.MapProjects();
 app.MapAccount();
 app.MapProfile();
+app.MapAssistant();
 app.Run();
 
 // The web app, and its pull request previews by pattern; a native app sends no origin.

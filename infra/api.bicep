@@ -32,6 +32,24 @@ param branch string = 'main'
 @description('Host name of the web app: swa-motifflab\'s default host name.')
 param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
 
+// The assistant's relay (decision record 0028, src/MotiffLab.Api/Assistant). All empty by default: the API then answers
+// "not configured" and calls no model. The key is a Container App secret, never a plain setting.
+@description('The model provider whose adapter the API uses (Assistant:Provider); empty for none.')
+param assistantProvider string = ''
+
+@description('The provider\'s model or deployment name (Assistant:Model).')
+param assistantModel string = ''
+
+@description('The provider\'s endpoint, when it needs one (Assistant:Endpoint).')
+param assistantEndpoint string = ''
+
+@description('The object ids of the accounts allowed to use the assistant, comma-separated (Assistant:Allowed); empty lets nobody in.')
+param assistantAllowed string = ''
+
+@secure()
+@description('The provider\'s API key (Assistant:Key), from the GitHub secret ASSISTANT_API_KEY; empty for none.')
+param assistantKey string = ''
+
 param tags object = {
   app: 'motiff-lab'
   service: 'api'
@@ -51,6 +69,38 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
 // The web app, its pull request previews and the web test site (see scan.bicep), on both branches.
 var siteHost = split(webHost, '.')
 
+var assistantSecrets = empty(assistantKey) ? [] : [
+  {
+    name: 'assistant-key'
+    value: assistantKey
+  }
+]
+
+// Only the settings given, so the defaults leave the app as it was.
+var assistantEnv = concat(filter([
+  {
+    name: 'Assistant__Provider'
+    value: assistantProvider
+  }
+  {
+    name: 'Assistant__Model'
+    value: assistantModel
+  }
+  {
+    name: 'Assistant__Endpoint'
+    value: assistantEndpoint
+  }
+  {
+    name: 'Assistant__Allowed'
+    value: assistantAllowed
+  }
+], setting => !empty(setting.value)), empty(assistantKey) ? [] : [
+  {
+    name: 'Assistant__Key'
+    secretRef: 'assistant-key'
+  }
+])
+
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-motifflab-api${suffix}'
   location: location
@@ -65,6 +115,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: environment.id
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: assistantSecrets
       ingress: {
         external: true
         targetPort: 8080
@@ -81,7 +132,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
+          env: concat([
             {
               name: 'Auth__Authority'
               value: authAuthority
@@ -107,7 +158,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'Cors__OriginPattern'
               value: 'https://${siteHost[0]}-([0-9]+|develop)\\.[a-z0-9]+\\.${siteHost[1]}\\.azurestaticapps\\.net'
             }
-          ]
+          ], assistantEnv)
           probes: [
             {
               type: 'Startup'
