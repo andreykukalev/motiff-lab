@@ -17,6 +17,7 @@
 @inject ScanService Scans
 @inject UiText Text
 @inject MotiffLab.Web.Playback.PieceMetronome Metronome
+@inject DeviceSettings SettingsStore
 @implements IDisposable
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
@@ -26,10 +27,12 @@
    separate piece, and this one never changes (Andrei, 2026-11-05).
    The bar is the score's (0018 section 2): back, the title, the page under the bar, and the overflow. *@
 <main class="lab app workspace pdf-reader">
-    @if (_project?.Document is { } document)
+    @if (ShownDocument is { } document)
     {
-        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" StartPlace="_startPlace" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
-                 PencilKey="@PencilKey" Ink="@_ink" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
+        <PdfView @key="@(ShownOriginal ?? PieceOriginal.DocumentId)" @ref="_view" Document="document" Label="@Title" StartPage="@(ShownOriginal is null ? _startPage : 1)"
+                 StartPlace="@(ShownOriginal is null ? _startPlace : null)" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync" PencilKey="@PencilKey"
+                 Ink="@(ShownOriginal is null ? _ink : "")" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()"
+                 Bookmarks="@(ShownOriginal is null ? _bookmarkedPages : [])" />
     }
 
     @if (_away is { } away)
@@ -53,7 +56,17 @@
         {
             <span class="pg" aria-live="off">@pages</span>
         }
-        @if (HasNotes)
+        @if (SourcesOn && _project is { HasNotes: true } withViews && PieceViews.Of(withViews, HoldingDevice.Web) is { } views)
+        {
+            @* The switch of all the piece's views and the Sources button (version 0.6, the new sources). *@
+            <MotiffLab.Web.Sources.SourcesSwitch Views="@MotiffLab.Web.Sources.SourceNames.Switch(Text, views, Title ?? "", 0, view => CanShow(withViews, view))"
+                                                 Shown="@MotiffLab.Web.Sources.SourceNames.KeyOf(ViewKind.Original, ShownOriginal ?? PieceOriginal.DocumentId)" Hidden="views.HiddenCount"
+                                                 Pick="view => PickViewAsync(withViews, view.Key)" OpenSources="() => OpenSources(withViews)" />
+            <button class="act wide sources-button" @onclick="() => OpenSources(withViews)">
+                <Icon Name="layers" Size="IconSize.Large" /> <span class="lbl">@Text["sources.title"]</span>
+            </button>
+        }
+        else if (HasNotes)
         {
             <ViewSwitch OnPdf="true" Switch="_ => ShowNotesAsync()" />
         }
@@ -106,7 +119,7 @@
             <button class="btn quiet" @onclick="AddVersionAsync" disabled="@(_project is null || (!HasNotes && _pages.Count == 0))">
                 <Icon Name="mic" /> @Text["performance.add"] @if (_project is not null && !HasNotes && Scans.IsHosted) { <span class="tag pro">Pro</span> }
             </button>
-            <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
+            <button class="btn quiet" @onclick="DownloadAsync" disabled="@(ShownDocument is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
         </div>
     }
     else if (_popover == Popover.Recognise && _project is { Document: { } pdf } toRead)
@@ -195,16 +208,16 @@
     /// Whether the marks on the pages are shown only (version 0.4; Andrei, 2026-11-12): the iPad holds this PDF too and
     /// writes them, and they come here with the online copy (<see cref="Project.WritesDocumentMarks"/>).
     /// </summary>
-    private bool ReadOnlyMarks => _project is { } project && !project.WritesDocumentMarks(HoldingDevice.Web);
+    private bool ReadOnlyMarks => _project is { } project && (ShownOriginal is not null || !project.WritesDocumentMarks(HoldingDevice.Web));
 
     /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
-    private string? PencilKey => _project is { } project ? $"pdf:{project.Id}" : null;
+    private string? PencilKey => _project is { } project ? ShownOriginal is { } original ? $"pdf:{project.Id}:{original}" : $"pdf:{project.Id}" : null;
 
     /// <summary>The pages with a bookmark, a new list whenever they change.</summary>
     private IReadOnlyList<int> _bookmarkedPages = [];
 
     /// <summary>The bookmark on the page under the bar, if any.</summary>
-    private PageBookmark? CurrentBookmark => _pages.First > 0 ? _project?.DocumentMarks.BookmarkOn(_pages.First) : null;
+    private PageBookmark? CurrentBookmark => _pages.First > 0 && ShownOriginal is null ? _project?.DocumentMarks.BookmarkOn(_pages.First) : null;
     private int _startPage = 1;
 
     /// <summary>The place the PDF was left at (PDF | Notes, #511 section 10), opened at when no page is asked for; null for none.</summary>
@@ -270,7 +283,7 @@
     /// <summary>The place the pages are at, kept with the piece on this device (PDF | Notes, #511 section 10).</summary>
     private async Task KeepPlaceAsync()
     {
-        if (_project is { } project && _view is not null && _pages.Count > 0 && await _view.ViewPlaceAsync() is { } place)
+        if (_project is { } project && ShownOriginal is null && _view is not null && _pages.Count > 0 && await _view.ViewPlaceAsync() is { } place)
         {
             await Preferences.KeepPdfPlaceAsync(project.Id, place);
         }
@@ -299,20 +312,20 @@
 
             // A piece with notes and no PDF opens in the workspace. A piece that is only a PDF whose file is not in it
             // (version 0.5: linked in the player's folder, or on another device) shows where its PDF is (OriginalAway).
-            if (project.Document is null && project.HasNotes)
+            if (project.Document is null && project.HasNotes && ShownOriginal is null)
             {
                 Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
                 return;
             }
 
-            if (project.Document is null && !project.DescribesDocument)
+            if (project.Document is null && !project.DescribesDocument && ShownOriginal is null)
             {
                 _project = null;
                 _message = Text["pdf.unreadable"];
                 return;
             }
 
-            _away = project.Document is null ? project : null;
+            _away = project.Document is null && ShownOriginal is null ? project : null;
 
             _notes = await Projects.NotesReadFromAsync(id);
             _startPage = Page is > 0 and int asked ? asked
@@ -338,7 +351,7 @@
             return;
         }
 
-        if (_project is { } project && _view is not null && !_coverSaved)
+        if (_project is { } project && ShownOriginal is null && _view is not null && !_coverSaved)
         {
             _coverSaved = await _view.SaveCoverAsync(project.Id, Title);
         }
@@ -347,7 +360,7 @@
     private async Task OnPagesShownAsync((int First, int Last, int Count) pages)
     {
         _pages = pages;
-        if (_project is { } project)
+        if (_project is { } project && ShownOriginal is null)
         {
             await Preferences.SetAsync(PageKey(project.Id), pages.First.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
@@ -357,9 +370,9 @@
     private async Task DownloadAsync()
     {
         _popover = Popover.None;
-        if (_project is { Document: { } document } project)
+        if (_project is { } project && ShownDocument is { } document)
         {
-            await Projects.DownloadAsync(project.DocumentFileName, document, "application/pdf");
+            await Projects.DownloadAsync(ShownOriginal is { } original ? project.FindOriginal(original)?.FileName ?? project.DocumentFileName : project.DocumentFileName, document, "application/pdf");
         }
     }
 

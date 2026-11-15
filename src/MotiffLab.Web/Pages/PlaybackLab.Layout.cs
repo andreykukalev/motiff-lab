@@ -650,6 +650,7 @@ public partial class PlaybackLab : IAsyncDisposable
         {
             await DetachLayoutAsync();
             await DisposeViewsAsync();
+            await DisposeSourcesAsync();
             if (_chromeModule is not null)
             {
                 await _chromeModule.DisposeAsync();

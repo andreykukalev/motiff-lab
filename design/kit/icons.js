@@ -51,6 +51,13 @@ const ICONS = {
   deselect: '<path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/><path d="M7.75 7.75l4.5 4.5M12.25 7.75l-4.5 4.5"/>',
   pencil: '<path d="M6 11l7-7 3 3-7 7"/><path d="M6 11l-2.5 5.5L9 14"/><path d="M7.5 12.5l7-7"/><path d="M11.6 5.4l3 3"/><path d="M3.5 16.5l.7-1.6.9.9z" fill="currentColor"/>',
   marker: '<path d="M8 10l4.9-4.9a2.1 2.1 0 0 1 3 3L11 13"/><path d="M8 10l3 3"/><path d="M8 10l-3.5 3.5 1.5 1.5L11 13"/><path d="M3 17.5h7.5" stroke-width="2.5"/>',
-  eraser: '<path d="M7.3 16.5l-3.8-3.8a1.4 1.4 0 0 1 0-2l7-7a1.4 1.4 0 0 1 2 0l4.3 4.3a1.4 1.4 0 0 1 0 2l-6.5 6.5"/><path d="M6.5 7.5l6 6"/><path d="M7.3 16.5h9.2"/>'
+  eraser: '<path d="M7.3 16.5l-3.8-3.8a1.4 1.4 0 0 1 0-2l7-7a1.4 1.4 0 0 1 2 0l4.3 4.3a1.4 1.4 0 0 1 0 2l-6.5 6.5"/><path d="M6.5 7.5l6 6"/><path d="M7.3 16.5h9.2"/>',
+  // Sources sheet and the views switch (0.6, decision record 0030): what made Notes, and a view shown in the switch or hidden.
+  fromPdf: '<rect x="4" y="2.75" width="12" height="14.5" rx="1.5"/><ellipse cx="8.6" cy="13" rx="1.9" ry="1.4" transform="rotate(-20 8.6 13)"/><path d="M10.4 12.5V6.25l2.6 1.25"/>',
+  fromRec: '<path d="M2.75 8.5v3M5.25 6v8M7.75 7.5v5"/><ellipse cx="12.6" cy="14.6" rx="1.9" ry="1.4" transform="rotate(-20 12.6 14.6)"/><path d="M14.4 14.1V4.75l2.6 1.25"/>',
+  assemble: '<path d="M4 3.5v2.25a4.25 4.25 0 0 0 4.25 4.25h3.5A4.25 4.25 0 0 0 16 5.75V3.5M10 10v6.5"/><path d="M7.5 14l2.5 2.5 2.5-2.5"/>',
+  fromFile: '<path d="M5.5 2.75h5.5l4 4v9.75a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 16.5v-12a1.5 1.5 0 0 1 1.5-1.75"/><path d="M11 2.75v4h4"/><ellipse cx="8.4" cy="13.6" rx="1.7" ry="1.25" transform="rotate(-20 8.4 13.6)"/><path d="M10 13.1V8.5l2.2 1"/>',
+  eye: '<path d="M2.5 10s2.75-5.25 7.5-5.25S17.5 10 17.5 10s-2.75 5.25-7.5 5.25S2.5 10 2.5 10z"/><circle cx="10" cy="10" r="2.25"/>',
+  eyeoff: '<path d="M8.2 4.95A7.6 7.6 0 0 1 10 4.75c4.75 0 7.5 5.25 7.5 5.25a13 13 0 0 1-1.9 2.6M12 14.9a7 7 0 0 1-2 .35C5.25 15.25 2.5 10 2.5 10a12.8 12.8 0 0 1 2.85-3.4"/><path d="M8.4 8.4a2.25 2.25 0 0 0 3.2 3.2M3.5 3.5l13 13"/>'
 };
 function ic(name, cls) { return `<svg class="ic ${cls||''}" viewBox="0 0 20 20" aria-hidden="true">${ICONS[name]}</svg>`; }

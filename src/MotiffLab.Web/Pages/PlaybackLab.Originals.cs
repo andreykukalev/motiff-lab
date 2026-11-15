@@ -223,9 +223,18 @@ public partial class PlaybackLab
     /// </summary>
     private async Task RelinkRecordingAsync(string id)
     {
+        if (_relinkPickers.GetValueOrDefault(id)?.Element is { } input)
+        {
+            await RelinkRecordingFromAsync(id, input);
+        }
+    }
+
+    /// <summary>«Привязать оригинал» for a recording, with the file picked in <paramref name="input"/>.</summary>
+    private async Task RelinkRecordingFromAsync(string id, ElementReference input)
+    {
         _relinkStatus = null;
         _relinking = id;
-        if (_project?.FindOriginal(id) is not { } original || _relinkPickers.GetValueOrDefault(id)?.Element is not { } input)
+        if (_project?.FindOriginal(id) is not { } original)
         {
             return;
         }

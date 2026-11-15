@@ -101,6 +101,12 @@
                            BarsChosen="OnAssemblyBarsChosenAsync" PaperTapped="OnAssemblyPaperTappedAsync" VersionAdded="@(_assemblyShown == NotesSource ? AssemblyGhostNotes : null)" Origins="AssemblyOrigins" Ghost="@(_assemblyShown == NotesSource ? AssemblyGhost : null)"
                            Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
             }
+            else if (_otherShown is not null && OtherNotesScore is { } otherNotes)
+            {
+                @* Other Notes (version 0.6, the new sources): read-only in place of the working notes, until those are picked again. *@
+                <ScoreView @key="@($"notes-{_otherShown}")" Source="otherNotes" HoldHeight="false" Heard="false" Follow="false" Title="@ScoreTitle.Of(_title)"
+                           EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
+            }
             else if (ShownScore is { } shown)
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
@@ -137,7 +143,7 @@
                             @onclick="ToggleContentsAsync"><Icon Name="pages" Size="IconSize.Large" /></button>
                     <button class="ttl @(_contentsOpen ? "on" : null)" title="@SessionLine" aria-label="@Text.Format("contents.open", BarTitle)" aria-expanded="@(_contentsOpen ? "true" : "false")"
                             @onclick="ToggleContentsAsync">@BarTitle</button>
-                    @if (VersionsLabel is { } versions)
+                    @if (VersionsLabel is { } versions && !(SourcesOn && MotiffLab.Web.Sources.SourcesExperiment.ButtonReplacesVersionsLabel))
                     {
                         @* The only trace of the assembly in everyday work (0024, section 6): the versions, and the carries once made; it opens Sources. *@
                         <button class="versions-label" aria-expanded="@(_performanceOpen ? "true" : "false")" title="@Text["sources.title"]" @onclick="TogglePerformance">
@@ -148,11 +154,17 @@
                     {
                         <span class="pg" aria-live="off">@pages</span>
                     }
-                    @if (_project is { Document: not null } or { ReadFrom: not null })
+                    @if (SourcesOn && _project is not null)
+                    {
+                        @SourcesBarPart
+                    }
+                    else if (_project is { Document: not null } or { ReadFrom: not null })
                     {
                         <MotiffLab.Web.Pdf.ViewSwitch OnPdf="false" Switch="_ => ShowPdfAsync()" />
                     }
                     <span class="sp"></span>
+                    @if (_otherShown is null)
+                    {
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
                             data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
                     @if (PlayheadsOn)
@@ -198,6 +210,7 @@
                     }
                     <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                             @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
+                    }
                 }
             </header>
 
@@ -438,7 +451,18 @@
                 @CheckDrawer
             }
 
-            @if (_performanceOpen)
+            @if (_performanceOpen && SourcesOn && _project is { } sourcesPiece && SourceViews is { } sourcesViews)
+            {
+                <MotiffLab.Web.Sources.SourcesSheet Project="sourcesPiece" Views="sourcesViews" Shown="@ShownViewKey" Piece="@BarTitle" Carries="AssemblyCarries" Fresh="@_freshNotes"
+                                                    Status="@_sourcesStatus" CanOpen="CanShowView" PdfOf="PdfOf" PagesOf="PagesOfOriginal" WhereText="WhereText"
+                                                    Close="() => CloseFromAsync(Place.Performance)" Open="OpenViewAsync" Hide="HideViewAsync"
+                                                    AddPdf="args => ShownAfter(AddPdfOriginalAsync(args))" AddPhotos="args => ShownAfter(AddPhotosOriginalAsync(args))"
+                                                    AddRecording="(file, input) => ShownAfter(AddRecordingOriginalAsync(file, input))" AddFile="args => ShownAfter(AddPerformanceAsync(args))"
+                                                    AddSame="(id, file, input) => ShownAfter(AddSameOriginalAsync(id, file, input))"
+                                                    Relink="(id, args, input) => ShownAfter(RelinkSourceAsync(id, args, input))" Recognised="RecogniseOriginalAsync"
+                                                    RemoveOriginal="RemoveSourceOriginalAsync" DeleteNotes="DeleteSourceNotesAsync" MakeWorking="MakeWorkingAsync" />
+            }
+            else if (_performanceOpen)
             {
                 @PerformanceDrawer
             }
@@ -1752,15 +1776,24 @@
                 <Icon Name="file" /> @Text["performance.addMidi"]
                 <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
             </label>
+            @* A PDF the notes were read from is never replaced: another goes beside it (sources sheet, 2026-11-14). *@
             <label class="file btn secondary">
-                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : "sources.replacePdf"]
-                <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : PdfHasNotes ? "sources.addMorePdf" : "sources.replacePdf"]
+                <InputFile OnChange="@(PdfHasNotes ? AddAnotherPdfAsync : AddDocumentAsync)" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
             </label>
             <p class="caption">@Text["sources.pdfHow"]</p>
             <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" Picked="FingerprintRecordingAsync" />
         </section>
     }
 </aside>;
+
+    /// <summary>The switch of the piece's views and the Sources button after it (version 0.6, the new sources).</summary>
+    private RenderFragment SourcesBarPart => @<text>
+        <MotiffLab.Web.Sources.SourcesSwitch Views="SwitchViews" Shown="@ShownViewKey" Hidden="@(SourceViews?.HiddenCount ?? 0)" Pick="PickViewAsync" OpenSources="ToggleSources" />
+        <button class="act wide sources-button @(_performanceOpen ? "on" : null)" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="ToggleSources">
+            <Icon Name="layers" Size="IconSize.Large" /> <span class="lbl">@Text["sources.title"]</span>
+        </button>
+    </text>;
 
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
                                                     ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" NoteSaved="SaveKeptNoteAsync" />;
