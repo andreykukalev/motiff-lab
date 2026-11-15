@@ -8,7 +8,9 @@ namespace MotiffLab.Api;
 
 /// <summary>
 /// The player's projects: list, read, save and delete one, and delete everything (the right to erasure).
-/// A project travels as its project file (<see cref="ProjectFile"/>), the same bytes the app autosaves and exports.
+/// A project travels as its project file (<see cref="ProjectFile"/>), the same bytes the app autosaves and exports. The API
+/// checks only its envelope (0026 S2; <see cref="ProjectFile.ReadEnvelope"/>): the format, the version, the id and the
+/// size, never the musical content, so it stores a file of a later version than its own exactly as it was sent.
 /// Saving is free since version 0.2 (0025, section 8): a free account keeps up to <see cref="Plans.FreeProjectsOnline"/>
 /// pieces online, and a new piece beyond them is refused with the code "quota" and stays on the device; the pieces already
 /// online keep syncing. Pro has no such limit. Reading, listing and deleting are on every plan.
@@ -83,10 +85,10 @@ internal static partial class ProjectEndpoints
             return Problem(StatusCodes.Status413PayloadTooLarge, $"The project is larger than {MaxFileBytes / (1024 * 1024)} MB.");
         }
 
-        Project project;
+        ProjectEnvelope project;
         try
         {
-            project = ProjectFile.Read(file);
+            project = ProjectFile.ReadEnvelope(file);
         }
         catch (ProjectFileException error)
         {

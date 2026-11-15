@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -117,6 +118,29 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/projects/p_one", Json(File("p_two")))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/projects/p_one", Json("{}"u8.ToArray()))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/projects/p.one", Json(File("p.one")))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Only_the_envelope_is_checked_so_a_later_version_and_an_unknown_value_are_kept_byte_for_byte()
+    {
+        // 0026 S2: the API can be older than the apps, so it never reads the musical content.
+        HttpClient client = Client(Player());
+        JsonObject later = JsonNode.Parse(File("p_later"))!.AsObject();
+        later["version"] = ProjectFile.Version + 1;
+        later["workspace"]!["motifs"] = new JsonArray(new JsonObject { ["id"] = "m_1", ["kind"] = "FutureValue" }, new JsonObject { ["id"] = "m_2" });
+        later["future"] = "kept";
+        byte[] sent = Encoding.UTF8.GetBytes(later.ToJsonString());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsync("/projects/p_later", Json(sent))).StatusCode);
+
+        Assert.Equal(sent, await client.GetByteArrayAsync("/projects/p_later"));
+        Assert.Equal(2, Assert.Single((await client.GetFromJsonAsync<Summary[]>("/projects"))!).MotifCount);
+        JsonObject damaged = JsonNode.Parse(File("p_later"))!.AsObject();
+        damaged["lastOpened"] = "yesterday";
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/projects/p_later", Json(Encoding.UTF8.GetBytes(damaged.ToJsonString())))).StatusCode);
+        damaged["lastOpened"] = later["lastOpened"]!.DeepClone();
+        damaged["version"] = 0;
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/projects/p_later", Json(Encoding.UTF8.GetBytes(damaged.ToJsonString())))).StatusCode);
     }
 
     [Fact]
