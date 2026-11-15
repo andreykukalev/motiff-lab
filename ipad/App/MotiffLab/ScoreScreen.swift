@@ -124,8 +124,10 @@ struct ScoreScreen: View {
     /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
     private func openDna(fromMore: Bool) {
         let id = piece.id
+        // «Идеи по смыслу» (#582 item 15, an experiment): the ideas by what they are in the music.
+        let request = settings.isOn("experimental.musicalIdeas") ? #"{"ideas":"musical"}"# : nil
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna") }
+            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna", request) }
             guard let map = DnaMap(answer: answer) else { return }
             dnaFromMore = fromMore
             dna = map

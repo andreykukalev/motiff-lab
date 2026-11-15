@@ -298,6 +298,8 @@ struct SettingsSheet: View {
             switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
             // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
             switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
+            // Version 0.6.1 (#582 item 15): Piece DNA's ideas by what they are in the music, each card saying why.
+            switchRow("experimental.musicalIdeas", text["settings.musicalIdeas"], hint: text["settings.musicalIdeasHint"])
             // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
             switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
             if settings.isOn(ScanServer.engineSetting) {

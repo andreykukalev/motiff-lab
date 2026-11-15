@@ -17,6 +17,9 @@ public partial class PlaybackLab
     [SupplyParameterFromQuery(Name = "view")]
     public string? View { get; set; }
 
+    /// <summary>«Идеи по смыслу» (#582 item 15): the map's ideas by what they are in the music, an experiment.</summary>
+    public const string MusicalIdeasSetting = "experimental.musicalIdeas";
+
     private PieceDna? _dna;
 
     /// <summary>What the map's last action did, such as the bookmarks it added.</summary>
@@ -47,7 +50,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>The map of the piece, with the doubt of recognised notes still to check in its chords and keys (#352).</summary>
-    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _reading?.Structure, Words, _pieceStructure));
+    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _reading?.Structure, Words, _pieceStructure, SettingsStore.IsOn(MusicalIdeasSetting)));
 
     private async Task CloseDnaAsync()
     {

@@ -2470,6 +2470,8 @@
   "settings.assistantHint": "Ask opens the assistant in Insights: it answers about the selection or the whole piece with an AI model, and every answer cites the facts the app found, each with its place in the score. Before the first question it shows exactly what is sent; nothing is sent until you agree and the assistant is switched on for your account.",
   "settings.sources": "New sources",
   "settings.sourcesHint": "The switch of every view of the piece above the score and the Sources sheet by originals and notes: another PDF, recognise a recording, recognise again, remove an original and keep its notes, and Make working. Your own files are never changed.",
+  "settings.musicalIdeas": "Ideas by what they are in the music (preview)",
+  "settings.musicalIdeasHint": "In Piece DNA, the ideas are the theme, the contrasting section, a sequence, the motif heard most often and the highest point, each only where the app finds it in the notes. Each card says in one line why it was chosen, from what the app measured: the closes, the sections, the repeats, notes per beat, the highest note and the key. Off, the ideas are the phrase openings heard most often, as before.",
   "repair.open": "Repair",
   "repair.overline": "Proposal · correction · bar {0}",
   "repair.ways": "Ways to repair",

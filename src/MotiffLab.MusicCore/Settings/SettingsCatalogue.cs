@@ -152,6 +152,11 @@ public static class SettingsCatalogue
         // Sources sheet by originals and Notes (the facade's sources.layers), with another PDF, a recording recognised,
         // recognising again, removing an original and «Сделать рабочими». Off, the apps show the sources as before.
         Switch("experimental.sources", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Идеи по смыслу» (v0.6.1, #582 item 15): Piece DNA's ideas by what they are in the music (Analysis.MusicalIdeas): the
+        // theme, the contrast, a sequence, the motif heard most often and the highest point, each card saying why from what
+        // the engine measured. Off, the ideas are the openings heard most often, as before. On the device.
+        Switch("experimental.musicalIdeas", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 
