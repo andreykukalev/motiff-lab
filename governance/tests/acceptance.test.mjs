@@ -143,3 +143,12 @@ test('a label run fails on a build that failed, and passes one that passed', nee
   assert.equal(report({ conclusion: 'cancelled', steps: steps(null) }).code, 1);
   assert.equal(report({ conclusion: 'success', steps: steps(null) }).code, 0);
 });
+
+test('the UI/UX Baseline tests are protected like the scenarios; other tests are not', needsTools, () => {
+  for (const file of ['tests/web/baseline-selection.test.mjs', 'tests/e2e/baseline-selection.spec.mjs', 'ipad/App/MotiffLabTests/BaselineSelectionTests.swift']) {
+    const result = approval([file], ['agent']);
+    assert.equal(result.code, 1, `${file}: ${result.out}`);
+  }
+  assert.equal(approval(['tests/web/baseline-selection.test.mjs'], ['agent', 'protected-scenarios-ok']).code, 0);
+  assert.equal(approval(['tests/web/selection.test.mjs', 'tests/e2e/library.spec.mjs'], ['agent']).code, 0);
+});

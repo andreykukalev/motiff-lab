@@ -135,6 +135,7 @@ Soft mode: all agents act under Andrei's GitHub identity, so the guards catch mi
 | Deny rules and hooks | `.claude/settings.json`, `.claude/hooks/` | On Andrei's computer only (a claude.ai cloud thread does not load them): refuse merges, workflow runs, settings, Azure, force push, pushes to other branches |
 | `env-scope` | CI | Marks a pull request that changes the agents' rules (decision 6) |
 | Protected scenarios | CI, label `protected-scenarios-ok` | A change to `tests/acceptance/` needs Andrei's label |
+| UI/UX Baseline | `ux-baseline.md`, CI, label `protected-scenarios-ok` | Rules only on Andrei's word; a change to a baseline test (`tests/web/baseline-*`, `tests/e2e/baseline-*`, `ipad/App/MotiffLabTests/Baseline*`) needs his label; `tests/ux-baseline.test.mjs` checks every rule has existing tagged tests |
 
 `risk-paths.yml`, `metrics/` and `tests/` are kept from the previous process: the guards' tests and the acceptance
 check still use them.

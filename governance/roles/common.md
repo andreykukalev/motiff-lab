@@ -11,6 +11,9 @@ Read `governance/README.md` (the process) first, then this file, then your role'
   links the exact place, restates the question with your recommendation and says how to answer.
 - Decisions you take yourself go to the decision log (`/mnt/project-files/product/decisions.md`), one line: date, what,
   why, how to undo.
+- Approved behaviour comes first: before changing UI or an interaction, read `governance/ux-baseline.md`. A feature that
+  breaks a baseline rule is not done; a baseline test that fails is fixed in the code, not in the test; a conflict between
+  a new request and a rule goes to Andrei. Never write a rule there yourself: propose candidates, he decides.
 - Claims about the product cite a record (decision, idea, Andrei's message); claims about the code are checked in the
   code, never taken from memory or chat.
 - Only Andrei's subscription pays for models: no API keys, no purchased tokens.

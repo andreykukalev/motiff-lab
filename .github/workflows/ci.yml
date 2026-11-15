@@ -268,8 +268,8 @@ jobs:
           pip install -r requirements-test.txt
           python -m pytest -q
 
-      # The protected acceptance scenarios (tests/acceptance/README.md, #310): a pull request that adds, changes,
-      # removes or renames a file there needs the label protected-scenarios-ok, which only Andrei sets. It runs last
+      # The protected acceptance scenarios (tests/acceptance/README.md, #310) and the UI/UX Baseline's tests
+      # (governance/ux-baseline.md, #582): a pull request that adds, changes, removes or renames such a file needs the label protected-scenarios-ok, which only Andrei sets. It runs last
       # in a build and again in every label run, from the pull request's files and labels as GitHub has them now.
       # A file list shorter than the pull request's count of changed files counts as touching the scenarios.
       - name: Check approval of the protected scenarios
@@ -284,7 +284,7 @@ jobs:
           labels="$(gh api "$pull" --jq '.labels[].name')"
           files="$(gh api --paginate "$pull/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')"
           listed="$(gh api --paginate "$pull/files?per_page=100" --jq '.[].filename' | grep -c . || true)"
-          protected="$(grep -E '^tests/acceptance/' <<< "$files" | sort -u || true)"
+          protected="$(grep -E '^(tests/acceptance/|tests/(web|e2e)/baseline-|ipad/App/MotiffLabTests/Baseline)' <<< "$files" | sort -u || true)"
           if (( listed < count )); then
             protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch tests/acceptance)}"
           fi

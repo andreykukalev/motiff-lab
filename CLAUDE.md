@@ -20,6 +20,7 @@ Decision records: `docs/decisions/`, listed with what each decides in `docs/READ
 
 The web Music Studio and the iPad Practice Studio are two workspaces of one product with no parity: a function is not built in one app because the other has it; weigh product decisions by `docs/decisions/0025-two-studios.md`. Both UIs are being rebuilt to 0018, replacing the old screens directly.
 
+- Before any UI or interaction change, read `governance/ux-baseline.md`: the behaviour Andrei approved. Keep its rules and their tests; a request that conflicts with a rule is raised, never resolved silently; only Andrei adds or changes rules.
 - Read `design/kit/HANDOFF.md` before any UI work. What the mockups invent (demo score, `phraseRanges()`, facts, counts, texts) is not data.
 - Source of truth in `design/kit`, highest first: `docs/01-ux-concept.md` and `docs/02-design-system.md` (text) → `tokens.css` (values) → `ds.css` (components, score marks) → `screens/*.png` (look) → `docs/wireframes/*.png` (structure only). Text beats a picture.
 - Never hard-code a colour, size, radius, shadow, font or timing: use a `tokens.css` token (a canvas reads them via `Scripts/layout/tokens.ts`). Port tokens, `ds.css` rules, icons and Verovio options, never the mockup HTML (`s*.html`).
