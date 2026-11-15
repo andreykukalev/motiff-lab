@@ -294,7 +294,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     let webView: WKWebView
     /// The pen, and who writes and who scrolls (#479 items 7 and 18).
     private let ink = InkInput()
-    private var piece: OpenPiece?
+    private(set) var piece: OpenPiece?
     private var dark = false
     private var pageReady = false
     private var shown = false
@@ -338,7 +338,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var id: Int { page }
     }
 
-    override init() {
+    /// `mode` is the bar's mode the screen opens with, as Settings has the modes (v0.6.4 spec section 13): known before the
+    /// screen's first frame, so the score never draws the model without the modes while its sound loads.
+    init(mode: InteractionMode? = nil) {
+        _mode = Published(initialValue: mode)
+        ProbeCounts.shared.add("score")
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -362,12 +366,19 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
     }
 
+    deinit {
+        ProbeCounts.shared.add("score", -1)
+    }
+
     /// Shows a piece's pages and its marks; again when the appearance changes.
     func show(_ piece: OpenPiece, dark: Bool) {
         guard self.piece?.id != piece.id || self.dark != dark || !shown else { return }
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            #if DEBUG
+            ScreensProbe.score = self
+            #endif
             // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             historyKey = SelectionHistories.key(piece)
@@ -1947,6 +1958,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func render() async {
         guard let piece else { return }
+        ProbeCounts.shared.add("renders")
         let timemap = (try? JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))) ?? []
         do {
             let laid = try await webView.callAsyncJavaScript(

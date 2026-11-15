@@ -19,6 +19,10 @@ struct MotiffLabApp: App {
     var body: some Scene {
         WindowGroup {
             LibraryView()
+                #if DEBUG
+                // What the switch test reads (ScreensProbe), over whichever screen shows.
+                .overlay(alignment: .topLeading) { if ScreensHook.active { ScreensProbeView() } }
+                #endif
                 .environmentObject(account)
                 .environmentObject(settings)
                 .preferredColorScheme(settings.colorScheme)

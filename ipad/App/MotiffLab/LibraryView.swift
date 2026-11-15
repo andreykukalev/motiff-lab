@@ -205,7 +205,7 @@ struct LibraryView: View {
                 await reload()
                 await refreshOnline()
                 #if DEBUG
-                if let screensFile { await open(.success(screensFile)) }
+                if let screensFile { if ScreensHook.bothViews, let both = await ScreensHook.withNotes(screensFile) { await reload(); await openProject(both) } else { await open(.success(screensFile)) } }
                 #endif
             }
             // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
@@ -579,6 +579,7 @@ struct LibraryView: View {
             }
             opened.landing = ViewStates.landing(landing, for: opened)
             piece = opened
+            ScreensProbe.shown = opened
         case .failure(let error):
             problem = error.message
         }
