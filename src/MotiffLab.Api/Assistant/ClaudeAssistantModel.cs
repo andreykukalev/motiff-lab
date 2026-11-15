@@ -32,7 +32,7 @@ internal sealed class ClaudeAssistantModel(AnthropicClient client, ClaudeSetting
     public async Task<ModelReply> NextAsync(ModelTurn turn, CancellationToken cancel)
     {
         ArgumentNullException.ThrowIfNull(turn);
-        var names = ClaudeToolNames.From(turn.Tools);
+        var names = ToolNames.From(turn.Tools);
         BetaMessage message;
         try
         {
@@ -52,7 +52,7 @@ internal sealed class ClaudeAssistantModel(AnthropicClient client, ClaudeSetting
 /// <summary>A turn as a Claude Messages request.</summary>
 internal static class ClaudeRequest
 {
-    public static MessageCreateParams Build(ModelTurn turn, ClaudeSettings settings, ClaudeToolNames names)
+    public static MessageCreateParams Build(ModelTurn turn, ClaudeSettings settings, ToolNames names)
     {
         var request = new MessageCreateParams
         {
@@ -70,18 +70,18 @@ internal static class ClaudeRequest
         return settings.Fallbacks ? request with { Betas = [AnthropicBeta.ServerSideFallback2026_07_01], Fallbacks = new Default() } : request;
     }
 
-    /// <summary>The role's tools, strict, named as Claude allows (<see cref="ClaudeToolNames"/>).</summary>
-    private static IEnumerable<BetaToolUnion> Tools(JsonElement catalogue, ClaudeToolNames names) =>
-        ClaudeToolNames.Entries(catalogue).Select(tool => (BetaToolUnion)new BetaTool
+    /// <summary>The role's tools, strict, named as Claude allows (<see cref="ToolNames"/>).</summary>
+    private static IEnumerable<BetaToolUnion> Tools(JsonElement catalogue, ToolNames names) =>
+        ToolNames.Entries(catalogue).Select(tool => (BetaToolUnion)new BetaTool
         {
             Name = names.Wire(tool.GetProperty("name").GetString()!),
-            Description = tool.TryGetProperty("description", out JsonElement description) ? description.GetString() ?? "" : "",
-            InputSchema = new InputSchema(ClaudeToolSchemas.Strict(tool.GetProperty("parameters"))),
+            Description = ToolNames.Description(tool),
+            InputSchema = new InputSchema(StrictToolSchemas.ForClaude(tool.GetProperty("parameters"))),
             Strict = true,
         });
 
     /// <summary>The context first, then the history; entries of the same side in a row share one message.</summary>
-    private static List<BetaMessageParam> Messages(ModelTurn turn, ClaudeToolNames names)
+    private static List<BetaMessageParam> Messages(ModelTurn turn, ToolNames names)
     {
         var messages = new ClaudeMessages();
         messages.Add(Role.User, Text(Context(turn.Context)));
@@ -113,7 +113,7 @@ internal static class ClaudeRequest
     private static BetaContentBlockParam[] Text(string? text) =>
         string.IsNullOrWhiteSpace(text) ? [] : [new BetaTextBlockParam { Text = text }];
 
-    private static BetaContentBlockParam ToolUse(ToolCall call, ClaudeToolNames names) => new BetaToolUseBlockParam
+    private static BetaContentBlockParam ToolUse(ToolCall call, ToolNames names) => new BetaToolUseBlockParam
     {
         ID = call.Id,
         Name = names.Wire(call.Name),
@@ -167,7 +167,7 @@ internal static class ClaudeRequest
 /// <summary>Claude's answer as the relay takes it: its tool calls, else its text; and the tokens it cost.</summary>
 internal static class ClaudeReply
 {
-    public static ModelReply Read(BetaMessage message, ClaudeToolNames names, ILogger logger)
+    public static ModelReply Read(BetaMessage message, ToolNames names, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(message);
         (int input, int output) = Tokens(message.Usage);
