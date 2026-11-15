@@ -33,6 +33,9 @@ public partial class PlaybackLab : IAsyncDisposable
         More,
         Layers,
 
+        /// <summary>The workspace's two visibilities (#582 item 10), from the chevron of «Практика».</summary>
+        Practice,
+
         /// <summary>The piano roll's own settings, from a long press on its action or its handle.</summary>
         Roll,
     }

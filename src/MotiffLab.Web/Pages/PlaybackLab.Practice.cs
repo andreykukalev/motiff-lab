@@ -3,16 +3,23 @@ using Microsoft.JSInterop;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// Practice view (#533 11, Scripts/layout/practice-view.ts): one state of the view that keeps the page clean while the player
-/// plays. The bar's «Практика», the selection menu's Hide and F enter it; the same button, F, Escape and the controls' Leave
-/// leave it. It hides the selection's menu, the pill, the blue playhead of the selection and the hints of the selection and
-/// of playback; the notes, the selection's band and the black playhead stay, and a tap still places the playhead. A tap on
-/// the score shows Play/Pause and Leave for a few seconds (the script times them). Nothing else changes: playback, the loop,
-/// the selection and the position go on, so leaving shows them as they are. Not saved, not a step of the selection's history.
+/// The workspace's two visibilities (#582 item 10) over practice view (#533 11, Scripts/layout/practice-view.ts), each changed
+/// without the other: the selection controls (the selection's menu and its hints: cleared · Undo, how to hold) and the
+/// playback controls (practice view as it was: the pill, the hint back to the playing and the blue playhead of the
+/// selection). The bar's «Практика» and F hide both in one press and show both again while either is hidden; the chevron
+/// lists the two, each on its own; the selection menu's Hide hides the selection controls only; the controls' Leave shows
+/// the playback controls again, and Escape in practice view shows both. The notes, the selection's band and the black
+/// playhead stay, and with the playback controls hidden a tap still places the playhead and shows Play/Pause and Leave for
+/// a few seconds (the script times them). Nothing else changes: playback, the loop, the selection and the position go on. Not saved, not a step of
+/// the selection's history.
 /// </summary>
 public partial class PlaybackLab
 {
+    /// <summary>The playback controls hidden: practice view.</summary>
     private bool _practice;
+
+    /// <summary>The selection controls hidden (#582 item 10).</summary>
+    private bool _selectionHidden;
 
     private IJSObjectReference? _practiceView;
 
@@ -23,27 +30,50 @@ public partial class PlaybackLab
     private bool Practicing => _practice && !Focused && !_assembling;
 
     /// <summary>
-    /// The bar's «Практика» lit, the kit's active state (#543 7): while the selection menu and the controls show, that is
-    /// practice view off; dark in practice view. Read from the one state every way in and out changes (the button, the menu's
-    /// Hide, the controls' Leave, F and Escape, Expand left), as the iPad's PracticeView.lit.
+    /// The selection controls visible (#582 item 10): the selection's menu and its hints, whatever the playback controls do.
+    /// In Expand and while comparing they are as normal, as those have their own bars.
     /// </summary>
-    private bool PracticeLit => !Practicing;
+    private bool SelectionControlsShown => !_selectionHidden || Focused || _assembling;
 
-    /// <summary>The bar's «Практика» and the selection menu's Hide: in or out, and nothing else changes.</summary>
+    /// <summary>
+    /// The bar's «Практика» lit, the kit's active state (#543 7): while both groups show, the normal workspace; dark while
+    /// either is hidden. Read from the same two states every way in and out changes, as the iPad's PracticeView.lit.
+    /// </summary>
+    private bool PracticeLit => !Practicing && SelectionControlsShown;
+
+    /// <summary>The bar's «Практика» and F: both hidden from the normal workspace, else both shown; nothing else changes.</summary>
     private async Task TogglePracticeAsync()
     {
-        _practice = !_practice;
-        if (_practice)
+        bool hide = !_practice && !_selectionHidden;
+        SetSelectionControls(!hide);
+        await SetPlaybackControlsAsync(!hide);
+    }
+
+    /// <summary>The selection controls shown or hidden on their own (the bar's list, the menu's Hide); the playback controls stay as they are.</summary>
+    private void SetSelectionControls(bool shown)
+    {
+        _selectionHidden = !shown;
+        if (!shown)
         {
-            // The pill's popovers and the menu's More go with the pill and the menu; the selection, playback and the loop stay.
-            _pillMenu = PillMenu.None;
+            // The menu's More goes with the menu; the selection stays.
             _menuMore = false;
+        }
+    }
+
+    /// <summary>The playback controls shown or hidden on their own (the bar's list, the controls' Leave); the selection controls stay as they are.</summary>
+    private async Task SetPlaybackControlsAsync(bool shown)
+    {
+        _practice = !shown;
+        if (!shown)
+        {
+            // The pill's popovers go with the pill; playback and the loop stay.
+            _pillMenu = PillMenu.None;
         }
 
         await SyncPracticeAsync();
     }
 
-    /// <summary>F enters and leaves practice view, Escape leaves it (practice-view.ts practiceKey).</summary>
+    /// <summary>F hides and shows both groups, and Escape in practice view shows both (practice-view.ts practiceKey).</summary>
     [JSInvokable]
     public async Task OnPracticeKeyAsync(bool leave)
     {
@@ -52,6 +82,7 @@ public partial class PlaybackLab
             return;
         }
 
+        // F is the bar's press; Escape, only while practice view is on, is too: it shows both groups again, as on the iPad.
         await TogglePracticeAsync();
         StateHasChanged();
     }

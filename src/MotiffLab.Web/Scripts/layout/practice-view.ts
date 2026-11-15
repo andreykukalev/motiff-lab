@@ -6,6 +6,9 @@
 // on the page shows Play/Pause and «Выйти из практики» for a few seconds, as a video player does. Nothing else changes:
 // playback, the loop, the selection and the position go on as they are, so leaving shows them as they are now. The
 // state belongs to the view: it is not saved in the project file nor in the selection's history.
+// Since #582 item 10 the selection controls (the menu and the selection's hints) are a visibility of their own, kept by the
+// page (the web's PlaybackLab.Practice.cs, the iPad's PracticeView.swift): this state is the playback controls', and each
+// group's elements follow only their own state (practiceChrome).
 
 /** What the page shows: the normal workspace, practice view, or practice view with its controls shown for a while. */
 export type PracticeShown = "off" | "on" | "reveal";
@@ -82,16 +85,19 @@ export interface PracticeChrome {
     pieceHead: boolean;
     /** The roll's loop strip under the bar numbers (the iPad's). */
     loopStrip: boolean;
-    /** The hints of the selection and of playback (the selection cleared, how to hold, back to playback). */
+    /** The hints of the selection (the selection cleared, how to hold); the hint back to playback goes with the pill. */
     hints: boolean;
     /** Practice view's own Play/Pause and Leave. */
     controls: boolean;
 }
 
-/** What shows in each state; the selection's band and the notes always do. */
-export function practiceChrome(shown: PracticeShown): PracticeChrome {
-    const normal = shown === "off";
-    return { menu: normal, transport: normal, selectionHead: normal, pieceHead: true, loopStrip: normal, hints: normal, controls: shown === "reveal" };
+/**
+ * What shows in each state of the playback controls and with the selection controls shown or not (#582 item 10), each group
+ * by its own state only; the selection's band, the notes and the black playhead always do.
+ */
+export function practiceChrome(shown: PracticeShown, selectionShown = true): PracticeChrome {
+    const playback = shown === "off";
+    return { menu: selectionShown, transport: playback, selectionHead: playback, pieceHead: true, loopStrip: playback, hints: selectionShown, controls: shown === "reveal" };
 }
 
 /** The playheads as drawn on the roll in this state: in practice view without the blue one of the selection. */

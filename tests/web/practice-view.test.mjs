@@ -64,8 +64,24 @@ test("outside practice view a tap or a touch changes nothing: the normal workspa
 
 test("practice view hides the menu, the pill, the blue playhead, the loop strip and the hints, and keeps the black playhead", () => {
     assert.deepEqual(practiceChrome("off"), { menu: true, transport: true, selectionHead: true, pieceHead: true, loopStrip: true, hints: true, controls: false });
-    assert.deepEqual(practiceChrome("on"), { menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: false });
-    assert.deepEqual(practiceChrome("reveal"), { menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: true });
+    // The bar's one press hides both groups (#582 item 10).
+    assert.deepEqual(practiceChrome("on", false), { menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: false });
+    assert.deepEqual(practiceChrome("reveal", false), { menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: true });
+});
+
+test("the selection controls and the playback controls show in all four combinations, each by its own state (#582 item 10)", () => {
+    for (const selectionShown of [true, false]) {
+        for (const shown of ["off", "on", "reveal"]) {
+            const chrome = practiceChrome(shown, selectionShown);
+            const playback = shown === "off";
+            assert.equal(chrome.menu, selectionShown, `${shown} ${selectionShown}`);
+            assert.equal(chrome.hints, selectionShown, `${shown} ${selectionShown}`);
+            assert.equal(chrome.transport, playback, `${shown} ${selectionShown}`);
+            assert.equal(chrome.selectionHead, playback, `${shown} ${selectionShown}`);
+            assert.equal(chrome.loopStrip, playback, `${shown} ${selectionShown}`);
+            assert.equal(chrome.pieceHead, true);
+        }
+    }
 });
 
 test("the roll draws its playheads without the blue one in practice view, and as they are otherwise", () => {
