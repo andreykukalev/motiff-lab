@@ -56,6 +56,7 @@ import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
+import { gridLines, tupletBlocks } from "../score/selection-grid.js";
 import { ScorePlayheadMarks, bandOf, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
 import { pressPlaces } from "../playback/playhead-press.js";
@@ -98,7 +99,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, mode: null, heads: null, input: null, practice: false, selectionControls: true };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -122,6 +123,10 @@ function show({ pages, timemap, dark }) {
     state.svgs = pages;
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
     state.timeline = ScoreTimeline.fromTimemap(timemap);
+    // The tuplets as blocks for the selection's grid, here and on the roll (Swift passes them on, v0.6.4).
+    state.tuplets = readTuplets();
+    gridMemo.geometry = null;
+    post({ tuplets: state.tuplets });
     tintUnheard();
     return layout();
 }
@@ -502,8 +507,9 @@ const selection = new SelectionLayer(document.body, {
         }
     },
     // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
-    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar.
-    beats: () => state.beats,
+    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar. Under the place rule (v0.6.4)
+    // a band is cut where the passage starts and ends inside a bar even before Swift has the beats: the barlines stand in.
+    beats: () => state.beats ?? (state.input?.places === true ? barStarts() : null),
     tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
     chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
     // The selection gesture (#511 2.1, Scripts/score/selection-gesture.ts): a hold outside the selection takes it away; a
@@ -549,7 +555,38 @@ const places = new PlaceLayer(document.body, {
     cleared: (gesture) => post({ cleared: { gesture } }),
     zoom: () => post({ zoomSelection: bandBox() }),
     view: () => scoreView(),
+    grid: (geometry) => selectionGrid(geometry),
 });
+
+/** The bars' starts in time order: the lines a band is cut at while Swift has sent no beats. */
+function barStarts() {
+    return state.geometry?.bars.map((bar) => bar.tick) ?? null;
+}
+
+/**
+ * The tuplet groups of the engraved pages (Verovio's `g.tuplet` round its notes and rests), each one block from its first
+ * start to its last end in the page's ticks (v0.6.4, Andrei 19:54Z: a tuplet is never split by a selection's edge).
+ */
+function readTuplets() {
+    const timeline = state.timeline;
+    if (timeline === null) {
+        return [];
+    }
+    const byId = new Map([...timeline.spans, ...timeline.rests].map((span) => [span.id, span]));
+    const groups = [...document.querySelectorAll("#pages g.tuplet")].map((group) =>
+        [...group.querySelectorAll("g.note, g.rest")].map((member) => byId.get(member.id)).filter((span) => span !== undefined).map((span) => ({ start: span.onset, end: span.end })));
+    return tupletBlocks(groups);
+}
+
+/** The selection's grid for the layout shown (selection-grid.ts): sixteenths from each bar's start, a tuplet one block. */
+const gridMemo = { geometry: null, lines: [] };
+function selectionGrid(geometry) {
+    if (gridMemo.geometry !== geometry) {
+        gridMemo.geometry = geometry;
+        gridMemo.lines = gridLines(geometry.bars.map((bar) => ({ start: bar.tick, end: bar.end })), state.tuplets);
+    }
+    return gridMemo.lines;
+}
 
 /**
  * The part of the window the score shows, in window pixels: below the floating bar and above the pill (the body's padding,
@@ -755,6 +792,7 @@ function clearLeft({ width }) {
 function select(chosen) {
     state.chosen = chosen ?? null;
     markPicked();
+    places.settle();
     selection.showPlaced(null);
     selection.setSelection(chosen ?? null);
     return chosen ? document.querySelectorAll("body > .sel-band").length : 0;

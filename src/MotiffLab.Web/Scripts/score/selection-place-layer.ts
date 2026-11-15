@@ -63,6 +63,11 @@ export interface PlaceHost {
     zoom(): void;
     /** The part of the window the score shows, top to bottom in window pixels, for the autoscroll; the whole window without it. */
     view?(): { top: number; bottom: number };
+    /**
+     * The lines the edges stop at (v0.6.4, selection-grid.ts: every sixteenth from each bar's start, a tuplet one block);
+     * without it, or while it gives none, the beats and the barlines while selecting by beats, else the barlines.
+     */
+    grid?(geometry: ScoreGeometry): readonly number[] | null;
 }
 
 interface PlaceDrag {
@@ -96,6 +101,11 @@ const OWN_TARGETS = ".bracket, .marker, .bmb, .perf-marker, .check-flag";
 
 export class PlaceLayer {
     private drag: PlaceDrag | null = null;
+    /**
+     * A passage let go and handed to the owner, until the owner's selection comes back (`settle`): the band shows it, and a
+     * press meanwhile reads it as the selection, so an edge taken again at once is the edge where it now stands (v0.6.4).
+     */
+    private placed: PlacedRange | null = null;
     private lastTap: Tap | null = null;
     private swallowNextClick = false;
     private scrolling = 0;
@@ -111,6 +121,16 @@ export class PlaceLayer {
         root.addEventListener("touchstart", this.onTouchStart, { passive: false });
         root.addEventListener("touchmove", this.onTouchMove, { passive: false });
         window.addEventListener("scroll", this.onScroll, { passive: true });
+    }
+
+    /** The owner's selection arrived (or was put back): the passage let go is no longer read in its place. */
+    settle(): void {
+        this.placed = null;
+    }
+
+    /** The selection a press reads: the passage just let go while the owner has not answered yet, else the owner's. */
+    private selection(): PlacedRange | null {
+        return this.placed ?? this.host.selection();
     }
 
     /** Whether the click the browser sends now ends a gesture of this layer, and is no tap on the page. */
@@ -130,7 +150,7 @@ export class PlaceLayer {
             return false;
         }
         const at = this.point(event.clientX, event.clientY);
-        const place = placeAt(this.host.selection(), at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
+        const place = placeAt(this.selection(), at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
         return place === "edge-start" || place === "edge-end";
     }
 
@@ -141,9 +161,9 @@ export class PlaceLayer {
     }
 
     /**
-     * Draws the selection's edges over the band the selection layer drew (section D, Кромки): a rule the band's full height
-     * at its start and its end, with a circle at the top of the start and at the bottom of the end; none while the rule is
-     * off, or while a new passage is drawn.
+     * Draws the selection's edges over the band the selection layer drew: the band's full height at its start and its end
+     * (where a press takes the edge), each with the kit's hollow handle at its middle (v0.6.4, Andrei's spec 6: the handles
+     * of before, score.css `.sel-edge`); none while the rule is off, or while a new passage is drawn.
      */
     decorate(): void {
         for (const old of this.root.querySelectorAll(`:scope > .${EDGE_CLASS}`)) {
@@ -186,8 +206,12 @@ export class PlaceLayer {
         return { x: clientX - view.left + this.root.scrollLeft, y: clientY - view.top + this.root.scrollTop };
     }
 
-    /** The lines an edge stops at: the beats and the barlines while selecting by beats, else the barlines. */
+    /** The lines an edge stops at: the host's grid; else the beats and the barlines while selecting by beats, else the barlines. */
     private lines(geometry: ScoreGeometry): number[] {
+        const grid = this.host.grid?.(geometry) ?? null;
+        if (grid !== null && grid.length > 0) {
+            return [...grid];
+        }
         const beats = this.host.beats.lines();
         return beats !== null ? keyLines(beats, geometry.bars) : barlines(geometry.bars);
     }
@@ -208,7 +232,7 @@ export class PlaceLayer {
             return;
         }
         const at = this.point(event.clientX, event.clientY);
-        const selection = this.host.selection();
+        const selection = this.selection();
         const place = placeAt(selection, at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
         const drag: PlaceDrag = {
             pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, pressY: event.clientY, clientX: event.clientX, clientY: event.clientY,
@@ -419,6 +443,9 @@ export class PlaceLayer {
         // A passage chosen stays shown until the owner's selection replaces it (`settled`), so the band never jumps back.
         const keep = (end === "edge" || end === "extend" || end === "draw" || end === "bar") && drag.preview !== null && !same(drag.preview, drag.selection);
         this.end(keep ? drag.preview : null);
+        if (keep) {
+            this.placed = drag.preview;
+        }
         if (drag.gesture.rule === "now" || end !== "none") {
             // A stylus' tap is this layer's: it never places the playhead too. WebKit sends the click a while after the
             // pointer lifts, so it is swallowed whenever it comes, until the next press.

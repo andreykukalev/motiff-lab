@@ -102,16 +102,14 @@ button.sel-handle.dragging { background: var(--accent); }
 body[data-selection-hidden] .sel-handle { visibility: hidden; }
 /* Selection by beats (an experiment): a short cobalt tick down from the band's top at each beat inside it. */
 .sel-beat { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); transform: translateX(-50%); pointer-events: none; }
-/* Selection by the place of the touch (v0.6.2, #601, the selection study's section D; the kit's .band and .handle): the
-   edges are cobalt rules the band's full height, a circle at the top of the start and at the bottom of the end, thicker
-   while taken; the old selection is dashed while a new one is drawn, the addition dashed while extending; pale ticks show
-   where a moving edge can stop; the notes picked are cobalt. */
-.sel-edge { position: absolute; z-index: 2; width: 3px; margin-left: -1.5px; background: var(--accent); border-radius: 2px; pointer-events: none; }
-.sel-edge::after { content: ""; position: absolute; left: 50%; width: var(--s-4); height: var(--s-4); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translate(-50%, -50%); }
-.sel-edge.start::after { top: 0; }
-.sel-edge.end::after { top: 100%; }
-.sel-edge.hot { width: 5px; margin-left: -2.5px; }
-.sel-edge.hot::after { width: var(--s-5); height: var(--s-5); }
+/* Selection by the place of the touch (v0.6.2, #601; the kit's .band and .handle): an edge is taken anywhere down the band's
+   full height at its start or its end, and shows as the handle of before (v0.6.4, Andrei's spec 6, restoring v0.6.1's
+   button.sel-handle above, the kit's ds.css .handle): a hollow cobalt circle at the middle of the edge, filled while taken,
+   never at a corner. The old selection is dashed while a new one is drawn, the addition dashed while extending; pale ticks
+   show where a moving edge can stop; the notes picked are cobalt. */
+.sel-edge { position: absolute; z-index: 2; width: 0; pointer-events: none; }
+.sel-edge::after { content: ""; position: absolute; left: 0; top: 50%; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
+.sel-edge.hot::after { background: var(--accent); }
 body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }
 .sel-add { background: var(--accent-tint); }

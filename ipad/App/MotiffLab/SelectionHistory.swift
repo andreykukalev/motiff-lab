@@ -118,13 +118,14 @@ struct SelectionSpan: Equatable, Sendable {
     }
 
     /// What music-core's `select` takes to select it again: the notes picked (`picked`, the iPad's pick of one note or
-    /// more), else the span by beats, narrowed to its hand.
+    /// more), else the span exactly as it is (v0.6.4: the pages draw it on the sixteenth grid, selection-grid.ts, so no
+    /// snap to the beats), narrowed to its hand.
     var request: String {
         var body: [String: Any]
         if let picked, !picked.isEmpty {
             body = ["notes": picked, "picked": true]
         } else {
-            body = ["span": ["onset": Int(onset), "end": Int(end)], "snap": "beat"]
+            body = ["span": ["onset": Int(onset), "end": Int(end)]]
             if let hand { body["filter"] = ["hand": hand] }
         }
         let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data("{}".utf8)
