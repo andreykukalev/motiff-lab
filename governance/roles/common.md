@@ -26,6 +26,9 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 - A research report is a proposal; once built, its rules live in `docs/` and the report is marked "history, current:
   docs/…".
 - Once per version the lead checks the current documents against the decision log and marks contradictions.
+- Working files that are no source of truth (drafts, mockups, screenshots, histories, discussion notes) go to
+  `/mnt/project-files/scratch/<date>-<topic>/`, one folder per task, never elsewhere. It is a cache: never cited as
+  current, may be cleared.
 
 ## Context and tokens
 
