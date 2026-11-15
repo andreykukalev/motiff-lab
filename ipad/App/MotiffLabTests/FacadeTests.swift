@@ -323,7 +323,8 @@ final class FacadeTests: XCTestCase {
         await again.load()
         XCTAssertEqual(again["layers.notes"], "on")
         XCTAssertEqual(again.preset, "custom")
-        XCTAssertNil((store.dictionary(forKey: DeviceSettings.storeKey) as? [String: String])?["appearance.language"], "the language is the iPad's")
+        XCTAssertNil((store.dictionary(forKey: DeviceSettings.storeKey) as? [String: String])?["appearance.language"], "only a language picked is kept, on its own")
+        XCTAssertEqual(again["appearance.language"], UIText.language(in: store), "the language shown: none picked, the iPad's")
 
         // A piece's own choice wins for the settings a piece keeps, and only for those.
         let resolved = again.resolved(overrides: ["layers.notes": "off", "appearance.theme": "night"])

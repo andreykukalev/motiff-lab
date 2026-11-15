@@ -169,23 +169,25 @@ final class Account: ObservableObject {
     private var made: MSALPublicClientApplication?
     private let defaults: UserDefaults
     private let session: URLSession
-    private let text: UIText
+    /// The words given for a test; nil follows the interface's language as it is now (InterfaceLanguage).
+    private let fixedText: UIText?
+    private var text: UIText { fixedText ?? .current }
     private var account: MSALAccount?
     /// Counts the asks for the plan, so only the latest one's answer is shown.
     private var planAsks = 0
 
-    init(setup: EnvironmentSetup? = .bundled, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+    init(setup: EnvironmentSetup? = .bundled, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText? = nil) {
         self.setup = setup
         self.defaults = defaults
         self.session = session
-        self.text = text
+        fixedText = text
         choice = defaults.string(forKey: Self.choiceKey).flatMap(Plan.init(rawValue:))
         environment = setup.map { $0.current(chosen: defaults.string(forKey: $0.choiceKey)) } ?? .main
         mainWritesAllowed = EnvironmentSetup.mainWritesAllowed(defaults)
     }
 
     /// An account on one environment's servers only: Main, read and written as in a build from main.
-    convenience init(options: AccountOptions?, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+    convenience init(options: AccountOptions?, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText? = nil) {
         self.init(setup: options.map { EnvironmentSetup(main: $0, test: nil, buildDefault: .main) }, defaults: defaults, session: session, text: text)
     }
 

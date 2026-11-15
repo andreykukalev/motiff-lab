@@ -287,5 +287,8 @@
   "padAssistant.serverError": "The assistant's server answered with an error. Nothing was lost: try again.",
   "padAssistant.sending": "Sending the question…",
   "padAssistant.answering": "The assistant is answering…",
-  "padAssistant.lookingUp": "The assistant is looking in the score…"
+  "padAssistant.lookingUp": "The assistant is looking in the score…",
+  "settings.language.ru": "Русский",
+  "settings.language.en": "English",
+  "settings.languagePadHint": "The interface and everything the app writes for you: facts, explanations, the assistant's answers. Until you pick one, the iPad's language. The piece open now is saved and opens again where it was."
 }

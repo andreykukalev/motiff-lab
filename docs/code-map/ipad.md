@@ -5,6 +5,13 @@ The score and the roll are the web's TS modules in a WKWebView (`Web/score.js`, 
 the web's `src/MotiffLab.Web/wwwroot/i18n/*.json` plus the iPad's own `Words/*.json` (`UIText`). Tokens: `Design.swift`
 reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
 
+## The interface's language
+
+- `UIText.swift`: the words; `UIText.current` in the language picked in Settings · Appearance (`motiff.language`), else the
+  iPad's. `InterfaceLanguage.swift`: a new choice saves the open piece (its screen's `handOverForLanguage`), rebuilds the app
+  under `.id(language)` (`MotiffLabApp`), and the library opens the piece again where it was. Every `language:` sent to
+  music-core or the assistant is `text.language`.
+
 ## The score's screen
 
 - `ScoreScreen.swift`: `ScoreScreen` (l. 14): `body` (GeometryReader, ignores the keyboard), `layers` (l. ~250: the web view and

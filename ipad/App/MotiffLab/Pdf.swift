@@ -429,6 +429,8 @@ struct PdfScreen: View {
         .onChange(of: settings.isOn(SourceLayers.setting)) { _, _ in
             Task { await readSourceLayers() }
         }
+        // A new interface language saves the piece and opens it again at this page (InterfaceLanguage).
+        .handsOver(piece: piece.id) { await handOverForLanguage() }
         .onDisappear {
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
@@ -691,6 +693,18 @@ struct PdfScreen: View {
         readingOpen = false
         await openRead(url, .tick(PageMap(starts: starts).start(of: max(1, pdf.page))))
         return nil
+    }
+
+    /// A new interface language (InterfaceLanguage): the PDF's place kept, the piece saved and closed, to open again at the
+    /// page under the bar; nil without a project file or while handed over already.
+    private func handOverForLanguage() async -> InterfaceLanguage.Reopen? {
+        guard let file = piece.file, !handingOver else { return nil }
+        handingOver = true
+        metronome.stop()
+        pdf.keepView()
+        try? await ProjectFiles.save(piece: piece.id, to: file)
+        await ClosedPieces.close(piece.id)
+        return InterfaceLanguage.Reopen(file: file, landing: .page(max(1, pdf.page)))
     }
 
     /// The notes read from the PDF as the player left them (#511 section 10), or the first time where the page under the bar

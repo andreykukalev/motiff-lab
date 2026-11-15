@@ -309,5 +309,8 @@
   "padAssistant.serverError": "Сервер помощника ответил ошибкой. Ничего не потеряно — попробуйте ещё раз.",
   "padAssistant.sending": "Отправляю вопрос…",
   "padAssistant.answering": "Помощник отвечает…",
-  "padAssistant.lookingUp": "Помощник смотрит в ноты…"
+  "padAssistant.lookingUp": "Помощник смотрит в ноты…",
+  "settings.language.ru": "Русский",
+  "settings.language.en": "English",
+  "settings.languagePadHint": "Интерфейс и всё, что пишет приложение: факты, пояснения, ответы помощника. Пока язык не выбран, он как у iPad. Открытая пьеса сохраняется и открывается снова на том же месте."
 }
