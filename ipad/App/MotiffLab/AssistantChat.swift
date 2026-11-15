@@ -189,6 +189,15 @@ struct AssistantExchange: Codable, Equatable, Sendable, Identifiable {
     var note: String?
     /// Moved here from the assistant at the selection («Добавить в контекст»), not asked here.
     var added = false
+    /// The drafts the question's tool calls made (#582 item 17.3), to accept or cancel; nil when none.
+    var drafts: [AssistantDraftOffer]?
+
+    /// The exchange with the player's decision on one of its drafts, and why it could not be accepted when it could not.
+    mutating func mark(_ draft: String, _ state: AssistantDraftOffer.Decision, problem: String? = nil) {
+        guard let index = drafts?.firstIndex(where: { $0.id == draft }) else { return }
+        drafts?[index].state = state
+        drafts?[index].problem = problem
+    }
 }
 
 /// A conversation with the assistant about one piece, as the device keeps it (the lead's decision 4; music-core's
@@ -215,6 +224,11 @@ struct AssistantChat: Codable, Equatable, Sendable, Identifiable {
     /// The tool calls made since the last question.
     var toolCallsInQuestion: Int {
         history[lastQuestion...].reduce(0) { $0 + ($1.calls?.count ?? 0) }
+    }
+
+    /// The tool calls since the last question, with the arguments a draft is made again from.
+    var callsInQuestion: [AssistantToolCall] {
+        history[lastQuestion...].flatMap { $0.calls ?? [] }
     }
 
     /// The tool results since the last question: with the context, where an answer's citations are found.

@@ -258,7 +258,7 @@ struct KeyboardRoom: ViewModifier {
     }
 
     /// The keyboard's frame at the end of its move, in the key window's coordinates.
-    private static func frame(of note: Notification) -> CGRect? {
+    static func frame(of note: Notification) -> CGRect? {
         guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return nil }
         let window = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
         guard let window else { return end }

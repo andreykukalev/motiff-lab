@@ -6,12 +6,18 @@ import Foundation
 /// player's consent to exactly what is sent (the web's list, the same key on the device), only when the API says a model
 /// is on for the account, and only to the Motiff Lab API with the signed-in player's token: the selected bars' facts digest
 /// and notes, or the whole piece's digest (music-core's `assistant.context`), with the conversation. The model's tool calls
-/// run here in music-core (`assistant.call`); its answer cites the facts, shown in the engine's words.
+/// run here in music-core (`assistant.call`); its answer cites the facts, shown in the engine's words. The same questions
+/// are asked at the selection, one at a time (17.2, 17.4), and with «Помощник правит ноты» the drafts the tools made wait
+/// for the player's Accept or Cancel (17.3).
 @MainActor
 final class AssistantController: ObservableObject {
     static let setting = "experimental.assistant"
     /// «Помощник правит ноты» (#582 item 17.3): the conversation is the proposer, whose tools make drafts.
     static let actionsSetting = "experimental.assistantActions"
+    /// «Помощник у выделения и беседы» (#582 items 17.1 and 17.2), as on the web: Ask on a selection opens the assistant at
+    /// the selection, and the piece's conversations are kept on this iPad and listed. Without it, Ask on a selection opens
+    /// the panel, which holds the conversation only while the piece is open.
+    static let contextSetting = "experimental.assistantContext"
     /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
@@ -25,10 +31,16 @@ final class AssistantController: ObservableObject {
     @Published private(set) var currentId: String?
     @Published private(set) var busy = false
     @Published private(set) var consentGiven: Bool
+    /// The assistant at the selection (#582 items 17.2 and 17.4): one question and its answer, never kept; nil while closed.
+    @Published private(set) var here: AssistantHere?
+    /// Whether the piece's conversations are kept on this iPad and listed (`contextSetting`).
+    @Published private(set) var keeps = false
 
     private let store: AssistantStore
     private let defaults: UserDefaults
     private var piece: String?
+    /// The score whose notes a draft is accepted on (`corrections.acceptDraft`).
+    private weak var score: ScoreController?
 
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
         self.store = store
@@ -39,11 +51,14 @@ final class AssistantController: ObservableObject {
     /// The conversation open in the panel: the one chosen, else a new one.
     var current: AssistantChat? { chats.first { $0.id == currentId } }
 
-    /// The piece's conversations from the iPad; the newest is the one the panel opens on.
-    func load(piece key: String) {
+    /// The piece's conversations from the iPad; the newest is the one the panel opens on. `score` is the screen's, where a
+    /// draft is accepted.
+    func load(piece key: String, score: ScoreController? = nil) {
+        if let score { self.score = score }
         guard key != piece else { return }
         piece = key
-        chats = store.chats(of: key)
+        here = nil
+        chats = keeps ? store.chats(of: key) : []
         currentId = chats.first?.id
         listShown = false
     }
@@ -71,6 +86,18 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
+    /// The conversations kept, or held only while the piece is open, as «Помощник у выделения и беседы» says; kept again,
+    /// the piece's earlier ones come back beside the one open.
+    func keeping(_ on: Bool) {
+        guard on != keeps else { return }
+        keeps = on
+        guard on, let piece else { return }
+        let stored = store.chats(of: piece).filter { kept in !chats.contains { $0.id == kept.id } }
+        chats = AssistantStore.ordered(chats + stored)
+        if currentId == nil { currentId = chats.first?.id }
+        store.keep(chats, of: piece)
+    }
+
     func consent(_ given: Bool) {
         if given { defaults.set(Self.consented, forKey: Self.consentKey) } else { defaults.removeObject(forKey: Self.consentKey) }
         consentGiven = given
@@ -81,19 +108,107 @@ final class AssistantController: ObservableObject {
         guard !busy else { return }
         busy = true
         defer { busy = false }
-        var chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
-        let exchangeId = UUID().uuidString
-        var exchange = AssistantExchange(id: exchangeId, question: question, scope: ask.scope)
+        let chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
+        let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
+        var kept = answered ?? chat
+        kept.exchanges.append(exchange)
+        kept.updated = Date()
+        keep(kept)
+    }
+
+    /// The exchange a question makes: its answer with the facts it cites and the drafts its tool calls made, or why there
+    /// is none; with the conversation that answered it and the answer's text, citations as [[id]].
+    private func exchange(_ question: String, in chat: AssistantChat, about ask: AssistantAsk) async -> (AssistantExchange, AssistantChat?, String) {
+        var exchange = AssistantExchange(id: UUID().uuidString, question: question, scope: ask.scope)
         switch await answer(question, in: chat, about: ask) {
         case let .answered(answered, text, fallback, context):
-            chat = answered
             exchange.answer = AssistantChat.pieces(of: text, context: context, results: answered.resultsInQuestion)
             exchange.fallback = fallback
+            let drafts = AssistantDraftOffer.offers(in: answered)
+            exchange.drafts = drafts.isEmpty ? nil : drafts
+            return (exchange, answered, text)
         case let .unanswered(note):
             exchange.note = note
+            return (exchange, nil, "")
         }
-        chat.exchanges.append(exchange)
-        chat.updated = Date()
+    }
+
+    /// The assistant at the selection opens over it, empty (#582 item 17.2).
+    func openHere(on selection: ScoreSelection, role: String) {
+        here = AssistantHere(selection: selection, role: role)
+    }
+
+    func closeHere() {
+        here = nil
+    }
+
+    /// The assistant at the selection looks at the selection now, which the player changed while typing.
+    func follow(_ selection: ScoreSelection) {
+        here?.selection = selection
+    }
+
+    /// A question at the selection: one at a time, with no conversation before it; its answer replaces the last one.
+    func askHere(_ question: String, about ask: AssistantAsk) async {
+        guard !busy, let open = here else { return }
+        busy = true
+        defer { busy = false }
+        let chat = AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: open.role)
+        let (exchange, _, text) = await self.exchange(question, in: chat, about: ask)
+        guard here != nil else { return }
+        here?.exchange = exchange
+        here?.answer = text
+    }
+
+    /// «Добавить в контекст» at the selection: its question and answer join the full assistant's open conversation, and
+    /// it closes, its work done.
+    func addHere() {
+        guard let open = here, let exchange = open.exchange else { return }
+        add(exchange, answer: open.answer, role: open.role)
+        here = nil
+    }
+
+    /// Accept on a draft (#582 item 17.3): music-core makes it again from its call and adds it as corrections; the draft
+    /// says it is accepted, or why it could not be. True when it was.
+    @discardableResult
+    func accept(_ draft: AssistantDraftOffer) async -> Bool {
+        guard !busy, let score else { return false }
+        busy = true
+        defer { busy = false }
+        let problem = await score.acceptAssistantDraft(draft)
+        guard problem == nil else {
+            decide(draft.id, .proposed, problem: problem)
+            return false
+        }
+        // One draft of a question is accepted, as on the web: the others offered with it go.
+        for other in drafts(beside: draft.id) where other.state == .proposed { decide(other.id, .cancelled) }
+        decide(draft.id, .accepted)
+        return true
+    }
+
+    /// Undo on an accepted draft: the whole draft goes at once (`corrections.undoDraft`), while no other correction came
+    /// after it, and it is offered again.
+    func undo(_ draft: AssistantDraftOffer) async {
+        guard !busy, let score else { return }
+        busy = true
+        defer { busy = false }
+        let problem = await score.undoAssistantDraft(draft)
+        decide(draft.id, problem == nil ? .proposed : .accepted, problem: problem)
+    }
+
+    /// The drafts offered with this one: those of its exchange, at the selection or in the open conversation.
+    private func drafts(beside draft: String) -> [AssistantDraftOffer] {
+        let exchanges = [here?.exchange].compactMap { $0 } + (current?.exchanges ?? [])
+        return exchanges.first { shown in shown.drafts?.contains { $0.id == draft } ?? false }?.drafts?.filter { $0.id != draft } ?? []
+    }
+
+    func cancel(_ draft: AssistantDraftOffer) {
+        decide(draft.id, .cancelled)
+    }
+
+    private func decide(_ draft: String, _ state: AssistantDraftOffer.Decision, problem: String? = nil) {
+        here?.exchange?.mark(draft, state, problem: problem)
+        guard var chat = current, let index = chat.exchanges.firstIndex(where: { shown in shown.drafts?.contains { $0.id == draft } ?? false }) else { return }
+        chat.exchanges[index].mark(draft, state, problem: problem)
         keep(chat)
     }
 
@@ -107,6 +222,8 @@ final class AssistantController: ObservableObject {
         }
         var added = exchange
         added.added = true
+        // As on the web, the question and the checked answer move, not the tool calls or the drafts.
+        added.drafts = nil
         chat.exchanges.append(added)
         chat.updated = Date()
         keep(chat)
@@ -116,7 +233,7 @@ final class AssistantController: ObservableObject {
         chats.removeAll { $0.id == chat.id }
         chats.insert(chat, at: 0)
         currentId = chat.id
-        if let piece { store.keep(chats, of: piece) }
+        if keeps, let piece { store.keep(chats, of: piece) }
     }
 
     enum Answer {
@@ -135,10 +252,12 @@ final class AssistantController: ObservableObject {
             return .unanswered("mentor.tooManyBars")
         }
         let piece = ask.piece
+        let role = chat.role
         let turns = AssistantTurns(
             send: { body in await ask.relay.turn(body) },
             run: { call in
-                let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments]).text
+                // With the turn's role, music-core checks the call as the relay does before it runs it.
+                let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]).text
                 let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.call", request) }
                 return AssistantTurns.content(ofFacade: answer, tool: call.name)
             }
@@ -162,6 +281,15 @@ final class AssistantController: ObservableObject {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.context", body) }
         return JSONValue.parse(answer)?["context"]
     }
+}
+
+/// The assistant at the selection (#582 items 17.2 and 17.4): the passage it was opened on, the role its question takes,
+/// and its one exchange with the answer's text, which «Добавить в контекст» moves into the full assistant's conversation.
+struct AssistantHere: Equatable {
+    var selection: ScoreSelection
+    var role: String
+    var exchange: AssistantExchange?
+    var answer = ""
 }
 
 /// What a question is asked about: the piece open in music-core, the selection (nil for none), whether the whole piece is
