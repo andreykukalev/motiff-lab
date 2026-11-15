@@ -681,19 +681,10 @@ struct SegmentedChoice<Value: Hashable>: View {
                 Button {
                     choose(value)
                 } label: {
-                    ZStack {
-                        // The word in the chosen weight, unseen, holds the option's width either way.
-                        Text(name)
-                            .font(DesignTokens.font(weight: 600, size: 13, relativeTo: .callout))
-                            .lineLimit(1)
-                            .hidden()
-                            .accessibilityHidden(true)
-                        Text(name)
-                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
-                            .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                            .lineLimit(1)
-                    }
-                    .modifier(SegmentFill(on: on))
+                    // The word in the chosen weight holds the option's width either way.
+                    SteadyWord(text: name, on: on)
+                        .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                        .modifier(SegmentFill(on: on))
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])

@@ -117,4 +117,16 @@ final class DesignTests: XCTestCase {
         XCTAssertEqual(BarFit.titleCap(barWidth: 802), 200)
         XCTAssertEqual(BarFit.titleCap(barWidth: 0), .infinity, "before the bar has a width nothing is cut")
     }
+
+    /// #582 item 3: a control's tint fills its own outline; a container that is a capsule makes its controls capsules.
+    func testControlsTintTheirOwnOutline() {
+        XCTAssertEqual(EnvironmentValues().controlShape, .rounded, "a bar action is a rounded square by default")
+        var inCapsule = EnvironmentValues()
+        inCapsule.controlShape = .capsule
+        XCTAssertEqual(inCapsule.controlShape, .capsule)
+        let square = CGRect(x: 0, y: 0, width: 40, height: 40)
+        let corner = CGPoint(x: 1, y: 1)
+        XCTAssertFalse(ControlShape.capsule.shape.path(in: square).contains(corner), "a capsule's tint stays inside its rounded ends")
+        XCTAssertTrue(ControlShape.rounded.shape.path(in: square).contains(CGPoint(x: 20, y: 1)))
+    }
 }

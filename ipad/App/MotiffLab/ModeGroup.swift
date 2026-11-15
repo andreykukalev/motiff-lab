@@ -18,6 +18,8 @@ struct ModeCapsule: View {
                 button(mode)
             }
         }
+        // The tint of the chosen mode is a capsule inside the capsule, never a square running past its ends (#582 item 3).
+        .controlShape(.capsule)
         .padding(2)
         .overlay(Capsule().strokeBorder(Color.ds("hairline")))
         .accessibilityElement(children: .contain)

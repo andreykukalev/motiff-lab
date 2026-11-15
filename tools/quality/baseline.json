@@ -126,7 +126,6 @@
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/score/svg-to-pdf.ts","symbol":"parseSvg","value":23,"why":"existing before #332"},
     {"tool":"eslint","rule":"sonarjs/cognitive-complexity","file":"src/MotiffLab.Web/Scripts/score/svg-to-pdf.ts","symbol":"pathOperators","value":63,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"ipad/App/MotiffLab/Check.swift","symbol":"with ipad/App/MotiffLab/Versions.swift","value":12,"why":"existing before #332"},
-    {"tool":"jscpd","rule":"duplicate","file":"ipad/App/MotiffLab/Insights.swift","symbol":"with ipad/App/MotiffLab/ScoreScreen.swift","value":11,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"ipad/App/MotiffLab/Marks.swift","symbol":"same file","value":11,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"ipad/App/MotiffLab/RollController.swift","symbol":"with ipad/App/MotiffLab/ScoreController.swift","value":12,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"ipad/App/MotiffLab/ScoreScreen.swift","symbol":"same file","value":12,"why":"existing before #332"},
