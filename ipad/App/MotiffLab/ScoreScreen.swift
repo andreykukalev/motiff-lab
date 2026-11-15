@@ -508,6 +508,10 @@ struct ScoreScreen: View {
         wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
+        // Picked notes dragged in Select (#601): the first step opens the note editor's draft, and the notes let go are its
+        // edits, kept until Cancel or Save in the roll's head.
+        roll.notesMoveBegan = { [weak shown] in if shown?.noteEditor == nil { shown?.beginNoteEdit() } }
+        roll.notesMoved = { [weak shown] edits in edits.forEach { shown?.editNote($0) } }
         // The note edits saved are written to the project file at once.
         let file = piece.file
         score.noteEditSaved = {
@@ -1052,6 +1056,8 @@ extension ScoreScreen {
             }
         }
         roll.cleared = { [weak score] gesture in score?.clearSelection(gesture: gesture) }
+        // Notes a box, a lasso or a tap picked in the roll's Select (#601): the one selection, lit on the score too.
+        roll.notesPicked = { [weak score] pick in score?.selectNotes(pick.ids, add: pick.add, gesture: pick.gesture, replaces: pick.replaces) }
         roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
         roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
         // The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:

@@ -53,6 +53,20 @@ final class RollController: NSObject, ObservableObject {
     var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
+    /// Selection by where you touch (#601, experimental.placeSelection): notes a box, a lasso or a tap picked in Select, with
+    /// how they change the selection and the gesture for its history.
+    var notesPicked: (@MainActor (RollNotesPick) -> Void)?
+    /// Picked notes dragged in Select: the first step opens the note editor's draft, and where they were let go is its edits.
+    var notesMoveBegan: (@MainActor () -> Void)?
+    var notesMoved: (@MainActor ([RollNoteEdit]) -> Void)?
+    /// How Select picks notes on the roll: «Рамка | Лассо» in its head (RollPickShape), kept on the device.
+    @Published var pickShape: RollPickShape = .saved() {
+        didSet {
+            guard pickShape != oldValue else { return }
+            pickShape.keep()
+            sendShape()
+        }
+    }
 
     let webView: WKWebView
     /// Where the roll is on screen, as the score screen has it (RollPlace.shown): the one place whose holder has the web view
@@ -153,7 +167,10 @@ final class RollController: NSObject, ObservableObject {
     func showSelection(_ selection: ScoreSelection?, loop: Range<Double>?) {
         var data: [String: Any] = [:]
         if let selection {
-            data["selected"] = ["start": selection.onset, "end": selection.end, "ids": selection.noteIds] as [String: Any]
+            var selected: [String: Any] = ["start": selection.onset, "end": selection.end, "ids": selection.noteIds]
+            // Chosen by notes (#601): the roll rings them, and a drag of one moves them.
+            if let picked = selection.picked { selected["picked"] = picked }
+            data["selected"] = selected
         }
         if let loop {
             data["loop"] = ["start": loop.lowerBound, "end": loop.upperBound]
@@ -200,10 +217,23 @@ final class RollController: NSObject, ObservableObject {
     /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
     /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+        input = pageInput()
         guard loaded else { return }
         let data = input
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// What the roll is told of who does what (RollInput.page), with selection by where you touch (#601): whether the
+    /// experiment is on, and whether a stylus is used, so a finger beside it moves the roll (RollPlaceInput).
+    private func pageInput() -> [String: Any] {
+        RollPlaceInput(on: DeviceSettings.shared.isOn(RollPlaceInput.setting), stylus: InkInput.stylusPreferred)
+            .added(to: RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page)
+    }
+
+    private func sendShape() {
+        guard loaded else { return }
+        let by = pickShape.rawValue
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.shape(by)", arguments: ["by": by], contentWorld: .page) }
     }
 
     /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, Fit, or Zoom Out (#521 2.2).
@@ -230,6 +260,8 @@ final class RollController: NSObject, ObservableObject {
         let settings = DeviceSettings.shared
         let names = settings.isOn("roll.noteNames")
         if noteNames != names { noteNames = names }
+        // Selection by where you touch turned on or off (#601).
+        applyInput()
         guard loaded else { return }
         if settings["notes.naming"] != naming {
             Task { await load() }
@@ -282,6 +314,21 @@ final class RollController: NSObject, ObservableObject {
         if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
             noteEdited?(made)
         }
+        receivedPlace(message)
+    }
+
+    /// Selection by where you touch (#601): notes picked, and picked notes moved (the draft opens at the first step).
+    private func receivedPlace(_ message: [String: Any]) {
+        if let picked = RollNotesPick(message["notes"]) {
+            notesPicked?(picked)
+        }
+        if message["moveBegan"] != nil {
+            notesMoveBegan?()
+        }
+        if let moved = message["moved"] as? [String: Any] {
+            let edits = RollNoteEdit.moved(moved["notes"])
+            if !edits.isEmpty { notesMoved?(edits) }
+        }
     }
 
     private func load() async {
@@ -322,8 +369,9 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
-            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+            input = pageInput()
             _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
+            sendShape()
             if passage != nil {
                 await sendPassage()
             }

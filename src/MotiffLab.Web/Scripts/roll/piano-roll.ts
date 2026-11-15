@@ -49,6 +49,9 @@ import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { HoldToPlace } from "../playback/hold-place.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
+import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
+import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
+import { movedNote, type PickShape } from "./roll-place.js";
 import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
@@ -519,6 +522,16 @@ export class PianoRoll {
     private drag: RangeDrag | null = null;
     /** The selection gesture on the strips (#511 2, 6.3). */
     private readonly strip = new RollStripGesture(this.stripHost());
+    /**
+     * Selection by where you touch (#601, the iPad's experiment experimental.placeSelection, roll-place-gesture.ts): on,
+     * whether a stylus is used (a finger then moves the roll), the box or the lasso, and whether the selection was chosen
+     * by notes. Off on the web, which passes nothing.
+     */
+    private placeOn = false;
+    private placeStylus = true;
+    private pickShape: PickShape = "box";
+    private picked = false;
+    private readonly place = new RollPlaceGesture(this.placeHost());
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
     private filtered: Set<number> | null = null;
     /** The range that plays for the selection [start, end), when it differs from what is selected; null for none. */
@@ -1089,6 +1102,127 @@ export class PianoRoll {
         this.pointerRules = rules;
         this.cancelEditPress();
         this.invalidate();
+    }
+
+    /**
+     * Selection by where you touch (#601, experimental.placeSelection), as the iPad tells it: on or off, and whether a stylus
+     * is used, so a finger moves the roll beside it; without one, one finger selects. Off, Select is as in version 0.6.1.
+     */
+    setPlaceSelection(on: boolean, stylus: boolean): void {
+        if (on !== this.placeOn) {
+            this.cancelPresses();
+        }
+        this.placeOn = on;
+        this.placeStylus = stylus;
+        this.invalidate();
+    }
+
+    /** How Select picks notes: a box (the default) or a lasso, the switch in the roll's head (report «Рамка или лассо»). */
+    setPickShape(shape: string): void {
+        this.pickShape = shape === "lasso" ? "lasso" : "box";
+    }
+
+    /** Whether the selection shown was chosen by notes: its notes are ringed and a drag of one moves them (#601). */
+    setPicked(picked: boolean): void {
+        this.picked = picked;
+        this.invalidate();
+    }
+
+    /** Whether a press of this pointer selects by its place: Select, the experiment on, not the editor, nor a finger beside a stylus. */
+    private placeSelects(type: string): boolean {
+        return this.placeOn && this.mode === "select" && !this.editing && this.selectsWith(type) && (type !== "touch" || !this.placeStylus);
+    }
+
+    /** A press in Select read by its place (roll-place-gesture.ts), over the notes and the bar numbers alike; true when it was one. */
+    private beginPlace(event: PointerEvent, x: number, y: number, tick: number): boolean {
+        if (!this.placeSelects(event.pointerType) || this.inHiddenLane(y)) {
+            return false;
+        }
+        this.place.begin(event.pointerId, this.placePoint(x, y, tick), y < this.header);
+        return true;
+    }
+
+    private movePlace(event: PointerEvent, x: number, y: number): boolean {
+        const tick = this.tickAtX(Math.max(GUTTER, x));
+        if (!this.place.move(event.pointerId, this.placePoint(x, y, tick))) {
+            return false;
+        }
+        // Drawing past either side scrolls the roll along, as a range dragged does.
+        if (x > this.host.clientWidth - 8 || x < GUTTER + 8) {
+            this.keepInView(tick);
+        }
+        this.invalidate();
+        return true;
+    }
+
+    private endPlace(event: PointerEvent): boolean {
+        const ended = this.place.end(event.pointerId);
+        if (ended) {
+            this.invalidate();
+        }
+        return ended;
+    }
+
+    /** A point on the roll for the place gesture: its pitch a real number, so a row's centre is its pitch. */
+    private placePoint(x: number, y: number, tick: number): PlacePoint {
+        const { high, row } = this.pitchRange();
+        return { x, y, tick, pitch: high + 0.5 - (y - this.header) / row };
+    }
+
+    /** How the place gesture reaches the roll and the page: what it reads, and what it picks or moves as the host's calls. */
+    private placeHost(): PlaceHost {
+        const notes = (): RollModel["notes"] => this.model?.notes ?? [];
+        const ids = (indices: number[]): string[] => indices.map((index) => notes()[index].id);
+        return {
+            selection: () => (this.motif === null ? null : { start: this.motif.start, end: this.motif.end, lit: this.motif.notes, picked: this.picked }),
+            notes,
+            noteAt: (point) => this.model?.noteAt(point.tick, Math.round(point.pitch)),
+            xOf: (tick) => this.xOf(tick),
+            lines: () => (this.model === null ? [] : [...this.model.grid(0, this.model.end).map((line) => line.tick), this.model.bars.at(-1)?.end ?? this.model.end]),
+            shape: () => this.pickShape,
+            now: () => performance.now(),
+            pickNotes: (indices, change, gesture) => void this.dotnet.invokeMethodAsync("OnRollNotes", ids(indices), change, gesture),
+            // As a range dragged sends it: the later tick the last one inside, so music-core keeps the end on its beat.
+            pickSpan: (span, how, gesture) => void this.dotnet.invokeMethodAsync("OnRollRange", span.start, Math.max(span.start, span.end - 1), false, false, how, gesture),
+            moveBegan: () => void this.dotnet.invokeMethodAsync("OnRollNotesMoveBegan"),
+            moveNotes: (indices, steps, gesture) => void this.dotnet.invokeMethodAsync("OnRollNotesMoved", indices.map((index) => ({ id: notes()[index].id, ...movedNote(notes()[index], steps) })), gesture),
+            tap: (point, strip, inside) => this.placeTap(point, strip, inside),
+            fit: () => this.fit(),
+        };
+    }
+
+    /**
+     * A tap in Select that picks no note: a bar number outside the span selects that bar (report H 4); on the loop strip inside
+     * it the position goes there, as before; on empty notes outside it, as before (a tap inside the loop plays from there).
+     */
+    private placeTap(point: PlacePoint, strip: boolean, inside: boolean): void {
+        if (strip && inside) {
+            this.pressLoopLane(point.y, point.tick);
+        } else if (strip) {
+            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(point.tick), Math.round(point.tick), true, false, this.motif === null ? "create" : "replace", nextGestureId());
+        } else if (!inside) {
+            this.playFrom(point.x);
+        }
+    }
+
+    /** What selection by where you touch draws in Select: the edges down the roll, the picked notes, a press going on. */
+    private drawPlace(context: CanvasRenderingContext2D, width: number, height: number): void {
+        const model = this.model;
+        if (!this.placeOn || this.mode !== "select" || model === null || this.passage !== null) {
+            return;
+        }
+        const { high, row } = this.pitchRange();
+        const frame = { xOf: (tick: number) => this.xOf(tick), yOf: (pitch: number) => this.header + (high - pitch) * row, row, header: this.header, left: GUTTER, right: width, height };
+        const inks = { accent: ACCENT, tint: SELECTION_BAND, surface: CHARCOAL };
+        const preview = this.place.preview();
+        if (preview !== null) {
+            drawPlacePreview(context, frame, preview, model.notes, inks);
+        } else if (this.motif !== null) {
+            drawPlaceEdges(context, frame, this.motif, inks);
+            if (this.picked) {
+                drawPickedNotes(context, frame, model.notes, this.motif.notes, inks);
+            }
+        }
     }
 
     /** A step of the time zoom: + (1) shows fewer bars, − (−1) more, round the middle of the view; the rows stay. */
@@ -1845,7 +1979,7 @@ export class PianoRoll {
 
         // The selected range, or the range being dragged, shaded and marked on the bar numbers.
         // Not in Expand (#533 3): the passage on screen is the selection already, and nothing there changes it.
-        const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.motif;
+        const band = this.drag !== null ? { start: Math.min(this.drag.anchor, this.drag.current), end: Math.max(this.drag.anchor, this.drag.current) } : this.place.drawing ? null : this.motif;
         if (band !== null && this.passage === null) {
             const left = Math.max(GUTTER, this.xOf(band.start));
             const right = Math.min(width, this.xOf(band.end));
@@ -2028,6 +2162,7 @@ export class PianoRoll {
             const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
             this.playhead.place(left, this.roll.offsetTop + BAR_ROW, TOUCH, playheadContext, this.labels);
         }
+        this.drawPlace(context, width, height);
         if (this.lanes) {
             this.drawLanes(context, width, height);
             return;
@@ -2890,7 +3025,7 @@ export class PianoRoll {
             return;
         }
         const tick = this.tickAtX(x);
-        if (this.pressPlayhead(event, x, y)) {
+        if (this.pressPlayhead(event, x, y) || this.beginPlace(event, x, y, tick)) {
             return;
         }
         // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).
@@ -3021,6 +3156,7 @@ export class PianoRoll {
         }
         this.drag = null;
         this.pan = null;
+        this.place.cancel();
         if (this.touchReading) {
             // Two fingers move the roll: what the first began in the editor goes, nothing sent (#479 item 23).
             this.cancelEditPress();
@@ -3050,7 +3186,7 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x)) {
+        if (this.movedByFingers(event, x, event.clientY - box.top) || this.moveLaneHead(event, x) || this.movePlace(event, x, event.clientY - box.top)) {
             return;
         }
         if (this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
@@ -3141,7 +3277,7 @@ export class PianoRoll {
     };
 
     private pointerUp(event: PointerEvent): void {
-        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event) || this.strip.end(event.pointerId)) {
+        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endPlace(event) || this.endRulePress(event) || this.endEditPress(event) || this.strip.end(event.pointerId)) {
             return;
         }
         const press = this.press;
@@ -3221,6 +3357,7 @@ export class PianoRoll {
         this.rulePress = null;
         this.box = null;
         this.strip.cancel();
+        this.place.cancel();
         this.hold.cancel();
         this.playhead.cancel();
         this.laneDrag.release();

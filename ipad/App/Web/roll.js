@@ -37,7 +37,7 @@ const host = {
                     // The ticks too: a drag across the bar numbers or a handle selects by beats where the score does (#479 item 23).
                     const from = Math.min(anchor, current);
                     const to = Math.max(anchor, current);
-                    post({ range: { first: bars.first, last: bars.last, extend: Boolean(extend), click: Boolean(click), from, to, gesture } });
+                    post({ range: { first: bars.first, last: bars.last, extend: Boolean(extend), click: Boolean(click), from, to, how, gesture } });
                 }
                 break;
             }
@@ -82,6 +82,22 @@ const host = {
             case "OnRollNoteRemove":
                 post({ edit: { kind: "remove", id: args[0] } });
                 break;
+            // Selection by where you touch (#601, experimental.placeSelection): notes a box, a lasso or a tap picked, with how
+            // they change the selection ("create", "replace", "add" or "edit"); the first step of a drag of picked notes (the
+            // draft opens); and where they were let go.
+            case "OnRollNotes": {
+                const [ids, change, gesture] = args;
+                post({ notes: { ids, change, gesture } });
+                break;
+            }
+            case "OnRollNotesMoveBegan":
+                post({ moveBegan: true });
+                break;
+            case "OnRollNotesMoved": {
+                const [notes, gesture] = args;
+                post({ moved: { notes, gesture } });
+                break;
+            }
             default:
                 break;
         }
@@ -188,13 +204,17 @@ function practice(on) {
     document.dispatchEvent(new Event(PRACTICE_EVENT));
 }
 
-/** The selection, its span shaded and its notes lit, or none; and the span that loops, or none. */
+/**
+ * The selection, its span shaded and its notes lit, or none; and the span that loops, or none. With `picked` (#601) the
+ * selection was chosen by notes: those notes are lit and ringed.
+ */
 function selection({ selected, loop }) {
     if (selected) {
-        view.setMotif(selected.start, selected.end, selected.ids ?? [], false);
+        view.setMotif(selected.start, selected.end, selected.picked ?? selected.ids ?? [], false);
     } else {
         view.clearMotif();
     }
+    view.setPicked(Boolean(selected?.picked));
     if (loop) {
         view.setPlayRange(loop.start, loop.end);
     } else {
@@ -233,9 +253,16 @@ function edit({ on, tool, picked }) {
  * while the Pen is on, #511 4.1), and the bar's tool under the modes ("navigate", "select" or "pen"; empty before them):
  * on the roll too only Select changes the selection, and in Navigate a long press puts the playhead there (#543 2–4).
  */
-function input({ touch, pen, scrollFingers, penSelects, mode }) {
+function input({ touch, pen, scrollFingers, penSelects, mode, place, stylus }) {
     view.setPointerRules({ touch: Boolean(touch), pen: Boolean(pen), scrollFingers: Number(scrollFingers) || 1, penSelects: penSelects !== false });
     view.setRules(mode || null);
+    // Selection by where you touch (#601): Select reads a press by its place, a finger beside a stylus moves the roll.
+    view.setPlaceSelection(Boolean(place), stylus !== false);
+}
+
+/** How Select picks notes with selection by where you touch: "box" or "lasso" (the head's switch, kept on the device). */
+function shape(by) {
+    view.setPickShape(by);
 }
 
 /**
@@ -268,5 +295,5 @@ function frame() {
     return keptRollFrame();
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, zoom, frame, passage };
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, shape, zoom, frame, passage };
 post("ready");
