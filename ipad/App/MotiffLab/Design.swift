@@ -502,3 +502,19 @@ struct BackChip: View {
         .accessibilityLabel(text.format("nav.backTo", label))
     }
 }
+
+/// A panel over the lower half of the screen (Sources, #582 item 4): the top corners rounded, the sheet's shadow, coming
+/// up from the bottom, as the score's sheets in portrait.
+struct BottomPanel: ViewModifier {
+    let height: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
+            .dsShadow("shadow-sheet")
+            .frame(height: height)
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
+    }
+}

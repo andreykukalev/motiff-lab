@@ -99,14 +99,6 @@ struct ScoreScreen: View {
         }
     }
 
-    /// Where the sheet over the score goes: Insights, Check and Other versions beside the score in landscape and over the
-    /// lower half in portrait; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
-    /// the document and its view.
-    private func sheetPlace(landscape: Bool, height: CGFloat) -> SheetPlace {
-        if versionsOpen && sourcesOn { return .bottom(height / 2) }
-        return insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(height / 2)) : .none
-    }
-
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.
     enum SheetPlace: Equatable {
         case none, side
@@ -650,23 +642,7 @@ struct ScoreScreen: View {
                     versionsOpen = false
                 }
             }
-            .onChange(of: versionsOpen) { _, open in
-                if open {
-                    if sourcesOn { beforeSources = SourcesShelved(roll: rollOpen, insights: insightsOpen, contents: contentsOpen) }
-                    insightsOpen = false
-                    rollOpen = false
-                    contentsOpen = false
-                    checkOpen = false
-                } else if let before = beforeSources {
-                    beforeSources = nil
-                    // Closed by its ✕ or the bar's button, not by another place opening: the view as it was.
-                    if !(insightsOpen || rollOpen || contentsOpen || checkOpen || score.focused) {
-                        rollOpen = before.roll
-                        insightsOpen = before.insights
-                        contentsOpen = before.contents
-                    }
-                }
-            }
+            .onChange(of: versionsOpen) { _, open in versionsOpened(open) }
             .onChange(of: insightsOpen || rollOpen || contentsOpen || score.focused) { _, other in
                 if other {
                     checkOpen = false
@@ -775,6 +751,33 @@ extension ScoreScreen {
         let roll: Bool
         let insights: Bool
         let contents: Bool
+    }
+
+    /// Where the sheet over the score goes: Insights, Check and Other versions beside the score in landscape and over the
+    /// lower half in portrait; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
+    /// the document and its view.
+    func sheetPlace(landscape: Bool, height: CGFloat) -> SheetPlace {
+        if versionsOpen && sourcesOn { return .bottom(height / 2) }
+        return insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(height / 2)) : .none
+    }
+
+    /// Other versions or Sources opened or closed: opening puts the other places away, keeping what was open under Sources;
+    /// closing Sources by its ✕ or the bar's button, not by another place opening, gives the view back as it was (#582 item 4).
+    func versionsOpened(_ open: Bool) {
+        if open {
+            if sourcesOn { beforeSources = SourcesShelved(roll: rollOpen, insights: insightsOpen, contents: contentsOpen) }
+            insightsOpen = false
+            rollOpen = false
+            contentsOpen = false
+            checkOpen = false
+        } else if let before = beforeSources {
+            beforeSources = nil
+            if !(insightsOpen || rollOpen || contentsOpen || checkOpen || score.focused) {
+                rollOpen = before.roll
+                insightsOpen = before.insights
+                contentsOpen = before.contents
+            }
+        }
     }
 
     /// A view of the switch on a screen of its own over the score, its piece closed in music-core as it goes.
