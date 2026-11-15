@@ -116,6 +116,7 @@ extension ScoreController {
     /// A mode chosen in the ring, as in the bar: the Pen is the Pen being on; another mode leaves it.
     func chooseMode(_ chosen: InteractionMode) {
         if chosen == .pen {
+            if !penOn { pen.writeOnChoosing() }
             penOn = true
         } else {
             mode = chosen

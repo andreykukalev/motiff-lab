@@ -1273,6 +1273,7 @@ struct ScoreBar: View {
             ModeGroup(score: score, text: text, compact: compact)
         } else {
             Button {
+                if !score.penOn { score.pen.writeOnChoosing() }
                 score.penOn.toggle()
             } label: {
                 Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)

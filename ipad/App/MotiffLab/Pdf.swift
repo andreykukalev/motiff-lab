@@ -550,10 +550,12 @@ struct PdfScreen: View {
             if settings.isOn("experimental.playheads") {
                 // The score's modes: nothing on a PDF's pages is selected or edited, so only Navigate and Pen choose.
                 ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select]) { mode in
+                    if mode == .pen && !pdf.penOn { pdf.pen.writeOnChoosing() }
                     pdf.penOn = mode == .pen
                 }
             } else {
                 Button {
+                    if !pdf.penOn { pdf.pen.writeOnChoosing() }
                     pdf.penOn.toggle()
                 } label: {
                     Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
