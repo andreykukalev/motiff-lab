@@ -544,7 +544,17 @@ const places = new PlaceLayer(document.body, {
     picked: (id, how, gesture) => post({ picked: { id: noteIdOf(id), how, gesture } }),
     cleared: (gesture) => post({ cleared: { gesture } }),
     zoom: () => post({ zoomSelection: bandBox() }),
+    view: () => scoreView(),
 });
+
+/**
+ * The part of the window the score shows, in window pixels: below the floating bar and above the pill (the body's padding,
+ * score.css --pad-top and --pad-bottom, the bottom grown by a drawer's inset), where the place layer's autoscroll starts.
+ */
+function scoreView() {
+    const style = getComputedStyle(document.body);
+    return { top: parseFloat(style.paddingTop) || 0, bottom: window.innerHeight - (parseFloat(style.paddingBottom) || 0) };
+}
 
 /** The note an engraved note head belongs to: a later piece of a tied note ("…-2") is the note's. */
 function noteIdOf(id) {
@@ -580,7 +590,12 @@ const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => s
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
     lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
-    grab: (handle, event) => grabs.begin(handle, event),
+    // Within an edge's reach the selection's edge wins over a playhead's handle under it (v0.6.3): the press goes on to the place layer.
+    grab: (handle, event) => {
+        if (!places.edgeAt(event)) {
+            grabs.begin(handle, event);
+        }
+    },
 });
 
 /** Where the player is, as Swift last said (`playing`): what the playheads are drawn at when no drag shows another place. */

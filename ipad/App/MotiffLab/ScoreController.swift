@@ -99,8 +99,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published var selectsByBeats = SelectBy.saved()
     var pieceBeatLines: [Double] = []
     var beatsExperiment = false
-    /// Selection by the place of the touch (v0.6.2, #601, `experimental.placeSelection`, PlaceSelection.swift): the page's rules follow it.
-    var placeSelection = false {
+    /// Selection by the place of the touch (v0.6.2, #601; Select's way since v0.6.3, PlaceSelection.on): the page's rules follow it.
+    var placeSelection = PlaceSelection.on {
         didSet { if placeSelection != oldValue { applyInput() } }
     }
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.

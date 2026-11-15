@@ -6,12 +6,14 @@
 // on one staff, the old selection dashed until it is let go; a tap selects the bar or the note head under it, a tap on
 // the page's margin clears, a double tap inside zooms to the selection. Near the top or the bottom of the view the page
 // scrolls by itself; a finger beside the stylus scrolls freely meanwhile. The band itself is the selection layer's
-// (`showPlaced`); the edges here replace its dot handles.
+// (`showPlaced`); the edges here replace its dot handles. Since v0.6.3 (#608, the approved mockup) a new passage is drawn
+// with a thin dashed rectangle from the press to the stylus, from anywhere outside the selection, the margin included, and
+// selects what the rectangle covers (selection-rect.ts); the stylus never moves the page while the rule is on.
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import type { ScoreBeats } from "./selection-beats.js";
-import { keyLines } from "./selection-beats.js";
-import { type BandHand, bandBoxes, handRuns, onMusic, setBox } from "./selection-boxes.js";
+import { barLines, keyLines } from "./selection-beats.js";
+import { type BandHand, MUSIC_REACH, bandBoxes, handRuns, onMusic, setBox } from "./selection-boxes.js";
 import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "./selection-gesture.js";
 import { barlines, tickAt } from "./selection-handles.js";
 import {
@@ -30,9 +32,9 @@ import {
     placeMoved,
     placePress,
     scrollStep,
-    strokeHand,
     targetLines,
 } from "./selection-places.js";
+import { type RectSystem, rectPassage, traceBox } from "./selection-rect.js";
 
 /** A passage with the hand it is narrowed to. */
 export interface PlacedRange extends TickRange {
@@ -59,14 +61,17 @@ export interface PlaceHost {
     cleared(gesture: string): void;
     /** A double tap inside the selection: zoom to it, or back. */
     zoom(): void;
+    /** The part of the window the score shows, top to bottom in window pixels, for the autoscroll; the whole window without it. */
+    view?(): { top: number; bottom: number };
 }
 
 interface PlaceDrag {
     pointerId: number;
     pointerType: string;
-    /** Where the press began, in content pixels, and where the pointer is now in the window. */
+    /** Where the press began, in content pixels and in the window, and where the pointer is now in the window. */
     x: number;
     y: number;
+    pressY: number;
     clientX: number;
     clientY: number;
     gesture: PlaceGesture;
@@ -83,7 +88,11 @@ const GHOST_CLASS = "sel-ghost";
 const ADD_CLASS = "sel-add";
 const EDGE_CLASS = "sel-edge";
 const TARGET_CLASS = "sel-target";
-const OVERLAYS = [GHOST_CLASS, ADD_CLASS, TARGET_CLASS];
+const TRACE_CLASS = "sel-trace";
+const OVERLAYS = [GHOST_CLASS, ADD_CLASS, TARGET_CLASS, TRACE_CLASS];
+
+/** What is pressed for its own sake, never a place of the selection: a bracket, a margin note, a bookmark, a version's label, a Check flag. */
+const OWN_TARGETS = ".bracket, .marker, .bmb, .perf-marker, .check-flag";
 
 export class PlaceLayer {
     private drag: PlaceDrag | null = null;
@@ -99,6 +108,7 @@ export class PlaceLayer {
         root.addEventListener("pointermove", this.onMove);
         root.addEventListener("pointerup", this.onUp);
         root.addEventListener("pointercancel", this.onCancel);
+        root.addEventListener("touchstart", this.onTouchStart, { passive: false });
         root.addEventListener("touchmove", this.onTouchMove, { passive: false });
         window.addEventListener("scroll", this.onScroll, { passive: true });
     }
@@ -108,6 +118,20 @@ export class PlaceLayer {
         const swallow = this.swallowNextClick;
         this.swallowNextClick = false;
         return swallow;
+    }
+
+    /**
+     * Whether a press at a point of the window would take an edge of the selection: there the edge wins over a playhead's
+     * handle under it (section F, «Кромка выигрывает в своей зоне»), so the host leaves the press to this layer.
+     */
+    edgeAt(event: PointerEvent): boolean {
+        const geometry = this.host.geometry();
+        if (!this.host.on() || this.host.rule(event.pointerType) !== "now" || geometry === null) {
+            return false;
+        }
+        const at = this.point(event.clientX, event.clientY);
+        const place = placeAt(this.host.selection(), at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
+        return place === "edge-start" || place === "edge-end";
     }
 
     /** Whether a gesture of this layer holds the pointer now. */
@@ -141,6 +165,7 @@ export class PlaceLayer {
         this.root.removeEventListener("pointermove", this.onMove);
         this.root.removeEventListener("pointerup", this.onUp);
         this.root.removeEventListener("pointercancel", this.onCancel);
+        this.root.removeEventListener("touchstart", this.onTouchStart);
         this.root.removeEventListener("touchmove", this.onTouchMove);
         window.removeEventListener("scroll", this.onScroll);
         this.end();
@@ -168,6 +193,8 @@ export class PlaceLayer {
     }
 
     private readonly onDown = (event: PointerEvent): void => {
+        // A click that comes after this press is this press's own, never the last gesture's.
+        this.swallowNextClick = false;
         if (this.drag !== null && staleGesture(this.drag, event)) {
             this.cancel();
         }
@@ -176,14 +203,15 @@ export class PlaceLayer {
         if (this.drag !== null || !this.host.on() || rule === "none" || geometry === null || (event.pointerType === "mouse" && event.button !== 0)) {
             return;
         }
-        if (event.target instanceof Element && event.target.closest(".bracket, .grip, .marker, .bmb, .perf-marker") !== null) {
+        // A playhead's handle that takes the press stops it before it gets here; one it leaves (an edge over it) is a place.
+        if (event.target instanceof Element && event.target.closest(OWN_TARGETS) !== null) {
             return;
         }
         const at = this.point(event.clientX, event.clientY);
         const selection = this.host.selection();
         const place = placeAt(selection, at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
         const drag: PlaceDrag = {
-            pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, clientX: event.clientX, clientY: event.clientY,
+            pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, pressY: event.clientY, clientX: event.clientX, clientY: event.clientY,
             gesture: placePress(place, rule), id: nextGestureId(), selection, pressTick: tickAt(geometry, at.x, at.y), bar: geometry.barNear(at.x, at.y), preview: null, timer: 0,
         };
         if (rule === "longPress") {
@@ -246,17 +274,30 @@ export class PlaceLayer {
                 return selection === null ? null : { ...movedEdge(selection, drag.gesture.place === "edge-start" ? "start" : "end", drag.pressTick, tick, lines), hand: selection.hand };
             case "extend":
                 return selection === null ? null : { ...extendedRange(selection, tick, lines), hand: selection.hand };
-            case "draw": {
-                const drawn = drawnRange(drag.pressTick, tick, lines);
-                const now = geometry.barNear(at.x, at.y);
-                const hand = drag.bar === undefined ? null : strokeHand(drag.bar.staves, drag.y, at.y, now?.system === drag.bar.system);
-                return drawn === undefined ? drag.preview : { ...drawn, hand };
-            }
+            case "draw":
+                return rectPassage({ x: drag.x, y: drag.y }, at, this.rectSystems(geometry, lines), MUSIC_REACH);
             case "bar":
                 return this.heldBar(drag, drawnRange(drag.pressTick, tick, lines));
             default:
                 return null;
         }
+    }
+
+    /** The systems as a drawn rectangle reads them: each with its staves and its lines, where the band would start or end. */
+    private rectSystems(geometry: ScoreGeometry, lines: readonly number[]): RectSystem[] {
+        return geometry.systems.map((system) => {
+            const bars = system.bars.map((index) => geometry.bars[index]);
+            const at = new Map<number, number>();
+            for (const bar of bars) {
+                for (const line of barLines(lines, bar)) {
+                    if (!at.has(line)) {
+                        at.set(line, this.host.beats.lineX(bar, line));
+                    }
+                }
+            }
+            const staves = bars[0]?.staves ?? [];
+            return { left: system.left, right: system.right, top: system.top, bottom: system.bottom, staves, lines: [...at].map(([tick, x]) => ({ tick, x })) };
+        });
     }
 
     /** A finger held on a bar selects that bar; a move after the hold takes it on to the line past the pointer. */
@@ -276,8 +317,12 @@ export class PlaceLayer {
         const selection = drag.selection;
         const preview = drag.preview;
         const phase = drag.gesture.phase;
-        if (selection !== null && (phase === "draw" || phase === "bar")) {
+        // The old selection dashed while a new one would replace it; while the rectangle covers no music it shows as it is.
+        if (selection !== null && preview !== null && (phase === "draw" || phase === "bar")) {
             this.boxes(GHOST_CLASS, handRuns(geometry, selection.start, selection.end, selection.hand));
+        }
+        if (phase === "draw") {
+            this.boxes(TRACE_CLASS, [traceBox({ x: drag.x, y: drag.y }, at)], false);
         }
         if (selection !== null && preview !== null && phase === "extend") {
             this.boxes(ADD_CLASS, [
@@ -291,12 +336,20 @@ export class PlaceLayer {
         this.decorate();
     }
 
-    private boxes(className: string, runs: readonly { left: number; right: number; top: number; bottom: number }[]): void {
+    /** Boxes over the score, at least 4 pixels each way (`least`), or exactly as given (the rectangle drawn). */
+    private boxes(className: string, runs: readonly { left: number; right: number; top: number; bottom: number }[], least = true): void {
         for (const run of runs) {
             const box = document.createElement("div");
             box.className = className;
             box.setAttribute("aria-hidden", "true");
-            setBox(box, run);
+            if (least) {
+                setBox(box, run);
+            } else {
+                box.style.left = `${run.left}px`;
+                box.style.top = `${run.top}px`;
+                box.style.width = `${run.right - run.left}px`;
+                box.style.height = `${run.bottom - run.top}px`;
+            }
             this.root.append(box);
         }
     }
@@ -328,14 +381,18 @@ export class PlaceLayer {
         }
     }
 
-    /** While a gesture holds the pointer near the top or the bottom of the view, the page scrolls a step a frame. */
+    /**
+     * While a gesture holds the pointer near the top or the bottom of the part of the window the score shows (under the
+     * floating bar, over the pill), and has moved toward that edge, the page scrolls a step a frame.
+     */
     private autoScroll(): void {
         if (this.scrolling !== 0) {
             return;
         }
         const frame = (): void => {
             const drag = this.drag;
-            const step = drag === null || !this.active() ? 0 : scrollStep(drag.clientY, 0, window.innerHeight);
+            const view = this.host.view?.() ?? { top: 0, bottom: window.innerHeight };
+            const step = drag === null || !this.active() ? 0 : scrollStep(drag.clientY, view.top, view.bottom, undefined, undefined, drag.pressY);
             if (step === 0) {
                 this.scrolling = 0;
                 return;
@@ -363,9 +420,9 @@ export class PlaceLayer {
         const keep = (end === "edge" || end === "extend" || end === "draw" || end === "bar") && drag.preview !== null && !same(drag.preview, drag.selection);
         this.end(keep ? drag.preview : null);
         if (drag.gesture.rule === "now" || end !== "none") {
-            // A stylus' tap is this layer's: it never places the playhead too.
+            // A stylus' tap is this layer's: it never places the playhead too. WebKit sends the click a while after the
+            // pointer lifts, so it is swallowed whenever it comes, until the next press.
             this.swallowNextClick = true;
-            window.setTimeout(() => (this.swallowNextClick = false), 0);
         }
         this.finish(drag, end, this.point(event.clientX, event.clientY), event.timeStamp);
     };
@@ -444,12 +501,29 @@ export class PlaceLayer {
         this.host.show(shown);
     }
 
-    /** A finger that moves the selection does not move the page; the stylus' moves never would, so a finger may scroll beside it. */
-    private readonly onTouchMove = (event: TouchEvent): void => {
-        if (this.active() && this.drag?.pointerType === "touch") {
+    /**
+     * While the rule is on the stylus selects and never moves the page (v0.6.3, #608): its touch is kept from WebKit's own
+     * scrolling, zoom and click from the start, but on what is pressed for its own sake (a bookmark, a margin note), which
+     * a tap opens. A finger's touches stay the page's: it scrolls beside the stylus.
+     */
+    private readonly onTouchStart = (event: TouchEvent): void => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (event.cancelable && this.host.on() && stylusTouch(event) && target?.closest(OWN_TARGETS) == null) {
             event.preventDefault();
         }
     };
+
+    /** A finger that moves the selection does not move the page, nor does the stylus while the rule is on; a finger may scroll beside it. */
+    private readonly onTouchMove = (event: TouchEvent): void => {
+        if (event.cancelable && ((this.active() && this.drag?.pointerType === "touch") || (this.host.on() && stylusTouch(event)))) {
+            event.preventDefault();
+        }
+    };
+}
+
+/** Whether a touch event moves the stylus (WebKit names the Apple Pencil's touches "stylus"). */
+function stylusTouch(event: TouchEvent): boolean {
+    return [...event.changedTouches].some((touch) => (touch as Touch & { touchType?: string }).touchType === "stylus");
 }
 
 function same(a: PlacedRange, b: PlacedRange | null): boolean {

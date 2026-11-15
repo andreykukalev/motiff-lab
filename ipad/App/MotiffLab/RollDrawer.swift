@@ -99,8 +99,8 @@ struct RollDrawer: View {
         }
     }
 
-    /// Whether selection by where you touch is on (#601, Settings · Experimental).
-    private var pickExperiment: Bool { DeviceSettings.shared.isOn(RollPlaceInput.setting) }
+    /// Whether selection by where you touch is on (#601): always since v0.6.3 (PlaceSelection.on).
+    private var pickExperiment: Bool { PlaceSelection.on }
 
     /// Whether «Рамка | Лассо» shows: the experiment on, the bar's Select (not the Pen), the roll not editing notes.
     private var pickShown: Bool {

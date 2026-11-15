@@ -2,8 +2,9 @@
 // `experimental.placeSelection`, which only the iPad passes as a host option): what a press does is decided once, by where
 // it lands, never by how long it is held. From an edge (within EDGE_REACH of it, over the whole height of the band) it
 // moves that edge; from inside it extends the selection, which never shrinks (v0.6.1 item 9); from outside, on the music,
-// it draws a new selection, the old one shown as a ghost until it is let go; a tap outside selects what is under it (a
-// bar, a note), a tap on the page's margin takes the selection away, a double tap inside zooms to it. A finger beside the
+// it draws a new selection, the old one shown as a ghost until it is let go, and so it does from the page's margin (v0.6.3);
+// a tap outside selects what is under it (a bar, a note), a tap on the page's margin takes the selection away, a double
+// tap inside zooms to it. A finger beside the
 // stylus scrolls; held still on a bar it selects that bar (the way back for a finger). One rule for the score and the
 // roll (Scripts/roll imports it). Pure; nothing here touches the DOM.
 
@@ -95,6 +96,9 @@ function placeStep(place: Place, held: boolean): "edge" | "extend" | "draw" | "b
             return "extend";
         case "outside":
             return held ? "bar" : "draw";
+        case "margin":
+            // A stroke from the page's margin draws too (Andrei, v0.6.3: «Да, рисует»), between the systems as beside them.
+            return held ? "none" : "draw";
         default:
             return "none";
     }
@@ -102,7 +106,8 @@ function placeStep(place: Place, held: boolean): "edge" | "extend" | "draw" | "b
 
 /**
  * The pointer moved `distance` pixels from the press. Past DRAG_DISTANCE a pointer that selects at once does what its
- * place says (nothing on the margin); a finger that holds scrolls once it moves past HOLD_SLOP before the hold.
+ * place says (from the margin it draws, as from outside); a finger that holds scrolls once it moves past HOLD_SLOP before
+ * the hold.
  */
 export function placeMoved(gesture: PlaceGesture, distance: number): PlaceStep {
     if (gesture.phase !== "pressed" || distance < (gesture.rule === "now" ? DRAG_DISTANCE : HOLD_SLOP)) {
@@ -278,13 +283,14 @@ export const SCROLL_STEP = 18;
 
 /**
  * How far a gesture at `y` (in the window) scrolls the page this frame (section F, Край экрана): up within SCROLL_ZONE
- * of the view's `top`, down within it of its `bottom`, faster nearer the edge; 0 elsewhere.
+ * of the view's `top`, down within it of its `bottom`, faster nearer the edge; 0 elsewhere. With `from` (where the gesture
+ * was pressed) only toward the edge it has moved to, so a stroke begun near an edge and drawn away from it never scrolls.
  */
-export function scrollStep(y: number, top: number, bottom: number, zone = SCROLL_ZONE, most = SCROLL_STEP): number {
-    if (y < top + zone) {
+export function scrollStep(y: number, top: number, bottom: number, zone = SCROLL_ZONE, most = SCROLL_STEP, from?: number): number {
+    if (y < top + zone && (from === undefined || y < from)) {
         return -Math.ceil(most * Math.min(1, (top + zone - y) / zone));
     }
-    if (y > bottom - zone) {
+    if (y > bottom - zone && (from === undefined || y > from)) {
         return Math.ceil(most * Math.min(1, (y - (bottom - zone)) / zone));
     }
     return 0;

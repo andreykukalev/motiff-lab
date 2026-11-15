@@ -226,7 +226,7 @@ final class RollController: NSObject, ObservableObject {
     /// What the roll is told of who does what (RollInput.page), with selection by where you touch (#601): whether the
     /// experiment is on, and whether a stylus is used, so a finger beside it moves the roll (RollPlaceInput).
     private func pageInput() -> [String: Any] {
-        RollPlaceInput(on: DeviceSettings.shared.isOn(RollPlaceInput.setting), stylus: InkInput.stylusPreferred)
+        RollPlaceInput(on: PlaceSelection.on, stylus: InkInput.stylusPreferred)
             .added(to: RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page)
     }
 

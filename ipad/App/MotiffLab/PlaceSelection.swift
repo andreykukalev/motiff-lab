@@ -1,14 +1,18 @@
 import UIKit
 import WebKit
 
-/// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C-F; the experiment
-/// `experimental.placeSelection`, off by default): in Select the place a press lands decides what it does, never how long
-/// it is held (the page's rule, Scripts/score/selection-places.ts, the same for the score and the roll). Off, the
-/// selection works as in version 0.6.1. The selection is one object (Andrei, 2026-11-15): a span by beats, narrowed to a
-/// hand (`ScoreSelection.hand`, music-core's filter) or to notes picked (`ScoreSelection.picked`), kept on the device,
-/// never in the project file.
+/// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C-F): in Select the place a press
+/// lands decides what it does, never how long it is held (the page's rule, Scripts/score/selection-places.ts, the same for
+/// the score and the roll). Since v0.6.3 (#608, the lead's decision 1, Andrei's spec «как на макете») it is how Select
+/// works on the iPad, with no switch: the experiment `experimental.placeSelection` stays in the catalogue for the web and is
+/// no longer read here. The selection is one object (Andrei, 2026-11-15): a span by beats, narrowed to a hand
+/// (`ScoreSelection.hand`, music-core's filter) or to notes picked (`ScoreSelection.picked`), kept on the device, never in
+/// the project file.
 enum PlaceSelection {
     static let setting = "experimental.placeSelection"
+    /// Whether Select goes by the place of the touch on the score and the roll: always (to undo v0.6.3's decision, read
+    /// `DeviceSettings.shared.isOn(setting)` here and bring back its row in Settings · Experimental).
+    static let on = true
 }
 
 extension ScoreController {

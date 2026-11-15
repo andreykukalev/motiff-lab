@@ -1,12 +1,15 @@
 // Selection by the place of the touch on the score's page (v0.6.2, #601 H items 1-4, 8, 9): Scripts/score/
 // selection-place-layer.ts over a small stand-in for the page (one system of four bars, two staves). The Pencil draws a new
 // passage from outside (the old one dashed meanwhile), moves an edge from its grip, extends from inside, taps a bar, a note
-// head or the margin, double taps inside to zoom; a finger beside it scrolls; with the rule off nothing is taken.
+// head or the margin, double taps inside to zoom; a finger beside it scrolls; with the rule off nothing is taken. Since
+// v0.6.3 (#608) a new passage is drawn with a dashed rectangle, from the margin too, and the stylus' touches never move the
+// page while the rule is on.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 class FakeElement {
-    constructor() {
+    constructor(own = false) {
+        this.own = own;
         this.className = "";
         this.style = {};
         this.attributes = {};
@@ -14,6 +17,9 @@ class FakeElement {
     }
     setAttribute(name, value) {
         this.attributes[name] = value;
+    }
+    closest() {
+        return this.own ? this : null;
     }
     remove() {
         this.parent?.children.splice(this.parent.children.indexOf(this), 1);
@@ -68,7 +74,7 @@ const bars = [0, 1, 2, 3].map((i) => ({ tick: i * BAR, end: (i + 1) * BAR, left:
 const xOf = (tick) => 100 + (tick / BAR) * 200;
 const geometry = {
     bars,
-    systems: [{ left: 100, right: 900, top: 100, bottom: 300 }],
+    systems: [{ left: 100, right: 900, top: 100, bottom: 300, bars: [0, 1, 2, 3] }],
     notes: [{ id: "n1", cx: 150, cy: 140 }],
     barNear: (x) => bars.find((bar) => x >= bar.left && x < bar.right) ?? (x < 100 ? bars[0] : bars[3]),
     barAt: (tick) => bars.find((bar) => tick >= bar.tick && tick < bar.end),
@@ -78,7 +84,7 @@ const geometry = {
     },
 };
 
-function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true } = {}) {
+function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true, view } = {}) {
     const root = new FakeRoot();
     const said = [];
     const drawBand = (range) => {
@@ -108,6 +114,7 @@ function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true 
         picked: (id, how) => said.push({ picked: id, how }),
         cleared: () => said.push({ cleared: true }),
         zoom: () => said.push({ zoom: true }),
+        view: view === undefined ? undefined : () => view,
     });
     let time = 0;
     const event = (x, y, pointerType = "pen") => ({ pointerId: 1, pointerType, isPrimary: true, button: 0, clientX: x, clientY: y, target: null, timeStamp: (time += 100) });
@@ -193,4 +200,117 @@ test("with the rule off the layer takes no press and draws no edges", () => {
     layer.decorate();
     assert.equal(said.length, 0);
     assert.equal(root.children.some((child) => child.className.startsWith("sel-edge")), false);
+});
+
+test("a new passage is drawn with a dashed rectangle from the press to the stylus, following it, gone when it lifts", () => {
+    const { root, said } = page();
+    root.listeners.pointerdown({ pointerId: 1, pointerType: "pen", isPrimary: true, button: 0, clientX: 650, clientY: 140, target: null });
+    root.listeners.pointermove({ pointerId: 1, pointerType: "pen", clientX: 720, clientY: 160 });
+    const trace = () => root.children.filter((child) => child.className === "sel-trace");
+    assert.equal(trace().length, 1);
+    assert.deepEqual(trace()[0].style, { left: "650px", top: "140px", width: "70px", height: "20px" });
+    root.listeners.pointermove({ pointerId: 1, pointerType: "pen", clientX: 600, clientY: 270 });
+    assert.equal(trace().length, 1, "one rectangle");
+    assert.deepEqual(trace()[0].style, { left: "600px", top: "140px", width: "50px", height: "130px" }, "it follows the stylus, any way");
+    assert.deepEqual(said.at(-1), { show: { start: 2 * BAR, end: 3 * BAR, hand: null } }, "the band grows under it");
+    root.listeners.pointerup({ pointerId: 1, pointerType: "pen", clientX: 600, clientY: 270, timeStamp: 1 });
+    assert.equal(trace().length, 0);
+});
+
+test("a stroke from the margin draws a rectangle and selects what it covers (Andrei: «Да, рисует»); a tap there clears", () => {
+    const { said, gesture } = page();
+    gesture([[60, 140], [620, 150]]);
+    assert.deepEqual(said.find((step) => step.chosen), { chosen: { start: 0, end: 3 * BAR, hand: "right" }, how: "replace" });
+    const from = page();
+    from.gesture([[500, 40], [760, 320]]);
+    assert.deepEqual(from.said.find((step) => step.chosen), { chosen: { start: 2 * BAR, end: 4 * BAR, hand: null }, how: "replace" }, "from above the system");
+});
+
+test("a rectangle that reaches no music changes nothing: the selection shows as it is, no ghost", () => {
+    const { said, root } = page();
+    root.listeners.pointerdown({ pointerId: 1, pointerType: "pen", isPrimary: true, button: 0, clientX: 300, clientY: 600, target: null });
+    root.listeners.pointermove({ pointerId: 1, pointerType: "pen", clientX: 500, clientY: 650 });
+    assert.ok(root.children.some((child) => child.className === "sel-trace"));
+    assert.equal(root.children.some((child) => child.className === "sel-ghost"), false);
+    assert.deepEqual(said.at(-1), { show: null });
+    root.listeners.pointerup({ pointerId: 1, pointerType: "pen", clientX: 500, clientY: 650, timeStamp: 1 });
+    assert.equal(said.some((step) => step.chosen || step.cleared), false);
+});
+
+test("the same stroke gives the same passage every time", () => {
+    const results = [];
+    for (let i = 0; i < 3; i++) {
+        const { said, gesture } = page();
+        gesture([[640, 150], [700, 155], [770, 165]]);
+        results.push(said.find((step) => step.chosen));
+    }
+    assert.deepEqual(results[1], results[0]);
+    assert.deepEqual(results[2], results[0]);
+});
+
+function touch(type, target = new FakeElement()) {
+    const event = { cancelable: true, target, changedTouches: [{ touchType: type }], defaultPrevented: false };
+    event.preventDefault = () => (event.defaultPrevented = true);
+    return event;
+}
+
+test("while the rule is on the stylus' touches never move the page; a finger's do, and a bookmark still takes the stylus' tap", () => {
+    const { root } = page();
+    const start = touch("stylus");
+    root.listeners.touchstart(start);
+    assert.equal(start.defaultPrevented, true, "the stylus' touch is kept from WebKit's scrolling and click");
+    const move = touch("stylus");
+    root.listeners.touchmove(move);
+    assert.equal(move.defaultPrevented, true);
+    const finger = touch("direct");
+    root.listeners.touchstart(finger);
+    root.listeners.touchmove(finger);
+    assert.equal(finger.defaultPrevented, false, "a finger scrolls");
+    const bookmark = touch("stylus", new FakeElement(true));
+    root.listeners.touchstart(bookmark);
+    assert.equal(bookmark.defaultPrevented, false);
+    const off = page({ on: false });
+    const navigate = touch("stylus");
+    off.root.listeners.touchstart(navigate);
+    off.root.listeners.touchmove(navigate);
+    assert.equal(navigate.defaultPrevented, false, "in Navigate the stylus scrolls");
+});
+
+test("the click after a stylus' tap is swallowed whenever it comes, until the next press", async () => {
+    const { layer, gesture, root } = page();
+    gesture([[750, 260]]);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(layer.swallowsClick(), true, "WebKit's late click is no tap on a beat");
+    gesture([[750, 260]]);
+    root.listeners.pointerdown({ pointerId: 2, pointerType: "touch", isPrimary: true, button: 0, clientX: 300, clientY: 600, target: null });
+    assert.equal(layer.swallowsClick(), false, "a new press's click is its own");
+});
+
+test("an edge wins over a playhead's handle within its reach; elsewhere, or with the rule off, the handle takes the press", () => {
+    const { layer } = page();
+    const at = (x, y, pointerType = "pen") => ({ pointerType, clientX: x, clientY: y });
+    assert.equal(layer.edgeAt(at(300, 90)), true, "the start edge's circle");
+    assert.equal(layer.edgeAt(at(400, 90)), false, "inside");
+    assert.equal(layer.edgeAt(at(300, 90, "touch")), false, "a finger takes the handle");
+    assert.equal(page({ on: false }).layer.edgeAt(at(300, 90)), false);
+});
+
+test("the page scrolls by itself only at the edges of the part of the window the score shows, toward where the stylus went", () => {
+    const scrolled = [];
+    const frames = [];
+    Object.assign(window, { requestAnimationFrame: (callback) => frames.push(callback), scrollBy: (_x, y) => scrolled.push(y) });
+    try {
+        const { root } = page({ view: { top: 80, bottom: 700 } });
+        root.listeners.pointerdown({ pointerId: 1, pointerType: "pen", isPrimary: true, button: 0, clientX: 650, clientY: 140, target: null });
+        root.listeners.pointermove({ pointerId: 1, pointerType: "pen", clientX: 700, clientY: 150 });
+        frames.shift()?.();
+        assert.deepEqual(scrolled, [], "away from the view's edges");
+        root.listeners.pointerup({ pointerId: 1, pointerType: "pen", clientX: 700, clientY: 150, timeStamp: 1 });
+        root.listeners.pointerdown({ pointerId: 1, pointerType: "pen", isPrimary: true, button: 0, clientX: 650, clientY: 140, target: null });
+        root.listeners.pointermove({ pointerId: 1, pointerType: "pen", clientX: 700, clientY: 690 });
+        frames.shift()?.();
+        assert.ok(scrolled.length === 1 && scrolled[0] > 0, "at the bottom of the view, above the pill");
+    } finally {
+        Object.assign(window, { requestAnimationFrame: () => 0, scrollBy() {} });
+    }
 });

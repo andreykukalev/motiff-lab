@@ -79,10 +79,14 @@ test("the stylus never waits: a move past the drag distance does what the place 
     }
 });
 
-test("a move from the margin does nothing and lets the pointer go", () => {
+test("a move from the margin draws a new passage, as from outside (v0.6.3, Andrei: «Да, рисует»); a finger there scrolls", () => {
     const gesture = placePress("margin", "now");
-    assert.equal(placeMoved(gesture, 30), "pass");
-    assert.equal(placeEnded(gesture), "none");
+    assert.equal(placeMoved(gesture, 5), "none");
+    assert.equal(placeMoved(gesture, 30), "draw");
+    assert.equal(placeEnded(gesture), "draw");
+    const finger = placePress("margin", "longPress");
+    assert.equal(placeHeld(finger), "none", "a finger held on the margin holds no bar");
+    assert.equal(placeMoved(finger, 30), "pass", "and its move scrolls");
 });
 
 test("taps: outside selects what is under it, the margin clears, inside and on an edge nothing (inside counts for a double tap)", () => {
@@ -183,6 +187,12 @@ test("a gesture near the top or the bottom of the view scrolls the page, faster 
     assert.ok(scrollStep(SCROLL_ZONE / 2, 0, 1000) < 0 && scrollStep(SCROLL_ZONE / 2, 0, 1000) > -SCROLL_STEP);
     assert.equal(scrollStep(1000, 0, 1000), SCROLL_STEP);
     assert.equal(scrollStep(-40, 0, 1000), -SCROLL_STEP, "never faster than the step");
+    assert.ok(scrollStep(100, 80, 900) < 0, "within the zone of the view's own top, under the floating bar");
+    assert.equal(scrollStep(140, 80, 900), 0, "past the zone of the view's top");
+    assert.equal(scrollStep(40, 80, 900, SCROLL_ZONE, SCROLL_STEP, 30), 0, "a stroke drawn down from under the bar never scrolls up");
+    assert.equal(scrollStep(40, 80, 900, SCROLL_ZONE, SCROLL_STEP, 60), -SCROLL_STEP, "moved up toward the top, it scrolls");
+    assert.equal(scrollStep(880, 80, 900, SCROLL_ZONE, SCROLL_STEP, 890), 0, "begun at the bottom and drawn up, never down");
+    assert.ok(scrollStep(880, 80, 900, SCROLL_ZONE, SCROLL_STEP, 500) > 0, "drawn down to the bottom, it scrolls down");
 });
 
 test("a hand narrows the band to its staff of two; both hands, or a system that is not two staves, take every staff", async () => {
