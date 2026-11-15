@@ -1,0 +1,61 @@
+@using MotiffLab.Web.Compare
+@using MotiffLab.Web.Score
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* A draft music-core made (0028 section 3): the bars engraved with it as a plum ossia above them, As read / Draft / One after
+   the other to hear, what changes as the engine writes it from the notes, and the two decisions. Shared by the repairs of
+   the Check drawer and the assistant's drafts (#582 item 17.3), so they look and work alike. The page hears and decides. *@
+@if (Card is { } card)
+{
+    <div class="repair-card" role="figure" aria-label="@CardLabel">
+        <PhraseCard Source="card" Sounding="@Sounding" />
+    </div>
+}
+<CompareSwitch View="Compare" Choose="Hear" OneAfterTheOther="Alternate" />
+<div class="repair-changes">
+    <p class="overline">@Text["repair.changes"]</p>
+    <p>@Explanation</p>
+</div>
+<div class="row">
+    <button class="btn primary compact" @onclick="Accept">@Text["repair.accept"]</button>
+    <button class="btn quiet compact" @onclick="Dismiss">@(DismissLabel ?? Text["repair.dismiss"])</button>
+</div>
+
+@code {
+    /// <summary>Hear the bars as read (false) or as the draft has them (true).</summary>
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Alternate { get; set; }
+
+    [Parameter]
+    public EventCallback Accept { get; set; }
+
+    [Parameter]
+    public EventCallback Dismiss { get; set; }
+
+    /// <summary>The bars engraved with the draft as an ossia above them.</summary>
+    [Parameter]
+    public PhraseCardSource? Card { get; set; }
+
+    /// <summary>The card's name for assistive technology, such as "Bar 4 with the correction above it".</summary>
+    [Parameter, EditorRequired]
+    public string CardLabel { get; set; } = "";
+
+    /// <summary>What sounds, for the card: "original", "variation" or "both".</summary>
+    [Parameter]
+    public string Sounding { get; set; } = "original";
+
+    /// <summary>What the switch shows: As read or Draft heard, or the two in turn.</summary>
+    [Parameter, EditorRequired]
+    public CompareView Compare { get; set; } = null!;
+
+    /// <summary>What changes, written by the engine from the diff.</summary>
+    [Parameter, EditorRequired]
+    public string Explanation { get; set; } = "";
+
+    /// <summary>The second decision's label; Dismiss when null.</summary>
+    [Parameter]
+    public string? DismissLabel { get; set; }
+}

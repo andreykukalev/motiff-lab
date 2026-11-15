@@ -64,6 +64,24 @@ public class AssistantFacadeTests
     }
 
     [Fact]
+    public void The_context_of_a_question_is_the_selections_bars_or_the_whole_piece()
+    {
+        MusicCoreFacade facade = Opened();
+
+        // Bars 1-2 of Für Elise's 3/8 after the pickup: from tick 240, two bars of 720.
+        JsonElement selected = Call(facade, "assistant.context", """{"selection": {"onset": 300, "end": 1500}}""").GetProperty("context");
+        JsonElement whole = Call(facade, "assistant.context", """{"selection": {"onset": 300, "end": 1500}, "wholePiece": true}""").GetProperty("context");
+        JsonElement none = Call(facade, "assistant.context").GetProperty("context");
+
+        Assert.Equal("selection", selected.GetProperty("digest").GetProperty("scope").GetString());
+        Assert.True(selected.GetProperty("notes").GetProperty("notes").GetArrayLength() > 0);
+        Assert.Equal("piece", whole.GetProperty("digest").GetProperty("scope").GetString());
+        Assert.Equal("piece", none.GetProperty("digest").GetProperty("scope").GetString());
+        Assert.Equal("badRequest", Error(facade, "assistant.context", """{"selection": {"onset": 500, "end": 400}}"""));
+        Assert.Contains("notes.join", Json(new MusicCoreFacade().Call(0, "assistant.tools")).GetProperty("tools").EnumerateArray().Select(tool => tool.GetProperty("name").GetString()));
+    }
+
+    [Fact]
     public void The_contract_stays_12()
     {
         Assert.Equal(12, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());

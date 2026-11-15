@@ -58,6 +58,7 @@
                     </article>
                 }
             }
+            @DraftContent
             @if (Busy)
             {
                 <p class="mentor-note" role="status">@Text["mentor.thinking"]</p>
@@ -125,6 +126,10 @@
     /// <summary>A cited fact the player tapped: its places are ringed in the score.</summary>
     [Parameter]
     public EventCallback<CitedFact> Cite { get; set; }
+
+    /// <summary>The assistant's draft for the last question, when it made one (#582 item 17.3), under the answer.</summary>
+    [Parameter]
+    public RenderFragment? DraftContent { get; set; }
 
     [Parameter]
     public EventCallback Back { get; set; }

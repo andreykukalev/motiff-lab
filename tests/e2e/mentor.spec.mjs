@@ -184,3 +184,45 @@ test("bars selected with the assistant already open are what the next question s
     await expect(mentor.locator(".mentor-answer")).toHaveCount(2);
     expect(turns[1].context.digest.scope).toBe("piece");
 });
+
+test("the assistant that edits chooses an operation, the app shows its draft over the bars, and Accept adds it to the corrections (#582 item 17.3)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:experimental.assistantActions", "on"));
+    const remove = { bars: { from: 2, to: 2 }, edits: [{ kind: "remove", address: "2.R.2", bar: null, hand: null, start: null, length: null, pitch: null, velocity: null }] };
+    const turns = await signedIn(page, {
+        configured: true,
+        turn: (sent, count) => count % 2 === 1
+            ? { kind: "toolCalls", entry: { kind: "toolCalls", calls: [{ id: `c${count}`, name: "notes.edit", arguments: remove }] } }
+            : { kind: "answer", text: "I asked the app to remove the second note.", fallback: false },
+    });
+    const errors = await openFurElise(page);
+    const mentor = await askFromMenu(page);
+    await mentor.getByRole("button", { name: "Agree and ask" }).click();
+    await mentor.getByRole("textbox", { name: "Ask or say what you noticed…" }).fill("Remove the stray note.");
+    await mentor.getByRole("button", { name: "Ask", exact: true }).click();
+
+    // The device ran the call in music-core and sent the draft it made back; the answer needs no citation beside a draft.
+    const draft = mentor.locator(".assistant-draft");
+    await expect(draft).toBeVisible();
+    expect(turns[0].role).toBe("proposer");
+    expect(turns[1].history[2].results[0].content.drafts[0].edits[0]).toMatchObject({ kind: "remove", address: "2.R.2" });
+    await expect(mentor.locator(".mentor-answer")).toContainText("I asked the app to remove the second note.");
+    await expect(draft.locator(".overline").first()).toHaveText("The assistant's draft · bar 2");
+    await expect(draft.getByRole("figure")).toBeVisible();
+    await expect(draft.locator(".repair-changes")).toContainText("removed");
+    await expect(draft.getByRole("button", { name: "Cancel" })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+
+    // Accept: the draft goes into My corrections.
+    await draft.getByRole("button", { name: "Accept" }).click();
+    await expect(draft).toHaveCount(0);
+    await expect(page.getByText("The draft is accepted (bar 2). The correction is in My corrections.")).toBeVisible();
+
+    // A second request, cancelled: the draft goes and nothing changes.
+    await mentor.getByRole("textbox", { name: "Ask or say what you noticed…" }).fill("And the next one?");
+    await mentor.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(mentor.locator(".mentor-answer")).toHaveCount(2);
+    await expect(draft).toBeVisible();
+    await draft.getByRole("button", { name: "Cancel" }).click();
+    await expect(draft).toHaveCount(0);
+    expect(errors).toEqual([]);
+});

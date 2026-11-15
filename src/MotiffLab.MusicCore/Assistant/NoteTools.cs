@@ -138,14 +138,20 @@ internal static class NoteTools
             }
         }
 
-        RuleReport rules = OperationRules.Check(before, [.. after.Values], piece.Words);
+        return Made(piece, EditTool, reading, before, [.. after.Values], keep);
+    }
+
+    /// <summary>The draft of <paramref name="tool"/> from the range's notes to <paramref name="after"/>, checked by the operation rules, or why it cannot be made.</summary>
+    internal static (AssistantDraft? Draft, string? Refusal) Made(AssistantPiece piece, string tool, RangeReading reading, IReadOnlyList<Note> before, IReadOnlyList<Note> after, IReadOnlySet<KeepProperty> keep)
+    {
+        RuleReport rules = OperationRules.Check(before, after, piece.Words);
         if (rules.Violation is { } violation)
         {
             return (null, piece.Words.T($"The edits {violation}.", $"Правка невозможна: {violation}."));
         }
 
-        Variation variation = VariationFacts.Build(EditTool, reading.Selection.Span, before, after.Values, keep, rules.Flags, reading.Motif.Key?.Key, piece.Meter, piece.Words);
-        return (new AssistantDraft(EditTool, before, variation), null);
+        Variation variation = VariationFacts.Build(tool, reading.Selection.Span, before, after, keep, rules.Flags, reading.Motif.Key?.Key, piece.Meter, piece.Words);
+        return (new AssistantDraft(tool, before, variation), null);
     }
 
     private static string? ChangeOrRemove(AssistantPiece piece, JsonElement edit, Dictionary<string, Note> notes, HashSet<string> edited)

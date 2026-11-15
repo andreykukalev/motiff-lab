@@ -5420,7 +5420,8 @@ h1:focus {
 
 /* Repairs for the bars to check (an experiment, v0.6; the AI companion study, section 2.2): the engine's proposal under a
    flagged bar, framed in plum as what the app composed; the bar engraved with the correction as an ossia above it. */
-.workspace .check-sheet .repair-draft {
+.workspace .check-sheet .repair-draft,
+.workspace .assistant-draft {
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
@@ -5430,7 +5431,8 @@ h1:focus {
     background: var(--surface-2);
 }
 
-.workspace .check-sheet .repair-draft > .overline {
+.workspace .check-sheet .repair-draft > .overline,
+.workspace .assistant-draft > .overline {
     margin: 0;
     color: var(--plum);
     font: var(--t-overline);
@@ -5438,7 +5440,8 @@ h1:focus {
     text-transform: uppercase;
 }
 
-.workspace .check-sheet .repair-ways {
+.workspace .check-sheet .repair-ways,
+.workspace .assistant-draft .repair-ways {
     display: flex;
     flex-direction: column;
     gap: var(--s-1);
@@ -5447,7 +5450,8 @@ h1:focus {
     border: 0;
 }
 
-.workspace .check-sheet .repair-way {
+.workspace .check-sheet .repair-way,
+.workspace .assistant-draft .repair-way {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -5460,16 +5464,19 @@ h1:focus {
     cursor: pointer;
 }
 
-.workspace .check-sheet .repair-way.on {
+.workspace .check-sheet .repair-way.on,
+.workspace .assistant-draft .repair-way.on {
     border-color: var(--plum);
     background: var(--plum-tint);
 }
 
-.workspace .check-sheet .repair-way input {
+.workspace .check-sheet .repair-way input,
+.workspace .assistant-draft .repair-way input {
     accent-color: var(--plum);
 }
 
-.workspace .check-sheet .repair-draft .caption {
+.workspace .check-sheet .repair-draft .caption,
+.workspace .assistant-draft .caption {
     margin: 0;
 }
 

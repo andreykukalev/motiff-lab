@@ -49,15 +49,27 @@ public static partial class AnswerCheck
         return known;
     }
 
-    /// <summary>The answer as the player may see it: the model's words when they pass, else the template, with the reason.</summary>
-    public static CheckedAnswer Check(string? text, IReadOnlySet<string> known, JsonElement context, Words words)
+    /// <summary>Whether any of <paramref name="results"/> offers a draft music-core made.</summary>
+    public static bool Drafted(IEnumerable<ToolOutcome> results)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        return results.Any(static result => result.Content.ValueKind == JsonValueKind.Object
+            && result.Content.TryGetProperty("drafts", out JsonElement drafts) && drafts.ValueKind == JsonValueKind.Array && drafts.GetArrayLength() > 0);
+    }
+
+    /// <summary>
+    /// The answer as the player may see it: the model's words when they pass, else the template, with the reason. With
+    /// <paramref name="drafted"/> (a tool made a draft for this question), an answer may cite no fact: it says what the
+    /// player asked for, and what changed is the draft's explanation, written by the engine; a fact it cites must still be known.
+    /// </summary>
+    public static CheckedAnswer Check(string? text, IReadOnlySet<string> known, JsonElement context, Words words, bool drafted = false)
     {
         ArgumentNullException.ThrowIfNull(known);
         string answer = (text ?? "").Trim();
         IReadOnlyList<string> cited = Cited(answer);
         string? reason = answer.Length == 0 ? "empty"
             : answer.Length > MaxLength ? "tooLong"
-            : cited.Count == 0 ? "noCitation"
+            : cited.Count == 0 && !drafted ? "noCitation"
             : cited.Any(id => !known.Contains(id)) ? "unknownFact"
             : null;
         return reason is null ? new CheckedAnswer(Parts(answer), false, null) : Template(context, words, reason);

@@ -20,7 +20,10 @@ internal static class ModelTurns
     public static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
 
     /// <summary>The mentor's turn: the question, a call of harmony.chords and its refused result.</summary>
-    public static ModelTurn Turn() => new("You are the mentor.", "en", MentorTools(), s_context, History());
+    public static ModelTurn Turn() => new("You are the mentor.", "en", Tools(AssistantRole.Mentor), s_context, History());
+
+    /// <summary>The proposer's turn: the same history, its tools those that make drafts too.</summary>
+    public static ModelTurn ProposerTurn() => new("You are the assistant.", "en", Tools(AssistantRole.Proposer), s_context, History());
 
     /// <summary>The model the settings give, its provider's requests answered by <paramref name="provider"/>.</summary>
     public static IAssistantModel? Model(Dictionary<string, string?> settings, FakeProvider? provider = null) =>
@@ -33,13 +36,13 @@ internal static class ModelTurns
         TurnEntry.Resulted([new ToolOutcome("toolu_1", "harmony.chords", Json("""{"tool": "harmony.chords", "ok": false, "refusal": "No bar 6."}"""))]),
     ];
 
-    private static JsonElement MentorTools()
+    private static JsonElement Tools(AssistantRole role)
     {
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer))
         {
             json.WriteStartObject();
-            AssistantRoles.WriteCatalogue(json, AssistantRole.Mentor);
+            AssistantRoles.WriteCatalogue(json, role);
             json.WriteEndObject();
         }
 

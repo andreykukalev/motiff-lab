@@ -12,8 +12,9 @@ namespace MotiffLab.Api.Assistant;
 /// device sends the role, the language, the context of the question (the selected passage's facts digest and notes) and
 /// the history; the relay hands it to the model with the role's instructions and tools, and answers with the model's tool
 /// calls for the device to run (it never runs a tool) or with its answer, checked: an answer that cites a fact the turn did
-/// not give, or none, becomes the engine's template text. Only the mentor (read tools) is served; the proposer (draft tools)
-/// is in the list of roles and is refused until a model provider exists.
+/// not give, or none, becomes the engine's template text. Two roles are served: the mentor (read tools) and the proposer
+/// (read tools and the tools that make drafts: repairs, variations, note edits, a joined tie). A call of a tool the role
+/// lacks, or with arguments its schema refuses (out of range), is never passed on: the turn answers the template instead.
 /// Gates: signed in with the API's scope, on the allow-list (Assistant:Allowed), Pro, a turn of at most
 /// <see cref="TurnRequest.MaxBytes"/>, at most Assistant:DailyRequests turns a day. With no model configured it answers
 /// "not configured" before reading the turn. It logs the outcome, counts and timing, never the turn's content.
@@ -79,7 +80,7 @@ internal static class AssistantEndpoints
         (TurnReply reply, string outcome, ModelReply? answered) = await AskAsync(model, request, options.Timeout, cancel);
         logger.LogInformation(
             "Assistant turn: prompt {Prompt}, model {Model}, outcome {Outcome}, history {Entries}, calls {Calls}, tokens {Input}/{Output}, {Milliseconds} ms",
-            AssistantPrompts.Version,
+            AssistantPrompts.VersionOf(request.Role),
             model.Name,
             outcome,
             request.History.Count,
@@ -155,12 +156,18 @@ internal static class AssistantEndpoints
                 return (Template("toolNotAllowed"), "toolNotAllowed", answered);
             }
 
+            // A call whose arguments the tool's schema refuses (out of range, missing) never reaches the device.
+            if (answered.Calls.Any(call => AssistantRoles.CallRefusal(request.Role, call, words) is not null))
+            {
+                return (Template("badArguments"), "badArguments", answered);
+            }
+
             return request.ToolCallsInQuestion + answered.Calls.Count > AssistantRoles.MostToolCalls
                 ? (Template("tooManyCalls"), "tooManyCalls", answered)
                 : (TurnReply.Called(answered.Calls), "toolCalls", answered);
         }
 
-        CheckedAnswer checkedAnswer = AnswerCheck.Check(answered.Text, request.KnownIds, request.Context, words);
+        CheckedAnswer checkedAnswer = AnswerCheck.Check(answered.Text, request.KnownIds, request.Context, words, request.Drafted);
         return (TurnReply.Answered(checkedAnswer), checkedAnswer.FellBack ? $"fallback:{checkedAnswer.Reason}" : "answer", answered);
     }
 

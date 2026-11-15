@@ -600,7 +600,9 @@
                 {
                     <MentorPanel SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
                                  Exchanges="MentorExchanges" Busy="_mentorBusy" Suggestions="AskSuggestions" Asked="AskMentorAsync" Cite="ShowCitedAsync"
-                                 BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
+                                 BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)">
+                        <DraftContent>@AiDraftView</DraftContent>
+                    </MentorPanel>
                 }
                 else if (_asking)
                 {
@@ -1399,8 +1401,13 @@
                 }
                 @if (RepairsShown && _repairBar == bar.Key)
                 {
-                    <RepairDraft Bar="bar.Key" Options="RepairOptionsOf(bar.Key)" Chosen="RepairChosen" Card="RepairCard" Sounding="@RepairSounding" Compare="RepairCompare"
-                                 Choose="ChooseRepairAsync" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync" Accept="AcceptRepairAsync" Dismiss="DismissRepairAsync" />
+                    <RepairDraft Bar="bar.Key" Options="RepairOptionsOf(bar.Key)" Chosen="RepairChosen" Choose="ChooseRepairAsync" Dismiss="DismissRepairAsync">
+                        <Proposal Context="chosen">
+                            <DraftProposal Card="RepairCard" CardLabel="@Text.Format("repair.cardLabel", bar.Key)" Sounding="@RepairSounding" Compare="RepairCompare"
+                                           Explanation="@chosen.Draft.Variation.Explanation" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync"
+                                           Accept="AcceptRepairAsync" Dismiss="DismissRepairAsync" />
+                        </Proposal>
+                    </RepairDraft>
                 }
                 @if (RepairUndoable == bar.Key)
                 {
@@ -3148,6 +3155,13 @@
             await SaveProjectAsync();
         }
     }
+
+    /// <summary>The assistant's draft on show, as the mentor's panel and the popup at the selection show it (#582 item 17.3).</summary>
+    private RenderFragment? AiDraftView => _aiDraft is { } shown
+        ? @<AssistantDraftCard Bars="@AiDraftBars" Ways="AiDraftWays" Chosen="AiDraftIndex" Card="AiDraftCard" Sounding="@RepairSounding" Compare="RepairCompare"
+                               Explanation="@shown.Made.Variation.Explanation" Choose="ChooseAiDraftAsync" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync"
+                               Accept="AcceptAiDraftAsync" Cancel="CancelAiDraftAsync" />
+        : null;
 
     private async Task ClearSelectionAsync()
     {

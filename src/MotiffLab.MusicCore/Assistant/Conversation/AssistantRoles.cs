@@ -9,9 +9,10 @@ public enum AssistantRole
     Mentor,
 
     /// <summary>
-    /// The proposer of «что если» variants (the AI companion study, section 2.4): it reads like the mentor and calls the
-    /// tools that make drafts and check them; music-core makes every note and only the player keeps or takes a variant. Not
-    /// served until a model provider exists (<see cref="AssistantRoles.Served"/>).
+    /// The assistant that acts (#582 item 17.3; 0028 sections 1-3; the AI companion study, section 2.4): it reads like the
+    /// mentor and, when the player asks for a change, chooses one catalogue operation with in-range parameters (a repair by
+    /// Check reason, a variation, a note edit or a joined tie); music-core makes every note as a draft, and only the player
+    /// accepts it. Served with the experiment «Помощник правит ноты».
     /// </summary>
     Proposer,
 }
@@ -33,8 +34,24 @@ public static class AssistantRoles
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown role."),
     };
 
-    /// <summary>The roles the relay answers today: the mentor; the proposer waits for a model provider and its instructions.</summary>
-    public static IReadOnlyList<AssistantRole> Served { get; } = [AssistantRole.Mentor];
+    /// <summary>The roles the relay answers: both, each with its own instructions.</summary>
+    public static IReadOnlyList<AssistantRole> Served { get; } = [AssistantRole.Mentor, AssistantRole.Proposer];
+
+    /// <summary>
+    /// Why a call cannot run as the model made it, before any notes are read: the role lacks the tool, or its arguments do
+    /// not fit the tool's schema (a missing field, a value out of range); null when it may run. The relay and the device
+    /// check the same way; the device then checks the piece itself (its bars, its notes) when it runs the call.
+    /// </summary>
+    public static string? CallRefusal(AssistantRole role, ToolCall call, Words words)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+        if (!Allows(role, call.Name) || AssistantTools.Find(call.Name) is not { } tool)
+        {
+            return words.T($"The {Id(role)} has no tool \"{call.Name}\".", $"У роли «{Id(role)}» нет инструмента «{call.Name}».");
+        }
+
+        return tool.Parameters.Refusal(call.Arguments, "", words);
+    }
 
     /// <summary>Whether the role may call the tool.</summary>
     public static bool Allows(AssistantRole role, string tool) => ToolsOf(role).Any(allowed => allowed.Name == tool);

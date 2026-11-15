@@ -154,16 +154,31 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
     }
 
     [Fact]
-    public async Task The_proposer_is_refused_until_a_provider_exists_and_takes_no_turn_of_the_day()
+    public async Task The_proposer_is_offered_the_draft_tools_and_a_call_out_of_range_never_reaches_the_device()
     {
-        HttpClient client = Client(_api, "allowed-1");
-        string proposer = Turn().Replace("\"role\": \"mentor\"", "\"role\": \"proposer\"", StringComparison.Ordinal);
+        HttpClient client = Client(_api, "allowed-6");
+        const string asked = "Move the A up an octave.";
+        string proposer = Turn(asked).Replace("\"role\": \"mentor\"", "\"role\": \"proposer\"", StringComparison.Ordinal);
+        static JsonElement Edit(int pitch) => JsonDocument.Parse($$"""{"bars": {"from": 6, "to": 6}, "edits": [{"kind": "change", "address": "6.R.1", "bar": null, "hand": null, "start": null, "length": null, "pitch": {{pitch}}, "velocity": null}]}""").RootElement.Clone();
 
-        HttpResponseMessage refused = await client.PostAsync("/assistant/turn", Body(proposer));
+        // In range: the call goes to the device, which runs it in music-core.
+        _api.Model.Script(asked, new ModelReply([new ToolCall("c1", "notes.edit", Edit(81))], null));
+        JsonElement called = await JsonOf(await client.PostAsync("/assistant/turn", Body(proposer)));
+        Assert.Equal("toolCalls", called.GetProperty("kind").GetString());
+        string[] offered = [.. _api.Model.Seen(asked).Tools.GetProperty("tools").EnumerateArray().Select(tool => tool.GetProperty("name").GetString()!)];
+        Assert.Contains("notes.edit", offered);
+        Assert.Contains("notes.join", offered);
+        Assert.Contains("repair.candidates", offered);
+        Assert.Contains("variation.simplify", offered);
+        Assert.DoesNotContain("practice.suggest", offered);
+        Assert.Contains("never write notes", _api.Model.Seen(asked).Instructions, StringComparison.Ordinal);
 
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        Assert.Equal("roleClosed", (await JsonOf(refused)).GetProperty("code").GetString());
-        Assert.Equal(WithModel.DailyRequests, (await JsonOf(await client.GetAsync("/assistant/status"))).GetProperty("left").GetInt32());
+        // Out of range (MIDI 200): the engine's template, and nothing for the device to run.
+        _api.Model.Script(asked, new ModelReply([new ToolCall("c2", "notes.edit", Edit(200))], null));
+        JsonElement refused = await JsonOf(await client.PostAsync("/assistant/turn", Body(proposer)));
+        Assert.Equal("answer", refused.GetProperty("kind").GetString());
+        Assert.True(refused.GetProperty("fallback").GetBoolean());
+        Assert.Contains(_api.Logs, line => line.Contains("outcome badArguments", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -214,7 +229,7 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             base.ConfigureWebHost(builder);
-            builder.UseSetting("Assistant:Allowed", "allowed-1, allowed-2, allowed-3, allowed-4, allowed-5, allowed-free");
+            builder.UseSetting("Assistant:Allowed", "allowed-1, allowed-2, allowed-3, allowed-4, allowed-5, allowed-6, allowed-free");
             builder.UseSetting("Assistant:DailyRequests", DailyRequests.ToString(System.Globalization.CultureInfo.InvariantCulture));
             builder.ConfigureLogging(logging => logging.AddProvider(new ListLogger(Logs)));
             builder.ConfigureTestServices(services =>
