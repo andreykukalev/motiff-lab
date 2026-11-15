@@ -87,9 +87,10 @@ enum ExpandRules {
             }
             let taken = PlayheadDrag(handle: .blue, resume: PlaybackModel.playing(standing), last: tick)
             return (taken, steps + PlaybackModel.next(held(passage, tick: tick, transport: standing), .grab).steps)
-        case .move(let at):
+        case .move(let at), .place(let at):
             guard var taken = drag else { return (nil, []) }
-            let decided = PlaybackModel.next(held(passage, tick: taken.last, transport: .stopped), .drag(.blue, to: at))
+            let jump = gesture == .place(at)
+            let decided = PlaybackModel.next(held(passage, tick: taken.last, transport: .stopped), .drag(.blue, to: at, jump: jump))
             taken.last = decided.state.tick
             return (taken, decided.steps)
         case .release:

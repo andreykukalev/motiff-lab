@@ -10,13 +10,16 @@ struct PlayheadDrag: Equatable {
 }
 
 /// What the score (score.js) and the roll (roll.js) report of a playhead's handle: `{ drag: { phase, handle, tick } }`. The
-/// page puts the place on the sixteenth grid and in its bar or the selection (Scripts/playback/playhead-drag.ts) and sends
-/// it at most once a frame.
+/// page puts the place on the sixteenth grid or a note's start and in its bar or the selection
+/// (Scripts/playback/playhead-drag.ts) and sends it at most once a frame; a long press puts the playhead down first
+/// (`place`).
 enum PlayheadGesture: Equatable {
     /// T14: the handle taken, with its first move.
     case grab(PlaybackModel.Handle)
     /// T15: dragged to a tick.
     case move(Double)
+    /// T15: put down at a tick by a long press (#582 item 12): it goes there without sounding what it jumped over.
+    case place(Double)
     /// T16: let go, or lost (a cancel, a lost capture, the view going).
     case release
 
@@ -26,9 +29,9 @@ enum PlayheadGesture: Equatable {
         case "grab":
             guard let handle = (fields["handle"] as? String).flatMap(PlaybackModel.Handle.init(rawValue:)) else { return nil }
             self = .grab(handle)
-        case "move":
+        case "move", "place":
             guard let tick = (fields["tick"] as? NSNumber)?.doubleValue else { return nil }
-            self = .move(tick)
+            self = phase == "place" ? .place(tick) : .move(tick)
         case "release":
             self = .release
         default:
@@ -47,9 +50,10 @@ extension Player {
             if drag != nil { self.handle(.release) }
             drag = PlayheadDrag(handle: which, resume: PlaybackModel.playing(state), last: tick)
             apply(.grab)
-        case .move(let at):
+        case .move(let at), .place(let at):
             guard var held = drag else { return }
-            held.last = apply(.drag(held.handle, to: at), from: heldState(held)).tick
+            let jump = gesture == .place(at)
+            held.last = apply(.drag(held.handle, to: at, jump: jump), from: heldState(held)).tick
             drag = held
         case .release:
             guard let held = drag else { return }

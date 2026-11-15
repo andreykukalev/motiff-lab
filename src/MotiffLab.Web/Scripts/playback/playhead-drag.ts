@@ -16,9 +16,42 @@ const HOLD_MS = 800;
 /**
  * Where a playhead dragged to `tick` goes: to the nearest sixteenth counted from the start of `bar`, no later than the
  * bar's last sixteenth, and inside `limits` [start, end) when given (the selection, for the blue playhead): at its start
- * at the earliest and at its last sixteenth before its end at the latest. A whole tick.
+ * at the earliest and at its last sixteenth before its end at the latest. A note's start in the bar (and the limits) is a
+ * place too (`onsets`, in time order, #582 item 12): a thirty-second or a triplet is stood on where it sounds, so the
+ * playhead is drawn on a note as it is heard. A whole tick.
  */
-export function snapTick(tick: number, bar: Span, limits: Span | null = null): number {
+export function snapTick(tick: number, bar: Span, limits: Span | null = null, onsets: readonly number[] = []): number {
+    const grid = gridTick(tick, bar, limits);
+    const low = Math.max(bar.start, limits?.start ?? bar.start);
+    const high = Math.min(bar.end, limits?.end ?? bar.end);
+    let nearest = grid;
+    // Only the starts either side of the tick can be nearer than the grid's place.
+    const after = firstAtOrAfter(onsets, tick);
+    for (const onset of [onsets[after - 1], onsets[after]]) {
+        if (onset !== undefined && onset >= low && onset < high && Math.abs(onset - tick) < Math.abs(nearest - tick)) {
+            nearest = onset;
+        }
+    }
+    return Math.round(nearest);
+}
+
+/** The index of the first value at or after x in an ascending list, or its length. */
+function firstAtOrAfter(values: readonly number[], x: number): number {
+    let low = 0;
+    let high = values.length;
+    while (low < high) {
+        const middle = (low + high) >>> 1;
+        if (values[middle] < x) {
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+/** snapTick on the sixteenth grid alone. */
+function gridTick(tick: number, bar: Span, limits: Span | null): number {
     const steps = Math.round((tick - bar.start) / DRAG_GRID);
     const lastStep = Math.max(0, Math.ceil((bar.end - bar.start) / DRAG_GRID) - 1);
     let low = bar.start;
@@ -38,9 +71,13 @@ export function barOf(bars: readonly Span[], tick: number): Span | undefined {
     return bars.find((bar) => tick >= bar.start && tick < bar.end) ?? (tick < (bars[0]?.start ?? 0) ? bars[0] : bars.at(-1));
 }
 
-/** What a view tells its host about a drag, in order: the handle taken, the places it goes to, and its letting go. */
+/**
+ * What a view tells its host about a drag, in order: the handle taken, the places it goes to, and its letting go. A long
+ * press puts the playhead down first (`place`, #582 item 12): it goes there without sounding what it jumped over.
+ */
 export type DragMessage =
     | { phase: "grab"; handle: Handle }
+    | { phase: "place"; handle: Handle; tick: number }
     | { phase: "move"; handle: Handle; tick: number }
     | { phase: "release"; handle: Handle };
 
@@ -114,6 +151,24 @@ export class PlayheadDrag {
             held.waiting = true;
             this.nextFrame(() => this.flush(held));
         }
+    }
+
+    /**
+     * The held playhead put down at a tick already on the grid (a long press, #582 item 12): shown and sent at once, as a
+     * place it jumped to, not one it was dragged through; the moves after it go on from there.
+     */
+    place(pointer: number, tick: number): void {
+        const held = this.held;
+        if (held === null || held.pointer !== pointer) {
+            return;
+        }
+        if (!held.taken) {
+            held.taken = true;
+            this.send({ phase: "grab", handle: held.handle });
+        }
+        held.shown = tick;
+        held.sent = tick;
+        this.send({ phase: "place", handle: held.handle, tick });
     }
 
     /** The pointer lets go, or loses the playhead (a cancel, a lost capture, the view going): the last place, then the end. */

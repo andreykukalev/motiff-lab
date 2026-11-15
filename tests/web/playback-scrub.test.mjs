@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Engine, SCRUB_GROUPS, SCRUB_SECONDS } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-processor.js";
+import { Engine, SCRUB_GROUPS, SCRUB_SECONDS, SCRUB_SPREAD_SECONDS } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-processor.js";
 
 const RATE = 48_000;
 const BLOCK = 128;
@@ -55,15 +55,17 @@ function struck(out) {
 
 const seconds = (value) => Math.round(value * RATE);
 
-test("a drag forward sounds the starts it passes and goes there", () => {
+test("a drag forward sounds the starts it passes and goes there; its first move sounds the note it leaves too (#582 item 12)", () => {
     const engine = scrubEngine();
     hear(engine, [[0, 240, 60], [480, 240, 62], [960, 240, 64], [1440, 240, 65]]);
     engine.handle({ type: "scrub", from: 0, to: 1000 });
 
     assert.equal(engine.tick, 1000);
     assert.equal(engine.transportState, "stopped");
-    assert.equal(engine.voiceCount, 2, "the starts at 480 and 960: the one it left is behind it");
-    assert.ok(struck(sound(engine, 1024)).length > 0, "they sound at once");
+    assert.equal(engine.voiceCount, 3, "the starts at 480 and 960, and the note under the playhead as the drag begins");
+    assert.ok(struck(sound(engine, 1024)).length > 0, "the first move's sound at once");
+    engine.handle({ type: "scrub", from: 1000, to: 1500 });
+    assert.equal(engine.voiceCount, 4, "then only the start at 1440: the place a later move leaves is behind it");
 });
 
 test("a drag back sounds the starts it passes the other way", () => {
@@ -72,7 +74,38 @@ test("a drag back sounds the starts it passes the other way", () => {
     engine.handle({ type: "scrub", from: 1440, to: 480 });
 
     assert.equal(engine.tick, 480);
-    assert.equal(engine.voiceCount, 2, "back, the place reached sounds and the one it left does not: 480 and 960");
+    assert.equal(engine.voiceCount, 3, "back, the place reached sounds, and on the first move the one it leaves: 1440, 960 and 480");
+    engine.handle({ type: "scrub", from: 480, to: 100 });
+    assert.equal(engine.voiceCount, 3, "a later move back does not strike the place it leaves again");
+    engine.handle({ type: "scrub", from: 100, to: 0 });
+    assert.equal(engine.voiceCount, 4, "the start at 0");
+});
+
+test("the starts one move passes sound one after another, as the playhead reached them, not as a chord (#582 item 12)", () => {
+    const engine = scrubEngine();
+    hear(engine, [[480, 240, 60], [600, 240, 60], [720, 240, 60]]);
+    engine.handle({ type: "scrub", from: 0, to: 100 });
+    sound(engine, 1024);
+    // A view's frame later the drag passes three sixteenths at once: they sound in their order over that frame.
+    engine.handle({ type: "scrub", from: 100, to: 800 });
+    const starts = struck(sound(engine, 2048));
+
+    assert.equal(starts.length, 3, "each its own strike, a key struck again too");
+    assert.deepEqual(starts, [...starts].sort((a, b) => a - b));
+    assert.equal(new Set(starts).size, 3, "never two at once");
+    assert.ok(starts.at(-1) <= 1024, "all within the time the move took");
+    assert.equal(starts[0], Math.round((380 / 700) * 1024), "each where the playhead reached it");
+    assert.ok(SCRUB_SPREAD_SECONDS * RATE >= 1024, "a move a frame of a slow screen long is spread over all of it");
+});
+
+test("a playhead put down sounds nothing it jumped over, and its first move the note it was put on (#582 item 12)", () => {
+    const engine = scrubEngine();
+    hear(engine, [[0, 240, 60], [480, 240, 60], [960, 240, 60], [1440, 240, 60]]);
+    // A long press seeks (the model's jump), then the drag moves on.
+    engine.handle({ type: "seek", tick: 960 });
+    assert.deepEqual(struck(sound(engine, 4096)), [], "nothing between");
+    engine.handle({ type: "scrub", from: 960, to: 1000 });
+    assert.equal(struck(sound(engine, 1024)).length, 1, "the note it was put on");
 });
 
 test("a chord a drag passes sounds whole", () => {

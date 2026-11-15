@@ -155,7 +155,8 @@ export class PlayheadPress {
             return;
         }
         press.holding = true;
-        this.drag.move(press.pointer, tick);
+        // Put down, not dragged there: what lies between the old place and this one stays silent (#582 item 12).
+        this.drag.place(press.pointer, tick);
         this.host.took?.(press.pointer);
         this.host.moved();
     }

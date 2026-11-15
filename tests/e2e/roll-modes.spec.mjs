@@ -78,7 +78,8 @@ test("in Navigate a long press on the roll moves the playhead there and never se
     await page.keyboard.press("h");
     await expect(roll).toHaveAttribute("data-mode", "navigate");
 
-    // A hold takes the black playhead: the engine scrubs to the place and lets go (a click would only seek).
+    // A hold takes the black playhead: the engine is put there without sounding what it jumped over (a seek, #582 item 12),
+    // scrubs on as it moves and lets go.
     const heard = () => page.evaluate(() => {
         const trace = window.__audioTrace;
         const types = trace.posted.map((message) => message.type).filter((type) => ["scrub", "scrubEnd", "seek"].includes(type));
@@ -93,7 +94,7 @@ test("in Navigate a long press on the roll moves the playhead there and never se
         await page.mouse.move(then.x, then.y, { steps: 6 });
         await page.mouse.up();
         const types = await heard();
-        expect(types).toContain("scrub");
+        expect(types).toContain(then === point ? "seek" : "scrub");
         expect(types.at(-1)).toBe("scrubEnd");
     };
     const before = await place();

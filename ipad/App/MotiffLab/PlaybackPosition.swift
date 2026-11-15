@@ -39,8 +39,9 @@ enum PlaybackModel {
         case seekInLoop(Double)
         /// T14: a playhead's handle taken by the pen or a finger: playback stands while it is held.
         case grab
-        /// T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts).
-        case drag(Handle, to: Double)
+        /// T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts); with
+        /// `jump`, put there by a long press (#582 item 12): it goes there without sounding what lies between.
+        case drag(Handle, to: Double, jump: Bool = false)
         /// T16: a playhead let go where the position now is, playing on when it played as the gesture began.
         case release(Handle, resume: Bool)
     }
@@ -123,8 +124,8 @@ enum PlaybackModel {
             return seekInLoop(state, to: at)
         case .grab:
             return grab(state)
-        case .drag(let handle, let at):
-            return drag(state, handle, to: at)
+        case .drag(let handle, let at, let jump):
+            return drag(state, handle, to: at, jump: jump)
         case .release(let handle, let resume):
             return release(state, handle, resume: resume)
         }
@@ -212,7 +213,7 @@ enum PlaybackModel {
     /// T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
     /// the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
     /// place is where the position already is. The engine scrubs there: the notes whose starts it passes sound (#495 UX-09).
-    private static func drag(_ state: State, _ handle: Handle, to at: Double) -> Decision {
+    private static func drag(_ state: State, _ handle: Handle, to at: Double, jump: Bool) -> Decision {
         var to = max(0, at)
         if handle == .blue {
             guard let selection = state.selection else { return (state, []) }
@@ -221,7 +222,9 @@ enum PlaybackModel {
         guard to != state.tick else { return (state, []) }
         var after = state
         after.tick = to
-        return (after, [.scrub(from: state.tick, to: to)])
+        // Put down by a long press it seeks: nothing it jumped over sounds, and the drag's first move sounds the note it leaves.
+        let step: TransportStep = jump ? .seek(to) : .scrub(from: state.tick, to: to)
+        return (after, [step])
     }
 
     /// T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12);

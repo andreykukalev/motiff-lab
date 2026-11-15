@@ -60,8 +60,11 @@ export type ModelEvent =
     | { type: "seekInLoop"; at: number }
     /** T14: a playhead's handle taken by the pen or a finger: playback stands while it is held. */
     | { type: "grab" }
-    /** T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts). */
-    | { type: "drag"; handle: Handle; at: number }
+    /**
+     * T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts); with
+     * `jump`, put there by a long press (#582 item 12): it goes there without sounding what lies between.
+     */
+    | { type: "drag"; handle: Handle; at: number; jump?: boolean }
     /** T16: a playhead let go where the position now is, playing on when it played as the gesture began. */
     | { type: "release"; handle: Handle; resume: boolean };
 
@@ -135,7 +138,7 @@ export function next(state: ModelState, event: ModelEvent): Decision {
         case "grab":
             return grab(state);
         case "drag":
-            return drag(state, event.handle, event.at);
+            return drag(state, event.handle, event.at, event.jump === true);
         case "release":
             return release(state, event.handle, event.resume);
     }
@@ -223,9 +226,11 @@ function grab(state: ModelState): Decision {
 /**
  * T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
  * the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
- * place is where the position already is. The engine scrubs there: the notes whose starts it passes sound.
+ * place is where the position already is. The engine scrubs there: the notes whose starts it passes sound. A jump (a long
+ * press putting the playhead down, #582 item 12) seeks there instead: nothing between the old place and the new one sounds,
+ * and the drag's first move from it sounds the note it leaves.
  */
-function drag(state: ModelState, handle: Handle, at: number): Decision {
+function drag(state: ModelState, handle: Handle, at: number, jump = false): Decision {
     const selection = state.selection;
     if (handle === "blue" && selection === null) {
         return { state, steps: [] };
@@ -234,7 +239,7 @@ function drag(state: ModelState, handle: Handle, at: number): Decision {
     if (to === state.tick) {
         return { state, steps: [] };
     }
-    return { state: { ...state, tick: to }, steps: [{ type: "scrub", from: state.tick, to }] };
+    return { state: { ...state, tick: to }, steps: [jump ? { type: "seek", at: to } : { type: "scrub", from: state.tick, to }] };
 }
 
 /** T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12); the

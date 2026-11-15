@@ -106,6 +106,48 @@ const LIVE_TRACK = -1;
 export const SCRUB_SOURCE = "scrub";
 export const SCRUB_GROUPS = 6;
 export const SCRUB_SECONDS = 1.5;
+/**
+ * The starts one move passes sound one after another over the time the move took (#582 item 12), at most this long, in
+ * seconds, so a view that sends its moves seldom (a busy page, a slow frame) is heard note by note, not as a chord.
+ */
+export const SCRUB_SPREAD_SECONDS = 0.04;
+/** How long a drag's first move is taken to last, in seconds, as nobody measured it: a frame of a fast screen. */
+export const SCRUB_FIRST_SECONDS = 1 / 120;
+
+/** A start a move of a held playhead strikes: its tick, and how far through the move the playhead reaches it, 0 to 1. */
+export interface ScrubStrike {
+    onset: number;
+    at: number;
+}
+
+/**
+ * The one rule of what sounds while a held playhead moves (#582 items 12 and 13), for the score and the roll alike, as the
+ * iPad's engine has it (PlaybackEngine.scrubStrikes, both on ipad/App/MotiffLabTests/Golden/scrub.json): the notes are
+ * found by their starts, not by beats. Forward the starts in (from, to] sound, back those in [to, from); on a gesture's
+ * first move (`opening`) the place it leaves counts too, so the note under the playhead sounds as it moves off it. A
+ * tie is one note in music-core's events (the importers merge a chain into its first written note), so it sounds once,
+ * from its first note, and reaching a note it continues sounds nothing. A move past more than `groups` starts strikes
+ * those nearest `to`. Each start once, in the order the playhead reaches it, with how far through the move that is.
+ */
+export function scrubStrikes(onsets: Iterable<number>, from: number, to: number, opening: boolean, groups = SCRUB_GROUPS): ScrubStrike[] {
+    const forward = to >= from;
+    const passed = (onset: number): boolean =>
+        forward
+            ? (onset > from || (opening && onset === from)) && onset <= to
+            : onset >= to && (onset < from || (opening && onset === from));
+    const found = new Set<number>();
+    for (const onset of onsets) {
+        if (passed(onset)) {
+            found.add(onset);
+        }
+    }
+    const span = Math.abs(to - from);
+    return [...found]
+        .sort((a, b) => Math.abs(a - to) - Math.abs(b - to) || a - b)
+        .slice(0, Math.max(0, groups))
+        .sort((a, b) => (forward ? a - b : b - a))
+        .map((onset) => ({ onset, at: span === 0 ? 0 : Math.abs(onset - from) / span }));
+}
 
 export interface PositionReport {
     type: "position";
@@ -255,6 +297,15 @@ export class Engine {
     private blockFrame: number | null = null;
     private blockOffset = 0;
     private reports: EngineReport[] = [];
+    /** Frames rendered so far: the audio clock a drag's moves are timed by. */
+    private rendered = 0;
+    /** When the held playhead last moved (`rendered` then), or null when no drag is under way: its next move is its first. */
+    private scrubbedAt: number | null = null;
+    /**
+     * The fewest frames between two moves of this drag: about a frame of the view's screen. A move after the pointer stood
+     * still took no longer, and the next move comes no sooner, so what one move strikes never runs into the next.
+     */
+    private scrubGap = Infinity;
 
     constructor(sampleRate: number) {
         this.sampleRate = sampleRate;
@@ -352,6 +403,7 @@ export class Engine {
                 break;
             case "scrubEnd":
                 this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
+                this.scrubbedAt = null;
                 break;
         }
     }
@@ -386,6 +438,7 @@ export class Engine {
         right?.set(left);
 
         this.blockFrame = null;
+        this.rendered += frames;
 
         this.framesSinceReport += frames;
         if (this.framesSinceReport >= this.reportInterval) {
@@ -434,6 +487,7 @@ export class Engine {
         this.timeline = timeline;
         this.stopAlternating();
         this.releaseWhere(() => true, 0);
+        this.scrubbedAt = null;
         this.state = "stopped";
         this.position = 0;
         this.loopStart = 0;
@@ -490,6 +544,7 @@ export class Engine {
         }
         // What a drag sounded gives way to the piece: playback starts clean.
         this.releaseWhere((voice) => voice.sourceId === SCRUB_SOURCE, 0);
+        this.scrubbedAt = null;
 
         if (this.hasLoop() && (this.position < this.loopStart || this.position >= this.loopEnd)) {
             this.position = this.loopStart;
@@ -511,6 +566,7 @@ export class Engine {
         }
         this.state = "stopped";
         this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
+        this.scrubbedAt = null;
         this.requestReport();
     }
 
@@ -518,6 +574,7 @@ export class Engine {
         const end = this.timeline?.end ?? 0;
         this.position = Math.min(Math.max(0, tick), end);
         this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
+        this.scrubbedAt = null;
         this.relocate(this.state === "playing");
         this.requestReport();
     }
@@ -776,11 +833,12 @@ export class Engine {
     }
 
     /**
-     * A playhead dragged while stopped (#495 UX-09): the position goes to `to` without striking what sounds there (a seek
-     * would) and without fading what the drag already sounds; the starts of the active sources' audible notes it passed
-     * sound, forward those in (from, to], back those in [to, from), each start's notes together, as a chord. A move that
-     * passes more starts than SCRUB_GROUPS strikes only those nearest `to`. Each note sounds its length at the tempo, at
-     * most SCRUB_SECONDS, then fades as a released note does. The metronome stays silent. Ignored while playing.
+     * A playhead dragged while stopped (#495 UX-09, #582 items 12 and 13): the position goes to `to` without striking what
+     * sounds there (a seek would) and without fading what the drag already sounds; the starts of the active sources'
+     * audible notes it passed sound by the one rule (scrubStrikes), each start's notes together, as a chord, and the
+     * starts one after another over the time since the drag's last move, at most SCRUB_SPREAD_SECONDS, as the playhead
+     * passed them. Each note sounds its length at the tempo, at most SCRUB_SECONDS, then fades as a released note does.
+     * The metronome stays silent. Ignored while playing.
      */
     private scrub(from: number, to: number): void {
         const timeline = this.timeline;
@@ -789,35 +847,61 @@ export class Engine {
         }
         const start = Math.min(Math.max(0, from), timeline.end);
         const target = Math.min(Math.max(0, to), timeline.end);
+        const opening = this.scrubbedAt === null;
+        const took = this.scrubMoveTook();
         this.position = target;
         this.relocate(false);
         this.requestReport();
-        // Forward the start itself is behind and the place reached is passed; back the other way round.
-        const passed = (onset: number): boolean => (target > start ? onset > start && onset <= target : onset >= target && onset < start);
-        const chords = new Map<number, { source: Source; index: number }[]>();
-        for (const id of this.active) {
-            const source = this.sources.get(id);
-            for (let index = 0; source !== undefined && index < source.onset.length; index++) {
-                const onset = source.onset[index];
-                if (passed(onset) && this.isAudible(source.track[index])) {
-                    chords.set(onset, [...(chords.get(onset) ?? []), { source, index }]);
-                }
-            }
-        }
+        const chords = this.audibleStarts(Math.min(start, target), Math.max(start, target));
         const longest = Math.round(SCRUB_SECONDS * this.sampleRate);
-        const nearest = [...chords.keys()].sort((a, b) => Math.abs(a - target) - Math.abs(b - target)).slice(0, SCRUB_GROUPS);
-        for (const onset of nearest) {
-            const perFrame = this.ticksPerFrame(this.tempoIndex(onset));
-            for (const { source, index } of chords.get(onset) ?? []) {
+        for (const strike of scrubStrikes(chords.keys(), start, target, opening)) {
+            const perFrame = this.ticksPerFrame(this.tempoIndex(strike.onset));
+            const frame = Math.round(strike.at * took);
+            for (const { source, index } of chords.get(strike.onset) ?? []) {
                 const frames = Math.round(source.duration[index] / perFrame);
-                this.startVoice(SCRUB_SOURCE, source.pitch[index], source.velocity[index], source.track[index], Infinity, 0, Math.min(longest, Math.max(1, frames)));
+                this.startVoice(SCRUB_SOURCE, source.pitch[index], source.velocity[index], source.track[index], Infinity, frame, Math.min(longest, Math.max(1, frames)));
             }
         }
     }
 
     /**
-     * Starts a voice at a frame of the block. It is released at `endTick` while playing, or, with `hold`, that many frames
-     * after it starts, counted down block by block whether or not anything plays (a drag's notes).
+     * A drag's move begins: how many frames it took, the fewest between this drag's moves (the pointer may have stood still
+     * before this one), at most SCRUB_SPREAD_SECONDS, and a first move a frame of a fast screen, as nobody measured it.
+     * What the last move passed and has not sounded yet sounds now, before what this one passes.
+     */
+    private scrubMoveTook(): number {
+        const last = this.scrubbedAt;
+        this.scrubGap = last === null ? Infinity : Math.min(this.scrubGap, this.rendered - last);
+        this.scrubbedAt = this.rendered;
+        for (const voice of this.voices) {
+            if (voice.sourceId === SCRUB_SOURCE && voice.startAt > 0) {
+                voice.releaseAt -= voice.startAt;
+                voice.startAt = 0;
+            }
+        }
+        const first = Math.round(SCRUB_FIRST_SECONDS * this.sampleRate);
+        return Math.min(last === null ? first : this.scrubGap, Math.round(SCRUB_SPREAD_SECONDS * this.sampleRate));
+    }
+
+    /** The active sources' audible notes that start in [low, high], by their start. */
+    private audibleStarts(low: number, high: number): Map<number, { source: Source; index: number }[]> {
+        const chords = new Map<number, { source: Source; index: number }[]>();
+        for (const id of this.active) {
+            const source = this.sources.get(id);
+            for (let index = 0; source !== undefined && index < source.onset.length; index++) {
+                const onset = source.onset[index];
+                if (onset >= low && onset <= high && this.isAudible(source.track[index])) {
+                    chords.set(onset, [...(chords.get(onset) ?? []), { source, index }]);
+                }
+            }
+        }
+        return chords;
+    }
+
+    /**
+     * Starts a voice at a frame of the block, or of a later block for a frame past this one's end (a drag's later starts).
+     * It is released at `endTick` while playing, or, with `hold`, that many frames after it starts, counted down block by
+     * block whether or not anything plays (a drag's notes).
      */
     private startVoice(sourceId: string, pitch: number, velocity: number, track: number, endTick: number, frame: number, hold = Infinity): void {
         const region = this.regionByPitch[pitch];
@@ -907,7 +991,7 @@ export class Engine {
             if (alive) {
                 voice.read = read;
                 voice.level = level;
-                voice.startAt = 0;
+                voice.startAt = Math.max(0, voice.startAt - frames);
                 voice.releaseAt = voice.releaseAt === Infinity ? Infinity : Math.max(0, voice.releaseAt - frames);
                 kept.push(voice);
             }

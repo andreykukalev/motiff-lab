@@ -340,15 +340,17 @@ final class PlaybackEngineTests: XCTestCase {
         return e
     }
 
-    func testADragForwardSoundsTheStartsItPassesAndGoesThere() {
+    func testADragForwardSoundsTheStartsItPassesAndGoesThereItsFirstMoveTheNoteItLeavesToo() {
         let e = engine()
         chords(e, [(0, 240, 60), (480, 240, 62), (960, 240, 64), (1440, 240, 65)])
         e.handle(.scrub(from: 0, to: 1000))
 
         XCTAssertEqual(e.tick, 1000)
         XCTAssertEqual(e.transportState, .stopped)
-        XCTAssertEqual(e.voiceCount, 2, "the starts at 480 and 960: the one it left is behind it")
-        XCTAssertFalse(noteStarts(e.render(frames: 1024)).isEmpty, "they sound at once")
+        XCTAssertEqual(e.voiceCount, 3, "the starts at 480 and 960, and the note under the playhead as the drag begins (#582 item 12)")
+        XCTAssertFalse(noteStarts(e.render(frames: 1024)).isEmpty, "the first move's sound at once")
+        e.handle(.scrub(from: 1000, to: 1500))
+        XCTAssertEqual(e.voiceCount, 4, "then only the start at 1440: the place a later move leaves is behind it")
     }
 
     func testADragBackSoundsTheStartsItPassesTheOtherWay() {
@@ -357,7 +359,59 @@ final class PlaybackEngineTests: XCTestCase {
         e.handle(.scrub(from: 1440, to: 480))
 
         XCTAssertEqual(e.tick, 480)
-        XCTAssertEqual(e.voiceCount, 2, "back, the place reached sounds and the one it left does not: 480 and 960")
+        XCTAssertEqual(e.voiceCount, 3, "back, the place reached sounds, and on the first move the one it leaves: 1440, 960 and 480")
+        e.handle(.scrub(from: 480, to: 100))
+        XCTAssertEqual(e.voiceCount, 3, "a later move back does not strike the place it leaves again")
+        e.handle(.scrub(from: 100, to: 0))
+        XCTAssertEqual(e.voiceCount, 4, "the start at 0")
+    }
+
+    /// The rule of what sounds on the case file the web's engine runs too (Golden/scrub.json, tests/web/scrub-rule.test.mjs).
+    func testTheScrubRuleAnswersEveryCaseAsTheWebDoes() throws {
+        let url = try XCTUnwrap(Bundle(for: PlaybackEngineTests.self).url(forResource: "scrub", withExtension: "json"), "the case file is bundled with the tests")
+        let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        XCTAssertEqual((file["groups"] as? NSNumber)?.intValue, PlaybackEngine.scrubGroups)
+        let cases = try XCTUnwrap(file["cases"] as? [[String: Any]])
+        XCTAssertGreaterThanOrEqual(cases.count, 10, "the case file is read whole")
+        for one in cases {
+            let name = one["name"] as? String ?? "?"
+            let onsets = try XCTUnwrap(one["onsets"] as? [NSNumber], name).map(\.doubleValue)
+            let from = try XCTUnwrap(one["from"] as? NSNumber, name).doubleValue
+            let to = try XCTUnwrap(one["to"] as? NSNumber, name).doubleValue
+            let opening = try XCTUnwrap(one["opening"] as? Bool, name)
+            let expected = try XCTUnwrap(one["strikes"] as? [[String: NSNumber]], name)
+            let strikes = PlaybackEngine.scrubStrikes(onsets, from: from, to: to, opening: opening)
+            XCTAssertEqual(strikes.map(\.onset), expected.compactMap { $0["onset"]?.doubleValue }, "\(name): the starts, in the order reached")
+            for (strike, want) in zip(strikes, expected) {
+                XCTAssertEqual(strike.at, want["at"]?.doubleValue ?? -1, accuracy: 1e-9, "\(name): how far through the move")
+            }
+        }
+    }
+
+    func testTheStartsOneMovePassesSoundOneAfterAnotherNotAsAChord() {
+        let e = engine()
+        chords(e, [(480, 240, 60), (600, 240, 60), (720, 240, 60)])
+        e.handle(.scrub(from: 0, to: 100))
+        _ = e.render(frames: 1024)
+        // A view's frame later the drag passes three sixteenths at once: they sound in their order over that frame.
+        e.handle(.scrub(from: 100, to: 800))
+        let starts = noteStarts(e.render(frames: 2048))
+
+        XCTAssertEqual(starts.count, 3, "each its own strike, a key struck again too (#582 item 12)")
+        XCTAssertEqual(starts, starts.sorted())
+        XCTAssertEqual(Set(starts).count, 3, "never two at once")
+        XCTAssertLessThanOrEqual(starts.last ?? .max, 1024, "all within the time the move took")
+        XCTAssertEqual(starts.first ?? -1, Int((380.0 / 700 * 1024).rounded()), "each where the playhead reached it")
+    }
+
+    func testAPutDownPlayheadSoundsNothingItJumpedOverAndItsFirstMoveTheNoteItLeaves() {
+        let e = engine()
+        chords(e, [(0, 240, 60), (480, 240, 60), (960, 240, 60), (1440, 240, 60)])
+        // A long press seeks (PlaybackModel's jump), then the drag moves on.
+        e.handle(.seek(960))
+        XCTAssertTrue(noteStarts(e.render(frames: 4096)).isEmpty, "nothing between")
+        e.handle(.scrub(from: 960, to: 1000))
+        XCTAssertEqual(noteStarts(e.render(frames: 1024)).count, 1, "the note it was put on")
     }
 
     func testAChordADragPassesSoundsWhole() {
