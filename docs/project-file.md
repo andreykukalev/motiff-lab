@@ -14,7 +14,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "fileName": "minuet.musicxml",   // the piece's file name: how the working notes' music is read (by its extension), and its title when nothing else names it
   "createdAt": "…", "lastOpened": "…",
   "originals": [ … ],              // every original of the piece, and the tombstones of removed ones
-  "notes": [ … ],                  // every Notes of the piece: the working notes and the ones compared with them
+  "notes": [ … ],                  // every Notes of the piece: the working notes, other Notes and the ones compared with them
   "workspace": { … }               // the working notes and the player's work
 }
 ```
@@ -39,7 +39,7 @@ Every original of the piece, in order: the first PDF (`src_pdf`), the file the n
     "addedAt": "…",
     "kept": "file" | "device" | "link",
     "held": [ { "device": "ipad" | "web", "at": "…" } ],   // optional: the devices that hold the bytes, each writing only its own mark
-    "data": "<base64>",                    // only a PDF or photos kept "file": the bytes, byte for byte
+    "data": "<base64>",                    // only an original kept "file" whose bytes are not a Notes' music: the bytes, byte for byte
     "marks": { "ink": [ … ], "bookmarks": [ … ] },   // only a PDF or photos with the player's marks on its pages
     "removed": { "at": "…" } }             // only a tombstone: the player removed the original
 ]
@@ -49,7 +49,7 @@ Every original of the piece, in order: the first PDF (`src_pdf`), the file the n
 - **`sha256`** is the original's version: other bytes are always another original. A picked file is linked again to the original with its fingerprint (`Project.RelinkDocument`, «Привязать»); any other file is refused. A device that has the bytes works out a missing fingerprint once (`Project.Fingerprinted`).
 - **`held`** is bookkeeping that only its own device writes: a pull takes this device's mark from its own copy and every other device's from the online copy. The iPad marks the PDF it keeps when it sends the copy online (`project.online`).
 - **`folder`**: each name between the `/` is non-empty and not `.` or `..`, with no `\`; anything else is damage. A fresh look at the folder finds each file at its place and links again the ones moved or renamed (`LibraryRelink`).
-- **`data`** must start with `%PDF-`. A PDF kept in the file never goes online: the online copy (`Project.ForOnline`) leaves `data` out and the page map with it (see "The PDF online").
+- **`data`** of a PDF or photos must start with `%PDF-`; of another original (a second PDF, a MIDI or MusicXML file added without being imported, version 0.6) it is any bytes, never empty. Only the first PDF is in memory as `Project.Document`; the others' bytes are `Project.Sources.Data`. No `data` goes online: the online copy (`Project.ForOnline`) leaves it out and the page map with it (see "The PDF online"), and a pull keeps this device's bytes.
 - **`marks`**: the player's marks on the PDF's pages ([0023](decisions/0023-pdf-pieces.md)), apart from the marks on the notes, so the PDF view and the Notes view each keep their own: `ink` holds strokes in the shape of `workspace.marks.ink`, except that `bar` is the number of the page the stroke starts on (from 1), `u` its place across the page (0 to 1) and `v` its distance below the page's top edge in the page's own spaces (a hundred and twentieth of its width); `bookmarks` holds `{ "id": "pb_0001", "page": 3, "name"?: "Coda", "createdAt" }`, at most one per page, in page order. Left out when there are none. In version 16 only `src_pdf` carries marks in memory (`Project.DocumentMarks`); marks on another original are kept and written back.
 - **`removed`**: a tombstone. The bytes left this device (a linked file was only unlinked), the description and the page marks stay, so the Notes made from it keep their provenance and the state "removed", and adding the same file again (the same `sha256`) revives the original with its marks. A tombstone has no `data` and no `held`.
 - An unknown `kind`, `kept` or `device` keeps the description whole as an unknown entity (S6).
@@ -62,7 +62,7 @@ Since version 0.5 (Andrei, 2026-11-12, 17:45 UTC, amending 0026 C3) a piece that
 
 ## Notes (`notes`)
 
-Every Notes of the piece: the working notes first, then the ones compared with them (the versions of [0022](decisions/0022-score-and-performance.md)) in the order they were added. A Notes keeps its own music, so it stays valid when its original is removed.
+Every Notes of the piece: the working notes first, then the other Notes (read again from a PDF, or the working notes until other Notes were made the working ones) in the order they were added, then the ones compared with them (the versions of [0022](decisions/0022-score-and-performance.md)) in the order they were added. A Notes keeps its own music, so it stays valid when its original is removed.
 
 ```jsonc
 "notes": [
@@ -74,6 +74,10 @@ Every Notes of the piece: the working notes first, then the ones compared with t
     "scan": { "confirmedBars": [3, 7], "pages": [ … ] },        // notes recognised from a PDF or photos
     "transcription": { "bars": { … } | null, "seams": [ … ], "sentFromMs": 754000 },   // notes heard in a recording
     "pageMap": { "original": "src_pdf", "starts": [0, 15360, 29760] } },   // where each page of a PDF starts in these notes
+  { "id": "n_2", "name": "homr 0.8",          // other Notes: name optional
+    "fileName": "Nocturne.musicxml",         // what their music is read by, as the piece's fileName for the working notes
+    "provenance": { … }, "music": "<base64>", "edits": [ … ], "check": [ … ] | null, "scan": { … }, "pageMap": { … },
+    "marks": { … } },                        // optional: the marks on the score drawn while they were working, as workspace.marks
   { "id": "perf_1", "name": "Live at the National Gallery",
     "provenance": { … },
     "music": "<base64>",                     // a compared Notes: MIDI
@@ -86,7 +90,8 @@ Every Notes of the piece: the working notes first, then the ones compared with t
 - **`scan`** (with `"op": "pdfRecognition"`): the bars the player checked and said look right (`confirmedBars`), and the raw numbers of the scan server's report on each page (`pages`, version 0.4): `{ "page", "rotation", "sharpness", "contrast", "staves", "noteheads", "barLines", "spacePx", "measures" }`, never the music. A page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration; a field a report lacks reads as 0; `page` is the page's place in the notes, from 1. On open the bars of a weak page are less sure (0.5) and those of a poor page flagged `PageQuality`. `pages` is left out when there are no reports.
 - **`transcription`** (with `"op": "audioRecognition"`): the bars and tempo worked out for the notes heard ([0016](decisions/0016-bars-for-transcribed-notes.md)), `null` to keep the engine's 120 BPM and 4/4: `{ "origin", "sixteenthMicroseconds", "signature", "barStarts", "stepsPerBeat", "beats", "meters"? }`. `meters` (version 0.5) says where the bars change signature: each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; any other change is damage. `seams` (when a long recording went in parts): where each part after the first takes over, in milliseconds from the start of the stretch sent, ascending; the Check layer flags the bars on either side (`PartSeam`); left out for one part. `sentFromMs` (version 0.5): where, in the recording file, the stretch sent started, 0 or more; the workspace's `partOf.ms` counts from it, so another device that has the file (the same `sha256`) finds the piece's sound there; left out when not kept.
 - **`pageMap`**: the rough link the PDF and Notes views switch by: where each page of `original` starts in these notes, in ticks, page 1 at 0, each page after the one before. A page starts at the first bar the scan server marked with `<print new-page="yes"/>`, or, without such marks, the bars are shared evenly between the pages. With `"project": "p_…"` the PDF is in another piece: notes read from a PDF piece into a project of their own between 2026-11-05 and 2026-11-07 (0023); no build writes such notes any more. Without `project`, the original must be this piece's PDF and the map is written only while the PDF's bytes are here.
-- An entry with `edits` or `check` that is not the working notes, or one that is neither the working notes nor has `performance`, comes from a later build: it is kept whole as an unknown entity and written back where it stood.
+- **Other Notes** (version 0.6) carry everything the working notes do, and `fileName`, so they can be made the working notes with nothing lost (`SourceOperations.MakeWorking`, «Сделать рабочими»; Andrei, 2026-11-14, amending 0030 section 1). Made working, the piece keeps its own `fileName` with the extension of theirs, and the working notes until then become other Notes under their id with the piece's `fileName`. Motifs, their variations and kept variations made on the notes until then wait with them: a motif and an idea name them (`notes`), they stay in the file and are left out on opening until those notes are working again. The marks on the score (`workspace.marks`) stay with the notes they were drawn on: the notes until then take them as their `marks`, and the Notes made working bring theirs (sources sheet, 2026-11-14). Phrases, bookmarks, resume points and ideas without a variation stay in the piece's ticks. Refused while bars are taken from versions or an assembly is applied.
+- An entry with `edits` or `check` and no `fileName` that is not the working notes, or one that is neither the working notes nor other Notes nor has `performance`, comes from a later build: it is kept whole as an unknown entity and written back where it stood.
 
 ### Provenance
 
@@ -125,7 +130,7 @@ The working notes and everything the player made on them, in their ticks.
   "partOf": { "original": "src_book", "pages": [6, 11] },   // optional: only a piece made from a collection; or "ms": [from, to]
   "editsOff": true,                 // optional: only while the player has turned the corrections off
   "tempo": { "quarterNotesPerMinute": 92 },   // optional: only once the player set the piece's tempo
-  "motifs": [ … ],                  // the working selection
+  "motifs": [ … ],                  // the working selection; a motif made on other Notes than the working ones names them ("notes": "n_1")
   "variations": [ … ],              // chains of steps on a motif; an optional "key" { "fifths", "mode" } the steps read
   "observations": [ … ],            // ideas
   "phrases": { "added": [ticks], "removed": [ticks],
@@ -169,7 +174,7 @@ The tempo the player set for the piece (version 0.5.4, #511 section 17), such as
 The online copy is the file without the bytes of originals (0026 C3, as amended), so the Stage 1 rule of `CLAUDE.md` holds. What each field is in the merge (0026 S8) is `ProjectSync.Fields`; a test fails for a field with none.
 
 - **Originals** are the player's data: a pull unites both copies by fingerprint, else by id (a different original with an id the other copy uses gets the next free one, `src_a_2`); `held` marks as above. A tombstone wins over a live description of the same original (by fingerprint, else by id) unless that copy added or held it again after the removal (its `addedAt` or a `held` mark later than `removed.at`), which revives it; Notes made from it meanwhile on another device stay, in the state "removed".
-- **Notes** merge by id; the working notes' corrections follow S9. What an import brought (`scan.pages`, `transcription.bars.meters`, `transcription.sentFromMs`) is kept from this device when the online copy has none and the notes are the same (the same `music`).
+- **Notes** merge by id (`ProjectSync.Resolve`): the copy kept takes the other Notes and versions only the other copy has, and the corrections of notes only the other copy corrected, in the working notes and in other Notes alike, while both are the same Notes with the same `music` (S9 and its source guard). The same note corrected on both copies is a conflict: the copy saved last keeps its corrections, the other's stay in the previous copy kept beside. With the copy both last agreed on (`base`, when the app keeps one, 0026 S5), Notes removed and corrections undone on one side since then go through; without it the merge is a union with no deletions (S4), so they come back. What an import brought (`scan.pages`, `transcription.bars.meters`, `transcription.sentFromMs`) is kept from this device when the online copy has none and the notes are the same (the same `music`).
 - **The workspace** is the player's data, except `editsOff` and `lastOpened` (bookkeeping, the copy saved last says it) and `check` (derived).
 
 ## Marks (`marks`)

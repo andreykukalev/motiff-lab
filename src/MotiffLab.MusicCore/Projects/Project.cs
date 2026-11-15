@@ -182,7 +182,8 @@ public sealed partial record Project(
     /// <summary>
     /// The piece with a PDF of it kept inside it, to read as it is in the "PDF" view (testing item 16: one piece, many
     /// sources). The pages are linked to the bars roughly, <paramref name="pages"/> when the PDF's notes were read and lined
-    /// up, else the bars shared evenly. A PDF kept before is replaced, and its marks with it.
+    /// up, else the bars shared evenly. A PDF kept before is replaced, and its marks with it; Notes read from it keep its
+    /// fingerprint (version 16), so they show the file changed.
     /// </summary>
     /// <exception cref="ArgumentException">The bytes are not a PDF.</exception>
     /// <exception cref="InvalidOperationException">The piece has no notes: it is a PDF piece already.</exception>
@@ -201,7 +202,9 @@ public sealed partial record Project(
         }
 
         bool same = Document is { } kept && kept.AsSpan().SequenceEqual(pdf);
-        Project changed = this with
+        // Version 16 (0030, section 4): the Notes keep the fingerprint of the PDF they were read from, so another PDF in its
+        // place shows them as "file changed" instead of taking them over.
+        Project changed = (same ? this : Fingerprinted().WithProvenanceKept()) with
         {
             Document = pdf,
             DocumentPages = pages,
@@ -234,7 +237,7 @@ public sealed partial record Project(
         {
             PieceOriginal.DocumentId => Document is not null,
             PieceOriginal.SourceFileId => HasNotes,
-            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi },
+            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi } || Sources.Data.ContainsKey(original.Id),
         };
     }
 
@@ -313,7 +316,12 @@ public sealed partial record Project(
     /// 0026 C3): its title, composer, tags, playlists, the PDF's description with its fingerprint and the page marks,
     /// without the PDF, so another device lists it and opens it once the same file is linked there. Never null since 0.5.
     /// </summary>
-    public Project? ForOnline() => Document is null ? this : WithoutDocument(HasNotes ? this : Fingerprinted());
+    /// <remarks>The bytes of the other originals kept in the file (version 16) stay on the device as the PDF does.</remarks>
+    public Project? ForOnline()
+    {
+        Project copy = Sources.Data.Count == 0 ? this : this with { Sources = Sources with { Data = SourcesLayer.None.Data } };
+        return copy.Document is null ? copy : WithoutDocument(copy.HasNotes ? copy : copy.Fingerprinted());
+    }
 
     /// <summary>
     /// Whether <paramref name="device"/> writes the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12: only a
@@ -907,6 +915,12 @@ public sealed record SavedMotif(
     SelectionFilter Filter,
     IReadOnlyList<string> NoteIds)
 {
+    /// <summary>
+    /// The Notes the motif was made on, when they are not the working notes any more (version 16): other Notes were made
+    /// the working ones, so the motif waits, kept in the file, until its own are working again. Null for the working notes.
+    /// </summary>
+    public string? Notes { get; init; }
+
     public static SavedMotif From(Motif motif)
     {
         ArgumentNullException.ThrowIfNull(motif);

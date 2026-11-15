@@ -26,7 +26,7 @@ Piece (workspace)        a row of the library; lives until the player deletes it
 1. **An original never changes.** Its version is the SHA-256 of its bytes (`sha256`); other bytes are always a new original. There is no separate version number.
 2. **Notes keep their own music** (MusicXML or MIDI), so an original can go and its notes stay valid.
 3. **Corrections belong to the Notes they correct**, with the Notes' own Check flags; they go only with their Notes.
-4. **The player's work belongs to the piece** and stands in the ticks of the working notes: motifs, variations, ideas, phrases, marks, bookmarks, resume points, the assembly journal, settings. One Notes are the working notes (a pointer); any Notes can be viewed, heard and compared. Other Notes become the working notes only through the assembly of 0024 («Сделать нотами» keeps «Ноты до сборки»), so nothing the player made loses its time axis. Option C of `sources-0.3.md` (every Notes a workspace of its own) stays rejected.
+4. **The player's work belongs to the piece** and stands in the ticks of the working notes: motifs, variations, ideas, phrases, marks, bookmarks, resume points, the assembly journal, settings. One Notes are the working notes (a pointer); any Notes can be viewed, heard and compared. Other Notes become the working notes through the assembly of 0024 («Сделать нотами» keeps «Ноты до сборки»), or directly with «Сделать рабочими» (section 4, amended 2026-11-14), so nothing the player made loses its time axis. Option C of `sources-0.3.md` (every Notes a workspace of its own) stays rejected.
 5. **Marks on a PDF's pages belong to that original**, not to bars. Removing the PDF removes them from view; its tombstone keeps them.
 
 ### 2. One provenance for every Notes
@@ -63,12 +63,13 @@ Kept variations (ideas, `observations` with a variation) belong to the Notes the
 - **Remove an original, keep its notes** — the default: its bytes leave this device; a tombstone `{id, sha256, name, removed at, page marks}` stays. Adding the same file again (the same `sha256`) revives it with its marks. A linked original (`kept: link`) is only unlinked: **the player's own file is never touched** (Andrei, 2026-11-12).
 - **Remove an original with its notes**: its Notes and their corrections go too. The working notes cannot be removed while they are working.
 - **Remove Notes**: the original stays. The working notes cannot be removed.
+- **Make working** («Сделать рабочими»; Andrei, 2026-11-14, for the iPad, which does not assemble): other Notes become the working notes without the assembly, and the working notes until then stay as other Notes with their corrections and Check flags, so the step is undone by making them working again. The work in ticks (phrases, bookmarks, resume points, ideas without a variation) stays with the piece; the marks on the score stay with the Notes they were drawn on; motifs, their variations and kept variations wait with the Notes they were made on, hidden until those are working again. Refused while bars are taken from versions or an assembly is applied; a compared version becomes the working notes only through the assembly. No assembly step is recorded ([`project-file.md`](../project-file.md), "Other Notes").
 
 The warning (English and Russian): "This original has notes made from it: «Santiago — notes from PDF», 14 corrections." / «Из этого оригинала получены ноты: …», with «Удалить только оригинал» (first) and «Удалить вместе с нотами».
 
 ### 5. Sync (0026)
 
-The online copy is as before: no bytes, the descriptions, the Notes and the work (Stage 1 rule of `CLAUDE.md`). A removal travels as its tombstone: a tombstone wins over a description the other copy did not change since (the S8 union "with no deletions" would bring a removed original back). Notes made on another device meanwhile from that original stay, in the state "removed". Notes merge by id, as versions did; corrections inside Notes follow S9.
+The online copy is as before: no bytes, the descriptions, the Notes and the work (Stage 1 rule of `CLAUDE.md`). A removal travels as its tombstone: a tombstone wins over a description the other copy did not change since (the S8 union "with no deletions" would bring a removed original back). Notes made on another device meanwhile from that original stay, in the state "removed". Notes merge by id, as versions did; corrections inside Notes follow S9, note by note, while both copies have the same Notes with the same music. With a base copy (0026 S5) a removal or an undone correction on one side goes through; without one the merge is a union with no deletions (S4).
 
 ### 6. Version 16 of the project file
 

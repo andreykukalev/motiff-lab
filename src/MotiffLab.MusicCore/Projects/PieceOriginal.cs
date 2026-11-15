@@ -204,12 +204,13 @@ public static class PieceOriginals
             originals.Add(new PieceOriginal(PieceOriginal.DocumentId, OriginalKind.Pdf, project.DocumentFileName, OriginalKept.File, project.CreatedAt) { Bytes = document.Length });
         }
 
-        if (project.HasNotes && project.Scan is null && project.Transcription is null && project.ReadFrom is null && FileKind(project.FileName) is { } kind)
+        if (project.HasNotes && project.Scan is null && project.Transcription is null && project.ReadFrom is null && FileKind(project.FileName) is { } kind
+            && project.Sources.RemovedWith(PieceOriginal.SourceFileId) is null)
         {
             originals.Add(new PieceOriginal(PieceOriginal.SourceFileId, kind, project.FileName, OriginalKept.File, project.CreatedAt) { Bytes = project.Source.Length });
         }
 
-        foreach (SavedPerformance performance in project.Performances)
+        foreach (SavedPerformance performance in project.Performances.Where(performance => project.Sources.RemovedWith(performance.Id) is null))
         {
             if (performance.Source is PerformanceSource.Recording or PerformanceSource.Midi)
             {
@@ -304,7 +305,8 @@ public static class PieceOriginals
         };
     }
 
-    private static PieceOriginal Renamed(PieceOriginal original, string id) => new(id, original.Kind, original.FileName, original.Kept, original.AddedAt)
+    /// <summary>The same description under another id.</summary>
+    internal static PieceOriginal Renamed(PieceOriginal original, string id) => new(id, original.Kind, original.FileName, original.Kept, original.AddedAt)
     {
         Name = original.Name,
         Folder = original.Folder,

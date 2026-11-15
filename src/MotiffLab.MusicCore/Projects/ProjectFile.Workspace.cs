@@ -78,6 +78,11 @@ public static partial class ProjectFile
             json.WriteString("mode", motif.Mode.ToString());
             WriteRange(json, motif.Span, motif.Filter);
             WriteNoteIds(json, motif.NoteIds);
+            if (motif.Notes is { } notes)
+            {
+                json.WriteString("notes", notes);
+            }
+
             json.WriteEndObject();
         });
 

@@ -107,6 +107,8 @@ public static class ProjectSync
         ["notes"] = FieldClass.Import,
         ["notes.id"] = FieldClass.Bookkeeping,
         ["notes.name"] = FieldClass.Player,
+
+        ["notes.fileName"] = FieldClass.Player,
         ["notes.provenance"] = FieldClass.Import,
         ["notes.music"] = FieldClass.Import,
         ["notes.edits"] = FieldClass.Player,
@@ -190,7 +192,10 @@ public static class ProjectSync
         }
 
         bool ownMarks = (keepsPdf && kept.WritesDocumentMarks(device)) || (!HasPageMarks(online) && HasPageMarks(here));
-        return KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+        kept = KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+        // Version 16: the bytes of the other originals stay on the device as the PDF does, and a removal travels as its tombstone.
+        kept = here.Sources.Data.Count == 0 ? kept : kept with { Sources = kept.Sources with { Data = here.Sources.Data } };
+        return SourcesMerge.WithTombstones(kept, here.Sources.Removed);
     }
 
     /// <summary>
@@ -246,7 +251,11 @@ public static class ProjectSync
     /// <param name="copyTitle">The previous copy's title, with "{0}" for the piece's title.</param>
     /// <param name="newId">The previous copy's id (<c>MusicCoreFacade.NewProjectId</c>).</param>
     /// <param name="device">This device, whose marks of holding an original are its own (version 0.3); null keeps the online marks.</param>
-    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null)
+    /// <param name="base">
+    /// The copy both last agreed on, when the device keeps one (0026 S5): with it, a correction undone or Notes removed on
+    /// one side go through the merge; without it, the merge is a union with no deletions (S4).
+    /// </param>
+    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null, Project? @base = null)
     {
         ArgumentNullException.ThrowIfNull(here);
         ArgumentNullException.ThrowIfNull(online);
@@ -265,9 +274,14 @@ public static class ProjectSync
 
         // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones.
         Project mine = pulled.WritesDocumentMarks(device) || here.DocumentMarks.Equals(pulled.DocumentMarks) ? here : here with { DocumentMarks = pulled.DocumentMarks };
-        return savedHere >= savedOnline
-            ? new SyncResolution(mine, Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId))
-            : new SyncResolution(pulled, Upload: false, PreviousCopy: PreviousCopy(here, copyTitle, newId));
+        // Version 16 (0030, section 5): the copy kept takes the other's tombstones, Notes and corrections of other notes.
+        if (savedHere >= savedOnline)
+        {
+            return new SyncResolution(SourcesMerge.Merged(mine, pulled, @base), Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId));
+        }
+
+        Project merged = SourcesMerge.Merged(pulled, here, @base);
+        return new SyncResolution(merged, Upload: !ProjectFile.Write(merged).AsSpan().SequenceEqual(ProjectFile.Write(pulled)), PreviousCopy: PreviousCopy(here, copyTitle, newId));
     }
 
     /// <summary>The copy that lost, as a piece of its own: a new id and the player's title from <paramref name="copyTitle"/>.</summary>

@@ -78,8 +78,8 @@ public sealed partial record Project
             : this with { HiddenViews = hidden ? [.. HiddenViews, id] : [.. HiddenViews.Where(view => view != id)] };
     }
 
-    /// <summary>The originals the player removed, in the order they were removed (version 16).</summary>
-    public IReadOnlyList<RemovedOriginal> RemovedOriginals { get; init; } = [];
+    /// <summary>The tombstones of removed originals, the other Notes and the bytes of the originals kept in the file beside the first PDF (version 16).</summary>
+    public SourcesLayer Sources { get; init; } = SourcesLayer.None;
 
     /// <summary>
     /// The fields of the file this build does not know, by where they stand: "" for the top level, "workspace", "notes/" and
