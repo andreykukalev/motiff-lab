@@ -11,6 +11,7 @@
 // (#495 UX-07).
 
 import type { Handle } from "../playback/playback-model.js";
+import { token } from "../layout/tokens.js";
 import type { Playhead, ScoreBar } from "./score-geometry.js";
 
 /** Where each playhead goes this frame, in ticks; null hides it. */
@@ -74,15 +75,17 @@ export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefi
 export const CURSOR_CLASS = "ph-held";
 export const HELD_CLASS = "held";
 
-/** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
+/** The track keeps this far from the bar lines at each side, in pixels. */
 const TRACK_INSET = 3;
-const TRACK_GAP = 10;
 
-/** Where the track goes for a place: across its bar, under its system, and how far it is filled. */
-export function trackOf(at: Playhead, lineBottom: number): { left: number; top: number; width: number; filled: number } {
+/**
+ * Where the track goes for a place: across its bar, `gap` pixels under the lowest ink of its system (the token
+ * --playhead-gap, far enough that it never reads as another staff line, #582 item 11), and how far it is filled.
+ */
+export function trackOf(at: Playhead, lineBottom: number, gap: number): { left: number; top: number; width: number; filled: number } {
     const left = at.bar.left + TRACK_INSET;
     const width = Math.max(0, at.bar.right - at.bar.left - 2 * TRACK_INSET);
-    const top = Math.max(at.bottom, lineBottom) + TRACK_GAP;
+    const top = Math.max(at.bottom, lineBottom) + gap;
     return { left, top, width, filled: Math.min(width, Math.max(0, at.x - left)) };
 }
 
@@ -109,6 +112,8 @@ export class ScorePlayheadMarks {
     private line: HTMLElement | null = null;
     /** The black line across the staves while the black playhead is held. */
     private cursor: HTMLElement | null = null;
+    /** How far the track runs under its line (--playhead-gap), read once it is first drawn. */
+    private gap: number | null = null;
 
     constructor(
         private readonly host: HTMLElement,
@@ -168,7 +173,8 @@ export class ScorePlayheadMarks {
             return;
         }
         const track = (this.track ??= trackMark(this.grabber("black")));
-        const place = trackOf(at, this.owner.lineBottom(at.bar));
+        this.gap ??= Number.parseFloat(token("playhead-gap")) || 0;
+        const place = trackOf(at, this.owner.lineBottom(at.bar), this.gap);
         show(this.host, track.element);
         transform(track.element, place.left, place.top);
         size(track.element, place.width, null);

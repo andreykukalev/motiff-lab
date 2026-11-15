@@ -63,9 +63,9 @@ test("the modes choose what a drag does, and only the handles, ✕ and Escape ch
     await drag(page, { x: bars[5].left + 12, y: bars[5].middle }, { x: bars[6].right - 4, y: bars[6].middle });
     await expect(status(page)).toContainText(selected);
 
-    // A drag that starts inside moves the edge nearer the press as far as the pointer goes (#511 section 2.1, scenario A;
-    // before 0.5.4 it left the selection as it was): from the last bar's first beat, the end moves on by the pointer's way.
-    await drag(page, { x: bars[4].left + 4, y: bars[4].middle }, { x: bars[5].left + 4, y: bars[5].middle });
+    // A drag that starts inside extends the selection to where the pointer goes, never shrinking it (#582 item 9; before
+    // 0.6.1 it moved the edge nearer the press by the pointer's way, #511 section 2.1, scenario A).
+    await drag(page, { x: bars[4].left + 4, y: bars[4].middle }, { x: (bars[5].left + bars[5].right) / 2, y: bars[5].middle });
     await expect(status(page)).toContainText(/Selected bar 2, beat 1, through bar 5, beat \d+/);
     const edited = await named(page);
 
@@ -124,4 +124,42 @@ test("without the experiment the bar keeps its Pen and no modes", async ({ page 
     await openFurElise(page);
     await expect(page.locator(".bar").getByRole("radiogroup", { name: "Mode" })).toHaveCount(0);
     await expect(page.locator("div.score")).not.toHaveAttribute("data-mode", /.+/);
+});
+
+test("in Select a hold on a bar selects it and a hold on another switches to it; the menu drags aside until it closes (#582 7, 8)", async ({ page }) => {
+    await withExperiment(page);
+    const errors = await openFurElise(page);
+    await page.keyboard.press("s");
+    const bars = await firstSystem(page);
+    const hold = async (bar) => {
+        await page.mouse.move((bar.left + bar.right) / 2, bar.middle);
+        await page.mouse.down();
+        await page.waitForTimeout(700);
+        await page.mouse.up();
+    };
+    await hold(bars[2]);
+    await expect(status(page)).toContainText("Selected");
+    const first = await named(page);
+    await hold(bars[4]);
+    await expect(status(page)).toContainText("Selected");
+    await expect(status(page)).not.toContainText(first);
+
+    // The menu, pressed and dragged, goes where it is let go and stays there; closed, the next one opens over its band.
+    const menu = page.locator(".ctx");
+    await expect(menu).toBeVisible();
+    const before = await menu.boundingBox();
+    const grip = { x: before.x + 6, y: before.y + before.height / 2 };
+    await page.mouse.move(grip.x, grip.y);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 40, grip.y + 200, { steps: 8 });
+    await page.mouse.up();
+    const moved = await menu.boundingBox();
+    expect(Math.round(moved.y - before.y)).toBe(200);
+    await expect(status(page)).toContainText("Selected");
+    await page.locator(".ctx").getByRole("button", { name: "Clear the selection" }).click();
+    await hold(bars[4]);
+    await expect(menu).toBeVisible();
+    const again = await menu.boundingBox();
+    expect(Math.abs(again.y - before.y)).toBeLessThan(2);
+    expect(errors).toEqual([]);
 });

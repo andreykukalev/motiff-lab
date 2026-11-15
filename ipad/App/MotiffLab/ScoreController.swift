@@ -1850,6 +1850,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
+    /// The selection menu dragged aside by the player and let go (#582 item 7): it stays where it was let go at once, and the
+    /// page keeps that place inside the window until the menu closes (Scripts/score/menu-drag.ts), reporting it back.
+    func moveMenu(by translation: CGSize) {
+        guard shown, let place = menuPlace else { return }
+        menuPlace = CGPoint(x: place.x + translation.width, y: place.y + translation.height)
+        let data: [String: Any] = ["dx": Double(translation.width), "dy": Double(translation.height)]
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuMoved(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The selection menu put away (the selection gone, Hide, the roll's drawer, Expand): the next one opens over its band.
+    func menuClosed() {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuClosed()", arguments: [:], contentWorld: .page) }
+    }
+
     private func loadPhrases(_ piece: OpenPiece) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
         phrases = PhraseLevelsShown(answer: answer)

@@ -1,13 +1,15 @@
 // The selection on the score (decision record 0018, section 3; design/kit/ds.css .band, .handle, .menu): a cobalt
 // band over the selected bars on each system they touch, round handles on the first and last barline that drag
-// the edges from barline to barline, the selection gesture (#511 2, selection-gesture.ts: a drag from inside moves the
-// nearer edge, a hold outside clears, a move after it selects anew; with no selection a drag with the mouse, or a long
-// press and a drag with a finger, selects), and the contextual menu placed above the band. The band and the handles are
+// the edges from barline to barline, the selection gesture (#511 2, #582 8 and 9, selection-gesture.ts: a drag from inside
+// extends the selection on the side it goes, never shrinking it; a hold on a bar selects that bar, in place of the selection
+// there was, and a move after it takes it on; with no selection a drag with the mouse or the stylus selects at once), and
+// the contextual menu placed above the band, which the player can move aside (menu-drag.ts). The band and the handles are
 // drawn in the score's content pixels, as the brackets are; the menu belongs to Blazor and is only placed here.
 // Selection by beats (#349): selection-beats.ts. Where the menu goes: selection-menu.ts.
 
 import { BRACKET_LIFT, type Run, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
 import { NUMBER_HEIGHT, menuClear, menuPlace } from "./selection-menu.js";
+import { MenuDragger, menuRoom } from "./menu-drag.js";
 import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf } from "./selection-beats.js";
 import { SelectionHandles, barlines, tickAt } from "./selection-handles.js";
 import { type InteractionMode, inside } from "./score-modes.js";
@@ -18,7 +20,7 @@ import {
     type SelectionGesture,
     type TickRange,
     dragStartOf,
-    editedRange,
+    extendedRange,
     gestureChange,
     handleTakes,
     handlesShown,
@@ -111,6 +113,8 @@ export class SelectionLayer {
     private swallowNextClick = false;
     /** The menu's size changes with what it holds; it is placed again then. */
     private readonly menuSize = new ResizeObserver(() => this.placeMenu());
+    /** The menu dragged aside by the player (#582 item 7), and where it went until it closes. */
+    private readonly menuDrag = new MenuDragger(() => this.placeMenu());
     /** Selecting by beats, while the score view gives beat lines. */
     readonly beats: ScoreBeats;
 
@@ -137,20 +141,35 @@ export class SelectionLayer {
         host.addEventListener("contextmenu", this.onContextMenu);
     }
 
-    /** Shows the selection, or none. */
+    /** Shows the selection, or none; with none the menu closes, and a place the player gave it is forgotten. */
     setSelection(selection: ScoreSelection | null): void {
         this.selection = selection;
+        if (selection === null) {
+            this.menuDrag.pin.reset();
+        }
         this.place();
     }
 
-    /** The menu Blazor draws for the selection; the layer places it over the band. */
+    /** The menu Blazor draws for the selection; the layer places it over the band, and the player can drag it aside. */
     setMenu(menu: HTMLElement | null): void {
         this.menuSize.disconnect();
         this.menu = menu;
+        this.menuDrag.attach(menu);
         if (menu !== null) {
             this.menuSize.observe(menu);
         }
         this.placeMenu();
+    }
+
+    /** The menu was put away (the iPad's, drawn by Swift): the next one opens over its band (#582 item 7). */
+    menuClosed(): void {
+        this.menuDrag.pin.reset();
+        this.placeMenu();
+    }
+
+    /** The menu dragged by (dx, dy) from where it stands (the iPad's, whose drag Swift follows), kept inside the window. */
+    moveMenuBy(dx: number, dy: number): void {
+        this.menuDrag.moveBy(dx, dy);
     }
 
     /** Whether the click the browser sends now ends a drag, and is not a click on the score. */
@@ -210,6 +229,9 @@ export class SelectionLayer {
         }
         const bands = this.host.querySelectorAll<HTMLElement>(`:scope > .${BAND_CLASS}`);
         const dragging = this.capturing();
+        if (this.selection !== null && !dragging && this.menuDrag.placePinned()) {
+            return;
+        }
         if (bands.length === 0 || dragging || this.selection === null) {
             menu.hidden = true;
             return;
@@ -226,10 +248,7 @@ export class SelectionLayer {
         // Bookmarks over the band push the menu up: it sits as far above them as above the bracket number.
         const marks = this.owner.marksTop?.(first) ?? null;
         const top = marks === null ? first.top : Math.min(first.top, marks + BRACKET_LIFT + NUMBER_HEIGHT);
-        // The drawers and sheets lie over the menu, so it keeps clear of them: to the right of the Contents, to the left of a
-        // sheet on the right (Insights, Check in landscape), above a drawer or sheet over the foot (the roll, a sheet in portrait).
-        const clear = menuClear([...document.querySelectorAll<HTMLElement>("[data-menu-clear]")], window.innerWidth, window.innerHeight);
-        const place = menuPlace({ left: first.left, right: first.right, top }, last, size, { width: window.innerWidth, height: window.innerHeight, ...clear });
+        const place = menuPlace({ left: first.left, right: first.right, top }, last, size, menuRoom());
         menu.style.left = `${place.left}px`;
         menu.style.top = `${place.top}px`;
         menu.style.setProperty("--pointer", `${place.pointer}px`);
@@ -237,6 +256,7 @@ export class SelectionLayer {
     }
 
     dispose(): void {
+        this.menuDrag.attach(null);
         this.host.removeEventListener("pointerdown", this.onPointerDown);
         this.host.removeEventListener("pointermove", this.onPointerMove);
         this.host.removeEventListener("pointerup", this.onPointerUp);
@@ -319,7 +339,7 @@ export class SelectionLayer {
     /** Whether a gesture holds the pointer now: it moves an edge or a handle, makes a new selection or has cleared it. */
     private capturing(): boolean {
         const phase = this.drag?.gesture.phase;
-        return this.handles.drag !== null || phase === "editing" || phase === "creating" || phase === "cleared";
+        return this.handles.drag !== null || phase === "editing" || phase === "extending" || phase === "creating" || phase === "cleared";
     }
 
     private readonly onPointerDown = (event: PointerEvent): void => {
@@ -349,7 +369,8 @@ export class SelectionLayer {
             return;
         }
         const selection = this.selection === null ? null : { start: this.selection.start, end: this.selection.end };
-        const gesture = pressGesture(selection, tickAt(geometry, at.x, at.y), this.insideBand(at), start);
+        // The score's rules (#582 items 8 and 9): a hold selects the bar under it, a move from inside extends the selection.
+        const gesture = pressGesture(selection, tickAt(geometry, at.x, at.y), this.insideBand(at), start, true);
         const drag: Drag = { pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, gesture, id: nextGestureId(), edited: null, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
         drag.timer = window.setTimeout(() => this.take(drag, heldGesture(drag.gesture)), HOLD_MS);
         this.drag = drag;
@@ -378,9 +399,13 @@ export class SelectionLayer {
         }
         switch (step) {
             case "create":
-                this.startDrag(drag);
+                this.startDrag(drag, false);
+                return;
+            case "bar":
+                this.startDrag(drag, true);
                 return;
             case "edit":
+            case "extend":
                 this.capture(drag);
                 drag.edited = drag.gesture.selection;
                 this.place();
@@ -411,7 +436,8 @@ export class SelectionLayer {
         }
     }
 
-    private startDrag(drag: Drag): void {
+    /** A new selection from the press: from the beat under it, or with `wholeBar` (a hold, #582 8) from its whole bar. */
+    private startDrag(drag: Drag, wholeBar: boolean): void {
         const geometry = this.owner.geometry();
         const bar = geometry?.barNear(drag.x, drag.y);
         if (this.drag !== drag || geometry == null || bar === undefined) {
@@ -421,7 +447,8 @@ export class SelectionLayer {
         drag.current = bar;
         const lines = this.beats.lines();
         if (lines !== null) {
-            drag.anchorBeat = this.beats.near(geometry, lines, drag.x, drag.y) ?? null;
+            const barSpan = Number.isFinite(bar.end) ? { start: bar.tick, end: bar.end } : undefined;
+            drag.anchorBeat = (wholeBar ? barSpan : undefined) ?? this.beats.near(geometry, lines, drag.x, drag.y) ?? null;
             drag.currentBeat = drag.anchorBeat;
         }
         this.capture(drag);
@@ -439,7 +466,7 @@ export class SelectionLayer {
         if (this.drag !== drag || geometry === null) {
             return;
         }
-        if (drag.gesture.phase === "editing") {
+        if (drag.gesture.phase === "editing" || drag.gesture.phase === "extending") {
             this.moveEdited(geometry, drag, at);
             return;
         }
@@ -462,7 +489,7 @@ export class SelectionLayer {
         }
     };
 
-    /** An edge moved from inside the selection: as far as the pointer moved, to the nearest barline or beat line (#511 2.1, A). */
+    /** A move from inside: the selection kept whole, extended to the line past which the pointer is (#582 item 9). */
     private moveEdited(geometry: ScoreGeometry, drag: Drag, at: { x: number; y: number }): void {
         const from = drag.gesture.selection;
         if (from === null) {
@@ -470,7 +497,7 @@ export class SelectionLayer {
         }
         const beatLines = this.beats.lines();
         const lines = beatLines !== null ? keyLines(beatLines, geometry.bars) : barlines(geometry.bars);
-        const edited = editedRange(from, drag.gesture.edge, drag.gesture.pressTick, tickAt(geometry, at.x, at.y), lines);
+        const edited = extendedRange(from, tickAt(geometry, at.x, at.y), lines);
         if (edited.start !== drag.edited?.start || edited.end !== drag.edited?.end) {
             drag.edited = edited;
             this.place();
@@ -501,7 +528,7 @@ export class SelectionLayer {
 
     /** What a gesture ending now selected: the edited selection when it changed, or the new one; null for nothing to choose. */
     private ended(drag: Drag): TickRange | null {
-        if (drag.gesture.phase === "editing") {
+        if (drag.gesture.phase === "editing" || drag.gesture.phase === "extending") {
             const from = drag.gesture.selection;
             const edited = drag.edited;
             return edited === null || from === null || (edited.start === from.start && edited.end === from.end) ? null : edited;

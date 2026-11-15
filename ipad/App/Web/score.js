@@ -678,6 +678,19 @@ function select(chosen) {
     return chosen ? document.querySelectorAll("body > .sel-band").length : 0;
 }
 
+/**
+ * Swift's selection menu dragged aside by the player (#582 item 7, Scripts/score/menu-drag.ts): moved by (dx, dy) from where
+ * it stands, kept inside the window, and there until it closes; the place is reported back as `menu`.
+ */
+function menuMoved({ dx, dy }) {
+    selection.moveMenuBy(Number(dx) || 0, Number(dy) || 0);
+}
+
+/** Swift's selection menu put away (Hide, the roll's drawer, Expand): the next one opens over its band again. */
+function menuClosed() {
+    selection.menuClosed();
+}
+
 /** The size of Swift's selection menu, for the selection layer to place it. */
 function menuSize({ width, height }) {
     menu.style.width = `${width}px`;
@@ -1375,5 +1388,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

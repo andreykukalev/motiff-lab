@@ -233,6 +233,11 @@ struct ScoreScreen: View {
         }
     }
 
+    /// Whether the selection's menu is open: a selection, outside Expand and practice view, the roll's drawer closed.
+    private var selectionMenuOpen: Bool {
+        score.selection != nil && !score.focused && !rollOpen && !score.practicing
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
@@ -243,11 +248,14 @@ struct ScoreScreen: View {
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Practice view hides it (#533 11).
-                if score.selection != nil, !score.focused, !rollOpen, !score.practicing, let place = score.menuPlace {
+                if selectionMenuOpen, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                        .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
             }
+            // Put away, the menu forgets where the player dragged it (#582 item 7).
+            .onChange(of: selectionMenuOpen) { _, open in if !open { score.menuClosed() } }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
                 if let pick = score.markerPick, !score.focused {
