@@ -143,6 +143,13 @@ jobs:
         if: steps.settings.outputs.ready == 'true'
         env:
           RESOURCE_GROUP: ${{ steps.target.outputs.group }}
+          # The assistant's model (infra/README.md, "The assistant's model"): all empty until Andrei sets them, and then
+          # the API answers "not configured". The key is a secret and reaches the Container App only as its secret.
+          ASSISTANT_PROVIDER: ${{ vars.ASSISTANT_PROVIDER }}
+          ASSISTANT_MODEL: ${{ vars.ASSISTANT_MODEL }}
+          ASSISTANT_ENDPOINT: ${{ vars.ASSISTANT_ENDPOINT }}
+          ASSISTANT_ALLOWED: ${{ vars.ASSISTANT_ALLOWED }}
+          ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
         run: |
           url="$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
@@ -152,5 +159,7 @@ jobs:
               authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
               webHost="${{ vars.WEB_HOST || 'nice-smoke-0169fb403.6.azurestaticapps.net' }}" \
               cosmosEndpoint="${{ steps.target.outputs.cosmos }}" branch="${{ steps.target.outputs.branch }}" \
+              assistantProvider="$ASSISTANT_PROVIDER" assistantModel="$ASSISTANT_MODEL" assistantEndpoint="$ASSISTANT_ENDPOINT" \
+              assistantAllowed="$ASSISTANT_ALLOWED" assistantKey="$ASSISTANT_API_KEY" \
             --query properties.outputs.url.value --output tsv)"
           echo "API (${{ steps.target.outputs.branch }}): $url" | tee -a "$GITHUB_STEP_SUMMARY"
