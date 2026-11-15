@@ -116,6 +116,21 @@ What runs on the device is free; scanning and transcription on Motiff Lab's serv
 
 The player must have signed in once. The role reaches them at their next sign-in (or within an hour). `-Remove` takes a role away.
 
+## The assistant's model
+
+The assistant's relay (`POST /assistant/turn`, [0028](../docs/decisions/0028-ai-bar-edits.md) section 4, `src/MotiffLab.Api/Assistant`) is deployed with the API but calls no model until one is configured. Until then it answers "not configured", and the app sends no notes. To switch it on:
+
+1. Choose the provider and model (decision 4 in `governance/README.md`). A developer adds its adapter: one class implementing `IAssistantModel`, added in `AssistantModels.Create` at the line marked THE SEAM.
+2. Add the provider's API key as the repository secret `ASSISTANT_API_KEY` ([New repository secret](https://github.com/andreykukalev/motiff-lab/settings/secrets/actions/new)). It reaches the Container App only as the secret `assistant-key`, read as `Assistant:Key`.
+3. Add these repository variables ([New repository variable](https://github.com/andreykukalev/motiff-lab/settings/variables/actions/new)). They are identifiers, not secrets:
+   - `ASSISTANT_PROVIDER`: the adapter's name;
+   - `ASSISTANT_MODEL`: the model or deployment name;
+   - `ASSISTANT_ENDPOINT`: only if the provider needs one;
+   - `ASSISTANT_ALLOWED`: the object ids of the accounts allowed, comma-separated. Find yours in the [Entra admin center](https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers): switch to the `motifflab` tenant, open *Users*, then your account, and copy *Object ID*.
+4. Merge the pull request *API deploy: pass the assistant's model settings*. It changes `.github/workflows/api.yml`, so Andrei merges it. With it, the workflow passes the secret and the variables to `api.bicep` (parameters `assistantKey`, `assistantProvider`, `assistantModel`, `assistantEndpoint` and `assistantAllowed`), and the merge deploys the API with them. After a later change of the key or a variable, re-run the [API workflow](https://github.com/andreykukalev/motiff-lab/actions/workflows/api.yml).
+
+Limits are settings of the API: `Assistant:DailyRequests` (200 turns a day for each account by default) and `Assistant:TimeoutSeconds` (30 by default). A turn is at most 128 KB, and a question takes at most 8 tool calls. The API logs the outcome, counts, tokens and timing of each turn, never its content. To switch the model off, delete the secret, or empty `ASSISTANT_PROVIDER`, and re-run the workflow.
+
 ## Changes later
 
 - Change infrastructure by editing `main.bicep`; the PR shows the `what-if`, and merging applies it.

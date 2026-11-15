@@ -20,6 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The assistant's instructions, versioned with the code (0003 section 8). -->
+    <EmbeddedResource Include="Assistant\Prompts\*.md" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>
 
