@@ -85,6 +85,14 @@ public class SettingsTests
     }
 
     [Fact]
+    public void The_new_sources_experiment_is_off_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.sources");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.False(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
     public void The_playheads_experiment_is_off_on_the_device_and_has_no_fade_any_more()
     {
         Setting setting = SettingsCatalogue.Get("experimental.playheads");

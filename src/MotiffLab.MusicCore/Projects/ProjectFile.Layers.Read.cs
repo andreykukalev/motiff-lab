@@ -56,6 +56,7 @@ public static partial class ProjectFile
         List<PieceOriginal> described = [];
         List<RemovedOriginal> removed = [];
         Dictionary<string, byte[]> kept = new(StringComparer.Ordinal);
+        Dictionary<string, DocumentMarks> pageMarks = new(StringComparer.Ordinal);
         foreach ((PieceOriginal original, JsonElement element) in read)
         {
             bool live = !element.TryGetProperty("removed", out JsonElement tombstone);
@@ -77,6 +78,11 @@ public static partial class ProjectFile
                     kept[original.Id] = original.Kind is OriginalKind.Pdf or OriginalKind.Images ? ReadPdf(bytes, "original data") : ReadBytes(bytes, "original data");
                 }
 
+                if (!pdf && element.TryGetProperty("marks", out JsonElement own))
+                {
+                    pageMarks[original.Id] = ReadMarksApart(own);
+                }
+
                 described.Add(original);
                 continue;
             }
@@ -85,7 +91,7 @@ public static partial class ProjectFile
             removed.Add(new RemovedOriginal(original, Time(tombstone, "at")) { Marks = element.TryGetProperty("marks", out JsonElement apart) ? ReadMarksApart(apart) : DocumentMarks.Empty });
         }
 
-        return (project with { Sources = project.Sources with { Removed = removed, Data = kept } }, described);
+        return (project with { Sources = project.Sources with { Removed = removed, Data = kept, Marks = pageMarks } }, described);
     }
 
     private static byte[] ReadBytes(JsonElement element, string what)

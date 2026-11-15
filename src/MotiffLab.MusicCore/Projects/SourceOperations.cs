@@ -82,7 +82,39 @@ public static class SourceOperations
         }
 
         project = original.Kept == OriginalKept.File ? project with { Sources = project.Sources with { Data = With(project.Sources.Data, original.Id, data!) } } : project;
-        return project.WithOriginal(original);
+        project = project.WithOriginal(original);
+        return tombstone is null ? project : project.WithPageMarks(original.Id, tombstone.Marks);
+    }
+
+    /// <summary>
+    /// The marks on the pages of the original <paramref name="id"/>: the first PDF's (<see cref="Project.DocumentMarks"/>), another
+    /// PDF's or photos' (version 0.6); none for an original without them.
+    /// </summary>
+    public static DocumentMarks PageMarksOf(this Project project, string id)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return id == PieceOriginal.DocumentId ? project.DocumentMarks : project.Sources.Marks.GetValueOrDefault(id) ?? DocumentMarks.Empty;
+    }
+
+    /// <summary>The piece with the marks on the pages of the original <paramref name="id"/> in place of the ones it had.</summary>
+    /// <exception cref="KeyNotFoundException">No live original has the id.</exception>
+    public static Project WithPageMarks(this Project project, string id, DocumentMarks marks)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(marks);
+        _ = project.FindOriginal(id) ?? throw new KeyNotFoundException($"There is no original {id}.");
+        if (id == PieceOriginal.DocumentId)
+        {
+            return project with { DocumentMarks = marks };
+        }
+
+        Dictionary<string, DocumentMarks> all = new(project.Sources.Marks.Where(pair => pair.Key != id), StringComparer.Ordinal);
+        if (!marks.IsEmpty || marks.Unknown.Count > 0)
+        {
+            all[id] = marks;
+        }
+
+        return project with { Sources = project.Sources with { Marks = all } };
     }
 
     /// <summary>The piece without the tombstone of the same file as <paramref name="original"/>, which takes its id and name; the tombstone, or null when none.</summary>
@@ -157,7 +189,7 @@ public static class SourceOperations
         {
             HiddenViews = [.. project.HiddenViews.Where(view => view != id)],
         };
-        RemovedOriginal tombstone = new(original, at) { Marks = id == PieceOriginal.DocumentId ? project.DocumentMarks : DocumentMarks.Empty };
+        RemovedOriginal tombstone = new(original, at) { Marks = project.PageMarksOf(id) };
         removed = removed with { Sources = removed.Sources with { Removed = [.. removed.Sources.Removed.Where(each => each.Original.Id != id), tombstone] } };
         return withNotes ? NotesFromGone(removed, id) : removed;
     }
@@ -174,6 +206,7 @@ public static class SourceOperations
             Sources = project.Sources with
             {
                 Data = Without(project.Sources.Data, id),
+                Marks = Without(project.Sources.Marks, id),
                 Notes = id == PieceOriginal.DocumentId ? [.. project.Sources.Notes.Select(static notes => notes with { Pages = null })] : project.Sources.Notes,
             },
         };
@@ -279,6 +312,41 @@ public static class SourceOperations
         return project.AddNotes(notes);
     }
 
+    /// <summary>
+    /// The piece with the notes a transcription heard in one of its recordings (0030, section 4, «Распознать» on a recording
+    /// already added): with <paramref name="stretch"/>, the part of it sent («Что распознать»), in milliseconds from its
+    /// start. A piece with no notes yet takes them as its working notes; otherwise they are other Notes beside the working
+    /// ones, which keep their corrections. Marked heard by <paramref name="origin"/>, with the Check flags it raises.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No original has the id.</exception>
+    /// <exception cref="ArgumentException">The original is not a recording, or no notes were heard.</exception>
+    public static Project HeardFrom(this Project project, string original, byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check, DateTimeOffset at, (long From, long To)? stretch = null)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(midi);
+        ArgumentNullException.ThrowIfNull(origin);
+        PieceOriginal heard = project.FindOriginal(original) ?? throw new KeyNotFoundException($"There is no original {original}.");
+        if (heard.Kind != OriginalKind.Audio || midi.Length == 0)
+        {
+            throw new ArgumentException(midi.Length == 0 ? "No notes were heard." : $"{original} is not a recording.", nameof(original));
+        }
+
+        TranscriptionOrigin from = origin with { From = heard.Id, At = at };
+        var provenance = new NotesProvenance(NotesProvenance.AudioRecognition)
+        {
+            From = [new ProvenanceSource(heard.Id) { Sha256 = heard.Sha256, Milliseconds = stretch }],
+            Engine = origin.Engine,
+            At = at,
+        };
+        string fileName = Path.ChangeExtension(project.FileName, ".mid");
+        if (!project.HasNotes)
+        {
+            return project with { FileName = fileName, Source = midi, Transcription = from, Check = [.. check], KeptProvenance = provenance, DocumentPages = null };
+        }
+
+        return project.AddNotes(new OtherNotes(project.NextNotesId(), fileName, midi, provenance) { Transcription = from, Check = [.. check] });
+    }
+
     /// <summary>The piece with other Notes added at the end of its Notes.</summary>
     /// <exception cref="ArgumentException">The piece has Notes with the id already.</exception>
     public static Project AddNotes(this Project project, OtherNotes notes)
@@ -363,6 +431,29 @@ public static class SourceOperations
             Motifs = [.. project.Motifs.Select(motif => motif with { Notes = Swapped(motif.Notes, was, id) })],
             Observations = [.. project.Observations.Select(observation => observation.Variation is null ? observation : observation with { Notes = Swapped(observation.Notes, was, id) })],
         };
+    }
+
+    /// <summary>
+    /// The piece as it reads with the Notes <paramref name="id"/> as its notes, only to show them (sources sheet, «Открыть»
+    /// on Notes that are not working): other Notes as made working on a copy without the versions, the assembly and the
+    /// player's motifs, variations and ideas; a version's MIDI as notes of their own. The piece itself does not change.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The piece has no Notes with the id.</exception>
+    public static Project ViewOf(this Project project, string id)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        if (project.HasNotes && id == project.NotesId)
+        {
+            return project;
+        }
+
+        if (project.FindPerformance(id) is { } version)
+        {
+            return Project.Create(project.Id, Path.ChangeExtension(project.FileName, ".mid"), version.Midi, project.CreatedAt) with { Metadata = project.Metadata, LastOpened = project.LastOpened };
+        }
+
+        Project bare = project with { Performances = [], Assembly = PieceAssembly.Empty, Motifs = [], Variations = [], Observations = [] };
+        return bare.MakeWorking(id) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
     }
 
     /// <summary>The Notes a motif or kept variation names once <paramref name="now"/> are the working notes instead of <paramref name="was"/>.</summary>

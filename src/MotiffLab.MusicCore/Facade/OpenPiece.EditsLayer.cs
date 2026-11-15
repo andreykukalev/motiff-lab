@@ -23,6 +23,19 @@ internal sealed partial class OpenPiece
     /// <summary>How the corrections are laid over the notes the piece is open on.</summary>
     internal EditsLayer Layer => _layer;
 
+    /// <summary>
+    /// True for Notes opened only to be shown (sources.notes.open): the facade answers the calls that show them and
+    /// refuses every other (<see cref="MusicCoreFacade"/>).
+    /// </summary>
+    internal bool ReadOnly { get; private set; }
+
+    /// <summary>This piece, open only to be shown from now on.</summary>
+    internal OpenPiece AsReadOnly()
+    {
+        ReadOnly = true;
+        return this;
+    }
+
     /// <summary>The corrections laid one by one over the notes, for the log they were laid from.</summary>
     private (NoteEditLog Log, EditsApplied Applied)? _layered;
 

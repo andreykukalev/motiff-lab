@@ -2395,6 +2395,8 @@
   "settings.assistantRepairsHint": "In Check, Repair under a flagged bar offers ways to correct it that the app works out from the flag's reason, with no AI and on this device: a repeated note removed, three notes read as a triplet, a note one step too long shortened. The bar shows the correction above it; hear it, then Accept to add it to My corrections, or Dismiss. The flag stays until you say Looks right.",
   "settings.assistant": "The assistant's conversation (preview)",
   "settings.assistantHint": "Ask opens the assistant in Insights: it answers about the selection or the whole piece with an AI model, and every answer cites the facts the app found, each with its place in the score. Before the first question it shows exactly what is sent; nothing is sent until you agree and the assistant is switched on for your account.",
+  "settings.sources": "New sources",
+  "settings.sourcesHint": "The switch of every view of the piece above the score and the Sources sheet by originals and notes: another PDF, recognise a recording, recognise again, remove an original and keep its notes, and Make working. Your own files are never changed.",
   "repair.open": "Repair",
   "repair.overline": "Proposal · correction · bar {0}",
   "repair.ways": "Ways to repair",

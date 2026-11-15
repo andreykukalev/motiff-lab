@@ -63,8 +63,12 @@ public sealed class MusicCoreFacade
     /// assistant.address a note's address (bar.hand.index) or the note at one, calls added.
     /// Also within 12 (version 0.6, the sources by the layers of 0030, project file version 16): sources.layers answers the
     /// originals and Notes with their states and the views of the switch in order; sources.view.hide, sources.original.add,
-    /// .remove, sources.notes.recognise, .remove and sources.makeWorking change them; sources.pdf takes an "id". The answer
-    /// of sources and every other answer stay as they were, calls added.
+    /// .remove, sources.notes.recognise, .hear (a recording already added heard into new Notes, as transcribe hears one),
+    /// .remove and sources.makeWorking change them; sources.pdf takes an "id"; sources.notes.open opens Notes that are not
+    /// working under a new number, "readOnly", answering only the calls that show them (else "readOnly"); a PDF piece takes
+    /// the sheet's calls too, and document, document.marks, ink.* and bookmark.* take an "original" (the first PDF when
+    /// left out), so each PDF or photos original keeps its own page marks. The answer of sources and every other answer
+    /// stay as they were, calls added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -248,12 +252,55 @@ public sealed class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
-            return name == "sources.makeWorking" ? MakeWorking(piece, open, fields) : open.Call(name, fields);
+            if (open.ReadOnly && !IsShowingCall(name))
+            {
+                throw new FacadeException("readOnly", "These notes are open only to be shown; make them the working notes to work on them.");
+            }
+
+            return name switch
+            {
+                "sources.makeWorking" => MakeWorking(piece, open, fields),
+                "sources.notes.open" => OpenNotes(open, fields),
+                _ => open.Call(name, fields),
+            };
         }
         catch (Exception exception)
         {
             return Failure(exception);
         }
+    }
+
+    /// <summary>The calls that only show a piece, answered on Notes opened to be shown.</summary>
+    private static bool IsShowingCall(string name) =>
+        name is "piece" or "phrases" or "notation" or "playback" or "roll" or "dna" or "marks" or "check" or "language";
+
+    /// <summary>
+    /// «Открыть» on Notes that are not the working ones (version 0.6): "id", other Notes or a version, opened under a new
+    /// number only to be shown (<see cref="SourceOperations.ViewOf"/>), so piece, notation, playback, roll, phrases, dna,
+    /// marks and check answer for them and every other call answers "readOnly". The piece itself does not change; close
+    /// the new number when done. Answers as <c>open</c> does, with "readOnly": true.
+    /// </summary>
+    private string OpenNotes(OpenPiece open, Request fields)
+    {
+        Project shown;
+        try
+        {
+            shown = open.Project.ViewOf(fields.Required("id"));
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(shown), open.Words, open.Layer).AsReadOnly();
+        int number = _next++;
+        _pieces[number] = opened;
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("piece", number);
+            json.WriteBoolean("readOnly", true);
+            opened.Summary(json);
+        });
     }
 
     /// <summary>

@@ -74,12 +74,19 @@ public sealed record SourcesLayer
     /// <summary>The bytes of each original kept in the file (kept "file") other than the first PDF, by the original's id.</summary>
     public IReadOnlyDictionary<string, byte[]> Data { get; init; } = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The player's marks on the pages of each live PDF or photos other than the first (version 0.6; the first PDF's are
+    /// <see cref="Project.DocumentMarks"/>), by the original's id; an original with none is left out.
+    /// </summary>
+    public IReadOnlyDictionary<string, DocumentMarks> Marks { get; init; } = new Dictionary<string, DocumentMarks>(StringComparer.Ordinal);
+
     /// <summary>The tombstone of the original <paramref name="id"/>; null while it is not removed.</summary>
     public RemovedOriginal? RemovedWith(string id) => Removed.FirstOrDefault(removed => removed.Original.Id == id);
 
     public bool Equals(SourcesLayer? other) =>
         other is not null && Removed.SequenceEqual(other.Removed) && Notes.SequenceEqual(other.Notes)
-        && Data.Count == other.Data.Count && Data.All(pair => other.Data.TryGetValue(pair.Key, out byte[]? bytes) && bytes.AsSpan().SequenceEqual(pair.Value));
+        && Data.Count == other.Data.Count && Data.All(pair => other.Data.TryGetValue(pair.Key, out byte[]? bytes) && bytes.AsSpan().SequenceEqual(pair.Value))
+        && Marks.Count == other.Marks.Count && Marks.All(pair => other.Marks.TryGetValue(pair.Key, out DocumentMarks? marks) && marks.Equals(pair.Value));
 
-    public override int GetHashCode() => HashCode.Combine(Removed.Count, Notes.Count, Data.Count);
+    public override int GetHashCode() => HashCode.Combine(Removed.Count, Notes.Count, Data.Count, Marks.Count);
 }

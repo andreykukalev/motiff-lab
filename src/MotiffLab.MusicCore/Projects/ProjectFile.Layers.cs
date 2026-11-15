@@ -33,7 +33,7 @@ public static partial class ProjectFile
                 json.WriteBase64String("data", data);
             }
 
-            DocumentMarks marks = entry.Removed?.Marks ?? (pdf ? project.DocumentMarks : DocumentMarks.Empty);
+            DocumentMarks marks = entry.Removed?.Marks ?? project.PageMarksOf(entry.Original.Id);
             if (!marks.IsEmpty || marks.Unknown.Count > 0)
             {
                 WriteDocumentMarks(json, "marks", marks);

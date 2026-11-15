@@ -71,23 +71,17 @@ internal sealed class OpenDocument
         "project" => Answer.Write(json => Answer.Project(json, "project", Project)),
         "project.save" => Save(request),
         "project.metadata" => Metadata(request),
-        "document" => Answer.Write(json =>
-        {
-            json.WriteString("fileName", Project.DocumentFileName);
-            json.WriteString("kind", Kind);
-            json.WriteBase64String("pdf", Project.Document);
-            Marks(json);
-        }),
+        "document" => Pages(request),
         "document.replace" => Replace(request),
         // Version 0.6: the sources by the layers of 0030 for a piece that is only its PDF, as for a piece with notes.
-        "sources.layers" => Answer.Write(json => Answer.SourceLayers(json, Project, PieceViews.Of(Project, OpenPiece.DeviceOf(request), request.Texts("here")))),
-        "document.marks" => Answer.Write(Marks),
-        "document.ink.add" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
-        "document.ink.remove" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),
-        "document.ink.clear" => Change(marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])),
-        "document.bookmark.add" => Change(marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))),
-        "document.bookmark.rename" => Change(marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))),
-        "document.bookmark.remove" => Change(marks => marks.RemoveBookmark(request.Required("id"))),
+        _ when name.StartsWith("sources.", StringComparison.Ordinal) && SourceRequest.Call(name, request, () => Project, project => Project = project, null) is { } answer => answer,
+        "document.marks" => Answer.Write(json => Marks(json, Project.PageMarksOf(OriginalOf(request)))),
+        "document.ink.add" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
+        "document.ink.remove" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),
+        "document.ink.clear" => Change(request, marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])),
+        "document.bookmark.add" => Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))),
+        "document.bookmark.rename" => Change(request, marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))),
+        "document.bookmark.remove" => Change(request, marks => marks.RemoveBookmark(request.Required("id"))),
         "document.read" => Read(request),
         _ => throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first."),
     };
@@ -99,11 +93,38 @@ internal sealed class OpenDocument
         return Answer.Write(json => Answer.Project(json, "project", Project));
     }
 
-    private void Marks(Utf8JsonWriter json)
+    /// <summary>
+    /// The PDF shown, with the marks on its pages: the piece's first PDF, or with "original" (version 0.6) another PDF or
+    /// photos kept in the file, so a second PDF takes the pen too.
+    /// </summary>
+    private string Pages(Request request)
+    {
+        string id = OriginalOf(request);
+        byte[] pdf = id == PieceOriginal.DocumentId ? Project.Document!
+            : Project.Sources.Data.GetValueOrDefault(id) ?? throw FacadeException.Unavailable($"The piece keeps no bytes of {id} in its file.");
+        return Answer.Write(json =>
+        {
+            json.WriteString("fileName", id == PieceOriginal.DocumentId ? Project.DocumentFileName : Project.FindOriginal(id)!.FileName);
+            json.WriteString("kind", id == PieceOriginal.DocumentId ? Kind : Project.FindOriginal(id)!.Kind.ToString().ToLowerInvariant());
+            json.WriteBase64String("pdf", pdf);
+            Marks(json, Project.PageMarksOf(id));
+        });
+    }
+
+    /// <summary>The original whose pages a call is about: "original", the piece's first PDF by default; one with pages of a live PDF or photos.</summary>
+    private string OriginalOf(Request request)
+    {
+        string id = request.Text("original") ?? PieceOriginal.DocumentId;
+        return id == PieceOriginal.DocumentId || Project.FindOriginal(id) is { Kind: OriginalKind.Pdf or OriginalKind.Images }
+            ? id
+            : throw FacadeException.BadRequest($"There is no PDF or photos {id} in this piece.");
+    }
+
+    private static void Marks(Utf8JsonWriter json, DocumentMarks marks)
     {
         json.WriteStartObject("marks");
         json.WriteStartArray("ink");
-        foreach (InkStroke stroke in Project.DocumentMarks.Ink)
+        foreach (InkStroke stroke in marks.Ink)
         {
             json.WriteStartObject();
             json.WriteString("id", stroke.Id);
@@ -127,7 +148,7 @@ internal sealed class OpenDocument
 
         json.WriteEndArray();
         json.WriteStartArray("bookmarks");
-        foreach (PageBookmark bookmark in Project.DocumentMarks.Bookmarks)
+        foreach (PageBookmark bookmark in marks.Bookmarks)
         {
             json.WriteStartObject();
             json.WriteString("id", bookmark.Id);
@@ -148,18 +169,19 @@ internal sealed class OpenDocument
         json.WriteEndObject();
     }
 
-    private string Change(Func<DocumentMarks, DocumentMarks> change)
+    private string Change(Request request, Func<DocumentMarks, DocumentMarks> change)
     {
+        string id = OriginalOf(request);
         try
         {
-            Project = Project with { DocumentMarks = change(Project.DocumentMarks) };
+            Project = Project.WithPageMarks(id, change(Project.PageMarksOf(id)));
         }
         catch (Exception exception) when (exception is ArgumentException or ProjectFileException)
         {
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        return Answer.Write(Marks);
+        return Answer.Write(json => Marks(json, Project.PageMarksOf(id)));
     }
 
     private string Save(Request request)

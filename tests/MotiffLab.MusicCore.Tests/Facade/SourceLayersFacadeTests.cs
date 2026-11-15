@@ -151,4 +151,71 @@ public class SourceLayersFacadeTests
         Assert.Empty(layers.GetProperty("notes").EnumerateArray());
         Assert.Equal(["original:src_pdf"], Views(layers));
     }
+
+    private static string Heard()
+    {
+        ImportedPiece piece = PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!;
+        string midi = Convert.ToBase64String(global::MotiffLab.MusicCore.Export.MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
+        return $$$"""{"original": "src_rec", "engine": "transkun", "milliseconds": 60000, "sentFromMs": 30000, "parts": [{"index": 0, "midi": "{{{midi}}}"}], "now": "2026-11-15T13:00:00Z"}""";
+    }
+
+    [Fact]
+    public void A_recording_already_added_is_heard_into_notes_beside_the_working_ones_with_the_stretch_sent()
+    {
+        MusicCoreFacade facade = Opened();
+        Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-15T12:00:00Z"}""");
+
+        JsonElement heard = Call(facade, "sources.notes.hear", Heard());
+
+        Assert.Equal("n_2", heard.GetProperty("id").GetString());
+        JsonElement notes = Item(heard, "notes", "n_2");
+        Assert.Equal(("audioRecognition", "transkun", "src_rec"), (notes.GetProperty("op").GetString(), notes.GetProperty("engine").GetString(), notes.GetProperty("original").GetString()));
+        Assert.Equal(["notes:n_1", "original:src_pdf", "performance:src_rec", "notes:n_2"], Views(Call(facade, "sources.layers", """{"here": ["src_rec"]}""")));
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        OtherNotes other = Assert.Single(saved.Sources.Notes);
+        Assert.Equal((30_000L, 90_000L), other.Provenance.Original!.Milliseconds);
+        Assert.Equal(30_000L, other.Transcription!.SentFromMilliseconds);
+        Assert.Equal("badRequest", Error(facade, "sources.notes.hear", Heard().Replace("src_rec", "src_pdf", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Notes_that_are_not_working_open_under_a_new_number_only_to_be_shown()
+    {
+        MusicCoreFacade facade = Opened();
+        Call(facade, "sources.notes.recognise", Recognise());
+
+        JsonElement opened = Call(facade, "sources.notes.open", """{"id": "n_2"}""");
+
+        int shown = opened.GetProperty("piece").GetInt32();
+        Assert.Equal(2, shown);
+        Assert.True(opened.GetProperty("readOnly").GetBoolean());
+        Assert.False(Json(facade.Call(shown, "notation")).TryGetProperty("error", out _));
+        Assert.False(Json(facade.Call(shown, "piece")).TryGetProperty("error", out _));
+        Assert.Equal("readOnly", Json(facade.Call(shown, "project.save")).GetProperty("error").GetString());
+        Assert.Equal("readOnly", Json(facade.Call(shown, "sources.makeWorking", """{"id": "n_1"}""")).GetProperty("error").GetString());
+        Assert.Equal("n_1", Call(facade, "sources.layers").GetProperty("working").GetString());
+        Assert.True(facade.Close(shown));
+        Assert.Equal("badRequest", Error(facade, "sources.notes.open", """{"id": "n_9"}"""));
+    }
+
+    [Fact]
+    public void A_second_pdf_takes_page_marks_of_its_own_that_stay_apart_from_the_first()
+    {
+        var facade = new MusicCoreFacade();
+        Json(facade.Open("Nocturne.pdf", s_pdf, """{"language": "en", "now": "2026-11-15T09:00:00Z"}"""));
+        Assert.Equal("src_pdf_2", Call(facade, "sources.original.add", JsonSerializer.Serialize(new { kind = "pdf", fileName = "Henle.pdf", data = Convert.ToBase64String(s_otherPdf), now = "2026-11-15T12:00:00Z" })).GetProperty("id").GetString());
+
+        JsonElement marked = Call(facade, "document.bookmark.add", """{"original": "src_pdf_2", "page": 1, "name": "Coda", "now": "2026-11-15T12:30:00Z"}""");
+
+        Assert.Single(marked.GetProperty("marks").GetProperty("bookmarks").EnumerateArray());
+        Assert.Empty(Call(facade, "document.marks").GetProperty("marks").GetProperty("bookmarks").EnumerateArray());
+        Assert.Equal(Convert.ToBase64String(s_otherPdf), Call(facade, "document", """{"original": "src_pdf_2"}""").GetProperty("pdf").GetString());
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        Assert.Equal("Coda", Assert.Single(saved.PageMarksOf("src_pdf_2").Bookmarks).Name);
+        Assert.Equal(ProjectFile.Write(saved), ProjectFile.Write(ProjectFile.Read(ProjectFile.Write(saved))));
+        Project removed = saved.RemoveOriginal("src_pdf_2", s_now);
+        Assert.Equal("Coda", Assert.Single(Assert.Single(removed.Sources.Removed).Marks.Bookmarks).Name);
+        Assert.Equal("Coda", Assert.Single(removed.AddOriginal(new PieceOriginal("x", OriginalKind.Pdf, "Henle.pdf", OriginalKept.File, s_now.AddDays(1)), s_otherPdf).PageMarksOf("src_pdf_2").Bookmarks).Name);
+        Assert.Equal("badRequest", Error(facade, "document.marks", """{"original": "src_none"}"""));
+    }
 }
