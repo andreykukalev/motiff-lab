@@ -45,6 +45,11 @@ enum ScreensHook {
         guard let file = facadeObject(answer)?["file"] as? String else { return nil }
         let url = ProjectFiles.newURL(for: example.title)
         guard (try? Data(file.utf8).write(to: url, options: .atomic)) != nil else { return nil }
+        // `-ml-screens-copies <n>`: a library of n more such projects, each a file of its own as a player's would be.
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-ml-screens-copies"), arguments.indices.contains(index + 1), let copies = Int(arguments[index + 1]) {
+            for number in 0..<copies { try? Data(file.utf8).write(to: ProjectFiles.newURL(for: "\(example.title) \(number + 1)"), options: .atomic) }
+        }
         return url
     }
 }
