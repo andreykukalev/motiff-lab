@@ -10,7 +10,6 @@ import XCTest
 @MainActor
 final class SwitchUITests: XCTestCase {
     private var app: XCUIApplication!
-    private let rounds = 20
     private let limit: TimeInterval = 5
 
     /// The modes on, the sources off: the bar's PDF | Notes.
@@ -19,15 +18,18 @@ final class SwitchUITests: XCTestCase {
     /// The modes and the sources on: the switch of all views (`experimental.sources`), as Andrei uses the app.
     func testSwitchWithSources() { switchAgainAndAgain(sources: true) }
 
-    private func switchAgainAndAgain(sources: Bool) {
+    /// As above in a library of 15 more pieces with notes and a scanned PDF each, as a player's library is.
+    func testSwitchInAFullLibrary() { switchAgainAndAgain(sources: true, copies: 15, rounds: 8) }
+
+    private func switchAgainAndAgain(sources: Bool, copies: Int = 0, rounds: Int = 20) {
         continueAfterFailure = true
-        let tag = sources ? "sources" : "plain"
+        let tag = (sources ? "sources" : "plain") + (copies > 0 ? "-library\(copies)" : "")
         XCUIDevice.shared.orientation = .landscapeLeft
         guard let pdf = ScreensPdf.write(name: "Elise-\(tag).pdf", scanned: true) else { return XCTFail("no PDF") }
         let settings = "{\"appearance.theme\" = \"daylight\"; \"experimental.playheads\" = \"on\"; \"experimental.sources\" = \"\(sources ? "on" : "off")\";}"
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", settings,
-                               "-ml-screens", "-ml-screens-reset", "-ml-screens-both", pdf.path]
+                               "-ml-screens", "-ml-screens-reset", "-ml-screens-both", pdf.path, "-ml-screens-copies", String(copies)]
         app.launch()
         defer {
             app.terminate()
