@@ -12,11 +12,13 @@ import UIKit
 /// 3. Keyboard: the chat stays where it is with all its controls, raised above the keyboard where it would cover them;
 ///    the score, the pill and the bars under it do not move.
 /// 4. Type and Send (the button or the keyboard's Send): the question goes, the field empties and keeps the focus.
-/// 5. Hide the keyboard (its own key, or a press on the chat's ground): the field lets go, its text stays, the chat stays
-///    open with all its controls, and so does everything around it.
-/// 6. Close: a press outside never closes the chat while its field has the focus (where the app hears that press, it puts
-///    the keyboard away; the system's popover just holds still). The panel closes only by its close button; the popover
-///    and the small chat at the selection also close from outside once the field has let go.
+/// 5. Hide the keyboard (its own key, or a tap anywhere outside the field and its row: the chat's ground, the panel, the
+///    score, which then does nothing else, TypingFocus): the field lets go, its text stays, the chat stays open with all
+///    its controls, and so does everything around it. Only the player's press focuses the field again: the app never
+///    gives it the focus by itself (v0.6.4: a focus given back from the chat's state left the field focused without the
+///    keyboard, and iPadOS's bar of the hidden keyboard, «RU» and Undo, lay over the pill).
+/// 6. Close: a press outside never closes the chat while its field has the focus (it puts the keyboard away). The panel
+///    closes only by its close button; the small chat at the selection also closes from outside once the field has let go.
 struct AskFlow: Equatable {
     /// Where the chat is: the Ask popover, the full assistant's side panel, or the contextual one at the selection.
     enum Surface: Equatable {
@@ -133,10 +135,8 @@ struct AskField: UIViewRepresentable {
             string: placeholder, attributes: [.foregroundColor: DesignTokens.dynamicColor("ink-3"), .font: Self.font]
         )
         field.accessibilityLabel = placeholder
-        // The focus follows the chat's state, a moment later, once the field is in its window.
-        if focused && enabled && !field.isFirstResponder {
-            DispatchQueue.main.async { if field.window != nil { field.becomeFirstResponder() } }
-        } else if !focused && field.isFirstResponder {
+        // The chat lets the field go (a press on its ground); only the player's press gives it the focus (AskFlow 5).
+        if !focused && field.isFirstResponder {
             DispatchQueue.main.async { field.resignFirstResponder() }
         }
     }
@@ -181,31 +181,64 @@ struct AskField: UIViewRepresentable {
     }
 }
 
-/// The chat's field and Send in one row, the same on every surface: the field in a capsule at a fingertip's height and
-/// Send beside it, enabled once there is something to ask.
+/// The chat's field and Send in one row, the same on every surface: the kit's text field (DSFieldLook) at a fingertip's
+/// height with its placeholder, the microphone inside it with «Диктовка» on (Dictation), and Send beside it, enabled once
+/// there is something to ask. Presses on the row keep the keyboard up (Typing); a press anywhere else puts it away.
 struct AskInputRow: View {
     @Binding var flow: AskFlow
     let text: UIText
     var enabled = true
     let send: (String) -> Void
+    @ObservedObject private var settings = DeviceSettings.shared
+    @StateObject private var dictation: Dictation
+
+    init(flow: Binding<AskFlow>, text: UIText, enabled: Bool = true, send: @escaping (String) -> Void) {
+        _flow = flow
+        self.text = text
+        self.enabled = enabled
+        self.send = send
+        _dictation = StateObject(wrappedValue: Dictation(language: text.language))
+    }
+
+    private var dictating: Bool { settings.isOn(Dictation.setting) }
 
     var body: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            AskField(
-                text: Binding(get: { flow.draft }, set: { flow.apply(.type($0)) }),
-                focused: Binding(get: { flow.focused }, set: { flow.apply($0 ? .focus : .blur) }),
-                placeholder: text["ask.placeholder"],
-                enabled: enabled,
-                submit: submit
-            )
-            .frame(maxWidth: .infinity, minHeight: CGFloat.ds("h-touch"))
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .background(Color.ds("surface"), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.ds(flow.focused ? "accent" : "hairline-strong")))
-            Button(text["mentor.send"], action: submit)
-                .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                .disabled(!enabled || !flow.canSend)
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                HStack(spacing: 0) {
+                    AskField(
+                        text: Binding(get: { flow.draft }, set: { flow.apply(.type($0)) }),
+                        focused: Binding(get: { flow.focused }, set: { flow.apply($0 ? .focus : .blur) }),
+                        placeholder: text["padAsk.placeholder"],
+                        enabled: enabled,
+                        submit: submit
+                    )
+                    .frame(maxWidth: .infinity, minHeight: CGFloat.ds("h-touch"))
+                    if dictating {
+                        DictationButton(dictation: dictation, text: text, draft: flow.draft).disabled(!enabled)
+                    }
+                }
+                .padding(.leading, CGFloat.ds("s-3"))
+                .padding(.trailing, dictating ? 0 : CGFloat.ds("s-3"))
+                .modifier(DSFieldLook(focused: flow.focused || dictation.flow.listening))
+                Button(text["mentor.send"], action: submit)
+                    .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                    .disabled(!enabled || !flow.canSend)
+            }
+            .keepsTyping()
+            if dictating, let line = DictationButton.line(dictation.flow, text) {
+                Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .onAppear {
+            let flow = $flow
+            dictation.write = { flow.wrappedValue.apply(.type($0)) }
+        }
+        // Typing, sending, a busy assistant or the chat going: the dictation stops, so it never writes over the player.
+        .onChange(of: flow.focused) { _, focused in if focused { dictation.halt() } }
+        .onChange(of: enabled) { _, now in if !now { dictation.halt() } }
+        .onChange(of: dictating) { _, now in if !now { dictation.halt() } }
+        .onDisappear { dictation.halt() }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             flow.apply(.keyboard(true))
         }
@@ -216,7 +249,27 @@ struct AskInputRow: View {
 
     private func submit() {
         guard enabled, let asked = flow.apply(.send) else { return }
+        dictation.halt()
         send(asked)
+    }
+}
+
+/// The kit's text field (ds.css `.field`, docs/02-design-system.md «Fields»): the fields' ground (`surface-2`), the strong
+/// hairline and the 8 px radius (`r-s`), so it reads as a place to type rather than a capsule (v0.6.4); in focus the border
+/// turns cobalt with the accent's tint as a ring around it.
+struct DSFieldLook: ViewModifier {
+    let focused: Bool
+    /// ds.css `.field.focus`: `box-shadow: 0 0 0 3px var(--accent-tint)`.
+    private static let ring: CGFloat = 3
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: CGFloat.ds("r-s"))
+        content
+            .background(Color.ds("surface-2"), in: shape)
+            .overlay(shape.strokeBorder(Color.ds(focused ? "accent" : "hairline-strong")))
+            // Drawn under the field's ground: only its outer half shows, the ring outside the border.
+            .background { shape.stroke(Color.ds("accent-tint"), lineWidth: Self.ring * 2).opacity(focused ? 1 : 0) }
+            .animation(.ds("t-fast"), value: focused)
     }
 }
 

@@ -96,6 +96,14 @@ public class SettingsTests
     }
 
     [Fact]
+    public void The_dictation_experiment_is_on_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.dictation");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.True(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
     public void The_new_sources_experiment_is_off_on_the_device()
     {
         Setting setting = SettingsCatalogue.Get("experimental.sources");

@@ -292,5 +292,15 @@
   "practice.switchesHint": "Opens the two switches: selection controls and playback controls, each on its own",
   "settings.language.ru": "Русский",
   "settings.language.en": "English",
-  "settings.languagePadHint": "The interface and everything the app writes for you: facts, explanations, the assistant's answers. Until you pick one, the iPad's language. The piece open now is saved and opens again where it was."
+  "settings.languagePadHint": "The interface and everything the app writes for you: facts, explanations, the assistant's answers. Until you pick one, the iPad's language. The piece open now is saved and opens again where it was.",
+  "padAsk.placeholder": "Type your question…",
+  "dictation.start": "Dictate",
+  "dictation.stop": "Stop dictating",
+  "dictation.listening": "Listening… Speak; tap the microphone or pause to finish.",
+  "dictation.notOnDevice": "Dictation is not available: this iPad cannot recognise English speech on the iPad itself, and the sound is never sent anywhere.",
+  "dictation.denied": "Dictation needs the microphone and speech recognition: allow them for Motiff Lab in the iPad's Settings.",
+  "dictation.restricted": "Dictation is not allowed by this iPad's settings.",
+  "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again.",
+  "settings.dictation": "Dictation in the assistant's field",
+  "settings.dictationHint": "A microphone beside the question's field: speak and the words appear in the field. Speech is recognised on the iPad itself, in the interface's language; the sound goes nowhere. It stops on a tap or after a pause. On until you turn it off."
 }

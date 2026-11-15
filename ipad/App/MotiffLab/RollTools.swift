@@ -301,6 +301,8 @@ struct RollSurface: View {
 
     var body: some View {
         ScoreRollView(roll: roll, place: place)
+            // While a field has the keyboard, a press on the roll only puts it away (TypingFocus, v0.6.4).
+            .overlay { TypingShield() }
             .overlay(alignment: .bottom) {
                 RollZoomControls(roll: roll, text: text)
             }

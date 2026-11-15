@@ -134,12 +134,17 @@ struct AssistantHereCard: View {
 /// Lifts a small chat at the selection above the iPad's keyboard where the keyboard would cover it (#582 item 17.4), as
 /// KeyboardRoom keeps a panel's content clear of it; nothing else on the screen moves. The lift is worked out from where
 /// the chat is laid out, which the lift does not move (its frame is read outside the offset), so it never feeds back.
+///
+/// With `barOnly` (the pill, v0.6.4) it rises only above the bar a hidden keyboard leaves (iPadOS's shortcuts bar with the
+/// language and Undo, while a field is focused without the keyboard: a Pencil's press, a hardware keyboard), never above the
+/// whole keyboard, which the screen ignores.
 struct KeyboardLift: ViewModifier {
+    var barOnly = false
     @State private var keyboard: CGRect?
     @State private var frame: CGRect = .zero
 
     func body(content: Content) -> some View {
-        let lift = Self.lift(of: frame, keyboard: keyboard, gap: CGFloat.ds("s-3"))
+        let lift = Self.lift(of: frame, keyboard: barOnly && !Self.isBar(keyboard) ? nil : keyboard, gap: CGFloat.ds("s-3"))
         content
             .offset(y: -lift)
             .animation(.ds("t-fast"), value: lift)
@@ -167,11 +172,18 @@ struct KeyboardLift: ViewModifier {
         else { return 0 }
         return max(0, min(view.maxY - keyboard.minY + gap, view.minY - gap))
     }
+
+    /// Whether what came up is only the bar of a hidden keyboard: no taller than three fingertips, where a keyboard is
+    /// several times that.
+    static func isBar(_ keyboard: CGRect?) -> Bool {
+        guard let keyboard, !keyboard.isEmpty else { return false }
+        return keyboard.height <= CGFloat.ds("h-touch") * 3
+    }
 }
 
 extension View {
-    /// Lifts a small chat above the iPad's keyboard where it would cover it (KeyboardLift).
-    func keyboardLift() -> some View {
-        modifier(KeyboardLift())
+    /// Lifts a small chat above the iPad's keyboard where it would cover it, or only above a hidden keyboard's bar (KeyboardLift).
+    func keyboardLift(barOnly: Bool = false) -> some View {
+        modifier(KeyboardLift(barOnly: barOnly))
     }
 }

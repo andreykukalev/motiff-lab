@@ -40,6 +40,8 @@ struct MotiffLabApp: App {
                     ScoreWebView.prewarm()
                     // The screen stays on while the app is open: a player reads the score with their hands on the keys (0019).
                     UIApplication.shared.isIdleTimerDisabled = true
+                    // A tap outside a field puts the keyboard away, in every field from the first (TypingFocus).
+                    _ = Typing.shared
                 }
         }
     }
