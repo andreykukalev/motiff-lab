@@ -7,7 +7,9 @@ import Foundation
 ///
 /// The Swift port of the reference, src/MotiffLab.Web/Scripts/playback/playback-model.ts: the same pure rules (the
 /// design's T1–T16, the drag of a playhead included), run on the same case file, MotiffLabTests/Golden/playback-model.json
-/// (PlaybackPositionTests). Player owns the selection and Цикл and sends the steps to the engine.
+/// (PlaybackPositionTests), but for one rule of the iPad's own: a selection changed while Цикл plays takes the position to
+/// its start when it does not hold it (`select`, Golden/playback-model-ipad.json). Player owns the selection and Цикл and
+/// sends the steps to the engine.
 enum PlaybackModel {
     /// The selection and Цикл are the player's own, the tick and the transport the engine's.
     struct State: Equatable {
@@ -161,9 +163,11 @@ enum PlaybackModel {
     }
 
     /// T9 a selection appears: Цикл turns on (design question В2); T10 it changes: Цикл as it was; T11 it goes: nothing
-    /// loops, Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not.
-    /// Playing already past the new selection's end, the loop can never catch the position and the engine plays on through
-    /// the piece: Цикл is off then, so it shows as off (#521 5); before the selection it waits to catch it and stays on.
+    /// loops, Цикл is kept. The engine loops the new selection while Цикл is on. Stopped, the position stays (Play starts at
+    /// the selection's start, T2). The iPad's own rule (v0.6.3, #608 item 3, the lead's decision reversing #521 5 here; the
+    /// web's reference keeps it): playing with Цикл on, Цикл follows the selection, so a position the new selection does not
+    /// hold, behind it or ahead of it, goes to its start and the selection loops from there; one it holds plays on.
+    /// Golden/playback-model-ipad.json holds these cases in place of the shared ones they replace.
     private static func select(_ state: State, _ selection: Range<Double>?) -> Decision {
         guard selection != state.selection else { return (state, []) }
         var after = state
@@ -171,10 +175,11 @@ enum PlaybackModel {
         if state.selection == nil && selection != nil {
             after.loop = true
         }
-        if let selection, playing(state.transport), state.tick >= selection.upperBound {
-            after.loop = false
-        }
         if let wanted = engineLoop(after) {
+            if playing(state.transport) && !wanted.contains(state.tick) {
+                after.tick = wanted.lowerBound
+                return (after, [.loop(wanted), .seek(wanted.lowerBound)])
+            }
             return (after, [.loop(wanted)])
         }
         let steps: [TransportStep] = engineLoop(state) != nil ? [.loopOff] : []
