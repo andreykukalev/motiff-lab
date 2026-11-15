@@ -1859,9 +1859,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuMoved(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
-    /// The selection menu put away (the selection gone, Hide, the roll's drawer, Expand): the next one opens over its band.
-    func menuClosed() {
-        guard shown else { return }
+    /// Whether the selection menu is shown; put away (the selection gone, Hide, the roll's drawer, Expand), the next one
+    /// opens over its band.
+    func menuShown(_ open: Bool) {
+        guard shown, !open else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuClosed()", arguments: [:], contentWorld: .page) }
     }
 

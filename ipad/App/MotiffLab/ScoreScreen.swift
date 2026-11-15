@@ -255,7 +255,7 @@ struct ScoreScreen: View {
                 }
             }
             // Put away, the menu forgets where the player dragged it (#582 item 7).
-            .onChange(of: selectionMenuOpen) { _, open in if !open { score.menuClosed() } }
+            .onChange(of: selectionMenuOpen) { _, open in score.menuShown(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
                 if let pick = score.markerPick, !score.focused {
