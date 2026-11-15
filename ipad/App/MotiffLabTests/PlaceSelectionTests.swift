@@ -59,6 +59,20 @@ final class PlaceSelectionTests: XCTestCase {
         XCTAssertEqual(rules.page["places"] as? Bool, false)
     }
 
+    func testThePagesMessagesSayAReplaceALengthRefusedAndWhereToZoom() {
+        XCTAssertTrue(ScoreController.replaces(["how": "replace", "gesture": "g"]))
+        XCTAssertFalse(ScoreController.replaces(["how": "edit"]))
+        XCTAssertFalse(ScoreController.replaces([:]))
+        XCTAssertEqual(ScoreController.refusal("A selection spans at most 32 bars. (Parameter 'span')"), "selection.tooLong")
+        XCTAssertEqual(ScoreController.refusal("There are no notes in that passage."), "selection.noNotes")
+        XCTAssertNil(ScoreController.refusal("Send \"bars\" {first, last}."))
+        XCTAssertNil(ScoreController.refusal(nil))
+        let box: [String: Any] = ["left": 100, "top": 200, "right": 300, "bottom": 260]
+        XCTAssertEqual(ScoreController.zoomRect(box, margin: 24), CGRect(x: 76, y: 176, width: 248, height: 108))
+        XCTAssertNil(ScoreController.zoomRect(nil, margin: 24))
+        XCTAssertNil(ScoreController.zoomRect(["left": 100, "top": 200, "right": 100, "bottom": 260], margin: 24))
+    }
+
     func testOneNotePickedOnTheIPadIsASelection() throws {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: nil)))

@@ -7,12 +7,13 @@
 // drawn in the score's content pixels, as the brackets are; the menu belongs to Blazor and is only placed here.
 // Selection by beats (#349): selection-beats.ts. Where the menu goes: selection-menu.ts.
 
-import { BRACKET_LIFT, type Run, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
+import { BRACKET_LIFT, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
 import { NUMBER_HEIGHT, menuClear, menuPlace } from "./selection-menu.js";
 import { MenuDragger, menuRoom } from "./menu-drag.js";
 import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf } from "./selection-beats.js";
 import { SelectionHandles, barlines, tickAt } from "./selection-handles.js";
 import { type InteractionMode, inside } from "./score-modes.js";
+import { BAND_CLASS, type BandHand, bandBoxes, handRuns, ordered, setBox } from "./selection-boxes.js";
 import {
     type DragStart,
     HOLD_MS,
@@ -31,9 +32,8 @@ import {
     staleGesture,
 } from "./selection-gesture.js";
 
-export { menuClear, menuPlace, dragStartOf, handleTakes, type DragStart };
+export { menuClear, menuPlace, dragStartOf, handleTakes, ordered, type DragStart };
 
-const BAND_CLASS = "sel-band";
 const HANDLE_CLASS = "sel-handle";
 
 /** What the layer needs from the score view. */
@@ -68,6 +68,8 @@ export interface SelectionHost extends BeatSource {
     dragStart?(pointerType: string): DragStart | undefined;
     /** Whether a press of this pointer type on a handle takes it, where the host decides it (the iPad, #511 4.1). */
     takesHandle?(pointerType: string): boolean | undefined;
+    /** Whether the place rule takes the presses now (v0.6.2, the iPad's switch in Select; selection-place-layer.ts): no dots. */
+    places?(): boolean;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -76,11 +78,8 @@ export interface ScoreSelection {
     end: number;
     startLabel: string;
     endLabel: string;
-}
-
-/** The bars from one to another in time order, whichever comes first. */
-export function ordered(a: ScoreBar, b: ScoreBar): [ScoreBar, ScoreBar] {
-    return a.tick <= b.tick ? [a, b] : [b, a];
+    /** The hand the selection is narrowed to (v0.6.2): its band covers that staff only. */
+    hand?: BandHand;
 }
 
 interface Drag {
@@ -117,6 +116,8 @@ export class SelectionLayer {
     private readonly menuDrag = new MenuDragger(() => this.placeMenu());
     /** Selecting by beats, while the score view gives beat lines. */
     readonly beats: ScoreBeats;
+    /** What the place rule's gesture shows in place of the selection (selection-place-layer.ts); null for none. */
+    private placed: (TickRange & { hand: BandHand }) | null = null;
 
     constructor(
         private readonly host: HTMLElement,
@@ -179,13 +180,19 @@ export class SelectionLayer {
         return swallow;
     }
 
+    /** The place rule's gesture shows this passage instead of the selection, or (null) the selection again. */
+    showPlaced(range: (TickRange & { hand: BandHand }) | null): void {
+        this.placed = range;
+        this.place();
+    }
+
     /** Draws the band and the handles again where the bars are now, after a new layout. */
     place(): void {
         const geometry = this.owner.geometry();
         const selection = this.selection;
         const preview = geometry === null ? null : this.preview();
         if (geometry !== null && preview !== null) {
-            this.draw(geometry, preview.start, preview.end, null);
+            this.draw(geometry, preview.start, preview.end, null, preview.hand);
             this.placeMenu();
             return;
         }
@@ -194,12 +201,15 @@ export class SelectionLayer {
             this.placeMenu();
             return;
         }
-        this.draw(geometry, selection.start, selection.end, selection);
+        this.draw(geometry, selection.start, selection.end, selection, selection.hand);
         this.placeMenu();
     }
 
     /** What a gesture under way shows instead of the selection: a handle's or an edge's passage, or a new one; null for none. */
-    private preview(): TickRange | null {
+    private preview(): (TickRange & { hand?: BandHand }) | null {
+        if (this.placed !== null) {
+            return this.placed;
+        }
         const handle = this.handles.drag;
         if (handle !== null) {
             return { start: handle.start, end: handle.end };
@@ -278,7 +288,7 @@ export class SelectionLayer {
     }
 
     /** The band over [start, end), and the handles when `selection` gives their names (a drag in progress shows the band alone). */
-    private draw(geometry: ScoreGeometry, start: number, end: number, selection: ScoreSelection | null): void {
+    private draw(geometry: ScoreGeometry, start: number, end: number, selection: ScoreSelection | null, hand?: BandHand): void {
         // A handle being dragged keeps its element, and with it the pointer capture.
         const kept = this.handles.drag !== null ? [...this.host.querySelectorAll<HTMLElement>(`:scope > .${HANDLE_CLASS}`)] : [];
         for (const old of this.host.querySelectorAll(`:scope > .${BAND_CLASS}, :scope > .${BEAT_CLASS}`)) {
@@ -289,7 +299,7 @@ export class SelectionLayer {
                 old.remove();
             }
         }
-        const runs = geometry.band(start, end);
+        const runs = handRuns(geometry, start, end, hand);
         this.host.append(...this.beats.cut(geometry, runs, start, end));
         for (const run of runs) {
             const band = document.createElement("div");
@@ -312,7 +322,7 @@ export class SelectionLayer {
             return;
         }
         // Under the modes only Select shows the handles (#543 4.2): elsewhere none is drawn, so none takes a press.
-        if (selection !== null && handlesShown(this.owner.mode?.())) {
+        if (selection !== null && handlesShown(this.owner.mode?.()) && this.owner.places?.() !== true) {
             this.host.append(this.handle("start", first.left, (first.top + first.bottom) / 2, selection.startLabel));
             this.host.append(this.handle("end", last.right, (last.top + last.bottom) / 2, selection.endLabel));
         }
@@ -339,7 +349,7 @@ export class SelectionLayer {
     /** Whether a gesture holds the pointer now: it moves an edge or a handle, makes a new selection or has cleared it. */
     private capturing(): boolean {
         const phase = this.drag?.gesture.phase;
-        return this.handles.drag !== null || phase === "editing" || phase === "extending" || phase === "creating" || phase === "cleared";
+        return this.placed !== null || this.handles.drag !== null || phase === "editing" || phase === "extending" || phase === "creating" || phase === "cleared";
     }
 
     private readonly onPointerDown = (event: PointerEvent): void => {
@@ -350,7 +360,7 @@ export class SelectionLayer {
         if (this.handles.drag !== null && staleGesture(this.handles.drag, event)) {
             this.handles.abandon();
         }
-        if (this.drag !== null || this.handles.drag !== null) {
+        if (this.drag !== null || this.handles.drag !== null || this.owner.places?.() === true) {
             return;
         }
         // A finger waits for the long press, unless it drags at once (the iPad in Select): then it drags as a mouse does.
@@ -384,12 +394,7 @@ export class SelectionLayer {
 
     /** Whether a point lies on the band, in the score's content pixels. */
     private insideBand(at: { x: number; y: number }): boolean {
-        const bands = [...this.host.querySelectorAll<HTMLElement>(`:scope > .${BAND_CLASS}`)].map((band) => {
-            const left = parseFloat(band.style.left);
-            const top = parseFloat(band.style.top);
-            return { left, top, right: left + parseFloat(band.style.width), bottom: top + parseFloat(band.style.height) };
-        });
-        return inside(bands, at.x, at.y);
+        return inside(bandBoxes(this.host), at.x, at.y);
     }
 
     /** Does what a step of the gesture asks (selection-gesture.ts). */
@@ -588,11 +593,4 @@ export class SelectionLayer {
         }
     };
 
-}
-
-function setBox(element: HTMLElement, run: Run): void {
-    element.style.left = `${run.left}px`;
-    element.style.top = `${run.top}px`;
-    element.style.width = `${Math.max(4, run.right - run.left)}px`;
-    element.style.height = `${Math.max(4, run.bottom - run.top)}px`;
 }

@@ -103,6 +103,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var placeSelection = false {
         didSet { if placeSelection != oldValue { applyInput() } }
     }
+    /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
+    var zoomedFrom: (scale: CGFloat, offset: CGPoint)?
     /// The piece as its selection's history knows it (SelectionHistories.key).
     private var historyKey: String?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
@@ -426,7 +428,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let place = message["menu"] as? [String: Any]
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
-        if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
+        // What the place rule chose is receivedPlace's (#601).
+        if let chosen = message["chosen"] as? [String: Any], chosen["places"] as? Bool != true, let start = number(chosen["start"]), let end = number(chosen["end"]) {
             // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before. The gesture's
             // changes are one step of the selection's history (#511 11).
             let gesture = chosen["gesture"] as? String
@@ -437,6 +440,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             }
         }
         receivedGesture(message)
+        receivedPlace(message)
         // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
         // choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
@@ -570,7 +574,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
         guard var chosen = ScoreSelection(answer: answer) else {
-            problem = facadeObject(answer)?["message"] as? String
+            let message = facadeObject(answer)?["message"] as? String
+            if !softlyRefused(message) { problem = message }
             return
         }
         if picked { chosen.picked = chosen.noteIds }
@@ -1912,11 +1917,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     /// Draws the band over the selection. The phrases are not drawn as brackets (Andrei, 2026-11-13, #479 item 14).
-    private func showSelection() async {
+    func showSelection() async {
         guard shown else { return }
         var band: Any = NSNull()
         if let selection {
-            band = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]] as [String: Any]
+            var drawn: [String: Any] = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]]
+            if let hand = selection.hand { drawn["hand"] = hand }
+            if let picked = selection.picked { drawn["picked"] = picked }
+            band = drawn
         }
         _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
     }

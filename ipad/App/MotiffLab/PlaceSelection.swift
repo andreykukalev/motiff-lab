@@ -1,4 +1,5 @@
-import Foundation
+import UIKit
+import WebKit
 
 /// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C-F; the experiment
 /// `experimental.placeSelection`, off by default): in Select the place a press lands decides what it does, never how long
@@ -40,5 +41,80 @@ extension ScoreController {
     /// in version 0.6.1, «Выделение снято».
     var selectionToastKey: String {
         placeSelection && selectionToast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
+    }
+}
+
+// MARK: - The score page's place rule (v0.6.2 S2, Scripts/score/selection-place-layer.ts)
+
+extension ScoreController {
+    /// How far round the selection a double tap zooms to, in points.
+    static var zoomMargin: CGFloat { CGFloat.ds("s-6") }
+
+    /// The place layer's messages: a passage it chose (`chosen` with `places`), a note head tapped (`picked`), a double tap
+    /// inside the selection (`zoomSelection`).
+    func receivedPlace(_ message: [String: Any]) {
+        if let chosen = message["chosen"] as? [String: Any], chosen["places"] as? Bool == true,
+           let start = (chosen["start"] as? NSNumber)?.doubleValue, let end = (chosen["end"] as? NSNumber)?.doubleValue {
+            chosenByPlace(chosen, start, end)
+        }
+        if let picked = message["picked"] as? [String: Any], let id = picked["id"] as? String {
+            selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
+        }
+        if message.keys.contains("zoomSelection") {
+            zoomToSelection(message["zoomSelection"] as? [String: Any])
+        }
+    }
+
+    /// A passage the place rule chose (an edge moved, extended, drawn, a bar tapped or held): by beats, narrowed to the hand
+    /// the stroke stayed on; a new one in place of the selection is a replace (the toast «Выделение заменено · Вернуть»).
+    func chosenByPlace(_ chosen: [String: Any], _ start: Double, _ end: Double) {
+        selectSpan(start, end, hand: chosen["hand"] as? String, gesture: chosen["gesture"] as? String, replaces: Self.replaces(chosen))
+    }
+
+    /// Whether the page says a gesture's selection replaces the one there was (placeChange "replace").
+    nonisolated static func replaces(_ message: [String: Any]) -> Bool {
+        message["how"] as? String == "replace"
+    }
+
+    /// What a word of guidance says when music-core refused a selection the place rule asked for: a passage longer than a
+    /// selection spans ("A selection spans at most N bars."), or one with no notes in it (a hand resting); nil for another.
+    nonisolated static func refusal(_ message: String?) -> String? {
+        guard let message else { return nil }
+        if message.contains("spans at most") { return "selection.tooLong" }
+        if message.contains("no notes") { return "selection.noNotes" }
+        return nil
+    }
+
+    /// music-core refused a selection the place rule asked for (#601 H 11, the lead's decision 7): the band the page kept
+    /// showing goes back to the selection there is, never clipped; a passage too long or with no notes says so softly, and
+    /// true. Off, or for another refusal, false: the problem shows as before.
+    func softlyRefused(_ message: String?) -> Bool {
+        guard placeSelection else { return false }
+        Task { await showSelection() }
+        guard let key = Self.refusal(message) else { return false }
+        showNotice(key)
+        return true
+    }
+
+    /// A double tap inside the selection (#601 H 9): the page zooms to the selection's band (`box`, in the document's
+    /// points); the next double tap goes back to the zoom and the place it came from.
+    func zoomToSelection(_ box: [String: Any]?) {
+        let scroll = webView.scrollView
+        if let back = zoomedFrom {
+            zoomedFrom = nil
+            scroll.setZoomScale(back.scale, animated: true)
+            scroll.setContentOffset(back.offset, animated: true)
+            return
+        }
+        guard let rect = Self.zoomRect(box, margin: Self.zoomMargin) else { return }
+        zoomedFrom = (scroll.zoomScale, scroll.contentOffset)
+        scroll.zoom(to: rect, animated: true)
+    }
+
+    /// What a double tap zooms to: the band's box with `margin` round it; nil for no box.
+    nonisolated static func zoomRect(_ box: [String: Any]?, margin: CGFloat) -> CGRect? {
+        func number(_ key: String) -> CGFloat? { (box?[key] as? NSNumber).map { CGFloat($0.doubleValue) } }
+        guard let left = number("left"), let top = number("top"), let right = number("right"), let bottom = number("bottom"), right > left, bottom > top else { return nil }
+        return CGRect(x: left, y: top, width: right - left, height: bottom - top).insetBy(dx: -margin, dy: -margin)
     }
 }
