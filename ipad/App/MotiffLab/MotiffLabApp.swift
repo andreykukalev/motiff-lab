@@ -20,8 +20,8 @@ struct MotiffLabApp: App {
         WindowGroup {
             LibraryView()
                 #if DEBUG
-                // What the switch test reads (ScreensProbe), over whichever screen shows.
-                .overlay(alignment: .topLeading) { if ScreensHook.active { ScreensProbeView() } }
+                // What the switch test reads (ScreensProbe), over whichever screen shows; not in the screenshot walk.
+                .overlay(alignment: .topLeading) { if ScreensHook.bothViews { ScreensProbeView() } }
                 #endif
                 .environmentObject(account)
                 .environmentObject(settings)
