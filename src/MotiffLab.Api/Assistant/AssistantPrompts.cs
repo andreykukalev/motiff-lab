@@ -8,7 +8,7 @@ namespace MotiffLab.Api.Assistant;
 internal static class AssistantPrompts
 {
     /// <summary>The version of the instructions, logged with every turn.</summary>
-    public const string Version = "mentor-v1";
+    public const string Version = "mentor-v2";
 
     private static readonly Lazy<string> s_mentor = new(() => Load($"{Version}.md"));
 

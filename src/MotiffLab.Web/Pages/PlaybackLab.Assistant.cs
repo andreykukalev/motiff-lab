@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Settings;
 
 namespace MotiffLab.Web.Pages;
@@ -20,8 +21,11 @@ public partial class PlaybackLab
     /// <summary>Whether the Insights sheet holds the assistant rather than the stream.</summary>
     private bool _asking;
 
-    /// <summary>Whether the assistant looks at the whole piece rather than the selection.</summary>
-    private bool _askWholePiece;
+    /// <summary>What the assistant looks at: the selection, unless the player chose the whole piece while that selection stood (#582).</summary>
+    private AskScope _askScope = AskScope.Selection;
+
+    /// <summary>Whether the assistant looks at the whole piece rather than the selection: a new selection is what it looks at.</summary>
+    private bool AskWholePiece => _askScope.IsWholePiece(_selection?.Span);
 
     /// <summary>The Piece DNA map in words, when Ask about the piece came from it, as part of what it knows.</summary>
     private string? _askMap;
@@ -44,7 +48,7 @@ public partial class PlaybackLab
 
         _popover = Popover.None;
         _menuMore = false;
-        _askWholePiece = wholePiece || _selection is null;
+        _askScope = AskScope.Choose(wholePiece, _selection?.Span);
         _askMap = wholePiece && DnaShown && _dna is { } dna ? Text.Format("ask.knowsMap", Text.Count("dna.ideas", dna.Ideas.Count)) : null;
         _askAt = at is { ClientX: > 0 } or { ClientY: > 0 } ? (at.ClientX, at.ClientY) : (0, 0);
     }
@@ -71,7 +75,7 @@ public partial class PlaybackLab
     private async Task AskInInsightsAsync()
     {
         string? map = _askMap;
-        bool whole = _askWholePiece;
+        bool whole = AskWholePiece;
         bool fromDna = DnaShown;
         _askAt = null;
         if (fromDna)
@@ -95,7 +99,7 @@ public partial class PlaybackLab
     {
         get
         {
-            if (!_askWholePiece && _selection is not null)
+            if (!AskWholePiece && _selection is not null)
             {
                 return [Text["ask.suggest.harmony"], Text["ask.suggest.practise"], Text["ask.suggest.returns"]];
             }
@@ -128,7 +132,7 @@ public partial class PlaybackLab
         _popover = Popover.None;
         _menuMore = false;
         _asking = true;
-        _askWholePiece = wholePiece || _selection is null;
+        _askScope = AskScope.Choose(wholePiece, _selection?.Span);
         _askMap = null;
     }
 
@@ -153,7 +157,7 @@ public partial class PlaybackLab
             return Task.CompletedTask;
         }
 
-        _askWholePiece = true;
+        _askScope = AskScope.Choose(true, _selection?.Span);
         _askMap = null;
         return AskInInsightsAsync();
     }
@@ -170,7 +174,7 @@ public partial class PlaybackLab
         return DropDnaAsideAsync();
     }
 
-    private void SetAskWholePiece(bool wholePiece) => _askWholePiece = wholePiece || _selection is null;
+    private void SetAskWholePiece(bool wholePiece) => _askScope = AskScope.Choose(wholePiece, _selection?.Span);
 
     /// <summary>? from the keyboard (Scripts/phrases/phrase-keys.ts): the assistant on the selection.</summary>
     [JSInvokable]
@@ -202,7 +206,7 @@ public partial class PlaybackLab
                 items.Add(map);
             }
 
-            if (!_askWholePiece && _selection is { } selection)
+            if (!AskWholePiece && _selection is { } selection)
             {
                 items.Add(Text.Format("ask.knowsPassage", BarsOf(selection.Span), Text.Count("ask.facts", Facts.Count)));
             }

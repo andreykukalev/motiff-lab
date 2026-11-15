@@ -571,7 +571,7 @@
                 <div class="ask-pop-backdrop" @onclick="CloseAskPopover"></div>
                 <div class="ask-pop" role="dialog" aria-modal="false" aria-labelledby="ask-pop-title" style="@AskPlace" data-keeps-selection
                      @onkeydown="AskPopoverKey">
-                    <AssistantPanel Popover="true" SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                    <AssistantPanel Popover="true" SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
                                     Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
                                     OpenInInsights="AskInInsightsAsync" Closed="CloseAskPopover" />
                 </div>
@@ -598,13 +598,13 @@
                 <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection data-menu-clear="auto">
                 @if (_asking && MentorOn)
                 {
-                    <MentorPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                    <MentorPanel SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
                                  Exchanges="MentorExchanges" Busy="_mentorBusy" Suggestions="AskSuggestions" Asked="AskMentorAsync" Cite="ShowCitedAsync"
                                  BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
                 }
                 else if (_asking)
                 {
-                    <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                    <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
                                     Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
                                     BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
                 }

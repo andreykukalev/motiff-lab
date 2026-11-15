@@ -155,3 +155,32 @@ test("an answer that cites a fact the turn never gave is replaced by the engine'
     await expect(answer).not.toContainText("made.up");
     await expect(answer.locator(".cite").first()).toBeVisible();
 });
+
+test("bars selected with the assistant already open are what the next question sends (#582 item 1)", async ({ page }) => {
+    const turns = await signedIn(page, { configured: true, turn: sent => ({ kind: "answer", text: `Here [[${sent.context.digest.ids[0]}]].`, fallback: false }) });
+    await openFurElise(page);
+    // Opened with nothing selected: the whole piece.
+    await page.keyboard.press("?");
+    const mentor = page.locator(".sheet.insights .assistant.mentor");
+    const scope = mentor.getByRole("radiogroup", { name: "What the assistant looks at" }).getByRole("radio", { checked: true });
+    await expect(scope).toHaveText("Whole piece");
+    await mentor.getByRole("button", { name: "Agree and ask" }).click();
+
+    // Bars selected afterwards: the scope follows the selection, and the turn carries their digest and notes.
+    await selectBar(page, 2);
+    await expect(scope).toHaveText(/^This (selection|phrase) · bar 2$/);
+    await mentor.getByRole("textbox", { name: "Ask or say what you noticed…" }).fill("What happens here?");
+    await mentor.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(mentor.locator(".mentor-answer")).toHaveCount(1);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].context.digest).toMatchObject({ scope: "selection", bars: { from: 2, to: 2 } });
+    expect(turns[0].context.notes.notes.length).toBeGreaterThan(0);
+    expect(turns[0].context.notes.notes.every(note => note.address.startsWith("2."))).toBe(true);
+
+    // The whole piece chosen for this selection holds while it stands.
+    await mentor.getByRole("radio", { name: "Whole piece" }).click();
+    await mentor.getByRole("textbox", { name: "Ask or say what you noticed…" }).fill("And the whole piece?");
+    await mentor.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(mentor.locator(".mentor-answer")).toHaveCount(2);
+    expect(turns[1].context.digest.scope).toBe("piece");
+});

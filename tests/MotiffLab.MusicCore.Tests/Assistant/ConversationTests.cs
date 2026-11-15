@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Assistant.Conversation;
+using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Tests.Assistant.AssistantScores;
 
@@ -217,6 +218,39 @@ public class ConversationTests
         CitedFact close = Assert.Single(CitedFacts.In(piece, parts, context, [new ToolOutcome("c1", "facts.get", result)]));
         Assert.Equal(piece.Meter.GetBar(2).Span, Assert.Single(close.Places).Span);
         Assert.Empty(close.Places[0].NoteIds);
+    }
+
+    [Fact]
+    public void The_scope_follows_the_selection_unless_the_whole_piece_was_chosen_for_it()
+    {
+        AssistantPiece piece = Open(FurElise());
+        TickSpan bars3To4 = TickSpan.FromBounds(piece.Meter.GetBar(3).Span.Onset, piece.Meter.GetBar(4).Span.End);
+        TickSpan bar7 = piece.Meter.GetBar(7).Span;
+
+        // The assistant opened with nothing selected: the whole piece. Bars selected afterwards are what it looks at (#582).
+        AskScope opened = AskScope.Choose(false, null);
+        Assert.True(opened.IsWholePiece(null));
+        Assert.False(opened.IsWholePiece(bars3To4));
+        Assert.False(AskScope.Choose(true, null).IsWholePiece(bars3To4));
+
+        // The whole piece chosen while bars 3-4 stand holds for them, and gives way to the next selection.
+        AskScope whole = AskScope.Choose(true, bars3To4);
+        Assert.True(whole.IsWholePiece(bars3To4));
+        Assert.False(whole.IsWholePiece(bar7));
+
+        // The context of a question about the selection is its bars, read whole: their digest and their notes.
+        JsonElement context = AssistantContext.OfQuestion(piece, TickSpan.FromBounds(new Tick(bars3To4.Onset.Value + 120), new Tick(bars3To4.End.Value - 120)), opened)!.Value;
+        JsonElement digest = context.GetProperty("digest");
+        Assert.Equal("selection", digest.GetProperty("scope").GetString());
+        Assert.Equal((3, 4), (digest.GetProperty("bars").GetProperty("from").GetInt32(), digest.GetProperty("bars").GetProperty("to").GetInt32()));
+        string[] addresses = [.. context.GetProperty("notes").GetProperty("notes").EnumerateArray().Select(note => note.GetProperty("address").GetString()!)];
+        Assert.NotEmpty(addresses);
+        Assert.All(addresses, address => Assert.Matches(@"^[34]\.", address));
+        Assert.Equal("piece", AssistantContext.OfQuestion(piece, bars3To4, whole)!.Value.GetProperty("digest").GetProperty("scope").GetString());
+
+        // More bars than a range holds give no context, rather than another one.
+        TickSpan tooLong = TickSpan.FromBounds(piece.Meter.GetBar(1).Span.Onset, piece.Meter.GetBar(1 + MusicCore.Motifs.MotifSelection.MaxBars).Span.End);
+        Assert.Null(AssistantContext.OfQuestion(piece, tooLong, opened));
     }
 
     private static string Written(Action<Utf8JsonWriter> write)
