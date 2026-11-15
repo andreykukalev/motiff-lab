@@ -150,4 +150,29 @@ final class PenStateTests: XCTestCase {
         XCTAssertEqual(ink.redo()?.added, ["p1"])
         XCTAssertFalse(ink.canRedo)
     }
+
+    func testChoosingThePenAlwaysWritesWithTheLastInkAndThickness() {
+        // v0.6.4 (Andrei): erase, go to Select, choose the Pen again: it writes, in the ink and thickness it had.
+        var pen = PenState()
+        pen.setInk(.forest)
+        pen.setWidth(0)
+        pen.choose(.eraser)
+        pen.writeOnChoosing()
+        XCTAssertEqual(pen.active, .pencil)
+        XCTAssertEqual(pen.stroke, .pen(.forest))
+        XCTAssertEqual(pen.settings(of: .pencil)?.width, 0)
+        // From the marker to the eraser: back to the marker.
+        pen.choose(.marker)
+        pen.choose(.eraser)
+        pen.writeOnChoosing()
+        XCTAssertEqual(pen.active, .marker)
+        // A writing tool stays as it is.
+        pen.writeOnChoosing()
+        XCTAssertEqual(pen.active, .marker)
+        // The eraser with no writing tool before it: the pencil.
+        var fresh = PenState(active: .eraser, previous: .eraser)
+        fresh.writeOnChoosing()
+        XCTAssertEqual(fresh.active, .pencil)
+    }
+
 }

@@ -64,6 +64,7 @@ struct ModeGroup: View {
     var body: some View {
         ModeCapsule(chosen: score.penOn ? .pen : score.mode ?? .navigate, text: text, compact: compact) { mode in
             if mode == .pen {
+                if !score.penOn { score.pen.writeOnChoosing() }
                 score.penOn = true
             } else {
                 score.mode = mode

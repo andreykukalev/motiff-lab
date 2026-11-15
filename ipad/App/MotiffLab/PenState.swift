@@ -97,6 +97,14 @@ struct PenState: Equatable {
         }
     }
 
+    /// The Pen chosen in the bar or the ring (Andrei, v0.6.4): it always comes on writing, so the Pencil writes at once,
+    /// even when the eraser was the last tool used: back to the writing tool before the eraser, with its ink and thickness.
+    /// Only the Pencil's own «switch to eraser» and the palette's eraser turn the Pen on erasing.
+    mutating func writeOnChoosing() {
+        guard active == .eraser else { return }
+        choose(previous == .eraser ? .pencil : previous)
+    }
+
     /// The Pencil's «switch to previous»: the tool before, and the one now becomes the way back.
     mutating func choosePrevious() {
         choose(previous)
