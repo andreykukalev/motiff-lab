@@ -265,7 +265,7 @@ public partial class PlaybackLab
 
         string id = Kept.Any(observation => observation.Id == draft.Variant.Id) ? NextObservationId() : draft.Variant.Id;
         PhraseVariant variant = draft.Variant with { Id = id };
-        Observation observation = Observation.Create(id, variant.Phrase, variant.ToKept(), variant.Name, note: null, DateTimeOffset.Now);
+        Observation observation = VariantRecord.ToObservation(variant, notes: null, DateTimeOffset.Now);
         _variants[id] = variant;
         _variantDraft = null;
         await SaveObservationsAsync(notebook => notebook.Keep(observation), Text.Format("kept.kept", variant.Name));
@@ -333,7 +333,7 @@ public partial class PlaybackLab
         else if (Kept.FirstOrDefault(observation => observation.Id == rebased.Id) is { } old)
         {
             _variants[rebased.Id] = rebased;
-            Observation observation = Observation.Create(rebased.Id, rebased.Phrase, rebased.ToKept(), old.Name, old.Note, old.CreatedAt);
+            Observation observation = VariantRecord.ToObservation(rebased with { Name = old.Name }, old.Notes, old.CreatedAt) with { Note = old.Note };
             await SaveObservationsAsync(notebook => notebook.DeleteObservation(old.Id).Keep(observation), Text.Format("variants.recomputed", old.Name));
         }
 
@@ -410,28 +410,24 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>The music of each variant the journal carries, as a source of the work: made again over the notes before the assembly, or this session's.</summary>
+    /// <summary>The music of each variant the journal carries, as a source of the work: this session's, or made again from its idea over the notes it was built on.</summary>
     private void AddVariantSources(Project project, Dictionary<string, SourceMusic> sources, Dictionary<string, string> names)
     {
-        foreach (string id in VariantPromotion.Carried(project.Assembly.Steps))
+        IReadOnlyList<string> carried = VariantPromotion.Carried(project.Assembly.Steps);
+        if (carried.Any(id => !_variantMusic.ContainsKey(id)) && _notes is not null && _meter is not null)
         {
-            if (project.Observations.FirstOrDefault(observation => observation.Id == id) is not { } observation)
+            // Each carried variant made again over the notes it was built on, from the idea that keeps its record.
+            foreach ((string source, SourceMusic music) in VariantPromotion.Sources(project, _notes, _meter, Words))
+            {
+                _variantMusic.TryAdd(VariantPromotion.VariantIdOf(source)!, music);
+            }
+        }
+
+        foreach (string id in carried)
+        {
+            if (project.Observations.FirstOrDefault(observation => observation.Id == id) is not { } observation || !_variantMusic.TryGetValue(id, out SourceMusic? music))
             {
                 continue;
-            }
-
-            if (!_variantMusic.TryGetValue(id, out SourceMusic? music))
-            {
-                IReadOnlyList<MusicCore.Events.Note> notes = project.Assembly.Before?.Notes ?? _notes!;
-                MusicCore.Time.MeterMap meter = project.Assembly.Before?.Meter ?? _meter!;
-                PhraseVariant? variant = _variants.GetValueOrDefault(id) ?? PhraseVariant.FromObservation(observation, notes);
-                music = variant is null ? null : VariantPromotion.Music(PhraseVariants.Replay(variant, notes, meter, Words), notes, meter);
-                if (music is null)
-                {
-                    continue;
-                }
-
-                _variantMusic[id] = music;
             }
 
             string source = VariantPromotion.SourceIdOf(id);

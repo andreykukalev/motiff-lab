@@ -31,6 +31,9 @@ public sealed record VariantProvenance(VariantOrigin Origin, DateTimeOffset At)
     /// <summary>The model that chose the tool calls, or null.</summary>
     public string? Model { get; init; }
 
+    /// <summary>The seed the steps ran with: operations that pick among equal choices use only it.</summary>
+    public int Seed { get; init; }
+
     /// <summary>"variation" or "assistant", as v16 writes a derivation's op.</summary>
     public string Op => Origin == VariantOrigin.Assistant ? "assistant" : "variation";
 
@@ -56,7 +59,7 @@ public sealed record BaseNote(string Id, NoteValues Values);
 /// again and the original is never changed. A variant made from another carries the whole chain from the phrase's notes
 /// and names its parent. Its notes are what <see cref="PhraseVariants.Replay"/> gives; taking it into the working notes is
 /// a step of the assembly journal (<see cref="VariantPromotion"/>). It is a <see cref="KeptVariation"/> with lineage,
-/// provenance and a bar-count change, so a kept variant is saved as an idea today and with its provenance by v16.
+/// provenance and a bar-count change: a kept variant is an idea whose provenance is its record (<see cref="VariantRecord"/>).
 /// </summary>
 /// <param name="Id">The idea's id it is or will be kept as, for example "o_0003".</param>
 /// <param name="Name">«Вариант 2», as the player reads it.</param>
@@ -90,26 +93,14 @@ public sealed record PhraseVariant(
     /// <summary>The ids of the notes under it.</summary>
     public IReadOnlyList<string> BaseIds => [.. Base.Select(static note => note.Id)];
 
-    /// <summary>The variant as an idea's variation today: passage, notes, steps, Keep and key; lineage and provenance wait for v16.</summary>
+    /// <summary>The variant as an idea's variation: passage, notes, steps, Keep and key; its lineage and provenance go in <see cref="VariantRecord"/>.</summary>
     public KeptVariation ToKept() => new(Phrase, BaseIds, Steps, null, Keep, Key);
 
     /// <summary>
-    /// A variant from a kept idea: its steps over its passage, with the notes under it as they are now (an idea keeps their
-    /// ids, not their values), made by the player's steps. Null for an idea that keeps a note alone.
+    /// A variant from a kept idea (<see cref="VariantRecord.Read"/>): with its record when the idea keeps one (version 16),
+    /// else its steps over its passage with the notes under it as they are now. Null for an idea that keeps a note alone.
     /// </summary>
-    public static PhraseVariant? FromObservation(Observation observation, IReadOnlyList<Note> notes)
-    {
-        ArgumentNullException.ThrowIfNull(observation);
-        ArgumentNullException.ThrowIfNull(notes);
-        if (observation.Variation is not { } kept)
-        {
-            return null;
-        }
-
-        Dictionary<string, Note> byId = notes.ToDictionary(static note => note.Id, StringComparer.Ordinal);
-        BaseNote[] under = [.. kept.NoteIds.Select(id => byId.TryGetValue(id, out Note? note) ? new BaseNote(id, NoteValues.Of(note)) : new BaseNote(id, default))];
-        return new PhraseVariant(observation.Id, observation.Name, kept.Passage, under, kept.Steps, kept.Keep, kept.Key, new VariantProvenance(VariantOrigin.Variation, observation.CreatedAt));
-    }
+    public static PhraseVariant? FromObservation(Observation observation, IReadOnlyList<Note> notes) => VariantRecord.Read(observation, notes);
 
     public bool Equals(PhraseVariant? other) =>
         other is not null
