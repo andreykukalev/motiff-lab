@@ -428,13 +428,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let place = message["menu"] as? [String: Any]
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
-        if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
+        // What the place rule chose is receivedPlace's (#601).
+        if let chosen = message["chosen"] as? [String: Any], chosen["places"] as? Bool != true, let start = number(chosen["start"]), let end = number(chosen["end"]) {
             // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before. The gesture's
             // changes are one step of the selection's history (#511 11).
             let gesture = chosen["gesture"] as? String
-            if chosen["places"] as? Bool == true {
-                chosenByPlace(chosen, start, end)
-            } else if chosen["beats"] as? Bool == true {
+            if chosen["beats"] as? Bool == true {
                 selectBeats(start, end, gesture: gesture)
             } else {
                 Task { await select(start, end, gesture: gesture) }
