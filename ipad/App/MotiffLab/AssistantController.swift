@@ -284,11 +284,11 @@ final class AssistantController: ObservableObject {
         let role = chat.role
         let turns = AssistantTurns(
             send: { [weak self] body in
-                await self?.step(.answering)
+                self?.step(.answering)
                 return await ask.relay.turn(body)
             },
             run: { [weak self] call in
-                await self?.step(.lookingUp)
+                self?.step(.lookingUp)
                 // With the turn's role, music-core checks the call as the relay does before it runs it.
                 let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]).text
                 let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.call", request) }
