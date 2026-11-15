@@ -89,6 +89,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         ScreensProbe.pdf = self
         #endif
         let answers = await MusicCore.run { (MusicCore.call(piece: piece, "document"), MusicCore.call(piece: piece, "project")) }
+        ProbeCounts.shared.mark("document")
         guard let object = facadeObject(answers.0), object["error"] == nil,
               let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64),
               let read = PDFDocument(data: data), read.pageCount > 0 else {
@@ -112,6 +113,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         if (try? data.write(to: url, options: .atomic)) != nil { shareable = url }
         pageCount = read.pageCount
         document = read
+        ProbeCounts.shared.mark("pdfshown")
         markPages()
     }
 
@@ -740,9 +742,11 @@ struct PdfScreen: View {
         guard let other = piece.other, let switchView, !handingOver else { return }
         handingOver = true
         defer { handingOver = false }
+        ProbeCounts.shared.begin()
         pdf.keepView()
         if sourceLayers != nil { SourcesHandover.give(sources.layers, to: other.file) }
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+        ProbeCounts.shared.mark("saved")
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
     }
 

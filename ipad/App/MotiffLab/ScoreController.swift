@@ -348,6 +348,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     init(mode: InteractionMode? = nil) {
         _mode = Published(initialValue: mode)
         ProbeCounts.shared.add("score")
+        ProbeCounts.shared.mark("made")
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -385,6 +386,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             #if DEBUG
             ScreensProbe.score = self
             #endif
+            ProbeCounts.shared.mark("show")
             // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             historyKey = SelectionHistories.key(piece)
@@ -1978,6 +1980,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     fileprivate func pageDidLoad() {
         pageReady = true
+        ProbeCounts.shared.mark("page")
         if piece != nil { scheduleRender() }
     }
 
@@ -1995,6 +1998,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 staffSpace = space
             }
             shown = true
+            ProbeCounts.shared.mark("drawn")
             if let tick = piece.landing?.tick {
                 // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
                 _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick, "instant": true]], contentWorld: .page)
@@ -2007,6 +2011,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await sendVisibilities()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
+            ProbeCounts.shared.mark("marks")
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
@@ -2017,6 +2022,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()
             rendered = true
+            ProbeCounts.shared.mark("rendered")
         } catch {
             problem = error.localizedDescription
             land()
@@ -2025,6 +2031,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Shows the pages held out of sight while they landed (#533 6), now that they stand where they open.
     func land() {
+        ProbeCounts.shared.mark("land")
         webView.alpha = 1
     }
 

@@ -87,7 +87,7 @@ enum ScreensProbe {
         let counts = ProbeCounts.shared.snapshot()
         let live = ["score", "roll", "pdf", "player"].map { "\($0):\(counts[$0] ?? 0)" }.joined(separator: ",")
         let core = "\(ProbeCounts.shared.takeLongestCall())/\(counts["pending"] ?? 0)"
-        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay)"
+        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay) phases=\(ProbeCounts.shared.phaseLine())"
     }
 
     /// The app's own memory in MB, as the system counts it against the app (WebKit's processes not included).
@@ -122,6 +122,8 @@ final class ProbeCounts: @unchecked Sendable {
     private let lock = NSLock()
     private var counts: [String: Int] = [:]
     private var longest = 0
+    private var began: UInt64 = 0
+    private var phases: [String] = []
 
     func add(_ key: String, _ by: Int = 1) {
         #if DEBUG
@@ -138,6 +140,32 @@ final class ProbeCounts: @unchecked Sendable {
         longest = max(longest, milliseconds)
         lock.unlock()
         #endif
+    }
+
+    /// A switch starts now: the phases after it are counted from here.
+    func begin() {
+        #if DEBUG
+        lock.lock()
+        began = DispatchTime.now().uptimeNanoseconds
+        phases = []
+        lock.unlock()
+        #endif
+    }
+
+    /// The switch reached `name` (opened in music-core, engraved, drawn, landed, ...): written as `name@ms` since `begin`.
+    func mark(_ name: String) {
+        #if DEBUG
+        lock.lock()
+        if began > 0, phases.count < 24 { phases.append("\(name)@\((DispatchTime.now().uptimeNanoseconds - began) / 1_000_000)") }
+        lock.unlock()
+        #endif
+    }
+
+    /// The phases of the last switch, in the order they came.
+    func phaseLine() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return phases.joined(separator: ",")
     }
 
     func snapshot() -> [String: Int] {

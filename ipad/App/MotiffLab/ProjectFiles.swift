@@ -164,6 +164,7 @@ struct PieceSummary: Equatable, Sendable {
               let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
               let request = String(data: body, encoding: .utf8) else { return nil }
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
+        ProbeCounts.shared.mark("summary")
         return PieceSummary(answer: answer)
     }
 }

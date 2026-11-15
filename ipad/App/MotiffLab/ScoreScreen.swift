@@ -530,7 +530,7 @@ struct ScoreScreen: View {
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
         assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
-        await player.load(piece: piece.id, key: piece.own?.id)
+        await player.load(piece: piece.id, key: piece.own?.id); ProbeCounts.shared.mark("sound")
         applyExperiments()
         await resume()
         await returnToNotesView()
@@ -745,7 +745,7 @@ struct ScoreScreen: View {
     private var toPdf: (() -> Void)? {
         if switchView != nil, piece.other != nil || score.sources.document != nil {
             // The switch of all views goes with the piece to its PDF (SourcesHandover).
-            return { if sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf() } }
+            return { ProbeCounts.shared.begin(); if sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf() } }
         }
         guard originals.canOpenLinkedPdf else { return nil }
         return {
