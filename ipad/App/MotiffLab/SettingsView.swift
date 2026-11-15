@@ -4,8 +4,8 @@ import SwiftUI
 /// The player's settings on this iPad (0018 section 10), as the web app's DeviceSettings keeps them: music-core's settings
 /// state (`settings.state` on piece 0) read from the values kept in the device's preferences, one value to a setting, and
 /// the presets applied by music-core. Device-only settings stay on the device (the free tier has no cloud account). The
-/// score, the roll and the app's appearance read them here and follow every change at once. The language is the iPad's
-/// own choice for the app (iPad Settings), as iPad apps do.
+/// score, the roll and the app's appearance read them here and follow every change at once. The language is kept apart
+/// (InterfaceLanguage), as only a language the player picked is kept.
 @MainActor
 final class DeviceSettings: ObservableObject {
     static let shared = DeviceSettings()
@@ -27,7 +27,8 @@ final class DeviceSettings: ObservableObject {
 
     /// The preferences key that holds the kept values.
     static let storeKey = "motiff.settings"
-    /// What this store does not keep: the language is the iPad's, and saving online and analytics have their own places.
+    /// What this store does not keep: it holds every value music-core states, defaults too, and the language is kept only
+    /// once picked (`UIText.languageKey`); saving online and analytics have their own places.
     private static let notKept: Set<String> = ["appearance.language", "account.saveOnline", "account.analytics", "score.layout"]
 
     private let store: UserDefaults
@@ -84,7 +85,10 @@ final class DeviceSettings: ObservableObject {
     /// what it answers.
     func update(_ change: [String: Any]) async {
         var request = change
-        request["values"] = store.dictionary(forKey: Self.storeKey) as? [String: String] ?? [:]
+        var kept = store.dictionary(forKey: Self.storeKey) as? [String: String] ?? [:]
+        // The language as the interface shows it: the one picked, else the iPad's.
+        kept["appearance.language"] = UIText.language(in: store)
+        request["values"] = kept
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
         let body = String(decoding: data, as: UTF8.self)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "settings.state", body) }
@@ -263,13 +267,13 @@ struct SettingsSheet: View {
             choiceRow("roll.colour", text["roll.colourBy"]) { text["settings.rollColour.\($0)"] }
         case .appearance:
             choiceRow("appearance.theme", text["settings.theme"], hint: text["settings.themeHint"]) { text["settings.theme.\($0)"] }
+            // Русский or English, picked here (Andrei, 2026-11-15); until then the iPad's. The screens are built again in it.
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["settings.language"]).dsType(.label).foregroundStyle(Color.ds("ink"))
-                Text(text["settings.languageDevice"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                Button(text["settings.openDeviceSettings"]) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                SegmentedChoice(options: UIText.languages.map { ($0, text["settings.language.\($0)"]) }, chosen: text.language, label: text["settings.language"]) { picked in
+                    Task { await InterfaceLanguage.shared.choose(picked) }
                 }
-                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                Text(text["settings.languagePadHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             }
         case .account:
             AccountPanel(account: account, text: text)

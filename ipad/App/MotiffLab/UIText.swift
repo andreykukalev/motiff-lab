@@ -1,14 +1,35 @@
 import Foundation
 
 /// The interface's words, from the web app's own string files (src/MotiffLab.Web/wwwroot/i18n/*.json, copied into the
-/// app as i18n/), so both apps say the same thing (0018 section 14), and the iPad's own few (ipad/App/Words/*.json). Russian when the iPad prefers it, else English.
-/// Musical text never comes from here: music-core writes it in the piece's language.
+/// app as i18n/), so both apps say the same thing (0018 section 14), and the iPad's own few (ipad/App/Words/*.json), in the
+/// language the player picked in Settings, else the iPad's. Musical text never comes from here: music-core writes it in the
+/// language the app asks for, this one.
 struct UIText: Sendable {
     let language: String
     private let words: [String: String]
     private let fallback: [String: String]
 
-    static let current = UIText(language: Locale.preferredLanguages.first?.hasPrefix("ru") == true ? "ru" : "en")
+    /// The languages the interface speaks, music-core's choices for `appearance.language`, Russian first.
+    static let languages = ["ru", "en"]
+    /// Where the player's own choice is kept on this iPad; nothing is kept until they pick one (Andrei, 2026-11-15).
+    static let languageKey = "motiff.language"
+
+    /// The words in the interface's language now. Each screen takes them as it is made, so a new choice builds the screens
+    /// again (InterfaceLanguage).
+    static var current: UIText { of(language()) }
+
+    /// The interface's language: the one picked in Settings and kept in `store`, else Russian when the iPad prefers it,
+    /// else English.
+    static func language(in store: UserDefaults = .standard, preferred: [String] = Locale.preferredLanguages) -> String {
+        if let chosen = store.string(forKey: languageKey), languages.contains(chosen) { return chosen }
+        return preferred.first?.hasPrefix("ru") == true ? "ru" : "en"
+    }
+
+    /// The words of one language, read from the app once.
+    static func of(_ language: String) -> UIText { language == "ru" ? russian : english }
+
+    private static let english = UIText(language: "en")
+    private static let russian = UIText(language: "ru")
 
     init(language: String, bundle: Bundle = .main) {
         self.language = language

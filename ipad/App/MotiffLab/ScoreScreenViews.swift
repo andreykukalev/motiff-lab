@@ -88,6 +88,25 @@ extension ScoreScreen {
         defer { handingOver = false }
         let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
+        await keepForHandOver()
+        await switchView(.page(pages.page(of: tick)))
+    }
+
+    /// A new interface language (InterfaceLanguage): the piece saved as for the PDF, closed, and opened again in the
+    /// "Notes" view kept now, or where the view is in the music; nil without a project file or while handed over already.
+    func handOverForLanguage() async -> InterfaceLanguage.Reopen? {
+        guard let file = piece.file, !handingOver else { return nil }
+        handingOver = true
+        let at = await score.tickInView() ?? 0
+        await keepForHandOver()
+        Metronome.shared.stop()
+        await ClosedPieces.close(piece.id)
+        return InterfaceLanguage.Reopen(file: file, landing: .tick(at))
+    }
+
+    /// The "Notes" view, the resume point and the project file, a variation only tried left first, as the piece goes to
+    /// another screen; playback stops.
+    private func keepForHandOver() async {
         let now = resumeNow()
         let view = notesViewNow()
         player.shutdown()
@@ -95,7 +114,6 @@ extension ScoreScreen {
         await keepResume(now)
         await insights.leave()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-        await switchView(.page(pages.page(of: tick)))
     }
 }
 

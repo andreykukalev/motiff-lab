@@ -203,6 +203,8 @@ struct LibraryView: View {
                 let screensFile = ScreensHook.start()
                 #endif
                 await reload()
+                // Built again in a new interface language: the piece that was open comes back where it was.
+                if let again = InterfaceLanguage.shared.takeReopen() { await openFile(again.file, at: again.landing) }
                 await refreshOnline()
                 #if DEBUG
                 if let screensFile { await open(.success(screensFile)) }

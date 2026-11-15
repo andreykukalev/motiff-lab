@@ -407,6 +407,8 @@ struct ScoreScreen: View {
         content
             .toolbar(.hidden, for: .navigationBar)
             .task { await wire() }
+            // A new interface language saves the piece and opens it again where it is; not a view shown over the piece.
+            .handsOver(piece: viewing == nil ? piece.id : nil) { await handOverForLanguage() }
             .onDisappear {
                 let now = resumeNow()
                 let view = notesViewNow()
