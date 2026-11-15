@@ -4,13 +4,14 @@ import UniformTypeIdentifiers
 /// The Sources sheet (version 0.6, behind `experimental.sources`; decision record 0030 and the sources sheet handoff), in
 /// the side sheet where Other versions was: «Оригиналы» and «Ноты», each row its pictogram, its name never cut, the eye
 /// «Показывать в переключателе», «Открыть» and ⋯, a line under the name and a state line. An original is added without
-/// recognising it («+ Добавить оригинал»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
+/// recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
 /// «Распознать ещё раз») into new Notes beside the ones there are, and deleted with or without its notes, which the toast
 /// undoes; a deleted original stays as a row that takes the same file back. Other Notes become the working ones from ⋯.
 /// A version's «Открыть» shows its page here, as Other versions did (0022).
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
-    @ObservedObject var score: ScoreController
+    /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
+    let score: ScoreController?
     @ObservedObject var originals: OriginalsController
     let text: UIText
     /// The view shown now: its row is tinted and has no «Открыть».
@@ -20,6 +21,10 @@ struct SourcesSheet: View {
     var back: (label: String, action: () -> Void)?
     /// «Открыть» on a row: the screen shows that view.
     let open: (SourceLayers.ViewEntry) -> Void
+    /// The version whose page shows, once music-core has it shown (`SourcesSheet.versionPage`); nil on the PDF.
+    var versionPage: VersionEntry? = nil
+    /// What the versions last said, from the score; nil on the PDF.
+    var versionStatus: String? = nil
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
 
@@ -46,7 +51,7 @@ struct SourcesSheet: View {
     private var layers: SourceLayers { sources.layers }
 
     /// The version whose page shows, once music-core has it shown.
-    private var versionPage: VersionEntry? {
+    static func versionPage(_ score: ScoreController) -> VersionEntry? {
         guard let id = score.versionPage, let shown = score.versions.shown, shown.id == id else { return nil }
         return shown
     }
@@ -59,7 +64,7 @@ struct SourcesSheet: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let page = versionPage {
+                    if let page = versionPage, let score {
                         VersionPage(score: score, text: text, version: page, name: $versionName)
                     } else {
                         list
@@ -122,13 +127,13 @@ struct SourcesSheet: View {
             Text(text["originals.linkOrCopyHint"])
         }
         .onAppear {
-            versionName = score.versions.shown?.name ?? ""
+            versionName = versionPage?.name ?? ""
             Task {
                 await sources.refresh()
                 await originals.verify()
             }
         }
-        .onChange(of: score.versions.shown?.name) { _, shown in versionName = shown ?? "" }
+        .onChange(of: versionPage?.name) { _, shown in versionName = shown ?? "" }
     }
 
     // MARK: - Header
@@ -136,7 +141,7 @@ struct SourcesSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
             if let page = versionPage {
-                BackChip(label: text["sources.title"], text: text) { score.closeVersionPage() }
+                BackChip(label: text["sources.title"], text: text) { score?.closeVersionPage() }
                     .padding(.leading, -CGFloat.ds("s-2"))
                 Text(text[page.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]).overline()
             } else if let back {
@@ -162,7 +167,14 @@ struct SourcesSheet: View {
         .padding(.top, CGFloat.ds("s-4"))
     }
 
-    /// «+ Добавить оригинал»: a PDF, photos of pages, a recording, or a MIDI or MusicXML file, read at once on the iPad.
+    /// «+ Добавить», or «+ Добавить ещё» once the piece has an original (#582 item 5: it said «Добавить оригинал»): another
+    /// source of the same piece, never a new piece. Its word for the number of originals there are.
+    static func addWord(liveOriginals: Int) -> String {
+        liveOriginals > 0 ? "sources.sheet.addMore" : "sources.sheet.add"
+    }
+
+    /// The add menu: a PDF, photos of pages, a recording (to recognise later), or a MIDI or MusicXML file, all kept in this
+    /// piece.
     private var addMenu: some View {
         Menu {
             Button { pick(.pdf) } label: {
@@ -176,13 +188,16 @@ struct SourcesSheet: View {
             Button { pick(.recording) } label: {
                 Label { Text(text["sources.sheet.recording"]); Text(text["sources.sheet.addRecordingHint"]) } icon: { Image("ic-mic") }
             }
-            Button { pick(.score) } label: {
-                Label { Text(text["sources.sheet.addScore"]); Text(text["sources.sheet.addScoreHint"]) } icon: { Image("ic-fromFile") }
+            // Notes from a file become a version of the working notes, which only the score holds.
+            if score != nil {
+                Button { pick(.score) } label: {
+                    Label { Text(text["sources.sheet.addScore"]); Text(text["sources.sheet.addScoreHint"]) } icon: { Image("ic-fromFile") }
+                }
             }
         } label: {
             HStack(spacing: CGFloat.ds("s-1")) {
                 Icon(name: "plus", size: CGFloat.ds("icon-s"))
-                Text(text["sources.sheet.addOriginal"]).lineLimit(1)
+                Text(text[SourcesSheet.addWord(liveOriginals: layers.liveCount)]).lineLimit(1)
             }
         }
         .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
@@ -207,7 +222,7 @@ struct SourcesSheet: View {
             notesRow(notes)
             Divider().overlay(Color.ds("hairline"))
         }
-        if let status = score.versionStatus {
+        if let status = versionStatus {
             caption(status, colour: "ink-2").padding(.top, CGFloat.ds("s-3"))
         }
     }
@@ -482,7 +497,7 @@ struct SourcesSheet: View {
             if lent { url.stopAccessingSecurityScopedResource() }
             guard let data else { return }
             if picked == .score {
-                await score.addVersion(fileName: url.lastPathComponent, data: data)
+                await score?.addVersion(fileName: url.lastPathComponent, data: data)
                 await sources.refresh()
             } else {
                 let kind: String

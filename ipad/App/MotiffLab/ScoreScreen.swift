@@ -76,6 +76,9 @@ struct ScoreScreen: View {
     /// The piece is being handed to its other view (PDF | Notes): a second press on the switch meanwhile does nothing
     /// (#582 item 2), as the first is already saving, closing and opening the piece.
     @State var handingOver = false
+    /// The roll, Insights and the Contents as they were when Sources opened over them, given back as it closes (#582
+    /// item 4: opening and closing Sources leaves the view as it was); nil while Sources is closed.
+    @State private var beforeSources: SourcesShelved?
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -90,7 +93,7 @@ struct ScoreScreen: View {
                 drawer: rollOpen ? (drawerDrag.map { $0 * screen.size.height } ?? kept) : 0,
                 inset: rollOpen ? kept : 0,
                 screen: screen.size,
-                sheet: insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
+                sheet: sheetPlace(landscape: landscape, height: screen.size.height),
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
@@ -639,14 +642,7 @@ struct ScoreScreen: View {
                     versionsOpen = false
                 }
             }
-            .onChange(of: versionsOpen) { _, open in
-                if open {
-                    insightsOpen = false
-                    rollOpen = false
-                    contentsOpen = false
-                    checkOpen = false
-                }
-            }
+            .onChange(of: versionsOpen) { _, open in versionsOpened(open) }
             .onChange(of: insightsOpen || rollOpen || contentsOpen || score.focused) { _, other in
                 if other {
                     checkOpen = false
@@ -750,6 +746,40 @@ extension ScoreScreen {
 /// Notes, open on a screen of their own over this one, read-only, from a copy never saved; a version opens its page in
 /// the sheet, as Other versions did; a recording's sound is heard from a capsule under the bar.
 extension ScoreScreen {
+    /// What was open under Sources as it opened (#582 item 4).
+    struct SourcesShelved: Equatable {
+        let roll: Bool
+        let insights: Bool
+        let contents: Bool
+    }
+
+    /// Where the sheet over the score goes: Insights, Check and Other versions beside the score in landscape and over the
+    /// lower half in portrait; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
+    /// the document and its view.
+    func sheetPlace(landscape: Bool, height: CGFloat) -> SheetPlace {
+        if versionsOpen && sourcesOn { return .bottom(height / 2) }
+        return insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(height / 2)) : .none
+    }
+
+    /// Other versions or Sources opened or closed: opening puts the other places away, keeping what was open under Sources;
+    /// closing Sources by its ✕ or the bar's button, not by another place opening, gives the view back as it was (#582 item 4).
+    func versionsOpened(_ open: Bool) {
+        if open {
+            if sourcesOn { beforeSources = SourcesShelved(roll: rollOpen, insights: insightsOpen, contents: contentsOpen) }
+            insightsOpen = false
+            rollOpen = false
+            contentsOpen = false
+            checkOpen = false
+        } else if let before = beforeSources {
+            beforeSources = nil
+            if !(insightsOpen || rollOpen || contentsOpen || checkOpen || score.focused) {
+                rollOpen = before.roll
+                insightsOpen = before.insights
+                contentsOpen = before.contents
+            }
+        }
+    }
+
     /// A view of the switch on a screen of its own over the score, its piece closed in music-core as it goes.
     struct ShownView: Identifiable {
         let piece: OpenPiece
@@ -767,7 +797,9 @@ extension ScoreScreen {
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { versionsOpen = false },
             back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
-            open: pickView
+            open: pickView,
+            versionPage: SourcesSheet.versionPage(score),
+            versionStatus: score.versionStatus
         )
     }
 
@@ -804,13 +836,12 @@ extension ScoreScreen {
     }
 
     /// The sources as the screen opens or the experiment is turned on, then what the screen before handed over: the toast
-    /// of what was done, the sheet to open, or a view picked on the PDF's switch.
+    /// of what was done, or a view picked on the PDF's switch.
     func loadSources() async {
         guard sourcesOn else { return }
         sources.reopen = { await reopenHere() }
         await sources.load(piece: piece.id, file: piece.file)
         if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
-        if SourcesHandover.sheet(for: piece.file) { versionsOpen = true }
         if let id = SourcesHandover.view(for: piece.file), let view = sources.layers.views.first(where: { $0.id == id }) {
             pickView(view)
         }

@@ -15,11 +15,11 @@
         <h2 id="sources-title">@Text["sources.title"]</h2>
         <span class="add-original">
             <button class="btn secondary compact" aria-haspopup="menu" aria-expanded="@(_adding ? "true" : "false")" @onclick="() => _adding = !_adding">
-                <Icon Name="plus" /> @Text["sources.addOriginal"]
+                <Icon Name="plus" /> @Text[AddWord]
             </button>
             @if (_adding)
             {
-                <div class="sources-menu add-menu" role="menu" aria-label="@Text["sources.addOriginal"]">
+                <div class="sources-menu add-menu" role="menu" aria-label="@Text[AddWord]">
                     <label class="file add-choice" role="menuitem">
                         <Icon Name="pages" /> <span><strong>@Text["pdf.viewPdfShort"]</strong><span class="caption">@Text["sources.addPdfHint"]</span></span>
                         <InputFile OnChange="args => PickedAsync(AddPdf, args)" accept="@PdfDocument.Extension" aria-label="@Text["pdf.viewPdfShort"]" />
@@ -79,6 +79,12 @@ else if (_deletingNotes is { } doomed)
 }
 
 @code {
+    /// <summary>
+    /// «Добавить», or «Добавить ещё» once the piece has an original (#582 item 5: it said «Добавить оригинал»): another
+    /// source of the same piece, never a new piece.
+    /// </summary>
+    private string AddWord => Views.Originals.Any(original => original.State != SourceState.Removed) ? "sources.addMore" : "sources.add";
+
     private bool _adding;
 
     /// <summary>The row whose ⋯ menu is open, by its key.</summary>

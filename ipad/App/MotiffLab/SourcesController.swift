@@ -16,11 +16,11 @@ struct SourcesToast: Identifiable, Equatable {
 }
 
 /// What passes from one screen of a piece to the next when the piece is opened again (version 0.6): the toast of what
-/// was done, with its Undo, the Sources sheet to open, or a view of the switch to show, by the project file.
+/// was done, with its Undo, or a view of the switch to show, by the project file. Sources itself opens where it is asked
+/// for, the PDF included (#582 item 4).
 @MainActor
 enum SourcesHandover {
     private static var toasts: [URL: SourcesToast] = [:]
-    private static var sheets: Set<URL> = []
     private static var views: [URL: String] = [:]
 
     static func give(_ toast: SourcesToast, to file: URL) { toasts[file.standardizedFileURL] = toast }
@@ -28,13 +28,6 @@ enum SourcesHandover {
     static func toast(for file: URL?) -> SourcesToast? {
         guard let file else { return nil }
         return toasts.removeValue(forKey: file.standardizedFileURL)
-    }
-
-    static func openSheet(on file: URL) { sheets.insert(file.standardizedFileURL) }
-
-    static func sheet(for file: URL?) -> Bool {
-        guard let file else { return false }
-        return sheets.remove(file.standardizedFileURL) != nil
     }
 
     static func show(_ view: String, on file: URL) { views[file.standardizedFileURL] = view }

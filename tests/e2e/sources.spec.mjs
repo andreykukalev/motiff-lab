@@ -83,9 +83,9 @@ test("the Sources sheet lists the originals and the notes, adds a PDF, recognise
     expect(await violations(page)).toEqual([]);
     await shoot(page, "1-sheet");
 
-    // + Add an original: a PDF kept as it is, not recognised, with Recognise and Pro offered where the server is Motiff Lab's.
-    await sheet.getByRole("button", { name: "Add an original" }).click();
-    const menu = sheet.getByRole("menu", { name: "Add an original" });
+    // + Add more (#582 item 5): a PDF kept as it is, not recognised, with Recognise and Pro offered where the server is Motiff Lab's.
+    await sheet.getByRole("button", { name: "Add more" }).click();
+    const menu = sheet.getByRole("menu", { name: "Add more" });
     await expect(menu.getByRole("menuitem")).toHaveCount(4);
     await shoot(page, "2-add-original");
     await menu.getByLabel("PDF", { exact: true }).setInputFiles({ name: "Henle.pdf", mimeType: "application/pdf", buffer: pdf(2) });

@@ -63,6 +63,16 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(OriginalBadge.nowhere.text(ru), ru["originals.nowhere"], "the web's own words")
     }
 
+    /// #582 item 5: Sources adds another source of the same piece with «Добавить», or «Добавить ещё» once it has one.
+    func testSourcesAddsMoreRatherThanAnOriginal() {
+        let ru = UIText(language: "ru")
+        let en = UIText(language: "en")
+        XCTAssertEqual(ru[SourcesSheet.addWord(liveOriginals: 0)], "Добавить")
+        XCTAssertEqual(ru[SourcesSheet.addWord(liveOriginals: 2)], "Добавить ещё")
+        XCTAssertEqual(en[SourcesSheet.addWord(liveOriginals: 0)], "Add")
+        XCTAssertEqual(en[SourcesSheet.addWord(liveOriginals: 1)], "Add more")
+    }
+
     func testTheLibraryLineNamesTheFirstOriginalNotHere() {
         let ru = UIText(language: "ru")
         let away = OriginalAway.of([original(held: ["web"])]) { _ in nil }

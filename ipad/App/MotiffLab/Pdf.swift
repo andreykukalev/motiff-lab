@@ -308,9 +308,14 @@ struct PdfScreen: View {
     var linked = false
     /// What the read-only tag says in place of «Файлы» (version 0.6: another original shown as a view of the switch).
     var readOnlyNote: String? = nil
-    /// The piece's views for the switch of all views (version 0.6, `experimental.sources`); nil while it is off or the
-    /// piece has no notes.
-    @State private var sourceLayers: SourceLayers?
+    /// The piece's sources (version 0.6, `experimental.sources`): the switch of all views and the Sources panel over the
+    /// pages, which opens here and leaves the PDF as it is (#582 item 4: it went to the notes to open the sheet there).
+    @StateObject private var sources = SourcesController()
+    @StateObject private var originals = OriginalsController()
+    /// Whether the switch of all views and Sources are on for this PDF: the experiment, a PDF of the piece's own with notes.
+    @State private var sourcesOn = false
+    /// The Sources panel over the lower half of the pages.
+    @State private var sourcesOpen = false
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @ObservedObject private var settings = DeviceSettings.shared
@@ -382,6 +387,8 @@ struct PdfScreen: View {
                 }
             }
             .animation(.easeOut(duration: 0.2), value: metronomeOpen)
+            .overlay(alignment: .bottom) { sourcesPanel(height: screen.size.height / 2) }
+            .animation(.easeOut(duration: 0.2), value: sourcesOpen)
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $readingOpen, onDismiss: {
@@ -445,7 +452,7 @@ struct PdfScreen: View {
             if let sourceLayers, toNotes != nil {
                 // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
                 SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
-                SourcesButton(open: false, text: text, action: openSources)
+                SourcesButton(open: sourcesOpen, text: text, action: openSources)
             } else if let toNotes {
                 PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
             } else {
@@ -698,18 +705,54 @@ struct PdfScreen: View {
     /// The first PDF's view of the switch: the one this screen shows.
     static let documentView = "src_pdf"
 
-    /// The piece's views as music-core lists them for this iPad (version 0.6, `experimental.sources`), for a PDF whose
-    /// notes the library holds; nil otherwise, and PDF | Notes stays as it was.
+    /// The piece's views for the switch of all views, as music-core lists them for this iPad; nil while the experiment is
+    /// off or the piece has no notes, and PDF | Notes stays as it was.
+    private var sourceLayers: SourceLayers? {
+        sourcesOn && sources.layers.working != nil ? sources.layers : nil
+    }
+
+    /// The piece's sources (version 0.6, `experimental.sources`), for a PDF whose notes the library holds; then what the
+    /// screen before handed over: the toast of what was just done in the panel.
     private func readSourceLayers() async {
         guard settings.isOn(SourceLayers.setting), !linked, toNotes != nil else {
-            sourceLayers = nil
+            sourcesOn = false
+            sourcesOpen = false
             return
         }
-        let here = pdf.projectId.map { OriginalSounds.ids(project: $0) } ?? []
-        let request = SourcesController.json(["device": "ipad", "here": here])
-        let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "sources.layers", request) }
-        sourceLayers = SourceLayers(answer: answer).flatMap { $0.working == nil ? nil : $0 }
+        sources.reopen = { await reopenHere() }
+        await sources.load(piece: piece.id, file: piece.file)
+        await originals.load(piece)
+        sourcesOn = true
+        if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
+    }
+
+    /// The Sources panel over the lower half of the pages (#582 item 4), as on the score, and the toast of what it did.
+    @ViewBuilder private func sourcesPanel(height: CGFloat) -> some View {
+        VStack(spacing: CGFloat.ds("s-2")) {
+            if let toast = sources.toast, sourcesOn {
+                SourcesToastView(sources: sources, toast: toast, text: text).transition(.opacity)
+            }
+            if sourcesOpen, sourceLayers != nil {
+                SourcesSheet(
+                    sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
+                    close: { sourcesOpen = false },
+                    open: { view in
+                        sourcesOpen = false
+                        pickView(view)
+                    }
+                )
+                .modifier(BottomPanel(height: height))
+            }
+        }
+        .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-6"))
+    }
+
+    /// The piece opened again in this screen's place, at the page under the bar, as «Сделать рабочими» or the toast's Undo
+    /// has just left its project file: the PDF view is kept for it and nothing more is written to the file.
+    private func reopenHere() async {
+        guard let openRead, let file = piece.file else { return }
+        pdf.keepView()
+        await openRead(file, .page(max(1, pdf.page)))
     }
 
     /// A view picked in the switch: the notes' screen shows it once the piece opens there, as only it holds the notes.
@@ -721,10 +764,9 @@ struct PdfScreen: View {
         Task { await showNotes() }
     }
 
-    /// Sources from the PDF: the sheet opens on the notes' screen, where its operations are.
+    /// Sources from the PDF: its panel opens over the pages, and the PDF stays as it is (#582 item 4).
     private func openSources() {
-        if let file = piece.other?.file ?? piece.file { SourcesHandover.openSheet(on: file) }
-        Task { await showNotes() }
+        sourcesOpen.toggle()
     }
 }
 
