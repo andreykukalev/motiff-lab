@@ -245,7 +245,9 @@ public sealed record OpenedProject(
                 {
                     observations.Add((observation, observation.Restore(notes, piece.Meter)));
                 }
-                catch (ProjectFileException) when (Forgiving)
+                // An applied assembly may have changed the idea's notes (decision record 0024, section 7), as a motif's: the
+                // idea is left out of what opens and stays in the file, so «Вернуть что было» brings it back.
+                catch (ProjectFileException) when (assembled || Forgiving)
                 {
                     _hidden.Add(observation.Id);
                 }

@@ -361,14 +361,19 @@
                 </div>
             }
 
-            @if (Focused && FocusCard is { } card)
+            @if (Focused && FocusCardShown is { } card)
             {
                 @* Phrase focus (0018 section 4): the page dimmed behind the phrase lifted into a card; a tap on the page goes back to it. *@
                 <div class="focus-layer" data-keeps-selection>
                     <button class="veil" aria-label="@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
                     <div class="focus-stage">
-                        <section class="focus-card @(FocusVariations is { Count: > 0 } ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
-                            @if (FocusVariations is { Count: > 0 } variations)
+                        <section class="focus-card @(FocusHasChips ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
+                            @if (VariantsOn)
+                            {
+                                @* «Что если» (an experiment, version 0.6): the last four kept variants and the draft, plum; one in the working notes marked. *@
+                                <VariantChipRow Chips="VariantChips" Hidden="VariantsHidden" Show="ShowVariantChipAsync" />
+                            }
+                            else if (FocusVariations is { Count: > 0 } variations)
                             {
                                 @* The variations kept for the phrase, in a row in the card over the ossia: a chip picks the one heard and shown. *@
                                 <div class="var-chips" role="group" aria-label="@Text["focus.variations"]">
@@ -391,9 +396,16 @@
                             }
                             else
                             {
-                                <PhraseCard Source="card" Sounding="@FocusSounding" />
+                                <PhraseCard Source="card" Sounding="@FocusSounding" Label="@(VariantsShown ? Text.Format("focus.cardLabel", FocusPosition) : null)" />
                             }
                         </section>
+                        @if (VariantsShown)
+                        {
+                            <VariantsPanel Chips="WhatIfChips" BaseName="@ShownVariantName" FromOriginal="@(_variantFromOriginal || ShownVariantName is null)" FromOriginalChanged="ChooseVariantBase"
+                                           Card="ShownVariantCard" Compare="VariantCompare" Status="@_variantStatus" Make="MakeVariantAsync" Keep="KeepVariantAsync"
+                                           Promote="PromoteVariantAsync" Discard="DiscardVariantAsync" Delete="DeleteVariantAsync" Recompute="RecomputeVariantAsync"
+                                           Hear="CompareAsync" Alternate="ToggleOneAfterTheOtherAsync" />
+                        }
                     </div>
                 </div>
             }
@@ -2612,6 +2624,7 @@
         _project = null;
         _scanCheck = null;
         ForgetSessionObservations();
+        ForgetVariants();
         ForgetAssembly();
         _listenTo = ListenTo.Everything;
         _layered = false;

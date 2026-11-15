@@ -143,6 +143,10 @@ public static class SettingsCatalogue
         // Lab API (POST /assistant/turn) and runs the model's read tools on the device; it sends the selected passage's notes
         // and facts digest only after the player's consent, and only when the API says a model is on for the account.
         Switch("experimental.assistant", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Что если» variants of a phrase (v0.6, the AI companion study, section 2.4): in phrase focus, engine operations make
+        // variants with no AI, kept as ideas and taken into the working notes by a carry of the assembly journal. On the device.
+        Switch("experimental.assistantVariants", SettingSection.Experimental, null, SettingScope.Device),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

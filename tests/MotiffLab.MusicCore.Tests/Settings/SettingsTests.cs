@@ -75,6 +75,7 @@ public class SettingsTests
     [Theory]
     [InlineData("experimental.assistantRepairs")]
     [InlineData("experimental.assistant")]
+    [InlineData("experimental.assistantVariants")]
     public void The_assistant_experiments_are_off_on_the_device(string id)
     {
         Setting setting = SettingsCatalogue.Get(id);

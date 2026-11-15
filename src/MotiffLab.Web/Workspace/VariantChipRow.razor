@@ -1,0 +1,42 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The variants of the phrase in the focus card's header («Что если», an experiment, version 0.6; the AI companion study,
+   section 2.4 and 4.12 question 2): the last four kept, then the draft with a plum dot; one in the working notes carries a
+   plum underline. A chip picks the one heard and shown. *@
+@if (Chips.Count > 0)
+{
+    <div class="var-chips" role="group" aria-label="@Text["variants.chips"]">
+        @foreach (VariantChip chip in Chips)
+        {
+            string title = chip.Draft ? Text["variants.draftChip"] : chip.InWork ? Text["variants.inWork"] : chip.Name;
+            <button class="var-chip @(chip.On ? "on" : null) @(chip.Draft ? "draft" : null) @(chip.InWork ? "in-work" : null)" aria-pressed="@(chip.On ? "true" : "false")"
+                    title="@title" @onclick="() => Show.InvokeAsync(chip)">
+                @if (chip.Draft)
+                {
+                    <span class="dot" aria-hidden="true"></span>
+                }
+                @chip.Name
+                @if (chip.Draft || chip.InWork)
+                {
+                    <span class="visually-hidden"> · @title</span>
+                }
+            </button>
+        }
+        @if (Hidden > 0)
+        {
+            <span class="var-more caption">@Text.Format("variants.more", Hidden)</span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<VariantChip> Chips { get; set; } = [];
+
+    /// <summary>How many kept variants the row leaves out.</summary>
+    [Parameter]
+    public int Hidden { get; set; }
+
+    [Parameter]
+    public EventCallback<VariantChip> Show { get; set; }
+}

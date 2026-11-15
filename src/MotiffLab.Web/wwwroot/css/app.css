@@ -4323,6 +4323,166 @@ h1:focus {
     margin-top: calc(24px + 2 * var(--s-2));
 }
 
+/* «Что если» (experimental.assistantVariants): the draft's chip has a plum dot, one in the working notes a plum underline. */
+.lab.workspace .var-chips .var-chip.draft {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    border-style: dashed;
+    border-color: var(--plum);
+}
+
+.lab.workspace .var-chips .var-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--plum);
+}
+
+.lab.workspace .var-chips .var-chip.in-work {
+    text-decoration: underline 2px var(--plum);
+    text-underline-offset: 3px;
+}
+
+.workspace .var-chips .var-more {
+    align-self: center;
+    color: var(--ink-2);
+}
+
+/* The panel under the focus card: the engine's «Что если» chips and the variant shown, edged in plum, what the app composed. */
+.workspace .variants-panel {
+    flex: none;
+    max-height: 46%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-sheet);
+    pointer-events: auto;
+}
+
+.workspace .variants-panel p {
+    margin: 0;
+}
+
+.workspace .variants-panel .overline {
+    color: var(--plum);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .variants-panel .variants-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.workspace .variants-panel .what-if {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.lab.workspace .variants-panel .what-if-chip {
+    min-height: 32px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--plum);
+    background: var(--surface);
+    color: var(--plum);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .variants-panel .what-if-chip:hover {
+    background: var(--plum-tint);
+}
+
+.workspace .variants-panel .caption {
+    color: var(--ink-2);
+    font: var(--t-caption);
+}
+
+.workspace .variants-panel .variant-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .variants-panel .variant-title {
+    font: var(--t-body-strong);
+}
+
+.workspace .variants-panel .variant-changes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    font: var(--t-body);
+}
+
+.workspace .variants-panel .variant-changes .overline {
+    color: var(--ink-2);
+}
+
+.workspace .variants-panel .variant-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .variants-panel .variant-checks li {
+    padding: 2px var(--s-2);
+    border-radius: var(--r-pill);
+    font: var(--t-label);
+    background: var(--surface);
+}
+
+.workspace .variants-panel .variant-checks li.kept {
+    background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+
+.workspace .variants-panel .variant-checks li.changed {
+    background: var(--plum-tint);
+}
+
+.workspace .variants-panel .variant-base {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+}
+
+.workspace .variants-panel .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+/* What the variant keeps stays grey in its ossia, so the eye goes to what the app composed (plum, version-added). */
+.workspace .focus-card g.note.repair-kept {
+    fill: var(--ink-3);
+    stroke: var(--ink-3);
+    color: var(--ink-3);
+}
+
 /* The focus bar: Back to page with its word, where the phrase is, then the segmented controls and the actions. */
 .lab.workspace .bar .back-to-page {
     flex: none;
