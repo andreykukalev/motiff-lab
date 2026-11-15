@@ -1,8 +1,8 @@
 import Foundation
 
-/// The model-backed assistant on the iPad (an experiment, Settings · Experimental «Разговор с помощником», the web's
-/// `experimental.assistant`; #582 item 17): the full assistant in a side panel beside the score, with the piece's
-/// conversations kept on this iPad and a list to go back to earlier ones (17.1). A question goes out only after the
+/// The model-backed assistant on the iPad (#582 item 17; since version 0.6.3 every Ask opens it, with no switch: the
+/// lead's decision 3): the full assistant in a side panel beside the score, with the piece's conversations kept on this
+/// iPad and a list to go back to earlier ones (17.1). A question goes out only after the
 /// player's consent to exactly what is sent (the web's list, the same key on the device), only when the API says a model
 /// is on for the account, and only to the Motiff Lab API with the signed-in player's token: the selected bars' facts digest
 /// and notes, or the whole piece's digest (music-core's `assistant.context`), with the conversation. The model's tool calls
@@ -11,13 +11,8 @@ import Foundation
 /// for the player's Accept or Cancel (17.3).
 @MainActor
 final class AssistantController: ObservableObject {
-    static let setting = "experimental.assistant"
     /// «Помощник правит ноты» (#582 item 17.3): the conversation is the proposer, whose tools make drafts.
     static let actionsSetting = "experimental.assistantActions"
-    /// «Помощник у выделения и беседы» (#582 items 17.1 and 17.2), as on the web: Ask on a selection opens the assistant at
-    /// the selection, and the piece's conversations are kept on this iPad and listed. Without it, Ask on a selection opens
-    /// the panel, which holds the conversation only while the piece is open.
-    static let contextSetting = "experimental.assistantContext"
     /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
@@ -25,16 +20,22 @@ final class AssistantController: ObservableObject {
     @Published var panelOpen = false
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
-    /// What the next question looks at: the whole piece, or the selection when there is one.
-    @Published var wholePiece = false
+    /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
+    @Published private(set) var scope = AssistantScope.selection
     @Published private(set) var chats: [AssistantChat] = []
     @Published private(set) var currentId: String?
     @Published private(set) var busy = false
+    /// Where the question asked now is on its way; `.idle` while none is.
+    @Published private(set) var phase = AssistantPhase.idle
+    /// The question on its way in the panel, shown at once under the conversation until its answer joins it.
+    @Published private(set) var pending: String?
+    /// Why no question may go now, from the API's status when the assistant opened or the last question's problem, as a UI
+    /// text key; nil when one may (or nothing is known yet).
+    @Published private(set) var standing: String?
+    @Published private(set) var checking = false
     @Published private(set) var consentGiven: Bool
     /// The assistant at the selection (#582 items 17.2 and 17.4): one question and its answer, never kept; nil while closed.
     @Published private(set) var here: AssistantHere?
-    /// Whether the piece's conversations are kept on this iPad and listed (`contextSetting`).
-    @Published private(set) var keeps = false
 
     private let store: AssistantStore
     private let defaults: UserDefaults
@@ -58,16 +59,32 @@ final class AssistantController: ObservableObject {
         guard key != piece else { return }
         piece = key
         here = nil
-        chats = keeps ? store.chats(of: key) : []
+        chats = store.chats(of: key)
         currentId = chats.first?.id
         listShown = false
     }
 
-    /// The panel opens on the newest conversation, looking at the selection when there is one.
-    func open(wholePiece: Bool) {
-        self.wholePiece = wholePiece
+    /// The panel opens on the newest conversation, looking at the selection when there is one, or at the whole piece when
+    /// asked about it (for the selection that stands now: bars selected after it are what the next question is about).
+    func open(wholePiece: Bool, selection: ScoreSelection?) {
+        choose(wholePiece: wholePiece, selection: selection)
         listShown = false
         panelOpen = true
+    }
+
+    /// The scope chips: the whole piece, or the selection.
+    func choose(wholePiece: Bool, selection: ScoreSelection?) {
+        scope = .choose(wholePiece: wholePiece, selection: selection)
+    }
+
+    /// What the API says the player may do now (`/assistant/status`), so the panel says why before anything is typed:
+    /// sign in, Pro, the day's questions; a connection problem is said too, and asking tries again.
+    func check(_ relay: AssistantRelay) async {
+        guard !checking else { return }
+        checking = true
+        defer { checking = false }
+        let (status, problem) = await relay.status()
+        standing = AssistantStanding.note(status: status, problem: problem)
     }
 
     func close() {
@@ -86,18 +103,6 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
-    /// The conversations kept, or held only while the piece is open, as «Помощник у выделения и беседы» says; kept again,
-    /// the piece's earlier ones come back beside the one open.
-    func keeping(_ on: Bool) {
-        guard on != keeps else { return }
-        keeps = on
-        guard on, let piece else { return }
-        let stored = store.chats(of: piece).filter { kept in !chats.contains { $0.id == kept.id } }
-        chats = AssistantStore.ordered(chats + stored)
-        if currentId == nil { currentId = chats.first?.id }
-        store.keep(chats, of: piece)
-    }
-
     func consent(_ given: Bool) {
         if given { defaults.set(Self.consented, forKey: Self.consentKey) } else { defaults.removeObject(forKey: Self.consentKey) }
         consentGiven = given
@@ -107,7 +112,12 @@ final class AssistantController: ObservableObject {
     func ask(_ question: String, about ask: AssistantAsk) async {
         guard !busy else { return }
         busy = true
-        defer { busy = false }
+        pending = question
+        defer {
+            busy = false
+            pending = nil
+            phase = .idle
+        }
         let chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
         let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
         var kept = answered ?? chat
@@ -116,12 +126,25 @@ final class AssistantController: ObservableObject {
         keep(kept)
     }
 
+    /// Try again (the lead's decision 3): the question that got no answer leaves the open conversation, to be asked again;
+    /// its question, or nil when it had an answer or one is on its way.
+    func forget(_ failed: AssistantExchange) -> String? {
+        guard !busy, failed.note != nil, var chat = current, chat.exchanges.contains(where: { $0.id == failed.id }) else { return nil }
+        chat.exchanges.removeAll { $0.id == failed.id }
+        keep(chat)
+        return failed.question
+    }
+
     /// The exchange a question makes: its answer with the facts it cites and the drafts its tool calls made, or why there
     /// is none; with the conversation that answered it and the answer's text, citations as [[id]].
     private func exchange(_ question: String, in chat: AssistantChat, about ask: AssistantAsk) async -> (AssistantExchange, AssistantChat?, String) {
         var exchange = AssistantExchange(id: UUID().uuidString, question: question, scope: ask.scope)
-        switch await answer(question, in: chat, about: ask) {
+        phase = .sending
+        let outcome = await answer(question, in: chat, about: ask)
+        phase = .idle
+        switch outcome {
         case let .answered(answered, text, fallback, context):
+            standing = nil
             exchange.answer = AssistantChat.pieces(of: text, context: context, results: answered.resultsInQuestion)
             exchange.fallback = fallback
             let drafts = AssistantDraftOffer.offers(in: answered)
@@ -129,6 +152,7 @@ final class AssistantController: ObservableObject {
             return (exchange, answered, text)
         case let .unanswered(note):
             exchange.note = note
+            if AssistantRecovery.stopsAsking(note) { standing = note }
             return (exchange, nil, "")
         }
     }
@@ -151,7 +175,12 @@ final class AssistantController: ObservableObject {
     func askHere(_ question: String, about ask: AssistantAsk) async {
         guard !busy, let open = here else { return }
         busy = true
-        defer { busy = false }
+        here?.asking = question
+        defer {
+            busy = false
+            phase = .idle
+            here?.asking = nil
+        }
         let chat = AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: open.role)
         let (exchange, _, text) = await self.exchange(question, in: chat, about: ask)
         guard here != nil else { return }
@@ -233,7 +262,7 @@ final class AssistantController: ObservableObject {
         chats.removeAll { $0.id == chat.id }
         chats.insert(chat, at: 0)
         currentId = chat.id
-        if keeps, let piece { store.keep(chats, of: piece) }
+        if let piece { store.keep(chats, of: piece) }
     }
 
     enum Answer {
@@ -254,8 +283,12 @@ final class AssistantController: ObservableObject {
         let piece = ask.piece
         let role = chat.role
         let turns = AssistantTurns(
-            send: { body in await ask.relay.turn(body) },
-            run: { call in
+            send: { [weak self] body in
+                self?.step(.answering)
+                return await ask.relay.turn(body)
+            },
+            run: { [weak self] call in
+                self?.step(.lookingUp)
                 // With the turn's role, music-core checks the call as the relay does before it runs it.
                 let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]).text
                 let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.call", request) }
@@ -268,6 +301,11 @@ final class AssistantController: ObservableObject {
         case let .unanswered(note):
             return .unanswered(note)
         }
+    }
+
+    /// The question's phase now (a turn sent, a tool call run on the iPad).
+    private func step(_ now: AssistantPhase) {
+        phase = now
     }
 
     /// What a turn sends as its context (music-core's `assistant.context`): the bars the selection touches with their notes,
@@ -290,6 +328,8 @@ struct AssistantHere: Equatable {
     var role: String
     var exchange: AssistantExchange?
     var answer = ""
+    /// The question on its way, shown until its answer replaces the last one.
+    var asking: String?
 }
 
 /// What a question is asked about: the piece open in music-core, the selection (nil for none), whether the whole piece is

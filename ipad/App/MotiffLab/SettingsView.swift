@@ -300,12 +300,9 @@ struct SettingsSheet: View {
             switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
             // Version 0.6.1 (#582 item 15): Piece DNA's ideas by what they are in the music, each card saying why.
             switchRow("experimental.musicalIdeas", text["settings.musicalIdeas"], hint: text["settings.musicalIdeasHint"])
-            // Version 0.6.1 (#582 item 17): the assistant with its AI model, as on the web, in a side panel beside the score.
-            switchRow(AssistantController.setting, text["settings.assistant"], hint: text["settings.assistantPadHint"])
-            // With it (#582 item 17.3): the assistant proposes notes as drafts, music-core making them, the player accepting them.
+            // Version 0.6.1 (#582 item 17.3): the assistant proposes notes as drafts, music-core making them, the player accepting
+            // them. The assistant itself, at the selection and in its panel, has no switch since 0.6.3 (the lead's decision 3).
             switchRow(AssistantController.actionsSetting, text["settings.assistantActions"], hint: text["settings.assistantActionsPadHint"])
-            // With it (#582 items 17.1, 17.2): the assistant at the selection, and the piece's conversations kept on the iPad.
-            switchRow(AssistantController.contextSetting, text["settings.assistantContext"], hint: text["settings.assistantContextHint"])
             // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
             switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
             if settings.isOn(ScanServer.engineSetting) {

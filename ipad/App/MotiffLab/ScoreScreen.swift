@@ -64,8 +64,6 @@ struct ScoreScreen: View {
     @State private var dna: DnaMap?
     /// Whether Piece DNA was opened from More, so it shows "‹ More".
     @State private var dnaFromMore = false
-    /// The questions asked about the piece (testing item 23): one conversation, shown by every Ask popover and in Insights.
-    @StateObject private var conversation = AskConversation()
     /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files; known
     /// from the piece's opening, so PDF | Notes is whole from the first frame (#495 BUG-02).
     @StateObject private var originals: OriginalsController
@@ -171,7 +169,7 @@ struct ScoreScreen: View {
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
         } else {
-            InsightsSheet(insights: insights, score: score, player: player, conversation: conversation, account: account, range: variationRange, text: text) { insightsOpen = false }
+            InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
         }
     }
 
@@ -267,7 +265,7 @@ struct ScoreScreen: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = score.menuPlace {
-                    SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                    SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -327,9 +325,9 @@ struct ScoreScreen: View {
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
-                        FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
+                        FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil,
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil,
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
@@ -599,7 +597,7 @@ struct ScoreScreen: View {
             .fullScreenCover(isPresented: Binding(get: { dna != nil }, set: { if !$0 { dna = nil } })) {
                 if let map = dna {
                     DnaScreen(
-                        map: map, title: piece.title, player: player, conversation: conversation, account: account, text: text,
+                        map: map, title: piece.title, player: player, text: text,
                         back: dnaFromMore ? (label: text["bar.more"], action: { backToMore { dna = nil } }) : nil,
                         close: { dna = nil },
                         showInScore: { range, openInsights in
@@ -613,9 +611,10 @@ struct ScoreScreen: View {
                             let added = await contents.addForm()
                             return text.count("bookmark.structureAdded", added)
                         },
-                        askInInsights: {
+                        ask: {
+                            // The map gives way to the score with the assistant beside it, on the whole piece.
                             dna = nil
-                            insightsOpen = true
+                            assistant.open(wholePiece: true, selection: score.selection)
                         }
                     )
                 }
@@ -961,7 +960,7 @@ extension ScoreScreen {
             .overlay(alignment: .bottomTrailing) {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
-                    AssistantSide(assistant: assistant, text: text, selection: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                    AssistantSide(assistant: assistant, text: text, selection: score.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
                 }
             }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
@@ -970,7 +969,7 @@ extension ScoreScreen {
 
     /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
     private func askAssistant(_ question: String) {
-        let whole = assistant.wholePiece || score.selection == nil
+        let whole = assistant.scope.isWholePiece(score.selection)
         let ask = AssistantAsk(
             piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
             language: text.language, role: AssistantSide.role(settings), relay: account.assistant
@@ -1213,7 +1212,6 @@ struct ScoreBar: View {
     let text: UIText
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
-    @ObservedObject var conversation: AskConversation
     @Binding var more: Bool
     /// Whether the place open now was opened from More, so it shows "‹ More" (testing item 20).
     @Binding var fromMore: Bool
@@ -1240,11 +1238,8 @@ struct ScoreBar: View {
     var width: CGFloat = 0
     let back: () -> Void
     @State private var phrasesOpen = false
-    /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
-    @State private var asking = false
     /// The list of extra information under the ⓘ button's chevron.
     @State private var extraOpen = false
-    @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
     @EnvironmentObject private var assistant: AssistantController
 
@@ -1389,31 +1384,9 @@ struct ScoreBar: View {
                 openDna()
             } askAboutPiece: {
                 more = false
-                // With the assistant on (#582 item 17.1), its panel opens on the whole piece.
-                if AssistantSide.on(settings) {
-                    assistant.open(wholePiece: true)
-                    return
-                }
-                // Once More's popover has gone, the assistant's opens where it was.
-                Task {
-                    try? await Task.sleep(for: .milliseconds(350))
-                    asking = true
-                }
+                // The assistant's panel opens on the whole piece (#582 item 17.1).
+                assistant.open(wholePiece: true, selection: score.selection)
             }
-        }
-        .background {
-            Color.clear
-                .popover(isPresented: $asking) {
-                    AskPopover(
-                        conversation: conversation, account: account, text: text,
-                        context: AskContext(selection: score.askLabel, wholePiece: true, title: title),
-                        openInInsights: {
-                            asking = false
-                            insightsOpen = true
-                        },
-                        close: { asking = false }
-                    )
-                }
         }
     }
 
@@ -1583,13 +1556,10 @@ struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
-    @ObservedObject var conversation: AskConversation
     let text: UIText
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @State private var more = false
-    /// Ask on the selection: the assistant's popover at the menu, over the selection (testing item 23).
-    @State private var asking = false
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
     @EnvironmentObject private var assistant: AssistantController
@@ -1623,29 +1593,15 @@ struct SelectionMenu: View {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
                         Button {
-                            // With the assistant on, it opens at the selection with «Помощник у выделения и беседы» (#582 item
-                            // 17.2), else in its panel (17.1).
-                            if AssistantSide.on(settings), AssistantSide.keeps(settings) {
-                                AssistantHereCard.open(assistant, score: score, settings: settings)
-                            } else if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
+                            // The assistant opens at the selection, where the menu was (#582 item 17.2).
+                            AssistantHereCard.open(assistant, score: score, settings: settings)
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "insight")
                                 Text(text["ask.menu"])
                             }
                         }
-                        .buttonStyle(DSItemStyle(on: asking))
-                        .popover(isPresented: $asking) {
-                            AskPopover(
-                                conversation: conversation, account: account, text: text,
-                                context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
-                                openInInsights: {
-                                    asking = false
-                                    insightsOpen = true
-                                },
-                                close: { asking = false }
-                            )
-                        }
+                        .buttonStyle(DSItemStyle())
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-2"))
@@ -1821,14 +1777,8 @@ struct FocusShowAs: View {
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
-    @ObservedObject var conversation: AskConversation
     let variationRange: Range<Double>?
     let text: UIText
-    @Binding var insightsOpen: Bool
-    /// Ask on the phrase in focus: the assistant's popover at the button (testing item 23).
-    @State private var asking = false
-    @EnvironmentObject private var account: Account
-    @EnvironmentObject private var settings: DeviceSettings
     @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
@@ -1867,22 +1817,12 @@ struct FocusBar: View {
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
-                if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
+                // The assistant's panel opens on the phrase in focus (#582 item 17.1).
+                assistant.open(wholePiece: false, selection: score.selection)
             } label: {
                 Text(text["ask.menu"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 40)
             }
-            .buttonStyle(BarActionStyle(on: asking))
-            .popover(isPresented: $asking) {
-                AskPopover(
-                    conversation: conversation, account: account, text: text,
-                    context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
-                    openInInsights: {
-                        asking = false
-                        insightsOpen = true
-                    },
-                    close: { asking = false }
-                )
-            }
+            .buttonStyle(BarActionStyle(on: assistant.panelOpen))
             // No Play here (#511 section 8.1): the pill's blue Play is the one, and the pill always shows in focus.
         }
         .padding(.horizontal, CGFloat.ds("s-2"))

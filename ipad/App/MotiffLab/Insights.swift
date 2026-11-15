@@ -348,14 +348,10 @@ struct InsightsSheet: View {
     @ObservedObject var insights: InsightsController
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
-    /// The questions asked about the piece, which the assistant at the stream's foot shows (testing item 23).
-    @ObservedObject var conversation: AskConversation
-    @ObservedObject var account: Account
     /// What loops while a variation is heard: the selection, to the variation's end.
     let range: Range<Double>?
     let text: UIText
     let close: () -> Void
-    @EnvironmentObject private var settings: DeviceSettings
     @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
@@ -383,17 +379,10 @@ struct InsightsSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
-                        // The assistant is the stream's last voice: the conversation the Ask popovers add to, and its field.
-                        if AssistantSide.on(settings) {
-                            // With the assistant on (#582 item 17.1), the stream's foot leads to its panel.
-                            Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false) }
-                                .dsType(.label)
-                                .foregroundStyle(Color.ds("accent"))
-                        } else {
-                            AskStreamFoot(conversation: conversation, account: account, text: text) {
-                                withAnimation(.ds("t-fast")) { reader.scrollTo(AskStreamFoot.fieldId, anchor: .bottom) }
-                            }
-                        }
+                        // The assistant is the stream's last voice: its foot leads to the assistant's panel (#582 item 17.1).
+                        Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: score.selection) }
+                            .dsType(.label)
+                            .foregroundStyle(Color.ds("accent"))
                     }
                     .padding(.leading, CGFloat.ds("s-6"))
                     .padding(.trailing, CGFloat.ds("s-5"))
@@ -401,8 +390,7 @@ struct InsightsSheet: View {
                     .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
-                // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it, so the Ask
-                // field at its foot stays in sight while typed in (#582 item 16).
+                // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it (#582 item 16).
                 .keyboardRoom()
             }
         }
