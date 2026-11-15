@@ -102,6 +102,40 @@ public class AssistantFacadeTests
     }
 
     [Fact]
+    public void Undo_draft_takes_the_whole_draft_back_while_nothing_came_after_it()
+    {
+        MusicCoreFacade facade = Opened();
+        const string Parameters = """
+            {"bars": {"from": 1, "to": 1}, "edits": [{"kind": "remove", "address": "1.R.1", "bar": null, "hand": null, "start": null, "length": null, "pitch": null, "velocity": null}]}
+            """;
+        int before = Call(facade, "corrections", """{"bar": 1}""").GetProperty("notes").GetArrayLength();
+        Assert.Equal("unavailable", Error(facade, "corrections.undoDraft", """{"bar": 1}"""));
+        Call(facade, "corrections.acceptDraft", $$"""{"bar": 1, "tool": "notes.edit", "parameters": {{Parameters}}, "index": 0}""");
+
+        JsonElement undone = Call(facade, "corrections.undoDraft", """{"bar": 1}""");
+
+        Assert.Equal(before, undone.GetProperty("notes").GetArrayLength());
+        Assert.Equal("unavailable", Error(facade, "corrections.undoDraft", """{"bar": 1}"""));
+    }
+
+    [Fact]
+    public void A_call_with_its_role_is_refused_as_the_relay_refuses_it()
+    {
+        MusicCoreFacade facade = Opened();
+        const string Parameters = """
+            {"bars": {"from": 1, "to": 1}, "edits": [{"kind": "remove", "address": "1.R.1", "bar": null, "hand": null, "start": null, "length": null, "pitch": null, "velocity": null}]}
+            """;
+
+        JsonElement mentor = Call(facade, "assistant.call", $$"""{"tool": "notes.edit", "parameters": {{Parameters}}, "role": "mentor"}""");
+        JsonElement proposer = Call(facade, "assistant.call", $$"""{"tool": "notes.edit", "parameters": {{Parameters}}, "role": "proposer"}""");
+
+        Assert.False(mentor.GetProperty("ok").GetBoolean());
+        Assert.False(mentor.TryGetProperty("drafts", out _));
+        Assert.True(proposer.GetProperty("ok").GetBoolean(), proposer.ToString());
+        Assert.Equal("badRequest", Error(facade, "assistant.call", """{"tool": "notes.edit", "parameters": {}, "role": "other"}"""));
+    }
+
+    [Fact]
     public void The_contract_stays_12()
     {
         Assert.Equal(12, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());

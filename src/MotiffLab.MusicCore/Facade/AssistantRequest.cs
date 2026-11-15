@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Assistant;
+using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Events;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -25,15 +26,27 @@ internal static class AssistantRequest
     };
 
     /// <summary>
-    /// assistant.call {"tool", "parameters"}: the tool's answer, {"tool", "kind", "ok"} with "refusal" or "result" and
-    /// "drafts". A refusal is an answer, not an error: it is what a model is told back.
+    /// assistant.call {"tool", "parameters", "role"?}: the tool's answer, {"tool", "kind", "ok"} with "refusal" or "result" and
+    /// "drafts". A refusal is an answer, not an error: it is what a model is told back. With "role" ("mentor" or "proposer",
+    /// the iPad's turn), the call is first checked as the relay checks it (<see cref="AssistantRoles.CallRefusal"/>).
     /// </summary>
     private static string Run(Request request, AssistantPiece piece)
     {
         string tool = request.Required("tool");
         JsonElement parameters = request.Element("parameters") ?? EmptyObject();
-        ToolResult result = AssistantTools.Call(piece, tool, parameters);
+        ToolResult result = RoleRefusal(request, tool, parameters, piece) is { } refusal ? ToolResult.Refused(refusal) : AssistantTools.Call(piece, tool, parameters);
         return Answer.Write(json => AssistantTools.WriteResult(json, piece, tool, result));
+    }
+
+    private static string? RoleRefusal(Request request, string tool, JsonElement parameters, AssistantPiece piece)
+    {
+        if (request.Text("role") is not { } id)
+        {
+            return null;
+        }
+
+        AssistantRole role = AssistantRoles.Parse(id) ?? throw FacadeException.BadRequest($"There is no role \"{id}\".");
+        return AssistantRoles.CallRefusal(role, new ToolCall("call", tool, parameters), piece.Words);
     }
 
     /// <summary>assistant.digest {"bars": {"from", "to"}, "hand"}: {"digest": …} of the bars, or of the whole piece without "bars".</summary>

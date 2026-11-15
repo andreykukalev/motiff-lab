@@ -36,6 +36,9 @@ internal sealed partial class OpenPiece
     /// <summary>The draft's logs before each of its steps, the last first undone.</summary>
     private readonly Stack<NoteEditLog> _draftSteps = new();
 
+    /// <summary>The corrections before and after the assistant's draft accepted last, so one Undo takes it back whole while nothing came after it.</summary>
+    private (NoteEditLog Before, NoteEditLog After)? _acceptedDraft;
+
     private string CallOnCorrections(string name, Request request)
     {
         RefuseWhileOff(name);
@@ -53,6 +56,7 @@ internal sealed partial class OpenPiece
         "corrections.reset" => Correct(request, _ => NoteEditLog.Empty),
         "corrections.add" => AddNote(request),
         "corrections.acceptDraft" => AcceptDraft(request),
+        "corrections.undoDraft" => UndoDraft(request),
         "corrections.set" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Set(CorrectableNote(request), request))),
         "corrections.change" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Changed(CorrectableNote(request), request))),
         "corrections.remove" => Correct(request, edits => edits.Remove(Piece.Notes, CorrectableNote(request).Id)),
@@ -68,6 +72,7 @@ internal sealed partial class OpenPiece
     /// assistant's draft): the draft is made again from the call that made it (tools are pure) over the notes as they are, and
     /// its edits join the corrections as the web app's Accept adds them, removed, changed, then added. Refused when the draft
     /// no longer fits the notes or touches a note taken from a version. The model never calls this: only the player's Accept.
+    /// corrections.undoDraft takes the whole draft back at once, as the web app's one Undo does.
     /// </summary>
     private string AcceptDraft(Request request)
     {
@@ -80,12 +85,26 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable(Words.T("The draft changes a note taken from a version.", "Черновик меняет ноту, взятую из версии."));
         }
 
-        return Correct(request, edits => draft.Edits.Aggregate(edits, (log, edit) => edit.Kind switch
+        NoteEditLog before = Project.Edits;
+        string answer = Correct(request, edits => draft.Edits.Aggregate(edits, (log, edit) => edit.Kind switch
         {
             DraftEditKind.Remove => log.Remove(Piece.Notes, edit.NoteId),
             DraftEditKind.Change => log.Change(Piece.Notes, edit.NoteId, edit.After!.Value),
             _ => log.Add(Piece.Notes, edit.After!.Value, edit.Track, edit.Hand, out _),
         }));
+        _acceptedDraft = (before, Project.Edits);
+        return answer;
+    }
+
+    private string UndoDraft(Request request)
+    {
+        if (_acceptedDraft is not { } accepted || !accepted.After.Equals(Project.Edits))
+        {
+            throw FacadeException.Unavailable(Words.T("Other corrections came after the draft: undo them one by one.", "После черновика были другие правки: отменяйте их по одной."));
+        }
+
+        _acceptedDraft = null;
+        return Correct(request, _ => accepted.Before);
     }
 
     private Bar CorrectionBar(Request request)

@@ -926,6 +926,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return nil
     }
 
+    /// Undo on the assistant's accepted draft: the whole draft goes at once (`corrections.undoDraft`), as on the web. Nil
+    /// when it is undone, else why not, in music-core's words.
+    func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard let piece else { return "" }
+        let id = piece.id
+        let bar = draft.firstBar ?? 1
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.undoDraft", "{\"bar\": \(bar)}") }
+        guard NoteCorrections(answer: answer) != nil else {
+            return facadeObject(answer)?["message"] as? String ?? ""
+        }
+        await notesDidChange()
+        showNotice("padAssistant.undone")
+        return nil
+    }
+
     private func correct(_ call: String, _ fields: [String: Any], notes: Bool = false) {
         guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }
         var request = fields

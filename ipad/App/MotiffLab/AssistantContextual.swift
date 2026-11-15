@@ -6,9 +6,10 @@ import SwiftUI
 /// keyboard's own dictation), and shows the answer with the facts it cites and any draft the assistant made, to accept or
 /// cancel. «Добавить в контекст» moves the question and answer into the full assistant's open conversation.
 ///
-/// It closes by itself once its work is done: after «Добавить в контекст», after a draft is accepted or every draft is
-/// cancelled, and when the selection goes or changes while its field is not in use; a selection changed while the
-/// player types only moves what it looks at (AskFlow, a press outside never closes a chat being typed in). Close closes it.
+/// It closes by itself once its work is done: after «Добавить в контекст», once every draft is cancelled, and when the
+/// selection goes or changes while its field is not in use (an accepted draft stays, with Undo, until then); a selection
+/// changed while the player types only moves what it looks at (AskFlow, a press outside never closes a chat being typed
+/// in). Close closes it, and forgets the question, the answer and any draft, as on the web.
 struct AssistantHereCard: View {
     @ObservedObject var assistant: AssistantController
     @ObservedObject var score: ScoreController
@@ -41,8 +42,9 @@ struct AssistantHereCard: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
         .keyboardLift()
         .onAppear { flow.apply(.open) }
-        .onChange(of: score.selection) { _, now in
-            if let now, flow.focused || !flow.question.isEmpty { assistant.follow(now) } else { close() }
+        // The passage, not its notes: an accepted draft changes the notes under the same selection.
+        .onChange(of: score.selection.map { [$0.onset, $0.end] }) { _, _ in
+            if let now = score.selection, flow.focused || !flow.question.isEmpty { assistant.follow(now) } else { close() }
         }
         .onDisappear { if score.selection == nil { assistant.closeHere() } }
         .accessibilityElement(children: .contain)
@@ -72,13 +74,13 @@ struct AssistantHereCard: View {
             AssistantExchangeView(exchange: exchange, text: text)
             ForEach(exchange.drafts ?? []) { draft in
                 AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
-                    Task {
-                        // Accepted, the draft's work is done here; refused, it says why and stays.
-                        if await assistant.accept(draft) { close() }
-                    }
+                    // Accepted, it stays with Undo until the player moves on; refused, it says why.
+                    Task { await assistant.accept(draft) }
                 } cancel: {
                     assistant.cancel(draft)
-                    if assistant.here?.exchange?.drafts?.allSatisfy({ $0.state != .proposed }) ?? true { close() }
+                    if assistant.here?.exchange?.drafts?.allSatisfy({ $0.state == .cancelled }) ?? true { close() }
+                } undo: {
+                    Task { await assistant.undo(draft) }
                 }
             }
             if exchange.note == nil {
@@ -100,9 +102,11 @@ struct AssistantHereCard: View {
         assistant.closeHere()
     }
 
-    /// Ask in the selection's menu with the assistant on: it opens at the selection, in the role «Помощник правит ноты» sets.
+    /// Ask in the selection's menu with the assistant and «Помощник у выделения и беседы» on: it opens at the selection, in
+    /// the role «Помощник правит ноты» sets.
     @MainActor static func open(_ assistant: AssistantController, score: ScoreController, settings: DeviceSettings) {
         guard let selection = score.selection else { return }
+        assistant.keeping(true)
         assistant.openHere(on: selection, role: AssistantSide.role(settings))
     }
 

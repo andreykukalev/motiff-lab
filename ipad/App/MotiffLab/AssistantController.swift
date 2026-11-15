@@ -14,6 +14,10 @@ final class AssistantController: ObservableObject {
     static let setting = "experimental.assistant"
     /// «Помощник правит ноты» (#582 item 17.3): the conversation is the proposer, whose tools make drafts.
     static let actionsSetting = "experimental.assistantActions"
+    /// «Помощник у выделения и беседы» (#582 items 17.1 and 17.2), as on the web: Ask on a selection opens the assistant at
+    /// the selection, and the piece's conversations are kept on this iPad and listed. Without it, Ask on a selection opens
+    /// the panel, which holds the conversation only while the piece is open.
+    static let contextSetting = "experimental.assistantContext"
     /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
@@ -29,6 +33,8 @@ final class AssistantController: ObservableObject {
     @Published private(set) var consentGiven: Bool
     /// The assistant at the selection (#582 items 17.2 and 17.4): one question and its answer, never kept; nil while closed.
     @Published private(set) var here: AssistantHere?
+    /// Whether the piece's conversations are kept on this iPad and listed (`contextSetting`).
+    @Published private(set) var keeps = false
 
     private let store: AssistantStore
     private let defaults: UserDefaults
@@ -52,7 +58,7 @@ final class AssistantController: ObservableObject {
         guard key != piece else { return }
         piece = key
         here = nil
-        chats = store.chats(of: key)
+        chats = keeps ? store.chats(of: key) : []
         currentId = chats.first?.id
         listShown = false
     }
@@ -78,6 +84,18 @@ final class AssistantController: ObservableObject {
     func choose(_ id: String) {
         currentId = id
         listShown = false
+    }
+
+    /// The conversations kept, or held only while the piece is open, as «Помощник у выделения и беседы» says; kept again,
+    /// the piece's earlier ones come back beside the one open.
+    func keeping(_ on: Bool) {
+        guard on != keeps else { return }
+        keeps = on
+        guard on, let piece else { return }
+        let stored = store.chats(of: piece).filter { kept in !chats.contains { $0.id == kept.id } }
+        chats = AssistantStore.ordered(chats + stored)
+        if currentId == nil { currentId = chats.first?.id }
+        store.keep(chats, of: piece)
     }
 
     func consent(_ given: Bool) {
@@ -157,8 +175,30 @@ final class AssistantController: ObservableObject {
         busy = true
         defer { busy = false }
         let problem = await score.acceptAssistantDraft(draft)
-        decide(draft.id, problem == nil ? .accepted : .proposed, problem: problem)
-        return problem == nil
+        guard problem == nil else {
+            decide(draft.id, .proposed, problem: problem)
+            return false
+        }
+        // One draft of a question is accepted, as on the web: the others offered with it go.
+        for other in drafts(beside: draft.id) where other.state == .proposed { decide(other.id, .cancelled) }
+        decide(draft.id, .accepted)
+        return true
+    }
+
+    /// Undo on an accepted draft: the whole draft goes at once (`corrections.undoDraft`), while no other correction came
+    /// after it, and it is offered again.
+    func undo(_ draft: AssistantDraftOffer) async {
+        guard !busy, let score else { return }
+        busy = true
+        defer { busy = false }
+        let problem = await score.undoAssistantDraft(draft)
+        decide(draft.id, problem == nil ? .proposed : .accepted, problem: problem)
+    }
+
+    /// The drafts offered with this one: those of its exchange, at the selection or in the open conversation.
+    private func drafts(beside draft: String) -> [AssistantDraftOffer] {
+        let exchanges = [here?.exchange].compactMap { $0 } + (current?.exchanges ?? [])
+        return exchanges.first { shown in shown.drafts?.contains { $0.id == draft } ?? false }?.drafts?.filter { $0.id != draft } ?? []
     }
 
     func cancel(_ draft: AssistantDraftOffer) {
@@ -182,6 +222,8 @@ final class AssistantController: ObservableObject {
         }
         var added = exchange
         added.added = true
+        // As on the web, the question and the checked answer move, not the tool calls or the drafts.
+        added.drafts = nil
         chat.exchanges.append(added)
         chat.updated = Date()
         keep(chat)
@@ -191,7 +233,7 @@ final class AssistantController: ObservableObject {
         chats.removeAll { $0.id == chat.id }
         chats.insert(chat, at: 0)
         currentId = chat.id
-        if let piece { store.keep(chats, of: piece) }
+        if keeps, let piece { store.keep(chats, of: piece) }
     }
 
     enum Answer {
@@ -210,10 +252,12 @@ final class AssistantController: ObservableObject {
             return .unanswered("mentor.tooManyBars")
         }
         let piece = ask.piece
+        let role = chat.role
         let turns = AssistantTurns(
             send: { body in await ask.relay.turn(body) },
             run: { call in
-                let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments]).text
+                // With the turn's role, music-core checks the call as the relay does before it runs it.
+                let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]).text
                 let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.call", request) }
                 return AssistantTurns.content(ofFacade: answer, tool: call.name)
             }

@@ -1617,8 +1617,11 @@ struct SelectionMenu: View {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
                         Button {
-                            // With the assistant on (#582 item 17.2), it opens at the selection.
-                            if AssistantSide.on(settings) { AssistantHereCard.open(assistant, score: score, settings: settings) } else { asking = true }
+                            // With the assistant on, it opens at the selection with «Помощник у выделения и беседы» (#582 item
+                            // 17.2), else in its panel (17.1).
+                            if AssistantSide.on(settings), AssistantSide.keeps(settings) {
+                                AssistantHereCard.open(assistant, score: score, settings: settings)
+                            } else if AssistantSide.on(settings) { assistant.open(wholePiece: false) } else { asking = true }
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "insight")

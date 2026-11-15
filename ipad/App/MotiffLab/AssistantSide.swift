@@ -37,6 +37,11 @@ struct AssistantSide: View {
         settings.isOn(AssistantController.setting)
     }
 
+    /// Whether the assistant is at the selection and the conversations are kept («Помощник у выделения и беседы»).
+    @MainActor static func keeps(_ settings: DeviceSettings) -> Bool {
+        settings.isOn(AssistantController.contextSetting)
+    }
+
     /// The role a new conversation takes: the proposer, which may make drafts, with «Помощник правит ноты» on.
     @MainActor static func role(_ settings: DeviceSettings) -> String {
         settings.isOn(AssistantController.actionsSetting) ? "proposer" : "mentor"

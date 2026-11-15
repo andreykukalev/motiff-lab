@@ -101,13 +101,16 @@ struct AssistantDraftOffer: Codable, Equatable, Sendable, Identifiable {
 
 /// A draft of the assistant as the iPad shows it (#582 item 17.3): framed in plum, what the app composed, with the bars it
 /// covers, what changes in the engine's words, the notes it changes, and Accept and Cancel; once decided, what became of
-/// it. The draft is not engraved over the bars or heard before Accept here: the facade has no call for that yet.
+/// it, with Undo once accepted (one Undo takes the whole draft back, as on the web). The draft is not engraved over the
+/// bars or heard before Accept here: the facade has no call for that yet.
 struct AssistantDraftCard: View {
     let draft: AssistantDraftOffer
     let text: UIText
     var busy = false
     let accept: () -> Void
     let cancel: () -> Void
+    /// Undo on it once accepted: the whole draft goes at once.
+    let undo: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -150,7 +153,13 @@ struct AssistantDraftCard: View {
                     .disabled(busy)
             }
         case .accepted:
-            Text(text["padAssistant.accepted"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(text["padAssistant.accepted"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                Spacer(minLength: 0)
+                Button(text["repair.undo"], action: undo)
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                    .disabled(busy)
+            }
         case .cancelled:
             Text(text["padAssistant.cancelled"]).dsType(.caption).foregroundStyle(Color.ds("ink-3"))
         }

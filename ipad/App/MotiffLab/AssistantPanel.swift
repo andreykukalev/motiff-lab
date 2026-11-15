@@ -12,6 +12,7 @@ struct AssistantPanel: View {
     let selection: String?
     let ask: (String) -> Void
     @State private var flow = AskFlow(surface: .panel)
+    @EnvironmentObject private var settings: DeviceSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,7 +29,10 @@ struct AssistantPanel: View {
         }
         .background(Color.ds("surface"))
         .keyboardRoom()
-        .onAppear { flow.apply(.open) }
+        .onAppear {
+            flow.apply(.open)
+            assistant.keeping(AssistantSide.keeps(settings))
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["padAssistant.title"])
     }
@@ -36,20 +40,23 @@ struct AssistantPanel: View {
     private var head: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Text(text["padAssistant.title"]).overline().frame(maxWidth: .infinity, alignment: .leading)
-            Button {
-                assistant.listShown.toggle()
-            } label: {
-                Text(text["padAssistant.conversations"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 32)
+            // The piece's conversations, kept with «Помощник у выделения и беседы» (#582 item 17.1).
+            if assistant.keeps {
+                Button {
+                    assistant.listShown.toggle()
+                } label: {
+                    Text(text["padAssistant.conversations"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 32)
+                }
+                .buttonStyle(BarActionStyle(on: assistant.listShown))
+                .accessibilityAddTraits(assistant.listShown ? .isSelected : [])
+                Button {
+                    assistant.startNew()
+                } label: {
+                    Icon(name: "plus").frame(width: 32, height: 32)
+                }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["padAssistant.new"])
             }
-            .buttonStyle(BarActionStyle(on: assistant.listShown))
-            .accessibilityAddTraits(assistant.listShown ? .isSelected : [])
-            Button {
-                assistant.startNew()
-            } label: {
-                Icon(name: "plus").frame(width: 32, height: 32)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["padAssistant.new"])
             Button {
                 flow.apply(.close)
                 assistant.close()
@@ -80,6 +87,8 @@ struct AssistantPanel: View {
                                 Task { await assistant.accept(draft) }
                             } cancel: {
                                 assistant.cancel(draft)
+                            } undo: {
+                                Task { await assistant.undo(draft) }
                             }
                         }
                     }

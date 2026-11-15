@@ -304,6 +304,8 @@ struct SettingsSheet: View {
             switchRow(AssistantController.setting, text["settings.assistant"], hint: text["settings.assistantPadHint"])
             // With it (#582 item 17.3): the assistant proposes notes as drafts, music-core making them, the player accepting them.
             switchRow(AssistantController.actionsSetting, text["settings.assistantActions"], hint: text["settings.assistantActionsPadHint"])
+            // With it (#582 items 17.1, 17.2): the assistant at the selection, and the piece's conversations kept on the iPad.
+            switchRow(AssistantController.contextSetting, text["settings.assistantContext"], hint: text["settings.assistantContextHint"])
             // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
             switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
             if settings.isOn(ScanServer.engineSetting) {

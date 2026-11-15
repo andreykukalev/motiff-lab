@@ -31,6 +31,7 @@ final class AssistantActionsTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
         let assistant = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
         assistant.load(piece: "p1")
+        assistant.keeping(true)
         return (assistant, folder)
     }
 
@@ -78,6 +79,22 @@ final class AssistantActionsTests: XCTestCase {
         assistant.add(exchange, answer: "Again", role: "mentor")
         XCTAssertEqual(assistant.current?.history.count, 4)
         XCTAssertEqual(assistant.chats.count, 1, "into the conversation open, not a new one")
+        var drafted = exchange
+        drafted.drafts = AssistantDraftOffer.offers(in: answered())
+        assistant.add(drafted, answer: "A draft", role: "proposer")
+        XCTAssertNil(assistant.current?.exchanges.last?.drafts, "as on the web, the question and answer move, not the drafts")
+    }
+
+    func testTheConversationsAreKeptOnlyWithTheSwitch() {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("assistant-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
+        let assistant = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
+        assistant.load(piece: "p1")
+        assistant.add(AssistantExchange(id: "e1", question: "Why?", scope: "Bar 3"), answer: "Because", role: "mentor")
+        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1"), [], "held only while the piece is open")
+        assistant.keeping(true)
+        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 1, "kept once the switch is on")
     }
 
     func testTheAssistantAtTheSelectionOpensFollowsAndCloses() {
@@ -104,7 +121,12 @@ final class AssistantActionsTests: XCTestCase {
         let draft = try XCTUnwrap(AssistantDraftOffer.offers(in: answered()).first)
         var exchange = AssistantExchange(id: "e1", question: "Take out the repeated note", scope: "Bars 3–4")
         exchange.drafts = [draft]
-        assistant.add(exchange, answer: "Here is a draft", role: "proposer")
+        // A question asked in the panel keeps its drafts there (Add to context does not carry them).
+        var chat = answered()
+        chat.exchanges = [exchange]
+        AssistantStore(folder: folder).keep([chat], of: "p1")
+        assistant.load(piece: "p2")
+        assistant.load(piece: "p1")
         assistant.cancel(draft)
         XCTAssertEqual(assistant.current?.exchanges.first?.drafts?.first?.state, .cancelled)
         let kept = AssistantStore(folder: folder).chats(of: "p1")
