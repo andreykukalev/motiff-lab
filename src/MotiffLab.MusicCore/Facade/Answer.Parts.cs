@@ -12,6 +12,21 @@ namespace MotiffLab.MusicCore.Facade;
 internal static partial class Answer
 {
     /// <summary>
+    /// Within contract 12 (version 0.6.1, #582 item 1): what the piece is known by on every device, so the library finds the
+    /// projects that may be one piece (<see cref="SamePiece.Keys"/>, project.same) and joins them with project.join.
+    /// </summary>
+    public static void PieceKeys(Utf8JsonWriter json, Project project)
+    {
+        json.WriteStartArray("pieceKeys");
+        foreach (string key in SamePiece.Keys(project))
+        {
+            json.WriteStringValue(key);
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>
     /// "partOf": {"original" (an id in the piece's "originals"), "pages": {"first", "last"} or null, "milliseconds":
     /// {"from", "to"} or null}, or null for a piece of its own (<see cref="Projects.PartOf"/>).
     /// </summary>

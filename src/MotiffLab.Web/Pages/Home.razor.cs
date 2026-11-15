@@ -176,7 +176,8 @@ public partial class Home
         {
             // Offline or signed out, the list is just left out: this screen is about the projects here.
             (IReadOnlyList<ProjectSummary>? online, _) = await Online.ListAsync();
-            HashSet<string> here = [.. _summaries.Select(summary => summary.Id)];
+            // Every project here counts, the PDF hidden behind its notes too, so none shows again as not on this device.
+            HashSet<string> here = [.. all.Select(summary => summary.Id)];
             _onlineOnly = online?.Where(summary => !here.Contains(summary.Id)).ToList();
         }
     }

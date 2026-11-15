@@ -248,7 +248,9 @@ public static class ProjectSync
     /// <summary>
     /// Two copies of one project, both changed: the one saved last is kept, here and online, and the other is kept beside
     /// as a piece of its own named by <paramref name="copyTitle"/> ("{0}" stands for its title), so nothing is lost. Two
-    /// copies that are the same keep this device's with nothing beside. A different piece that only carries the same id
+    /// copies that are the same keep this device's with nothing beside, and so does a copy that lost with nothing of the
+    /// player's that the kept one lacks (version 0.6.1, <see cref="SamePiece.AddsNothingTo"/>), such as the piece only opened
+    /// on both devices. A different piece that only carries the same id
     /// (an old numbered id, V8) is no previous copy: the online one is kept beside under a new id as it is, and this
     /// device's goes online.
     /// </summary>
@@ -285,12 +287,21 @@ public static class ProjectSync
         // Version 16 (0030, section 5): the copy kept takes the other's tombstones, Notes and corrections of other notes.
         if (savedHere >= savedOnline)
         {
-            return new SyncResolution(SourcesMerge.Merged(mine, pulled, @base), Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId));
+            Project kept = SourcesMerge.Merged(mine, pulled, @base);
+            return new SyncResolution(kept, Upload: true, PreviousCopy: Lost(online, kept, copyTitle, newId));
         }
 
         Project merged = SourcesMerge.Merged(pulled, here, @base);
-        return new SyncResolution(merged, Upload: !ProjectFile.Write(merged).AsSpan().SequenceEqual(ProjectFile.Write(pulled)), PreviousCopy: PreviousCopy(here, copyTitle, newId));
+        return new SyncResolution(merged, Upload: !ProjectFile.Write(merged).AsSpan().SequenceEqual(ProjectFile.Write(pulled)), PreviousCopy: Lost(here, merged, copyTitle, newId));
     }
+
+    /// <summary>
+    /// The copy that lost as a previous copy, or null when it carries nothing of the player's that the copy kept lacks
+    /// (version 0.6.1, #582 item 1): the same piece only opened on both devices differs in when it was last opened, and a
+    /// copy of it beside would be the same piece twice in the library.
+    /// </summary>
+    private static Project? Lost(Project loser, Project kept, string copyTitle, string newId) =>
+        SamePiece.AddsNothingTo(loser, kept, joining: false) ? null : PreviousCopy(loser, copyTitle, newId);
 
     /// <summary>The copy that lost, as a piece of its own: a new id and the player's title from <paramref name="copyTitle"/>.</summary>
     public static Project PreviousCopy(Project project, string copyTitle, string newId)

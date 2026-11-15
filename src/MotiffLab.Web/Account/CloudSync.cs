@@ -50,7 +50,7 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
                 changed |= await SyncAsync(id, here.GetValueOrDefault(id), listed.GetValueOrDefault(id), await online.RecordAsync(id));
             }
 
-            return changed;
+            return await JoinAsync() || changed;
         }
         finally
         {
@@ -75,6 +75,58 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// One piece, one entry (version 0.6.1, #582 item 1): the projects here that are the same piece by the files they were made
+    /// from (<see cref="SamePiece"/>), such as the same PDF added on the web and on the iPad, become one when one of them
+    /// carries nothing of the player's own: the other keeps its PDF, originals and details and is saved here and online, and
+    /// the copy that joined it is deleted here and online. A copy whose PDF or recording this browser reads where the player
+    /// keeps it stays, though another may join it. True when the library changed.
+    /// </summary>
+    private async Task<bool> JoinAsync()
+    {
+        List<(string Id, IReadOnlyList<string> Keys)> rows = [];
+        foreach (ProjectSummary summary in await store.ListAsync())
+        {
+            IReadOnlyList<string>? keys = summary.PieceKeys;
+            if (keys is null && await LoadAsync(summary.Id) is { } project)
+            {
+                // A row saved before it kept the keys is read once, and keeps them from now on.
+                await store.SaveSummaryAsync(project);
+                keys = SamePiece.Keys(project);
+            }
+
+            rows.Add((summary.Id, keys ?? []));
+        }
+
+        IReadOnlySet<string> held = await store.HeldHereAsync();
+        bool changed = false;
+        foreach (IReadOnlyList<string> group in SamePiece.Candidates(rows))
+        {
+            List<Project> projects = [];
+            foreach (string id in group)
+            {
+                if (await LoadAsync(id) is { } project)
+                {
+                    projects.Add(project);
+                }
+            }
+
+            HashSet<int> stay = [.. Enumerable.Range(0, projects.Count).Where(index => held.Any(key => key.StartsWith(projects[index].Id + "/", StringComparison.Ordinal)))];
+            foreach (JoinedPiece piece in SamePiece.Plan(projects, stay, HoldingDevice.Web))
+            {
+                await store.SaveAsync(piece.Project);
+                foreach (int index in piece.Joined)
+                {
+                    await store.DeleteAsync(projects[index].Id);
+                }
+
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     private static SyncFacts Facts(ProjectSummary? here, OnlineRow? row, SyncRecord record) => new(

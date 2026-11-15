@@ -37,9 +37,9 @@ final class CloudSyncTests: XCTestCase {
     }
 
     /// A project file of the kit's piece under the id, with the tags given, as music-core writes it.
-    private func projectFile(id: String, tags: [String] = []) throws -> String {
+    private func projectFile(id: String, tags: [String] = [], now: String = "2026-11-11T09:00:00Z") throws -> String {
         let example = try XCTUnwrap(KitPiece.example)
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en", "id": "\#(id)", "now": "2026-11-11T09:00:00Z"}"#)))
+        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en", "id": "\#(id)", "now": "\#(now)"}"#)))
         let piece = Int32(opened["piece"] as? Int ?? 0)
         XCTAssertGreaterThan(piece, 0, "\(opened)")
         defer { MusicCore.close(piece: piece) }
@@ -124,6 +124,52 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNotEqual(copy.id, id)
         XCTAssertEqual(copy.title, title + " (previous copy)")
         XCTAssertEqual(SyncRecords.load(from: records)[id]?.etag, "\"e3\"")
+    }
+
+    /// Version 0.6.1 (#582 item 1): the same file added here and on the web, neither with work of its own, is one piece: the
+    /// one made first stays on both devices with both copies' details, and this iPad's copy goes here and online.
+    func testTheSamePieceAddedHereAndOnTheWebIsOnePiece() async throws {
+        let mine = "p_" + String(repeating: "1", count: 32)
+        let web = "p_" + String(repeating: "2", count: 32)
+        try Data(try projectFile(id: mine, tags: ["Here"], now: "2026-11-15T09:00:00Z").utf8).write(to: folder.appendingPathComponent("Elise.motiff.json"))
+        StubAPI.reset([
+            try url("projects"): .init(status: 200, body: Data("[\(row(web, savedAt: "2026-11-15T08:30:00+00:00"))]".utf8)),
+            try url("projects/" + web): .init(status: 200, body: Data(try projectFile(id: web, tags: ["Web"], now: "2026-11-15T08:00:00Z").utf8), headers: ["ETag": "\"e1\""]),
+            try "PUT " + url("projects/" + mine): .init(status: 204, body: Data(), headers: ["ETag": "\"e2\""]),
+            try "DELETE " + url("projects/" + mine): .init(status: 204, body: Data()),
+        ])
+
+        let outcome = await sync().run()
+
+        XCTAssertTrue(outcome.changed)
+        let files = ProjectFiles.list(in: folder)
+        XCTAssertEqual(files.count, 1, "one piece in the library")
+        let kept = await PieceSummary.read(files[0].url)
+        XCTAssertEqual(kept?.id, web, "the one made first")
+        XCTAssertEqual(kept?.tags, ["Web", "Here"])
+        let gone = try url("projects/" + mine)
+        XCTAssertTrue(StubAPI.requests.contains { $0.httpMethod == "DELETE" && $0.url?.absoluteString == gone }, "this iPad's copy goes online too")
+        XCTAssertNil(SyncRecords.load(from: records)[mine])
+    }
+
+    /// A copy whose bytes this iPad keeps beside its file (a linked PDF, a copy kept for playing offline) is never joined
+    /// away (`stay`), though another may join it; when both are kept so, both stay.
+    func testCopiesKeptBesideTheirFilesAreNeverJoinedAway() async throws {
+        let mine = try projectFile(id: "p_" + String(repeating: "3", count: 32), now: "2026-11-15T09:00:00Z")
+        let web = try projectFile(id: "p_" + String(repeating: "4", count: 32), now: "2026-11-15T08:00:00Z")
+        func join(_ stay: [Int]) throws -> [[String: Any]] {
+            let body = String(decoding: try JSONSerialization.data(withJSONObject: ["files": [mine, web], "stay": stay]), as: UTF8.self)
+            let answer = try XCTUnwrap(facadeObject(MusicCore.call(piece: 0, "project.join", body)))
+            XCTAssertNil(answer["error"])
+            return answer["joined"] as? [[String: Any]] ?? []
+        }
+
+        // The web's copy, made first, would stay; this iPad's is kept beside here, so the web's joins it instead.
+        let joined = try join([0])
+        XCTAssertEqual(joined.count, 1)
+        XCTAssertEqual((joined.first?["keeper"] as? NSNumber)?.intValue, 0)
+        XCTAssertEqual((joined.first?["from"] as? [NSNumber])?.map(\.intValue), [1])
+        XCTAssertTrue(try join([0, 1]).isEmpty, "neither may go")
     }
 
     func testAPieceBeyondTheFreeAccountsRoomStaysHereAndIsCounted() async throws {
