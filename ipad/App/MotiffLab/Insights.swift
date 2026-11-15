@@ -382,7 +382,9 @@ struct InsightsSheet: View {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
                         // The assistant is the stream's last voice: the conversation the Ask popovers add to, and its field.
-                        AskStreamFoot(conversation: conversation, account: account, text: text)
+                        AskStreamFoot(conversation: conversation, account: account, text: text) {
+                            withAnimation(.ds("t-fast")) { reader.scrollTo(AskStreamFoot.fieldId, anchor: .bottom) }
+                        }
                     }
                     .padding(.leading, CGFloat.ds("s-6"))
                     .padding(.trailing, CGFloat.ds("s-5"))
@@ -390,6 +392,9 @@ struct InsightsSheet: View {
                     .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
+                // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it, so the Ask
+                // field at its foot stays in sight while typed in (#582 item 16).
+                .keyboardRoom()
             }
         }
         .background(Color.ds("surface"))
