@@ -17,7 +17,10 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class PdfPiecesOnlineTests
 {
-    private const string Golden = "v15-pdf-online.motiff.json";
+    private const string Golden = "v16-pdf-online.motiff.json";
+
+    /// <summary>The same online copy as version 0.5 wrote it, in version 15.</summary>
+    private const string Earlier = "v15-pdf-online.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 18, 30, 0, TimeSpan.Zero);
 
@@ -40,7 +43,7 @@ public class PdfPiecesOnlineTests
     [Fact]
     public void The_online_copy_of_a_pdf_piece_is_the_golden_and_reads_back_unchanged()
     {
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!));
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!), Earlier);
     }
 
     [Fact]
@@ -50,7 +53,8 @@ public class PdfPiecesOnlineTests
 
         Assert.False(online.HasNotes);
         Assert.Null(online.Document);
-        Assert.DoesNotContain("\"document\"", Text(Kept(Golden)), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"data\"", Text(Kept(Golden)), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"document\"", Text(Kept(Earlier)), StringComparison.Ordinal);
         Assert.Equal(OnIpad().Metadata, online.Metadata);
         Assert.Equal(OnIpad().DocumentMarks, online.DocumentMarks);
         PieceOriginal pdf = Assert.Single(online.Originals);
@@ -104,7 +108,7 @@ public class PdfPiecesOnlineTests
     [Fact]
     public void Without_its_pdfs_description_the_online_copy_is_damaged_as_every_build_before_0_5_reads_it()
     {
-        JsonObject file = JsonNode.Parse(Kept(Golden))!.AsObject();
+        JsonObject file = JsonNode.Parse(Kept(Earlier))!.AsObject();
         _ = file.Remove("originals");
 
         Assert.Contains("source", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()))).Message, StringComparison.Ordinal);

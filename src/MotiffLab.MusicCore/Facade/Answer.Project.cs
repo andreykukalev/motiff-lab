@@ -66,16 +66,7 @@ internal static partial class Answer
 
         json.WriteEndArray();
 
-        json.WriteStartArray("fingering");
-        foreach (Fingering fingering in marks.Fingering)
-        {
-            json.WriteStartObject();
-            json.WriteString("noteId", fingering.NoteId);
-            json.WriteNumber("finger", fingering.Finger);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
+        ProjectFile.WriteFingering(json, marks.Fingering);
     }
 
     public static void Bookmarks(Utf8JsonWriter json, Project project, MeterMap meter, Words words)

@@ -8,7 +8,8 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 
 /// <summary>
 /// The tolerant reader for enum values (decision record 0026, S6; #313): what is kept as unknown, what goes with it, what
-/// is still damage, and how an app's changes meet the entities it never sees. The file is the version 15 golden.
+/// is still damage, and how an app's changes meet the entities it never sees. The file is the version 16 golden; a path
+/// that starts with a field of the workspace is a path into the workspace.
 /// </summary>
 public class UnknownValueTests
 {
@@ -16,7 +17,12 @@ public class UnknownValueTests
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 11, 12, 0, 0, TimeSpan.Zero);
 
+    private static readonly HashSet<string> s_inWorkspace = ["motifs", "variations", "observations", "marks", "bookmarks", "resumePoints", "settings"];
+
     private static JsonObject Worked() =>
+        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v16-worked.motiff.json")))!.AsObject();
+
+    private static JsonObject Worked15() =>
         JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
 
     private static byte[] Bytes(JsonNode file) => Encoding.UTF8.GetBytes(file.ToJsonString());
@@ -26,7 +32,7 @@ public class UnknownValueTests
     private static JsonObject With(JsonObject file, string path, JsonNode? value)
     {
         string[] parts = path.Split('/');
-        JsonNode node = file;
+        JsonNode node = s_inWorkspace.Contains(parts[0]) && file["workspace"] is JsonObject workspace ? workspace : file;
         foreach (string part in parts[..^1])
         {
             node = int.TryParse(part, out int index) ? node[index]! : node[part]!;
@@ -36,13 +42,13 @@ public class UnknownValueTests
         return file;
     }
 
-    private static string[] Ids(JsonNode file, string list) => [.. file[list]!.AsArray().Select(entity => entity!["id"]!.GetValue<string>())];
+    private static string[] Ids(JsonNode file, string list) => [.. (file["workspace"] ?? file)[list]!.AsArray().Select(entity => entity!["id"]!.GetValue<string>())];
 
     [Fact]
     public void In_a_file_of_an_older_version_an_unknown_value_is_still_damage()
     {
         // The builds that wrote version 14 knew no value this one does not: an unknown one there is not from a later build.
-        JsonObject file = With(With(Worked(), "version", 14), "motifs/0/mode", UnknownValue);
+        JsonObject file = With(With(Worked15(), "version", 14), "motifs/0/mode", UnknownValue);
 
         ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
 
@@ -109,7 +115,7 @@ public class UnknownValueTests
         JsonObject written = Node(ProjectFile.Write(project with { Motifs = [working, .. project.Motifs] }));
 
         Assert.Equal(["m_0001", "m_0002", "m_0003"], Ids(written, "motifs"));
-        Assert.Equal("New working motif", written["motifs"]![0]!["name"]!.GetValue<string>());
+        Assert.Equal("New working motif", written["workspace"]!["motifs"]![0]!["name"]!.GetValue<string>());
         Assert.Equal(["v_0006", "v_0007", "v_0008", "v_0009", "v_0010", "v_0011"], Ids(written, "variations"));
         Assert.DoesNotContain(UnknownValue, written.ToJsonString(), StringComparison.Ordinal);
     }
@@ -125,8 +131,8 @@ public class UnknownValueTests
         Project drawn = project.ChangeMarks(marks => marks.AddInk([new InkStroke("k3", two.Tool, two.Colour, two.Size, two.Bar, two.U, two.V, two.Points, two.Pressure)]));
         JsonObject written = Node(ProjectFile.Write(drawn));
 
-        Assert.Equal(["k1", "k2", "k3"], written["marks"]!["ink"]!.AsArray().Select(stroke => stroke!["id"]!.GetValue<string>()));
-        Assert.Equal(UnknownValue, written["marks"]!["ink"]![0]!["tool"]!.GetValue<string>());
+        Assert.Equal(["k1", "k2", "k3"], written["workspace"]!["marks"]!["ink"]!.AsArray().Select(stroke => stroke!["id"]!.GetValue<string>()));
+        Assert.Equal(UnknownValue, written["workspace"]!["marks"]!["ink"]![0]!["tool"]!.GetValue<string>());
         Assert.Equal(0, Assert.Single(drawn.Marks.Unknown).Index);
     }
 
@@ -155,7 +161,7 @@ public class UnknownValueTests
         JsonObject written = Node(ProjectFile.Write(project));
 
         Assert.DoesNotContain(project.Categories, category => category.Id == BookmarkCategory.PractiseId);
-        Assert.Equal(["practise", "performance", "structure", "teacher", "c_0001"], Ids(written["bookmarks"]!, "categories"));
+        Assert.Equal(["practise", "performance", "structure", "teacher", "c_0001"], Ids(written["workspace"]!["bookmarks"]!, "categories"));
         Assert.True(JsonNode.DeepEquals(file, written));
     }
 
@@ -182,7 +188,7 @@ public class UnknownValueTests
         byte[] pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
         var stroke = new InkStroke("k1", InkTool.Pen, InkColour.Graphite, 0.16, new Tick(1), 0.5, 1, [], 0.5);
         Project piece = Project.CreateDocument("p_pdf", "a.pdf", pdf, s_now) with { DocumentMarks = DocumentMarks.Empty.WithInk([stroke]) };
-        JsonObject file = With(Node(ProjectFile.Write(piece)), "documentMarks/ink/0/tool", "eraser");
+        JsonObject file = With(Node(ProjectFile.Write(piece)), "originals/0/marks/ink/0/tool", "eraser");
 
         Project project = ProjectFile.Read(Bytes(file));
 

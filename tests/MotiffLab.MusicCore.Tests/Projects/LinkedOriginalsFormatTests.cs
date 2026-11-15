@@ -15,8 +15,8 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class LinkedOriginalsFormatTests
 {
-    private const string LinkedGolden = "v15-linked-pdf.motiff.json";
-    private const string FolderGolden = "v15-folder-notes.motiff.json";
+    private const string LinkedGolden = "v16-linked-pdf.motiff.json";
+    private const string FolderGolden = "v16-folder-notes.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 18, 0, 0, TimeSpan.Zero);
 
@@ -54,9 +54,9 @@ public class LinkedOriginalsFormatTests
     [Theory]
     [InlineData(LinkedGolden)]
     [InlineData(FolderGolden)]
-    public void The_files_version_0_5_writes_are_the_goldens_and_read_back_unchanged(string golden)
+    public void The_files_written_are_the_goldens_and_what_the_files_of_version_0_5_become(string golden)
     {
-        GoldenFiles.AssertIs(golden, ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder()));
+        GoldenFiles.AssertIs(golden, ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder()), golden.Replace("v16-", "v15-", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -83,12 +83,12 @@ public class LinkedOriginalsFormatTests
 
         JsonObject file = JsonNode.Parse(ProjectFile.Write(open))!.AsObject();
 
-        Assert.False(file.ContainsKey("document"));
-        Assert.False(file.ContainsKey("documentPages"));
+        Assert.False(file["originals"]![0]!.AsObject().ContainsKey("data"));
+        Assert.Empty(file["notes"]!.AsArray());
         Assert.Equal(Text(Kept(LinkedGolden)), Text(ProjectFile.Write(open)));
 
         JsonObject notes = JsonNode.Parse(ProjectFile.Write(FromFolder() with { Document = s_pdf }))!.AsObject();
-        Assert.False(notes.ContainsKey("document"));
+        Assert.All(notes["originals"]!.AsArray(), original => Assert.False(original!.AsObject().ContainsKey("data")));
     }
 
     [Fact]

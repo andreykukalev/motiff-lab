@@ -52,7 +52,7 @@ public class PieceOriginalTests
     private static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));
 
     [Fact]
-    public void A_file_written_before_originals_shows_them_from_the_piece_and_is_written_back_without_them()
+    public void A_file_written_before_originals_shows_them_from_the_piece_and_is_written_back_describing_them()
     {
         byte[] golden = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json"));
 
@@ -64,7 +64,11 @@ public class PieceOriginalTests
         Assert.Equal(project.Source.Length, file.Bytes);
         Assert.Null(file.Sha256);
         Assert.Empty(project.KeptOriginals);
-        Assert.DoesNotContain("\"originals\"", Encoding.UTF8.GetString(ProjectFile.Write(project)), StringComparison.Ordinal);
+
+        // Version 16 describes every original; read back, the description is the one the piece shows, not kept apart.
+        byte[] written = ProjectFile.Write(project);
+        Assert.Equal(PieceOriginal.SourceFileId, JsonNode.Parse(written)!["originals"]![0]!["id"]!.GetValue<string>());
+        Assert.Empty(ProjectFile.Read(written).KeptOriginals);
     }
 
     [Fact]
@@ -90,14 +94,14 @@ public class PieceOriginalTests
     }
 
     [Fact]
-    public void Descriptions_links_and_marks_round_trip_and_the_file_stays_version_15()
+    public void Descriptions_links_and_marks_round_trip()
     {
         Project project = Recognised();
 
         byte[] written = ProjectFile.Write(project);
         Project reread = ProjectFile.Read(written);
 
-        Assert.Equal(15, JsonNode.Parse(written)!["version"]!.GetValue<int>());
+        Assert.Equal(ProjectFile.Version, JsonNode.Parse(written)!["version"]!.GetValue<int>());
         Assert.Equal(project.Originals, reread.Originals);
         Assert.Equal(written, ProjectFile.Write(reread));
         PieceOriginal pdf = reread.FindOriginal(PieceOriginal.DocumentId)!;
@@ -262,41 +266,28 @@ public class PieceOriginalTests
     }
 
     /// <summary>
-    /// The files version 0.3 writes for a recognised PDF with a recording version, on the device and online, kept in
-    /// Golden (README.md): version 0.2's reader, built from the tag v0.2, opened both (see the README). Run with
-    /// MOTIFF_UPDATE_SNAPSHOTS=1 to write them again when the format changes on purpose.
+    /// The files written for a recognised PDF with a recording version, on the device and online, kept in Golden
+    /// (README.md), and what the files version 0.3 wrote of them become: version 0.2's reader, built from the tag v0.2,
+    /// opened those (see the README). Run with MOTIFF_UPDATE_SNAPSHOTS=1 to write them again when the format changes on purpose.
     /// </summary>
     [Theory]
-    [InlineData("v15-originals.motiff.json", false)]
-    [InlineData("v15-originals-online.motiff.json", true)]
-    public void The_files_version_0_3_writes_are_the_goldens_and_read_back_unchanged(string golden, bool online)
+    [InlineData("v16-originals.motiff.json", false)]
+    [InlineData("v16-originals-online.motiff.json", true)]
+    public void The_files_written_are_the_goldens_and_what_the_files_of_version_0_3_become(string golden, bool online)
     {
         Project project = online ? Recognised().ForOnline()! : Recognised();
-        byte[] written = ProjectFile.Write(project);
-        string path = Path.Combine(AppContext.BaseDirectory, "Golden", golden);
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
-        {
-            File.WriteAllBytes(Path.Combine(GoldenFolder(), golden), written);
-            return;
-        }
-
-        byte[] kept = File.ReadAllBytes(path);
-        Assert.Equal(Encoding.UTF8.GetString(kept).ReplaceLineEndings("\n"), Encoding.UTF8.GetString(written).ReplaceLineEndings("\n"));
-        Assert.Equal(Encoding.UTF8.GetString(kept).ReplaceLineEndings("\n"), Encoding.UTF8.GetString(ProjectFile.Write(ProjectFile.Read(kept))).ReplaceLineEndings("\n"));
+        GoldenFiles.AssertIs(golden, ProjectFile.Write(project), golden.Replace("v16-", "v15-", StringComparison.Ordinal));
     }
 
-    private static string GoldenFolder([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(source))!, "Golden");
-
     /// <summary>
-    /// What version 0.2 does with a file version 0.3 writes, short of running it (the PR runs the v0.2 build itself): it is
-    /// version 15, and without the fields 0.2 does not know it reads as the same piece, so 0.2 opens it and loses only them.
+    /// What version 0.2 did with a file version 0.3 wrote, short of running it (the PR ran the v0.2 build itself): it was
+    /// version 15, and without the fields 0.2 does not know it reads as the same piece, so 0.2 opened it and lost only them.
     /// </summary>
     [Fact]
     public void Without_the_new_fields_the_file_is_the_same_piece_for_a_reader_that_does_not_know_them()
     {
         Project project = Recognised();
-        JsonObject file = JsonNode.Parse(ProjectFile.Write(project))!.AsObject();
+        JsonObject file = JsonNode.Parse(LegacyFile.Bytes(ProjectFile.Write(project), 15))!.AsObject();
         _ = file.Remove("originals");
         foreach (JsonObject made in new[] { file["scan"]!.AsObject(), file["performances"]![0]!.AsObject() })
         {

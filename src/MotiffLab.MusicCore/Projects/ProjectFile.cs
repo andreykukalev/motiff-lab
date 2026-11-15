@@ -30,7 +30,11 @@ public static partial class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
-    /// Within 15, "metadata" keeps the piece's title, composer and tags as the player set them in the library (version
+    /// 16 lays the file out in the three layers of decision record 0030: the originals (with the PDF's bytes and page marks,
+    /// and the tombstones of removed ones), the Notes (each with its provenance, music, corrections and Check flags, and the
+    /// compared ones with their comparison) and the workspace (the working notes and the player's work), keeping the fields
+    /// it does not know; every earlier file is converted on reading (docs/project-file.md, "Opening an older file");
+    /// within 15, "metadata" keeps the piece's title, composer and tags as the player set them in the library (version
     /// 0.2); a file without it has none, and a build before it drops the field when it writes the file again;
     /// 15 adds the assembly of the player's own version from the piece's sources: its journal, the notes applied and
     /// the notes before the assembly (0024);
@@ -53,11 +57,15 @@ public static partial class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 15;
+    public const int Version = 16;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
 
+    /// <summary>
+    /// The project as a version 16 file (decision record 0030): its originals, its Notes and its workspace, each with the
+    /// fields this build did not know when it read them (0026 S6). The same project always gives the same bytes.
+    /// </summary>
     public static byte[] Write(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -73,337 +81,20 @@ public static partial class ProjectFile
             json.WriteString("fileName", project.FileName);
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
-            WriteMetadata(json, project.Metadata);
-            json.WriteBase64String("source", project.Source);
-            if (project.Document is { } document)
-            {
-                json.WriteBase64String("document", document);
-            }
-
-            if (!project.DocumentMarks.IsEmpty || project.DocumentMarks.Unknown.Count > 0)
-            {
-                WriteDocumentMarks(json, project.DocumentMarks);
-            }
-
-            if (project.DocumentPages is { } pages)
-            {
-                json.WriteStartArray("documentPages");
-                foreach (Tick start in pages.Starts)
-                {
-                    json.WriteNumberValue(start.Value);
-                }
-
-                json.WriteEndArray();
-            }
-
-            if (project.ReadFrom is { } readFrom)
-            {
-                json.WriteStartObject("readFrom");
-                json.WriteString("project", readFrom.ProjectId);
-                json.WriteStartArray("pages");
-                foreach (Tick start in readFrom.Pages.Starts)
-                {
-                    json.WriteNumberValue(start.Value);
-                }
-
-                json.WriteEndArray();
-                json.WriteEndObject();
-            }
-
-            WriteOriginals(json, project);
-            WritePartOf(json, project.PartOf);
-            WriteEditsOff(json, project);
-            WritePlayerTempo(json, project);
-
-            List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
-            WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", motif.Id);
-                json.WriteString("name", motif.Name);
-                json.WriteString("kind", motif.Kind.ToString());
-                json.WriteString("mode", motif.Mode.ToString());
-                WriteRange(json, motif.Span, motif.Filter);
-                WriteNoteIds(json, motif.NoteIds);
-                json.WriteEndObject();
-            });
-
-            WriteList(json, "variations", project.Variations, KeptUnknown(project.Unknown, "variations", project.Variations.Select(static variation => variation.Id), replacedMotifs, out _), variation =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", variation.Id);
-                json.WriteString("motifId", variation.MotifId);
-                WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
-                WriteKey(json, variation.Key);
-                json.WriteEndObject();
-            });
-
-            WriteList(json, "observations", project.Observations, KeptUnknown(project.Unknown, "observations", project.Observations.Select(static observation => observation.Id), null, out _), observation => WriteObservation(json, observation));
-
-            json.WriteStartArray("edits");
-            foreach (NoteEdit edit in project.Edits.Edits)
-            {
-                json.WriteStartObject();
-                json.WriteString("noteId", edit.NoteId);
-                if (edit.Before is { } before)
-                {
-                    WriteValues(json, "before", before);
-                }
-                else
-                {
-                    // A note the player added (version 14, testing item 15): its track and hand, then its values.
-                    json.WriteStartObject("added");
-                    json.WriteNumber("track", edit.Track);
-                    if (edit.Hand is { } hand)
-                    {
-                        json.WriteString("hand", hand.ToString());
-                    }
-
-                    json.WriteEndObject();
-                }
-
-                if (edit.After is { } after)
-                {
-                    WriteValues(json, "after", after);
-                }
-
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
-
-            json.WriteStartObject("phrases");
-            WriteTicks(json, "added", project.Phrases.Added);
-            WriteTicks(json, "removed", project.Phrases.Removed);
-            json.WriteStartObject("short");
-            WriteTicks(json, "added", project.ShortPhrases.Added);
-            WriteTicks(json, "removed", project.ShortPhrases.Removed);
-            json.WriteEndObject();
-            json.WriteStartObject("sentences");
-            WriteTicks(json, "added", project.Sentences.Added);
-            WriteTicks(json, "removed", project.Sentences.Removed);
-            json.WriteEndObject();
-            json.WriteEndObject();
-
-            json.WriteStartObject("marks");
-            WriteList(json, "ink", project.Marks.Ink, KeptUnknown(project.Marks.Unknown, "marks.ink", project.Marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
-            json.WriteStartArray("notes");
-            foreach (MarginNote note in project.Marks.Notes)
-            {
-                json.WriteStartObject();
-                json.WriteString("id", note.Id);
-                WriteSpan(json, note.Span);
-                json.WriteString("text", note.Text);
-                json.WriteString("createdAt", note.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
-            WriteList(json, "highlights", project.Marks.Highlights, KeptUnknown(project.Marks.Unknown, "marks.highlights", project.Marks.Highlights.Select(static highlight => highlight.Id), null, out _), highlight =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", highlight.Id);
-                WriteSpan(json, highlight.Span);
-                WriteNoteIds(json, highlight.NoteIds);
-                json.WriteString("colour", highlight.Colour.ToString());
-                json.WriteEndObject();
-            });
-            json.WriteStartArray("fingering");
-            foreach (Fingering fingering in project.Marks.Fingering)
-            {
-                json.WriteStartObject();
-                json.WriteString("noteId", fingering.NoteId);
-                json.WriteNumber("finger", fingering.Finger);
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
-            json.WriteEndObject();
-
-            json.WriteStartObject("bookmarks");
-            List<UnknownEntity> unknownCategories = KeptUnknown(project.Unknown, "bookmarks.categories", project.Categories.Select(static category => category.Id), null, out HashSet<string> replacedCategories);
-            WriteList(json, "categories", project.Categories, unknownCategories, category =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", category.Id);
-                if (category.Name is { } categoryName)
-                {
-                    json.WriteString("name", categoryName);
-                }
-
-                json.WriteString("ink", category.Ink.ToString());
-                json.WriteEndObject();
-            });
-
-            WriteList(json, "items", project.Bookmarks, KeptUnknown(project.Unknown, "bookmarks.items", project.Bookmarks.Select(static bookmark => bookmark.Id), replacedCategories, out _), bookmark =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", bookmark.Id);
-                json.WriteString("title", bookmark.Title);
-                json.WriteString("category", bookmark.CategoryId);
-                WriteSpan(json, bookmark.Span);
-                json.WriteBoolean("fromPhrase", bookmark.FromPhrase);
-                json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-                json.WriteEndObject();
-            });
-
-            json.WriteEndObject();
-
-            WriteList(json, "resumePoints", project.ResumePoints, KeptUnknown(project.Unknown, "resumePoints", project.ResumePoints.Select(static point => point.Id), null, out _), point =>
-            {
-                json.WriteStartObject();
-                json.WriteString("id", point.Id);
-                if (point.Name is { } pointName)
-                {
-                    json.WriteString("name", pointName);
-                }
-
-                json.WriteNumber("at", point.At.Value);
-                if (point.Passage is { } passage)
-                {
-                    json.WriteStartObject("passage");
-                    WriteRange(json, passage.Span, passage.Filter);
-                    json.WriteEndObject();
-                }
-
-                json.WriteBoolean("focused", point.Focused);
-                json.WriteStartArray("overlays");
-                foreach (Overlay overlay in point.Overlays)
-                {
-                    json.WriteStringValue(overlay.ToString());
-                }
-
-                json.WriteEndArray();
-                json.WriteNumber("tempoPercent", point.TempoPercent);
-                if (point.Hands is { } hands)
-                {
-                    json.WriteString("hands", hands.ToString());
-                }
-
-                json.WriteBoolean("loop", point.Loop);
-                json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-                json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
-                json.WriteEndObject();
-            });
-
-            List<UnknownEntity> unknownFlags = KeptUnknown(project.Unknown, "check", [], null, out _);
-            if (project.Check is not null || unknownFlags.Count > 0)
-            {
-                WriteList(json, "check", project.Check ?? [], unknownFlags, flag =>
-                {
-                    json.WriteStartObject();
-                    json.WriteNumber("bar", flag.Bar);
-                    json.WriteString("source", flag.Source.ToString());
-                    json.WriteString("reason", flag.Reason.ToString());
-                    json.WriteBoolean("resolved", flag.Resolved);
-                    json.WriteEndObject();
-                });
-            }
-            else
-            {
-                json.WriteNull("check");
-            }
-
-            json.WriteStartArray("performances");
-            foreach (SavedPerformance performance in project.Performances)
-            {
-                WritePerformance(json, performance);
-            }
-
-            json.WriteEndArray();
-
-            if (!project.Assembly.IsEmpty)
-            {
-                WriteAssembly(json, project.Assembly);
-            }
-
-            json.WriteStartObject("settings");
-            foreach ((string id, string value) in project.SettingOverrides.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-            {
-                json.WriteString(id, value);
-            }
-
-            json.WriteEndObject();
-
-            if (project.Scan is { } scan)
-            {
-                json.WriteStartObject("scan");
-                json.WriteString("engine", scan.Engine);
-                json.WriteStartArray("confirmedBars");
-                foreach (int bar in scan.ConfirmedBars)
-                {
-                    json.WriteNumberValue(bar);
-                }
-
-                json.WriteEndArray();
-                WriteScanPages(json, scan.Pages);
-                WriteMadeFrom(json, scan.From, scan.At);
-                json.WriteEndObject();
-            }
-            else
-            {
-                json.WriteNull("scan");
-            }
-
-            if (project.Transcription is { } transcription)
-            {
-                json.WriteStartObject("transcription");
-                json.WriteString("engine", transcription.Engine);
-                if (transcription.Bars is { } bars)
-                {
-                    json.WriteStartObject("bars");
-                    json.WriteNumber("origin", bars.Origin.Value);
-                    json.WriteNumber("sixteenthMicroseconds", bars.SixteenthMicroseconds);
-                    json.WriteString("signature", bars.Signature.ToString());
-                    json.WriteStartArray("barStarts");
-                    foreach (int start in bars.BarStarts)
-                    {
-                        json.WriteNumberValue(start);
-                    }
-
-                    json.WriteEndArray();
-                    json.WriteNumber("stepsPerBeat", bars.StepsPerBeat);
-                    json.WriteStartArray("beats");
-                    foreach (long beat in bars.Beats)
-                    {
-                        json.WriteNumberValue(beat);
-                    }
-
-                    json.WriteEndArray();
-                    WriteMeters(json, bars);
-                    json.WriteEndObject();
-                }
-                else
-                {
-                    json.WriteNull("bars");
-                }
-
-                if (transcription.Seams.Count > 0)
-                {
-                    json.WriteStartArray("seams");
-                    foreach (long seam in transcription.Seams)
-                    {
-                        json.WriteNumberValue(seam);
-                    }
-
-                    json.WriteEndArray();
-                }
-
-                WriteMadeFrom(json, transcription.From, transcription.At);
-                WriteSentFrom(json, transcription);
-                json.WriteEndObject();
-            }
-            else
-            {
-                json.WriteNull("transcription");
-            }
-
+            WriteOriginalsLayer(json, project);
+            WriteNotesLayer(json, project);
+            WriteWorkspace(json, project);
+            WriteUnknownFields(json, project.UnknownFieldsAt(""));
             json.WriteEndObject();
         }
 
         return buffer.ToArray();
     }
 
+    /// <summary>
+    /// The project a file holds, of any version from 1 to <see cref="Version"/>, converted to version 16 in memory: the
+    /// same file always gives the same project. A file of a later version is refused before any field is read.
+    /// </summary>
     public static Project Read(ReadOnlySpan<byte> data)
     {
         using (JsonDocument document = Parse(data))
@@ -426,123 +117,74 @@ public static partial class ProjectFile
             }
 
             var unknowns = new Unknowns(version == Version);
-
-            byte[] source;
-            byte[]? pdf = null;
-            try
-            {
-                source = Property(root, "source", JsonValueKind.String).GetBytesFromBase64();
-            }
-            catch (FormatException)
-            {
-                throw Damaged("source");
-            }
-
-            if (root.TryGetProperty("document", out JsonElement documentElement))
-            {
-                try
-                {
-                    pdf = documentElement.ValueKind == JsonValueKind.String ? documentElement.GetBytesFromBase64() : throw Damaged("document");
-                }
-                catch (FormatException)
-                {
-                    throw Damaged("document");
-                }
-
-                if (!PdfDocument.IsPdf(pdf))
-                {
-                    throw Damaged("document");
-                }
-            }
-
-            DocumentMarks documentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement)
-                ? ReadDocumentMarks(documentMarksElement, unknowns)
-                : DocumentMarks.Empty;
-            PageMap? documentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement)
-                ? ReadDocumentPages(pagesElement, pdf, source)
-                : null;
-            ReadFromPdf? readFrom = root.TryGetProperty("readFrom", out JsonElement readFromElement)
-                ? ReadReadFrom(readFromElement, source)
-                : null;
-
-            List<SavedMotif> motifs = ReadMotifs(root, version, unknowns, out List<SavedVariation> variations);
-            List<Observation> observations = version >= 6
-                ? ReadList(Property(root, "observations", JsonValueKind.Array), "observations", observation => ReadObservation(observation, version), unknowns)
-                : [];
-            if (observations.Select(static observation => observation.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count)
-            {
-                throw Damaged("observations");
-            }
-
-            NoteEditLog edits = version >= 3
-                ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
-                : NoteEditLog.Empty;
-            PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
-            PhraseEdits shortPhrases = version >= 12 ? ReadPhraseLevel(Property(root, "phrases", JsonValueKind.Object), "short") : PhraseEdits.None;
-            PhraseEdits sentences = version >= 12 ? ReadPhraseLevel(Property(root, "phrases", JsonValueKind.Object), "sentences") : PhraseEdits.None;
-            ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
-            TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
-            if (scan is not null && transcription is not null)
-            {
-                throw Damaged("origin");
-            }
-
-            List<ResumePoint> resumePoints = version >= 12
-                ? ReadList(Property(root, "resumePoints", JsonValueKind.Array), "resumePoints", ReadResumePoint, unknowns)
-                : version >= 8 ? Property(root, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSessionAsResumePoint).ToList() : [];
-            if (resumePoints.Select(static point => point.Id).Distinct(StringComparer.Ordinal).Count() != resumePoints.Count)
-            {
-                throw Damaged("resume points");
-            }
-
-            Marks marks = version >= 12 ? ReadMarks(Property(root, "marks", JsonValueKind.Object), unknowns) : Marks.Empty;
-            (IReadOnlyList<BookmarkCategory> categories, IReadOnlyList<Bookmark> bookmarks) = version >= 12
-                ? ReadBookmarks(Property(root, "bookmarks", JsonValueKind.Object), unknowns)
-                : (BookmarkCategory.BuiltIn, []);
-            IReadOnlyList<CheckFlag>? check = version >= 12 ? ReadCheck(root, unknowns) : null;
-            List<SavedPerformance> performances = version >= 13
-                ? [.. Property(root, "performances", JsonValueKind.Array).EnumerateArray().Select(ReadPerformance)]
-                : [];
-            if (performances.Select(static performance => performance.Id).Distinct(StringComparer.Ordinal).Count() != performances.Count)
-            {
-                throw Damaged("performances");
-            }
-
-            PieceAssembly assembly = version >= 15 ? ReadAssembly(root) : PieceAssembly.Empty;
-            IReadOnlyDictionary<string, string> overrides = version >= 12 ? ReadSettings(Property(root, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal);
-
-            return unknowns.KeptIn(new Project(
-                Text(root, "id"),
-                Text(root, "fileName"),
-                source,
-                Time(root, "createdAt"),
-                Time(root, "lastOpened"),
-                motifs,
-                variations)
-            {
-                Edits = edits,
-                Phrases = phrases,
-                ShortPhrases = shortPhrases,
-                Sentences = sentences,
-                Observations = observations,
-                Scan = scan,
-                Transcription = transcription,
-                ResumePoints = resumePoints,
-                Marks = marks,
-                Categories = categories,
-                Bookmarks = bookmarks,
-                Check = check,
-                SettingOverrides = overrides,
-                Performances = performances,
-                Document = pdf,
-                DocumentMarks = documentMarks,
-                DocumentPages = documentPages,
-                ReadFrom = readFrom,
-                Assembly = assembly,
-                Metadata = ReadMetadata(root),
-            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root).WithPlayerTempoIn(root)).Described();
+            Project project = version == Version ? ReadLayers(root, unknowns) : ReadEarlier(root, version, unknowns);
+            return unknowns.KeptIn(project).WithProvenanceKept().Described();
         }
     }
+
+    /// <summary>A file of a version before 16: its notes, its PDF and its work at the top level.</summary>
+    private static Project ReadEarlier(JsonElement root, int version, Unknowns unknowns)
+    {
+        byte[] source;
+        byte[]? pdf = null;
+        try
+        {
+            source = Property(root, "source", JsonValueKind.String).GetBytesFromBase64();
+        }
+        catch (FormatException)
+        {
+            throw Damaged("source");
+        }
+
+        if (root.TryGetProperty("document", out JsonElement documentElement))
+        {
+            pdf = ReadPdf(documentElement, "document");
+        }
+
+        ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
+        TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
+        if (scan is not null && transcription is not null)
+        {
+            throw Damaged("origin");
+        }
+
+        List<SavedPerformance> performances = version >= 13
+            ? [.. Property(root, "performances", JsonValueKind.Array).EnumerateArray().Select(ReadPerformance)]
+            : [];
+        return ReadWork(root, root, version, unknowns) with
+        {
+            Source = source,
+            Edits = version >= 3 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit)) : NoteEditLog.Empty,
+            Scan = scan,
+            Transcription = transcription,
+            Check = version >= 12 ? ReadCheck(root, unknowns) : null,
+            Performances = DistinctPerformances(performances),
+            Document = pdf,
+            DocumentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement) ? ReadDocumentMarks(documentMarksElement, unknowns) : DocumentMarks.Empty,
+            DocumentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement) ? ReadDocumentPages(pagesElement, pdf, source) : null,
+            ReadFrom = root.TryGetProperty("readFrom", out JsonElement readFromElement) ? ReadReadFrom(readFromElement, source) : null,
+            KeptOriginals = ReadOriginals(root, unknowns),
+        };
+    }
+
+    /// <summary>A PDF's bytes in base64, as "document" and an original's "data" hold them; anything else is damage.</summary>
+    private static byte[] ReadPdf(JsonElement element, string what)
+    {
+        byte[] pdf;
+        try
+        {
+            pdf = element.ValueKind == JsonValueKind.String ? element.GetBytesFromBase64() : throw Damaged(what);
+        }
+        catch (FormatException)
+        {
+            throw Damaged(what);
+        }
+
+        return PdfDocument.IsPdf(pdf) ? pdf : throw Damaged(what);
+    }
+
+    private static List<SavedPerformance> DistinctPerformances(List<SavedPerformance> performances) =>
+        performances.Select(static performance => performance.Id).Distinct(StringComparer.Ordinal).Count() == performances.Count ? performances : throw Damaged("performances");
 
     private static JsonDocument Parse(ReadOnlySpan<byte> data)
     {
@@ -698,9 +340,9 @@ public static partial class ProjectFile
     }
 
     /// <summary>The marks on a PDF's pages (0023): {"ink": [stroke, …], "bookmarks": [{"id", "page", "name"?, "createdAt"}]}.</summary>
-    private static void WriteDocumentMarks(Utf8JsonWriter json, DocumentMarks marks)
+    private static void WriteDocumentMarks(Utf8JsonWriter json, string field, DocumentMarks marks)
     {
-        json.WriteStartObject("documentMarks");
+        json.WriteStartObject(field);
         WriteList(json, "ink", marks.Ink, KeptUnknown(marks.Unknown, "documentMarks.ink", marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
         json.WriteStartArray("bookmarks");
         foreach (PageBookmark bookmark in marks.Bookmarks)
@@ -947,18 +589,19 @@ public static partial class ProjectFile
         }, unknowns);
     }
 
-    private static void WritePerformance(Utf8JsonWriter json, SavedPerformance performance)
+    /// <summary>
+    /// A compared Notes (version 16): its id, name, provenance and MIDI, and in "performance" how it lines up with the
+    /// working notes, the bars that are not a difference and the bars taken (0022, section 8).
+    /// </summary>
+    private static void WritePerformanceNotes(Utf8JsonWriter json, Project project, SavedPerformance performance)
     {
         json.WriteStartObject();
         json.WriteString("id", performance.Id);
         json.WriteString("name", performance.Name);
+        WriteProvenance(json, project.ProvenanceOf(performance));
+        json.WriteBase64String("music", performance.Midi);
+        json.WriteStartObject("performance");
         json.WriteString("source", performance.Source.ToString());
-        if (performance.Engine is { } engine)
-        {
-            json.WriteString("engine", engine);
-        }
-
-        json.WriteBase64String("midi", performance.Midi);
         json.WriteNumber("recordingStart", performance.RecordingStart);
         json.WriteStartArray("anchors");
         foreach (Anchor anchor in performance.Anchors)
@@ -984,35 +627,42 @@ public static partial class ProjectFile
         }
 
         json.WriteEndArray();
-        // The merge draft last applied (testing items 32 and 34): optional, so a reader without it keeps what was taken.
-        if (performance.Merge is { } merge)
+        WriteMerge(json, performance.Merge);
+        json.WriteEndObject();
+        WriteUnknownFields(json, project.UnknownFieldsAt(NotesPath + performance.Id));
+        json.WriteEndObject();
+    }
+
+    /// <summary>The merge draft last applied (testing items 32 and 34): optional, so a reader without it keeps what was taken.</summary>
+    private static void WriteMerge(Utf8JsonWriter json, MergeRecord? merge)
+    {
+        if (merge is null)
         {
-            json.WriteStartObject("merge");
-            if (merge.AppliedAt is { } at)
+            return;
+        }
+
+        json.WriteStartObject("merge");
+        if (merge.AppliedAt is { } at)
+        {
+            json.WriteString("appliedAt", at.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        json.WriteStartArray("bars");
+        foreach (MergeDecision decision in merge.Decisions)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", decision.Bar);
+            json.WriteString("choice", decision.Choice.ToString());
+            if (decision.Own is { } own)
             {
-                json.WriteString("appliedAt", at.ToString("O", CultureInfo.InvariantCulture));
+                json.WritePropertyName("own");
+                WriteTakenBar(json, own);
             }
 
-            json.WriteStartArray("bars");
-            foreach (MergeDecision decision in merge.Decisions)
-            {
-                json.WriteStartObject();
-                json.WriteNumber("bar", decision.Bar);
-                json.WriteString("choice", decision.Choice.ToString());
-                if (decision.Own is { } own)
-                {
-                    json.WritePropertyName("own");
-                    WriteTakenBar(json, own);
-                }
-
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
             json.WriteEndObject();
         }
 
-        WriteMadeFrom(json, performance.From, performance.At);
+        json.WriteEndArray();
         json.WriteEndObject();
     }
 
@@ -1048,52 +698,57 @@ public static partial class ProjectFile
         json.WriteEndObject();
     }
 
+    /// <summary>A performance of a file before version 16: its notes, comparison and provenance in one object.</summary>
     private static SavedPerformance ReadPerformance(JsonElement performance)
     {
         Expect(performance, JsonValueKind.Object, "performances");
         try
         {
-            byte[] midi = Property(performance, "midi", JsonValueKind.String).GetBytesFromBase64();
-            List<Anchor> anchors = [.. Property(performance, "anchors", JsonValueKind.Array).EnumerateArray().Select(anchor =>
-                anchor.ValueKind == JsonValueKind.Array && anchor.GetArrayLength() == 2 && anchor[0].TryGetInt64(out long tick) && tick >= 0 && anchor[1].TryGetInt64(out long micros)
-                    ? new Anchor(new Tick(tick), micros)
-                    : throw Damaged("performance anchors"))];
-            List<int> dismissed = [.. Property(performance, "dismissed", JsonValueKind.Array).EnumerateArray().Select(bar => bar.TryGetInt32(out int number) && number >= 0 ? number : throw Damaged("performance"))];
-            List<TakenBar> taken = [.. Property(performance, "taken", JsonValueKind.Array).EnumerateArray().Select(ReadTakenBar)];
-            MergeRecord? merge = null;
-            if (performance.TryGetProperty("merge", out JsonElement kept))
-            {
-                Expect(kept, JsonValueKind.Object, "performance");
-                merge = new MergeRecord(
-                    [.. Property(kept, "bars", JsonValueKind.Array).EnumerateArray().Select(decision =>
-                    {
-                        Expect(decision, JsonValueKind.Object, "performance");
-                        MergeChoice choice = Name<MergeChoice>(decision, "choice");
-                        return new MergeDecision(Integer(decision, "bar"), choice, decision.TryGetProperty("own", out JsonElement own) ? ReadTakenBar(own) : null);
-                    })],
-                    kept.TryGetProperty("appliedAt", out _) ? Time(kept, "appliedAt") : null);
-            }
-
-            return new SavedPerformance(
+            (string? from, DateTimeOffset? at) = ReadMadeFrom(performance);
+            SavedPerformance read = ReadComparison(
+                performance,
                 Text(performance, "id"),
                 Text(performance, "name"),
-                Name<PerformanceSource>(performance, "source"),
-                midi,
-                Long(performance, "recordingStart"),
-                PerformanceAlignment.FromAnchors(anchors).Anchors)
-            {
-                Engine = performance.TryGetProperty("engine", out _) ? Text(performance, "engine") : null,
-                Dismissed = dismissed,
-                Taken = taken,
-                Merge = merge,
-                From = ReadMadeFrom(performance).From,
-                At = ReadMadeFrom(performance).At,
-            };
+                Property(performance, "midi", JsonValueKind.String).GetBytesFromBase64(),
+                performance.TryGetProperty("engine", out _) ? Text(performance, "engine") : null);
+            return read with { From = from, At = at };
         }
         catch (Exception exception) when (exception is FormatException or ArgumentException)
         {
             throw Damaged("performance");
         }
+    }
+
+    /// <summary>A performance from its comparison (<paramref name="comparison"/>: its source, start, anchors, dismissed and taken bars, merge) and its notes.</summary>
+    private static SavedPerformance ReadComparison(JsonElement comparison, string id, string name, byte[] midi, string? engine)
+    {
+        List<Anchor> anchors = [.. Property(comparison, "anchors", JsonValueKind.Array).EnumerateArray().Select(anchor =>
+            anchor.ValueKind == JsonValueKind.Array && anchor.GetArrayLength() == 2 && anchor[0].TryGetInt64(out long tick) && tick >= 0 && anchor[1].TryGetInt64(out long micros)
+                ? new Anchor(new Tick(tick), micros)
+                : throw Damaged("performance anchors"))];
+        List<int> dismissed = [.. Property(comparison, "dismissed", JsonValueKind.Array).EnumerateArray().Select(bar => bar.TryGetInt32(out int number) && number >= 0 ? number : throw Damaged("performance"))];
+        List<TakenBar> taken = [.. Property(comparison, "taken", JsonValueKind.Array).EnumerateArray().Select(ReadTakenBar)];
+        MergeRecord? merge = null;
+        if (comparison.TryGetProperty("merge", out JsonElement kept))
+        {
+            Expect(kept, JsonValueKind.Object, "performance");
+            merge = new MergeRecord(
+                [.. Property(kept, "bars", JsonValueKind.Array).EnumerateArray().Select(decision =>
+                {
+                    Expect(decision, JsonValueKind.Object, "performance");
+                    MergeChoice choice = Name<MergeChoice>(decision, "choice");
+                    return new MergeDecision(Integer(decision, "bar"), choice, decision.TryGetProperty("own", out JsonElement own) ? ReadTakenBar(own) : null);
+                })],
+                kept.TryGetProperty("appliedAt", out _) ? Time(kept, "appliedAt") : null);
+        }
+
+        return new SavedPerformance(id, name, Name<PerformanceSource>(comparison, "source"), midi, Long(comparison, "recordingStart"), PerformanceAlignment.FromAnchors(anchors).Anchors)
+        {
+            Engine = engine,
+            Dismissed = dismissed,
+            Taken = taken,
+            Merge = merge,
+        };
     }
 
     private static TakenBar ReadTakenBar(JsonElement bar)
@@ -1285,11 +940,17 @@ public static partial class ProjectFile
             return null;
         }
 
+        (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
+        return ReadScanBlock(scan, Text(scan, "engine"), from, at);
+    }
+
+    /// <summary>A scan's checked bars and page reports, with the engine, original and time its provenance names.</summary>
+    private static ScanOrigin ReadScanBlock(JsonElement scan, string engine, string? from, DateTimeOffset? at)
+    {
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
-        return new ScanOrigin(Text(scan, "engine"), bars) { From = from, At = at, Pages = ReadScanPages(scan) };
+        return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
     }
 
     private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
@@ -1304,7 +965,13 @@ public static partial class ProjectFile
             return null;
         }
 
-        string engine = Text(transcription, "engine");
+        (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
+        return ReadHeard(transcription, version, Text(transcription, "engine"), from, at);
+    }
+
+    /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>
+    private static TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
+    {
         if (string.IsNullOrWhiteSpace(engine))
         {
             throw Damaged("engine");
@@ -1321,7 +988,6 @@ public static partial class ProjectFile
 
         try
         {
-            (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
             return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
         }
         catch (ArgumentException)
@@ -1414,7 +1080,8 @@ public static partial class ProjectFile
             .Order()
             .ToList();
 
-    private static void WriteObservation(Utf8JsonWriter json, Observation observation)
+    /// <summary>An idea; with a variation, the Notes it was built on (version 16): its own, else <paramref name="working"/>.</summary>
+    private static void WriteObservation(Utf8JsonWriter json, Observation observation, string? working)
     {
         json.WriteStartObject();
         json.WriteString("id", observation.Id);
@@ -1450,6 +1117,15 @@ public static partial class ProjectFile
             WriteKey(json, variation.Key);
 
             json.WriteEndObject();
+            if ((observation.Notes ?? working) is { } notes)
+            {
+                json.WriteString("notes", notes);
+            }
+        }
+
+        if (observation.Provenance is { } provenance)
+        {
+            WriteProvenance(json, provenance);
         }
 
         json.WriteEndObject();
@@ -1476,7 +1152,12 @@ public static partial class ProjectFile
         string? factId = version >= 12 && observation.TryGetProperty("factId", out _) ? Text(observation, "factId") : null;
         try
         {
-            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with { FactId = factId };
+            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with
+            {
+                FactId = factId,
+                Notes = version >= 16 && variation is not null && observation.TryGetProperty("notes", out _) ? Text(observation, "notes") : null,
+                Provenance = version >= 16 && observation.TryGetProperty("provenance", out JsonElement provenance) ? ReadProvenance(provenance) : null,
+            };
         }
         catch (ArgumentException)
         {
@@ -1549,17 +1230,34 @@ public static partial class ProjectFile
                 throw Damaged("note corrections");
             }
 
-            return new NoteEdit(Text(edit, "noteId"), null, ReadValues(values))
+            return WithGroupAndOrigin(new NoteEdit(Text(edit, "noteId"), null, ReadValues(values))
             {
                 Track = track,
                 Hand = added.TryGetProperty("hand", out _) ? Name<Hand>(added, "hand") : null,
-            };
+            }, edit);
         }
 
-        return new NoteEdit(
+        return WithGroupAndOrigin(new NoteEdit(
             Text(edit, "noteId"),
             ReadValues(Property(edit, "before", JsonValueKind.Object)),
-            edit.TryGetProperty("after", out JsonElement after) ? ReadValues(after) : null);
+            edit.TryGetProperty("after", out JsonElement after) ? ReadValues(after) : null), edit);
+    }
+
+    /// <summary>A correction with the group it was accepted in and who proposed it (version 16); the player's, alone, without them.</summary>
+    private static NoteEdit WithGroupAndOrigin(NoteEdit read, JsonElement edit)
+    {
+        try
+        {
+            return read with
+            {
+                Group = edit.TryGetProperty("group", out _) ? Text(edit, "group") : null,
+                Origin = edit.TryGetProperty("origin", out _) ? Text(edit, "origin") : null,
+            };
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("note corrections");
+        }
     }
 
     private static NoteValues ReadValues(JsonElement values, string what = "note corrections")

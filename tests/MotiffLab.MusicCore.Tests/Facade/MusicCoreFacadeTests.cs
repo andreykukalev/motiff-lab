@@ -199,7 +199,7 @@ public class MusicCoreFacadeTests
         Assert.Equal(ProjectFile.Version, saved.GetProperty("version").GetInt32());
         Assert.Equal(
             System.Text.Json.Nodes.JsonNode.Parse(System.Text.Encoding.UTF8.GetString(golden))!["assembly"]!.ToJsonString(),
-            System.Text.Json.Nodes.JsonNode.Parse(saved.GetRawText())!["assembly"]!.ToJsonString());
+            System.Text.Json.Nodes.JsonNode.Parse(saved.GetRawText())!["workspace"]!["assembly"]!.ToJsonString());
     }
 
     [Fact]
@@ -606,8 +606,8 @@ public class MusicCoreFacadeTests
         Assert.Equal(ProjectFile.FormatName, file.GetProperty("format").GetString());
         Assert.Equal(ProjectFile.Version, file.GetProperty("version").GetInt32());
         Assert.Equal("p_fur", file.GetProperty("id").GetString());
-        Assert.Equal("m_0001", file.GetProperty("motifs")[0].GetProperty("id").GetString());
-        Assert.Equal("v_0001", file.GetProperty("variations")[0].GetProperty("id").GetString());
+        Assert.Equal("m_0001", file.GetProperty("workspace").GetProperty("motifs")[0].GetProperty("id").GetString());
+        Assert.Equal("v_0001", file.GetProperty("workspace").GetProperty("variations")[0].GetProperty("id").GetString());
 
         var again = new MusicCoreFacade();
         JsonElement reopened = Json(again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved)));
@@ -643,8 +643,8 @@ public class MusicCoreFacadeTests
         Assert.Equal("badRequest", Error(facade, 1, "note.add", """{"bars": {"first": 1}, "text": "  "}"""));
 
         JsonElement saved = Json(facade.Call(1, "project.save"));
-        Assert.Equal("s1", saved.GetProperty("marks").GetProperty("ink")[0].GetProperty("id").GetString());
-        Assert.Equal("Lean into the E", saved.GetProperty("marks").GetProperty("notes")[0].GetProperty("text").GetString());
+        Assert.Equal("s1", saved.GetProperty("workspace").GetProperty("marks").GetProperty("ink")[0].GetProperty("id").GetString());
+        Assert.Equal("Lean into the E", saved.GetProperty("workspace").GetProperty("marks").GetProperty("notes")[0].GetProperty("text").GetString());
         Assert.Equal(4, Call(facade, "marks").GetProperty("ink").GetArrayLength() + Call(facade, "marks").GetProperty("notes").GetArrayLength() + Call(facade, "marks").GetProperty("highlights").GetArrayLength() + Call(facade, "marks").GetProperty("fingering").GetArrayLength());
         Assert.Empty(Call(facade, "ink.clear").GetProperty("ink").EnumerateArray());
     }
@@ -723,7 +723,7 @@ public class MusicCoreFacadeTests
         Assert.Single(Call(facade, "resume.remove", """{"id": "r_0002"}""").GetProperty("resumePoints").EnumerateArray());
 
         JsonElement saved = Json(facade.Call(1, "project.save"));
-        Assert.Equal(1920, saved.GetProperty("resumePoints")[0].GetProperty("at").GetInt64());
+        Assert.Equal(1920, saved.GetProperty("workspace").GetProperty("resumePoints")[0].GetProperty("at").GetInt64());
     }
 
     [Fact]
@@ -748,7 +748,7 @@ public class MusicCoreFacadeTests
         Assert.Equal("Try it slower", Call(facade, "ideas").GetProperty("ideas")[0].GetProperty("note").GetString());
 
         JsonElement saved = Json(facade.Call(1, "project.save"));
-        Assert.Equal("rhythm.durations", saved.GetProperty("observations")[0].GetProperty("factId").GetString());
+        Assert.Equal("rhythm.durations", saved.GetProperty("workspace").GetProperty("observations")[0].GetProperty("factId").GetString());
         Assert.Empty(Call(facade, "idea.remove", """{"id": "o_0001"}""").GetProperty("ideas").EnumerateArray());
     }
 
@@ -793,7 +793,7 @@ public class MusicCoreFacadeTests
         Assert.Equal("badRequest", Error(facade, 1, "settings.override", """{"id": "appearance.theme", "value": "night"}"""));
         JsonElement resolved = Json(facade.Call(0, "settings.state", """{"preset": "learning", "overrides": {"phrases.granularity": "sentences"}}"""));
         Assert.Equal("sentences", resolved.GetProperty("values").GetProperty("phrases.granularity").GetString());
-        Assert.Equal("sentences", Json(facade.Call(1, "project.save")).GetProperty("settings").GetProperty("phrases.granularity").GetString());
+        Assert.Equal("sentences", Json(facade.Call(1, "project.save")).GetProperty("workspace").GetProperty("settings").GetProperty("phrases.granularity").GetString());
         Assert.Empty(Call(facade, "settings.override", """{"id": "phrases.granularity", "value": null}""").GetProperty("overrides").EnumerateObject());
     }
 
@@ -814,8 +814,10 @@ public class MusicCoreFacadeTests
     {
         (MusicCoreFacade facade, _) = Open();
         JsonObject file = JsonNode.Parse(facade.Call(1, "project.save"))!.AsObject();
-        file["check"] = JsonNode.Parse("""[{"bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false}, {"bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false}, {"bar": 500, "source": "Scan", "reason": "BarTooShort", "resolved": true}]""");
-        file["scan"] = JsonNode.Parse("""{"engine": "homr 0.7.0", "confirmedBars": []}""");
+        JsonObject working = file["notes"]![0]!.AsObject();
+        working["check"] = JsonNode.Parse("""[{"bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false}, {"bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false}, {"bar": 500, "source": "Scan", "reason": "BarTooShort", "resolved": true}]""");
+        working["scan"] = JsonNode.Parse("""{"confirmedBars": []}""");
+        working["provenance"] = JsonNode.Parse("""{"op": "pdfRecognition", "from": [], "engine": "homr 0.7.0"}""");
         var reopened = new MusicCoreFacade();
         JsonElement opened = Json(reopened.Open("elise.motiff.json", System.Text.Encoding.UTF8.GetBytes(file.ToJsonString()), """{"language": "ru"}"""));
         int piece = opened.GetProperty("piece").GetInt32();

@@ -18,6 +18,12 @@ public class PieceMetadataTests
 
     private static Project FurElise() => Project.Create("p_fur", "fur-elise.musicxml", Fixture("fur-elise-original.musicxml"), s_now);
 
+    private static JsonObject Workspace(byte[] written) => JsonNode.Parse(written)!["workspace"]!.AsObject();
+
+    /// <summary>The piece's file with <paramref name="field"/> first in its workspace.</summary>
+    private static string WithInWorkspace(string field) =>
+        Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"workspace\": {", "\"workspace\": {\n    " + field + ",", StringComparison.Ordinal);
+
     private static byte[] Score(string header) => Encoding.UTF8.GetBytes(
         $"""<?xml version="1.0"?><score-partwise version="4.0">{header}<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"/></part></score-partwise>""");
 
@@ -49,21 +55,21 @@ public class PieceMetadataTests
         Assert.Equal(written, ProjectFile.Write(project));
         Assert.Equal(written, ProjectFile.Write(read));
         JsonObject file = JsonNode.Parse(written)!.AsObject();
-        Assert.Equal(15, file["version"]!.GetValue<int>());
-        Assert.Equal("""{"title":"Für Elise","composer":"L. van Beethoven","tags":["Exam","Bagatelle"],"playlists":["Recital"]}""", file["metadata"]!.ToJsonString(new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        Assert.Equal(ProjectFile.Version, file["version"]!.GetValue<int>());
+        Assert.Equal("""{"title":"Für Elise","composer":"L. van Beethoven","tags":["Exam","Bagatelle"],"playlists":["Recital"]}""", file["workspace"]!["metadata"]!.ToJsonString(new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
     }
 
     [Fact]
     public void Only_the_fields_set_are_written_and_none_at_all_while_nothing_is_set()
     {
-        JsonObject none = JsonNode.Parse(ProjectFile.Write(FurElise()))!.AsObject();
+        JsonObject none = Workspace(ProjectFile.Write(FurElise()));
         Assert.False(none.ContainsKey("metadata"));
 
-        JsonObject tagged = JsonNode.Parse(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, ["Exam"], null) }))!.AsObject();
+        JsonObject tagged = Workspace(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, ["Exam"], null) }));
         JsonObject metadata = tagged["metadata"]!.AsObject();
         Assert.Equal(["tags"], metadata.Select(pair => pair.Key));
 
-        JsonObject listed = JsonNode.Parse(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, null, ["Recital"]) }))!.AsObject();
+        JsonObject listed = Workspace(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, null, ["Recital"]) }));
         Assert.Equal(["playlists"], listed["metadata"]!.AsObject().Select(pair => pair.Key));
     }
 
@@ -75,7 +81,7 @@ public class PieceMetadataTests
         Project project = ProjectFile.Read(golden);
 
         Assert.Same(PieceMetadata.None, project.Metadata);
-        Assert.False(JsonNode.Parse(ProjectFile.Write(project))!.AsObject().ContainsKey("metadata"));
+        Assert.False(Workspace(ProjectFile.Write(project)).ContainsKey("metadata"));
     }
 
     [Theory]
@@ -87,7 +93,7 @@ public class PieceMetadataTests
     [InlineData("\"metadata\": {\"playlists\": [null]}")]
     public void Metadata_of_the_wrong_shape_is_damaged(string field)
     {
-        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", field + ",\n  \"source\":", StringComparison.Ordinal);
+        string file = WithInWorkspace(field);
 
         ProjectFileException damaged = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(file)));
         Assert.Contains("metadata", damaged.Message, StringComparison.Ordinal);
@@ -96,7 +102,7 @@ public class PieceMetadataTests
     [Fact]
     public void A_file_with_untidy_metadata_reads_it_cleaned()
     {
-        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", "\"metadata\": {\"title\": \"  \", \"tags\": [\"a\", \"A\", \" b \"], \"playlists\": [\" c \", \"C\"]},\n  \"source\":", StringComparison.Ordinal);
+        string file = WithInWorkspace("\"metadata\": {\"title\": \"  \", \"tags\": [\"a\", \"A\", \" b \"], \"playlists\": [\" c \", \"C\"]}");
 
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
 
@@ -108,7 +114,7 @@ public class PieceMetadataTests
     [Fact]
     public void A_file_with_tags_but_no_playlists_reads_as_on_no_playlist()
     {
-        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", "\"metadata\": {\"tags\": [\"Exam\"]},\n  \"source\":", StringComparison.Ordinal);
+        string file = WithInWorkspace("\"metadata\": {\"tags\": [\"Exam\"]}");
 
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
 

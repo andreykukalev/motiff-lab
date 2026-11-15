@@ -72,7 +72,7 @@ The online copy is as before: no bytes, the descriptions, the Notes and the work
 
 ### 6. Version 16 of the project file
 
-The file is laid out in the three layers: `originals`, `notes`, `workspace` ([`project-file.md`](../project-file.md)). The reader converts every file of versions 1 to 15 itself and deterministically; the writer writes only version 16, and the same project gives the same bytes. Unknown fields of the file, the workspace, a Notes, an original and a provenance are kept and written back (S6). A file of a later version is refused, as before.
+The file is laid out in the three layers: `originals`, `notes`, `workspace` ([`project-file.md`](../project-file.md)). The reader converts every file of versions 1 to 15 itself and deterministically; the writer writes only version 16, and the same project gives the same bytes. Unknown fields of the file, the workspace, a Notes, an original and a provenance are kept and written back (S6). A file of a later version is refused, as before. The workspace also keeps the views the player hid from the switch at the top of the score (`hiddenViews`, ids of originals and Notes; never the working notes; Andrei, 2026-11-14), the player's data in the sync like the rest of the workspace.
 
 In memory the piece keeps the shape both apps use today (`Project.Source`, `Scan`, `Transcription`, `Edits`, `Check`, `Performances`, `Document`): they are the working notes, the compared Notes and the first PDF. The facade's answers stay as they are; the `sources` answer adds the Originals and Notes with their states (step 5 below). So the web and the iPad keep working on version 16 before their own sources UI.
 
