@@ -29,7 +29,7 @@ final class SwitchUITests: XCTestCase {
         let settings = "{\"appearance.theme\" = \"daylight\"; \"experimental.playheads\" = \"on\"; \"experimental.sources\" = \"\(sources ? "on" : "off")\";}"
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", settings,
-                               "-ml-screens", "-ml-screens-reset", "-ml-screens-both", pdf.path, "-ml-screens-copies", String(copies)]
+                               "-ml-screens", "-ml-screens-reset", "-ml-screens-both", "-ml-screens-open", pdf.path, "-ml-screens-copies", String(copies)]
         app.launch()
         defer {
             app.terminate()
