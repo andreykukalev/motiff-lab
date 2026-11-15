@@ -7,7 +7,8 @@
 @inject UiText Text
 
 @* The focused phrase engraved on its own (0018 section 4), with any ossia above it; the script owns the host's children. *@
-<div class="phrase-card-score" @ref="_host"></div>
+@* With a label, the card that may scroll is a region the keyboard can reach and scroll (WCAG 2.1.1). *@
+<div class="phrase-card-score" role="@(Label is null ? null : "region")" aria-label="@Label" tabindex="@(Label is null ? null : "0")" @ref="_host"></div>
 @if (_error is not null)
 {
     <p class="error">@_error</p>
@@ -29,6 +30,10 @@
     /// <summary>What sounds now, so only its staves light up: "original", "variation" or "both".</summary>
     [Parameter]
     public string Sounding { get; set; } = "original";
+
+    /// <summary>The name of the score as a region the keyboard can reach; null leaves it out of the tab order.</summary>
+    [Parameter]
+    public string? Label { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

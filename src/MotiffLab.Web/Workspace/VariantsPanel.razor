@@ -1,0 +1,133 @@
+@using MotiffLab.Web.Compare
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Что если» under the focus card (an experiment, Settings · Experimental, version 0.6; the AI companion study, section 2.4):
+   the engine's operations as chips, the no-AI way to a variant, from the original or from the variant shown; the variant
+   shown with where it came from, its steps, Original / it / One after the other, what changed written by music-core from
+   the notes, the Keep checks, and Take into work, Keep, Discard or Delete. Its notes are the plum ossia over the phrase.
+   The page makes, hears, keeps and promotes. *@
+<section class="variants-panel" aria-labelledby="variants-title" data-keeps-selection>
+    <div class="variants-head">
+        <p class="overline" id="variants-title">@Text["variants.title"]</p>
+        @if (BaseName is { } name)
+        {
+            <div class="seg" role="radiogroup" aria-label="@Text["variants.from"]">
+                <button role="radio" class="@(FromOriginal ? "on" : null)" aria-checked="@(FromOriginal ? "true" : "false")" @onclick="() => FromOriginalChanged.InvokeAsync(true)">@Text["variants.fromOriginal"]</button>
+                <button role="radio" class="@(FromOriginal ? null : "on")" aria-checked="@(FromOriginal ? "false" : "true")" @onclick="() => FromOriginalChanged.InvokeAsync(false)">@Text.Format("variants.fromVariant", name)</button>
+            </div>
+        }
+    </div>
+    <div class="what-if" role="group" aria-label="@Text["variants.chipsWhatIf"]">
+        @foreach (WhatIfChip chip in Chips)
+        {
+            <button class="what-if-chip" @onclick="() => Make.InvokeAsync(chip.Id)">@chip.Label</button>
+        }
+    </div>
+    <p class="caption">@Text["variants.byEngine"]</p>
+    @if (Card is { } card)
+    {
+        <div class="variant-card" aria-labelledby="variant-overline">
+            <p class="overline" id="variant-overline">@card.Overline@(card.InWork ? " · " + Text["variants.inWork"] : null)</p>
+            <p class="variant-title">@card.Title</p>
+            <CompareSwitch View="Compare" Choose="Hear" OneAfterTheOther="Alternate" />
+            <div class="variant-changes">
+                <p class="overline">@Text["variants.changes"]</p>
+                <p>@card.Explanation</p>
+                @if (card.Checks.Count > 0)
+                {
+                    <ul class="variant-checks" aria-label="@Text["variants.checks"]">
+                        @foreach (VariantCheck check in card.Checks)
+                        {
+                            <li class="@(check.Kept switch { true => "kept", false => "changed", null => "unchecked" })">@check.Text</li>
+                        }
+                    </ul>
+                }
+            </div>
+            @if (card.BaseChanged)
+            {
+                <div class="variant-base">
+                    <p>@Text["variants.baseChanged"]</p>
+                    <button class="btn quiet compact" @onclick="Recompute">@Text["variants.recompute"]</button>
+                </div>
+            }
+            <div class="row">
+                @if (!card.InWork)
+                {
+                    <button class="btn primary compact" disabled="@(card.PromoteRefusal is not null)" aria-describedby="@(card.PromoteRefusal is not null ? "variant-refusal" : null)"
+                            @onclick="Promote">@Text["variants.promote"]</button>
+                }
+                @if (card.Draft)
+                {
+                    <button class="btn quiet compact" @onclick="Keep">@Text["variants.keep"]</button>
+                    <button class="btn quiet compact" @onclick="Discard">@Text["variants.discard"]</button>
+                }
+                else if (!card.InWork)
+                {
+                    <button class="btn quiet compact" @onclick="Delete">@Text["variants.delete"]</button>
+                }
+            </div>
+            @if (card.PromoteRefusal is { } refusal && !card.InWork)
+            {
+                <p class="caption" id="variant-refusal">@refusal</p>
+            }
+        </div>
+    }
+    @if (Status is { } status)
+    {
+        <p class="caption variant-status" role="status">@status</p>
+    }
+</section>
+
+@code {
+    /// <summary>The «Что если» chips.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<WhatIfChip> Chips { get; set; } = [];
+
+    /// <summary>The variant shown, which a chip can build on; null when the original is heard.</summary>
+    [Parameter]
+    public string? BaseName { get; set; }
+
+    /// <summary>Whether the next chip starts from the original.</summary>
+    [Parameter]
+    public bool FromOriginal { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> FromOriginalChanged { get; set; }
+
+    /// <summary>The variant shown; null when none is.</summary>
+    [Parameter]
+    public VariantCard? Card { get; set; }
+
+    /// <summary>What the switch shows: Original or the variant heard, or the two in turn.</summary>
+    [Parameter, EditorRequired]
+    public CompareView Compare { get; set; } = null!;
+
+    /// <summary>What the last action did, or why it could not.</summary>
+    [Parameter]
+    public string? Status { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Make { get; set; }
+
+    [Parameter]
+    public EventCallback Keep { get; set; }
+
+    [Parameter]
+    public EventCallback Promote { get; set; }
+
+    [Parameter]
+    public EventCallback Discard { get; set; }
+
+    [Parameter]
+    public EventCallback Delete { get; set; }
+
+    [Parameter]
+    public EventCallback Recompute { get; set; }
+
+    /// <summary>Hear the original (false) or the variant (true).</summary>
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Alternate { get; set; }
+}

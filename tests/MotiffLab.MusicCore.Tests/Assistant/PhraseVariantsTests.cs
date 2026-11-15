@@ -128,6 +128,26 @@ public class PhraseVariantsTests
     }
 
     [Fact]
+    public void A_project_opens_after_a_variant_is_made_notes_and_keeps_the_idea_it_replaced()
+    {
+        byte[] file = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml"));
+        Project project = Project.Create("p_1", "FurElise.musicxml", file, s_at);
+        OpenedProject opened = OpenedProject.Open(project);
+        VariantReplay made = PhraseVariants.FromChip(Chip("v2.arpeggioDown"), "o_0001", "Вариант 1", Bars(5, 8, opened.Notes), opened.Notes, opened.Piece.Meter, null, s_at, Words.Russian);
+        KeptVariation kept = made.Variant.ToKept();
+        project = project.Keep(Observation.Create("o_0001", kept.Passage, kept, made.Variant.Name, null, s_at));
+        AssemblyWork work = new(SourceMusic.OfPiece(opened.Piece, opened.Notes), new Dictionary<string, SourceMusic>(), new Dictionary<string, string>(), [], 1);
+        (AssemblyWork promoted, _) = VariantPromotion.Promote(work, made.Variant, VariantPromotion.Music(made, opened.Notes, opened.Piece.Meter)!, "«Вариант 1»", s_at);
+
+        Project changed = project.WithJournal(promoted.Steps, promoted.Next).ApplyAssembly(promoted.Result.Music, promoted.Base, s_at);
+        OpenedProject again = OpenedProject.Open(changed);
+
+        Assert.Equal(["o_0001"], again.Hidden);
+        Assert.Equal(["o_0001"], again.Project.Observations.Select(observation => observation.Id));
+        Assert.Equal(["o_0001"], VariantPromotion.Carried(again.Project.Assembly.Steps));
+    }
+
+    [Fact]
     public void A_variant_that_adds_a_bar_moves_the_bars_after_it_in_the_working_notes()
     {
         VariantReplay made = Arpeggio();

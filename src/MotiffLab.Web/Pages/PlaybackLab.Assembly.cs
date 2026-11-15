@@ -121,6 +121,8 @@ public partial class PlaybackLab
                 }
             }
 
+            AddVariantSources(project, sources, names);
+
             _work = _work is not null && _workOver?.ProjectId == project.Id
                 ? _work.Over(baseMusic, sources, names)
                 : new AssemblyWork(baseMusic, sources, names, kept.Steps, kept.Next);
