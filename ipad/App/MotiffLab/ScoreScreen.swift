@@ -97,6 +97,10 @@ struct ScoreScreen: View {
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
+        // The keyboard never changes the screen's size (#582 item 16): before, a chat's keyboard shrank it, portrait read
+        // as landscape and the sheets, the drawer, the pill and the page's room moved, and back again as it went. A chat
+        // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
+        .ignoresSafeArea(.keyboard)
     }
 
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.

@@ -27,10 +27,13 @@ struct AskContext {
 }
 
 /// The assistant as a popover where Ask was pressed (0018 section 7; testing item 23; the web app's AssistantPanel as a
-/// popover): the scope chips, what it knows, the conversation, three questions to ask, the field with the microphone, and
-/// Open in Insights, which goes on in the stream. The place under it stays as it was. It needs an AI model, so it is Pro
-/// in full: the free tier gets one plum line and nothing is sent; in Pro a question joins the conversation and the answers
-/// are said to be coming.
+/// popover): the scope chips, what it knows, the conversation, three questions to ask, the field with Send, and Open in
+/// Insights, which goes on in the stream. The place under it stays as it was. It needs an AI model, so it is Pro in full:
+/// the free tier gets one plum line and nothing is sent; in Pro a question joins the conversation and the answers are said
+/// to be coming. It keeps the chat's interaction model (AskFlow, #582 item 16): the field waits to be pressed, by a finger
+/// or the Pencil alike; the head with Close and the field with Send stay in sight above the keyboard, as the popover gives
+/// way to it (only what is between them scrolls); hiding the keyboard keeps it open, and while the field has the focus a
+/// press outside does not close it. The microphone is the keyboard's own dictation (the lead's decision 6).
 struct AskPopover: View {
     @ObservedObject var conversation: AskConversation
     @ObservedObject var account: Account
@@ -38,92 +41,87 @@ struct AskPopover: View {
     @State var context: AskContext
     let openInInsights: (() -> Void)?
     let close: () -> Void
-    @State private var draft = ""
-    @FocusState private var typing: Bool
+    @State private var flow = AskFlow(surface: .popover)
 
     private var allowed: Bool { account.allows(.assistant) }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            HStack {
+                Text(text["ask.title"]).overline()
+                Spacer()
+                Button {
+                    flow.apply(.close)
+                    close()
+                } label: {
+                    Icon(name: "close").frame(width: 32, height: 32)
+                }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["drawer.close"])
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        if let selection = context.selection {
+                            Button(selection) { context.wholePiece = false }
+                                .buttonStyle(DSChipStyle(on: !context.wholePiece))
+                                .accessibilityAddTraits(!context.wholePiece ? .isSelected : [])
+                        }
+                        Button(text["ask.wholePiece"]) { context.wholePiece = true }
+                            .buttonStyle(DSChipStyle(on: context.wholePiece || context.selection == nil))
+                            .accessibilityAddTraits(context.wholePiece ? .isSelected : [])
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(text["ask.scope"])
+                    DisclosureGroup(text.format("ask.knows", text.count("ask.items", knows.count))) {
+                        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                            ForEach(knows, id: \.self) { item in
+                                Text(item).dsType(.caption)
+                            }
+                        }
+                        .padding(.top, CGFloat.ds("s-1"))
+                    }
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .tint(Color.ds("ink-2"))
+                    conversationView
+                    FlowRow(spacing: CGFloat.ds("s-2")) {
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Button(suggestion) { conversation.ask(suggestion) }
+                                .buttonStyle(DSChipStyle())
+                                .disabled(!allowed)
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(text["ask.suggestions"])
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // A press on the chat's own ground puts the keyboard away; the chat stays.
+                .background(Color.clear.contentShape(Rectangle()).onTapGesture { flow.apply(.blur) })
+            }
+            .scrollDismissesKeyboard(.never)
+            AskInputRow(flow: $flow, text: text, enabled: allowed) { conversation.ask($0) }
+            if let openInInsights {
                 HStack {
-                    Text(text["ask.title"]).overline()
+                    Text(text["ask.keptInInsights"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
                     Spacer()
-                    Button(action: close) {
-                        Icon(name: "close").frame(width: 32, height: 32)
+                    Button(text["ask.openInInsights"] + " ›") {
+                        flow.apply(.close)
+                        openInInsights()
                     }
-                    .buttonStyle(BarActionStyle())
-                    .accessibilityLabel(text["drawer.close"])
-                }
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    if let selection = context.selection {
-                        Button(selection) { context.wholePiece = false }
-                            .buttonStyle(DSChipStyle(on: !context.wholePiece))
-                            .accessibilityAddTraits(!context.wholePiece ? .isSelected : [])
-                    }
-                    Button(text["ask.wholePiece"]) { context.wholePiece = true }
-                        .buttonStyle(DSChipStyle(on: context.wholePiece || context.selection == nil))
-                        .accessibilityAddTraits(context.wholePiece ? .isSelected : [])
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel(text["ask.scope"])
-                DisclosureGroup(text.format("ask.knows", text.count("ask.items", knows.count))) {
-                    VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-                        ForEach(knows, id: \.self) { item in
-                            Text(item).dsType(.caption)
-                        }
-                    }
-                    .padding(.top, CGFloat.ds("s-1"))
-                }
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .tint(Color.ds("ink-2"))
-                conversationView
-                FlowRow(spacing: CGFloat.ds("s-2")) {
-                    ForEach(suggestions, id: \.self) { suggestion in
-                        Button(suggestion) { conversation.ask(suggestion) }
-                            .buttonStyle(DSChipStyle())
-                            .disabled(!allowed)
-                    }
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel(text["ask.suggestions"])
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    TextField(text["ask.placeholder"], text: $draft)
-                        .dsType(.body)
-                        .foregroundStyle(Color.ds("ink"))
-                        .focused($typing)
-                        .submitLabel(.send)
-                        .onSubmit {
-                            conversation.ask(draft)
-                            draft = ""
-                        }
-                        .disabled(!allowed)
-                    Icon(name: "mic")
-                        .foregroundStyle(Color.ds("ink-3"))
-                        .accessibilityLabel(text["ask.speak"])
-                }
-                .padding(.horizontal, CGFloat.ds("s-4"))
-                .frame(minHeight: CGFloat.ds("h-touch"))
-                .background(Color.ds("surface"), in: Capsule())
-                .overlay(Capsule().strokeBorder(Color.ds("hairline-strong")))
-                if let openInInsights {
-                    HStack {
-                        Text(text["ask.keptInInsights"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                        Spacer()
-                        Button(text["ask.openInInsights"] + " ›", action: openInInsights)
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("accent"))
-                    }
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("accent"))
                 }
             }
-            .padding(CGFloat.ds("s-4"))
         }
+        .padding(CGFloat.ds("s-4"))
         .frame(width: 340)
         .frame(maxHeight: 520)
         .background(Color.ds("surface"))
         .presentationCompactAdaptation(.popover)
-        .onAppear { if allowed { typing = true } }
+        // While the field has the focus a press outside does not close the popover (AskFlow); once it let go, it does.
+        .interactiveDismissDisabled(!flow.closesOnOutsidePress)
+        .onAppear { flow.apply(.open) }
     }
 
     @ViewBuilder private var conversationView: some View {
@@ -176,12 +174,15 @@ struct AskPopover: View {
     }
 }
 
-/// The foot of the Insights stream (0018 section 7): the conversation the popovers add to, and the field that asks more.
+/// The foot of the Insights stream (0018 section 7): the conversation the popovers add to, and the field that asks more,
+/// with the chat's interaction model (AskFlow, #582 item 16); the sheet keeps it clear of the keyboard (KeyboardRoom).
 struct AskStreamFoot: View {
     @ObservedObject var conversation: AskConversation
     @ObservedObject var account: Account
     let text: UIText
-    @State private var draft = ""
+    /// The field was focused and the keyboard is up: the sheet scrolls it into sight.
+    var typing: () -> Void = {}
+    @State private var flow = AskFlow(surface: .panel)
 
     private var allowed: Bool { account.allows(.assistant) }
 
@@ -198,18 +199,15 @@ struct AskStreamFoot: View {
                 (Text(text["ask.pro"]).foregroundStyle(Color.ds("plum")).fontWeight(.semibold) + Text(" " + text["ask.offer"]))
                     .dsType(.caption)
             }
-            TextField(text["ask.placeholder"], text: $draft)
-                .dsType(.body)
-                .foregroundStyle(Color.ds("ink"))
-                .submitLabel(.send)
-                .onSubmit {
-                    conversation.ask(draft)
-                    draft = ""
-                }
-                .disabled(!allowed)
-                .padding(.horizontal, CGFloat.ds("s-4"))
-                .frame(minHeight: CGFloat.ds("h-touch"))
-                .overlay(Capsule().strokeBorder(Color.ds("hairline-strong")))
+            AskInputRow(flow: $flow, text: text, enabled: allowed) { conversation.ask($0) }
+                .id(AskStreamFoot.fieldId)
+        }
+        .onAppear { flow.apply(.open) }
+        .onChange(of: flow.focused && flow.keyboardShown) { _, up in
+            if up { DispatchQueue.main.async { typing() } }
         }
     }
+
+    /// Where the sheet scrolls to while the field is focused, so it stays in sight above the keyboard.
+    static let fieldId = "ask-field"
 }
