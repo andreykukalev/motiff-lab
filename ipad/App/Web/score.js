@@ -534,7 +534,8 @@ const places = new PlaceLayer(document.body, {
     beats: selection.beats,
     on: () => placesOn(),
     rule: (pointerType) => {
-        const rule = state.input?.[pointerType]?.select;
+        // A mouse or a trackpad, which Swift names no rule for, selects at once, as the stylus does.
+        const rule = state.input?.[pointerType]?.select ?? (pointerType === "mouse" ? "now" : undefined);
         return rule === "now" || rule === "longPress" ? rule : "none";
     },
     selection: () => (state.chosen ? { start: state.chosen.start, end: state.chosen.end, hand: state.chosen.hand ?? null } : null),

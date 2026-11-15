@@ -84,4 +84,32 @@ final class PlaceSelectionTests: XCTestCase {
         XCTAssertEqual(one.noteIds, [note])
         XCTAssertLessThan(one.onset, one.end)
     }
+
+    func testThePencilsSwitchToPreviousTakesSelectAndTheToolBeforeItInTurns() {
+        let fromPen = StylusRules.selectTurn(current: .pen, before: nil)
+        XCTAssertEqual(fromPen.chosen, .select)
+        XCTAssertEqual(fromPen.before, .pen)
+        let back = StylusRules.selectTurn(current: .select, before: fromPen.before)
+        XCTAssertEqual(back.chosen, .pen)
+        XCTAssertNil(back.before)
+        let fromNavigate = StylusRules.selectTurn(current: .navigate, before: nil)
+        XCTAssertEqual(fromNavigate.chosen, .select)
+        XCTAssertEqual(StylusRules.selectTurn(current: .select, before: fromNavigate.before).chosen, .navigate, "back to Navigate, not the Pen")
+        XCTAssertEqual(StylusRules.selectTurn(current: .select, before: nil).chosen, .pen, "with no tool before, the Pen, as before")
+    }
+
+    func testTheSelectionKeptOnTheDeviceKeepsItsHandAndNotesAndReadsWhatWasKeptBefore() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "PlaceSelectionTests"))
+        defer { defaults.removePersistentDomain(forName: "PlaceSelectionTests") }
+        var state = NotesViewState()
+        state.selection = SelectionSpanKept(ScoreSelection(onset: 480, end: 960, firstBar: 1, lastBar: 1, hand: "left", picked: ["n4"]))
+        ViewStates.keep(state, "p_1", in: defaults)
+        let kept = try XCTUnwrap(ViewStates.notes("p_1", in: defaults)?.selection)
+        XCTAssertEqual(kept, SelectionSpanKept(onset: 480, end: 960, hand: "left", picked: ["n4"]))
+        XCTAssertEqual(kept.span.request, #"{"notes":["n4"],"picked":true}"#)
+        // What version 0.6.1 kept: a span only.
+        defaults.set(Data(#"{"selection": {"onset": 0, "end": 1920}, "zoom": 1, "left": 0, "position": 0, "loop": false, "rollOpen": false}"#.utf8), forKey: ViewStates.notesKey("p_2"))
+        let old = try XCTUnwrap(ViewStates.notes("p_2", in: defaults)?.selection)
+        XCTAssertEqual(old.span.request, #"{"snap":"beat","span":{"end":1920,"onset":0}}"#)
+    }
 }

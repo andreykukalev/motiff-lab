@@ -14,7 +14,8 @@ extension ScoreScreen {
     /// The "Notes" view as it is now, read before the player stops; where the score and the roll are is read as it is kept.
     func notesViewNow() -> NotesViewState {
         var state = NotesViewState()
-        state.selection = score.selection.map { SelectionSpanKept(onset: $0.onset, end: $0.end) }
+        // With the place selection off, the span only, as in v0.6.1 (#601).
+        state.selection = score.selection.map { score.placeSelection ? SelectionSpanKept($0) : SelectionSpanKept(onset: $0.onset, end: $0.end) }
         state.position = player.tick
         state.loop = score.onePosition ? player.cycle && score.selection != nil : player.loop != nil
         state.rollOpen = rollOpen
@@ -50,7 +51,7 @@ extension ScoreScreen {
         RollFrameHandoff.give(kept.roll, to: piece.id)
         guard await score.whenRendered() else { return }
         if let span = kept.selection, span.end > span.onset {
-            await score.select(request: ScoreController.beatsRequest(span.onset, span.end), step: false)
+            await score.select(request: span.span.request, step: false, picked: span.picked != nil)
         }
         if score.onePosition {
             // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).

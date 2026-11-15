@@ -24,6 +24,13 @@ enum StylusRules {
         return penOn ? (false, .select, false) : (true, mode, false)
     }
 
+    /// The Pencil's «switch to previous» with selection by the place of the touch (v0.6.2, #601 H 5, the lead's decision 9):
+    /// Select and the tool before it take turns, from any tool; back from Select with no tool before it, the Pen, as the
+    /// turn of the Pen and Select was before. What the next turn goes back to comes with it.
+    static func selectTurn(current: InteractionMode, before: InteractionMode?) -> (chosen: InteractionMode, before: InteractionMode?) {
+        current == .select ? (before ?? .pen, nil) : (.select, current)
+    }
+
     /// Whose history Undo and Redo act on (#521 9): each tool that edits has its own, and Navigate, which only moves the
     /// music, has none.
     enum UndoOwner: Equatable { case ink, selection, noteEdits, nothing }
@@ -92,6 +99,12 @@ extension ScoreController {
     func scorePencilGesture(_ action: PencilGesture.Action, at point: CGPoint?) {
         guard action == .previous else {
             pencilGesture(action, at: point)
+            return
+        }
+        if placeSelection, let mode {
+            let turn = StylusRules.selectTurn(current: penOn ? .pen : mode, before: toolBeforeSelect)
+            toolBeforeSelect = turn.before
+            chooseMode(turn.chosen)
             return
         }
         let next = StylusRules.previous(penOn: penOn, mode: mode)

@@ -76,10 +76,23 @@ struct NotesViewState: Codable, Equatable, Sendable {
     var roll: [String: Double]?
 }
 
-/// A selection's span as the device keeps it.
+/// A selection's span as the device keeps it; since v0.6.2 (#601, the one selection, optional so what was kept before
+/// still reads) the hand it is narrowed to and the notes picked. Kept on the device only, never in the project file.
 struct SelectionSpanKept: Codable, Equatable, Sendable {
     var onset: Double
     var end: Double
+    var hand: String?
+    var picked: [String]?
+
+    /// The selection as music-core selects it again: the notes picked, else the span by beats with its hand.
+    var span: SelectionSpan { SelectionSpan(onset: onset, end: end, hand: hand, picked: picked) }
+}
+
+// In an extension, so the memberwise init (hand and picked nil unless given) stays.
+extension SelectionSpanKept {
+    init(_ selection: ScoreSelection) {
+        self.init(onset: selection.onset, end: selection.end, hand: selection.hand, picked: selection.picked)
+    }
 }
 
 /// The PDF as the player left it: the page under the bar and how far down it, how far across the pages, and its zoom as a
