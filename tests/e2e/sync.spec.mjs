@@ -173,7 +173,7 @@ test("when both changed a piece, the last save wins and the previous copy is kep
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toHaveCount(0);
     const online = JSON.parse(stored[id].file);
-    online.metadata = { tags: ["From the iPad"] };
+    online.workspace.metadata = { tags: ["From the iPad"] };
     stored[id] = { file: JSON.stringify(online), etag: '"ipad"', savedAt: "2020-01-01T09:00:00+00:00" };
     network.down = false;
 
@@ -183,7 +183,7 @@ test("when both changed a piece, the last save wins and the previous copy is kep
     await expect(titles(page).filter({ hasText: /^Für Elise$/ })).toHaveCount(1);
     await expect(titles(page).filter({ hasText: /^Fur Elise, opening \(previous copy, .+\)$/ })).toHaveCount(1);
     await expect.poll(() => sent.filter(put => put.id === id && put.ifMatch === '"ipad"').length, { timeout: 15000 }).toBeGreaterThan(0);
-    expect(JSON.parse(stored[id].file).metadata.title).toBe("Für Elise");
+    expect(JSON.parse(stored[id].file).workspace.metadata.title).toBe("Für Elise");
 });
 
 test("a piece beyond the free account's 300 stays here, and the library says so", async ({ page }) => {
