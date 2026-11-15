@@ -943,6 +943,20 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void PieceDnaAsksForTheIdeasByWhatTheyAreInTheMusic()
+    {
+        // #582 item 15, the experiment «Идеи по смыслу»: "ideas": "musical" gives the theme first, with why it was chosen.
+        (MusicCoreFacade facade, _) = Open();
+
+        JsonElement theme = Call(facade, "dna", """{"ideas": "musical"}""").GetProperty("ideas").GetProperty("items")[0];
+        JsonElement found = Call(facade, "dna").GetProperty("ideas").GetProperty("items")[0];
+
+        Assert.StartsWith("Theme · bars 0–7", theme.GetProperty("title").GetString());
+        Assert.StartsWith("The first two phrases begin alike", theme.GetProperty("summary").GetString());
+        Assert.StartsWith("Idea 1 · ", found.GetProperty("title").GetString());
+    }
+
+    [Fact]
     public void TheSameCallsGiveTheSameAnswers()
     {
         static List<string> Run()

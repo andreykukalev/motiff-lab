@@ -34,7 +34,12 @@ public static class IdeaFinder
         ArgumentNullException.ThrowIfNull(meter);
         ArgumentNullException.ThrowIfNull(sentences);
         ArgumentNullException.ThrowIfNull(sections);
-        Note[] line = StructureAnalyzer.Line(notes);
+        return Find(StructureAnalyzer.Line(notes), meter, sentences, sections, words, taken, firstId);
+    }
+
+    /// <summary>The ideas found on a line already drawn, such as the melody of <see cref="MusicalIdeas"/>.</summary>
+    internal static IReadOnlyList<DnaIdea> Find(Note[] line, MeterMap meter, SentenceMap sentences, IReadOnlyList<DnaSection> sections, Words words, IReadOnlyList<IdeaOccurrence>? taken, int firstId)
+    {
         if (line.Length < StructureAnalyzer.MinNotesForRecurrence)
         {
             return [];
@@ -78,7 +83,7 @@ public static class IdeaFinder
     }
 
     /// <summary>The line from a start to the end of its bar, or of the next bar when that is too short; null when still too short.</summary>
-    private static Note[]? Opening(Note[] line, MeterMap meter, Tick start)
+    internal static Note[]? Opening(Note[] line, MeterMap meter, Tick start)
     {
         Bar bar = meter.BarAt(start);
         for (int bars = 1; bars <= 2; bars++)

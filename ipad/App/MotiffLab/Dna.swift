@@ -408,10 +408,13 @@ struct DnaScreen: View {
                     }
                 }
             }
-            Text(text["dna.ideasTitle"])
-                .overline()
-                .padding(.top, CGFloat.ds("s-4"))
-                .padding(.bottom, CGFloat.ds("s-1"))
+            HStack(spacing: CGFloat.ds("s-1")) {
+                Text(text["dna.ideasTitle"]).overline()
+                // The ideas by what they are in the music (#582 item 15) are readings of the phrases and sections.
+                if settings.isOn("experimental.musicalIdeas") && !map.ideas.isEmpty { laneTag(text["dna.inferred"]) }
+            }
+            .padding(.top, CGFloat.ds("s-4"))
+            .padding(.bottom, CGFloat.ds("s-1"))
             if map.ideas.isEmpty {
                 empty(text[map.ideasStatus == "ready" ? "dna.ideasNone" : "dna.ideasEmpty"])
                     .padding(.vertical, CGFloat.ds("s-2"))
@@ -482,13 +485,7 @@ struct DnaScreen: View {
                     } else {
                         Text(name).dsType(.label).fontWeight(.semibold).lineLimit(2)
                     }
-                    if let tag {
-                        Text(tag)
-                            .dsType(.caption)
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .padding(.horizontal, 4)
-                            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong")))
-                    }
+                    if let tag { laneTag(tag) }
                 }
                 if let accessory { accessory }
                 if let why {
@@ -509,6 +506,15 @@ struct DnaScreen: View {
         }
         .padding(.vertical, 2)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
+    }
+
+    /// A lane's note on what it is, such as "inferred".
+    private func laneTag(_ words: String) -> some View {
+        Text(words)
+            .dsType(.caption)
+            .foregroundStyle(Color.ds("ink-2"))
+            .padding(.horizontal, 4)
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong")))
     }
 
     private func empty(_ words: String) -> some View {

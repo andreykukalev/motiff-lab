@@ -11,17 +11,17 @@ namespace MotiffLab.MusicCore.Tests.Analysis;
 /// </summary>
 public class PieceDnaMapTests
 {
-    private static ImportedPiece Piece(params string[] path)
+    internal static ImportedPiece Piece(params string[] path)
     {
         string file = Path.Combine([AppContext.BaseDirectory, .. path]);
         return PieceImporter.Import(Path.GetFileName(file), File.ReadAllBytes(file)).Piece!;
     }
 
-    private static ImportedPiece FurElise() => Piece("Import", "MusicXml", "Fixtures", "FurElise.musicxml");
+    internal static ImportedPiece FurElise() => Piece("Import", "MusicXml", "Fixtures", "FurElise.musicxml");
 
-    private static ImportedPiece OdeToJoy() => Piece("Experiments", "Fixtures", "ode-to-joy.musicxml");
+    internal static ImportedPiece OdeToJoy() => Piece("Experiments", "Fixtures", "ode-to-joy.musicxml");
 
-    private static PieceStructure Structure(ImportedPiece piece, Words words = default) =>
+    internal static PieceStructure Structure(ImportedPiece piece, Words words = default) =>
         PieceStructure.Of(piece.Notes, piece.Meter, PhraseLevels.Suggest(piece.Notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, KeySignature.InForce(piece.Keys, Tick.Zero), words, null), words);
 
     private static PieceDna Dna(ImportedPiece piece, Words words = default) =>

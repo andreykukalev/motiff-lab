@@ -138,3 +138,25 @@ test("a card's Hear becomes Stop in place, and comes back when it is stopped, wh
     await expect(map).toHaveText("Play the map");
     expect(errors).toEqual([]);
 });
+
+test("with «Идеи по смыслу» on, the cards are the theme, the contrast and more, each saying why it was chosen", async ({ page }) => {
+    // #582 item 15, an experiment: the ideas by what they are in the music; the cards look and play as before.
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:experimental.musicalIdeas", "on"));
+    const errors = await openFurElise(page);
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Piece DNA" }).click();
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
+
+    await expect(dna.locator(".lanes-title")).toContainText("inferred");
+    const cards = dna.locator(".dna-card");
+    await expect(cards.nth(0).locator(".ttl")).toHaveText("Theme · bars 0–7");
+    await expect(cards.nth(0).locator(".caption")).toContainText("The first two phrases begin alike");
+    await expect(cards.nth(1).locator(".ttl")).toHaveText("Contrast · B · bars 9–15");
+    await expect(cards.nth(1).locator(".caption")).toHaveText("Section B begins here, with material not heard in A: reaching an octave higher.");
+    await expect(dna.locator(".dna-row.idea").first().locator(".lane-name")).toHaveText("Theme · bars 0–7");
+
+    await cards.nth(1).locator(".dna-hear").click();
+    await expect(cards.nth(1).locator(".dna-hear")).toHaveText("Stop");
+    expect(await violations(page)).toEqual([]);
+    expect(errors).toEqual([]);
+});

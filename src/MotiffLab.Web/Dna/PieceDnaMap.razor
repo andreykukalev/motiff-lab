@@ -242,7 +242,7 @@
                 </div>
             }
 
-            <p class="overline lanes-title">@Text["dna.ideasTitle"]</p>
+            <p class="overline lanes-title">@Text["dna.ideasTitle"]@if (Dna.Ideas.Any(idea => idea.Kind is not (IdeaKind.Found or IdeaKind.Selection))) { <span class="tag assumed">@Text["dna.inferred"]</span> }</p>
             @if (Dna.Ideas.Count == 0)
             {
                 <p class="lane-empty ideas-empty">@Text[Dna.IdeasStatus == DnaStatus.Ready ? "dna.ideasNone" : "dna.ideasEmpty"]</p>
