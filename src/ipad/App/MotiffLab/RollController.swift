@@ -371,7 +371,7 @@ final class RollController: NSObject, ObservableObject {
         if !settings.values.isEmpty, noteNames != settings.isOn("roll.noteNames") { noteNames = settings.isOn("roll.noteNames") }
         let asked = naming == "letters" || naming == "syllables" ? "{\"naming\": \"\(naming)\"}" : nil
         let answer = await MusicCore.run { MusicCore.call(piece: id, "roll", asked) }
-        guard let roll = facadeObject(answer), roll["error"] == nil else {
+        guard let roll = Self.payload(answer) else {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
@@ -413,6 +413,13 @@ final class RollController: NSObject, ObservableObject {
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// The answer of `roll` (`Answer.Roll`), passed to roll.js as it is; nil for a refusal or without a field roll.js reads.
+    static func payload(_ answer: String) -> [String: Any]? {
+        guard let roll = FacadeAnswer(answer, of: "roll"), roll.has("ids", "notes", "bars", "end", "names"),
+              roll.entry("names")?.has("notes", "keyTicks", "rows", "short", "shortRows", "octaves") == true else { return nil }
+        return roll.fields
     }
 
     /// The roll's own words, from the web app's string files (`roll.js.*`), as the web app passes them.
