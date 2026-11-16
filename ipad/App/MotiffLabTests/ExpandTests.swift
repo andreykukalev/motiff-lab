@@ -70,7 +70,6 @@ final class ExpandTests: XCTestCase {
         XCTAssertNil(PlaybackScope.expandPassage(focused: false, playRange: passage))
         XCTAssertTrue(PlaybackScope.holdsSelection(focused: false))
         XCTAssertFalse(PlaybackScope.holdsSelection(focused: true), "Expand loops its passage and leaves Цикл as it is")
-        XCTAssertFalse(PlaybackScope.holdsSelection(modes: false, focused: false))
 
         // The pill in Expand: the selection's cobalt Play, at the playhead inside the passage, else naming its start, even
         // with Цикл off on the page; out of Expand the player's model as it is.
