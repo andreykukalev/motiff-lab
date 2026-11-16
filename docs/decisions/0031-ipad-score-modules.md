@@ -1,6 +1,6 @@
 # 0031 · The iPad score screen and the roll as modules: owners of state, typed ports, one-way dependencies
 
-Status: proposed, 2026-11-16. Andrei asked (thread «Разбить крупные файлы кода», 10:30 UTC) that SOLID, modularity, strict
+Status: accepted, 2026-11-16 (Andrei, 12:31 UTC). Andrei asked (thread «Разбить крупные файлы кода», 10:30 UTC) that SOLID, modularity, strict
 contracts, an ADR and decomposition come before new work. Applies `CLAUDE.md` «Writing code» rules 3 and 4 to the iPad
 score screen and the roll. Changes no saved data, no facade contract and no behaviour; builds on
 [0019](0019-native-ipad-app.md) (the native app) and [0021](0021-excerpt-ossia-and-score-geometry.md) (one geometry module).
@@ -50,8 +50,9 @@ composition root: it builds the ports and the models, routes page events to thei
 - **`ScorePage`** (protocol; adapter over the web view): `PageCommand`, an enum with one case per `window.motiff`
   function and a typed payload, is the only place that names a JavaScript function; `PageEvent`, an enum with one case
   per message kind, is decoded from the message in one function. The TypeScript side declares the same two lists as
-  types (`Scripts/score/page-contract.ts`). Shared JSON fixtures (`tests/contracts/score-page/*.json`) are decoded by a
-  node test and by an XCTest, so a renamed field fails both suites instead of failing silently on the device.
+  types (`Scripts/score/page-contract.ts`). The two lists are kept in one shared JSON file
+  (`tests/contracts/score-page.json`), checked by a node test and by an XCTest, so a renamed function or message fails
+  both suites instead of failing silently on the device; fixtures for the payloads join it as the payloads get types.
 - **`PieceCore`** (protocol; adapter over `MusicCore.run` and `MusicCore.call`): `call(_ name:, _ request:) async ->
   FacadeAnswer`, with the one JSON encoding and the facade's error shape decoded once. It replaces the five `json`
   copies. A fake of each port lets a model be tested without a web view or the framework.
