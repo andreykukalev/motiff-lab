@@ -11,7 +11,8 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 - CI's `build-test` fails a pull request that changes, adds, removes or renames a file under `tests/backend/Acceptance/`
   unless the pull request has the label `protected-scenarios-ok`, which only Andrei sets (step "Check approval of the
   protected scenarios" in `.github/workflows/ci.yml`; the guard test is `governance/tests/acceptance.test.mjs`). Adding
-  or removing the label runs the check again.
+  or removing the label runs the check again. The same step guards the UX baseline: `docs/ux-baseline.md`,
+  `tests/ipad/Baseline/` and `tests/contracts/page-scenarios/`.
 - When a scenario fails, the code is fixed, not the scenario. An expected value changes only with Andrei's approval.
 - The label approves the pull request, not one commit: a later commit on a labelled pull request passes the check too.
   Every new commit still needs the Reviewer's and QA's verdicts for its SHA (`aom-verdicts`), and Andrei removes the
