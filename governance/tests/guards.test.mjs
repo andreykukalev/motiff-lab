@@ -70,11 +70,13 @@ test('curl writes to the GitHub API and the Azure CLI are refused', () => {
 
 test('environment files ask outside an environment task, and pass in one', () => {
   const plain = { envTask: false, scope: null, scopeExists: false };
-  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/a.md']) {
+  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/a.md',
+    'docs/ux-baseline.md', 'tests/ipad/Baseline/SelectionTests.swift', 'tests/contracts/page-scenarios/sel-grid.json']) {
     assert.equal(decideFile(file, plain).decision, 'ask', file);
     assert.equal(decideFile(file, { ...plain, envTask: true }).decision, 'allow', file);
   }
   assert.equal(decideFile('src/ipad/App/MotiffLab/LibraryView.swift', plain).decision, 'allow');
+  assert.equal(decideFile('docs/ui-conventions.md', plain).decision, 'allow');
   assert.equal(decideFile(null, plain).decision, 'allow');
 });
 

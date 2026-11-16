@@ -11,6 +11,10 @@ guardrail:
   - CLAUDE.md
   # The protected acceptance scenarios (#310): CI fails a pull request that changes them without protected-scenarios-ok.
   - tests/backend/Acceptance/**
+  # The UX baseline and its scenarios (docs/ux-baseline.md): the same label guards them.
+  - docs/ux-baseline.md
+  - tests/ipad/Baseline/**
+  - tests/contracts/page-scenarios/**
 high:
   - src/backend/MotiffLab.MusicCore/Facade/**
   - src/backend/MotiffLab.MusicCore/Projects/**

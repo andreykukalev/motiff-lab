@@ -1,6 +1,7 @@
-// Tests of the protection of the acceptance scenarios (Task Record #310, criterion 3): node --test "governance/tests/*.test.mjs".
-// tests/backend/Acceptance/** is Guardrail by path, and CI's build-test fails a pull request that changes it without the label
-// protected-scenarios-ok. The CI steps are run as written in ci.yml, with bash and jq, against a stand-in for gh that answers
+// Tests of the protection of the acceptance scenarios (Task Record #310, criterion 3) and the UX baseline
+// (docs/ux-baseline.md): node --test "governance/tests/*.test.mjs". tests/backend/Acceptance/**, docs/ux-baseline.md,
+// tests/ipad/Baseline/** and tests/contracts/page-scenarios/** are Guardrail by path, and CI's build-test fails a pull
+// request that changes them without the label protected-scenarios-ok. The CI steps are run as written in ci.yml, with bash and jq, against a stand-in for gh that answers
 // from hand-made GitHub data.
 
 import assert from 'node:assert/strict';
@@ -15,6 +16,8 @@ import { minimumRisk, parseRiskPaths } from '../metrics/collect.mjs';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const workflow = readFileSync(path.join(root, '.github', 'workflows', 'ci.yml'), 'utf8');
 const APPROVAL = 'Check approval of the protected scenarios';
+const CHANGES = 'Find what changed';
+const BASELINE = ['docs/ux-baseline.md', 'tests/ipad/Baseline/SelectionTests.swift', 'tests/contracts/page-scenarios/sel-grid.json'];
 const REPORT = 'Report the build of this commit';
 const tools = ['bash', 'jq'].every((tool) => spawnSync(tool, ['--version']).status === 0);
 const needsTools = { skip: !tools && 'needs bash and jq' };
@@ -84,6 +87,17 @@ test('tests/backend/Acceptance/** is Guardrail by path; other tests stay Standar
   assert.equal(minimumRisk(['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md'], table), 'guardrail');
   assert.equal(minimumRisk(['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/Fixtures/scale-type0.mid'], table), 'guardrail');
   assert.equal(minimumRisk(['tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs'], table), 'standard');
+  for (const file of BASELINE) assert.equal(minimumRisk([file], table), 'guardrail', file);
+  assert.equal(minimumRisk(['tests/contracts/facade-calls.json', 'docs/ui-conventions.md'], table), 'standard');
+});
+
+test('env-scope marks the baseline and its scenarios as the agents\' rules, and a baseline change runs the guards', () => {
+  const pattern = /grep -E '([^']+)' <<< "\$\{changed:-\}"/.exec(script(CHANGES))?.[1];
+  assert.ok(pattern, 'the step lists the agents\' rules');
+  const rules = new RegExp(pattern);
+  for (const file of [...BASELINE, 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md', 'CLAUDE.md']) assert.ok(rules.test(file), file);
+  for (const file of ['docs/ux-baseline-notes.md', 'tests/contracts/facade-calls.json', 'docs/README.md']) assert.ok(!rules.test(file), file);
+  assert.match(script(CHANGES), /^\s*docs\/ux-baseline\.md\) code=true ;;$/m, 'a change of the baseline alone runs the build and its guard test');
 });
 
 test('the approval check runs on every pull request run, whatever changed, and label events start a run', () => {
@@ -103,6 +117,16 @@ test('a pull request that changes a scenario fails without protected-scenarios-o
     assert.equal(result.code, 1, result.out);
     assert.match(result.out, /::error title=protected-scenarios-ok::.*tests\/backend\/Acceptance\//);
   }
+});
+
+test('a pull request that changes the UX baseline or its scenarios needs protected-scenarios-ok too', needsTools, () => {
+  for (const file of BASELINE) {
+    const result = approval([file, 'src/ipad/App/MotiffLab/ScoreScreen.swift']);
+    assert.equal(result.code, 1, result.out);
+    assert.match(result.out, new RegExp(`::error title=protected-scenarios-ok::.*${file.replace(/[./]/g, '\\$&')}`));
+    assert.equal(approval([file], ['protected-scenarios-ok']).code, 0, file);
+  }
+  assert.equal(approval(['docs/ux-baseline-notes.md', 'tests/contracts/facade-calls.json', 'tests/ipad/MotiffLabTests/BaselineTests.swift']).code, 0);
 });
 
 test('a pull request that changes a scenario passes with protected-scenarios-ok', needsTools, () => {

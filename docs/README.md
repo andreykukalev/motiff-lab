@@ -15,6 +15,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | [06-validation-plan.md](06-validation-plan.md) | Hypotheses, three studies, accuracy benchmark, product metrics, decision rules, consent |
 | [07-product-definition.md](07-product-definition.md) | Core use case and value, facts / interpretations / actions, the track page, the notebook, Stage 1 constraints, hypotheses H1–H9 and the Für Elise pilot. Draft; the spec changes only after the pilot |
 | [08-central-product-model.md](08-central-product-model.md) | **Current product frame:** the piece and the work session, the phrase as the unit of work, the three ways of working (practise, understand, experiment), putting the piece together, and the first complete workflow mapped to issues |
+| [ux-baseline.md](ux-baseline.md) | The behaviour Andrei approved, entry by entry (id, behaviour, where he approved it, status, the test that protects it), and how the list changes; changed only with his label `protected-scenarios-ok` |
 | [ui-conventions.md](ui-conventions.md) | Working rules for the redesigned UI (0018): the score page, the selection, the Insights stream, marks, the library and its sheets, localization |
 | [guidelines.md](guidelines.md) | Code guidelines: the official sources and the project rules a linter cannot check (the pull request reviewer's checklist) |
 | [repository-structure.md](repository-structure.md) | Where everything lives: the folder tree, where new code and tests go, how the builds find shared files, and the table of the 2026-11-16 moves |
