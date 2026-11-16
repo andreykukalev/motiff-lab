@@ -41,7 +41,7 @@ struct MergeCard: UIViewRepresentable {
         let ink = tokens["notation"] ?? "#1F1B16"
         let plum = tokens["plum"] ?? "#6B3E7A"
         let amber = tokens["amber"] ?? "#F0B429"
-        let ids = (try? JSONSerialization.data(withJSONObject: ["version": image.version, "own": image.own])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let ids = facadeRequest(["version": image.version, "own": image.own])
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
         <style>

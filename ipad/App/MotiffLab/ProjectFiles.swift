@@ -160,9 +160,8 @@ struct PieceSummary: Equatable, Sendable {
 
     /// Reads the summary of a project file's bytes through music-core; nil when they are not a project file it can read.
     static func read(_ data: Data) async -> PieceSummary? {
-        guard let file = String(data: data, encoding: .utf8),
-              let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
-              let request = String(data: body, encoding: .utf8) else { return nil }
+        guard let file = String(data: data, encoding: .utf8) else { return nil }
+        let request = facadeRequest(["file": file])
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
         ProbeCounts.shared.mark("summary")
         return PieceSummary(answer: answer)
@@ -251,8 +250,7 @@ enum PieceDetailsFile {
         }
         var request = fields
         request["file"] = file
-        let encoded = try JSONSerialization.data(withJSONObject: request)
-        let body = String(decoding: encoded, as: UTF8.self)
+        let body = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.metadata", body) }
         guard let object = facadeObject(answer), object["error"] == nil,
               let changed = object["file"] as? String, let summary = PieceSummary(answer: answer) else {

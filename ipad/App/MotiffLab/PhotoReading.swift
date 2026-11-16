@@ -52,9 +52,8 @@ final class PhotoReader: ObservableObject {
 
     /// The page photographed again, put in the PDF in place of the old photo (`document.replace`), to be read again.
     func retake(_ page: Int, _ document: PDFDocument, photo: Data, piece: Int32) async -> Bool {
-        guard let pdf = PhotoImages.pdf(document, replacing: page - 1, with: photo),
-              let body = try? JSONSerialization.data(withJSONObject: ["pdf": pdf.base64EncodedString()]) else { return false }
-        let request = String(decoding: body, as: UTF8.self)
+        guard let pdf = PhotoImages.pdf(document, replacing: page - 1, with: photo) else { return false }
+        let request = facadeRequest(["pdf": pdf.base64EncodedString()])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "document.replace", request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             problem = facadeObject(answer)?["message"] as? String
@@ -88,8 +87,8 @@ final class PhotoReader: ObservableObject {
 
     private func join(again: Int?) async {
         let read = readings.readPages
-        guard let request = readings.joinRequest(again: again), let body = try? JSONSerialization.data(withJSONObject: request) else { return }
-        let json = String(decoding: body, as: UTF8.self)
+        guard let request = readings.joinRequest(again: again) else { return }
+        let json = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
         guard let object = facadeObject(answer), readings.joined(object, from: read, reports: request["reports"] as? [String]) else {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core did not join the pages."

@@ -31,7 +31,7 @@ struct OpenPiece: Identifiable, Sendable {
     /// is only a PDF and whose PDF is not in its file, read where it lies, `data` being the project file (version 0.5).
     static func open(fileName: String, data: Data, language: String, title given: String? = nil, heard: HeardRecording? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
         let fields = openRequest(language: language, heard: heard, asPdf: asPdf, pdf: pdf)
-        let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let request = facadeRequest(fields)
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
         return await MusicCore.run {
             let answer = MusicCore.open(fileName: fileName, data: data, request: request)

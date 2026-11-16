@@ -204,7 +204,7 @@ final class ReferenceController: ObservableObject {
             request["fifths"] = fifths
             request["mode"] = minor ? "minor" : "major"
         }
-        let body = Self.json(request)
+        let body = facadeRequest(request)
         let piece = self.piece
         var text = await MusicCore.run { MusicCore.call(piece: piece, "reference.key", body) }
         if piece != 0, ReferenceAnswer(answer: text) == nil {
@@ -230,7 +230,7 @@ final class ReferenceController: ObservableObject {
 
     /// The chord of Chords: a root ("step", "alter") and a chord ("type"), or C major when none is chosen yet.
     func loadChord(_ root: ReferenceRoot?, type: String?, language: String, naming: String) async {
-        let request = Self.json(Self.lookup(root ?? chords?.chord?.root, ["type": type ?? chords?.chord?.type ?? "major", "language": language, "naming": naming]))
+        let request = facadeRequest(Self.lookup(root ?? chords?.chord?.root, ["type": type ?? chords?.chord?.type ?? "major", "language": language, "naming": naming]))
         let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.chord", request) }
         guard let next = ReferenceLookup(answer: text) else { return }
         chords = next
@@ -239,7 +239,7 @@ final class ReferenceController: ObservableObject {
 
     /// The scale of Scales: a tonic and a scale ("form"), or C major when none is chosen yet.
     func loadScale(_ root: ReferenceRoot?, form: String?, language: String, naming: String) async {
-        let request = Self.json(Self.lookup(root ?? scales?.scale?.root, ["form": form ?? scales?.scale?.form ?? "major", "language": language, "naming": naming]))
+        let request = facadeRequest(Self.lookup(root ?? scales?.scale?.root, ["form": form ?? scales?.scale?.form ?? "major", "language": language, "naming": naming]))
         let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.scale", request) }
         guard let next = ReferenceLookup(answer: text) else { return }
         scales = next
@@ -305,7 +305,7 @@ final class ReferenceController: ObservableObject {
     }
 
     private func play(_ request: [String: Any]) async {
-        let body = Self.json(request)
+        let body = facadeRequest(request)
         let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.sound", body) }
         guard let score = PlaybackScore.read(text) else { return }
         await piano.play(score)
@@ -317,11 +317,6 @@ final class ReferenceController: ObservableObject {
         request["step"] = root?.step ?? 0
         request["alter"] = root?.alter ?? 0
         return request
-    }
-
-    static func json(_ object: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return "{}" }
-        return String(decoding: data, as: UTF8.self)
     }
 }
 

@@ -128,7 +128,7 @@ extension ReferenceController {
     /// Asks music-core for the chord or scale as chosen, and plays it again if it was playing.
     private func sound(language: String, naming: String) async {
         guard let root = (sounding.scale ? scales?.scale?.root : chords?.chord?.root) ?? chords?.chord?.root else { return }
-        let request = ReferenceController.json(sounding.request(root: root, type: chords?.chord?.type, form: scales?.scale?.form,
+        let request = facadeRequest(sounding.request(root: root, type: chords?.chord?.type, form: scales?.scale?.form,
                                                                 language: language, naming: naming))
         let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.sounding", request) }
         guard let next = ReferenceSounding(answer: text) else { return }

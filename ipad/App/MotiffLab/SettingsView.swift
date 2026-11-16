@@ -89,8 +89,7 @@ final class DeviceSettings: ObservableObject {
         // The language as the interface shows it: the one picked, else the iPad's.
         kept["appearance.language"] = UIText.language(in: store)
         request["values"] = kept
-        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
-        let body = String(decoding: data, as: UTF8.self)
+        let body = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "settings.state", body) }
         guard let object = facadeObject(answer), let state = object["values"] as? [String: String] else { return }
         values = state

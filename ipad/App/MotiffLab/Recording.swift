@@ -334,7 +334,7 @@ enum RecordingParts {
     /// are given.
     static func plan(_ milliseconds: Int64, levels: [Int] = []) async -> [Part] {
         let fields: [String: Any] = ["milliseconds": milliseconds, "levels": levels]
-        let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "recording.parts", request) }
         return (facadeObject(answer)?["parts"] as? [[String: Any]] ?? []).compactMap { part in
             guard let index = (part["index"] as? NSNumber)?.intValue,

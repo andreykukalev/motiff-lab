@@ -253,7 +253,7 @@ final class SourcesController: ObservableObject {
             return nil
         }
         let name = original.fileName.lowercased().hasSuffix(".pdf") ? original.fileName : original.fileName + ".pdf"
-        let request = Self.json(["language": text.language])
+        let request = facadeRequest(["language": text.language])
         let answer = await MusicCore.run { MusicCore.open(fileName: name, data: data, request: request) }
         guard let opened = facadeObject(answer), let number = (opened["piece"] as? NSNumber)?.int32Value, number > 0, opened["document"] is [String: Any] else {
             status = facadeObject(answer)?["message"] as? String ?? text["originals.unreadable"]
@@ -267,7 +267,7 @@ final class SourcesController: ObservableObject {
     /// be shown, with why in `status`.
     func openNotes(_ notes: SourceLayers.Notes, title: String, at tick: Double?) async -> OpenPiece? {
         let piece = self.piece
-        let request = Self.json(["id": notes.id])
+        let request = facadeRequest(["id": notes.id])
         let evenBars = DeviceSettings.shared.isOn("score.evenBars")
         let opened: Result<OpenPiece, EngraveError> = await MusicCore.run {
             let answer = facadeObject(MusicCore.call(piece: piece, "sources.notes.open", request))
@@ -296,7 +296,7 @@ final class SourcesController: ObservableObject {
 
     private func swapWorking(to id: String) async -> Bool {
         let piece = self.piece
-        let request = Self.json(["id": id])
+        let request = facadeRequest(["id": id])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "sources.makeWorking", request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
@@ -325,7 +325,7 @@ final class SourcesController: ObservableObject {
         var request = fields
         request["device"] = "ipad"
         request["here"] = here
-        let body = Self.json(request)
+        let body = facadeRequest(request)
         let piece = self.piece
         return await MusicCore.run { MusicCore.call(piece: piece, name, body) }
     }
@@ -337,7 +337,7 @@ final class SourcesController: ObservableObject {
     /// The project file as it is now, for an Undo or a copy to look at.
     private func snapshot() async -> String? {
         let piece = self.piece
-        let request = Self.json(["now": Self.now()])
+        let request = facadeRequest(["now": Self.now()])
         let saved = await MusicCore.run { MusicCore.call(piece: piece, "project.save", request) }
         guard let object = facadeObject(saved), object["error"] == nil else {
             status = facadeObject(saved)?["message"] as? String ?? text["sources.sheet.failed"]
@@ -348,9 +348,5 @@ final class SourcesController: ObservableObject {
 
     static func now() -> String {
         ISO8601DateFormatter().string(from: Date())
-    }
-
-    nonisolated static func json(_ object: [String: Any]) -> String {
-        (try? JSONSerialization.data(withJSONObject: object)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 }

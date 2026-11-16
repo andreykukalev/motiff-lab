@@ -147,8 +147,7 @@ final class PieceSplitter: ObservableObject {
             return .failure(failed(text.format("parts.pdf.copyFailed", PartsSplit.pages(first: first, last: last, text: text))))
         }
         let fields = PartsSplit.request(file: file, row: row, number: number, pdf: pdf, pages: rows.pageCount, playlist: playlist, collection: collection, now: now, text: text)
-        guard let body = try? JSONSerialization.data(withJSONObject: fields) else { return .failure(failed(nil)) }
-        let json = String(decoding: body, as: UTF8.self)
+        let json = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "parts.split", json) }
         switch PartsSplit.made(answer) {
         case .failure(let failure):

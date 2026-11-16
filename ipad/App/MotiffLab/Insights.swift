@@ -288,7 +288,7 @@ final class InsightsController: ObservableObject {
         starting = way.id
         defer { starting = nil }
         problem = nil
-        let request = Self.json(["chip": way.id])
+        let request = facadeRequest(["chip": way.id])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "try", request) }
         guard let state = facadeObject(answer), state["error"] == nil, let result = state["result"] as? [String: Any] else {
             problem = facadeObject(answer)?["message"] as? String
@@ -312,7 +312,7 @@ final class InsightsController: ObservableObject {
     func keep() async {
         guard let trial, !trial.kept else { return }
         let piece = piece
-        let request = Self.json(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
+        let request = facadeRequest(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "idea.keep", request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             problem = facadeObject(answer)?["message"] as? String
@@ -328,11 +328,6 @@ final class InsightsController: ObservableObject {
         let piece = piece
         _ = await MusicCore.run { MusicCore.call(piece: piece, "variation.clear") }
         variationLeft?()
-    }
-
-    private static func json(_ object: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return "{}" }
-        return String(decoding: data, as: UTF8.self)
     }
 
     func shows(_ fact: Fact) -> Bool {

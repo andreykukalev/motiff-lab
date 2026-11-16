@@ -151,7 +151,7 @@ enum PiecesLayer {
             return piece
         }
         let fields: [String: Any] = ["pieces": pieces, "now": ISO8601DateFormatter().string(from: now)]
-        return (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        return facadeRequest(fields)
     }
 
     /// How many pieces the layer keeps, or music-core's words on why it kept none.

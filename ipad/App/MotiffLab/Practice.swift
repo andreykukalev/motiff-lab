@@ -105,7 +105,6 @@ struct ResumePlace: Equatable, Sendable {
         if let id { fields["id"] = id }
         fields["passage"] = passage.map { ["span": ["onset": Int($0.lowerBound), "end": Int($0.upperBound)]] } ?? NSNull()
         if let hands { fields["hands"] = hands.rawValue }
-        let data = (try? JSONSerialization.data(withJSONObject: fields)) ?? Data("{}".utf8)
-        return String(decoding: data, as: UTF8.self)
+        return facadeRequest(fields)
     }
 }

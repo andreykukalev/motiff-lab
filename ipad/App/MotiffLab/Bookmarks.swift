@@ -210,7 +210,7 @@ final class ContentsController: ObservableObject {
 
     private func call(_ name: String, _ request: [String: Any]) async {
         guard let piece else { return }
-        let body = (try? JSONSerialization.data(withJSONObject: request)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let body = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, name, body) }
         guard let read = BookmarkShelf(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String

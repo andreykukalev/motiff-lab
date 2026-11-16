@@ -530,7 +530,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             leaveFocus()
         }
         if let options = message["cardLayout"] as? [String: Any] {
-            cardOptions = Self.json(options)
+            cardOptions = facadeRequest(options)
             Task { await engraveCard() }
         }
     }
@@ -837,7 +837,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let id = piece.id
         Task {
             for layer in layers {
-                let request = Self.json(["id": "layers.\(layer)", "value": on ? "on" : "off"]) ?? "{}"
+                let request = facadeRequest(["id": "layers.\(layer)", "value": on ? "on" : "off"])
                 _ = await MusicCore.run { MusicCore.call(piece: id, "settings.override", request) }
             }
             await applyLayers()
@@ -904,7 +904,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         pieceOverrides = [:]
         Task {
             for id in ids {
-                let request = Self.json(["id": id, "value": NSNull()]) ?? "{}"
+                let request = facadeRequest(["id": id, "value": NSNull()])
                 _ = await MusicCore.run { MusicCore.call(piece: piece.id, "settings.override", request) }
             }
             settingsChanged()
@@ -937,7 +937,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func resolveChecks(_ fields: [String: Any]) {
         guard let piece else { return }
-        let request = Self.json(fields) ?? "{}"
+        let request = facadeRequest(fields)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
             if let shelf = CheckShelf(answer: answer) {
@@ -1016,7 +1016,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }
         var request = fields
         request["bar"] = bar
-        let body = Self.json(request) ?? "{}"
+        let body = facadeRequest(request)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard let read = NoteCorrections(answer: answer) else {
@@ -1050,7 +1050,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func editsCall(_ call: String, _ fields: [String: Any]) {
         guard let piece else { return }
-        let body = Self.json(fields) ?? "{}"
+        let body = facadeRequest(fields)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard let read = EditsLayerState(answer: answer) else {
@@ -1128,7 +1128,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
         request["bar"] = selection?.firstBar ?? 1
-        let body = Self.json(request) ?? "{}"
+        let body = facadeRequest(request)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard let read = facadeObject(answer), read["error"] == nil else {
@@ -1177,7 +1177,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func addVersion(fileName: String, data: Data) async {
         guard let piece else { return }
         let name = (fileName as NSString).deletingPathExtension
-        let request = Self.json(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName]) ?? "{}"
+        let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
         guard versions.read(performance: answer) else {
             versionStatus = facadeObject(answer)?["message"] as? String
@@ -1203,7 +1203,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return nil }
         var fields = heard.request
         fields["name"] = heard.name.isEmpty ? text["performance.defaultName"] : heard.name
-        let request = Self.json(fields) ?? "{}"
+        let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
         guard versions.read(performance: answer) else {
             return facadeObject(answer)?["message"] as? String ?? text["transcribe.failed"]
@@ -1247,7 +1247,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// piece is open (`performance.putBack`).
     func removeVersion() {
         guard let piece, let shown = versions.shown else { return }
-        let request = Self.json(["id": shown.id]) ?? "{}"
+        let request = facadeRequest(["id": shown.id])
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.remove", request) }
             guard let object = facadeObject(answer), object["error"] == nil else {
@@ -1273,7 +1273,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece, let id = versions.shownId else { return }
         var request = fields
         request["id"] = id
-        let body = Self.json(request) ?? "{}"
+        let body = facadeRequest(request)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard versions.read(performance: answer) else {
@@ -1300,7 +1300,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func readVersion(_ piece: Int32, _ id: String) async {
-        let request = Self.json(["id": id]) ?? "{}"
+        let request = facadeRequest(["id": id])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
         if !versions.read(performance: answer) { versionStatus = facadeObject(answer)?["message"] as? String }
         await drawVersions()
@@ -1409,7 +1409,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// the notes change.
     private func versionNotes(_ piece: Int32, _ id: String) async -> [PlaybackNote]? {
         if versionPlayback?.id != id {
-            let request = Self.json(["of": "version", "id": id]) ?? "{}"
+            let request = facadeRequest(["of": "version", "id": id])
             let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
             versionPlayback = (id, PlaybackScore.read(answer)?.notes ?? [])
         }
@@ -1587,7 +1587,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece, merge != nil, let span = hearSpan else { return }
         mergeHearing = view
         Task {
-            let request = Self.json(["view": view == "alternate" ? "version" : view]) ?? "{}"
+            let request = facadeRequest(["view": view == "alternate" ? "version" : view])
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.playback", request) }
             guard let notes = PlaybackScore.read(answer)?.notes else { return }
             if view == "alternate" { hearInTurn?(notes, span) } else { hearNotes?(notes, span) }
@@ -1631,7 +1631,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func seenBars(_ piece: Int32, _ bar: Int, _ see: String) async -> (Int, Int) {
         if see == "phrase" || see == "sentence" {
-            let request = Self.json(["level": see]) ?? "{}"
+            let request = facadeRequest(["level": see])
             let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases", request) }
             if let unit = PhraseLevelsShown(answer: answer)?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) {
                 return (unit.firstBar, unit.lastBar)
@@ -1640,7 +1640,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let numbers = versions.bars.map(\.bar)
         return (max(numbers.min() ?? bar, bar - 1), min(numbers.max() ?? bar, bar + 1))
     }
-
 
     private func draftBars(_ bar: Int) -> [Int] {
         guard mergePhrase, let merge, let unit = phrases?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) else { return [bar] }
@@ -1656,7 +1655,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// One `performance.merge` call; the draft as it answers. False, with why, for an error.
     @discardableResult private func mergeCall(_ piece: Int32, _ call: String, _ fields: [String: Any] = [:]) async -> Bool {
-        let request = Self.json(fields) ?? "{}"
+        let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             versionStatus = facadeObject(answer)?["message"] as? String
@@ -1689,7 +1688,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Apply: the draft's bars come into the score, its choices are kept with the piece, and the toast can undo it.
     private func applyDraft(_ piece: OpenPiece, toast: String? = nil) async {
         let at = ISO8601DateFormatter().string(from: Date())
-        let request = Self.json(["at": at]) ?? "{}"
+        let request = facadeRequest(["at": at])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.apply", request) }
         guard versions.read(performance: answer) else {
             versionStatus = facadeObject(answer)?["message"] as? String
@@ -1702,7 +1701,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func unapply(_ piece: OpenPiece, _ id: String, toast: String, undo: MergeToast.Undo?) async {
-        let request = Self.json(["id": id]) ?? "{}"
+        let request = facadeRequest(["id": id])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.undoApplied", request) }
         guard versions.read(performance: answer) else {
             versionStatus = facadeObject(answer)?["message"] as? String
@@ -1724,7 +1723,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text[entry.backKey]]
         Task {
             let answer = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
-            if let options = answer?["options"] as? [String: Any] { cardOptions = Self.json(options) }
+            if let options = answer?["options"] as? [String: Any] { cardOptions = facadeRequest(options) }
             await updatePlayRange()
             await engraveCard()
             await updateFocusVersion()
@@ -1886,11 +1885,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func setPageStill(_ still: Bool) {
         webView.scrollView.isScrollEnabled = !still
         ink.still = still
-    }
-
-    private static func json(_ object: [String: Any]) -> String? {
-        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
-        return String(decoding: data, as: UTF8.self)
     }
 
     /// Rings the places of the fact chosen in Insights (0018 section 6); none clears them. With `scroll` the first comes
@@ -2062,8 +2056,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
     /// that make one change, so the page never shows it half done.
     private func change(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
-        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
-        let text = String(decoding: data, as: UTF8.self)
+        let text = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
         if draws { await draw(answer) }
     }

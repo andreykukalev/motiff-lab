@@ -265,7 +265,7 @@ struct PhotoReviewScreen: View {
 enum PhotoPiece {
     static func make(pdf: Data, pages: Int, title: String, language: String) async -> Result<URL, ProjectError> {
         let fields: [String: Any] = ["language": language, "photos": max(1, pages), "now": ISO8601DateFormatter().string(from: Date())]
-        let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let request = facadeRequest(fields)
         let fileName = title + ".pdf"
         let opened = await MusicCore.run { MusicCore.open(fileName: fileName, data: pdf, request: request) }
         guard let object = facadeObject(opened), let piece = (object["piece"] as? NSNumber)?.int32Value, piece > 0 else {
