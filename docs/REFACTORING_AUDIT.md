@@ -2,7 +2,8 @@
 
 Status: current, second edition, 2026-11-16, measured on `develop` at `a2d767b` (after #634, #635 and #636). A proposal
 for the refactoring task, not yet reviewed by Andrei. It replaces, in place, the first edition of the same day (PR #632,
-measured on `0d2bc52`); section 0 says what changed and why. Read-only: no source file was changed to write it. It
+measured on `0d2bc52`, still readable as `git show 06b49d2:docs/REFACTORING_AUDIT.md`); section 0 says what changed
+and why. The web's sizes that 0032 quotes are in that first edition. Read-only: no source file was changed to write it. It
 builds on [decision record 0031](architecture/adr/0031-ipad-score-modules.md), the [iPad UI review](code-map/ui-review-2026-11.md),
 the code maps in [`code-map/`](code-map/), the quality ratchet ([`governance/quality/README.md`](../governance/quality/README.md))
 and the layout of [0033](architecture/adr/0033-repository-layout.md) ([`repository-structure.md`](repository-structure.md)).
@@ -54,8 +55,9 @@ the first edition's, re-checked where noted; the suites were run again on `a2d76
 ### 0.3 What the moves brought to light
 
 - **The shared layer carries web-only code.** Of the 58 TypeScript files in `src/shared/Scripts` (16,948 lines), the
-  iPad's two pages reach 41 (13,676 lines) through their imports; 17 files (3,330 lines) are reached by no page and
-  imported by no live module, only by node tests (section 3.3). They moved to `src/shared` because their folders did.
+  iPad's two pages reach 41 (13,635 lines) through their imports. Of the other 17, `score-page.ts` holds the A4 layout
+  the node tests engrave with; 16 files (3,175 lines) are reached by no page and imported by no live module, only by
+  node tests (section 3.3). They moved to `src/shared` because their folders did.
 - **The score page lost its only DOM-level net.** The browser suite was red, but it was the only test that ran the shared
   layers in a real page. Now `score.js` (1,631 lines, no types, no lint, outside the duplicate check) and the layers it
   drives are exercised only by the UI walk on macOS (section 5.2).
@@ -71,12 +73,12 @@ Ids that survive keep their meaning; dropped ones are not reused.
 | W0.2 (browser suite green), C7, C8, C11 | Dropped (0032) |
 | W0.3, W0.4, W1.1–W1.11, W2.0–W2.13 | Unchanged ids; guards that named the browser suite now name C5 or C6 |
 | W0.5 (shared cases for metronome, ink, tempo text) | W0.5, ink geometry and engraving constants only (the metronome and tempo text have one live side) |
-| W2.14 (the roll's port, then `PianoRoll`'s collaborators) | W2.14, the roll's port; `PianoRoll`'s split is W3.2 |
+| W2.14 (the roll's port, then `PianoRoll`'s collaborators) | W2.14, the roll's port; `PianoRoll`'s split is W3.12 |
 | W3.1–W3.4, W3.7, W3.8, W3.10 (web) | Dropped (0032) |
-| W3.5 (`Scripts/selection`, folder edges) | W3.1 |
-| W3.6 (`score-view.ts`, `svg-to-pdf.ts`) | W3.3 (`svg-to-pdf.ts`, `score-geometry.ts`; `score-view.ts` is archived) |
+| W3.5 (`Scripts/selection`, folder edges) | W3.11 |
+| W3.6 (`score-view.ts`, `svg-to-pdf.ts`) | W3.13 (`svg-to-pdf.ts`, `score-geometry.ts`; `score-view.ts` is archived) |
 | W3.9 (rules both apps re-implement into music-core) | Dropped: with the web archived each has one live side; payload packing is in W1.5 |
-| — | New: W0.6 (the web-only modules out of `src/shared`), W0.7 (C5, the score page's test), W1.12 (internal rule engines), W3.4 (layers: drawing apart from input) |
+| — | New: W0.6 (the web-only modules out of `src/shared`), W0.7 (C5, the score page's test), W1.12 (internal rule engines), W3.14 (layers: drawing apart from input); wave 3's new steps take ids from W3.11 on |
 
 ## 1. Executive summary
 
@@ -86,7 +88,7 @@ Ids that survive keep their meaning; dropped ones are not reused.
 | --- | --- | --- |
 | **music-core** (C#, 296 files, 60.1k lines) | **7 / 10** | Pure and deterministic, no I/O, no UI; its only package is PdfPig; the `dependencies` check keeps web, cloud and AI out; 2,130 tests, 92 % of lines and 84 % of branches covered. Against it: 7 pairs of namespaces depend on each other; two hand-written JSON codecs of 3.6k and 2.2k lines; analysis and bilingual text live in the same classes; the application session of the iPad (`OpenPiece`) is welded to JSON text; 578 public types against 90 internal, though only the API, the iPad's native wrapper and the tests now consume them. Unchanged since the first edition |
 | **iPad app** (Swift, 127 files, 38.5k lines, plus 1.9k lines of hand-written JavaScript in `src/ipad/App/Web`) | **4 / 10** | One flat folder and one module; `ScoreController` (2,396 lines) is read by 35 files; music-core's answers are untyped everywhere (674 `as?` casts and 342 `[String: Any]` in 53 files); 25 files hold SwiftUI views next to network, file or music-core calls. For it: 0031 is accepted and its first two steps are merged, 451 unit tests ran green on macOS, the old-mode branches went in v0.6.5, literal copy-paste is near zero, and since #636 every pull request that touches its inputs compiles it. Unchanged score: #636 catches a compile break, not a contract break |
-| **Shared score layer** (`src/shared/Scripts`, TypeScript, 58 files, 16.9k lines) | **5 / 10** | For it: its own project and home (0033); `tsc` strict, one `any`; the pure modules are well tested (46 node test files, 521 tests, green); the `dependencies` check follows the iPad pages' imports; the score page's command and message names are pinned by `tests/contracts/score-page.json`. Against it: `piano-roll.ts` is one class of 4,077 lines with no direct test; 17 files and 3.3k lines are web-only and dead for the iPad; folders depend on each other (`score` ↔ `playback`); the page that drives it (`score.js`) has no type check, lint, duplicate check or DOM-level test |
+| **Shared score layer** (`src/shared/Scripts`, TypeScript, 58 files, 16.9k lines) | **5 / 10** | For it: its own project and home (0033); `tsc` strict, one `any`; the pure modules are well tested (46 node test files, 521 tests, green); the `dependencies` check follows the iPad pages' imports; the score page's command and message names are pinned by `tests/contracts/score-page.json`. Against it: `piano-roll.ts` is one class of 4,077 lines with no direct test; 16 files and 3.2k lines are web-only and dead for the iPad; folders depend on each other (`score` ↔ `playback`); the page that drives it (`score.js`) has no type check, lint, duplicate check or DOM-level test |
 
 Not scored, both small and healthy: the API (16 files, 1.8k lines, 79 tests) and the scan server (Python, 1.8k lines with
 its tests).
@@ -101,7 +103,7 @@ its tests).
    crosses this boundary.
 2. **The iPad score screen:** `ScoreController.swift` (2,396), `ScoreScreen.swift` (1,960) and `src/ipad/App/Web/score.js`
    (1,631, outside every quality check). 45 published values, 176 functions, 14 unrelated sections sharing one state.
-   Decision record 0031 (accepted) describes the cure; steps 1a and 2 are merged (#630, #631), ten remain.
+   Decision record 0031 (accepted) describes the cure; steps 1a and 2 are merged (#630, #631), eleven remain (1b, the seven models, 10, 11, 12).
 3. **The iPad's page layer: `score.js` and `roll.js` over the shared modules.** `piano-roll.ts` (4,077 lines, 123 fields,
    181 methods) has no node test of its own and carries selection paths no host may use any more (section 4.5);
    `score.js` is untyped JavaScript that re-implements nothing now, but no test runs it outside the device. With the
@@ -184,7 +186,7 @@ flowchart TB
     LAYERS["score/* layers and pure rules"]
     ROLL["piano-roll.ts: 4.1k lines"]
     PB["playback: model, playhead drag and press"]
-    DEAD["17 web-only files, 3.3k lines<br/>(pencil layer, stores, PDF writer, TS engine, ...)"]
+    DEAD["16 web-only files, 3.2k lines<br/>(pencil layer, stores, PDF writer, TS engine, ...)"]
     ROLL --> LAYERS
     LAYERS <--> PB
   end
@@ -409,29 +411,32 @@ four of the web's rule files these were ported from are archived, so the Swift f
 
 ### 3.3 The shared score layer (`src/shared/Scripts`)
 
-**Reach.** The iPad's pages import 19 modules directly; with what those import, 41 of the 58 files are loaded. The other
-17 (3,330 lines) are loaded by no page and imported by no loaded module; Swift names some of them only in comments, as
-the place a rule was ported from.
+**Reach.** The iPad's pages import 19 modules directly; with what those import, 41 of the 58 files (13,635 lines) are
+loaded. The other 17 are loaded by no page and imported by no loaded module. One of them, `score/score-page.ts` (138
+lines), stays: it is the A4 layout (`A4_LAYOUT`, `EVEN_SPACING`) the node tests of live modules engrave with, and
+`Engraver.swift` keeps the same values by hand (D19, C10). The other 16 (3,175 lines) are web-only; Swift names some of
+them only in comments, as the place a rule was ported from.
 
 | Not loaded by the iPad | Lines | What it was on the web | Node tests that read it |
 | --- | --- | --- | --- |
-| `playback/playback-processor.ts` | 1,086 | The AudioWorklet engine; `PlaybackEngine.swift` is its port and the only engine that runs | `playback-processor`, `playback-scrub`, `scrub-notes`, `scrub-rule` (the Swift side reads `scrub.json` too) |
-| `score/pencil-layer.ts`, `pencil-history.ts`, `storage/pencil-store.ts` | 593, 67, 65 | The web's pen over the score; the iPad's pen is in `score.js` over `pencil-marks.ts` | `pencil-read-only` |
-| `playback/playback-owner.ts` | 222 | The web's holder of the playback model; `Player.swift` holds it on the iPad | `playback-owner`, `scrub-notes` |
-| `score/pdf-document.ts` | 175 | The web's PDF export (with the writing half of `svg-to-pdf.ts`) | `score-pdf` |
-| `score/score-page.ts` | 139 | The A4 layout options; `Engraver.swift` keeps the same values by hand | `score-geometry`, `playhead-loop`, `score-pdf` (as the layout they engrave with) |
-| `layout/drawer-resize.ts`, `long-press.ts`, `hold-repeat.ts`, `mode-keys.ts`, `bar-fade.ts`, `fragment.ts` | 173, 125, 117, 116, 98, 10 | The web's chrome: drawer, pill long press, hold to repeat, keyboard modes, bar fade, links | `drawer-resize`, `long-press`, `hold-repeat`; `mode-keys` by `score-modes`, `playheads`, `selection-gesture` |
-| `storage/import-store.ts`, `heard-parts.ts`, `conversation-store.ts`, `idb.ts` | 126, 113, 86, 19 | IndexedDB stores of the web; the iPad keeps its data in Swift | `conversation-store` |
+| `playback/playback-processor.ts` | 1,085 | The AudioWorklet engine; `PlaybackEngine.swift` is its port and the only engine that runs | `playback-processor`, `playback-scrub`, `scrub-notes`, `scrub-rule` (the Swift side reads `scrub.json` too) |
+| `score/pencil-layer.ts`, `pencil-history.ts`, `storage/pencil-store.ts` | 592, 66, 64 | The web's pen over the score; the iPad's pen is in `score.js` over `pencil-marks.ts` | `pencil-read-only` |
+| `playback/playback-owner.ts` | 221 | The web's holder of the playback model; `Player.swift` holds it on the iPad | `playback-owner`, `scrub-notes` |
+| `score/pdf-document.ts` | 174 | The web's PDF export (with the writing half of `svg-to-pdf.ts`) | `score-pdf` |
+| `layout/drawer-resize.ts`, `long-press.ts`, `hold-repeat.ts`, `mode-keys.ts`, `bar-fade.ts`, `fragment.ts` | 172, 124, 116, 115, 97, 9 | The web's chrome: drawer, pill long press, hold to repeat, keyboard modes, bar fade, links | `drawer-resize`, `long-press`, `hold-repeat`; `mode-keys` by `score-modes`, `playheads`, `selection-gesture` |
+| `storage/import-store.ts`, `heard-parts.ts`, `conversation-store.ts`, `idb.ts` | 125, 112, 85, 18 | IndexedDB stores of the web; the iPad keeps its data in Swift | `conversation-store` |
 
-Moving these out (decision 1) also removes the `layout` → `score` edge (only `mode-keys.ts` has it). Eleven node test
-files (1,794 lines) read them; some (`score-pdf`, `scrub-notes`, `playheads`, `score-modes`, `selection-gesture`) also
-test loaded modules, so those are split, not moved whole.
+Moving the 16 out (decision 1) also removes the `layout` → `score` edge (only `mode-keys.ts` has it). Fourteen node
+test files (2,270 lines) read them: eight read nothing else and move whole (`conversation-store`, `drawer-resize`,
+`hold-repeat`, `long-press`, `playback-owner`, `playback-processor`, `playback-scrub`, `scrub-rule`); six also test
+loaded modules and are split (`pencil-read-only`, `playheads`, `score-modes`, `score-pdf`, `scrub-notes`,
+`selection-gesture`).
 
 **Monoliths** (files over 350 lines):
 
 | File | Lines | Deps | Responsibilities mixed | Split into |
 | --- | --- | --- | --- | --- |
-| `roll/piano-roll.ts` | 4,077 | 18 | 7 in one class: the viewport and zoom; painting (`drawRoll` 248 lines, complexity 91); the keyboard and gutter; the note editor; selection gestures (three generations: strips, modes, places); playheads; the legend. 123 fields, 181 methods; the literal 480 appears 38 times | 0031 section 4: `RollApi` interface plus collaborators (viewport, painter, editor, legend, input router); the selection generations no host uses removed once measured (4.5) |
+| `roll/piano-roll.ts` | 4,077 | 18 | 7 in one class: the viewport and zoom; painting (`drawRoll` 248 lines, complexity 91); the keyboard and gutter; the note editor; selection gestures (three generations: strips, modes, places); playheads; the legend. 123 fields, 181 methods; `TICKS_PER_QUARTER = 480` is a local copy of the core's ticks per quarter | 0031 section 4: `RollApi` interface plus collaborators (viewport, painter, editor, legend, input router); the selection generations no host uses removed once measured (4.5) |
 | `playback/playback-processor.ts` | 1,085 | 0 | Cohesive engine, not loaded by the iPad | Out of `src/shared` with decision 1; `scrub.json` stays the shared case the Swift engine reads |
 | `score/score-geometry.ts` | 710 | 2 | 2: reading a page's SVG into frames (`readPage` 124 lines); queries | `page-reader.ts`, `ScoreGeometry` |
 | `score/svg-to-pdf.ts` | 666 | 0 | 3: parsing SVG (live: `score-geometry.ts` reads pages with it); path and shape operators (complexity 63) and text, used only by the web's PDF export | `svg-parse.ts` stays; the PDF half leaves with `pdf-document.ts` |
@@ -464,7 +469,7 @@ Tools: `tools/quality/quality.mjs` (547), `infra/azure/setup.ps1` (482); out of 
 | L5 | SwiftUI views call music-core, the network, files and `UserDefaults` directly | 34 files call `MusicCore.*`; 25 files declare views next to such calls (`ScoreScreen.swift` 4, `Insights.swift` 6, `PiecePartsSheet.swift` 5, `SettingsView.swift` 4, …); `UserDefaults` in 19 files | A view cannot be previewed or tested without the framework; state has no single owner |
 | L7 | TypeScript folders depend on each other | `score` ↔ `playback` (the hold timing constants `HOLD_MS`, `HOLD_SLOP` live in `score/selection-gesture.ts` and `playback/hold-place.ts`, `playhead-press.ts` import them; `score/playhead-grab.ts`, `playheads.ts` import `playback`); `layout` → `score` only through `mode-keys.ts` (web-only); `roll` → `score` for the selection rules | The pure selection rules and the hold timing have no folder of their own |
 | L9 | The API is rebuilt and redeployed on any music-core change | `api.yml` paths include `src/backend/MotiffLab.MusicCore/**`; the API uses only `Accounts`, `Assistant.Conversation`, `Projects` and the root namespace | Every core refactoring step deploys the API to the `develop` servers. Acceptable (they hold test data only), but a wave-1 step can be held behind a failed deploy that it did not cause |
-| L10 (new) | Web-only code sits among the live shared modules | Section 3.3: 17 files, 3,330 lines, loaded by no page | An agent reading `src/shared` for an iPad task reads code no iPad runs and may «fix» or reuse it; its tests keep it looking alive |
+| L10 (new) | Web-only code sits among the live shared modules | Section 3.3: 16 files, 3,175 lines, loaded by no page | An agent reading `src/shared` for an iPad task reads code no iPad runs and may «fix» or reuse it; its tests keep it looking alive |
 
 L6 and L8 of the first edition are resolved (section 0.2).
 
@@ -529,7 +534,7 @@ D11 and D13 to D17 can be removed.
 
 ### 4.5 Dead code and context rot
 
-- **The web-only modules in `src/shared`** (section 3.3, L10): 17 files, 3,330 lines, plus their node tests.
+- **The web-only modules in `src/shared`** (section 3.3, L10): 16 files, 3,175 lines, plus their node tests.
 - **Experiment switches.** `Settings/SettingsCatalogue.cs` still lists 23 `experimental.*` switches. No active code
   branches on any of them: the iPad dropped its switches in v0.6.5 (#625) and the web, which branched on 19, is archived.
   What remains is the catalogue, its tests (`SettingsTests`) and comments that name a switch as the history of a rule.
@@ -601,7 +606,7 @@ not a protected scenario and not a statement that the behaviour is right.
 | C3 | What Swift decodes | XCTest decodes the C1 files into the typed DTOs; a field the DTO needs and the file lacks fails on macOS | W2.2 onwards |
 | C4 | The order of calls of the score screen | With the ports of 0031 in place, a recording fake of `ScorePage` and `PieceCore`; XCTest replays scripted scenarios (open, select, add a note, resolve a Check flag, start a merge, enter focus) and compares the transcript of commands and calls with a kept file | W2.4 to W2.10 |
 | C5 | The iPad's score page | A headless browser (Playwright with Chromium on Linux; WebKit where available) opens `src/ipad/App/Web/score.html` over the compiled modules with a stub `webkit.messageHandlers`, sends `window.motiff` commands from `tests/contracts/score-page.json` and compares the messages posted and the overlays drawn with kept files. Lives in `tests/ipad` or `tests/shared`; decision 3 | W0.7; any change to `Scripts/score`, `Scripts/roll` or `src/ipad/App/Web`; W2.13, W3.x |
-| C6 | The roll's painting and input | A node test builds `PianoRoll` over a recording canvas context: a fixed payload and frame give a kept list of draw calls; scripted pointer sequences give a kept list of callbacks | W2.14, W3.2 |
+| C6 | The roll's painting and input | A node test builds `PianoRoll` over a recording canvas context: a fixed payload and frame give a kept list of draw calls; scripted pointer sequences give a kept list of callbacks | W2.14, W3.12 |
 | C9 | Assembly and merge | Unit tests for the uncovered branches of `Assembled.Carry`, `AssemblyMatch.Of`, `OpenPiece.Merge` | W1.9 |
 | C10 | The live ports | Shared case files in `tests/contracts` for ink geometry (`pencil-marks.ts` ↔ `InkGeometry.swift`) and the A4 engraving options (`score-page.ts` ↔ `Engraver.swift`), read by node and XCTest, as `playback-model.json` is | Before either side of a port is cut |
 
@@ -676,14 +681,14 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 
 | Step | What | Guard |
 | --- | --- | --- |
-| W3.1 | `Scripts/selection/` for the pure selection rules and the hold timing (`HOLD_MS`, `HOLD_SLOP`); breaks `score` ↔ `playback`; the allowed folder edges in the `dependencies` check (L7) | node tests; the check |
-| W3.2 | `PianoRoll` into its collaborators (viewport, painter, editor, legend, input router) one a step, behind the `RollApi` of W2.14; the selection generations W0.6 found unused removed in their own pull request | C6; C5 |
-| W3.3 | `score-geometry.ts` into `page-reader.ts` and `ScoreGeometry`; `svg-to-pdf.ts` keeps only its SVG parser (the PDF half left in W0.6) | node tests; C5 |
-| W3.4 | `selection-layer.ts`, `selection-place-layer.ts`: drawing apart from input and reporting | node tests; C5 |
+| W3.11 | `Scripts/selection/` for the pure selection rules and the hold timing (`HOLD_MS`, `HOLD_SLOP`); breaks `score` ↔ `playback`; the allowed folder edges in the `dependencies` check (L7) | node tests; the check |
+| W3.12 | `PianoRoll` into its collaborators (viewport, painter, editor, legend, input router) one a step, behind the `RollApi` of W2.14; the selection generations W0.6 found unused removed in their own pull request | C6; C5 |
+| W3.13 | `score-geometry.ts` into `page-reader.ts` and `ScoreGeometry`; `svg-to-pdf.ts` keeps only its SVG parser (the PDF half left in W0.6) | node tests; C5 |
+| W3.14 | `selection-layer.ts`, `selection-place-layer.ts`: drawing apart from input and reporting | node tests; C5 |
 
 ### Decisions for Andrei before or during the work
 
-1. **The web-only modules in `src/shared`** (17 files, 3,330 lines, and the parts of eleven node test files that
+1. **The web-only modules in `src/shared`** (16 files, 3,175 lines, and the parts of fourteen node test files that
    read them; section 3.3). Recommended: move them to `archive/web` (with their tests to `archive/web/tests/web`), so `src/shared` is only
    what the iPad runs, as 0033 intended; reactivation brings them back with the rest. This adds files to `archive/`,
    which 0033 says is not changed, so it needs your word. The alternatives: delete them (they stay in tag v0.6.5 and in
@@ -695,7 +700,9 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 3. **A test of the iPad's score page in a headless browser (C5, W0.7).** 0032 removed the web's browser tests; this
    one would test iPad code (`src/ipad/App/Web` over `src/shared`) and would be the only net for the score page off the
    device. Recommended: yes, in `build-test` on Linux with Playwright and Chromium, a few kept scenarios rather than a
-   suite. The alternative: rely on the UI walk on macOS and Andrei's test of each version.
+   suite. The alternative: rely on the UI walk on macOS and Andrei's test of each version; then every step that names C5 as
+   its guard (W0.6, W2.13, W3.11–W3.14) merges only after the `iPad` workflow's tests with the label `ipad-tests`, and
+   the risk «a shared-module step breaks a page on the device only» stays open until the version is tried.
 
 The first edition's three decisions are answered by 0032 (section 0.2).
 
