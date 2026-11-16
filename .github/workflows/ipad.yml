@@ -31,8 +31,20 @@ on:
   # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
   push:
     tags: ['v*', 'ipad-v*']
+  # A pull request that touches nothing the iPad app is built from starts no run at all, label or not (Andrei,
+  # 2026-11-16). Tags and runs by hand are not filtered.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+    paths:
+      - src/ipad/**
+      - tests/ipad/**
+      - src/shared/**
+      - src/backend/MotiffLab.MusicCore/**
+      - design/kit/**
+      - tests/contracts/**
+      - global.json
+      - Directory.Build.props
+      - .github/workflows/ipad.yml
 
 permissions:
   contents: read
@@ -49,7 +61,9 @@ jobs:
       github.event_name != 'pull_request' ||
       (contains(github.event.pull_request.labels.*.name, 'ipad-tests') &&
       (github.event.action != 'labeled' || github.event.label.name == 'ipad-tests'))
-    runs-on: macos-15
+    # Andrei's Mac as a self-hosted runner when the repository variable IPAD_RUNNER names its label (motiff-mac);
+    # GitHub's macOS otherwise, and always for a pull request from a fork (docs/repository-structure.md, "iPad builds").
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'macos-15' || vars.IPAD_RUNNER || 'macos-15' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -76,14 +90,38 @@ jobs:
           echo "SIMULATOR=$id" >> "$GITHUB_ENV"
           xcrun simctl boot "$id" || true
 
+      # The core changes in few pull requests, and its three NativeAOT builds take 8-10 minutes: a build of the same
+      # sources is taken from the cache, and its check with it.
+      - uses: actions/cache/restore@v4
+        id: core
+        with:
+          path: src/ipad/build/MotiffLabCore.xcframework
+          key: core-ios-${{ hashFiles('src/backend/MotiffLab.MusicCore/**', 'src/ipad/Core/**', 'global.json', 'Directory.Build.props') }}
+
+      - uses: actions/cache@v4
+        if: steps.core.outputs.cache-hit != 'true'
+        with:
+          path: ~/.nuget/packages
+          key: nuget-macos-${{ hashFiles('src/backend/MotiffLab.MusicCore/*.csproj', 'src/ipad/Core/*.csproj', 'Directory.Build.props', 'global.json') }}
+          restore-keys: nuget-macos-
+
       - name: Build MotiffLabCore.xcframework
+        if: steps.core.outputs.cache-hit != 'true'
         run: src/ipad/Core/build.sh | tee core.log
 
       # The core as a macOS library, called through its C functions as the app calls it.
       - name: Check the core's C functions
+        if: steps.core.outputs.cache-hit != 'true'
         run: |
           dotnet publish src/ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
           python3 src/ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
+
+      # Saved only once the check passed, so a broken core is never reused.
+      - uses: actions/cache/save@v4
+        if: steps.core.outputs.cache-hit != 'true'
+        with:
+          path: src/ipad/build/MotiffLabCore.xcframework
+          key: ${{ steps.core.outputs.cache-primary-key }}
 
       # Verovio takes several minutes to compile; its build changes only with the script and the patch.
       - uses: actions/cache/restore@v4
@@ -187,7 +225,7 @@ jobs:
             echo "## iPad app"
             echo
             echo '```'
-            grep -E '^ios|^iossim' core.log || true
+            grep -E '^ios|^iossim' core.log 2>/dev/null || echo "core: from the cache"
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
             echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
             echo "Screenshots: ${SCREENS:-not taken}"
