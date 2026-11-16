@@ -51,6 +51,9 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 | Sources read twice per screen in two models | `ScoreController.sources` (`SourcesInfo`, call `sources`) and `SourcesController.layers` (`sources.layers`) | two calls and two states for the same file | `SourcesInfo` from `sources.layers` once the experiment is permanent |
 | Views shown over the score closed 2 s after they go | `ScoreScreen.shownViewScreen` `onDisappear` | a time guess instead of an order | close after the screen's own last call, with the ordered queue |
 | A hover recogniser added to the window per score | `PencilPalette.watch` | moved, not added, as long as one controller lives; leaked controllers left theirs | none now that the screens are freed (item 5 above) |
+| The kept "Notes" view waits for the sound | `ScoreScreen.wire` awaits `player.load` before `returnToNotesView`, which lands the pages | the notes are drawn ~2.2 s after the press in the simulator and shown at ~5 s (Evidence) | restore the view and land, then give the player its place once the sound is in (track P owns the transport) |
+| Every screen makes its own web view and loads the score page again | `ScoreController.init` (score), `RollController` (roll) | a WebContent process and the page's scripts per switch: ~1.5 s of the notes' time in the simulator | keep the score's web view between the screens of one piece |
+| The piano's samples decoded again for every screen | `Player.load` → `Piano.load` per `Player` | the files read and decoded at every switch to the notes | decode once per app (owner of `Player`) |
 | `docs/code-map/ipad.md` over its 3 KB | — | — | split the map by area when it next grows |
 
 ## Lifecycle and ownership: PDF | Notes now
@@ -79,4 +82,47 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 
 ## Evidence
 
-To be filled from the iPad workflow runs (baseline on the code of v0.6.3, then with the fixes).
+`SwitchUITests` in the iPad workflow's simulator (iPad, Debug build, landscape, Russian), 20 rounds each way (8 in the
+library of 15 more pieces); a scanned-size PDF of 6 pages inside the piece. Runs by hand on evidence branches that skip the
+screenshot walk: baseline 43767626872 (v0.6.3 with the probe), fixes 43767801585 and 43773520691 (with the phases).
+Times are the test's own wait from the tap to the screen ready.
+
+| Test | Build | Switches | Median | Slowest | Memory, first → last | Controllers alive at the end | Score renders | Old Play drawn |
+|---|---|---|---|---|---|---|---|---|
+| PDF \| Notes | v0.6.3 | 40 | 5.9 s | 12.0 s | 218 MB | 1 of each | 49 for 21 screens | 1356 times |
+| PDF \| Notes | fixed | 40 | 5.7 s | 12.4 s | 215 MB | 1 of each | 21 for 21 | 0 |
+| Sources on | v0.6.3 | 40 | 6.5 s | 12.6 s | 197 → 773 MB | score 21, roll 21, PDF 20, player 21 | — | 1548 |
+| Sources on | fixed | 40 | 4.7 s | 11.7 s | 191 MB | 1 of each | 21 for 21 | 0 |
+| Library of 16 | v0.6.3 | 16 | 7.4 s | 15.3 s | 175 → 429 MB | 9 of each | — | 528 |
+| Library of 16 | fixed | 16 | 5.8 s | 11.6 s | 242 MB | 1 of each | 9 for 9 | 0 |
+
+In v0.6.3 the time grew with each round in the library and one tap on More went unanswered; with Sources on every
+screen visited stayed alive with its two web views, player and PDF (about 30 MB more per round in the app alone, WebKit's
+processes not counted). That growth, with the reading of the whole library on the main thread at every switch, is what
+freezes the iPad after some switches; neither shows in the fixed runs, whose memory stays flat (peak 361 MB, back to
+~185 MB).
+
+Where a switch spends its time now (run 43773520691, medians, ms from the press by the app's clock; plain / Sources on):
+
+| Phase | To the notes | To the PDF |
+|---|---|---|
+| saved, opened in music-core (with Verovio's layout), summary read, old piece closed | 526 / 505 | 442 / 466 |
+| new screen made, its piece shown | 637 / 625 | — |
+| score page loaded in the new web view | 2152 / 2045 | — |
+| pages drawn | 2650 / 2381 | — |
+| marks, phrases, check, versions done | 3656 / 3201 | — |
+| sound loaded (`player.load`) | 4526 / 4179 | — |
+| pages shown (the kept view restored) | 5230 / 4753 | PDF laid out 718 / 691 |
+
+The test's wait is ~3 s longer than the app's time for the notes (8.5 s median) and ~1 s for the PDF: each read of the
+probe is a query of the whole screen, the score's SVG included. The switch test now holds each switch to 10 s by the
+app's own clock, as a freeze guard in the simulator; the iPad itself is not measured here. What is left of the notes'
+time is in the three structural risks above (the sound before the kept view, a web view per screen, the piano per
+screen), none a defect that changes what the player sees, and none in this track's files to change safely now.
+
+music-core's calls of one switch, timed on a PC on the same 12 MB project (`switchbench`, medians): open as notes 40 ms,
+notation 4 ms, `project.summary` 98 ms, `project.save` 23 ms, open as PDF 26 ms, `document` 17 ms; no call grows with the
+rounds and the managed heap stays flat. music-core is not where the switch's time goes.
+
+The switch tests run only when asked (`SWITCH_TEST`, `TEST_RUNNER_SWITCH_TEST=1` for xcodebuild): the three take about
+28 minutes in the workflow's simulator, which with the screenshot walk overruns the job's 60 minutes.

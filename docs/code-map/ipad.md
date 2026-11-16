@@ -35,7 +35,8 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 - `LibraryView.switchView` → `openFile` → `show`: opens the other view, reads only that file's summary, closes the old
   piece (`ClosedPieces`), swaps the navigation item. The screen's model is set in its `init` (`ScoreController(mode:)`,
   the handed `SourcesHandover.layers`), never after an await; `onDisappear` clears `sources.reopen` (it held the screen).
-- `SwitchUITests` (Screens scheme) switches 20 times each way; `ScreensProbe` (Debug) reports readiness and resources.
+- `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
+  the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
 
 ## The assistant
 
