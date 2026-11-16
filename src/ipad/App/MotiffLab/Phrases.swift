@@ -75,7 +75,7 @@ struct ScoreSelection: Equatable, Sendable {
     var lastBar: Int
     var noteIds: [String]
     /// The beat of the first bar it starts on and of the last bar it ends in, as music-core counts them (#349); nil from
-    /// an older answer.
+    /// a selection made without them (music-core always writes them).
     var firstBeat: Int?
     var lastBeat: Int?
     /// The one selection (v0.6.2, #601, PlaceSelection.swift): the hand it is narrowed to ("right", "left", music-core's
@@ -95,20 +95,18 @@ struct ScoreSelection: Equatable, Sendable {
         self.picked = picked
     }
 
-    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}.
+    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}
+    /// (`Answer.Selection`), null in `phrases.level` with none; nil for a refusal, null, or an answer that cannot be read.
     init?(answer: String) {
-        guard let selection = facadeObject(answer)?["selection"] as? [String: Any],
-              let onset = (selection["onset"] as? NSNumber)?.doubleValue,
-              let end = (selection["end"] as? NSNumber)?.doubleValue else { return nil }
+        guard let shown = FacadeAnswer(answer, of: "select")?.entryOrNull("selection"), let selection = shown,
+              let onset = selection.number("onset"), let end = selection.number("end"),
+              let firstBar = selection.int("firstBar"), let lastBar = selection.int("lastBar"),
+              let firstBeat = selection.int("firstBeat"), let lastBeat = selection.int("lastBeat"),
+              let noteIds = selection.required("noteIds", [String].self), let filter = selection.entry("filter") else { return nil }
         self.init(
-            onset: onset,
-            end: end,
-            firstBar: (selection["firstBar"] as? NSNumber)?.intValue ?? 0,
-            lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0,
-            noteIds: selection["noteIds"] as? [String] ?? [],
-            firstBeat: (selection["firstBeat"] as? NSNumber)?.intValue,
-            lastBeat: (selection["lastBeat"] as? NSNumber)?.intValue,
-            hand: (selection["filter"] as? [String: Any])?["hand"] as? String
+            onset: onset, end: end, firstBar: firstBar, lastBar: lastBar, noteIds: noteIds, firstBeat: firstBeat, lastBeat: lastBeat,
+            // The filter names a hand only when the selection is narrowed to one (`Answer.Filter`).
+            hand: filter.fields["hand"] as? String
         )
     }
 

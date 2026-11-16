@@ -44,10 +44,11 @@ final class PlaceSelectionTests: XCTestCase {
     }
 
     func testTheSelectionReadsItsHandFromMusicCore() {
-        let answer = #"{"selection": {"onset": 0, "end": 1920, "firstBar": 1, "lastBar": 1, "filter": {"hand": "left"}, "noteIds": ["n1"]}}"#
+        let answer = #"{"selection": {"onset": 0, "end": 1920, "firstBar": 1, "lastBar": 1, "firstBeat": 1, "lastBeat": 4, "filter": {"hand": "left"}, "noteIds": ["n1"]}}"#
         XCTAssertEqual(ScoreSelection(answer: answer)?.hand, "left")
         XCTAssertNil(ScoreSelection(answer: answer)?.picked, "music-core does not say a pick; the controller does")
-        XCTAssertNil(ScoreSelection(answer: #"{"selection": {"onset": 0, "end": 1920, "filter": {}}}"#)?.hand)
+        let both = #"{"selection": {"onset": 0, "end": 1920, "firstBar": 1, "lastBar": 1, "firstBeat": 1, "lastBeat": 4, "filter": {}, "noteIds": ["n1"]}}"#
+        XCTAssertNil(ScoreSelection(answer: both)?.hand)
     }
 
     func testThePageIsToldTheSwitchOnTheNotesOnly() {
