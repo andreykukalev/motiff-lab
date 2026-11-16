@@ -5,6 +5,17 @@
 # iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode. Run by hand with
 # "Screenshots" ticked, or for a release tag, it also photographs the app's screens for the mockups (the Screens scheme).
 name: iPad
+# The run's title in the Actions list says what it is, where and whether it runs at all (a pull request needs the
+# label ipad-tests).
+run-name: >-
+  ${{ format('iPad tests · {0}{1}',
+  github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
+  || github.event_name == 'push' && format('tag {0}', github.ref_name)
+  || format('by hand on {0}{1}{2}', github.ref_name, inputs.screenshots && ' + screenshots' || '', inputs.switch_test && ' + switch test' || ''),
+  github.event_name == 'pull_request'
+  && (!contains(github.event.pull_request.labels.*.name, 'ipad-tests')
+  || github.event.action == 'labeled' && github.event.label.name != 'ipad-tests')
+  && ' · skipped (no ipad-tests label)' || '') }}
 
 on:
   workflow_dispatch:

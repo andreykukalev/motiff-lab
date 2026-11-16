@@ -4,6 +4,7 @@
 # token starts no other workflow by itself, hence the explicit run. The browser tests belong to the archived web app
 # (docs/architecture/adr/0032-ipad-first-web-archived.md) and are not started; reactivating the web brings their run back.
 name: Version
+run-name: ${{ format('Version · VERSION changed on {0}', github.ref_name) }}
 
 on:
   push:

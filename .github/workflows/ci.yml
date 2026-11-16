@@ -1,4 +1,14 @@
 name: CI
+# The run's title in the Actions list says what it is, where and why (Andrei, 2026-11-16): a label run only reports
+# the build before it.
+run-name: >-
+  ${{ format('Build and test · {0}{1}',
+  github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
+  || github.event_name == 'workflow_dispatch' && format('by hand on {0}', github.ref_name)
+  || format('push to {0}', github.ref_name),
+  (github.event.action == 'labeled' || github.event.action == 'unlabeled')
+  && format(' · label {0}{1}: reports the build before', github.event.action == 'labeled' && '+' || '−', github.event.label.name)
+  || '') }}
 
 # The web app is archived (archive/web, docs/web-archive.md): this workflow neither builds, tests nor deploys it. Its
 # browser tests' workflow is kept in archive/web/workflows and its deploy steps in this file at commit 6088b98.
