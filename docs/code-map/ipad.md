@@ -1,7 +1,8 @@
 # Code map: the iPad app (`src/ipad/App`)
 
 SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`), facade calls through `MusicCore.call(piece:, name, json)`,
-the request encoded once by `facadeRequest` and the answer read by `facadeObject` (`MusicCore.swift`).
+the request encoded once by `facadeRequest` and the answer read by `facadeObject` (`MusicCore.swift`). Every name sent must
+be in `tests/contracts/facade-calls.json` (`tests/shared/facade-calls-contract.test.mjs` reads the Swift for them).
 The score and the roll are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`). Strings:
 the shared `src/shared/wwwroot/i18n/*.json` plus the iPad's own `Words/*.json` (`UIText`). Tokens: `Design.swift`
 reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
