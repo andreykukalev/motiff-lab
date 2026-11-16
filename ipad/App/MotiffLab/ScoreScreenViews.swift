@@ -132,7 +132,7 @@ extension ScoreController {
         let scroll = webView.scrollView
         let zoom = max(Double(scroll.zoomScale), 0.01)
         let y = Double(scroll.contentOffset.y) / zoom
-        let answer = try? await webView.callAsyncJavaScript("return motiff.placeAt(data)", arguments: ["data": ["y": y]], contentWorld: .page)
+        let answer = try? await scorePage.call(.placeAt, ["y": y])
         return (ViewAnchor(page: answer), zoom, Double(scroll.contentOffset.x) / max(Double(scroll.contentSize.width), 1))
     }
 
@@ -143,7 +143,7 @@ extension ScoreController {
         let scale = min(max(CGFloat(zoom), scroll.minimumZoomScale), scroll.maximumZoomScale)
         if abs(scroll.zoomScale - scale) > 0.001 { scroll.setZoomScale(scale, animated: false) }
         guard let place,
-              let line = try? await webView.callAsyncJavaScript("return motiff.lineAt(data)", arguments: ["data": place.page], contentWorld: .page) as? NSNumber
+              let line = try? await scorePage.call(.lineAt, place.page) as? NSNumber
         else { return }
         let lowest = -scroll.adjustedContentInset.top
         let highest = max(lowest, scroll.contentSize.height + scroll.adjustedContentInset.bottom - scroll.bounds.height)

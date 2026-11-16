@@ -123,6 +123,9 @@ targets:
       # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
       - path: ../../design/kit/elise.musicxml
         buildPhase: resources
+      # The score page's contract (0031): the functions and messages score.js and the app agree on.
+      - path: ../../tests/contracts/score-page.json
+        buildPhase: resources
     dependencies:
       - target: MotiffLab
     settings:

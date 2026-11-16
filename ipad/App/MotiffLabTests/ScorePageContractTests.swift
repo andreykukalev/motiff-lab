@@ -1,0 +1,56 @@
+import XCTest
+
+@testable import MotiffLab
+
+/// The score page's contract (decision record 0031, step 2): the app names the functions and decodes the messages listed
+/// in tests/contracts/score-page.json, the lists tests/web/score-page-contract.test.mjs checks score.js against.
+final class ScorePageContractTests: XCTestCase {
+    private final class Marker {}
+
+    private func contract() throws -> [String: Any] {
+        let url = try XCTUnwrap(Bundle(for: Marker.self).url(forResource: "score-page", withExtension: "json"), "the contract is bundled with the tests")
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+    }
+
+    func testTheAppNamesExactlyThePagesFunctions() throws {
+        let commands = try XCTUnwrap(contract()["commands"] as? [String])
+        XCTAssertEqual(PageCommand.allCases.map(\.rawValue).sorted(), commands.sorted())
+    }
+
+    func testTheAppDecodesExactlyThePagesMessages() throws {
+        let events = try XCTUnwrap(contract()["events"] as? [String])
+        XCTAssertEqual(PageEvent.Kind.allCases.map(\.rawValue).sorted(), events.sorted())
+    }
+
+    func testACallNamesItsFunctionAndPassesItsArgument() {
+        let (script, arguments) = WebScorePage.script(.reveal, ["start": 960])
+        XCTAssertEqual(script, "return motiff.reveal(argument)")
+        XCTAssertEqual((arguments["argument"] as? [String: Int])?["start"], 960)
+        XCTAssertEqual(WebScorePage.script(.menuClosed, nil).0, "return motiff.menuClosed()")
+    }
+
+    func testABarTappedIsItsSpan() {
+        let events = PageEvent.events(in: ["bar": ["start": 1920, "end": 3840]])
+        guard case let .bar(start, end)? = events.first else { return XCTFail("a bar: \(events)") }
+        XCTAssertEqual([start, end], [1920, 3840])
+    }
+
+    func testAVersionMarkerCarriesItsPlace() {
+        let events = PageEvent.events(in: ["performanceBar": 12, "left": 40.5, "bottom": 300])
+        XCTAssertEqual(events.count, 1, "left and bottom belong to the marker")
+        guard case let .performanceBar(bar, left, bottom)? = events.first else { return XCTFail("a marker: \(events)") }
+        XCTAssertEqual(bar, 12)
+        XCTAssertEqual([left, bottom], [40.5, 300])
+    }
+
+    func testTheMenuPutAwayIsNoPlace() {
+        guard case .menu(let place)? = PageEvent.events(in: ["menu": NSNull()]).first else { return XCTFail("the menu") }
+        XCTAssertNil(place)
+    }
+
+    func testWhatDoesNotDecodeIsLeftOut() {
+        XCTAssertTrue(PageEvent.events(in: ["chosen": ["start": 0]]).isEmpty, "a span needs both ends")
+        XCTAssertTrue(PageEvent.events(in: ["drag": ["phase": "spin"]]).isEmpty, "an unknown phase")
+        XCTAssertTrue(PageEvent.events(in: ["somethingNew": true]).isEmpty, "a kind the contract does not list")
+    }
+}

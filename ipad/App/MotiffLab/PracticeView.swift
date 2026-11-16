@@ -182,14 +182,14 @@ extension ScoreController {
     /// the switches say, whatever it showed before (v0.6.4, spec 9).
     func sendVisibilities() async {
         let shown = practicing ? "on" : "off"
-        _ = try? await webView.callAsyncJavaScript("return motiff.practice(shown)", arguments: ["shown": shown], contentWorld: .page)
-        _ = try? await webView.callAsyncJavaScript("return motiff.selectionControls(shown)", arguments: ["shown": selectionControlsShown], contentWorld: .page)
+        await scorePage.send(.practice, shown)
+        await scorePage.send(.selectionControls, selectionControlsShown)
     }
 
     /// Tells the page whether the selection controls show (#582 item 10): hidden, the selection's handles go with the menu
     /// and the Pencil writes where they were (score.js). ScoreScreen calls it whenever `selectionControlsShown` changes.
     func sendSelectionControls(_ shown: Bool) {
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.selectionControls(shown)", arguments: ["shown": shown], contentWorld: .page) }
+        Task { await scorePage.send(.selectionControls, shown) }
     }
 }
 

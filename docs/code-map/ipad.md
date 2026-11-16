@@ -20,6 +20,9 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   (l. ~437: the controllers' callbacks), `ScoreBar` (top bar, More, Ask about the piece), `SelectionMenu` (the menu over
   the selection; its More holds Highlight and Ask), `FocusBar` (Expand's bar). `ScoreScreenViews.swift`, `TopBar.swift`.
 - `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
+- `ScorePage.swift`: the one port to the page (0031 step 2): `PageCommand` names `window.motiff`'s functions, `PageEvent`
+  decodes its messages; both lists are `tests/contracts/score-page.json`, checked by `tests/web/score-page-contract.test.mjs`
+  and `ScorePageContractTests`.
 - `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState` (the open answer's "edits" and every corrections answer:
   "count", "layer", "moved", "unfit"), `EditsLayerSection` in More (the switch, its line, the misfits with «Убрать»).
   `OpenPiece.openRequest` opens a project file with "edits": "piece" (the file keeps "off"); `ScoreController.switchEdits`
