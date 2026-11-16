@@ -23,7 +23,7 @@ namespace MotiffLab.MusicCore.Tests.Facade;
 /// music-core; each literal shaped like a call name, and each name the file lists, is sent to the facade on piece 0, on
 /// an open piece with notes and on an open PDF piece, and the facade's own answer says whether it knows the call there:
 /// it refuses an unknown one with "unknownCall" (or "noPiece" on piece 0 with nothing open) and, on a PDF piece, with
-/// "noNotes". Any other answer, an error about the request included, means the call is dispatched. A call that one probe
+/// "noNotes" (or "unknownCall", should it hand a name on to a table that answers so). Any other answer, an error about the request included, means the call is dispatched. A call that one probe
 /// answers is sent again on a facade just opened, so what an earlier probe changed (corrections turned off, say) never
 /// decides it.
 /// </remarks>
@@ -36,7 +36,7 @@ public class FacadeCallsContractTests
 
     private static readonly byte[] s_pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
 
-    private static readonly Regex s_callShaped = new("^[a-z][A-Za-z]*(?:\\.[a-z][A-Za-z]*)*$", RegexOptions.CultureInvariant);
+    private static readonly Regex s_callShaped = new("^[a-z][A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]+)*$", RegexOptions.CultureInvariant);
 
     [Fact]
     public void The_contract_file_lists_exactly_the_calls_the_facade_answers_and_where()
@@ -80,7 +80,8 @@ public class FacadeCallsContractTests
 
     /// <summary>
     /// The string literals compiled into music-core (its assembly's user strings, what every <c>switch</c> arm and
-    /// comparison on a name loads) shaped like a call name: lowercase words joined by dots.
+    /// comparison on a name loads) shaped like a call name: words of letters, digits, "_" or "-" joined by dots, the first
+    /// starting with a lowercase letter.
     /// </summary>
     private static HashSet<string> Candidates()
     {
@@ -140,7 +141,7 @@ public class FacadeCallsContractTests
         return receiver switch
         {
             "piece0" => error is not ("unknownCall" or "noPiece"),
-            "pdf" => error is not "noNotes",
+            "pdf" => error is not ("noNotes" or "unknownCall"),
             _ => error is not "unknownCall",
         };
     }
