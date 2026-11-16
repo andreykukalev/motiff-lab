@@ -29,19 +29,20 @@ in place and is maintained by iPad work; the rest is frozen.
 | `wwwroot/i18n` | The interface words both apps read |
 | `wwwroot/audio/piano` | The piano samples the iPad plays |
 | `Playback/FurElise.musicxml` | The iPad's example piece |
+| `wwwroot/css/tokens.css`, `wwwroot/css/fonts`, `wwwroot/img/icons.svg` | Mirrors of `design/kit` kept in sync: `tests/web/design.test.mjs` (in `build-test`) requires them to equal the kit, and `node tools/icons/build.mjs` writes `icons.svg` together with the iPad's icons. A change to the kit's tokens, fonts or icons updates them in the same pull request; an icon the frozen web names stays in the kit (the same test checks it) |
 | `tests/web` (node tests) | Cover the live modules; they also cover some frozen scripts and stay in `build-test` |
 
 | Frozen (archived) | What it is |
 | --- | --- |
 | `Pages`, `Layout`, `App.razor`, `_Imports.razor`, `Program.cs` and the feature folders (`Account`, `Analytics`, `Compare`, `Design`, `Dna`, `Explore`, `Import`, `Insights`, `Library`, `Localization`, `Observations`, `Pdf`, `Playback` except the example piece, `Projects`, `Reference`, `Roll`, `Score`, `Settings`, `Sources`, `Understand`, `Versions`, `Workspace`) | The Blazor app: pages, components, `PlaybackLab`, services (`ProjectStore`, `CloudSync`, `ScanService`, …) |
-| `Scripts/account`, `import`, `metronome`, `pdf`, `phrases`, `reference` | Web-only browser layer |
-| `wwwroot/css` (`app.css`, the copy of `tokens.css`, fonts), `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, `img`, icons, `lib/pdfjs`, `lib/verovio` | The site's shell, styles, offline worker and hosting configuration |
+| `Scripts/account`, `import`, `metronome`, `pdf`, `phrases`, `reference`, and inside the live folders the web-only `storage/recording-store.ts`, `storage/test-library.ts`, `playback/playback.ts` and `layout/test-site.ts` (they import frozen `Scripts/import` or test-site code; the iPad does not load them) | Web-only browser layer |
+| `wwwroot/css/app.css`, `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, the rest of `img`, the app icons, `lib/pdfjs`, `lib/verovio` | The site's shell, styles, offline worker and hosting configuration |
 | `tests/e2e` | 58 Playwright spec files on the published app |
 | `infra/main.bicep`, `main.bicepparam`, `infra/azure/develop.ps1`, `test-site-signin.ps1` | The Static Web App and the test site's setup |
 
 Rules while frozen (0032): no features, fixes or ports in the frozen part; if a change elsewhere breaks its compilation,
 the smallest mechanical fix in the same pull request. A change to a live module that alters what the web would show gets
-one line in `web-backlog.md`. Never import frozen code into the iPad app.
+one line in `web-backlog.md`. Never import frozen code into the iPad app, nor into a live module the iPad loads.
 
 ## Workflows
 

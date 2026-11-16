@@ -48,8 +48,8 @@ compacted automatically at about 200K tokens.
 - The web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
   backend (API, scan server). There are no web tracks until Andrei reactivates the web.
 - A track reads and changes `ipad/`, `src/MotiffLab.MusicCore`, the backend and the live shared modules the iPad bundles
-  from the web project's folder (`Scripts/score`, `roll`, `layout`, `storage`, `playback`, `wwwroot/i18n`, the piano;
-  the list is in `docs/web-archive.md`). It does not read, change or test the frozen web pages, components, services or
+  from the web project's folder (`Scripts/score`, `roll`, `layout`, `storage`, `playback`, `wwwroot/i18n`, the piano, the
+  design kit's mirrors; the list is in `docs/web-archive.md`). It does not read, change or test the frozen web pages, components, services or
   Playwright suites, and the iPad never imports frozen web code. If a change breaks the frozen web's compilation, it
   makes the smallest mechanical fix there in the same pull request, nothing more.
 - A change to a live shared module that alters what the web would show is not ported: append one line to

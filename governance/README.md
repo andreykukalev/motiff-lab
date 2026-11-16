@@ -26,8 +26,8 @@ to undo it), and each version note lists them under «Решено без вас
 
 - `main`: stable versions only. Moves by a release (Andrei's decision 5) or a hotfix. Agents never push or merge to it.
 - `develop`: the line of development. Always builds, always green. Agents open pull requests to it and merge them
-  themselves when `build-test` (with the code-quality checks) is green. While the web is archived (0032), nothing is
-  deployed from it.
+  themselves when `build-test` (with the code-quality checks) is green. While the web is archived (0032), no web is
+  deployed (the API and scan server deploy as before).
 - Task branches: short, one per change, `claude/*`. Parallel agents work on branches whose files do not overlap.
 - `hotfix/<version>`: from the last stable tag, for an urgent fix of a stable version.
 

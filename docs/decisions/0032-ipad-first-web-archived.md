@@ -10,8 +10,8 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
 
 - The product is still evolving; its core experience (selection, playback, practice at the instrument, the assistant,
   the sources model) is being established through Andrei's test cycles on the iPad.
-- Two actively developed clients cost more than they return at this stage. Measured on `develop` 06b49d2
-  ([REFACTORING_AUDIT.md](../REFACTORING_AUDIT.md) section 2): the web app is 38.6k lines of C# and Razor, 12.9k of CSS
+- Two actively developed clients cost more than they return at this stage. Measured on `develop` 0d2bc52
+  ([REFACTORING_AUDIT.md](../REFACTORING_AUDIT.md) sections 1–2): the web app is 38.6k lines of C# and Razor, 12.9k of CSS
   and 23.9k of TypeScript, with its own application layer (`PlaybackLab`) beside the facade's `OpenPiece`, its own
   page controller beside the iPad's, and 58 Playwright spec files that have been red since v0.6.1. Versions 0.6.1 to
   0.6.5 were iPad-only, and the list of iPad changes waiting to be ported to the web
@@ -32,7 +32,8 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
      developed and deployed to the main address. Both already exist; nothing has to be reconstructed.
    - The code stays where it is (`src/MotiffLab.Web`, `tests/e2e`), so the iPad's bundled paths do not move and no
      shared code is restructured. `docs/web-archive.md` splits the folder into its **live shared part** (the five
-     modules, words, piano, example piece and the TypeScript build, owned by iPad work from now on) and its **frozen
+     modules, words, piano, example piece, the TypeScript build and the mirrors of the design kit, owned by iPad work
+     from now on) and its **frozen
      part** (everything else: pages, components, C# features and services, web-only scripts, styles, service worker,
      hosting configuration, Playwright specs).
    - Frozen means: no features, fixes or ports. It keeps compiling in `build-test`, which keeps it recoverable and costs
@@ -97,7 +98,7 @@ current version first.
 - Future web development is evaluated as a separate initiative.
 - Costs accepted: the main web address keeps v0.6.5 with its known defects and the browser suite stays red until
   reactivation; the frozen web keeps compiling in `build-test`, so a public music-core change may need a mechanical edit
-  there; Android-tablet users (Andrei's 2026-11-10 reason for "the web is the most complete version") have no maintained
+  there; Android-tablet users (Andrei's 2026-11-10 reason, in the project chat, for keeping the web the most complete version) have no maintained
   client meanwhile.
 - The live shared modules still sit in the web project's folder. Giving them their own home (REFACTORING_AUDIT Wave 3)
   belongs to the separate refactoring task; after it, the frozen web project can leave the solution build.
@@ -114,10 +115,10 @@ current version first.
 
 ## What this record changes in earlier records
 
-- 0025: the frame stays; the web Music Studio (sections 2–3, the 2026-11-10 "the web is the most complete version") is
+- 0025: the frame stays; the web Music Studio (sections 2–3, and Andrei's 2026-11-10 word in the project chat that the web is the most complete version) is
   on hold until reactivation.
 - 0026 section 3: suspended while the web is frozen (the iPad releases alone); applies again on reactivation.
-- 0019 section 3, item 1: the web is no longer the development site; nothing is deployed from `main` or `develop`.
+- 0019 section 3, item 1: the web is no longer the development site; no web is deployed from `main` or `develop` (the API and scan server deploy as before).
 - 0018: the redesign continues on the iPad only; its web screens stay as built at v0.6.5.
-- 0027: "the web stays a full studio" is on hold with the web.
+- 0027: "the web is a full environment, not a practice app" (Consequences) is on hold with the web.
 - 0014: the Static Web App part is frozen; the API and scan server are unchanged.
