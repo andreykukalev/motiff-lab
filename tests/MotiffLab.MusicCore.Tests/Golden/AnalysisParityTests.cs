@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Tests.Golden;
 /// <summary>
 /// The phrases at their three levels, the form and the Piece DNA of the two pieces both apps carry, as the facade answers
 /// them on Linux (task #293; basis rule S7 and pre-build check 2 of the project-continuity council). The golden lives
-/// with the iPad tests (src/ipad/App/MotiffLabTests/Golden), whose AnalysisParityTests.swift asserts the same answers from
+/// with the iPad tests (tests/ipad/MotiffLabTests/Golden), whose AnalysisParityTests.swift asserts the same answers from
 /// music-core built with NativeAOT; this test asserts it here, for the build the web app runs. Run the tests with
 /// MOTIFF_UPDATE_SNAPSHOTS=1 to write it again after a deliberate change in the analysis.
 /// </summary>
@@ -114,5 +114,5 @@ public class AnalysisParityTests
     }
 
     private static string SourceGoldenPath(string name, [CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(source)!, "..", "..", "..", "src", "ipad", "App", "MotiffLabTests", "Golden", name);
+        Path.Combine(Path.GetDirectoryName(source)!, "..", "..", "ipad", "MotiffLabTests", "Golden", name);
 }

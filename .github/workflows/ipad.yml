@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       switch_test:
-        description: Switch PDF | Notes 40 times and measure each switch and the memory (MotiffLabScreens/SwitchUITests.swift, ~30 min)
+        description: Switch PDF | Notes 40 times and measure each switch and the memory (tests/ipad/MotiffLabScreens/SwitchUITests.swift, ~30 min)
         type: boolean
         default: false
   # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
@@ -136,7 +136,7 @@ jobs:
             -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
-      # The screens as a player sees them (MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
+      # The screens as a player sees them (tests/ipad/MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
       # walk cannot reach is listed as SCREEN-MISS and costs that picture only.
       - name: Photograph the screens
         if: github.event_name == 'push' || inputs.screenshots

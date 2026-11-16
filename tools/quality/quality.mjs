@@ -151,6 +151,7 @@ only_rules:
   - nesting
 included:
   - App
+  - ../../tests/ipad
 excluded:
   - App/Web
 cyclomatic_complexity:
@@ -330,7 +331,7 @@ function swiftlintCheck(args) {
     }
     throw new Skipped('Docker is not running here; CI runs SwiftLint.');
   }
-  const result = run('docker', ['run', '--rm', '-v', `${join(ROOT, 'src', 'ipad')}:/work`, '-w', '/work', SWIFTLINT_IMAGE,
+  const result = run('docker', ['run', '--rm', '-v', `${ROOT}:/work`, '-w', '/work/src/ipad', SWIFTLINT_IMAGE,
     'swiftlint', 'lint', '--quiet', '--no-cache', '--reporter', 'json', '--config', '.swiftlint.yml']);
   if (!result.stdout.trim().startsWith('[')) {
     throw new Error(`SwiftLint failed (exit ${result.status}):\n${result.stderr.slice(-4000)}`);
@@ -338,7 +339,7 @@ function swiftlintCheck(args) {
   const seen = new Set();
   const out = [];
   for (const m of JSON.parse(result.stdout)) {
-    const file = toRepoPath(join(ROOT, 'src', 'ipad', relativePath('/work', m.file)));
+    const file = toRepoPath(join(ROOT, relativePath('/work', m.file)));
     const id = `${file}:${m.line}:${m.rule_id}:${m.reason}`;
     if (seen.has(id)) {
       continue; // SwiftLint 0.62 on Linux reports each violation more than once

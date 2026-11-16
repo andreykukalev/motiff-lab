@@ -83,7 +83,7 @@ compacted automatically at about 200K tokens.
   tests, code quality.
 - The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
   before a version. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
-  `src/ipad/App/MotiffLabTests` in the same commit.
+  `tests/ipad/MotiffLabTests` in the same commit.
 
 ## Never
 

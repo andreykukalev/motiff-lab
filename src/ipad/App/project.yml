@@ -7,7 +7,7 @@ name: MotiffLab
 options:
   deploymentTarget:
     iOS: "17.0"
-  # No groups for the folders between the project and the files outside it (../.., ../../../design, ../build): Xcode 27 refuses
+  # No groups for the folders between the project and the files outside it (../.., ../../../design, ../../../tests, ../build): Xcode 27 refuses
   # to open a project where such a folder ends up in two groups.
   createIntermediateGroups: false
 # Sign-in (0014): Microsoft's MSAL, as a binary Swift package.
@@ -119,7 +119,8 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: MotiffLabTests
+      # The tests live with the repository's other tests (tests/ipad).
+      - path: ../../../tests/ipad/MotiffLabTests
       # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
       - path: ../../../design/kit/elise.musicxml
         buildPhase: resources
@@ -132,13 +133,13 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         TARGETED_DEVICE_FAMILY: "2"
-  # Screenshots of the screens for the redesign's mockups (MotiffLabScreens/ScreensUITests.swift), in a scheme of their
+  # Screenshots of the screens for the redesign's mockups (tests/ipad/MotiffLabScreens/ScreensUITests.swift), in a scheme of their
   # own so the Swift tests above never wait for them: the iPad workflow runs it by hand or for a release tag.
   MotiffLabScreens:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: MotiffLabScreens
+      - path: ../../../tests/ipad/MotiffLabScreens
     dependencies:
       - target: MotiffLab
     settings:

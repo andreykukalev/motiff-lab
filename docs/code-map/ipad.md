@@ -4,7 +4,7 @@ SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`), facad
 the request encoded once by `facadeRequest` and the answer read by `facadeObject` (`MusicCore.swift`).
 The score and the roll are the web's TS modules in a WKWebView (`Web/score.js`, `Scripts/score`, `Scripts/roll`). Strings:
 the web's `src/MotiffLab.Web/wwwroot/i18n/*.json` plus the iPad's own `Words/*.json` (`UIText`). Tokens: `Design.swift`
-reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
+reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
 
 ## The interface's language
 

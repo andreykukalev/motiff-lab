@@ -3,7 +3,7 @@
 Scope: the iPad app's screens around PDF | Notes (`LibraryView`, `PdfScreen`, `ScoreScreen` and their controllers), their
 lifecycle, state and resources. Method: the code paths read end to end; music-core's calls of one switch timed in a loop
 on a project of 12 MB (a 6-page scanned PDF and Für Elise, `scratch/2026-11-15-v064-freeze/switchbench`); and a UI test
-that switches PDF ↔ Notes again and again in the iPad simulator (`MotiffLabScreens/SwitchUITests.swift`) with a
+that switches PDF ↔ Notes again and again in the iPad simulator (`tests/ipad/MotiffLabScreens/SwitchUITests.swift`) with a
 Debug-only probe in the app (`ScreensHook.swift`: the screen ready, the controllers alive, the score's renders,
 music-core's longest call, the app's memory). Numbers: see "Evidence".
 

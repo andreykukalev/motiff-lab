@@ -10,6 +10,7 @@ only_rules:
   - nesting
 included:
   - App
+  - ../../tests/ipad
 excluded:
   - App/Web
 cyclomatic_complexity:

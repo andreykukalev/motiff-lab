@@ -6,7 +6,7 @@ import Foundation
 /// selection; Цикл is the promise that while it is on, playback keeps the position inside the selection.
 ///
 /// The Swift port of the reference, src/MotiffLab.Web/Scripts/playback/playback-model.ts: the same pure rules (the
-/// design's T1–T16, the drag of a playhead included), run on the same case file, MotiffLabTests/Golden/playback-model.json
+/// design's T1–T16, the drag of a playhead included), run on the same case file, tests/ipad/MotiffLabTests/Golden/playback-model.json
 /// (PlaybackPositionTests), but for one rule of the iPad's own: a selection changed while Цикл plays takes the position to
 /// its start when it does not hold it (`select`, Golden/playback-model-ipad.json). Player owns the selection and Цикл and
 /// sends the steps to the engine.

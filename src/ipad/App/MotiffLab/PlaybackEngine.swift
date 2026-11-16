@@ -727,7 +727,7 @@ final class PlaybackEngine {
 
 /// Scrubbing (#495 UX-09, the architect's design playback-model-v0.5.2, slice I4; #582 items 12 and 13): the notes a dragged
 /// playhead passes, by the rule the web's engine has (scrubStrikes in Scripts/playback/playback-processor.ts), both on
-/// MotiffLabTests/Golden/scrub.json.
+/// tests/ipad/MotiffLabTests/Golden/scrub.json.
 extension PlaybackEngine {
     /// The drag's voices, apart from the piece's, so its end, Play or a seek fades them all.
     static let scrubSource = "scrub"

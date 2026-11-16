@@ -72,7 +72,7 @@ kinds of piece; the Einaudi file holds a transcription.
   is lost, as before.
 - **Phrases, sentences, form and Piece DNA**: the facade's answers for the design kit's piece (`design/kit/elise.musicxml`)
   and the example piece of both apps (`src/MotiffLab.Web/Playback/FurElise.musicxml`), in English and Russian, equal
-  the golden in `src/ipad/App/MotiffLabTests/Golden`. The iPad tests (`AnalysisParityTests.swift`) assert the same golden
+  the golden in `tests/ipad/MotiffLabTests/Golden`. The iPad tests (`AnalysisParityTests.swift`) assert the same golden
   from music-core built with NativeAOT.
 
 ## Version 0.2 reads version 0.3's files

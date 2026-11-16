@@ -52,7 +52,7 @@ its tests).
 - One source of truth for the project file: the C# reader and writer, golden files for versions 12, 15 and 16, the
   tolerant reader, and the API checking only the envelope ([`project-file.md`](project-file.md), 0026).
 - Shared case files already pin three cross-platform rules: the playback model, scrubbing and the analysis answers
-  (`src/ipad/App/MotiffLabTests/Golden/*.json`, read by node, xUnit and XCTest). This is the pattern to extend.
+  (`tests/ipad/MotiffLabTests/Golden/*.json`, read by node, xUnit and XCTest). This is the pattern to extend.
 - Protected acceptance scenarios (`tests/acceptance`) go only through the facade and may not be edited by the agent that
   broke them.
 - The ratchet is blocking since 2026-11-16: baselined code may not grow.
@@ -376,7 +376,7 @@ services after the plus sign.
 
 ### 3.4 Tests and tools over 350 lines
 
-`tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `src/ipad/App/MotiffLabTests/FacadeTests.swift`
+`tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `tests/ipad/MotiffLabTests/FacadeTests.swift`
 (701) test the same contract from its two sides without sharing a case; they become readers of the facade fixtures
 (section 5.3). The others are long because they are lists of cases and need no split: `NotationGeneratorTests.cs` (632),
 `PlaybackTests.swift` (598), `PencilTests.swift` (573), `ProjectFileGoldenTests.cs` (475), `playback-processor.test.mjs`
@@ -494,8 +494,8 @@ Run for this audit on a clean clone of `0d2bc52` (Linux, .NET 10, Node 22):
 | TypeScript node tests | `tests/web/*.test.mjs` | **593 passed** | `build-test` |
 | Guards and ratchet | `governance/tests`, `tools/quality` | **27 passed** | `build-test` |
 | Scan server | `services/omr/tests` (pytest) | not run here | `build-test` when it changes |
-| iPad unit tests | `src/ipad/App/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: label `ipad-tests`, tags, by hand |
-| iPad UI tests | `src/ipad/App/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
+| iPad unit tests | `tests/ipad/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: label `ipad-tests`, tags, by hand |
+| iPad UI tests | `tests/ipad/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
 | Web browser tests | `tests/e2e` (Playwright, 58 spec files, 5 browser projects) | **failing on `develop`**: the runs for the tags v0.6.1, v0.6.2, v0.6.3, v0.6.4 and v0.6.5 all failed. On v0.6.5 Chromium: 183 passed, 5 failed (`pdf-scan.spec` «Add a version on a PDF», three of `performance.spec` on sources and recordings, `playhead.spec` «Back to playback»); Firefox, WebKit and the Android tablet failed, the iPad tablet project was cancelled at its time limit | label `browser-tests`, tags, nightly on `main` only |
 
 Coverage of music-core (coverlet, the unit tests alone): 92 % of lines, 84 % of branches. By namespace, lines / branches:

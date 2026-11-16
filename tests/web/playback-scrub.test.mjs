@@ -1,5 +1,5 @@
 // Tests for the engine's scrub (v0.5.2, #495 UX-09, slice W3, Scripts/playback/playback-processor.ts): the notes a dragged
-// playhead passes, the same cases the iPad's engine runs (src/ipad/App/MotiffLabTests/PlaybackTests.swift, Scrubbing). In Node on
+// playhead passes, the same cases the iPad's engine runs (tests/ipad/MotiffLabTests/PlaybackTests.swift, Scrubbing). In Node on
 // the compiled module:   dotnet build src/MotiffLab.Web && node --test tests/web
 
 import assert from "node:assert/strict";
