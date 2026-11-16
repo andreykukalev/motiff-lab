@@ -23,7 +23,7 @@ final class TempoTests: XCTestCase {
 
         XCTAssertEqual(tempo.percent, 25)
         XCTAssertEqual(sent, [77, 78, 150, 25])
-        XCTAssertEqual(TempoReading.clamped(151), 151)
+        XCTAssertEqual(TempoReading.clamped(151), 150)
         XCTAssertEqual(TempoReading.steps, [50, 60, 70, 80, 90, 100, 110])
     }
 
