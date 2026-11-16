@@ -73,6 +73,12 @@ enum MusicCore {
     }
 }
 
+/// A facade request as JSON text, the one encoding every call uses; "{}" when the object is not JSON.
+func facadeRequest(_ fields: [String: Any]) -> String {
+    guard let data = try? JSONSerialization.data(withJSONObject: fields) else { return "{}" }
+    return String(decoding: data, as: UTF8.self)
+}
+
 /// A facade answer as a dictionary, or nil when it is not a JSON object.
 func facadeObject(_ text: String) -> [String: Any]? {
     (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any]

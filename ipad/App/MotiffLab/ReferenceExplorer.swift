@@ -184,7 +184,7 @@ extension ReferenceController {
     /// Asks music-core for the progression as the choices give it; a change sounds at once while the music plays, else it
     /// waits for Play (the web's ListeningTab).
     func loadExplorer(language: String, naming: String) async {
-        let request = ReferenceController.json(explorer.request(language: language, naming: naming))
+        let request = facadeRequest(explorer.request(language: language, naming: naming))
         let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.explorer", request) }
         guard let next = ExplorerAnswer(answer: text) else { return }
         progression = next

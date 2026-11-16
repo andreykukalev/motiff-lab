@@ -128,7 +128,7 @@ final class OriginalsController: ObservableObject {
         guard let piece else { return }
         var fields: [String: Any] = ["pdf": picked.data.base64EncodedString(), "now": ISO8601DateFormatter().string(from: Date())]
         if let pages = PDFDocument(data: picked.data)?.pageCount, pages > 0 { fields["pages"] = pages }
-        let request = Self.json(fields)
+        let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.relink", request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status[picked.id] = facadeObject(answer)?["message"] as? String ?? text["originals.unreadable"]
@@ -157,7 +157,7 @@ final class OriginalsController: ObservableObject {
         var fields: [String: Any] = ["language": text.language]
         // The PDF view keeps the page it was left at under the project's id, as the copy's view does.
         if let projectId { fields["id"] = projectId }
-        let request = Self.json(fields)
+        let request = facadeRequest(fields)
         let name = original.fileName.lowercased().hasSuffix(".pdf") ? original.fileName : original.fileName + ".pdf"
         let answer = await MusicCore.run { MusicCore.open(fileName: name, data: data, request: request) }
         guard let object = facadeObject(answer), let number = (object["piece"] as? NSNumber)?.int32Value, number > 0,
@@ -272,7 +272,7 @@ final class OriginalsController: ObservableObject {
     private func mark(_ original: OriginalEntry, held: Bool) async {
         guard let piece, let now = originals.first(where: { $0.id == original.id }), !now.inFile,
               now.held.contains("ipad") != held else { return }
-        let request = Self.json(["id": original.id, "held": held, "now": ISO8601DateFormatter().string(from: Date())])
+        let request = facadeRequest(["id": original.id, "held": held, "now": ISO8601DateFormatter().string(from: Date())])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.held", request) }
         if read(answer) { await save() }
     }
@@ -302,9 +302,5 @@ final class OriginalsController: ObservableObject {
         guard let piece, let file = piece.file else { return }
         try? await ProjectFiles.save(piece: piece.id, to: file)
         changed?()
-    }
-
-    private static func json(_ object: [String: Any]) -> String {
-        (try? JSONSerialization.data(withJSONObject: object)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 }

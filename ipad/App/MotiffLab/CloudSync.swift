@@ -270,8 +270,7 @@ struct CloudSync {
 
     /// A call on music-core's piece 0 with JSON fields; nil when it answers an error.
     private static func core(_ name: String, _ fields: [String: Any]) async -> [String: Any]? {
-        guard let body = try? JSONSerialization.data(withJSONObject: fields) else { return nil }
-        let request = String(decoding: body, as: UTF8.self)
+        let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, name, request) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return object

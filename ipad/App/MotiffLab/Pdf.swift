@@ -158,7 +158,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// A change through music-core; the pages are drawn from its answer unless `draws` is false, for the first of two calls
     /// that make one change, so they never show it half done.
     func change(_ call: String, _ fields: [String: Any], draws: Bool = true) async {
-        guard let body = try? JSONSerialization.data(withJSONObject: fields), let request = String(data: body, encoding: .utf8) else { return }
+        let request = facadeRequest(fields)
         let piece = piece
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
         guard let object = facadeObject(answer) else { return }

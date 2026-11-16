@@ -211,8 +211,7 @@ enum DocumentRead {
 
     @MainActor
     private static func send(_ piece: Int32, _ request: [String: Any]) async -> String {
-        guard let body = try? JSONSerialization.data(withJSONObject: request) else { return "" }
-        let json = String(decoding: body, as: UTF8.self)
+        let json = facadeRequest(request)
         return await MusicCore.run { MusicCore.call(piece: piece, "document.read", json) }
     }
 }

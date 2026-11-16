@@ -21,8 +21,7 @@ extension ScanServer {
     /// The PDF's pages as the vector reader reads them on the device, with the reader's name ("vector 1"); nil when it
     /// cannot open the file.
     static func vectorPages(_ data: Data) async -> (engine: String, pages: [VectorPage])? {
-        guard let body = try? JSONSerialization.data(withJSONObject: ["pdf": data.base64EncodedString()]) else { return nil }
-        let json = String(decoding: body, as: UTF8.self)
+        let json = facadeRequest(["pdf": data.base64EncodedString()])
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.vector", json) }
         guard let object = facadeObject(answer), object["error"] == nil, let engine = object["engine"] as? String,
               let pages = object["pages"] as? [[String: Any]] else { return nil }
@@ -68,8 +67,7 @@ extension ScanServer {
         }
         guard !read.isEmpty else { return .failure(.server(text["pdf.readNone"])) }
         let ordered = read.keys.sorted().compactMap { read[$0] }
-        guard let body = try? JSONSerialization.data(withJSONObject: ["pages": ordered.map(\.score)]) else { return .failure(.server(text["import.scanPagesNotJoined"])) }
-        let json = String(decoding: body, as: UTF8.self)
+        let json = facadeRequest(["pages": ordered.map(\.score)])
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
         guard let object = facadeObject(answer), object["error"] == nil, let score = object["score"] as? String else {
             return .failure(.server(text["import.scanPagesNotJoined"]))

@@ -171,8 +171,7 @@ enum FolderPlanning {
 
     /// One call on piece 0; nil for an error.
     static func call(_ name: String, _ request: [String: Any]) async -> String? {
-        guard let body = try? JSONSerialization.data(withJSONObject: request) else { return nil }
-        let json = String(decoding: body, as: UTF8.self)
+        let json = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, name, json) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return answer
