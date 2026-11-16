@@ -36,6 +36,7 @@ The iPad app is built and tested on a Mac (`src/ipad/README.md`), or by the `iPa
 
 - Open them against `develop`, filled in from [`.github/pull_request_template.md`](.github/pull_request_template.md);
   GitHub text in English.
-- A pull request that changes `CLAUDE.md`, `governance/`, `.claude/`, `.github/` or `tests/backend/Acceptance/` is
-  merged by Andrei; one that changes the acceptance scenarios also needs his label `protected-scenarios-ok`.
+- A pull request that changes `CLAUDE.md`, `governance/`, `.claude/`, `.github/`, `tests/backend/Acceptance/` or the UX
+  baseline (`docs/ux-baseline.md`, `tests/ipad/Baseline/`, `tests/contracts/page-scenarios/`) is merged by Andrei; one
+  that changes the acceptance scenarios or the baseline also needs his label `protected-scenarios-ok`.
 - `main` is Andrei's: it moves only by a release.
