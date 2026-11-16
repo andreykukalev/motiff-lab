@@ -83,9 +83,10 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
 
 ## iPad builds
 
-- The `iPad` workflow runs on a pull request only with the label `ipad-tests` and only when it touches what the app is
-  built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core, `design/kit`, `tests/contracts`); on every version
-  tag; and by hand.
+- The `iPad` workflow runs on a pull request only when it touches what the app is built from (`src/ipad`, `tests/ipad`,
+  `src/shared`, music-core, `design/kit`, `tests/contracts`). Without the label `ipad-tests` it only compiles the app
+  and its tests (`xcodebuild build-for-testing`, no simulator); with the label, on every version tag and by hand it
+  runs the Swift tests in the simulator.
 - music-core's framework is cached by the hash of its sources. `iPad core` (`ipad-core.yml`) builds it on `develop`
   after a change, so pull requests to `develop` take it from the cache instead of three NativeAOT builds.
 - Both run on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`

@@ -1,21 +1,22 @@
 # The iPad app (decision record 0019): builds music-core with NativeAOT and Verovio from source as frameworks,
 # generates the Xcode project, runs the Swift tests in the iPad simulator and builds for a real iPad (unsigned).
-# macOS runners are scarce and slow, so it never runs by itself: only on a pull request with the label `ipad-tests`,
-# by hand from the Actions tab (on main, which also refreshes the Verovio cache every pull request reads), and for an
-# iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode. Run by hand with
+# macOS runners are scarce and slow: a pull request that touches the app's sources only compiles the app and its tests
+# (no simulator); the Swift tests run with the label `ipad-tests` (set when the pull request is ready), by hand from the
+# Actions tab (on main, which also refreshes the Verovio cache every pull request reads) and for a version tag. Not part
+# of CI and its five minutes. Releases are built by Andrei in Xcode. Run by hand with
 # "Screenshots" ticked, or for a release tag, it also photographs the app's screens for the mockups (the Screens scheme).
 name: iPad
-# The run's title in the Actions list says what it is, where and whether it runs at all (a pull request needs the
-# label ipad-tests).
+# The run's title in the Actions list says what it is, where and how much of it runs (a pull request without the label
+# ipad-tests only compiles).
 run-name: >-
   ${{ format('iPad tests · {0}{1}',
   github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
   || github.event_name == 'push' && format('tag {0}', github.ref_name)
   || format('by hand on {0}{1}{2}', github.ref_name, inputs.screenshots && ' + screenshots' || '', inputs.switch_test && ' + switch test' || ''),
-  github.event_name == 'pull_request'
-  && (!contains(github.event.pull_request.labels.*.name, 'ipad-tests')
-  || github.event.action == 'labeled' && github.event.label.name != 'ipad-tests')
-  && ' · skipped (no ipad-tests label)' || '') }}
+  github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'ipad-tests'
+  && format(' · skipped (label {0})', github.event.label.name)
+  || github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ipad-tests')
+  && ' · compile only (no ipad-tests label)' || '') }}
 
 on:
   workflow_dispatch:
@@ -49,22 +50,24 @@ on:
 permissions:
   contents: read
 
-# A pull request without the label gets a group of its own, so pushing to it does not cancel a run under way.
+# A newer push cancels the run under way on the same pull request; adding another label gets a group of its own, so
+# its skipped run cancels nothing.
 concurrency:
-  group: ipad-${{ github.ref }}${{ (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ipad-tests') || github.event.action == 'labeled' && github.event.label.name != 'ipad-tests') && format('-{0}', github.run_id) || '' }}
+  group: ipad-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ipad-tests' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   ipad:
-    # A pull request runs it only with the label ipad-tests; of labels, only adding that one starts a run.
-    if: >-
-      github.event_name != 'pull_request' ||
-      (contains(github.event.pull_request.labels.*.name, 'ipad-tests') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'ipad-tests'))
+    # Of labels, only adding ipad-tests starts a run.
+    if: github.event.action != 'labeled' || github.event.label.name == 'ipad-tests'
     # Andrei's Mac as a self-hosted runner when the repository variable IPAD_RUNNER names its label (motiff-mac);
     # GitHub's macOS otherwise, and always for a pull request from a fork (docs/repository-structure.md, "iPad builds").
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'macos-15' || vars.IPAD_RUNNER || 'macos-15' }}
     timeout-minutes: 60
+    # The Swift tests in the simulator: for a tag, by hand, and for a pull request with the label ipad-tests. Otherwise the
+    # app and its tests are only compiled.
+    env:
+      FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ipad-tests') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +83,7 @@ jobs:
 
       # The simulator boots while the frameworks build, instead of inside the test step.
       - name: Start the iPad simulator
+        if: env.FULL == 'true'
         run: |
           id=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -165,6 +169,7 @@ jobs:
           key: ipad-packages-${{ hashFiles('src/ipad/App/project.yml') }}
 
       - name: Test in the iPad simulator
+        if: env.FULL == 'true'
         working-directory: src/ipad/App
         run: |
           xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
@@ -172,6 +177,16 @@ jobs:
           xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$SIMULATOR" \
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
+
+      # A pull request without the label: the app and both test targets compile for the simulator, nothing runs.
+      - name: Compile the app and its tests
+        if: env.FULL != 'true'
+        working-directory: src/ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing -project MotiffLab.xcodeproj -scheme MotiffLab -destination 'generic/platform=iOS Simulator' \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" test.log
 
       # PDF | Notes switched again and again (v0.6.4, #614 section 11): each switch timed on the app's clock and the memory
       # logged; only by hand, as it takes about half an hour.
@@ -206,7 +221,7 @@ jobs:
           path: ${{ runner.temp }}/screens
           if-no-files-found: ignore
 
-      # On main and by hand: a pull request's Swift is already compiled by the tests.
+      # On a tag and by hand: a pull request's Swift is already compiled for the simulator.
       - name: Build for a real iPad (unsigned)
         if: github.event_name != 'pull_request'
         working-directory: src/ipad/App
@@ -228,6 +243,7 @@ jobs:
             grep -E '^ios|^iossim' core.log 2>/dev/null || echo "core: from the cache"
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
             echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
+            [ "$FULL" = true ] && echo "Swift tests: run" || echo "Swift tests: compiled only (no ipad-tests label)"
             echo "Screenshots: ${SCREENS:-not taken}"
             grep -h 'OPEN-AND-ENGRAVE' src/ipad/App/test.log 2>/dev/null || true
             grep -hE "Executed [0-9]+ tests" src/ipad/App/test.log 2>/dev/null | tail -1 || true

@@ -94,8 +94,9 @@ context. The context is compacted automatically at about 400K tokens (the enviro
 
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
-- The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
-  before a version. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
+- A pull request that touches what the iPad app is built from compiles the app and its Swift tests on macOS with each
+  push (no simulator, about 10 minutes). The Swift tests run on every version tag (`v*`), by hand, or by the label
+  `ipad-tests`: set it once, when the pull request is otherwise ready to merge, since with it every push runs them. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
   `tests/ipad/MotiffLabTests` in the same commit.
 
 ## Never
