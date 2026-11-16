@@ -328,21 +328,13 @@ struct LibraryView: View {
         }
     }
 
-    /// The projects in Documents, and what music-core reads from each.
-    /// Only the newest reload writes what it read, so a slower one started earlier never puts an older library back.
+    /// The projects in Documents, and what music-core reads from each; only the newest reload writes what it read.
     private func reload() async {
         reloads += 1
         let mine = reloads
-        let listed = ProjectFiles.list()
-        projects = listed
-        var read: [URL: PieceSummary] = [:]
-        for entry in listed {
-            if let summary = await summaryCache.summary(entry.url) {
-                read[entry.url] = summary
-            }
-        }
+        projects = ProjectFiles.list()
+        let read = await summaryCache.summaries(projects.map(\.url))
         guard mine == reloads else { return }
-        summaryCache.keep(only: Set(listed.map(\.url)))
         summaries = read
         shelve()
     }

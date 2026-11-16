@@ -194,9 +194,15 @@ final class SummaryCache {
         return summary
     }
 
-    /// Forgets the files that are no longer in the library.
-    func keep(only urls: Set<URL>) {
-        kept = kept.filter { urls.contains($0.key) }
+    /// The summaries of these files, the ones music-core can read; the files no longer listed are forgotten.
+    func summaries(_ urls: [URL]) async -> [URL: PieceSummary] {
+        var read: [URL: PieceSummary] = [:]
+        for url in urls {
+            if let summary = await summary(url) { read[url] = summary }
+        }
+        let listed = Set(urls)
+        kept = kept.filter { listed.contains($0.key) }
+        return read
     }
 }
 
