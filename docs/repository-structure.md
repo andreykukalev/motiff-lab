@@ -92,7 +92,8 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
 - Both run on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`
   names its label (`motiff-mac`). A pull request from a fork always runs on GitHub's machines; outside collaborators'
   runs need approval (Settings → Actions → General). Removing the variable moves the runs back to GitHub.
-  `infra/github/mac-runner.sh` on the Mac sets all of this up (`--remove` undoes it).
+  `infra/github/mac-runner.sh` on the Mac sets all of this up, under a hidden account `runner` as a background daemon
+  that keeps the Mac awake on the charger with the lid closed (`--remove` undoes it).
 
 ## The move of 2026-11-16 (0033)
 

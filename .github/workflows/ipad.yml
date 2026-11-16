@@ -77,7 +77,8 @@ jobs:
 
       - name: Tools
         run: |
-          brew install xcodegen
+          # A self-hosted Mac has it already and its runner account cannot write to /opt/homebrew.
+          command -v xcodegen >/dev/null || brew install xcodegen
           xcodebuild -version
           dotnet --version
 
