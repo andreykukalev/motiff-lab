@@ -195,6 +195,16 @@ struct HeardRecording: Sendable {
             "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
         ]
     }
+
+    /// The request as a new piece's "transcription" (version 0.5, «Темп живого исполнения», contract 12): "tempo": "live",
+    /// so music-core finds the beat again after each pause and tempo jump and a concert of several pieces keeps its bars.
+    /// No "starts": the iPad does not know where the pieces begin; and no "hint": a recording heard on the iPad becomes a
+    /// new piece, with no score of it to take a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so it keeps `request`.
+    var transcription: [String: Any] {
+        var fields = request
+        fields["tempo"] = "live"
+        return fields
+    }
 }
 
 /// Hearing a recording (0014): its sound read on the iPad, however long, the parts music-core plans sent to the scan

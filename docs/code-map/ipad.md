@@ -19,6 +19,11 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   (l. ~437: the controllers' callbacks), `ScoreBar` (top bar, More, Ask about the piece), `SelectionMenu` (the menu over
   the selection; its More holds Highlight and Ask), `FocusBar` (Expand's bar). `ScoreScreenViews.swift`, `TopBar.swift`.
 - `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
+- `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState` (the open answer's "edits" and every corrections answer:
+  "count", "layer", "moved", "unfit"), `EditsLayerSection` in More (the switch, its line, the misfits with «Убрать»).
+  `OpenPiece.openRequest` opens a project file with "edits": "piece" (the file keeps "off"); `ScoreController.switchEdits`
+  / `dropUnfitEdits` (`corrections.layer` / `.drop`) engrave again and save at once (`editsKept`). While off, `editsOn` is
+  false: no Fix notes, no note editor, no draft Accept (music-core refuses them too).
 - `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two switches
   under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).
 - `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes, `ScoreController.mode`
@@ -55,6 +60,8 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   narrowed in `ScoreScreen.layers`), the consent, the list, `AssistantPendingView`, `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection
   (`SelectionMenu` turns into it), `KeyboardLift`. `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts
   a question's tools made, Accept by `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
+- `Recording.swift`: a recording heard opens as a new piece with `HeardRecording.transcription` ("tempo": "live", no
+  "starts", no "hint": there is no score yet); a version from a recording keeps `request` (`performance.add`).
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features.
 
 ## Rules not to break
