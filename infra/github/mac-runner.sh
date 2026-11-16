@@ -143,7 +143,10 @@ sudo tee "$plist" >/dev/null <<EOF
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>SessionCreate</key><true/>
-  <key>ProcessType</key><string>Interactive</string>
+  <!-- Below the player's own apps (Rekordbox, a DAW): builds yield the CPU and the disk to them. -->
+  <key>ProcessType</key><string>Standard</string>
+  <key>Nice</key><integer>15</integer>
+  <key>LowPriorityIO</key><true/>
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key><string>$home</string>
