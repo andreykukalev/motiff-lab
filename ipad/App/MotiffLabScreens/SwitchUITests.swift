@@ -17,13 +17,13 @@ final class SwitchUITests: XCTestCase {
     private let limit: TimeInterval = 10
 
     /// The modes on, the sources off: the bar's PDF | Notes.
-    func testSwitchPdfNotes() throws { try asked(); switchAgainAndAgain(sources: false) }
+    func testSwitchPdfNotes() throws { switchAgainAndAgain(sources: false) }
 
     /// The modes and the sources on: the switch of all views (`experimental.sources`), as Andrei uses the app.
-    func testSwitchWithSources() throws { try asked(); switchAgainAndAgain(sources: true) }
+    func testSwitchWithSources() throws { switchAgainAndAgain(sources: true) }
 
     /// As above in a library of 15 more pieces with notes and a scanned PDF each, as a player's library is.
-    func testSwitchInAFullLibrary() throws { try asked(); switchAgainAndAgain(sources: true, copies: 15, rounds: 8) }
+    func testSwitchInAFullLibrary() throws { switchAgainAndAgain(sources: true, copies: 15, rounds: 8) }
 
     private func asked() throws {
         guard ProcessInfo.processInfo.environment["SWITCH_TEST"] != nil else { throw XCTSkip("the switch test runs when asked (SWITCH_TEST)") }

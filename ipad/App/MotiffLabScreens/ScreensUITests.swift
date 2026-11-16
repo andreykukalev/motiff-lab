@@ -14,13 +14,13 @@ final class ScreensUITests: XCTestCase {
     /// The app's own theme for the walk, Daylight or Night, through its kept settings (DeviceSettings.storeKey).
     private var theme = "daylight"
 
-    func testLandscape() { walk(.landscapeLeft, dark: false) }
+    func testLandscape() throws { throw XCTSkip("evidence run for the switch test only (not for merging)") }
 
-    func testPortrait() { walk(.portrait, dark: false) }
+    func testPortrait() throws { throw XCTSkip("evidence run for the switch test only (not for merging)") }
 
-    func testLandscapeDark() { walk(.landscapeLeft, dark: true) }
+    func testLandscapeDark() throws { throw XCTSkip("evidence run for the switch test only (not for merging)") }
 
-    func testPortraitDark() { walk(.portrait, dark: true) }
+    func testPortraitDark() throws { throw XCTSkip("evidence run for the switch test only (not for merging)") }
 
     // MARK: - The walk
 
