@@ -236,7 +236,7 @@ test("a page's systems spread down to a bottom margin as deep as the top one, on
 
 test("the iPad app engraves its A4 pages with the web app's Verovio options", async () => {
     const { readFile } = await import("node:fs/promises");
-    const swift = await readFile(new URL("../../ipad/App/MotiffLab/Engraver.swift", import.meta.url), "utf8");
+    const swift = await readFile(new URL("../../src/ipad/App/MotiffLab/Engraver.swift", import.meta.url), "utf8");
     const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
     // The iPad, the web's screen and the PDF lay a piece out on the same pages (#521 section 14).

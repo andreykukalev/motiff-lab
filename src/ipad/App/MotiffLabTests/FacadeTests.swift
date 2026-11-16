@@ -3,7 +3,7 @@ import XCTest
 @testable import MotiffLab
 
 /// The facade's contract (decision record 0020) through the C functions in the simulator or on the iPad: the calls
-/// the xUnit tests make in C# (tests/MotiffLab.MusicCore.Tests/Facade) and ipad/Core/check.py makes on Linux.
+/// the xUnit tests make in C# (tests/MotiffLab.MusicCore.Tests/Facade) and src/ipad/Core/check.py makes on Linux.
 final class FacadeTests: XCTestCase {
     private var piece: Int32 = 0
 

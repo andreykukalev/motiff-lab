@@ -1,7 +1,7 @@
 import Foundation
 import Verovio
 
-/// Verovio, built from its source with one patch as Verovio.xcframework (ipad/Verovio), called through its own C
+/// Verovio, built from its source with one patch as Verovio.xcframework (src/ipad/Verovio), called through its own C
 /// functions (tools/c_wrapper.h). It is the same engraver and version as the web app's (0008), so a piece lays out on
 /// the same pages. The strings Verovio returns belong to the toolkit, so each one is copied before the next call.
 final class Engraver {

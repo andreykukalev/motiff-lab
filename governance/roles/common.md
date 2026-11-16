@@ -47,7 +47,7 @@ compacted automatically at about 200K tokens.
 
 - The web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
   backend (API, scan server). There are no web tracks until Andrei reactivates the web.
-- A track reads and changes `ipad/`, `src/MotiffLab.MusicCore`, the backend and the live shared modules the iPad bundles
+- A track reads and changes `src/ipad/`, `src/MotiffLab.MusicCore`, the backend and the live shared modules the iPad bundles
   from the web project's folder (`Scripts/score`, `roll`, `layout`, `storage`, `playback`, `wwwroot/i18n`, the piano, the
   design kit's mirrors; the list is in `docs/web-archive.md`). It does not read, change or test the frozen web pages, components, services or
   Playwright suites, and the iPad never imports frozen web code. If a change breaks the frozen web's compilation, it
@@ -82,8 +82,8 @@ compacted automatically at about 200K tokens.
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
 - The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
-  before a version. The browser tests belong to the archived web and run only by hand. For `ipad/App`, fix the expectations in
-  `ipad/App/MotiffLabTests` in the same commit.
+  before a version. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
+  `src/ipad/App/MotiffLabTests` in the same commit.
 
 ## Never
 

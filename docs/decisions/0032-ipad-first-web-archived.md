@@ -20,7 +20,7 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
 - The iPad app is not independent of the web project's folder: it bundles five TypeScript modules the web project
   compiles (`Scripts/score`, `roll`, `layout`, `storage`, `playback` → `wwwroot/js/…`), the interface words
   (`wwwroot/i18n`), the piano samples (`wwwroot/audio/piano`) and the example piece (`Playback/FurElise.musicxml`), and
-  it signs in with the web app's External ID registration (`ipad/App/MotiffLab/Account.json`). Moving or deleting the
+  it signs in with the web app's External ID registration (`src/ipad/App/MotiffLab/Account.json`). Moving or deleting the
   web project would break the iPad build or force a refactoring of shared code, which this task excludes.
 
 ## Decision
@@ -54,7 +54,7 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
   provisioning `infra/main.bicep` and deploying to Static Web Apps run only when the repository variable `WEB_ACTIVE`
   is `true` (it is not set, so both the main address and the web test site stay at their last deploy).
 - `Browser tests` (`browser-tests.yml`) run only by hand: no daily run, no run on version tags, no label.
-- The `iPad` workflow and `ipad/build-version.sh` are unchanged: they run `dotnet build src/MotiffLab.Web` only to
+- The `iPad` workflow and `src/ipad/build-version.sh` are unchanged: they run `dotnet build src/MotiffLab.Web` only to
   compile the live shared TypeScript; they need no web publish, deploy, site or browser test.
 - A test version is the iPad app built from its tag; there is no web test site to check. A release to `main` releases
   the iPad app and the shared backend; it deploys no web.

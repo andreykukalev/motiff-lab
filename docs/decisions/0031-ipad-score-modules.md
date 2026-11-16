@@ -9,7 +9,7 @@ score screen and the roll. Changes no saved data, no facade contract and no beha
 
 Measured on `develop` after v0.6.5 (d8050f4):
 
-- `ipad/App/MotiffLab/ScoreController.swift`, 2,402 lines: one class holds the pen, the selection and its history,
+- `src/ipad/App/MotiffLab/ScoreController.swift`, 2,402 lines: one class holds the pen, the selection and its history,
   phrases, bookmarks, margin notes, highlights, layers, Check, corrections, the note editor, versions, sources, merging,
   Expand, resume, beats, strokes and the web page's plumbing. About 200 of its members are used from 35 files; 48 views
   hold it as `@ObservedObject`, so any of its ~45 `@Published` values re-evaluates every one of them.
@@ -19,9 +19,9 @@ Measured on `develop` after v0.6.5 (d8050f4):
   `window.motiff`, 41 functions; one untyped message bag decoded by a chain of `if let` in `received`), music-core
   (`MusicCore.call(piece:)` with hand-built JSON, and five private copies of a `json` helper in five files), and
   SwiftUI (published values plus a dozen callback closures set by `ScoreScreen.wire()`).
-- `ScoreScreen.swift`, 1,960 lines; `ipad/App/Web/score.js`, 1,631 lines of hand-written JavaScript outside the quality
+- `ScoreScreen.swift`, 1,960 lines; `src/ipad/App/Web/score.js`, 1,631 lines of hand-written JavaScript outside the quality
   checks; `Scripts/roll/piano-roll.ts`, 4,077 lines, one class `PianoRoll` with ~100 fields and ~170 methods, shared by
-  the web (`Roll/PianoRoll.razor`) and the iPad (`ipad/App/Web/roll.js`).
+  the web (`Roll/PianoRoll.razor`) and the iPad (`src/ipad/App/Web/roll.js`).
 - What already works and is kept: feature files hold pure value types decoded from facade answers (`CheckShelf`,
   `MarksShelf`, `VersionShelf`, `MergeInfo`, `BookmarkShelf`, `EditsLayerState`) with their views; `RollController`
   (550 lines) and `ContentsController` are separate owners; the deployment target is iOS 17.
@@ -80,7 +80,7 @@ the views that read it (`@Observable` tracks each property), and a panel's depen
 
 - `ScoreScreen` keeps the layout of the layers; its wiring moves to one file per concern beside it (`ScoreScreen+Roll`,
   `+Sources`, `+Expand`, `+Playback`), each the only place that connects its models to the player and the roll.
-- `ipad/App/Web/score.js` becomes TypeScript modules in `Scripts/score/ipad-page/` behind `page-contract.ts`, compiled
+- `src/ipad/App/Web/score.js` becomes TypeScript modules in `Scripts/score/ipad-page/` behind `page-contract.ts`, compiled
   and checked like the rest; `score.js` stays only as the entry the app loads. The `dependencies` check keeps what it
   loads inside the bundled folders.
 - `RollController` gets the same kind of typed port for `roll.js`. `PianoRoll` keeps its public methods, the contract

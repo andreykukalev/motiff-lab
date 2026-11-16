@@ -487,10 +487,12 @@ src/MotiffLab.Web/wwwroot/js/
 # Playwright reports (tests/e2e)
 playwright-report/
 
-# The iPad app (ipad/): built frameworks, Verovio source, generated Xcode project, per-Mac signing
-ipad/build/
-ipad/App/*.xcodeproj/
-ipad/App/Config/Local.xcconfig
+# The iPad app (src/ipad/): built frameworks, Verovio source, generated Xcode project, per-Mac signing
+src/ipad/build/
+src/ipad/App/*.xcodeproj/
+src/ipad/App/Config/Local.xcconfig
+# What builds left in ipad/, where the app was until 2026-11-16 (versions up to v0.6.5)
+/ipad/
 
 # The agents' local task state and guard log (.claude/hooks, governance/roles/common.md)
 .aom/

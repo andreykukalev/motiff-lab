@@ -39,7 +39,7 @@ enum ServerEnvironment: String, CaseIterable, Sendable {
 
 /// The environments of a build and its rules, read from `Account.json`: Main's servers are the "Account" block's own
 /// (the published web app's values), Test's are under "Environments", and "Default" is where the build starts: "main"
-/// in the committed file and for a build of a commit in main, "test" for a version build (`ipad/build-version.sh`).
+/// in the committed file and for a build of a commit in main, "test" for a version build (`src/ipad/build-version.sh`).
 struct EnvironmentSetup: Equatable, Sendable {
     let main: AccountOptions
     /// Main's sign-in with Test's servers; nil in a build that knows only Main.
@@ -85,7 +85,7 @@ struct EnvironmentSetup: Equatable, Sendable {
     /// Where "Allow writing to Main" is kept: the build it was allowed for, so every newly installed build starts read only.
     static let mainWritesKey = "ml-environment.main-writes"
 
-    /// This build, "0.3 (412)": its version and build number (`ipad/build-version.sh` sets both from the tag).
+    /// This build, "0.3 (412)": its version and build number (`src/ipad/build-version.sh` sets both from the tag).
     static func build(bundle: Bundle = .main) -> String {
         let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let number = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""

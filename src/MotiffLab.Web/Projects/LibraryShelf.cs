@@ -100,7 +100,7 @@ public sealed record LibraryPage(IReadOnlyList<LibraryEntry> Pieces, IReadOnlyLi
 }
 
 /// <summary>
-/// The library's search, filters, tabs and order (version 0.2), the same rules as the iPad's (ipad/App/MotiffLab/LibraryShelf.swift):
+/// The library's search, filters, tabs and order (version 0.2), the same rules as the iPad's (src/ipad/App/MotiffLab/LibraryShelf.swift):
 /// pure functions over the lines, so the shelf narrows as the player types without reading a project again. Search ignores
 /// letter case and accents ("fur elise" finds "Für Elise", "ежи" finds "Ёжик").
 /// </summary>

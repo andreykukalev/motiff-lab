@@ -2,15 +2,15 @@
 # Builds a version of the iPad app from its tag and installs it on the iPad connected to this Mac
 # (governance/README.md, "Versions"). One command, run from anywhere in the clone:
 #
-#   ipad/build-version.sh v0.1          # the tag of the version
-#   ipad/build-version.sh develop       # or a branch, for a hotfix or an experiment build
+#   src/ipad/build-version.sh v0.1          # the tag of the version
+#   src/ipad/build-version.sh develop       # or a branch, for a hotfix or an experiment build
 #
 # It checks out the tag (detached; your branch comes back with `git switch -`), builds music-core, Verovio (only the
 # first time), the web app's score scripts, generates the Xcode project and builds it signed with your team from
-# ipad/App/Config/Local.xcconfig (a free Apple ID: the app runs for 7 days). With one iPad connected by cable or on the
+# src/ipad/App/Config/Local.xcconfig (a free Apple ID: the app runs for 7 days). With one iPad connected by cable or on the
 # same network it installs the app there; otherwise it opens Xcode, where Product > Run installs it (Account.json then
 # keeps this build's "Default" until the next run of the script puts it back).
-# Needs what ipad/README.md lists: Xcode, XcodeGen, CMake, the .NET 10 SDK, and the Apple ID signed in to Xcode once.
+# Needs what src/ipad/README.md lists: Xcode, XcodeGen, CMake, the .NET 10 SDK, and the Apple ID signed in to Xcode once.
 #
 # Servers (infra/README.md, "The develop environment"): Account.json carries both environments, Main (the players' real
 # database) and Test (develop's servers and their test database), and the app switches between them in Settings, each
@@ -22,11 +22,11 @@ set -euo pipefail
 # Read whole before it runs: checking out the tag below may replace this very file.
 {
 
-ref="${1:?Usage: ipad/build-version.sh <tag or branch>, for example v0.1}"
+ref="${1:?Usage: src/ipad/build-version.sh <tag or branch>, for example v0.1}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
-settings=ipad/App/MotiffLab/Account.json
+settings=src/ipad/App/MotiffLab/Account.json
 # A run that left Xcode open for Product > Run keeps this build's start in Account.json (see the end); when that line is
 # the clone's only change, it is put back here before anything else.
 if [[ "$(git status --porcelain --untracked-files=no)" == " M $settings" ]] \
@@ -38,8 +38,16 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "The clone has uncommitted changes; commit or stash them first." >&2
   exit 1
 fi
-if [[ ! -f ipad/App/Config/Local.xcconfig ]]; then
-  echo "ipad/App/Config/Local.xcconfig is missing: copy Local.xcconfig.example and set DEVELOPMENT_TEAM (ipad/README.md)." >&2
+# The app moved from ipad/ to src/ipad on 2026-11-16: what git does not keep (the signing team, the built frameworks)
+# moves with it, once.
+for kept in App/Config/Local.xcconfig build; do
+  if [[ -e "ipad/$kept" && ! -e "src/ipad/$kept" ]]; then
+    echo "==> Moving ipad/$kept to src/ipad/$kept"
+    mv "ipad/$kept" "src/ipad/$kept"
+  fi
+done
+if [[ ! -f src/ipad/App/Config/Local.xcconfig ]]; then
+  echo "src/ipad/App/Config/Local.xcconfig is missing: copy Local.xcconfig.example and set DEVELOPMENT_TEAM (src/ipad/README.md)." >&2
   exit 1
 fi
 
@@ -58,9 +66,18 @@ echo "    $(git log -1 --format='%h %s'), version $version ($build)"
 commit="$(git rev-parse --short=7 HEAD)"
 if git rev-parse --verify --quiet "refs/tags/$ref" >/dev/null; then shown="$ref"; else shown="$ref $commit"; fi
 built="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# Versions from before the move (v0.6.5 and older) keep the app in ipad/, and their build reads the signing team there.
+if [[ -f src/ipad/App/project.yml ]]; then
+  folder=src/ipad
+else
+  folder=ipad
+  mkdir -p ipad/App/Config
+  cp src/ipad/App/Config/Local.xcconfig ipad/App/Config/Local.xcconfig
+fi
+settings="$folder/App/MotiffLab/Account.json"
 
 echo "==> Servers"
-account="$root/ipad/App/MotiffLab/Account.json"
+account="$root/$settings"
 servers="${MOTIFF_SERVERS:-}"
 if [[ -z "$servers" ]]; then
   if git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then servers=main; else servers=develop; fi
@@ -83,16 +100,16 @@ else
 fi
 
 echo "==> music-core (2-4 minutes)"
-ipad/Core/build.sh > /tmp/motiff-core.log 2>&1 || { tail -20 /tmp/motiff-core.log; exit 1; }
-if [[ ! -d ipad/build/Verovio.xcframework ]]; then
+"$folder/Core/build.sh" > /tmp/motiff-core.log 2>&1 || { tail -20 /tmp/motiff-core.log; exit 1; }
+if [[ ! -d "$folder/build/Verovio.xcframework" ]]; then
   echo "==> Verovio (5-10 minutes, only this once)"
-  ipad/Verovio/build.sh > /tmp/motiff-verovio.log 2>&1 || { tail -20 /tmp/motiff-verovio.log; exit 1; }
+  "$folder/Verovio/build.sh" > /tmp/motiff-verovio.log 2>&1 || { tail -20 /tmp/motiff-verovio.log; exit 1; }
 fi
 echo "==> The score's scripts"
 dotnet build src/MotiffLab.Web -v quiet -nologo > /tmp/motiff-web.log 2>&1 || { tail -20 /tmp/motiff-web.log; exit 1; }
 
 echo "==> The app"
-cd ipad/App
+cd "$folder/App"
 xcodegen --quiet
 xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
   -destination 'generic/platform=iOS' -derivedDataPath ../build/derived -allowProvisioningUpdates \

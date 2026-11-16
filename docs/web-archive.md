@@ -19,13 +19,13 @@ Its code stays in the repository and keeps compiling; it is not developed, teste
 
 ## The web project's folder, split
 
-`src/MotiffLab.Web` holds two kinds of files. The iPad app bundles the live part (`ipad/App/project.yml`), so it stays
+`src/MotiffLab.Web` holds two kinds of files. The iPad app bundles the live part (`src/ipad/App/project.yml`), so it stays
 in place and is maintained by iPad work; the rest is frozen.
 
 | Live, shared with the iPad (maintained) | Why |
 | --- | --- |
-| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll run them (`ipad/App/Web`) |
-| `MotiffLab.Web.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/MotiffLab.Web` compiles that TypeScript for the iPad (`ipad.yml`, `ipad/build-version.sh`) |
+| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll run them (`src/ipad/App/Web`) |
+| `MotiffLab.Web.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/MotiffLab.Web` compiles that TypeScript for the iPad (`ipad.yml`, `src/ipad/build-version.sh`) |
 | `wwwroot/i18n` | The interface words both apps read |
 | `wwwroot/audio/piano` | The piano samples the iPad plays |
 | `Playback/FurElise.musicxml` | The iPad's example piece |

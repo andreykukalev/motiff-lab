@@ -1,4 +1,4 @@
-// The score page's contract (decision record 0031, step 2): the functions ipad/App/Web/score.js offers the iPad app
+// The score page's contract (decision record 0031, step 2): the functions src/ipad/App/Web/score.js offers the iPad app
 // (window.motiff) and the keys of the messages it posts are exactly the lists in tests/contracts/score-page.json, which
 // the app's PageCommand and PageEvent.Kind are checked against by ScorePageContractTests on macOS.
 //   node --test tests/web   (needs no build: it reads the page's source)
@@ -9,7 +9,7 @@ import { test } from "node:test";
 
 const root = new URL("../../", import.meta.url);
 const contract = JSON.parse(readFileSync(new URL("tests/contracts/score-page.json", root), "utf8"));
-const page = readFileSync(new URL("ipad/App/Web/score.js", root), "utf8");
+const page = readFileSync(new URL("src/ipad/App/Web/score.js", root), "utf8");
 
 /** The names window.motiff offers, from `window.motiff = { show, eraseAlong: eraseAlongPath, … };`. */
 function offered(source) {

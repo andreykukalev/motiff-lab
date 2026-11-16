@@ -209,7 +209,7 @@ test("a version 1 file's colours become the inks nearest them", () => {
 test("the iPad app's pen sizes are the web app's, thin to thick", async () => {
     const { readFile } = await import("node:fs/promises");
     const { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES } = await import("../../src/MotiffLab.Web/wwwroot/js/score/pencil-marks.js");
-    const swift = await readFile(new URL("../../ipad/App/MotiffLab/PenTools.swift", import.meta.url), "utf8");
+    const swift = await readFile(new URL("../../src/ipad/App/MotiffLab/PenTools.swift", import.meta.url), "utf8");
     const list = (name) => JSON.parse(swift.match(new RegExp(`static let ${name}: \\[Double\\] = (\\[[^\\]]*\\])`))[1]);
     assert.deepEqual(list("pen"), [...PEN_SIZES]);
     assert.deepEqual(list("highlighter"), [...HIGHLIGHTER_SIZES]);

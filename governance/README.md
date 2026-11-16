@@ -47,7 +47,7 @@ to undo it), and each version note lists them under «Решено без вас
   piece that will not open) gets a same-day version `v0.<n>.1`; in a stable version, a hotfix.
 - **Rollback** of a broken version: Andrei installs the previous tag (iPad) or the release is reverted on `main`.
 - Where to see a version: the iPad app is built by Andrei on his Mac from the tag with one command
-  (`ipad/build-version.sh`, no paid developer account, 7-day signing). The web test site and the main web address
+  (`src/ipad/build-version.sh`, no paid developer account, 7-day signing). The web test site and the main web address
   stay frozen at their last deploy while the web is archived (`docs/web-archive.md`).
 
 ## Experiments

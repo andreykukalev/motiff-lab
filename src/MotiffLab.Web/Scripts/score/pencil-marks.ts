@@ -363,7 +363,7 @@ export function densify(points: readonly InkPoint[], step: number): InkPoint[] {
  * farther from the path than the eraser's reach and the stroke's own half-thickness, as a real eraser leaves a line in
  * pieces. The line is first walked in short steps, so a cut can fall between two of its points; a piece keeps two
  * points or more. Null when the eraser missed the stroke; an empty list when it took all of it. The iPad's PDF pages
- * split their strokes the same way (InkSplit in ipad/App/MotiffLab/InkGeometry.swift).
+ * split their strokes the same way (InkSplit in src/ipad/App/MotiffLab/InkGeometry.swift).
  */
 export function eraseAlong(
     points: readonly InkPoint[],

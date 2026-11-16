@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds music-core for the iPad and the iPad simulator with NativeAOT and packages it as
-# ipad/build/MotiffLabCore.xcframework, which the app in ipad/App embeds (decision record 0019).
-# Runs on a Mac with Xcode and the .NET SDK from global.json (https://dot.net). Usage: ipad/Core/build.sh
+# src/ipad/build/MotiffLabCore.xcframework, which the app in src/ipad/App embeds (decision record 0019).
+# Runs on a Mac with Xcode and the .NET SDK from global.json (https://dot.net). Usage: src/ipad/Core/build.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"

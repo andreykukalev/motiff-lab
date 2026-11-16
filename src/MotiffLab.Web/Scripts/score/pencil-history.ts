@@ -1,5 +1,5 @@
 // The pen's own history (#533 section 9): the steps Undo takes back and the steps Redo does again, on the score and on a
-// PDF's pages alike (pencil-layer.ts), as the iPad's InkHistory keeps them (ipad/App/MotiffLab/InkGeometry.swift). A step is
+// PDF's pages alike (pencil-layer.ts), as the iPad's InkHistory keeps them (src/ipad/App/MotiffLab/InkGeometry.swift). A step is
 // the marks it added and the marks it took away: a stroke, a press of the eraser, or Clear. A new step drops what Redo had.
 
 /** One step the player can take back: marks it added and marks it took away. */

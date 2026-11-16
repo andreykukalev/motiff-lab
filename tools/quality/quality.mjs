@@ -6,7 +6,7 @@
 //   node tools/quality/quality.mjs                    all checks (CA rules need a quality build: about a minute)
 //   node tools/quality/quality.mjs --only eslint,jscpd
 //   node tools/quality/quality.mjs --update-baseline  drop fixed entries, add new ones with an empty "why"
-//   node tools/quality/quality.mjs --write-config     rewrite CodeMetricsConfig.txt and ipad/.swiftlint.yml
+//   node tools/quality/quality.mjs --write-config     rewrite CodeMetricsConfig.txt and src/ipad/.swiftlint.yml
 //
 // CI (.github/workflows/ci.yml) passes --ci, the log of its own build (--dotnet-log) and the pull request's base
 // (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd,
@@ -177,7 +177,7 @@ nesting:
 
 const GENERATED = [
   { path: 'CodeMetricsConfig.txt', content: codeMetricsConfig },
-  { path: 'ipad/.swiftlint.yml', content: swiftlintConfig },
+  { path: 'src/ipad/.swiftlint.yml', content: swiftlintConfig },
 ];
 
 function checkConfig(write) {
@@ -330,7 +330,7 @@ function swiftlintCheck(args) {
     }
     throw new Skipped('Docker is not running here; CI runs SwiftLint.');
   }
-  const result = run('docker', ['run', '--rm', '-v', `${join(ROOT, 'ipad')}:/work`, '-w', '/work', SWIFTLINT_IMAGE,
+  const result = run('docker', ['run', '--rm', '-v', `${join(ROOT, 'src', 'ipad')}:/work`, '-w', '/work', SWIFTLINT_IMAGE,
     'swiftlint', 'lint', '--quiet', '--no-cache', '--reporter', 'json', '--config', '.swiftlint.yml']);
   if (!result.stdout.trim().startsWith('[')) {
     throw new Error(`SwiftLint failed (exit ${result.status}):\n${result.stderr.slice(-4000)}`);
@@ -338,7 +338,7 @@ function swiftlintCheck(args) {
   const seen = new Set();
   const out = [];
   for (const m of JSON.parse(result.stdout)) {
-    const file = toRepoPath(join(ROOT, 'ipad', relativePath('/work', m.file)));
+    const file = toRepoPath(join(ROOT, 'src', 'ipad', relativePath('/work', m.file)));
     const id = `${file}:${m.line}:${m.rule_id}:${m.reason}`;
     if (seen.has(id)) {
       continue; // SwiftLint 0.62 on Linux reports each violation more than once

@@ -39,12 +39,12 @@ test('type-only imports are erased, value and side-effect imports load', () => {
 
 test('the iPad page may reach only the bundled folders, through every module it loads', () => {
   const files = {
-    'ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',
+    'src/ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',
     'src/MotiffLab.Web/Scripts/score/s.ts': 'import type { T } from "../import/t.js";\nimport { p } from "../playback/p.js";\n',
     'src/MotiffLab.Web/Scripts/playback/p.ts': 'import { r } from "../import/recording.js";\nimport { q } from "./q.js";\n',
   };
   const exists = (file) => file in files;
-  const out = ipadPageViolations(['ipad/App/Web/score.js'], reader(files), exists, new Set(['score', 'playback']));
+  const out = ipadPageViolations(['src/ipad/App/Web/score.js'], reader(files), exists, new Set(['score', 'playback']));
   assert.deepEqual(out.map((v) => `${v.rule} ${v.file} ${v.symbol}`), [
     'ipad-unbundled src/MotiffLab.Web/Scripts/playback/p.ts ../import/recording.js',
     'ipad-missing src/MotiffLab.Web/Scripts/playback/p.ts ./q.js',

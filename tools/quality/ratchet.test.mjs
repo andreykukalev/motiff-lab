@@ -103,8 +103,8 @@ test('a way to hide a violation is found in every language', async () => {
     ['src/MotiffLab.Web/Scripts/a.ts', '  // eslint-disable-next-line sonarjs/cognitive-complexity'],
     ['src/MotiffLab.Web/Scripts/a.ts', '/* eslint max-lines: off */'],
     ['src/MotiffLab.Web/eslint.config.mjs', '    linterOptions: { noInlineConfig: false },'],
-    ['ipad/App/MotiffLab/A.swift', '// swiftlint:disable function_body_length'],
-    ['ipad/App/MotiffLab/A.swift', 'func f() { // swiftlint:disable:this cyclomatic_complexity'],
+    ['src/ipad/App/MotiffLab/A.swift', '// swiftlint:disable function_body_length'],
+    ['src/ipad/App/MotiffLab/A.swift', 'func f() { // swiftlint:disable:this cyclomatic_complexity'],
     ['src/A.cs', '#pragma warning disable CA1502'],
     ['src/A.cs', '#pragma warning disable IDE0005, CA1506 // coupling'],
     ['src/A.cs', '#pragma warning disable'],
@@ -126,7 +126,7 @@ test('a way to hide a violation is found in every language', async () => {
     ['.editorconfig', 'dotnet_diagnostic.IDE0005.severity = warning'],
     ['src/X/X.csproj', '    <NoWarn>$(NoWarn);CS1591</NoWarn>'],
     ['src/MotiffLab.Web/Scripts/a.ts', 'const eslint = 1;'],
-    ['ipad/App/MotiffLab/A.swift', 'let swiftlint = "lint"'],
+    ['src/ipad/App/MotiffLab/A.swift', 'let swiftlint = "lint"'],
     ['Directory.Build.props', '    <WarningsNotAsErrors>$(WarningsNotAsErrors);CA1502;CA1505;CA1506</WarningsNotAsErrors>'],
   ];
   for (const [file, line] of fine) {

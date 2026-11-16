@@ -186,7 +186,7 @@ function Get-MotiffGraphList {
   return $items
 }
 
-# The iPad app's redirect (ipad/App, AccountOptions.redirect): MSAL's msauth.<bundle id>://auth.
+# The iPad app's redirect (src/ipad/App, AccountOptions.redirect): MSAL's msauth.<bundle id>://auth.
 $script:IPadRedirectUri = 'msauth.com.andreykukalev.motifflab://auth'
 
 function Set-MotiffIPadSignIn {

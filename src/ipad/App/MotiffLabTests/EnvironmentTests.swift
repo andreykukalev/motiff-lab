@@ -33,7 +33,7 @@ final class EnvironmentTests: XCTestCase {
         XCTAssertEqual(URL(string: test.scan)?.host?.hasPrefix("ca-motifflab-scan-dev."), true)
         XCTAssertEqual([test.authority, test.clientId, test.apiScope, test.scanScope],
                        [setup.main.authority, setup.main.clientId, setup.main.apiScope, setup.main.scanScope], "the same tenant and registrations")
-        XCTAssertEqual(setup.buildDefault, .main, "the committed file starts in Main; ipad/build-version.sh sets Test for a version")
+        XCTAssertEqual(setup.buildDefault, .main, "the committed file starts in Main; src/ipad/build-version.sh sets Test for a version")
     }
 
     func testAccountJsonIsReadWithItsDefault() throws {

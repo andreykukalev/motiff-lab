@@ -1,6 +1,6 @@
 // Tests for the one rule of what a held playhead sounds (#582 items 12 and 13, scrubStrikes in
 // Scripts/playback/playback-processor.ts) on the case file the iPad's engine runs too
-// (ipad/App/MotiffLabTests/Golden/scrub.json, PlaybackTests.swift), in Node on the compiled module:
+// (src/ipad/App/MotiffLabTests/Golden/scrub.json, PlaybackTests.swift), in Node on the compiled module:
 //   dotnet build src/MotiffLab.Web && node --test tests/web
 
 import assert from "node:assert/strict";
@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { SCRUB_GROUPS, scrubStrikes } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-processor.js";
 
 const root = new URL("../../", import.meta.url);
-const { groups, cases } = JSON.parse(readFileSync(new URL("ipad/App/MotiffLabTests/Golden/scrub.json", root), "utf8"));
+const { groups, cases } = JSON.parse(readFileSync(new URL("src/ipad/App/MotiffLabTests/Golden/scrub.json", root), "utf8"));
 
 test("the case file strikes at most as many starts a move as the engine does", () => {
     assert.equal(groups, SCRUB_GROUPS);

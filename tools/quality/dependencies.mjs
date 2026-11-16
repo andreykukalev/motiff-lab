@@ -2,15 +2,15 @@
 // would notice a break. Pure: the caller passes the file lists and a reader, so the tests need no repository.
 //
 // 1. music-core depends on nothing in the solution and on no web, cloud or AI library (CLAUDE.md, "Stack").
-// 2. The iPad's score and roll pages (ipad/App/Web/*.js) load the web app's compiled modules from the folders the
-//    app bundles (ipad/App/project.yml, wwwroot/js/<folder>). CI does not build the iPad app, so an import that
+// 2. The iPad's score and roll pages (src/ipad/App/Web/*.js) load the web app's compiled modules from the folders the
+//    app bundles (src/ipad/App/project.yml, wwwroot/js/<folder>). CI does not build the iPad app, so an import that
 //    reaches a folder the app does not bundle would only fail on the device, as a page that never loads.
 import { posix } from 'node:path';
 
 export const CORE = 'src/MotiffLab.MusicCore';
 const SCRIPTS = 'src/MotiffLab.Web/Scripts';
-export const IPAD_PAGES = 'ipad/App/Web';
-export const IPAD_PROJECT = 'ipad/App/project.yml';
+export const IPAD_PAGES = 'src/ipad/App/Web';
+export const IPAD_PROJECT = 'src/ipad/App/project.yml';
 
 const CORE_FORBIDDEN = /^(Microsoft\.AspNetCore|Microsoft\.JSInterop|Microsoft\.Extensions\.AI|Microsoft\.Identity|Azure|OpenAI|System\.Net\.Http)\b/;
 

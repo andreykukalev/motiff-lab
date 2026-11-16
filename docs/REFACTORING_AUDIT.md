@@ -32,15 +32,15 @@ its tests).
    40 files that fall back to a default when a field is missing or renamed. Nothing names the contract as data, and Swift
    is compiled only on macOS by label or tag, so `build-test` cannot see a break. Every refactoring of the core's facade
    or of a Swift feature crosses this boundary.
-2. **The iPad score screen:** `ScoreController.swift` (2,396), `ScoreScreen.swift` (1,960) and `ipad/App/Web/score.js`
+2. **The iPad score screen:** `ScoreController.swift` (2,396), `ScoreScreen.swift` (1,960) and `src/ipad/App/Web/score.js`
    (1,631, outside every quality check). 45 published values, 176 functions, 14 unrelated sections sharing one state.
    Decision record 0031 (accepted) describes the cure; steps 1a and 2 are merged (#630, #631), ten remain.
 3. **`PlaybackLab` on the web:** the web's whole work session, UI state and feature logic in one Blazor component with no
    unit tests; its only net is the browser suite, which is red on `develop`.
 4. **The shared score and roll layer lives inside the web project and is driven by two parallel page controllers.**
    `Scripts/roll/piano-roll.ts` (4,077 lines, 123 fields, 181 methods) and `Scripts/score/score-view.ts` (1,882) have no
-   node test of their own; `ipad/App/Web/score.js` re-implements what `score-view.ts` does (for example `placeBookmarks`
-   is the same code line for line), invisible to the duplicate check because `ipad/App/Web/**` is excluded from it.
+   node test of their own; `src/ipad/App/Web/score.js` re-implements what `score-view.ts` does (for example `placeBookmarks`
+   is the same code line for line), invisible to the duplicate check because `src/ipad/App/Web/**` is excluded from it.
 5. **The saved-data core:** `Project` (35 state properties, 105 public members across its partial files) and the
    `ProjectFile` codec (3,605 lines, readers for versions 1 to 16), in a namespace that depends on `Import`, `Analysis`,
    `Variations`, `Performance` and `Assembly` and is depended on by them. It is well tested (95 % of lines), which makes it
@@ -52,7 +52,7 @@ its tests).
 - One source of truth for the project file: the C# reader and writer, golden files for versions 12, 15 and 16, the
   tolerant reader, and the API checking only the envelope ([`project-file.md`](project-file.md), 0026).
 - Shared case files already pin three cross-platform rules: the playback model, scrubbing and the analysis answers
-  (`ipad/App/MotiffLabTests/Golden/*.json`, read by node, xUnit and XCTest). This is the pattern to extend.
+  (`src/ipad/App/MotiffLabTests/Golden/*.json`, read by node, xUnit and XCTest). This is the pattern to extend.
 - Protected acceptance scenarios (`tests/acceptance`) go only through the facade and may not be edited by the agent that
   broke them.
 - The ratchet is blocking since 2026-11-16: baselined code may not grow.
@@ -64,12 +64,12 @@ its tests).
 | Path | What it is | Size | Built and tested by |
 | --- | --- | --- | --- |
 | `src/MotiffLab.MusicCore` | The domain: 19 namespaces (table in 2.4) | 296 files, 60,070 lines | `build-test`; `tests/MotiffLab.MusicCore.Tests` (178 files, 2,130 tests), `tests/acceptance` (24) |
-| `ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by the `iPad` workflow |
+| `src/ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by the `iPad` workflow |
 | `src/MotiffLab.Api` | ASP.NET Core API: projects in Cosmos DB, profile, plan, the assistant relay | 16 files, 1,799 lines | `build-test`; `tests/MotiffLab.Api.Tests` (79); deployed by `API` |
 | `src/MotiffLab.Web` | Blazor WebAssembly: 9 pages, 110 Razor files, 122 C# files in 24 feature folders; one stylesheet | 38,587 lines of C# and Razor; 12,865 of CSS | `build-test` compiles it; **no unit-test project**; `tests/e2e` (58 Playwright spec files) by label, tag or nightly on `main` |
 | `src/MotiffLab.Web/Scripts` | TypeScript in 11 folders (`score` 26 files, `roll` 12, `playback` 7, `layout`, `storage`, `import`, …), compiled to `wwwroot/js` | 84 files, 23,907 lines | `tsc` in the build; `tests/web` (59 files, 593 node tests) |
-| `ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS (label `ipad-tests`, tags, by hand): `MotiffLabTests` (52 files, 451 tests), `MotiffLabScreens` (6 UI tests) |
-| `ipad/App/Web` | The pages inside the app's two web views: `score.js`, `roll.js`, their HTML and CSS | 2,188 lines | nothing compiles or lints them; the `dependencies` check follows their imports |
+| `src/ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS (label `ipad-tests`, tags, by hand): `MotiffLabTests` (52 files, 451 tests), `MotiffLabScreens` (6 UI tests) |
+| `src/ipad/App/Web` | The pages inside the app's two web views: `score.js`, `roll.js`, their HTML and CSS | 2,188 lines | nothing compiles or lints them; the `dependencies` check follows their imports |
 | `services/omr` | The scan server (Python: homr, Basic Pitch) | 1,810 lines with tests | `pytest` in `build-test` when it changes; `Scan server` workflow |
 | `design/kit` | Tokens, component CSS, mockups | — | `tests/web/design.test.mjs` keeps the web's copy of `tokens.css` identical |
 | `tools/quality`, `governance` | The ratchet, the guards | — | `node --test` in `build-test` |
@@ -90,7 +90,7 @@ project and has no home of its own.
 | Both apps ↔ API | REST with a bearer token; the assistant's turn format | C# shares `Assistant.Conversation` types between the API and the web; Swift re-declares them (`AssistantChat.swift`, `JSONValue`) | The core's types for C#; hand-kept in Swift | API tests; XCTest |
 | Both apps ↔ scan server | HTTP `/recognise`, `/transcribe` | Hand-written on three sides (Python, `ScanService.cs`, `Scan.swift`) | None | pytest; e2e; XCTest |
 | Design tokens | `design/kit/tokens.css`, copied for the web, parsed by `Design.swift` | Yes | The kit | node test, XCTest |
-| Interface text | `wwwroot/i18n/*.json` (both apps), `ipad/App/Words/*.json` (iPad only), sentences built inside music-core by `Words` | — | Three places, by design | `tests/web/i18n.test.mjs` |
+| Interface text | `wwwroot/i18n/*.json` (both apps), `src/ipad/App/Words/*.json` (iPad only), sentences built inside music-core by `Words` | — | Three places, by design | `tests/web/i18n.test.mjs` |
 
 So there is one source of truth for the saved data and for the domain types on the web, and **none for the three wire
 contracts the iPad depends on** (facade, page, roll): each is duplicated by hand on its two sides.
@@ -143,7 +143,7 @@ flowchart TB
     CTRL --> MC
   end
 
-  NAT["ipad/Core: 5 C functions"]
+  NAT["src/ipad/Core: 5 C functions"]
   API["API"]
   OMR["Scan server"]
 
@@ -314,43 +314,43 @@ services after the plus sign.
 
 | File | Lines | Deps | Responsibilities mixed | Split into |
 | --- | --- | --- | --- | --- |
-| `ipad/App/MotiffLab/ScoreController.swift` | 2,396 | PDFKit, SwiftUI, UTType, WebKit | 14 sections over one state: the page's plumbing, phrases and selection, bookmarks, margin notes and highlights and layers, Check, corrections, the roll's note editor, versions, sources, merging, focus, resume and beats, strokes, selection history; 45 `@Published`, 176 functions, 37 music-core calls, 38 page calls (through `ScorePage` since #631) | 0031 section 3: `PenModel`, `SelectionModel`, `MarksModel`, `CheckModel`, `SourcesModel`, `MergeModel`, `FocusModel` over the ports `ScorePage` and `PieceCore`; the controller stays as the composition root |
-| `ipad/App/MotiffLab/ScoreScreen.swift` | 1,960 | SwiftUI, WebKit | 6: the layout of the layers (`layers`, 143 lines); wiring of every controller's callbacks (`wire`); sources and views; the roll drawer and its playheads; resume; 12 view types (bar, pill, selection menu, focus bar, panels) with 70 pieces of view state | 0031 section 4: `ScoreScreen+Roll`, `+Sources`, `+Expand`, `+Playback`; each view type in its own file |
-| `ipad/App/Web/score.js` | 1,631 | 16 imports | 9: page layout and paging; bookmarks; margin notes; Check flags; version markers and tints; playheads and cards; the pen and rubbing; selection plumbing; reporting to Swift. 82 functions around one `state` object, 41 exported to `window.motiff` | 0031 step 11: TypeScript modules behind `page-contract.ts`. Add: the overlays it shares with `score-view.ts` move to one set of modules both controllers call |
-| `ipad/App/MotiffLab/Dna.swift` | 1,243 | SwiftUI | 4: decoding the `dna` answer (`DnaMap`); the lanes' drawing; the harmony rows and the circle; cards; playing a section (`DnaPlaying`). `DnaScreen` is 890 lines | `DnaModel` (typed decode), `DnaLanes`, `DnaHarmony`, `DnaCards`, `DnaPlaying` |
-| `ipad/App/MotiffLab/Pdf.swift` | 901 | PDFKit, SwiftUI | 5: `PdfController` (15 published values, bookmarks, save, music-core calls); the PDFKit view; the screen; Contents; More with sources | `Pdf/PdfController`, `PdfPagesView`, `PdfScreen`, `PdfContents`, `PdfMore` |
-| `ipad/App/MotiffLab/PlaybackEngine.swift` | 852 | Foundation | 4: messages; musical time; voices and clicks; reports. A port of `playback-processor.ts` | `PlaybackEngine+Time`, `+Voices`, `+Reports`; keep it one type, it is cohesive |
-| `ipad/App/MotiffLab/Insights.swift` | 821 | SwiftUI | 3: facts decoded from JSON; `InsightsController` (13 published values, 6 music-core calls); 7 views | `InsightsModel`, `InsightsController`, `InsightsViews` |
-| `ipad/App/MotiffLab/Bookmarks.swift` | 722 | SwiftUI | 4: bookmark types and their decode; `ContentsController`; the card; the drawer with 9 views | `BookmarkModel`, `ContentsController`, `BookmarkCard`, `ContentsDrawer` |
-| `ipad/App/MotiffLab/Versions.swift` | 708 | SwiftUI, UTType | 3: four decoded shelves (`VersionShelf`, `MergeInfo`, `SourcesInfo`, …); the version bar; the merge views (18 types) | `VersionModel`, `MergeModel` types, `VersionViews`, `MergeViews` |
-| `ipad/App/MotiffLab/LibraryView.swift` | 598 | SwiftUI, UTType | 4: the library screen (31 pieces of view state); file operations; opening and switching views of a piece; online copies | `LibraryModel` (open, switch, delete as one owner: UI review «three guards for one switch»), `LibraryView` |
-| `ipad/App/MotiffLab/SourcesSheet.swift` | 596 | SwiftUI, UTType | 2: the sheet; rows, menus and dialogs | Rows and dialogs in their own files |
-| `ipad/App/MotiffLab/Player.swift` | 566 | AVFoundation, QuartzCore, SwiftUI | 4: the audio graph; the playback model's state (14 published); loading scores from music-core; polling reports | `PlayerAudio` (engine node), `PlayerModel`, `PlaybackScore` decode |
-| `ipad/App/MotiffLab/SettingsView.swift` | 560 | PhotosUI, SwiftUI | 3: `DeviceSettings` (a store); the settings sheet; the account panel and profile editor | `DeviceSettings` to its own file; `AccountPanel` to the account feature |
-| `ipad/App/MotiffLab/Check.swift` | 558 | SwiftUI | 3: Check types and decode; corrections; the drawer | `CheckModel`, `CheckDrawer` |
-| `ipad/App/MotiffLab/RollController.swift` | 550 | SwiftUI, WebKit | 3: the web view and its messages; the editor; input rules | 0031 step 12: a typed `RollPage` port |
-| `ipad/App/MotiffLab/LibraryTools.swift` | 550 | SwiftUI | 11 view types of the library's list | By view group |
-| `ipad/App/MotiffLab/Account.swift` | 521 | Foundation, UIKit | 4: MSAL sign-in; the plan and Pro features; the profile; HTTP requests | `AccountSession`, `PlanModel`, `ProfileModel`, `ApiClient` |
-| `ipad/App/MotiffLab/Design.swift` | 520 | CoreText, SwiftUI, UIKit | 3: parsing `tokens.css`; fonts; 10 styles and components | `DesignTokens`, `DSType`, `DSStyles` |
-| `ipad/App/MotiffLab/PencilPalette.swift` | 506 | SwiftUI, UIKit | 3: Pencil gestures; the palette's geometry; the palette view | `PencilGestures`, `PaletteLayout`, `PencilPalette` |
-| `ipad/App/MotiffLab/FolderFoundSheet.swift` | 488 | SwiftUI | 1: views of one sheet (10 types) | By view |
-| `ipad/App/MotiffLab/PiecePartsSheet.swift` | 474 | PDFKit, SwiftUI | 2: `PieceSplitter` (5 music-core calls); the sheet | Controller and views apart |
-| `ipad/App/MotiffLab/Metronome.swift` | 447 | AVFoundation, SwiftUI | 4: the click clock on the audio thread; tempo rules (a port of `metronome.ts`); the controller; the pill's views | `MetronomeClock`, `MetronomeTempo`, `Metronome`, `MetronomeViews` |
-| `ipad/App/MotiffLab/Reference.swift` | 427 | AVFoundation, SwiftUI | 3: answers decoded; the controller; its own piano | Model, controller, sound |
-| `ipad/App/MotiffLab/PdfInk.swift` | 406 | PDFKit, UIKit | 2: stroke geometry (a port of `pencil-marks.ts`); the controller's ink extension | `DocumentStroke` to the ink feature |
-| `ipad/App/MotiffLab/LibraryShelf.swift` | 401 | Foundation | 1, but a duplicate: search, filter and order rules that `src/MotiffLab.Web/Projects/LibraryShelf.cs` also implements | Leave; the rules are a candidate for music-core (section 4.4) |
-| `ipad/App/MotiffLab/Tempo.swift` | 399 | SwiftUI | 3: `TempoSetting`; `TempoReading` (the text rules of the web's `TempoReading.cs`); views | Model and views apart |
-| `ipad/App/MotiffLab/RollTools.swift`, `RecognitionViews.swift`, `PiecePropertiesSheet.swift`, `SourcesSwitch.swift`, `ReferenceChordsScales.swift` | 386, 385, 359, 356, 351 | SwiftUI | Views with small stores beside them (`RollZoom`, `RecordingListening`, `ReferenceSounding`) | Stores out of the view files when the feature is next touched |
-| `ipad/App/MotiffLab/Scan.swift` | 383 | PDFKit, SwiftUI | 3: the scan server client (HTTP); the engine choice; two panels | `ScanClient`, `ScanPanel` |
-| `ipad/App/MotiffLab/InkInput.swift` | 367 | UIKit | 2: the gesture recogniser; the live ink view | Leave |
-| `ipad/App/MotiffLab/PieceParts.swift` | 364 | Foundation | 1: value types and requests of the parts | Leave |
-| `ipad/App/MotiffLab/SourcesController.swift` | 352 | PDFKit, SwiftUI | 2: the sheet's operations; the hand-over between screens | Joins `SourcesModel` (0031 step 7) |
+| `src/ipad/App/MotiffLab/ScoreController.swift` | 2,396 | PDFKit, SwiftUI, UTType, WebKit | 14 sections over one state: the page's plumbing, phrases and selection, bookmarks, margin notes and highlights and layers, Check, corrections, the roll's note editor, versions, sources, merging, focus, resume and beats, strokes, selection history; 45 `@Published`, 176 functions, 37 music-core calls, 38 page calls (through `ScorePage` since #631) | 0031 section 3: `PenModel`, `SelectionModel`, `MarksModel`, `CheckModel`, `SourcesModel`, `MergeModel`, `FocusModel` over the ports `ScorePage` and `PieceCore`; the controller stays as the composition root |
+| `src/ipad/App/MotiffLab/ScoreScreen.swift` | 1,960 | SwiftUI, WebKit | 6: the layout of the layers (`layers`, 143 lines); wiring of every controller's callbacks (`wire`); sources and views; the roll drawer and its playheads; resume; 12 view types (bar, pill, selection menu, focus bar, panels) with 70 pieces of view state | 0031 section 4: `ScoreScreen+Roll`, `+Sources`, `+Expand`, `+Playback`; each view type in its own file |
+| `src/ipad/App/Web/score.js` | 1,631 | 16 imports | 9: page layout and paging; bookmarks; margin notes; Check flags; version markers and tints; playheads and cards; the pen and rubbing; selection plumbing; reporting to Swift. 82 functions around one `state` object, 41 exported to `window.motiff` | 0031 step 11: TypeScript modules behind `page-contract.ts`. Add: the overlays it shares with `score-view.ts` move to one set of modules both controllers call |
+| `src/ipad/App/MotiffLab/Dna.swift` | 1,243 | SwiftUI | 4: decoding the `dna` answer (`DnaMap`); the lanes' drawing; the harmony rows and the circle; cards; playing a section (`DnaPlaying`). `DnaScreen` is 890 lines | `DnaModel` (typed decode), `DnaLanes`, `DnaHarmony`, `DnaCards`, `DnaPlaying` |
+| `src/ipad/App/MotiffLab/Pdf.swift` | 901 | PDFKit, SwiftUI | 5: `PdfController` (15 published values, bookmarks, save, music-core calls); the PDFKit view; the screen; Contents; More with sources | `Pdf/PdfController`, `PdfPagesView`, `PdfScreen`, `PdfContents`, `PdfMore` |
+| `src/ipad/App/MotiffLab/PlaybackEngine.swift` | 852 | Foundation | 4: messages; musical time; voices and clicks; reports. A port of `playback-processor.ts` | `PlaybackEngine+Time`, `+Voices`, `+Reports`; keep it one type, it is cohesive |
+| `src/ipad/App/MotiffLab/Insights.swift` | 821 | SwiftUI | 3: facts decoded from JSON; `InsightsController` (13 published values, 6 music-core calls); 7 views | `InsightsModel`, `InsightsController`, `InsightsViews` |
+| `src/ipad/App/MotiffLab/Bookmarks.swift` | 722 | SwiftUI | 4: bookmark types and their decode; `ContentsController`; the card; the drawer with 9 views | `BookmarkModel`, `ContentsController`, `BookmarkCard`, `ContentsDrawer` |
+| `src/ipad/App/MotiffLab/Versions.swift` | 708 | SwiftUI, UTType | 3: four decoded shelves (`VersionShelf`, `MergeInfo`, `SourcesInfo`, …); the version bar; the merge views (18 types) | `VersionModel`, `MergeModel` types, `VersionViews`, `MergeViews` |
+| `src/ipad/App/MotiffLab/LibraryView.swift` | 598 | SwiftUI, UTType | 4: the library screen (31 pieces of view state); file operations; opening and switching views of a piece; online copies | `LibraryModel` (open, switch, delete as one owner: UI review «three guards for one switch»), `LibraryView` |
+| `src/ipad/App/MotiffLab/SourcesSheet.swift` | 596 | SwiftUI, UTType | 2: the sheet; rows, menus and dialogs | Rows and dialogs in their own files |
+| `src/ipad/App/MotiffLab/Player.swift` | 566 | AVFoundation, QuartzCore, SwiftUI | 4: the audio graph; the playback model's state (14 published); loading scores from music-core; polling reports | `PlayerAudio` (engine node), `PlayerModel`, `PlaybackScore` decode |
+| `src/ipad/App/MotiffLab/SettingsView.swift` | 560 | PhotosUI, SwiftUI | 3: `DeviceSettings` (a store); the settings sheet; the account panel and profile editor | `DeviceSettings` to its own file; `AccountPanel` to the account feature |
+| `src/ipad/App/MotiffLab/Check.swift` | 558 | SwiftUI | 3: Check types and decode; corrections; the drawer | `CheckModel`, `CheckDrawer` |
+| `src/ipad/App/MotiffLab/RollController.swift` | 550 | SwiftUI, WebKit | 3: the web view and its messages; the editor; input rules | 0031 step 12: a typed `RollPage` port |
+| `src/ipad/App/MotiffLab/LibraryTools.swift` | 550 | SwiftUI | 11 view types of the library's list | By view group |
+| `src/ipad/App/MotiffLab/Account.swift` | 521 | Foundation, UIKit | 4: MSAL sign-in; the plan and Pro features; the profile; HTTP requests | `AccountSession`, `PlanModel`, `ProfileModel`, `ApiClient` |
+| `src/ipad/App/MotiffLab/Design.swift` | 520 | CoreText, SwiftUI, UIKit | 3: parsing `tokens.css`; fonts; 10 styles and components | `DesignTokens`, `DSType`, `DSStyles` |
+| `src/ipad/App/MotiffLab/PencilPalette.swift` | 506 | SwiftUI, UIKit | 3: Pencil gestures; the palette's geometry; the palette view | `PencilGestures`, `PaletteLayout`, `PencilPalette` |
+| `src/ipad/App/MotiffLab/FolderFoundSheet.swift` | 488 | SwiftUI | 1: views of one sheet (10 types) | By view |
+| `src/ipad/App/MotiffLab/PiecePartsSheet.swift` | 474 | PDFKit, SwiftUI | 2: `PieceSplitter` (5 music-core calls); the sheet | Controller and views apart |
+| `src/ipad/App/MotiffLab/Metronome.swift` | 447 | AVFoundation, SwiftUI | 4: the click clock on the audio thread; tempo rules (a port of `metronome.ts`); the controller; the pill's views | `MetronomeClock`, `MetronomeTempo`, `Metronome`, `MetronomeViews` |
+| `src/ipad/App/MotiffLab/Reference.swift` | 427 | AVFoundation, SwiftUI | 3: answers decoded; the controller; its own piano | Model, controller, sound |
+| `src/ipad/App/MotiffLab/PdfInk.swift` | 406 | PDFKit, UIKit | 2: stroke geometry (a port of `pencil-marks.ts`); the controller's ink extension | `DocumentStroke` to the ink feature |
+| `src/ipad/App/MotiffLab/LibraryShelf.swift` | 401 | Foundation | 1, but a duplicate: search, filter and order rules that `src/MotiffLab.Web/Projects/LibraryShelf.cs` also implements | Leave; the rules are a candidate for music-core (section 4.4) |
+| `src/ipad/App/MotiffLab/Tempo.swift` | 399 | SwiftUI | 3: `TempoSetting`; `TempoReading` (the text rules of the web's `TempoReading.cs`); views | Model and views apart |
+| `src/ipad/App/MotiffLab/RollTools.swift`, `RecognitionViews.swift`, `PiecePropertiesSheet.swift`, `SourcesSwitch.swift`, `ReferenceChordsScales.swift` | 386, 385, 359, 356, 351 | SwiftUI | Views with small stores beside them (`RollZoom`, `RecordingListening`, `ReferenceSounding`) | Stores out of the view files when the feature is next touched |
+| `src/ipad/App/MotiffLab/Scan.swift` | 383 | PDFKit, SwiftUI | 3: the scan server client (HTTP); the engine choice; two panels | `ScanClient`, `ScanPanel` |
+| `src/ipad/App/MotiffLab/InkInput.swift` | 367 | UIKit | 2: the gesture recogniser; the live ink view | Leave |
+| `src/ipad/App/MotiffLab/PieceParts.swift` | 364 | Foundation | 1: value types and requests of the parts | Leave |
+| `src/ipad/App/MotiffLab/SourcesController.swift` | 352 | PDFKit, SwiftUI | 2: the sheet's operations; the hand-over between screens | Joins `SourcesModel` (0031 step 7) |
 
 ### 3.3 Web app
 
 | File | Lines | Deps | Responsibilities mixed | Split into |
 | --- | --- | --- | --- | --- |
-| `src/MotiffLab.Web/wwwroot/css/app.css` | 12,750 | — | Every style of the app in one global sheet: 307 comment-headed blocks, 2,862 token uses, no `@import`, no component-scoped sheet | One sheet per area (`base`, `score`, `roll`, `library`, `sheets`, `insights`, `assistant`, `import`, `reference`), loaded in a fixed order; the score's marks shared with `ipad/App/Web/score.css` as one file |
+| `src/MotiffLab.Web/wwwroot/css/app.css` | 12,750 | — | Every style of the app in one global sheet: 307 comment-headed blocks, 2,862 token uses, no `@import`, no component-scoped sheet | One sheet per area (`base`, `score`, `roll`, `library`, `sheets`, `insights`, `assistant`, `import`, `reference`), loaded in a fixed order; the score's marks shared with `src/ipad/App/Web/score.css` as one file |
 | `src/MotiffLab.Web/Pages/PlaybackLab.razor` (+ 50 partial files, 14,625 lines in all) | 4,153 | 30 + 11 | The whole work session: loading and saving the piece; selection; analysis; playback; variations; marks; bookmarks; Check and repairs; sources; assembly; performances and recordings; the assistant; focus; resume; settings popovers; 866 lines of markup. 247 fields, about 800 methods, coupled to 538 types, 49 JavaScript calls | Feature state in plain C# classes, one owner each (`PieceSession`, `SelectionState`, `MarksState`, `BookmarksState`, `SourcesState`, `AssemblyState`, `PerformanceState`, `AssistantState`), unit-tested; then the markup into child components that take their state |
 | `src/MotiffLab.Web/Scripts/roll/piano-roll.ts` | 4,077 | 18 | 7 in one class: the viewport and zoom; painting (`drawRoll` 248 lines, complexity 91); the keyboard and gutter; the note editor; selection gestures (three generations: strips, modes, places); playheads; the legend. 123 fields, 181 methods; the literal 480 appears 38 times | 0031 section 4: `RollApi` interface plus collaborators (viewport, painter, editor, legend, input router) |
 | `src/MotiffLab.Web/Scripts/score/score-view.ts` | 1,882 | 17 | 6: Verovio loading and layout; paging and lazy fill; overlays (bookmarks, notes, Check, versions, assembly); playhead and follow; selection plumbing; PDF export. 67 fields, 76 methods | `ScoreEngraving`, `ScorePaging`, shared overlay modules, `ScoreFollow`; `ScoreView` composes |
@@ -376,7 +376,7 @@ services after the plus sign.
 
 ### 3.4 Tests and tools over 350 lines
 
-`tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `ipad/App/MotiffLabTests/FacadeTests.swift`
+`tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `src/ipad/App/MotiffLabTests/FacadeTests.swift`
 (701) test the same contract from its two sides without sharing a case; they become readers of the facade fixtures
 (section 5.3). The others are long because they are lists of cases and need no split: `NotationGeneratorTests.cs` (632),
 `PlaybackTests.swift` (598), `PencilTests.swift` (573), `ProjectFileGoldenTests.cs` (475), `playback-processor.test.mjs`
@@ -436,12 +436,12 @@ The code base has almost no interfaces to be too wide: three in C# (`IVariationO
 ### 4.4 Duplicates
 
 The duplicate check reports 0.24 % of copied lines, which is true for literal copies in the files it reads. It does not
-read `ipad/App/Web/**`, and it cannot see the same rule written in two languages. Those are the real duplicates:
+read `src/ipad/App/Web/**`, and it cannot see the same rule written in two languages. Those are the real duplicates:
 
 | # | Concept | Copies | Kept in step by |
 | --- | --- | --- | --- |
 | D1 | The work session over a piece (selection, what was understood, variation chain, corrections, sources) | `Facade/OpenPiece*.cs` (iPad) and `Pages/PlaybackLab*.cs` (web) | Nothing; they have already diverged (the web assembles versions by 0024, the iPad merges by `performance.merge`) |
-| D2 | The score page's controller over the shared layers | `Scripts/score/score-view.ts` and `ipad/App/Web/score.js`: 12 functions share a name, `placeBookmarks` is identical | Nothing |
+| D2 | The score page's controller over the shared layers | `Scripts/score/score-view.ts` and `src/ipad/App/Web/score.js`: 12 functions share a name, `placeBookmarks` is identical | Nothing |
 | D3 | The playback engine | `playback-processor.ts` and `PlaybackEngine.swift` | `scrub.json`, and the engine's own tests on each side |
 | D4 | The playback model and playhead drag | `playback-model.ts`, `playhead-drag.ts` and `PlaybackPosition.swift`, `PlayheadDrag.swift` | `playback-model.json` (good) |
 | D5 | The metronome's rules | `metronome.ts` and `Metronome.swift` | Nothing |
@@ -457,7 +457,7 @@ read `ipad/App/Web/**`, and it cannot see the same rule written in two languages
 | D15 | Reading «now» from a request | `Now(Request)` in 6 facade files | Nothing |
 | D16 | The JSON primitives of the two codecs | `ProjectFile.cs`, `Facade/Answer.cs`, `Facade/OpenDocument.cs` (baselined duplicates) | Nothing |
 | D17 | Pitch names | `roll-model.ts` `pitchName` and the core's `Pitch` and `NoteNaming` | A comment |
-| D18 | The score marks' CSS | `app.css` and `ipad/App/Web/score.css` (172 lines) | Nothing |
+| D18 | The score marks' CSS | `app.css` and `src/ipad/App/Web/score.css` (172 lines) | Nothing |
 
 D3 to D6 are deliberate ports (0019): they cannot be removed, only pinned. D1, D2, D7, D8, D12 to D16 can be removed.
 
@@ -466,7 +466,7 @@ D3 to D6 are deliberate ports (0019): they cannot be removed, only pinned. D1, D
 - **Experiment switches.** The catalogue in `Settings/SettingsCatalogue.cs` still lists 23 `experimental.*` switches. The
   iPad reads none since v0.6.5; the web still branches on 19 of them (43 references). Each keeps two paths alive on the
   web. Keeping or removing each is Andrei's decision (governance, decision 2).
-- **Stale contract texts:** the 115-line history in `MusicCoreFacade.cs`; `ipad/Core/include/motifflab_core.h` («contract
+- **Stale contract texts:** the 115-line history in `MusicCoreFacade.cs`; `src/ipad/Core/include/motifflab_core.h` («contract
   3, project file 12»); `MusicCore.swift` («contract 5, project file 14»). Agents read these as truth.
 - **Selection has three generations in the shared code:** the strips' hold gesture of 0.6.1, the modes of 0.5, the places
   of 0.6.2 (`roll-strip-gesture.ts`, `roll-modes.ts`, `roll-place*.ts`, `selection-gesture.ts`, `selection-places.ts`).
@@ -494,8 +494,8 @@ Run for this audit on a clean clone of `0d2bc52` (Linux, .NET 10, Node 22):
 | TypeScript node tests | `tests/web/*.test.mjs` | **593 passed** | `build-test` |
 | Guards and ratchet | `governance/tests`, `tools/quality` | **27 passed** | `build-test` |
 | Scan server | `services/omr/tests` (pytest) | not run here | `build-test` when it changes |
-| iPad unit tests | `ipad/App/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: label `ipad-tests`, tags, by hand |
-| iPad UI tests | `ipad/App/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
+| iPad unit tests | `src/ipad/App/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: label `ipad-tests`, tags, by hand |
+| iPad UI tests | `src/ipad/App/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
 | Web browser tests | `tests/e2e` (Playwright, 58 spec files, 5 browser projects) | **failing on `develop`**: the runs for the tags v0.6.1, v0.6.2, v0.6.3, v0.6.4 and v0.6.5 all failed. On v0.6.5 Chromium: 183 passed, 5 failed (`pdf-scan.spec` «Add a version on a PDF», three of `performance.spec` on sources and recordings, `playhead.spec` «Back to playback»); Firefox, WebKit and the Android tablet failed, the iPad tablet project was cancelled at its time limit | label `browser-tests`, tags, nightly on `main` only |
 
 Coverage of music-core (coverlet, the unit tests alone): 92 % of lines, 84 % of branches. By namespace, lines / branches:
@@ -511,7 +511,7 @@ The API's own code is 68–100 % covered; `CosmosProjectStore` is not exercised 
 | **All C# of the web app** | 38.6k lines, no test project | `PlaybackLab`'s rules (what a new selection clears, what saving keeps, how sources switch) exist only as behaviour in a browser, and the browser suite is red |
 | **`piano-roll.ts`** | 4,077 lines | No node test imports it; only its pure helpers (`roll-model`, `roll-view`, `roll-place`, …) are tested. Its painting and its pointer handling are unpinned, and both apps run it |
 | **`score-view.ts`, `playback.ts`, `pdf-view.ts`, `folder.ts`, `selection-handles.ts`** | 1,882 + 536 + 341 + 393 + 222 lines | No node test |
-| **`ipad/App/Web/score.js`, `roll.js`** | 1,942 lines | No test, no lint, no type check; exercised only by the UI walk on macOS |
+| **`src/ipad/App/Web/score.js`, `roll.js`** | 1,942 lines | No test, no lint, no type check; exercised only by the UI walk on macOS |
 | **`ScoreController`** | 2,396 lines | Built in four test files, mostly for its value types; `ScoreScreen`, `DnaScreen`, `InsightsController`, `ContentsController`, `PieceSplitter`, `ReferenceController` appear in no unit test. The order of calls to the page and to music-core is unpinned |
 | **The facade contract as the iPad reads it** | about 150 calls | C# tests assert what the core writes; nothing on Linux asserts what Swift reads. A renamed field compiles and reads as a default |
 | **Swift ports of web rules** (D5–D8) | metronome, ink geometry, library rules, tempo text | No shared cases; the two sides can drift |
@@ -525,10 +525,10 @@ not a protected scenario and not a statement that the behaviour is right.
 | ID | Pins | How | Needed before |
 | --- | --- | --- | --- |
 | C1 | Every facade answer the iPad reads | xUnit writes the answer of each showing call for three fixture pieces (a MusicXML piece, a heard recording, a PDF piece), in English and Russian, to `tests/contracts/facade/*.json` (as `AnalysisParityTests` does for `phrases` and `dna`); it fails on any byte change | Any change under `Facade/` (W1.5 onwards) |
-| C2 | The facade's call list | The registry of call names as a file; a node test scans `ipad/App/MotiffLab/*.swift` for the names it sends and fails on one that is not in the list. It runs on Linux in `build-test` | W1.6, and every Swift step |
+| C2 | The facade's call list | The registry of call names as a file; a node test scans `src/ipad/App/MotiffLab/*.swift` for the names it sends and fails on one that is not in the list. It runs on Linux in `build-test` | W1.6, and every Swift step |
 | C3 | What Swift decodes | XCTest decodes the C1 files into the typed DTOs; a field the DTO needs and the file lacks fails on macOS | W2.2 onwards |
 | C4 | The order of calls of the score screen | With the ports of 0031 in place, a recording fake of `ScorePage` and `PieceCore`; XCTest replays scripted scenarios (open, select, add a note, resolve a Check flag, start a merge, enter focus) and compares the transcript of commands and calls with a kept file | W2.4 to W2.10 |
-| C5 | The iPad page | A Playwright project (WebKit) opens `ipad/App/Web/score.html` over the built modules with a stub `webkit.messageHandlers`, sends `window.motiff` commands and compares the messages posted and the overlays drawn | W2.11 |
+| C5 | The iPad page | A Playwright project (WebKit) opens `src/ipad/App/Web/score.html` over the built modules with a stub `webkit.messageHandlers`, sends `window.motiff` commands and compares the messages posted and the overlays drawn | W2.11 |
 | C6 | The roll's painting and input | A node test builds `PianoRoll` over a recording canvas context: a fixed payload and frame give a kept list of draw calls; scripted pointer sequences give a kept list of callbacks | W2.12 |
 | C7 | The web's session rules | As each state class leaves `PlaybackLab`, xUnit tests in a new `tests/MotiffLab.Web.Tests` record its transitions | W3.2 onwards |
 | C8 | A green browser baseline | Fix the 5 failing specs (or the code they caught) so the suite is green on `develop` | Any change to `Scripts/score`, `Scripts/roll`, and all of wave 3 |
@@ -588,7 +588,7 @@ Rules for every step:
 | W2.4 – W2.10 | 0031 steps 3–9, one model a step: Pen, Selection, Marks, Check, Sources, Merge, Focus | C4; `MotiffLabTests`; the device check at the next version |
 | W2.11 | 0031 step 10: `ScoreScreen` wiring by concern; its 12 view types into files | UI walk |
 | W2.12 | Feature files cut into model, controller and views: `Dna`, `Pdf`, `Insights`, `Bookmarks`, `Versions`, `Player`, `Account`, `Metronome`, `Reference`, `SettingsView` (addition 3), one a pull request | Their tests; UI walk |
-| W2.13 | 0031 step 11: `score.js` to TypeScript; the overlays it shares with `score-view.ts` extracted once (removes D2); `ipad/App/Web` enters the lint and duplicate checks | C5; browser suite |
+| W2.13 | 0031 step 11: `score.js` to TypeScript; the overlays it shares with `score-view.ts` extracted once (removes D2); `src/ipad/App/Web` enters the lint and duplicate checks | C5; browser suite |
 | W2.14 | 0031 step 12: the roll's port, then `PianoRoll`'s collaborators one a step | C6; browser suite |
 
 ### Wave 3: the web app and the shared layer

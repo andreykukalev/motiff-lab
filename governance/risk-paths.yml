@@ -14,7 +14,7 @@ guardrail:
 high:
   - src/MotiffLab.MusicCore/Facade/**
   - src/MotiffLab.MusicCore/Projects/**
-  - ipad/Core/**
+  - src/ipad/Core/**
   - docs/project-file.md
   # High while api.yml deploys the API on every change here; standard once that deploy waits for approval in the
   # Environment production and Andrei lowers it.
@@ -28,7 +28,7 @@ high:
   - src/MotiffLab.Web/Pages/PlaybackLab*
 standard:
   - tests/**
-  - ipad/App/**
+  - src/ipad/App/**
   - src/MotiffLab.Web/**
   - design/kit/**
   - docs/decisions/**

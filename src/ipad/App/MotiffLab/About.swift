@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Which build this is (Andrei, 2026-11-13: to tell that the latest version is installed). `ipad/build-version.sh` writes
+/// Which build this is (Andrei, 2026-11-13: to tell that the latest version is installed). `src/ipad/build-version.sh` writes
 /// it into the app's Info.plist: `MotiffBuildVersion`, the tag it was built from ("v0.5.2"), or the branch and the
 /// commit ("develop 1a2b3c4") when it is no tag; `MotiffBuildCommit`, the commit; `MotiffBuildDate`, when it was built
 /// (ISO 8601, UTC). A build from Xcode alone has none of them and says its version from the project with "dev".

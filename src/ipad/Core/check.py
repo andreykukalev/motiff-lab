@@ -1,7 +1,7 @@
 """Calls the native music-core through its C functions, as the iPad app does (decision records 0019, 0020).
 
-Usage: python3 ipad/Core/check.py <MotiffLabCore.so or .dylib> [piece.musicxml]
-Publish the library first: dotnet publish ipad/Core -c Release -r linux-x64 (or osx-arm64) -o <folder>.
+Usage: python3 src/ipad/Core/check.py <MotiffLabCore.so or .dylib> [piece.musicxml]
+Publish the library first: dotnet publish src/ipad/Core -c Release -r linux-x64 (or osx-arm64) -o <folder>.
 Prints one line per call and exits with 1 when an answer is not what the facade promises.
 """
 

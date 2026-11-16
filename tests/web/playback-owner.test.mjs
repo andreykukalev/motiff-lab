@@ -1,6 +1,6 @@
 // Tests for the web's owner of the playback model (v0.5.2, #495 UX-10, slice W1, Scripts/playback/playback-owner.ts): the
 // TypeScript Player holds the selection and Цикл there and gives the engine the model's steps. It runs the case file the
-// model and the iPad's Swift port run (ipad/App/MotiffLabTests/Golden/playback-model.json), in Node on the compiled module:
+// model and the iPad's Swift port run (src/ipad/App/MotiffLabTests/Golden/playback-model.json), in Node on the compiled module:
 //   dotnet build src/MotiffLab.Web && node --test tests/web
 
 import assert from "node:assert/strict";
@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { PassageGrip, PlaybackOwner } from "../../src/MotiffLab.Web/wwwroot/js/playback/playback-owner.js";
 
 const root = new URL("../../", import.meta.url);
-const { cases } = JSON.parse(readFileSync(new URL("ipad/App/MotiffLabTests/Golden/playback-model.json", root), "utf8"));
+const { cases } = JSON.parse(readFileSync(new URL("src/ipad/App/MotiffLabTests/Golden/playback-model.json", root), "utf8"));
 
 /** An owner with the model's state as a case gives it: the selection and Цикл set by the events that make them. */
 function ownerOf(given) {

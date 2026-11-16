@@ -72,9 +72,9 @@ test("Clear selection and the pen's tools have icons of their own, in both apps"
     assert.match(lab, /aria-label="@Text\["menu\.clearSelection"\]"[^>]*><Icon Name="deselect" \/>/);
     const palette = read("src/MotiffLab.Web/Score/PenPalette.razor").toString();
     assert.match(palette, /\(PenTool, "pencil", "pencil\.pen"\),\s*\(HighlighterTool, "marker", "pencil\.highlighter"\),\s*\(EraserTool, "eraser", "pencil\.eraser"\)/);
-    const tools = read("ipad/App/MotiffLab/PenState.swift").toString();
+    const tools = read("src/ipad/App/MotiffLab/PenState.swift").toString();
     assert.match(tools, /case \.pencil: "pencil"\s*case \.marker: "marker"\s*case \.eraser: "eraser"/);
-    const selection = read("ipad/App/MotiffLab/SelectionTools.swift").toString();
+    const selection = read("src/ipad/App/MotiffLab/SelectionTools.swift").toString();
     assert.match(selection, /case \.clearSelection: "deselect"/);
 });
 

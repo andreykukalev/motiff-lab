@@ -1,7 +1,7 @@
 // Tests for where PDF | Notes brings each view back (#511 section 10; Scripts/score/view-anchor.ts, roll-view.ts frameOf),
 // run in Node on the compiled output: a place is a system or a page and a share of it, not pixels, so the same layout comes
 // back exactly, a new layout comes back on the same bar, the gap between two systems is kept, and going back and forth
-// does not drift. The iPad's PDF keeps the same rules in Swift (ipad/App/MotiffLabTests/ViewStatesTests.swift).
+// does not drift. The iPad's PDF keeps the same rules in Swift (src/ipad/App/MotiffLabTests/ViewStatesTests.swift).
 //   dotnet build src/MotiffLab.Web && node --test tests/web
 import assert from "node:assert/strict";
 import test from "node:test";

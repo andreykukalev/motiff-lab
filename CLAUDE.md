@@ -14,7 +14,7 @@ Decision records: `docs/decisions/`, listed with what each decides in `docs/READ
 - `src/MotiffLab.Api`: ASP.NET Core API saving a signed-in player's projects in Cosmos DB (0014); tests in `tests/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
 - `src/MotiffLab.Web`: **archived** Blazor WebAssembly PWA (0032). Live inside it, because the iPad bundles them: the TypeScript modules `Scripts/score`, `roll`, `layout`, `storage`, `playback` (compiled to `wwwroot/js/`, not committed, by `dotnet build src/MotiffLab.Web`), `wwwroot/i18n`, `wwwroot/audio/piano`, `Playback/FurElise.musicxml`, and the design kit's mirrors `wwwroot/css/tokens.css`, `wwwroot/css/fonts`, `wwwroot/img/icons.svg` (kept equal to `design/kit` by `tests/web/design.test.mjs`); `tests/web` node tests run on the compiled output. Everything else there is frozen.
 - `services/omr`: the scan server: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a Python HTTP service, run by the player in Docker (0011) or hosted in Azure Container Apps (0014, `Scan server` workflow, not CI). Tests: `python -m pytest` there.
-- `ipad`: native iPad app (0019, `ipad/README.md`): SwiftUI in `ipad/App` (XcodeGen, Mac); music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it); Verovio from source in `ipad/Verovio`. Swift is built and tested by the `iPad` workflow, not CI.
+- `src/ipad`: native iPad app (0019, `src/ipad/README.md`): SwiftUI in `src/ipad/App` (XcodeGen, Mac); music-core as a NativeAOT framework with the facade's C functions in `src/ipad/Core` (in the solution, so CI compiles it); Verovio from source in `src/ipad/Verovio`. Swift is built and tested by the `iPad` workflow, not CI.
 - `design/kit`: the redesign kit (0018); the iPad reads `tokens.css` and the fonts from it; the archived web app serves copies of `tokens.css` and fonts in `wwwroot/css`, icons as `docs/ui-conventions.md` says.
 - `tests/e2e`: **archived** Playwright specs on the published web app; run by hand only (0032).
 
@@ -67,7 +67,7 @@ dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"  # after a build; Node 22+
 node --test "governance/tests/*.test.mjs"  # the guards
 node tools/quality/quality.mjs  # code quality against the ratchet baseline (governance/quality/README.md, blocking); before every push of code
-ipad/build-version.sh v0.1  # on Andrei's Mac: build a version from its tag and install it on the iPad
+src/ipad/build-version.sh v0.1  # on Andrei's Mac: build a version from its tag and install it on the iPad
 dotnet format MotiffLab.slnx  # CI: dotnet format whitespace --folder --verify-no-changes
 ```
 

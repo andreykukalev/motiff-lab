@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Motifs;
 
-/// <summary>The selection's Undo and Redo (#511 section 11); ipad/App/MotiffLabTests/SelectionHistoryTests.swift has the same cases.</summary>
+/// <summary>The selection's Undo and Redo (#511 section 11); src/ipad/App/MotiffLabTests/SelectionHistoryTests.swift has the same cases.</summary>
 public class SelectionHistoryTests
 {
     private static readonly TickSpan s_one = TickSpan.FromBounds(new Tick(0), new Tick(1920));

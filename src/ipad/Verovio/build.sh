@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds Verovio (the engraver of the web app's score view, decision record 0008) from its source, with
 # one small patch (below), for the iPad and the iPad simulator as a dynamic framework (LGPL, decision record
-# 0019), ipad/build/Verovio.xcframework, and copies the font data the app needs to ipad/build/verovio-data.
-# Runs on a Mac with Xcode and CMake (brew install cmake). Usage: ipad/Verovio/build.sh
+# 0019), src/ipad/build/Verovio.xcframework, and copies the font data the app needs to src/ipad/build/verovio-data.
+# Runs on a Mac with Xcode and CMake (brew install cmake). Usage: src/ipad/Verovio/build.sh
 set -euo pipefail
 
 version=6.3.0   # the version the web app ships (tools/verovio/README.md)

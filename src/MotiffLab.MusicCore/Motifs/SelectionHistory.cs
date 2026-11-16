@@ -6,7 +6,7 @@ namespace MotiffLab.MusicCore.Motifs;
 /// a drag: one step). Every change a gesture makes carries its name, so they are kept as one step. A touch that changes
 /// nothing, a gesture cancelled, scrolling, the zoom, playing and the loop are no steps. A new step drops what Redo had.
 /// Up to <see cref="Depth"/> steps for the piece while it is open, apart from any other Undo. The iPad keeps the same
-/// rules in Swift (ipad/App/MotiffLab/SelectionHistory.swift).
+/// rules in Swift (src/ipad/App/MotiffLab/SelectionHistory.swift).
 /// </summary>
 /// <typeparam name="T">The selection as the owner selects it again, such as its span; null is no selection.</typeparam>
 public sealed class SelectionHistory<T>

@@ -122,7 +122,7 @@ export interface ScrubStrike {
 
 /**
  * The one rule of what sounds while a held playhead moves (#582 items 12 and 13), for the score and the roll alike, as the
- * iPad's engine has it (PlaybackEngine.scrubStrikes, both on ipad/App/MotiffLabTests/Golden/scrub.json): the notes are
+ * iPad's engine has it (PlaybackEngine.scrubStrikes, both on src/ipad/App/MotiffLabTests/Golden/scrub.json): the notes are
  * found by their starts, not by beats. Forward the starts in (from, to] sound, back those in [to, from); on a gesture's
  * first move (`opening`) the place it leaves counts too, so the note under the playhead sounds as it moves off it. A
  * tie is one note in music-core's events (the importers merge a chain into its first written note), so it sounds once,

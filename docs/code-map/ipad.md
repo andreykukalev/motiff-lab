@@ -1,6 +1,6 @@
-# Code map: the iPad app (`ipad/App`)
+# Code map: the iPad app (`src/ipad/App`)
 
-SwiftUI over the one C# music-core (NativeAOT framework, `ipad/Core`), facade calls through `MusicCore.call(piece:, name, json)`,
+SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`), facade calls through `MusicCore.call(piece:, name, json)`,
 the request encoded once by `facadeRequest` and the answer read by `facadeObject` (`MusicCore.swift`).
 The score and the roll are the web's TS modules in a WKWebView (`Web/score.js`, `Scripts/score`, `Scripts/roll`). Strings:
 the web's `src/MotiffLab.Web/wwwroot/i18n/*.json` plus the iPad's own `Words/*.json` (`UIText`). Tokens: `Design.swift`
@@ -73,5 +73,5 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 - The score's screen never resizes for the keyboard: a chat keeps itself clear of it (`AskFlow`, `KeyboardRoom`); the
   pill rises only above a hidden keyboard's bar (`KeyboardLift(barOnly:)`). The tap that hides the keyboard never acts on
   the music (`TypingShield`); no field takes the focus by itself. Dictation never leaves the device.
-- Nothing in `ipad/App` changes analysis or variation data; drafts come from music-core and only the player accepts them.
+- Nothing in `src/ipad/App` changes analysis or variation data; drafts come from music-core and only the player accepts them.
 - Every interface string in English and Russian; colours, sizes and timings are tokens.

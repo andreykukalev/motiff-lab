@@ -8,8 +8,8 @@ import { test } from "node:test";
 const root = new URL("../../src/MotiffLab.Web/", import.meta.url);
 const en = JSON.parse(readFileSync(new URL("wwwroot/i18n/en.json", root), "utf8"));
 const ru = JSON.parse(readFileSync(new URL("wwwroot/i18n/ru.json", root), "utf8"));
-// What only the iPad says (ipad/App/Words), read by the iPad app beside the web app's files.
-const ipadWords = new URL("../../ipad/App/Words/", import.meta.url);
+// What only the iPad says (src/ipad/App/Words), read by the iPad app beside the web app's files.
+const ipadWords = new URL("../../src/ipad/App/Words/", import.meta.url);
 const ipadEn = JSON.parse(readFileSync(new URL("en.json", ipadWords), "utf8"));
 const ipadRu = JSON.parse(readFileSync(new URL("ru.json", ipadWords), "utf8"));
 
@@ -43,7 +43,7 @@ test("every text the app names is in English and in Russian", () => {
 });
 
 test("every text the iPad app names is in English and in Russian, as it reads the web app's string files", () => {
-    const dir = new URL("../../ipad/App/MotiffLab/", import.meta.url);
+    const dir = new URL("../../src/ipad/App/MotiffLab/", import.meta.url);
     const keys = new Set();
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".swift"))) {
         const swift = readFileSync(new URL(name, dir), "utf8").replace(/^\s*\/\/\/.*$/gm, "");
@@ -55,7 +55,7 @@ test("every text the iPad app names is in English and in Russian, as it reads th
     }
     assert.ok(keys.size > 100, `only ${keys.size} keys found: the patterns no longer match`);
     const missing = [...keys].filter((key) => !((key in en && key in ru) || (key in ipadEn && key in ipadRu)));
-    assert.deepEqual(missing, [], "add these keys to wwwroot/i18n/en.json and ru.json (or ipad/App/Words), or stop naming them in the iPad app");
+    assert.deepEqual(missing, [], "add these keys to wwwroot/i18n/en.json and ru.json (or src/ipad/App/Words), or stop naming them in the iPad app");
 });
 
 test("the iPad's own words are in English and in Russian, Russian with its three plural forms", () => {

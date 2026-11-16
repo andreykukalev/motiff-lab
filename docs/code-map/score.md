@@ -1,4 +1,4 @@
-# Code map: the score's selection (`src/MotiffLab.Web/Scripts/score`, the iPad's `ipad/App/Web/score.js`)
+# Code map: the score's selection (`src/MotiffLab.Web/Scripts/score`, the iPad's `src/ipad/App/Web/score.js`)
 
 **Status (2026-11-16):** the web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`); these modules stay live in the web project's folder because the iPad bundles them, and iPad work owns them. The web's own callers are frozen.
 
@@ -24,7 +24,7 @@ posts what the player did to Swift. Node tests: `tests/web/selection-*.test.mjs`
 - `selection-layer.ts` (near 600 lines: add modules): band, dot handles, v0.6.1 gesture, menu place.
   Also `selection-handles.ts`, `selection-beats.ts`, `selection-menu.ts`, `menu-drag.ts`.
 
-## Swift side (ipad/App/MotiffLab)
+## Swift side (src/ipad/App/MotiffLab)
 
 - Page messages: `receivedPlace` (`chosen` with `places` → `chosenByPlace`, `picked`, `zoomSelection`); a refusal
   with the switch on puts the band back and says `selection.tooLong` / `selection.noNotes` (`softlyRefused`).

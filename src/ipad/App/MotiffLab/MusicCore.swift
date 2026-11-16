@@ -1,7 +1,7 @@
 import Foundation
 import MotiffLabCore
 
-/// The native music-core (ipad/Core): the facade of decision record 0020 through its five C functions. Everything
+/// The native music-core (src/ipad/Core): the facade of decision record 0020 through its five C functions. Everything
 /// musical the app shows comes from here (0019): import, phrases, facts, Try chips, variations, notation, playback
 /// and the project file. Every answer is the facade's JSON text.
 ///

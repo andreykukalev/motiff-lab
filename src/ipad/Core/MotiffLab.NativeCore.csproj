@@ -4,7 +4,7 @@
     music-core as a native library for the iPad app (decision records 0019 and 0020): the facade's five C functions,
     compiled with NativeAOT. `dotnet build` (in MotiffLab.slnx, so CI compiles the exports) builds it as a normal
     library; ./build.sh publishes it for the iPad and its simulator on a Mac. On Linux:
-      dotnet publish ipad/Core -c Release -r linux-x64 -o /tmp/core
+      dotnet publish src/ipad/Core -c Release -r linux-x64 -o /tmp/core
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -26,7 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+    <ProjectReference Include="..\..\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>
 
 </Project>

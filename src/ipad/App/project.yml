@@ -1,13 +1,13 @@
 # The Motiff Lab iPad app (decision record 0019): SwiftUI over the one C# music-core. XcodeGen makes
 # MotiffLab.xcodeproj from this file (not committed). First build the two frameworks:
-#   ipad/Core/build.sh        music-core with NativeAOT -> ipad/build/MotiffLabCore.xcframework
-#   ipad/Verovio/build.sh     Verovio from source       -> ipad/build/Verovio.xcframework, ipad/build/verovio-data
-# then run xcodegen in this folder (ipad/README.md).
+#   src/ipad/Core/build.sh        music-core with NativeAOT -> src/ipad/build/MotiffLabCore.xcframework
+#   src/ipad/Verovio/build.sh     Verovio from source       -> src/ipad/build/Verovio.xcframework, src/ipad/build/verovio-data
+# then run xcodegen in this folder (src/ipad/README.md).
 name: MotiffLab
 options:
   deploymentTarget:
     iOS: "17.0"
-  # No groups for the folders between the project and the files outside it (../../src, ../build): Xcode 27 refuses
+  # No groups for the folders between the project and the files outside it (../.., ../../../design, ../build): Xcode 27 refuses
   # to open a project where such a folder ends up in two groups.
   createIntermediateGroups: false
 # Sign-in (0014): Microsoft's MSAL, as a binary Swift package.
@@ -32,15 +32,15 @@ targets:
       - path: MotiffLab
       # The example piece, the interface's words and the design tokens are the web app's own files: Für Elise
       # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).
-      - path: ../../src/MotiffLab.Web/Playback/FurElise.musicxml
+      - path: ../../MotiffLab.Web/Playback/FurElise.musicxml
         buildPhase: resources
-      - path: ../../design/kit/tokens.css
+      - path: ../../../design/kit/tokens.css
         buildPhase: resources
       # The kit's faces, Source Sans 3 and Source Serif 4 (SIL Open Font License), registered at launch.
-      - path: ../../design/kit/fonts
+      - path: ../../../design/kit/fonts
         type: folder
         buildPhase: resources
-      - path: ../../src/MotiffLab.Web/wwwroot/i18n
+      - path: ../../MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources
       # What only the iPad says (version 0.5, «Импорт папки»), in English and Russian beside the web app's words.
@@ -52,30 +52,30 @@ targets:
       - path: Web
         type: folder
         buildPhase: resources
-      - path: ../../src/MotiffLab.Web/wwwroot/js/score
+      - path: ../../MotiffLab.Web/wwwroot/js/score
         type: folder
         buildPhase: resources
       # The piano roll in the drawer is the web app's too (Scripts/roll), with the token and theme modules it reads
       # (Scripts/layout, Scripts/storage).
-      - path: ../../src/MotiffLab.Web/wwwroot/js/roll
+      - path: ../../MotiffLab.Web/wwwroot/js/roll
         type: folder
         buildPhase: resources
-      - path: ../../src/MotiffLab.Web/wwwroot/js/layout
+      - path: ../../MotiffLab.Web/wwwroot/js/layout
         type: folder
         buildPhase: resources
-      - path: ../../src/MotiffLab.Web/wwwroot/js/storage
+      - path: ../../MotiffLab.Web/wwwroot/js/storage
         type: folder
         buildPhase: resources
       # The playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts): the score and the roll draw both
       # playheads from its viewOf, as the web does.
-      - path: ../../src/MotiffLab.Web/wwwroot/js/playback
+      - path: ../../MotiffLab.Web/wwwroot/js/playback
         type: folder
         buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
-      - path: ../../src/MotiffLab.Web/wwwroot/audio/piano
+      - path: ../../MotiffLab.Web/wwwroot/audio/piano
         type: folder
         buildPhase: resources
-      # Verovio's font data and licence (ipad/Verovio/build.sh), copied into the app as a folder.
+      # Verovio's font data and licence (src/ipad/Verovio/build.sh), copied into the app as a folder.
       - path: ../build/verovio-data
         type: folder
         buildPhase: resources
@@ -121,10 +121,10 @@ targets:
     sources:
       - path: MotiffLabTests
       # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
-      - path: ../../design/kit/elise.musicxml
+      - path: ../../../design/kit/elise.musicxml
         buildPhase: resources
       # The score page's contract (0031): the functions and messages score.js and the app agree on.
-      - path: ../../tests/contracts/score-page.json
+      - path: ../../../tests/contracts/score-page.json
         buildPhase: resources
     dependencies:
       - target: MotiffLab
