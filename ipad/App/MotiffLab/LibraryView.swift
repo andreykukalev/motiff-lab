@@ -15,10 +15,10 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
-    /// The device's settings, for the experiments' switches (Settings · Experimental).
+    /// The device's settings.
     @EnvironmentObject private var deviceSettings: DeviceSettings
     @State private var settings = false
-    /// The Reference's circle of fifths (an experiment), open over the library.
+    /// The Reference's circle of fifths, open over the library.
     @State private var reference = false
     @State private var adding = false
     @State private var opening = false
@@ -27,6 +27,8 @@ struct LibraryView: View {
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
+    @State private var summaryCache = SummaryCache()
+    @State private var reloads = 0
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
     /// Saving online and sync, on until the player turns it off in Settings (version 0.2).
@@ -51,9 +53,9 @@ struct LibraryView: View {
     @FocusState private var searching: Bool
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @State private var away: AwayPrompt?
-    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    /// «Импорт папки» (version 0.5): the folders imported, their review and «Держать на этом iPad».
     @StateObject private var folderImport = FolderImportModel()
-    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
+    private var importOn: Bool { true }
     /// «Распознать ноты» for several pieces: those picked while choosing (nil when not), and the batch's consent.
     @State private var chosen: Set<URL>?
     @State private var consenting = false
@@ -186,7 +188,7 @@ struct LibraryView: View {
                     if piece.isDocument {
                         PdfScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, openRead: { file, landing in await openFile(file, at: landing) })
                     } else {
-                        ScoreScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
+                        ScoreScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, reopen: piece.file.map { file in { landing in await openFile(file, at: landing) } })
                     }
                 }
                 .id(piece.id)
@@ -203,9 +205,11 @@ struct LibraryView: View {
                 let screensFile = ScreensHook.start()
                 #endif
                 await reload()
+                // Built again in a new interface language: the piece that was open comes back where it was.
+                if let again = InterfaceLanguage.shared.takeReopen() { await openFile(again.file, at: again.landing) }
                 await refreshOnline()
                 #if DEBUG
-                if let screensFile { await open(.success(screensFile)) }
+                if let screensFile { if ScreensHook.bothViews, let both = await ScreensHook.withNotes(screensFile) { await reload(); await openProject(both) } else { await open(.success(screensFile)) } }
                 #endif
             }
             // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
@@ -266,12 +270,10 @@ struct LibraryView: View {
             if !projects.isEmpty {
                 LibrarySearchField(search: $query.search, text: text, focus: $searching)
             }
-            if deviceSettings.isOn("experimental.reference") {
-                // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
-                Button(text["reference.open"]) { reference = true }
-                    .buttonStyle(DSButtonStyle(kind: .quiet))
-                    .accessibilityHint(text["reference.openHint"])
-            }
+            // The Reference: the circle of fifths in one tap.
+            Button(text["reference.open"]) { reference = true }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+                .accessibilityHint(text["reference.openHint"])
             Button {
                 adding = true
             } label: {
@@ -326,15 +328,13 @@ struct LibraryView: View {
         }
     }
 
-    /// The projects in Documents, and what music-core reads from each.
+    /// The projects in Documents, and what music-core reads from each; only the newest reload writes what it read.
     private func reload() async {
+        reloads += 1
+        let mine = reloads
         projects = ProjectFiles.list()
-        var read: [URL: PieceSummary] = [:]
-        for entry in projects {
-            if let summary = await PieceSummary.read(entry.url) {
-                read[entry.url] = summary
-            }
-        }
+        let read = await summaryCache.summaries(projects.map(\.url))
+        guard mine == reloads else { return }
         summaries = read
         shelve()
     }
@@ -462,7 +462,7 @@ struct LibraryView: View {
         }
     }
 
-    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    /// «Держать на этом iPad» beside a playlist's name.
     private var playlistToggle: ((String) -> AnyView)? {
         guard importOn else { return nil }
         return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }
@@ -502,7 +502,10 @@ struct LibraryView: View {
     }
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
+    /// Only the screen shown asks, and only once at a time (#582 item 2): a second press while the first was still opening
+    /// opened the piece twice, the second time closing in music-core the piece the first had just put on screen.
     private func switchView(from current: OpenPiece, to landing: Landing) async {
+        guard !opening, piece?.id == current.id else { return }
         // A PDF kept in the piece since it was opened is in its own file: the PDF view of the same piece.
         guard let file = current.other?.file ?? current.file else { return }
         await openFile(file, at: landing)
@@ -555,9 +558,6 @@ struct LibraryView: View {
         problem = nil
         switch await opener() {
         case .success(var opened):
-            if let earlier = piece {
-                await ClosedPieces.close(earlier.id)
-            }
             if let file {
                 opened.file = file
             } else if let title {
@@ -569,12 +569,15 @@ struct LibraryView: View {
                     problem = (error as? ProjectError)?.message ?? error.localizedDescription
                 }
             }
-            await reload()
+            // In a screen's place (a landing) only that file is read again; every project is read when the library shows again.
+            if landing != nil, let saved = opened.file { summaries[saved] = await PieceSummary.read(saved) } else { await reload() }
             if let saved = opened.file {
                 opened.other = OtherView.of(saved, own: opened.own, in: summaries)
                 opened.family = PieceFamily.of(saved, in: summaries)
             }
             opened.landing = ViewStates.landing(landing, for: opened)
+            // Closed only as its screen gives way: before, it was closed while the files were read and its screen stayed.
+            if let earlier = piece { await ClosedPieces.close(earlier.id) }
             piece = opened
         case .failure(let error):
             problem = error.message

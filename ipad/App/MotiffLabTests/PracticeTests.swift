@@ -2,7 +2,7 @@ import XCTest
 
 @testable import MotiffLab
 
-/// The practice experiments (Settings · Experimental) as the iPad reads music-core: the resume point that brings a piece
+/// The practice experiments as the iPad reads music-core: the resume point that brings a piece
 /// back where the player stopped (#327), one hand heard alone (#328) and a selection that snaps to beats (#349).
 final class PracticeTests: XCTestCase {
     private var piece: Int32 = 0

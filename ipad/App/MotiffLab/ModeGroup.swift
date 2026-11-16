@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The modes in the bar (version 0.5, the experiment Two playheads and modes; the web app's Score/ModeGroup.razor; the
+/// The modes in the bar (version 0.5; the web app's Score/ModeGroup.razor; the
 /// approved mockup v0.5.2, #479 items 21 and 23): Navigate, Select and Pen in one capsule (Edit notes lives in the piano roll),
 /// the chosen one with its icon and its name, the others with the icon alone, and H, S and P on a keyboard. No caption over it.
 struct ModeCapsule: View {
@@ -8,6 +8,8 @@ struct ModeCapsule: View {
     let text: UIText
     /// The modes this view does not have (Select on a PDF's pages), shown and not chosen.
     var unavailable: Set<InteractionMode> = []
+    /// Where the bar is short (TopBar, #582 item 2): the chosen mode by its icon alone, its name for VoiceOver.
+    var compact = false
     let choose: (InteractionMode) -> Void
 
     var body: some View {
@@ -16,6 +18,8 @@ struct ModeCapsule: View {
                 button(mode)
             }
         }
+        // The tint of the chosen mode is a capsule inside the capsule, never a square running past its ends (#582 item 3).
+        .controlShape(.capsule)
         .padding(2)
         .overlay(Capsule().strokeBorder(Color.ds("hairline")))
         .accessibilityElement(children: .contain)
@@ -30,11 +34,11 @@ struct ModeCapsule: View {
         } label: {
             HStack(spacing: 6) {
                 Icon(name: mode.icon, size: CGFloat.ds("icon-l"))
-                if on {
+                if on && !compact {
                     Text(text[mode.label]).dsType(.label).lineLimit(1).fixedSize()
                 }
             }
-            .padding(.horizontal, on ? CGFloat.ds("s-2") : 0)
+            .padding(.horizontal, on && !compact ? CGFloat.ds("s-2") : 0)
             .frame(minWidth: 40, minHeight: 40)
         }
         .buttonStyle(BarActionStyle(on: on))
@@ -55,10 +59,12 @@ struct ModeCapsule: View {
 struct ModeGroup: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    var compact = false
 
     var body: some View {
-        ModeCapsule(chosen: score.penOn ? .pen : score.mode ?? .navigate, text: text) { mode in
+        ModeCapsule(chosen: score.penOn ? .pen : score.mode, text: text, compact: compact) { mode in
             if mode == .pen {
+                if !score.penOn { score.pen.writeOnChoosing() }
                 score.penOn = true
             } else {
                 score.mode = mode

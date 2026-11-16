@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// «Импорт папки» in the library (version 0.5, behind `experimental.libraryImport`): the folders the player imported, the
+/// «Импорт папки» in the library (version 0.5): the folders the player imported, the
 /// review of one («Что нашлось» or «Проверить папку»), whether iOS still lets the app into each, and «Держать на этом
 /// iPad» for a playlist. Only reads the player's folders.
 @MainActor

@@ -10,8 +10,8 @@ const MENU_GAP = 14;
 export const NUMBER_HEIGHT = 16;
 
 /** The menu stays this far inside the window's sides, and below the bar at the top. */
-const MENU_MARGIN = 16;
-const MENU_TOP = 72;
+export const MENU_MARGIN = 16;
+export const MENU_TOP = 72;
 
 /**
  * The part of the window the drawers and sheets leave the menu: data-menu-clear="left" keeps it right of the element; any

@@ -67,6 +67,15 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
 
+    override init() {
+        super.init()
+        ProbeCounts.shared.add("pdf")
+    }
+
+    deinit {
+        ProbeCounts.shared.add("pdf", -1)
+    }
+
     /// The bookmark on the page under the bar, if any.
     var currentBookmark: PageBookmarkEntry? { bookmarks.first { $0.page == page } }
 
@@ -76,7 +85,11 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// Loads the PDF piece's pages and marks; it opens at `page` when given (from PDF | Notes), else where the player left it.
     func load(piece: Int32, text: UIText, page: Int? = nil) async {
         self.piece = piece
+        #if DEBUG
+        ScreensProbe.pdf = self
+        #endif
         let answers = await MusicCore.run { (MusicCore.call(piece: piece, "document"), MusicCore.call(piece: piece, "project")) }
+        ProbeCounts.shared.mark("document")
         guard let object = facadeObject(answers.0), object["error"] == nil,
               let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64),
               let read = PDFDocument(data: data), read.pageCount > 0 else {
@@ -100,6 +113,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         if (try? data.write(to: url, options: .atomic)) != nil { shareable = url }
         pageCount = read.pageCount
         document = read
+        ProbeCounts.shared.mark("pdfshown")
         markPages()
     }
 
@@ -306,6 +320,16 @@ struct PdfScreen: View {
     /// The PDF linked where it lies in Files (version 0.3), shown as it is: marks and bookmarks on its pages are kept with
     /// a copy in the piece, so the pen and the bookmark are not offered here.
     var linked = false
+    /// What the read-only tag says in place of «Файлы» (version 0.6: another original shown as a view of the switch).
+    var readOnlyNote: String? = nil
+    /// The piece's sources (version 0.6, 0030): the switch of all views and the Sources panel over the
+    /// pages, which opens here and leaves the PDF as it is (#582 item 4: it went to the notes to open the sheet there).
+    @StateObject private var sources = SourcesController()
+    @StateObject private var originals = OriginalsController()
+    /// Whether the switch of all views and Sources are on for this PDF: a PDF of the piece's own with notes.
+    @State private var sourcesOn = false
+    /// The Sources panel over the lower half of the pages.
+    @State private var sourcesOpen = false
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @ObservedObject private var settings = DeviceSettings.shared
@@ -326,6 +350,21 @@ struct PdfScreen: View {
     @State private var referenceOpen = false
     /// The floating bar's bottom edge as laid out, in the screen's space; nil before it is.
     @State private var measuredBarBottom: CGFloat?
+    /// The piece is being handed to its notes: a second press on the switch meanwhile does nothing (#582 item 2).
+    @State private var handingOver = false
+
+    /// With the sources on, the switch of all views is drawn from the first frame as the notes' screen handed it over
+    /// (SourcesHandover, v0.6.4 spec section 13): before, PDF | Notes showed until the sources were read.
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, openRead: ((URL, Landing) async -> Void)? = nil, linked: Bool = false, readOnlyNote: String? = nil) {
+        self.piece = piece
+        self.switchView = switchView
+        self.openRead = openRead
+        self.linked = linked
+        self.readOnlyNote = readOnlyNote
+        let handed = linked ? nil : SourcesHandover.layers(for: piece.file)
+        _sources = StateObject(wrappedValue: SourcesController(layers: handed))
+        _sourcesOn = State(initialValue: handed != nil && switchView != nil && piece.other != nil)
+    }
 
     var body: some View {
         GeometryReader { screen in
@@ -347,7 +386,7 @@ struct PdfScreen: View {
                         .accessibilityAddTraits(.isStaticText)
                 }
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
-                    bar
+                    bar(width: screen.size.width - 2 * CGFloat.ds("s-4"))
                     if pdf.penOn {
                         PdfPenPalette(pdf: pdf, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -375,6 +414,8 @@ struct PdfScreen: View {
                 }
             }
             .animation(.easeOut(duration: 0.2), value: metronomeOpen)
+            .overlay(alignment: .bottom) { sourcesPanel(height: screen.size.height / 2) }
+            .animation(.easeOut(duration: 0.2), value: sourcesOpen)
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $readingOpen, onDismiss: {
@@ -383,7 +424,7 @@ struct PdfScreen: View {
                 settingsOpen = true
             }
         }) {
-            if pdf.isPhotos && DeviceSettings.shared.isOn("experimental.photoPages") {
+            if pdf.isPhotos {
                 PhotoReadingPanel(reader: photos, pdf: pdf, address: scanAddress, text: text) { read in
                     readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
                 } open: { musicXml, engine, pages, reports in
@@ -407,11 +448,16 @@ struct PdfScreen: View {
             pdf.inkable = !linked
             pdf.family = piece.family
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
+            await readSourceLayers()
             metronome.load(piece: pdf.projectId)
             // Handed from the notes, the metronome may click already (#521 section 15): its pill shows with it.
             if metronome.running { metronomeOpen = true }
         }
+        // A new interface language saves the piece and opens it again at this page (InterfaceLanguage).
+        .handsOver(piece: piece.id) { await handOverForLanguage() }
         .onDisappear {
+            // The Sources panel's way back held this screen, its PDF and controllers with it (v0.6.4 spec section 11).
+            sources.reopen = nil
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
             metronome.stop()
@@ -428,11 +474,26 @@ struct PdfScreen: View {
         }
     }
 
-    private var bar: some View {
-        // Recognise notes with its word where the whole bar fits, else its icon alone.
-        ViewThatFits(in: .horizontal) {
-            barContent(compact: false)
-            barContent(compact: true)
+    private func bar(width: CGFloat) -> some View {
+        TopBar(width: width, pages: pageText) {
+            barLeading
+            if let sourceLayers, toNotes != nil {
+                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
+                SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
+                SourcesButton(open: sourcesOpen, text: text, action: openSources)
+            } else if let toNotes {
+                PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
+            } else {
+                Tag(text: text["pdf.title"], kind: .assumed)
+            }
+            // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
+            if linked { Tag(text: readOnlyNote ?? text["originals.linkFiles"], kind: .assumed) }
+        } actions: {
+            readNotesButton(compact: false)
+            barActions
+        } compact: {
+            readNotesButton(compact: true)
+            barActions
         }
         // Where it ends, for the pages to rest below it (#495 UX-12).
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(pdfScreenSpace)).maxY } action: { measuredBarBottom = $0 }
@@ -450,43 +511,26 @@ struct PdfScreen: View {
         return { Task { await showNotes() } }
     }
 
-    /// Laid out as the score's bar (ScoreBar, #479 item 13): Back, the Contents, the title and PDF | Notes in the same places
-    /// in both views, then the pages in view, and this view's own actions at the right.
-    private func barContent(compact: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            barLeading
-            if let toNotes {
-                PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
-            } else {
-                Tag(text: text["pdf.title"], kind: .assumed)
-            }
-            if let pageText { BarPages(text: pageText) }
-            // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
-            if linked { Tag(text: text["originals.linkFiles"], kind: .assumed) }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
-            if let readNotesAction, pdf.pageCount > 0 {
-                Button(action: readNotesAction) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "roll", size: CGFloat.ds("icon-l"))
-                        if !compact {
-                            Text(text["pdf.readNotes"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
-                        }
-                        if hosted { Tag(text: "Pro", kind: .saved) }
+    /// Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found):
+    /// with its word where the bar has room, else its icon alone.
+    @ViewBuilder private func readNotesButton(compact: Bool) -> some View {
+        if let readNotesAction, pdf.pageCount > 0 {
+            Button(action: readNotesAction) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "roll", size: CGFloat.ds("icon-l"))
+                    if !compact {
+                        Text(text["pdf.readNotes"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
                     }
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: CGFloat.ds("h-control"))
+                    if hosted { Tag(text: "Pro", kind: .saved) }
                 }
-                .buttonStyle(BarActionStyle(on: readingOpen))
-                .disabled(pdf.original == nil)
-                .accessibilityLabel(text["pdf.readNotes"])
-                .accessibilityValue(hosted ? "Pro" : "")
+                .padding(.horizontal, CGFloat.ds("s-2"))
+                .frame(height: CGFloat.ds("h-control"))
             }
-            barActions
+            .buttonStyle(BarActionStyle(on: readingOpen))
+            .disabled(pdf.original == nil)
+            .accessibilityLabel(text["pdf.readNotes"])
+            .accessibilityValue(hosted ? "Pro" : "")
         }
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
     }
 
     /// Back, the Contents and the title, which opens them too, as on the score.
@@ -531,34 +575,21 @@ struct PdfScreen: View {
         .modifier(MetronomeHold(metronome: metronome, text: text, below: true, toggle: toggleMetronome))
         if !linked {
             PaletteDivider()
-            if settings.isOn("experimental.playheads") {
-                // The score's modes: nothing on a PDF's pages is selected or edited, so only Navigate and Pen choose.
-                ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select]) { mode in
-                    pdf.penOn = mode == .pen
-                }
-            } else {
-                Button {
-                    pdf.penOn.toggle()
-                } label: {
-                    Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-                }
-                .buttonStyle(BarActionStyle(on: pdf.penOn))
-                .accessibilityLabel(text["bar.pen"])
-                .accessibilityHint(text["pencil.padHint"])
-                .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
+            // The score's modes: nothing on a PDF's pages is selected or edited, so only Navigate and Pen choose.
+            ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select]) { mode in
+                if mode == .pen && !pdf.penOn { pdf.pen.writeOnChoosing() }
+                pdf.penOn = mode == .pen
             }
         }
         PaletteDivider()
-        if settings.isOn("experimental.reference") {
-            Button {
-                referenceOpen = true
-            } label: {
-                Icon(name: "keysig", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: referenceOpen))
-            .accessibilityLabel(text["reference.open"])
-            .accessibilityHint(text["reference.openHint"])
+        Button {
+            referenceOpen = true
+        } label: {
+            Icon(name: "keysig", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
         }
+        .buttonStyle(BarActionStyle(on: referenceOpen))
+        .accessibilityLabel(text["reference.open"])
+        .accessibilityHint(text["reference.openHint"])
         Button {
             more.toggle()
         } label: {
@@ -582,12 +613,12 @@ struct PdfScreen: View {
     private func save() {
         guard let file = piece.file else { return }
         let id = piece.id
-        Task { try? await ProjectFiles.save(piece: id, to: file) }
+        BackgroundTime.run { try? await ProjectFiles.save(piece: id, to: file) }
     }
 
-    /// «Пьесы в этом файле» from the Contents, with the experiment on, for a PDF kept in the piece.
+    /// «Пьесы в этом файле» from the Contents, for a PDF kept in the piece.
     private var openParts: (() -> Void)? {
-        guard !linked, DeviceSettings.shared.isOn("experimental.pieces") else { return nil }
+        guard !linked else { return nil }
         return {
             contentsOpen = false
             partsOpen = true
@@ -622,14 +653,14 @@ struct PdfScreen: View {
 
     /// Sends the PDF to the scan server and puts the notes it read into this same piece (testing item 16), which opens as
     /// notes where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
-    /// With «Фото страниц» on, the server's report on the pages goes with the notes (v0.4). A PDF longer than the server
+    /// The server's report on the pages goes with the notes (v0.4, «Фото страниц»). A PDF longer than the server
     /// reads at once goes in parts, with the panel's bar (issue #479).
     private func readNotes() async -> String? {
         guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
         case .success(let read):
-            let reports = DeviceSettings.shared.isOn("experimental.photoPages") ? read.reports : nil
+            let reports = read.reports
             return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount), reports: reports)
         }
     }
@@ -675,13 +706,98 @@ struct PdfScreen: View {
         return nil
     }
 
+    /// A new interface language (InterfaceLanguage): the PDF's place kept, the piece saved and closed, to open again at the
+    /// page under the bar; nil without a project file or while handed over already.
+    private func handOverForLanguage() async -> InterfaceLanguage.Reopen? {
+        guard let file = piece.file, !handingOver else { return nil }
+        handingOver = true
+        metronome.stop()
+        pdf.keepView()
+        try? await ProjectFiles.save(piece: piece.id, to: file)
+        await ClosedPieces.close(piece.id)
+        return InterfaceLanguage.Reopen(file: file, landing: .page(max(1, pdf.page)))
+    }
+
     /// The notes read from the PDF as the player left them (#511 section 10), or the first time where the page under the bar
     /// starts in them, once the piece is saved and the PDF's place kept (the web app's `ShowNotesAsync`).
     private func showNotes() async {
-        guard let other = piece.other, let switchView else { return }
+        guard let other = piece.other, let switchView, !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
+        ProbeCounts.shared.begin()
         pdf.keepView()
+        if sourceLayers != nil { SourcesHandover.give(sources.layers, to: other.file) }
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+        ProbeCounts.shared.mark("saved")
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
+    }
+
+    /// The first PDF's view of the switch: the one this screen shows.
+    static let documentView = "src_pdf"
+
+    /// The piece's views for the switch of all views, as music-core lists them for this iPad; nil while the piece has no
+    /// notes, and PDF | Notes stays as it was.
+    private var sourceLayers: SourceLayers? {
+        sourcesOn && sources.layers.working != nil ? sources.layers : nil
+    }
+
+    /// The piece's sources (version 0.6, 0030), for a PDF whose notes the library holds; then what the screen before handed
+    /// over: the toast of what was just done in the panel.
+    private func readSourceLayers() async {
+        guard !linked, toNotes != nil else {
+            sourcesOn = false
+            sourcesOpen = false
+            return
+        }
+        sources.reopen = { await reopenHere() }
+        await sources.load(piece: piece.id, file: piece.file)
+        SourcesHandover.drop(piece.file)
+        await originals.load(piece)
+        sourcesOn = true
+        if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
+    }
+
+    /// The Sources panel over the lower half of the pages (#582 item 4), as on the score, and the toast of what it did.
+    @ViewBuilder private func sourcesPanel(height: CGFloat) -> some View {
+        VStack(spacing: CGFloat.ds("s-2")) {
+            if let toast = sources.toast, sourcesOn {
+                SourcesToastView(sources: sources, toast: toast, text: text).transition(.opacity)
+            }
+            if sourcesOpen, sourceLayers != nil {
+                SourcesSheet(
+                    sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
+                    close: { sourcesOpen = false },
+                    open: { view in
+                        sourcesOpen = false
+                        pickView(view)
+                    }
+                )
+                .modifier(BottomPanel(height: height))
+            }
+        }
+        .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-6"))
+    }
+
+    /// The piece opened again in this screen's place, at the page under the bar, as «Сделать рабочими» or the toast's Undo
+    /// has just left its project file: the PDF view is kept for it and nothing more is written to the file.
+    private func reopenHere() async {
+        guard let openRead, let file = piece.file else { return }
+        pdf.keepView()
+        await openRead(file, .page(max(1, pdf.page)))
+    }
+
+    /// A view picked in the switch: the notes' screen shows it once the piece opens there, as only it holds the notes.
+    private func pickView(_ view: SourceLayers.ViewEntry) {
+        guard view.id != PdfScreen.documentView else { return }
+        if view.id != sourceLayers?.working, let file = piece.other?.file ?? piece.file {
+            SourcesHandover.show(view.id, on: file)
+        }
+        Task { await showNotes() }
+    }
+
+    /// Sources from the PDF: its panel opens over the pages, and the PDF stays as it is (#582 item 4).
+    private func openSources() {
+        sourcesOpen.toggle()
     }
 }
 
@@ -689,7 +805,7 @@ struct PdfScreen: View {
 struct PdfContents: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
-    /// Opens «Пьесы в этом файле», with the experiment on.
+    /// Opens «Пьесы в этом файле».
     var parts: (() -> Void)?
     let go: (Int) -> Void
 

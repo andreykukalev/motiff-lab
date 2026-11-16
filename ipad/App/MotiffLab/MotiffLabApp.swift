@@ -9,6 +9,8 @@ struct MotiffLabApp: App {
     @StateObject private var account = Account()
     /// The player's settings on this iPad (0018 section 10): the score and the roll follow them, and so does the appearance.
     @StateObject private var settings = DeviceSettings.shared
+    /// The interface's language, picked in Settings: the screens are built again in a new one (InterfaceLanguage).
+    @StateObject private var language = InterfaceLanguage.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -19,6 +21,12 @@ struct MotiffLabApp: App {
     var body: some Scene {
         WindowGroup {
             LibraryView()
+                // Built again in the language the player picks, the piece open then coming back where it was.
+                .id(language.id)
+                #if DEBUG
+                // What the switch test reads (ScreensProbe), over whichever screen shows; not in the screenshot walk.
+                .overlay(alignment: .topLeading) { if ScreensHook.bothViews { ScreensProbeView() } }
+                #endif
                 .environmentObject(account)
                 .environmentObject(settings)
                 .preferredColorScheme(settings.colorScheme)
@@ -36,6 +44,8 @@ struct MotiffLabApp: App {
                     ScoreWebView.prewarm()
                     // The screen stays on while the app is open: a player reads the score with their hands on the keys (0019).
                     UIApplication.shared.isIdleTimerDisabled = true
+                    // A tap outside a field puts the keyboard away, in every field from the first (TypingFocus).
+                    _ = Typing.shared
                 }
         }
     }

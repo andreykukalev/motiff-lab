@@ -681,33 +681,42 @@ struct SegmentedChoice<Value: Hashable>: View {
                 Button {
                     choose(value)
                 } label: {
-                    ZStack {
-                        // The word in the chosen weight, unseen, holds the option's width either way.
-                        Text(name)
-                            .font(DesignTokens.font(weight: 600, size: 13, relativeTo: .callout))
-                            .lineLimit(1)
-                            .hidden()
-                            .accessibilityHidden(true)
-                        Text(name)
-                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
-                            .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, CGFloat.ds("s-3"))
-                    .frame(maxHeight: .infinity)
-                    .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                    .contentShape(Capsule())
+                    // The word in the chosen weight holds the option's width either way.
+                    SteadyWord(text: name, on: on)
+                        .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                        .modifier(SegmentFill(on: on))
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
-        .padding(2)
-        .frame(height: CGFloat.ds("h-compact"))
-        .background(Color.ds("surface"), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
-        .fixedSize()
-        .accessibilityElement(children: .contain)
+        .modifier(SegmentedCapsule())
         .accessibilityLabel(label)
+    }
+}
+
+/// An option of a segmented choice (ds.css `.seg button`): the chosen one on the accent's strong tint.
+struct SegmentFill: ViewModifier {
+    let on: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .frame(maxHeight: .infinity)
+            .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
+            .contentShape(Capsule())
+    }
+}
+
+/// The capsule a segmented choice sits in (ds.css `.seg`), at the width of its options.
+struct SegmentedCapsule: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(2)
+            .frame(height: CGFloat.ds("h-compact"))
+            .background(Color.ds("surface"), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+            .fixedSize()
+            .accessibilityElement(children: .contain)
     }
 }

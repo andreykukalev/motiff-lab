@@ -79,15 +79,16 @@ export function reachedFrom(press: number, x: number, drawn: readonly DrawnAt[],
 
 /**
  * Where a roll playhead dragged to a tick goes: the black one anywhere in the piece, the blue one inside the selection, each
- * on the sixteenth grid of the bar it then lies in (bars in time order, each [start, end)); undefined for the blue one
- * without a selection.
+ * on the sixteenth grid of the bar it then lies in (bars in time order, each [start, end)), or on a note's start
+ * (`onsets`, in time order) where that is nearer (#582 item 12); undefined for the blue one without a selection.
  */
-export function laneDragTick(handle: Handle, tick: number, bars: readonly Span[], selection: Span | null, end: number): number | undefined {
+export function laneDragTick(handle: Handle, tick: number, bars: readonly Span[], selection: Span | null, end: number,
+    onsets: readonly number[] = []): number | undefined {
     if (handle === "blue" && selection === null) {
         return undefined;
     }
     const limits = handle === "blue" && selection !== null ? selection : { start: 0, end: Math.max(1, end) };
     const inside = Math.min(Math.max(tick, limits.start), limits.end - 1);
     const bar = barOf(bars, inside);
-    return bar === undefined ? Math.round(inside) : snapTick(inside, bar, limits);
+    return bar === undefined ? Math.round(inside) : snapTick(inside, bar, limits, onsets);
 }

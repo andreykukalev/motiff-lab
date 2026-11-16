@@ -2,19 +2,12 @@ import XCTest
 
 @testable import MotiffLab
 
-/// Practice view (#533 11, PracticeView.swift), the web app's rule (Scripts/layout/practice-view.ts) on the iPad: one action in
-/// and out, a tap showing the controls for a few seconds, and what shows in each state.
+/// Practice view (#533 11, PracticeView.swift), the web app's rule (Scripts/layout/practice-view.ts) on the iPad: a tap showing
+/// the controls for a few seconds, and what shows in each state; since #582 item 10 the selection controls and the playback
+/// controls are two visibilities, each changed without the other, and since v0.6.4 (spec 9) only their own two switches set
+/// them (no press hides or shows both), kept on the device.
 final class PracticeViewTests: XCTestCase {
     private let start = Date(timeIntervalSinceReferenceDate: 1000)
-
-    func testOneActionEntersAndTheSameLeavesShowingNoControls() {
-        let on = PracticeView().after(.toggle, at: start)
-        XCTAssertTrue(on.on)
-        XCTAssertEqual(on.shown(at: start), .on)
-        XCTAssertEqual(on.after(.toggle, at: start), PracticeView())
-        XCTAssertEqual(PracticeView().after(.enter, at: start), PracticeView(on: true))
-        XCTAssertEqual(on.after(.leave, at: start), PracticeView())
-    }
 
     func testATapShowsTheControlsForAFewSecondsThenTheyHide() {
         let tapped = PracticeView(on: true).after(.tap, at: start)
@@ -46,39 +39,114 @@ final class PracticeViewTests: XCTestCase {
         XCTAssertEqual(PracticeView().revealLeft(at: start), 0)
     }
 
-    func testTheBarsButtonIsLitWhileTheMenuAndTheControlsShowAndDarkInPracticeView() {
-        XCTAssertTrue(PracticeView.lit(.off), "lit: the selection menu and the controls show")
-        XCTAssertFalse(PracticeView.lit(.on), "dark: practice view, they are hidden")
-        XCTAssertFalse(PracticeView.lit(.reveal), "dark: practice view's own controls are not the menu")
-    }
-
-    func testEveryWayInAndOutMovesTheButtonWithWhatShows() {
-        // The bar's button and the controls' Leave (toggle), the menu's Hide (enter), «Выйти из практики» (leave), a tap
-        // and the controls' time: the button follows the one state, never a flag of its own.
-        var view = PracticeView()
-        let ways: [(PracticeView.Event, Bool)] = [(.toggle, false), (.tap, false), (.hide, false), (.toggle, true), (.enter, false), (.touch, false), (.leave, true), (.tap, true)]
-        for (event, lit) in ways {
-            view = view.after(event, at: start)
-            XCTAssertEqual(PracticeView.lit(view.shown(at: start, focused: false)), lit, "after \(event)")
-            XCTAssertEqual(PracticeView.lit(view.shown(at: start, focused: false)), PracticeView.chrome(view.shown(at: start, focused: false)).menu)
-        }
-    }
-
     func testExpandShowsTheNormalWorkspaceAndLeavingItShowsPracticeViewAgain() {
-        let on = PracticeView(on: true)
+        let on = PracticeView(on: true, selectionHidden: true)
         XCTAssertEqual(on.shown(at: start, focused: true), .off, "Expand has its own bar and pill")
-        XCTAssertTrue(PracticeView.lit(on.shown(at: start, focused: true)))
+        XCTAssertTrue(on.selectionShown(focused: true))
         XCTAssertEqual(on.shown(at: start, focused: false), .on, "left, practice view is as it was")
-        XCTAssertFalse(PracticeView.lit(on.shown(at: start, focused: false)))
+        XCTAssertFalse(on.selectionShown(focused: false), "left, the selection controls are hidden again")
         XCTAssertEqual(PracticeView().shown(at: start, focused: false), .off)
     }
 
     func testPracticeViewHidesTheMenuThePillTheBluePlayheadAndTheHintsAndKeepsTheBlackPlayhead() {
         let normal = PracticeView.chrome(.off)
         XCTAssertEqual(normal, PracticeView.Chrome(menu: true, transport: true, selectionHead: true, pieceHead: true, loopStrip: true, hints: true, controls: false))
-        let on = PracticeView.chrome(.on)
+        // Both switches off: both groups hidden.
+        let on = PracticeView(on: true, selectionHidden: true).chrome(at: start, focused: false)
         XCTAssertEqual(on, PracticeView.Chrome(menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: false))
-        let shown = PracticeView.chrome(.reveal)
+        let shown = PracticeView.chrome(.reveal, selectionShown: false)
         XCTAssertEqual(shown, PracticeView.Chrome(menu: false, transport: false, selectionHead: false, pieceHead: true, loopStrip: false, hints: false, controls: true))
+    }
+
+    /// #582 item 10: both shown, both hidden, playback without selection, selection without playback, from the list's two
+    /// switches; what each group shows follows its own state only.
+    func testTheTwoVisibilitiesGiveAllFourCombinations() {
+        for selection in [true, false] {
+            for playback in [true, false] {
+                let view = PracticeView()
+                    .after(.selection(shown: selection), at: start)
+                    .after(.playback(shown: playback), at: start)
+                let chrome = view.chrome(at: start, focused: false)
+                let combination = "selection \(selection), playback \(playback)"
+                XCTAssertEqual(chrome.menu, selection, combination)
+                XCTAssertEqual(chrome.hints, selection, combination)
+                XCTAssertEqual(chrome.transport, playback, combination)
+                XCTAssertEqual(chrome.selectionHead, playback, combination)
+                XCTAssertEqual(chrome.loopStrip, playback, combination)
+                XCTAssertTrue(chrome.pieceHead, combination)
+                XCTAssertEqual(view.hiddenKeys.count, (selection ? 0 : 1) + (playback ? 0 : 1), combination)
+            }
+        }
+    }
+
+    /// #582 item 10: changing one visibility never changes the other, nor do a tap, a touch or the controls' time.
+    func testChangingOneVisibilityNeverChangesTheOther() {
+        let states = [
+            PracticeView(), PracticeView(on: true), PracticeView(selectionHidden: true), PracticeView(on: true, selectionHidden: true),
+            PracticeView(on: true, revealUntil: start.addingTimeInterval(2), selectionHidden: true),
+        ]
+        for state in states {
+            for shown in [true, false] {
+                XCTAssertEqual(state.after(.selection(shown: shown), at: start).on, state.on, "selection \(shown) from \(state)")
+                XCTAssertEqual(state.after(.selection(shown: shown), at: start).revealUntil, state.revealUntil)
+                XCTAssertEqual(state.after(.playback(shown: shown), at: start).selectionHidden, state.selectionHidden, "playback \(shown) from \(state)")
+            }
+            for event in [PracticeView.Event.tap, .touch, .hide] {
+                XCTAssertEqual(state.after(event, at: start.addingTimeInterval(1)).selectionHidden, state.selectionHidden, "\(event) from \(state)")
+            }
+        }
+        // The selection menu's Hide and the controls' «Выйти из практики» are one group each.
+        let menuHidden = PracticeView(on: true).after(.selection(shown: false), at: start)
+        XCTAssertEqual(menuHidden, PracticeView(on: true, selectionHidden: true))
+        XCTAssertEqual(PracticeView(on: true, selectionHidden: true).after(.playback(shown: true), at: start), PracticeView(selectionHidden: true))
+    }
+
+    /// v0.6.4 spec 9: each switch, turned any number of times in any order, ends as it was last set, whatever the other
+    /// one did; nothing turns either off on its own (the reported "unchecks itself").
+    func testEachSwitchKeepsWhatItWasLastSet() {
+        var view = PracticeView()
+        var selection = true
+        var playback = true
+        let presses: [(Bool, Bool)] = [(true, false), (false, false), (true, true), (false, true), (true, false), (true, false), (false, true), (false, false), (true, true)]
+        for (isSelection, shown) in presses {
+            view = view.after(isSelection ? .selection(shown: shown) : .playback(shown: shown), at: start)
+            if isSelection { selection = shown } else { playback = shown }
+            // A tap on the page, a touch and the controls' time between presses change neither.
+            view = view.after(.tap, at: start).after(.touch, at: start).after(.hide, at: start)
+            XCTAssertEqual(!view.selectionHidden, selection)
+            XCTAssertEqual(!view.on, playback)
+            let chrome = view.chrome(at: start, focused: false)
+            XCTAssertEqual(chrome.menu, selection, "the switch says what shows")
+            XCTAssertEqual(chrome.transport, playback, "the switch says what shows")
+        }
+    }
+
+    /// v0.6.4 spec 9: the two switches are kept on the device, so a Notes screen made again (PDF ↔ Notes, the roll, another
+    /// piece) shows them as the player left them; both shown the first time; practice view's moment of controls not kept.
+    func testTheTwoVisibilitiesAreKeptOnTheDevice() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "PracticeViewTests"))
+        defaults.removePersistentDomain(forName: "PracticeViewTests")
+        XCTAssertEqual(PracticeView.saved(in: defaults), PracticeView(), "both shown the first time")
+        for selection in [true, false] {
+            for playback in [true, false] {
+                let view = PracticeView().after(.selection(shown: selection), at: start).after(.playback(shown: playback), at: start).after(.tap, at: start)
+                view.keep(in: defaults)
+                XCTAssertEqual(PracticeView.saved(in: defaults), PracticeView(on: !playback, selectionHidden: !selection), "selection \(selection), playback \(playback)")
+            }
+        }
+        defaults.removePersistentDomain(forName: "PracticeViewTests")
+    }
+
+    /// v0.6.4 spec 9: the switches have words in both languages, and the button says which groups are hidden.
+    func testTheSwitchesHaveWordsAndTheButtonNamesWhatIsHidden() {
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            for key in ["practice.list", "practice.selectionControls", "practice.playbackControls", "practice.listHint", "practice.switchesHint", "practice.leave"] {
+                XCTAssertNotEqual(text[key], key, "\(key) in \(language)")
+            }
+        }
+        XCTAssertEqual(PracticeView().hiddenKeys, [])
+        XCTAssertEqual(PracticeView(on: true, selectionHidden: true).hiddenKeys, ["practice.selectionControls", "practice.playbackControls"])
+        XCTAssertEqual(PracticeView(selectionHidden: true).hiddenKeys, ["practice.selectionControls"])
     }
 }

@@ -43,10 +43,14 @@ enum MusicCore {
     /// Runs `work` on the core's thread, after any call before it, and hands its result back.
     static func run<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
         await withCheckedContinuation { continuation in
+            ProbeCounts.shared.add("pending")
             let thread = Thread {
                 lock.lock()
+                let began = DispatchTime.now().uptimeNanoseconds
                 let result = work()
+                ProbeCounts.shared.called(Int((DispatchTime.now().uptimeNanoseconds - began) / 1_000_000))
                 lock.unlock()
+                ProbeCounts.shared.add("pending", -1)
                 continuation.resume(returning: result)
             }
             thread.stackSize = 8 << 20

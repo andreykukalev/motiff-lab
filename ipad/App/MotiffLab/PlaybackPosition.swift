@@ -1,13 +1,15 @@
 import Foundation
 
-/// The playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2; Settings · Experimental, «Два
+/// The playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2; «Два
 /// указателя и режимы»): one position in the engine, two playheads on screen, one Play button and the selection's Цикл. The
 /// engine's position is the black playhead, the piece's place; the blue one stores nothing, it is the position held to the
 /// selection; Цикл is the promise that while it is on, playback keeps the position inside the selection.
 ///
 /// The Swift port of the reference, src/MotiffLab.Web/Scripts/playback/playback-model.ts: the same pure rules (the
 /// design's T1–T16, the drag of a playhead included), run on the same case file, MotiffLabTests/Golden/playback-model.json
-/// (PlaybackPositionTests). Player owns the selection and Цикл and sends the steps to the engine.
+/// (PlaybackPositionTests), but for one rule of the iPad's own: a selection changed while Цикл plays takes the position to
+/// its start when it does not hold it (`select`, Golden/playback-model-ipad.json). Player owns the selection and Цикл and
+/// sends the steps to the engine.
 enum PlaybackModel {
     /// The selection and Цикл are the player's own, the tick and the transport the engine's.
     struct State: Equatable {
@@ -39,8 +41,9 @@ enum PlaybackModel {
         case seekInLoop(Double)
         /// T14: a playhead's handle taken by the pen or a finger: playback stands while it is held.
         case grab
-        /// T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts).
-        case drag(Handle, to: Double)
+        /// T15: the held playhead dragged to a tick the view already put on the grid and in its bar (playhead-drag.ts); with
+        /// `jump`, put there by a long press (#582 item 12): it goes there without sounding what lies between.
+        case drag(Handle, to: Double, jump: Bool = false)
         /// T16: a playhead let go where the position now is, playing on when it played as the gesture began.
         case release(Handle, resume: Bool)
     }
@@ -123,8 +126,8 @@ enum PlaybackModel {
             return seekInLoop(state, to: at)
         case .grab:
             return grab(state)
-        case .drag(let handle, let at):
-            return drag(state, handle, to: at)
+        case .drag(let handle, let at, let jump):
+            return drag(state, handle, to: at, jump: jump)
         case .release(let handle, let resume):
             return release(state, handle, resume: resume)
         }
@@ -160,9 +163,11 @@ enum PlaybackModel {
     }
 
     /// T9 a selection appears: Цикл turns on (design question В2); T10 it changes: Цикл as it was; T11 it goes: nothing
-    /// loops, Цикл is kept. The engine loops the new selection while Цикл is on; the position never moves, playing or not.
-    /// Playing already past the new selection's end, the loop can never catch the position and the engine plays on through
-    /// the piece: Цикл is off then, so it shows as off (#521 5); before the selection it waits to catch it and stays on.
+    /// loops, Цикл is kept. The engine loops the new selection while Цикл is on. Stopped, the position stays (Play starts at
+    /// the selection's start, T2). The iPad's own rule (v0.6.3, #608 item 3, the lead's decision reversing #521 5 here; the
+    /// web's reference keeps it): playing with Цикл on, Цикл follows the selection, so a position the new selection does not
+    /// hold, behind it or ahead of it, goes to its start and the selection loops from there; one it holds plays on.
+    /// Golden/playback-model-ipad.json holds these cases in place of the shared ones they replace.
     private static func select(_ state: State, _ selection: Range<Double>?) -> Decision {
         guard selection != state.selection else { return (state, []) }
         var after = state
@@ -170,10 +175,11 @@ enum PlaybackModel {
         if state.selection == nil && selection != nil {
             after.loop = true
         }
-        if let selection, playing(state.transport), state.tick >= selection.upperBound {
-            after.loop = false
-        }
         if let wanted = engineLoop(after) {
+            if playing(state.transport) && !wanted.contains(state.tick) {
+                after.tick = wanted.lowerBound
+                return (after, [.loop(wanted), .seek(wanted.lowerBound)])
+            }
             return (after, [.loop(wanted)])
         }
         let steps: [TransportStep] = engineLoop(state) != nil ? [.loopOff] : []
@@ -212,7 +218,7 @@ enum PlaybackModel {
     /// T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
     /// the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
     /// place is where the position already is. The engine scrubs there: the notes whose starts it passes sound (#495 UX-09).
-    private static func drag(_ state: State, _ handle: Handle, to at: Double) -> Decision {
+    private static func drag(_ state: State, _ handle: Handle, to at: Double, jump: Bool) -> Decision {
         var to = max(0, at)
         if handle == .blue {
             guard let selection = state.selection else { return (state, []) }
@@ -221,7 +227,9 @@ enum PlaybackModel {
         guard to != state.tick else { return (state, []) }
         var after = state
         after.tick = to
-        return (after, [.scrub(from: state.tick, to: to)])
+        // Put down by a long press it seeks: nothing it jumped over sounds, and the drag's first move sounds the note it leaves.
+        let step: TransportStep = jump ? .seek(to) : .scrub(from: state.tick, to: to)
+        return (after, [step])
     }
 
     /// T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12);
@@ -303,5 +311,16 @@ struct BarBeats: Equatable, Sendable {
             return Mark(at: at, place: BarBeat(bar: bar, beat: number))
         }
         return BarBeats(marks: marks)
+    }
+}
+
+/// What the score's page is told of the selection for its playheads (`motiff.playheads`, ScoreScreen.syncPlayheads): the span
+/// the blue playhead keeps to and, narrowed to a hand (v0.6.2), that hand, whose staff alone the band and the blue playhead
+/// cover (v0.6.3, #608 item 3).
+enum PlayheadsShown {
+    static func selection(_ range: Range<Double>, hand: String?) -> [String: Any] {
+        var selection: [String: Any] = ["start": range.lowerBound, "end": range.upperBound]
+        if let hand { selection["hand"] = hand }
+        return selection
     }
 }

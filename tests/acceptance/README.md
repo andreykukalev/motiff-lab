@@ -32,7 +32,7 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 | `scan-result.musicxml` | What a scan server might read from a page: 3 bars in 4/4, bar 2 one beat too long | Written for these scenarios |
 | `v12-paterlini-all-my-joy.motiff.json`, `v12-einaudi-santiago.motiff.json` | Project files of version 12 that Andrei made in the app, with synthetic MIDI | Copies of the #293 golden files (`tests/MotiffLab.MusicCore.Tests/Golden/README.md`) |
 | `v15-worked.motiff.json` | A project file of version 15 holding every kind of entity a note piece keeps | A copy of the #293 golden file |
-| `v16-future.motiff.json` | The version 15 file raised to version 16, with unknown fields and values | A copy of the #293 golden file |
+| `v17-future.motiff.json` | The version 15 file raised to version 17, with unknown fields and values: newer than every build, before and after the project file's version 16 (0.6) | The #293 golden file `v16-future.motiff.json` with its version raised to 17 |
 
 ## The scenarios
 
@@ -47,7 +47,7 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 | g | Asks for a variation the catalogue does not have | Refused with `badRequest`; the variation tried before and its sound unchanged | The facade's contract (a failure leaves the piece as it was); since contract 10 no call takes an operation's parameters, so this replaces "an out-of-range parameter", as Andrei chose (2026-11-11, #310) |
 | h | Saves a project with a selection and a variation, reopens it | The same id, selection, notes, variation steps and sound; saved again unchanged, the same file | The rule S1-P1 (the project keeps the work) |
 | i | Opens the version 12 and version 15 project files | Each opens with the id, file name, motifs, variations, resume points, bookmarks and versions the file holds; the first motif back as the selection; a transcription's notes detected; saved again, the file opens | The fixtures (what each file holds) |
-| j | Opens a project file of version 16 | Refused with `import` and the newer-version message; nothing open, so nothing to save over it; the bytes as they were | Today's rule in the #293 golden README; the tolerant-reader task changes it to read-only with Andrei's approval |
+| j | Opens a project file of a newer version (17) | Refused with `import` and the newer-version message; nothing open, so nothing to save over it; the bytes as they were | Today's rule in the #293 golden README; the tolerant-reader task changes it to read-only with Andrei's approval |
 | k1 | Has the notes read from the PDF by a scan | The piece is `scanned`; all 11 notes detected; one open Check flag, bar 2, `barTooLong`, from the scan | The fixture (bar 2 holds five quarters in 4/4); 0011 (a scan's notes are detected, never imported) |
 | k2 | Opens a recording heard in two parts | The piece is `transcribed`; every note detected; the seam between the parts flagged `partSeam`, open, kept after saving | 0014 and 0016 (a recording's notes are detected; a seam is always flagged) |
 | l1–l5 | Reads in Russian or in English | The refusal of a damaged file and of a newer file, the explanation of the variation, and the Check flags' names and texts of a scan and of a recording are in that language | `CLAUDE.md` (Russian and English for the interface and all generated content) |

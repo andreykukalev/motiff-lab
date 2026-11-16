@@ -15,7 +15,7 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     let pencil = PencilGestures()
     private weak var host: UIView?
     private weak var pan: UIPanGestureRecognizer?
-    private(set) var rules = InputRules(stylus: false, tool: .none)
+    private(set) var rules = InputRules(stylus: false, tool: .navigate)
     /// The look of the stroke now beginning at a point, in the host's coordinates; nil writes nothing there.
     var style: (CGPoint) -> LiveInkView.Style? = { _ in nil }
     /// A stroke written, its points in the host's coordinates: the host keeps it and then calls `live.dropOldest()`.

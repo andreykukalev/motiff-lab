@@ -110,6 +110,11 @@ public partial class PlaybackLab
         {
             OpenAddSource();
         }
+        else if (SourcesOn && View is { } asked && asked.Contains(':', StringComparison.Ordinal) && _project is not null)
+        {
+            // A view picked in the PDF view's switch (version 0.6, the new sources): other Notes, a version or a recording's sound.
+            await OpenViewAsync(asked);
+        }
 
         // Back from the PDF, the "Notes" view as the player left it (#511 section 10).
         await ReturnToNotesViewAsync();

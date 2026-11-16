@@ -1,6 +1,6 @@
 import Foundation
 
-/// A folder the player chose in Files to add pieces from (version 0.5, «Импорт папки», behind `experimental.libraryImport`):
+/// A folder the player chose in Files to add pieces from (version 0.5, «Импорт папки»):
 /// iCloud Drive, Google Drive, OneDrive, Dropbox or the iPad itself, as Files shows it. Kept on this iPad only, never in a
 /// project file: its name, the provider it is in, and the security-scoped bookmark that lets the app read it again after
 /// a relaunch. The app only reads the folder: it never writes, renames, moves or deletes a file or a folder in it.

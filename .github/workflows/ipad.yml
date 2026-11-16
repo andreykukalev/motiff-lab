@@ -13,6 +13,10 @@ on:
         description: Photograph the app's screens (Russian, landscape and portrait, light and dark)
         type: boolean
         default: false
+      switch_test:
+        description: Switch PDF | Notes 40 times and measure each switch and the memory (MotiffLabScreens/SwitchUITests.swift, ~30 min)
+        type: boolean
+        default: false
   # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
   push:
     tags: ['v*', 'ipad-v*']
@@ -119,6 +123,18 @@ jobs:
           xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$SIMULATOR" \
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
+
+      # PDF | Notes switched again and again (v0.6.4, #614 section 11): each switch timed on the app's clock and the memory
+      # logged; only by hand, as it takes about half an hour.
+      - name: Switch PDF | Notes repeatedly
+        if: inputs.switch_test
+        working-directory: ipad/App
+        run: |
+          set -o pipefail
+          TEST_RUNNER_SWITCH_TEST=1 xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
+            -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
+            -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
       # The screens as a player sees them (MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
       # walk cannot reach is listed as SCREEN-MISS and costs that picture only.

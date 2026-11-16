@@ -51,6 +51,14 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
     /// <summary>When the notes were made from it (version 0.3); null when not kept.</summary>
     public DateTimeOffset? At { get; init; }
 
+    /// <summary>
+    /// Where these notes came from as their file last said (project file version 16, 0030): kept while it still tells of
+    /// <see cref="Source"/>, <see cref="From"/>, <see cref="Engine"/> and <see cref="At"/> (<see cref="Projects.NotesProvenance.Kept"/>),
+    /// so its fingerprints and params stay; null for notes this build made. Not part of equality: it tells how the notes were
+    /// made, not what they are.
+    /// </summary>
+    public NotesProvenance? Provenance { get; init; }
+
     /// <summary>The notes, at their times in the recording.</summary>
     public IReadOnlyList<PlayedNote> Notes() => PlayedNotes.FromMidi(Midi, RecordingStart);
 

@@ -133,6 +133,49 @@ public static class SettingsCatalogue
         // reads a born-digital PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with
         // the server's own engine; photos always go to the server.
         Switch("experimental.scanEngine", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Repairs for the bars to check (v0.6, the assistant's first step, with no AI): Repair under a flagged bar in Check
+        // offers music-core's ways for the flag's reason (Assistant.Repairs.CheckRepairs) as a draft over the bar; Accept adds
+        // them to the corrections. Worked out on the device; nothing is sent anywhere.
+        Switch("experimental.assistantRepairs", SettingSection.Experimental, null, SettingScope.Device),
+
+        // The assistant's conversation (v0.6, 0028 section 4): Ask opens the mentor in the Insights sheet, which asks the Motiff
+        // Lab API (POST /assistant/turn) and runs the model's read tools on the device; it sends the selected passage's notes
+        // and facts digest only after the player's consent, and only when the API says a model is on for the account.
+        Switch("experimental.assistant", SettingSection.Experimental, null, SettingScope.Device),
+
+        // The assistant edits the notes (v0.6.1, #582 item 17.3): with the conversation on, the assistant is the proposer and
+        // may choose a catalogue operation with in-range parameters (a repair, a variation, a note edit, a joined tie);
+        // music-core makes the notes as a draft over the bars, which only the player accepts into the corrections.
+        Switch("experimental.assistantActions", SettingSection.Experimental, null, SettingScope.Device),
+
+        // The assistant at the selection, and kept conversations (v0.6.1, #582 items 17.1 and 17.2): with the conversation on,
+        // Ask on a selection opens a compact popup there that keeps nothing, whose Add to context moves its exchange into the
+        // full assistant's conversation; that conversation is kept on the device by piece, never in the project file.
+        Switch("experimental.assistantContext", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Что если» variants of a phrase (v0.6, the AI companion study, section 2.4): in phrase focus, engine operations make
+        // variants with no AI, kept as ideas and taken into the working notes by a carry of the assembly journal. On the device.
+        Switch("experimental.assistantVariants", SettingSection.Experimental, null, SettingScope.Device),
+
+        // New sources (v0.6, decision record 0030): the switch of every view of the piece at the top of the score and the
+        // Sources sheet by originals and Notes (the facade's sources.layers), with another PDF, a recording recognised,
+        // recognising again, removing an original and «Сделать рабочими». Off, the apps show the sources as before.
+        Switch("experimental.sources", SettingSection.Experimental, null, SettingScope.Device),
+
+        // «Идеи по смыслу» (v0.6.1, #582 item 15): Piece DNA's ideas by what they are in the music (Analysis.MusicalIdeas): the
+        // theme, the contrast, a sequence, the motif heard most often and the highest point, each card saying why from what
+        // the engine measured. Off, the ideas are the openings heard most often, as before. On the device.
+        Switch("experimental.musicalIdeas", SettingSection.Experimental, null, SettingScope.Device),
+        // Selection by the place of the touch (v0.6.2, #601, the iPad only): in Select the place a press lands decides, never
+        // how long it is held: from an edge it moves that edge, from inside it extends, from outside it draws a new selection
+        // (the old one comes back by «Вернуть»), a tap selects a bar or a note, a tap on the margin clears; a selection may
+        // narrow to a hand or to notes. Off, the selection works as in version 0.6.1. Nothing new is saved in the project.
+        Switch("experimental.placeSelection", SettingSection.Experimental, null, SettingScope.Device),
+        // Dictation into the assistant's field (v0.6.4, the iPad only): a microphone beside the field hears the player in the
+        // interface's language and writes the words into the field; speech is recognised on the iPad itself only, and nothing
+        // heard leaves it. On until turned off: the lead's instruction for Andrei's request, the exception to the rule.
+        Switch("experimental.dictation", SettingSection.Experimental, null, SettingScope.Device, on: true),
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
     ];
 

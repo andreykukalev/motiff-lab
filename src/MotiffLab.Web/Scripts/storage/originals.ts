@@ -108,3 +108,26 @@ export async function persistOnce(): Promise<boolean | null> {
         return null;
     }
 }
+
+/**
+ * The length in milliseconds of the recording picked in `input`, as the browser reads it from the file's header (the
+ * Sources sheet says «Запись · 2:41»); null when none is picked or the browser cannot tell.
+ */
+export async function durationPicked(input: HTMLInputElement): Promise<number | null> {
+    const file = input.files?.[0];
+    if (!file) {
+        return null;
+    }
+    const url = URL.createObjectURL(file);
+    try {
+        return await new Promise<number | null>((resolve) => {
+            const media = document.createElement(file.type.startsWith("video/") ? "video" : "audio");
+            media.preload = "metadata";
+            media.onloadedmetadata = () => resolve(Number.isFinite(media.duration) ? Math.round(media.duration * 1000) : null);
+            media.onerror = () => resolve(null);
+            media.src = url;
+        });
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}

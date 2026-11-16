@@ -47,15 +47,18 @@
 // line is out of sight, the bar it is in goes to Swift (`playheadAway`, -1 when it is back), for the chip that returns
 // to it (`returnToPlayhead`). Under the modes the two playheads of the playback model are drawn (`playheads`), and their
 // handles are dragged (#495 UX-08): the handle taken, its places and its letting go go to Swift (`drag`), and where the
-// handles are (`heads`), so a finger there is never the pen's.
+// handles are (`heads`), so a finger there is never the pen's. In Expand the card has the page's black playhead too, dragged
+// inside the passage (v0.6.4, spec 8: `drawCardHeads`).
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
+import { PlaceLayer } from "../score/selection-place-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
-import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
+import { gridLines, tupletBlocks } from "../score/selection-grid.js";
+import { ScorePlayheadMarks, bandOf, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
 import { pressPlaces } from "../playback/playhead-press.js";
 import { PRACTICE_ATTRIBUTE } from "../layout/practice-view.js";
@@ -97,7 +100,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null, practice: false };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -121,6 +124,10 @@ function show({ pages, timemap, dark }) {
     state.svgs = pages;
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
     state.timeline = ScoreTimeline.fromTimemap(timemap);
+    // The tuplets as blocks for the selection's grid, here and on the roll (Swift passes them on, v0.6.4).
+    state.tuplets = readTuplets();
+    gridMemo.geometry = null;
+    post({ tuplets: state.tuplets });
     tintUnheard();
     return layout();
 }
@@ -151,7 +158,12 @@ function layout() {
     placeBookmarks();
     placeNotes();
     placeRings();
+    markPicked();
     selection.place();
+    // The playheads go where their places are on the pages now, as the band does (v0.6.3, #608 item 3).
+    if (state.heads !== null) {
+        reportPlace(drawHeads(), !heard.playing);
+    }
     reportPages();
     return { bars: state.frames.length, space: state.frames[0]?.space ?? 0 };
 }
@@ -496,8 +508,9 @@ const selection = new SelectionLayer(document.body, {
         }
     },
     // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
-    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar.
-    beats: () => state.beats,
+    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar. Under the place rule (v0.6.4)
+    // a band is cut where the passage starts and ends inside a bar even before Swift has the beats: the barlines stand in.
+    beats: () => state.beats ?? (state.input?.places === true ? barStarts() : null),
     tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
     chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
     // The selection gesture (#511 2.1, Scripts/score/selection-gesture.ts): a hold outside the selection takes it away; a
@@ -512,7 +525,101 @@ const selection = new SelectionLayer(document.body, {
     dragStart: (pointerType) => (state.focus ? "none" : state.input?.[pointerType]?.select),
     // A finger takes a handle; the Pencil does where it does not write (#511 4.1): in the Pen it writes over the handles.
     takesHandle: (pointerType) => state.input?.[pointerType]?.handles,
+    // Selection by the place of the touch (v0.6.2, #601): the place layer below takes the presses, and draws the edges.
+    places: () => placesOn(),
 });
+
+/** Whether the place rule takes the presses (v0.6.2, Settings · Experimental, `input.places`): in Select, not in focus. */
+function placesOn() {
+    return state.input?.places === true && state.mode === "select" && !state.focus;
+}
+
+/**
+ * Selection by the place of the touch (v0.6.2, #601, Scripts/score/selection-place-layer.ts): an edge, inside or outside
+ * decides what a press does, with no hold for the Pencil; what it chose goes to Swift as `chosen` (with its hand and how
+ * the selection changed), a note head tapped as `picked`, a tap on the margin as `cleared`, a double tap inside as
+ * `zoomSelection` (the band's box in the document's pixels).
+ */
+const places = new PlaceLayer(document.body, {
+    geometry: () => state.geometry,
+    beats: selection.beats,
+    on: () => placesOn(),
+    rule: (pointerType) => {
+        // A mouse or a trackpad, which Swift names no rule for, selects at once, as the stylus does.
+        const rule = state.input?.[pointerType]?.select ?? (pointerType === "mouse" ? "now" : undefined);
+        return rule === "now" || rule === "longPress" ? rule : "none";
+    },
+    selection: () => (state.chosen ? { start: state.chosen.start, end: state.chosen.end, hand: state.chosen.hand ?? null } : null),
+    show: (range) => selection.showPlaced(range),
+    chosen: (range, how, gesture) => post({ chosen: { start: range.start, end: range.end, beats: true, places: true, hand: range.hand, how, gesture } }),
+    picked: (id, how, gesture) => post({ picked: { id: noteIdOf(id), how, gesture } }),
+    cleared: (gesture) => post({ cleared: { gesture } }),
+    zoom: () => post({ zoomSelection: bandBox() }),
+    view: () => scoreView(),
+    grid: (geometry) => selectionGrid(geometry),
+});
+
+/** The bars' starts in time order: the lines a band is cut at while Swift has sent no beats. */
+function barStarts() {
+    return state.geometry?.bars.map((bar) => bar.tick) ?? null;
+}
+
+/**
+ * The tuplet groups of the engraved pages (Verovio's `g.tuplet` round its notes and rests), each one block from its first
+ * start to its last end in the page's ticks (v0.6.4, Andrei 19:54Z: a tuplet is never split by a selection's edge).
+ */
+function readTuplets() {
+    const timeline = state.timeline;
+    if (timeline === null) {
+        return [];
+    }
+    const byId = new Map([...timeline.spans, ...timeline.rests].map((span) => [span.id, span]));
+    const groups = [...document.querySelectorAll("#pages g.tuplet")].map((group) =>
+        [...group.querySelectorAll("g.note, g.rest")].map((member) => byId.get(member.id)).filter((span) => span !== undefined).map((span) => ({ start: span.onset, end: span.end })));
+    return tupletBlocks(groups);
+}
+
+/** The selection's grid for the layout shown (selection-grid.ts): sixteenths from each bar's start, a tuplet one block. */
+const gridMemo = { geometry: null, lines: [] };
+function selectionGrid(geometry) {
+    if (gridMemo.geometry !== geometry) {
+        gridMemo.geometry = geometry;
+        gridMemo.lines = gridLines(geometry.bars.map((bar) => ({ start: bar.tick, end: bar.end })), state.tuplets);
+    }
+    return gridMemo.lines;
+}
+
+/**
+ * The part of the window the score shows, in window pixels: below the floating bar and above the pill (the body's padding,
+ * score.css --pad-top and --pad-bottom, the bottom grown by a drawer's inset), where the place layer's autoscroll starts.
+ */
+function scoreView() {
+    const style = getComputedStyle(document.body);
+    return { top: parseFloat(style.paddingTop) || 0, bottom: window.innerHeight - (parseFloat(style.paddingBottom) || 0) };
+}
+
+/** The note an engraved note head belongs to: a later piece of a tied note ("…-2") is the note's. */
+function noteIdOf(id) {
+    const base = id.replace(/-\d+$/, "");
+    return base !== id && state.timeline?.spans.some((span) => span.id === base) ? base : id;
+}
+
+/** The box round the selection's band, in the document's pixels; null for none. */
+function bandBox() {
+    const bands = [...document.querySelectorAll("body > .sel-band")].map((band) => band.getBoundingClientRect());
+    if (bands.length === 0) {
+        return null;
+    }
+    const view = document.body.getBoundingClientRect();
+    const left = Math.min(...bands.map((band) => band.left)) - view.left;
+    const top = Math.min(...bands.map((band) => band.top)) - view.top;
+    return { left, top, right: Math.max(...bands.map((band) => band.right)) - view.left, bottom: Math.max(...bands.map((band) => band.bottom)) - view.top };
+}
+
+/** The notes picked into the selection (v0.6.2), cobalt on the page. */
+function markPicked() {
+    tint(document.getElementById("pages"), state.timeline, new Set(state.chosen?.picked ?? []), "sel-picked");
+}
 
 /** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
 const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
@@ -525,7 +632,12 @@ const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => s
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
     lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
-    grab: (handle, event) => grabs.begin(handle, event),
+    // Within an edge's reach the selection's edge wins over a playhead's handle under it (v0.6.3): the press goes on to the place layer.
+    grab: (handle, event) => {
+        if (!places.edgeAt(event)) {
+            grabs.begin(handle, event);
+        }
+    },
 });
 
 /** Where the player is, as Swift last said (`playing`): what the playheads are drawn at when no drag shows another place. */
@@ -608,9 +720,15 @@ function playheads(value) {
         grabs.cancel();
         press.cancel();
         heads.hide();
+        cardGrabs.cancel();
+        cardHeads.hide();
         reportGrips();
     } else {
         placePlayhead(null);
+        // A new selection or Цикл moves the blue playhead at once, playing or not (v0.6.3, #608 item 3): stopped, no position
+        // comes to draw it again, and it stayed where the last selection had it.
+        reportPlace(drawHeads(), !heard.playing);
+        drawCardHeads();
     }
 }
 
@@ -639,6 +757,7 @@ function beats({ lines }) {
 const placeMenu = selection.placeMenu.bind(selection);
 selection.placeMenu = () => {
     placeMenu();
+    places.decorate();
     reportMenu();
     reportHandles();
 };
@@ -650,7 +769,8 @@ let handlesReported = "";
  * Pencil does not write there (#479 item 18).
  */
 function reportHandles() {
-    const handles = [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
+    // Hidden with the selection controls (#582 item 10), they take no touch and keep the Pencil from nothing.
+    const handles = !state.selectionControls ? [] : [...document.querySelectorAll("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
     const key = JSON.stringify(handles);
     if (key !== handlesReported) {
         handlesReported = key;
@@ -674,8 +794,25 @@ function clearLeft({ width }) {
 
 /** The selection's span in ticks, with what a screen reader says for each handle; null for none. */
 function select(chosen) {
+    state.chosen = chosen ?? null;
+    markPicked();
+    places.settle();
+    selection.showPlaced(null);
     selection.setSelection(chosen ?? null);
     return chosen ? document.querySelectorAll("body > .sel-band").length : 0;
+}
+
+/**
+ * Swift's selection menu dragged aside by the player (#582 item 7, Scripts/score/menu-drag.ts): moved by (dx, dy) from where
+ * it stands, kept inside the window, and there until it closes; the place is reported back as `menu`.
+ */
+function menuMoved({ dx, dy }) {
+    selection.moveMenuBy(Number(dx) || 0, Number(dy) || 0);
+}
+
+/** Swift's selection menu put away (Hide, the roll's drawer, Expand): the next one opens over its band again. */
+function menuClosed() {
+    selection.menuClosed();
 }
 
 /** The size of Swift's selection menu, for the selection layer to place it. */
@@ -743,7 +880,8 @@ document.body.addEventListener("click", (event) => {
     // A press on a playhead's handle is the handle's, a tap on it included: it never places the playhead or selects a bar.
     // The release of a long press that put the playhead is no tap on a beat (#543 3.1).
     const pressed = press.swallowsClick();
-    if (selection.swallowsClick() || pressed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
+    const placed = places.swallowsClick();
+    if (selection.swallowsClick() || pressed || placed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
     if (state.mode !== null) {
@@ -857,6 +995,8 @@ window.addEventListener("resize", () => {
     resizing = requestAnimationFrame(() => {
         layout();
         placeOssias();
+        layoutCard();
+        drawCardHeads();
         reportCardWidth();
     });
 });
@@ -870,7 +1010,76 @@ focusLayer.hidden = true;
 focusLayer.innerHTML = '<button type="button" class="veil" tabindex="-1"></button><div class="stage"><section class="card"><div class="card-score"></div></section></div>';
 document.body.append(focusLayer);
 const cardScore = focusLayer.querySelector(".card-score");
-const card = { timeline: null, offset: 0, width: 0, ossias: [] };
+const card = { timeline: null, offset: 0, width: 0, ossias: [], pages: [], geometry: null };
+
+/**
+ * The black playhead on the card in Expand (v0.6.4, spec 8): the page's track under the system with its dot
+ * (Scripts/score/playheads.ts), at the position held inside the passage, Expand's selection that always loops (Swift's
+ * ExpandRules.held: the playback model's place kept to the passage), so where the music is while it is inside and at the
+ * passage's start while it is not. Its dot is dragged by the Pencil or a finger as on the page (playhead-grab.ts), inside the
+ * passage on the sixteenth grid, the notes passed sounding; Swift keeps it inside (Player.handle(_:within:)). The card's
+ * ticks count from its first bar, `card.offset` in the piece.
+ */
+const cardHeads = new ScorePlayheadMarks(cardScore, {
+    at: (tick) => (card.timeline === null ? undefined : card.geometry?.playhead(tick, (id) => card.timeline.onsetOf(id))),
+    lineBottom: (bar) => card.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
+    grab: (_handle, event) => cardGrabs.begin("blue", event),
+});
+
+const cardGrabs = new ScoreGrab({
+    geometry: () => card.geometry,
+    onsetOf: (id) => card.timeline?.onsetOf(id),
+    selection: () => cardPassage(),
+    // Nothing writes in Expand: the Pencil and a finger both take the dot.
+    takes: () => state.focus && state.heads !== null,
+    point: (event) => {
+        const view = cardScore.getBoundingClientRect();
+        return { x: event.clientX - view.left + cardScore.scrollLeft, y: event.clientY - view.top + cardScore.scrollTop };
+    },
+    moved: () => drawCardHeads(),
+}, new PlayheadDrag((message) => post({ drag: "tick" in message ? { ...message, tick: message.tick + card.offset } : message })));
+
+/** Expand's passage in the card's ticks: the selection it was opened on, as Swift's playheads give it; null without one. */
+function cardPassage() {
+    const chosen = state.heads?.selection ?? null;
+    return chosen === null ? null : { start: chosen.start - card.offset, end: chosen.end - card.offset };
+}
+
+/** Where every bar of the card sits, in the card's own pixels (it scrolls inside itself), as `layout` does for the pages. */
+function layoutCard() {
+    const timeline = card.timeline;
+    if (!state.focus || timeline === null) {
+        card.geometry = null;
+        return;
+    }
+    const view = cardScore.getBoundingClientRect();
+    const placements = [];
+    cardScore.querySelectorAll(":scope > .card-page > svg").forEach((svg, index) => {
+        const page = card.pages[index];
+        if (page === undefined) {
+            return;
+        }
+        const box = svg.getBoundingClientRect();
+        const scale = Math.min(box.width / page.width, box.height / page.height);
+        placements.push({
+            left: box.left - view.left + cardScore.scrollLeft + (box.width - page.width * scale) / 2,
+            top: box.top - view.top + cardScore.scrollTop + (box.height - page.height * scale) / 2,
+            scale,
+        });
+    });
+    card.geometry = new ScoreGeometry(card.pages, placements, (id) => timeline.measureOnset(id));
+}
+
+/** Draws the card's black playhead (Expand under the playback model), or hides it. */
+function drawCardHeads() {
+    if (!state.focus || state.heads === null || card.geometry === null) {
+        cardHeads.hide();
+        return;
+    }
+    const tick = cardGrabs.drag.heard(heard.tick - card.offset);
+    const view = viewOf({ selection: cardPassage(), loop: true, tick, transport: heard.playing ? "playing" : "stopped" });
+    cardHeads.place({ global: view.blue ?? view.black, selection: null, globalPlays: view.playing, held: cardGrabs.held !== null });
+}
 
 focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
 
@@ -885,9 +1094,16 @@ function focus({ open, label, back }) {
         grabs.cancel();
         press.cancel();
     }
+    // The page's playheads go under the veil and come back out of it (drawHeads), the card's go with it.
+    if (state.heads !== null) {
+        reportPlace(drawHeads(), !heard.playing);
+    }
     if (!state.focus) {
+        cardGrabs.cancel();
+        cardHeads.hide();
         cardScore.replaceChildren();
         card.timeline = null;
+        card.geometry = null;
         card.ossias = [];
         return {};
     }
@@ -902,6 +1118,8 @@ function focus({ open, label, back }) {
  * that holds `start`. Returns how many notes it engraved.
  */
 function showCard({ pages, timemap, start, ossias }) {
+    // A drag on the card engraved before lets go first: its dot goes with the old pages.
+    cardGrabs.cancel();
     sounding.card = new Set();
     sounding.key = "";
     cardScore.innerHTML = (pages ?? []).map((svg) => `<div class="card-page">${svg}</div>`).join("");
@@ -911,6 +1129,8 @@ function showCard({ pages, timemap, start, ossias }) {
     card.ossias = ossias ?? [];
     placeOssias();
     tint(cardScore, card.timeline, new Set(card.ossias.flatMap((ossia) => ossia.added ?? [])), "version-added");
+    layoutCard();
+    drawCardHeads();
     return card.timeline.spans.length;
 }
 
@@ -1006,6 +1226,7 @@ function playing({ tick, playing, follow, auto = true }) {
     heard.playing = playing;
     if (state.heads !== null) {
         reportPlace(drawHeads(), !playing);
+        drawCardHeads();
     } else {
         // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
         const resting = !playing && playhead.played && tick > 0;
@@ -1039,10 +1260,31 @@ function drawHeads() {
         const chosen = state.heads.selection ?? null;
         const tick = grabs.drag.heard(heard.tick);
         const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: heard.playing ? "playing" : "stopped" });
-        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black" });
+        at = heads.place({ ...playheadsOf(view, chosen), held: grabs.held === "black", band: headsBand(chosen) });
     }
     reportGrips();
     return at;
+}
+
+/** The band the blue playhead keeps to, for the selection, the layout and the beats it was worked out for. */
+const keptBand = { selection: null, geometry: null, beats: null, runs: undefined };
+
+/**
+ * The selection's band as the page draws it (Scripts/score/playheads.ts bandOf): the blue playhead is drawn inside it, on
+ * the staves of its hand and not past its ends, which a selection by beats puts just before the next beat's notes (v0.6.3,
+ * #608 item 3). Worked out again only when one of them changes, not thirty times a second.
+ */
+function headsBand(chosen) {
+    if (chosen === null || state.geometry === null) {
+        return undefined;
+    }
+    if (keptBand.selection !== chosen || keptBand.geometry !== state.geometry || keptBand.beats !== state.beats) {
+        keptBand.selection = chosen;
+        keptBand.geometry = state.geometry;
+        keptBand.beats = state.beats;
+        keptBand.runs = bandOf(state.geometry, selection.beats, chosen);
+    }
+    return keptBand.runs;
 }
 
 let gripsReported = "";
@@ -1077,6 +1319,16 @@ function practice(shown) {
     document.body.setAttribute(PRACTICE_ATTRIBUTE, state.practice ? "on" : "off");
     gripsAt = -Infinity;
     reportGrips();
+}
+
+/**
+ * The selection controls (#582 item 10, PracticeView.swift): hidden, the selection's handles go with the menu (score.css),
+ * whatever practice view does; the selection's band stays.
+ */
+function selectionControls(shown) {
+    state.selectionControls = shown !== false;
+    document.body.toggleAttribute("data-selection-hidden", !state.selectionControls);
+    reportHandles();
 }
 
 /** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
@@ -1375,5 +1627,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, writing };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads, practice, selectionControls, writing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

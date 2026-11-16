@@ -72,7 +72,11 @@ internal sealed partial class OpenPiece
 
     public PhraseMap Phrases => Levels.Phrases;
 
+    /// <summary>The selection; since v0.6.4 (#614) it may hold no notes, when the iPad selected a passage of time ("empty").</summary>
     public MotifSelection? Selection { get; private set; }
+
+    /// <summary>The selection when it holds notes: what the analyses of the piece read about it.</summary>
+    private MotifSelection? NotedSelection => Selection is { NoteIds.Count: > 0 } selection ? selection : null;
 
     public VariationChain? Chain { get; private set; }
 
@@ -101,8 +105,19 @@ internal sealed partial class OpenPiece
     /// </summary>
     public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
     {
-        byte[] midi = JoinedParts(heard);
         string name = Path.ChangeExtension(string.IsNullOrWhiteSpace(fileName) ? "recording" : fileName, ".mid");
+        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = Heard(name, heard, words);
+        Project project = Project.Create(id, name, midi, now) with { Transcription = origin, Check = check };
+        return Open(ProjectFile.Write(project), words);
+    }
+
+    /// <summary>
+    /// The notes heard in a recording sent in parts ("milliseconds", "parts", "levels", "engine", "sentFromMs", "tempo"),
+    /// joined, with the bars worked out from them, the transcription's origin and the Check flags it raises.
+    /// </summary>
+    internal static (byte[] Midi, TranscriptionOrigin Origin, IReadOnlyList<CheckFlag> Check) Heard(string name, Request heard, Words words)
+    {
+        byte[] midi = JoinedParts(heard);
         PieceImportResult result = PieceImporter.Import(name, midi);
         if (result.Piece is not { } imported || imported.Midi is null)
         {
@@ -125,9 +140,7 @@ internal sealed partial class OpenPiece
             SentFromMilliseconds = sentFrom,
         };
         ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
-        Project project = Project.Create(id, name, midi, now) with { Transcription = origin };
-        project = project with { Check = CheckFlag.FromTranscription(origin, midi, piece) };
-        return Open(ProjectFile.Write(project), words);
+        return (midi, origin, CheckFlag.FromTranscription(origin, midi, piece));
     }
 
     /// <summary>
@@ -187,7 +200,7 @@ internal sealed partial class OpenPiece
         "roll" => Roll(request),
         "project.save" => Save(request),
         "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
-        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure)), Words, Piece.End, Piece.Meter)),
+        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, NotedSelection, NotedSelection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter)),
         _ => CallOnProject(name, request),
     };
 
@@ -345,7 +358,10 @@ internal sealed partial class OpenPiece
         MotifSelectionKind kind = MotifSelectionKind.Range;
         if (request.Has("notes"))
         {
-            selection = MotifSelector.SelectNotes(Notes, Piece.Meter, request.Texts("notes"));
+            // "picked": true (v0.6.2, #601, the iPad's selection by the place of the touch): one note or more, within the bars.
+            selection = request.Bool("picked") == true
+                ? MotifSelector.SelectPicked(Notes, Piece.Meter, request.Texts("notes"))
+                : MotifSelector.SelectNotes(Notes, Piece.Meter, request.Texts("notes"));
             kind = MotifSelectionKind.Notes;
         }
         else if (request.Span("span") is { } span)
@@ -367,9 +383,11 @@ internal sealed partial class OpenPiece
             selection = MotifSelector.Select(Notes, Piece.Meter, MotifSelector.Bars(Piece.Meter, first, last, Piece.End), filter);
         }
 
-        if (selection.NoteIds.Count == 0)
+        // "empty": true (v0.6.4, #614 item 4, the iPad's selection of time): a span or bars with no notes in them (rests, a
+        // hand resting, a place between notes) are selected as they are; the calls that read notes then answer NoNotes.
+        if (selection.NoteIds.Count == 0 && (kind == MotifSelectionKind.Notes || request.Bool("empty") != true))
         {
-            throw FacadeException.Unavailable("There are no notes in that passage.");
+            throw NoNotes();
         }
 
         Selection = selection;
@@ -385,9 +403,17 @@ internal sealed partial class OpenPiece
     private static KeyCircleView? Circle(InvitationContext context) =>
         KeyCircle.For(context.Selection, context.Notes, context.Meter, context.Motif.Key, context.Harmony, context.Words);
 
+    /// <summary>The refusal of a passage with no notes, and of a call that reads the notes of a selection that holds none.</summary>
+    private static FacadeException NoNotes() => FacadeException.Unavailable("There are no notes in that passage.");
+
     private InvitationContext Understood()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
+        if (selection.NoteIds.Count == 0)
+        {
+            throw NoNotes();
+        }
+
         // Fixing a note or resolving a Check flag changes the doubt, so the understanding is read again (#352).
         if (_understood is { } understood && _understoodFor is { } from && ReferenceEquals(from.Check, Project.Check) && ReferenceEquals(from.Notes, Notes))
         {
@@ -683,7 +709,8 @@ internal sealed partial class OpenPiece
             motifs = [.. Project.Motifs];
             variations = [.. Project.Variations];
         }
-        else if (Selection is { NoteIds.Count: > 0 } selection)
+        // A pick of one note, or of more than a motif of single notes holds (the iPad, v0.6.2), is saved as no selection is.
+        else if (Selection is { NoteIds.Count: > 0 } selection && Motif.Holds(selection, _selectionKind))
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, _selectionKind, MotifMode.Discovery, Notes)));
             if (Chain is { Result: not null } chain)

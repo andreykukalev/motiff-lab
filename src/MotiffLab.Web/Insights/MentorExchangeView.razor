@@ -1,0 +1,58 @@
+@using MotiffLab.MusicCore.Assistant.Conversation
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* One question and what came of it (0028 section 4): the question on the right; the answer as a card whose cited facts are
+   chips that ring their places in the score, labelled as the assistant's reading or, when it could not be checked, as
+   the engine's facts; or the line that says why nothing was sent. The full assistant and the popup at the selection
+   (#582 item 17.2) show it alike. *@
+<p class="mentor-question">@Exchange.Question</p>
+@if (Exchange.Note is { } note)
+{
+    <p class="mentor-note" role="status">@Text[note]</p>
+}
+else
+{
+    <article class="mentor-answer @(Exchange.Fallback ? "fallback" : null)" aria-label="@Text[Exchange.Fallback ? "mentor.engineFacts" : "mentor.interpretation"]">
+        <p class="overline">@Text[Exchange.Fallback ? "mentor.engineFacts" : "mentor.interpretation"]</p>
+        <p class="mentor-text">
+            @foreach (AnswerPart part in Exchange.Parts)
+            {
+                if (part.Cites is { } id)
+                {
+                    @Citation(id)
+                }
+                else
+                {
+                    @part.Text
+                }
+            }
+        </p>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MentorExchange Exchange { get; set; } = null!;
+
+    /// <summary>A cited fact the player tapped: its places are ringed in the score.</summary>
+    [Parameter]
+    public EventCallback<CitedFact> Cite { get; set; }
+
+    /// <summary>A cited fact: a chip with the engine's line that rings its places, or its line alone when it names none.</summary>
+    private RenderFragment Citation(string id) => __builder =>
+    {
+        if (Exchange.Cited.FirstOrDefault(fact => fact.Id == id) is not { } fact)
+        {
+            return;
+        }
+
+        if (fact.Places.Count > 0)
+        {
+            <button class="cite" title="@Text["mentor.showInScore"]" @onclick="() => Cite.InvokeAsync(fact)">@fact.Text</button>
+        }
+        else
+        {
+            <span class="cite">@fact.Text</span>
+        }
+    };
+}

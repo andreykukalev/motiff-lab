@@ -64,8 +64,8 @@ public class ProjectMetadataFacadeTests
 
         string saved = facade.Call(1, "project.save");
         JsonElement file = Json(saved);
-        Assert.Equal(15, file.GetProperty("version").GetInt32());
-        Assert.Equal("""{"composer":"Бетховен","tags":["Экзамен","Romantic"]}""", JsonSerializer.Serialize(file.GetProperty("metadata"), new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        Assert.Equal(MotiffLab.MusicCore.Projects.ProjectFile.Version, file.GetProperty("version").GetInt32());
+        Assert.Equal("""{"composer":"Бетховен","tags":["Экзамен","Romantic"]}""", JsonSerializer.Serialize(file.GetProperty("workspace").GetProperty("metadata"), new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
 
         var again = new MusicCoreFacade();
         JsonElement reopened = Json(again.Open("fur.motiff.json", Encoding.UTF8.GetBytes(saved))).GetProperty("project");
@@ -114,7 +114,7 @@ public class ProjectMetadataFacadeTests
         Assert.Equal(["Recital", "Экзамен 2027"], Playlists(retagged));
 
         string saved = facade.Call(1, "project.save");
-        Assert.Equal(["Recital", "Экзамен 2027"], Names(Json(saved).GetProperty("metadata"), "playlists"));
+        Assert.Equal(["Recital", "Экзамен 2027"], Names(Json(saved).GetProperty("workspace").GetProperty("metadata"), "playlists"));
         var library = new MusicCoreFacade();
         Assert.Equal(["Recital", "Экзамен 2027"], Playlists(Answer(library, 0, "project.summary", Request(saved, "\"language\": \"en\"")).GetProperty("project")));
 

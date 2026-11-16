@@ -98,8 +98,26 @@ body.hide-check button.check-flag { display: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
 button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
 button.sel-handle.dragging { background: var(--accent); }
+/* The selection controls hidden (#582 item 10): the handles go with the menu; the band stays. */
+body[data-selection-hidden] .sel-handle { visibility: hidden; }
 /* Selection by beats (an experiment): a short cobalt tick down from the band's top at each beat inside it. */
 .sel-beat { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); transform: translateX(-50%); pointer-events: none; }
+/* Selection by the place of the touch (v0.6.2, #601; the kit's .band and .handle): an edge is taken anywhere down the band's
+   full height at its start or its end, and shows as the handle of before (v0.6.4, Andrei's spec 6, restoring v0.6.1's
+   button.sel-handle above, the kit's ds.css .handle): a hollow cobalt circle at the middle of the edge, filled while taken,
+   never at a corner. The old selection is dashed while a new one is drawn, the addition dashed while extending; pale ticks
+   show where a moving edge can stop; the notes picked are cobalt. */
+.sel-edge { position: absolute; z-index: 2; width: 0; pointer-events: none; }
+.sel-edge::after { content: ""; position: absolute; left: 0; top: 50%; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
+.sel-edge.hot::after { background: var(--accent); }
+body[data-selection-hidden] .sel-edge { visibility: hidden; }
+.sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }
+.sel-add { background: var(--accent-tint); }
+/* The rectangle a new selection is drawn with (v0.6.3, the approved mockup's .trace): from the press to the stylus, thin and
+   dashed in the notation's ink, over the band growing under it. */
+.sel-trace { position: absolute; z-index: 2; box-sizing: border-box; border: 1px dashed color-mix(in srgb, var(--notation) 45%, transparent); border-radius: var(--r-xs); pointer-events: none; }
+.sel-target { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); opacity: 0.45; transform: translate(-50%, -100%); pointer-events: none; }
+.page :is(g.note, g.chord).sel-picked { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
 
 /* The places of the fact chosen in Insights (the web app's .highlight and .highlight-mark): cobalt, with a solid box
    round each notehead or rest, so they differ from the band by more than colour. */
@@ -146,10 +164,13 @@ button.sel-handle.dragging { background: var(--accent); }
 .gtrack .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--notation) 62%, var(--paper)); }
 .gtrack .dot { position: absolute; left: 0; top: 50%; width: var(--s-3); height: var(--s-3); margin: calc(var(--s-3) / -2) 0 0 calc(var(--s-3) / -2); border-radius: 50%; background: var(--notation); box-shadow: 0 0 0 2px var(--paper); }
 .gtrack.stop .dot { background: var(--paper); box-shadow: inset 0 0 0 2px var(--notation), 0 0 0 2px var(--paper); }
-/* The cobalt line is placed across the staves and reaches beyond them here (#495 UX-07): above by a step and half its knob,
-   so the knob stands a step clear of the top staff line instead of on it, the same at every zoom; below by a step. */
-.ph-sel { --ph-lift: calc(var(--s-2) + 14px / 2); position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--ph-lift)); padding: var(--ph-lift) 0 var(--s-2); box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--accent); pointer-events: none; }
-.ph-sel .knob { position: absolute; left: 50%; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translate(-50%, -50%); }
+/* The cobalt line is placed across the staves and reaches beyond them here (#495 UX-07): above by the band's step, a gap and
+   its knob, so the knob stands clear of the top staff line and of the selection's band, the same at every zoom; below by a
+   step. The knob is the roll's tab (piano-roll.ts KNOB_*: square top, rounded foot) hanging from the line's top, never a
+   disc: resting at the selection's start it stood on the band's top-left corner and read as a corner handle beside the
+   band's hollow edge handles (v0.6.4, spec 5/6). */
+.ph-sel { --ph-lift: calc(var(--s-2) + var(--s-1) + var(--s-4)); position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--ph-lift)); padding: var(--ph-lift) 0 var(--s-2); box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--accent); pointer-events: none; }
+.ph-sel .knob { position: absolute; left: 50%; top: 0; width: var(--s-3); height: var(--s-4); border-radius: 0 0 var(--r-xs) var(--r-xs); background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translateX(-50%); }
 /* The black playhead held (v0.5.7, #543 5, as the web app's app.css .ph-held): a line in the notation's ink across the staves
    while the player holds its dot or a long press on the notes; let go, it fades. */
 .ph-held { position: absolute; left: 0; top: 0; z-index: 2; width: 2px; margin-top: calc(-1 * var(--s-2)); padding: var(--s-2) 0; box-sizing: content-box; border-radius: 1px; will-change: transform; background: var(--notation); pointer-events: none; opacity: 0; transition: opacity var(--t-fast) var(--ease); }

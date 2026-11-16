@@ -101,6 +101,41 @@ public static class ProjectSync
         ["performances"] = FieldClass.Player,
         ["assembly"] = FieldClass.Player,
         ["metadata"] = FieldClass.Player,
+
+        // Version 16 (0030): the Notes are what an import brought, with the player's corrections and the derived Check flags,
+        // and the workspace is the player's, except whether the corrections are off.
+        ["notes"] = FieldClass.Import,
+        ["notes.id"] = FieldClass.Bookkeeping,
+        ["notes.name"] = FieldClass.Player,
+
+        ["notes.fileName"] = FieldClass.Player,
+        ["notes.provenance"] = FieldClass.Import,
+        ["notes.music"] = FieldClass.Import,
+        ["notes.edits"] = FieldClass.Player,
+        ["notes.check"] = FieldClass.Derived,
+        ["notes.scan"] = FieldClass.Import,
+        ["notes.scan.pages"] = FieldClass.Import,
+        ["notes.transcription"] = FieldClass.Import,
+        ["notes.transcription.bars.meters"] = FieldClass.Import,
+        ["notes.transcription.sentFromMs"] = FieldClass.Import,
+        ["notes.pageMap"] = FieldClass.Import,
+        ["notes.performance"] = FieldClass.Player,
+        ["workspace"] = FieldClass.Player,
+        ["workspace.working"] = FieldClass.Player,
+        ["workspace.metadata"] = FieldClass.Player,
+        ["workspace.partOf"] = FieldClass.Import,
+        ["workspace.editsOff"] = FieldClass.Bookkeeping,
+        ["workspace.tempo"] = FieldClass.Player,
+        ["workspace.motifs"] = FieldClass.Player,
+        ["workspace.variations"] = FieldClass.Player,
+        ["workspace.observations"] = FieldClass.Player,
+        ["workspace.phrases"] = FieldClass.Player,
+        ["workspace.marks"] = FieldClass.Player,
+        ["workspace.bookmarks"] = FieldClass.Player,
+        ["workspace.resumePoints"] = FieldClass.Player,
+        ["workspace.assembly"] = FieldClass.Player,
+        ["workspace.settings"] = FieldClass.Player,
+        ["workspace.hiddenViews"] = FieldClass.Player,
     };
 
     /// <summary>The next step for a project from what the device knows about it.</summary>
@@ -157,7 +192,18 @@ public static class ProjectSync
         }
 
         bool ownMarks = (keepsPdf && kept.WritesDocumentMarks(device)) || (!HasPageMarks(online) && HasPageMarks(here));
-        return KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+        kept = KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+        // Version 16: the bytes of the other originals stay on the device as the PDF does, and a removal travels as its tombstone.
+        kept = here.Sources.Data.Count == 0 ? kept : kept with { Sources = kept.Sources with { Data = here.Sources.Data } };
+        // The marks on another PDF's pages go with the file; a copy with none for an original never clears this device's.
+        if (here.Sources.Marks.Keys.Except(kept.Sources.Marks.Keys).ToList() is { Count: > 0 } mine)
+        {
+            Dictionary<string, DocumentMarks> marks = new(kept.Sources.Marks, StringComparer.Ordinal);
+            mine.ForEach(id => marks[id] = here.Sources.Marks[id]);
+            kept = kept with { Sources = kept.Sources with { Marks = marks } };
+        }
+
+        return SourcesMerge.WithTombstones(kept, here.Sources.Removed);
     }
 
     /// <summary>
@@ -202,7 +248,9 @@ public static class ProjectSync
     /// <summary>
     /// Two copies of one project, both changed: the one saved last is kept, here and online, and the other is kept beside
     /// as a piece of its own named by <paramref name="copyTitle"/> ("{0}" stands for its title), so nothing is lost. Two
-    /// copies that are the same keep this device's with nothing beside. A different piece that only carries the same id
+    /// copies that are the same keep this device's with nothing beside, and so does a copy that lost with nothing of the
+    /// player's that the kept one lacks (version 0.6.1, <see cref="SamePiece.AddsNothingTo"/>), such as the piece only opened
+    /// on both devices. A different piece that only carries the same id
     /// (an old numbered id, V8) is no previous copy: the online one is kept beside under a new id as it is, and this
     /// device's goes online.
     /// </summary>
@@ -213,7 +261,11 @@ public static class ProjectSync
     /// <param name="copyTitle">The previous copy's title, with "{0}" for the piece's title.</param>
     /// <param name="newId">The previous copy's id (<c>MusicCoreFacade.NewProjectId</c>).</param>
     /// <param name="device">This device, whose marks of holding an original are its own (version 0.3); null keeps the online marks.</param>
-    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null)
+    /// <param name="base">
+    /// The copy both last agreed on, when the device keeps one (0026 S5): with it, a correction undone or Notes removed on
+    /// one side go through the merge; without it, the merge is a union with no deletions (S4).
+    /// </param>
+    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null, Project? @base = null)
     {
         ArgumentNullException.ThrowIfNull(here);
         ArgumentNullException.ThrowIfNull(online);
@@ -232,10 +284,24 @@ public static class ProjectSync
 
         // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones.
         Project mine = pulled.WritesDocumentMarks(device) || here.DocumentMarks.Equals(pulled.DocumentMarks) ? here : here with { DocumentMarks = pulled.DocumentMarks };
-        return savedHere >= savedOnline
-            ? new SyncResolution(mine, Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId))
-            : new SyncResolution(pulled, Upload: false, PreviousCopy: PreviousCopy(here, copyTitle, newId));
+        // Version 16 (0030, section 5): the copy kept takes the other's tombstones, Notes and corrections of other notes.
+        if (savedHere >= savedOnline)
+        {
+            Project kept = SourcesMerge.Merged(mine, pulled, @base);
+            return new SyncResolution(kept, Upload: true, PreviousCopy: Lost(online, kept, copyTitle, newId));
+        }
+
+        Project merged = SourcesMerge.Merged(pulled, here, @base);
+        return new SyncResolution(merged, Upload: !ProjectFile.Write(merged).AsSpan().SequenceEqual(ProjectFile.Write(pulled)), PreviousCopy: Lost(here, merged, copyTitle, newId));
     }
+
+    /// <summary>
+    /// The copy that lost as a previous copy, or null when it carries nothing of the player's that the copy kept lacks
+    /// (version 0.6.1, #582 item 1): the same piece only opened on both devices differs in when it was last opened, and a
+    /// copy of it beside would be the same piece twice in the library.
+    /// </summary>
+    private static Project? Lost(Project loser, Project kept, string copyTitle, string newId) =>
+        SamePiece.AddsNothingTo(loser, kept, joining: false) ? null : PreviousCopy(loser, copyTitle, newId);
 
     /// <summary>The copy that lost, as a piece of its own: a new id and the player's title from <paramref name="copyTitle"/>.</summary>
     public static Project PreviousCopy(Project project, string copyTitle, string newId)

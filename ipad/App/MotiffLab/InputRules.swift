@@ -9,15 +9,14 @@ import Foundation
 /// 1-3): its handles show and move only there; in Navigate, and with the Pen for a pointer that does not write, a long
 /// press puts the black playhead at the place under it and never selects. The playheads' handles move with a finger in any
 /// tool and with the stylus wherever it does not write: with the Pen the stylus writes everywhere, at the handles too
-/// (#511 4.1). Before the modes the rules of before hold. The same rules hold in Notes and on a PDF, where nothing can be
-/// selected.
+/// (#511 4.1). The same rules hold in Notes and on a PDF, where nothing can be selected.
 struct InputRules: Equatable, Sendable {
-    /// The tool chosen in the bar: none before the modes (the experiment off) with the Pen off.
+    /// The tool chosen in the bar.
     enum Tool: Equatable, Sendable {
-        case none, navigate, select, edit, pen
+        case navigate, select, edit, pen
 
-        /// The bar's choice: the Pen while it is on, else the mode, or none before the modes.
-        init(mode: InteractionMode?, penOn: Bool) {
+        /// The bar's choice: the Pen while it is on, else the mode.
+        init(mode: InteractionMode, penOn: Bool) {
             if penOn {
                 self = .pen
                 return
@@ -27,7 +26,6 @@ struct InputRules: Equatable, Sendable {
             case .select: self = .select
             case .edit: self = .edit
             case .pen: self = .pen
-            case nil: self = .none
             }
         }
     }
@@ -73,23 +71,21 @@ struct InputRules: Equatable, Sendable {
     /// Whether the pointer scrolls the music (with as many fingers as `scrollFingers` asks).
     func scrolls(_ pointer: Pointer) -> Bool {
         if actsAsFinger(pointer) { return true }
-        return effectiveTool == .none || effectiveTool == .navigate
+        return effectiveTool == .navigate
     }
 
     /// How many fingers scroll: one, unless one finger takes the tool (no stylus, any tool but Navigate), then two.
     var scrollFingers: Int {
         if stylus { return 1 }
-        return effectiveTool == .none || effectiveTool == .navigate ? 1 : 2
+        return effectiveTool == .navigate ? 1 : 2
     }
 
     /// How a press of the pointer starts a selection: in Select the stylus, and one finger without a stylus, at once, and a
     /// finger beside a stylus after a long press; in no other tool (#543 2.4: the tool decides, a long press alone is no
-    /// intent to select). Before the modes a long press and a drag, as before. Never where the pointer writes, never on a PDF.
+    /// intent to select). Never where the pointer writes, never on a PDF.
     func selectStart(_ pointer: Pointer) -> SelectStart {
         guard surface == .notes, !writes(pointer) else { return .none }
         switch effectiveTool {
-        case .none:
-            return .longPress
         case .select:
             return actsAsFinger(pointer) && stylus ? .longPress : .now
         case .navigate, .edit, .pen:
@@ -104,8 +100,7 @@ struct InputRules: Equatable, Sendable {
         return effectiveTool == .navigate || effectiveTool == .pen
     }
 
-    /// Whether a tap of the pointer acts on the page (places the playhead, opens a note, selects a bar before the modes):
-    /// everywhere but where it writes.
+    /// Whether a tap of the pointer acts on the page (places the playhead, opens a note): everywhere but where it writes.
     func taps(_ pointer: Pointer) -> Bool {
         !writes(pointer)
     }
@@ -117,10 +112,10 @@ struct InputRules: Equatable, Sendable {
         pointer == .finger || !writes(pointer)
     }
 
-    /// Whether a press of the pointer on a selection handle takes it: under the modes only in Select, where the page alone
-    /// draws them (#543 4.2); before the modes as the playheads' handles.
+    /// Whether a press of the pointer on a selection handle takes it: only in Select, where the page alone draws them
+    /// (#543 4.2).
     func takesHandles(_ pointer: Pointer) -> Bool {
-        guard effectiveTool == .select || effectiveTool == .none else { return false }
+        guard effectiveTool == .select else { return false }
         return takesPlayheads(pointer)
     }
 
@@ -140,6 +135,9 @@ struct InputRules: Equatable, Sendable {
                 "select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer), "hold": holdsPlayhead(pointer),
             ] as [String: Any]
         }
+        // Selection by the place of the touch (v0.6.2, #601; Select's only way since v0.6.3): the page decides by where a
+        // press lands in Select, never by how long it is held (Scripts/score/selection-places.ts).
+        rules["places"] = surface == .notes
         return rules
     }
 
@@ -193,13 +191,12 @@ struct RollInput: Equatable, Sendable {
     /// Whether the bar's Pen is on (#511 4.1, #521 10): then the stylus is the Pen's, which draws nothing on the roll, so
     /// there it neither selects (bar numbers, loop strip, handles), nor moves the roll, nor edits; a finger still does all.
     var penOn = false
-    /// The bar's tool under the modes (RollInput.barTool); none before them, when every tool selects on the roll as before.
-    var tool: InputRules.Tool = .none
+    /// The bar's tool (RollInput.barTool).
+    var tool: InputRules.Tool = .navigate
 
-    /// The bar's tool as the roll reads it: the Pen while it is on, else the mode; none while the experiment is off, even
-    /// with the Pen on (the Pen before the modes changes nothing else on the roll).
-    static func barTool(mode: InteractionMode?, penOn: Bool) -> InputRules.Tool {
-        mode == nil ? .none : InputRules.Tool(mode: mode, penOn: penOn)
+    /// The bar's tool as the roll reads it: the Pen while it is on, else the mode.
+    static func barTool(mode: InteractionMode, penOn: Bool) -> InputRules.Tool {
+        InputRules.Tool(mode: mode, penOn: penOn)
     }
 
     /// Whether a press of the pointer on the notes edits them; otherwise it moves the roll.
@@ -218,17 +215,16 @@ struct RollInput: Equatable, Sendable {
         pointer == .finger || !penOn
     }
 
-    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection: under the modes
-    /// only in Select (#543 2, lead decision 3), before them in every tool; never the Pen's stylus.
+    /// Whether a press of the pointer on the bar numbers, the loop strip or a handle changes the selection: only in Select
+    /// (#543 2, lead decision 3); never the Pen's stylus.
     func selects(_ pointer: InputRules.Pointer) -> Bool {
-        acts(pointer) && (tool == .none || tool == .select)
+        acts(pointer) && tool == .select
     }
 
-    /// The bar's tool as the roll's page names it (roll-modes.ts, modeOf): empty before the modes. The iPad's bar has no
-    /// Edit notes (notes are edited in the roll's own mode), so that one, never chosen here, goes as Navigate.
+    /// The bar's tool as the roll's page names it (roll-modes.ts, modeOf). The iPad's bar has no Edit notes (notes are
+    /// edited in the roll's own mode), so that one, never chosen here, goes as Navigate.
     var pageMode: String {
         switch tool {
-        case .none: ""
         case .navigate, .edit: "navigate"
         case .select: "select"
         case .pen: "pen"

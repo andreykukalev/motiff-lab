@@ -5,6 +5,7 @@
 
 import { done, result } from "./idb.js";
 
+export { deleteConversations } from "./conversation-store.js";
 export { deleteMarks } from "./pencil-store.js";
 export { deleteRecordings } from "./recording-store.js";
 
@@ -66,6 +67,8 @@ export interface ProjectSummary {
         from: number | null;
         to: number | null;
     } | null;
+    /** What the piece is known by on every device, to find the copies that are one piece (version 0.6.1); rows saved earlier have none. */
+    pieceKeys?: string[] | null;
 }
 
 /**

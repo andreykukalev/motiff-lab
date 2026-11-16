@@ -115,16 +115,27 @@ public static class MotifSelector
     /// <see cref="MotifSelection.MaxBars"/> bars. Throws for an unknown id, a repeated id, or a count or
     /// span out of bounds.
     /// </summary>
-    public static MotifSelection SelectNotes(IEnumerable<Note> notes, MeterMap meter, IEnumerable<string> noteIds)
+    public static MotifSelection SelectNotes(IEnumerable<Note> notes, MeterMap meter, IEnumerable<string> noteIds) =>
+        PickNotes(notes, meter, noteIds, MotifSelection.MinNotes, MotifSelection.MaxNotes);
+
+    /// <summary>
+    /// Notes picked on the iPad (v0.6.2, #601): as <see cref="SelectNotes"/>, but one note or more, as many as the
+    /// <see cref="MotifSelection.MaxBars"/> bars they span hold. Such a selection makes no motif unless it also holds
+    /// what <see cref="SelectNotes"/> takes (<see cref="Motif.Holds"/>).
+    /// </summary>
+    public static MotifSelection SelectPicked(IEnumerable<Note> notes, MeterMap meter, IEnumerable<string> noteIds) =>
+        PickNotes(notes, meter, noteIds, MotifSelection.MinPickedNotes, int.MaxValue);
+
+    private static MotifSelection PickNotes(IEnumerable<Note> notes, MeterMap meter, IEnumerable<string> noteIds, int fewest, int most)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
         ArgumentNullException.ThrowIfNull(noteIds);
 
         string[] ids = [.. noteIds];
-        if (ids.Length is < MotifSelection.MinNotes or > MotifSelection.MaxNotes)
+        if (ids.Length < fewest || ids.Length > most)
         {
-            throw new ArgumentOutOfRangeException(nameof(noteIds), ids.Length, $"Pick {MotifSelection.MinNotes} to {MotifSelection.MaxNotes} notes.");
+            throw new ArgumentOutOfRangeException(nameof(noteIds), ids.Length, most == int.MaxValue ? $"Pick at least {fewest} note." : $"Pick {fewest} to {most} notes.");
         }
 
         if (ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)

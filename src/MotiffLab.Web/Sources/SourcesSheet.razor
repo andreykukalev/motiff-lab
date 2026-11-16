@@ -1,0 +1,512 @@
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Performance
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Import
+@inject MotiffLab.Web.Localization.UiText Text
+@inject ScanService Scans
+
+@* The Sources sheet (version 0.6; decision record 0030; sources sheet, 2026-11-14), in today's side sheet: the piece's
+   Originals and its Notes, the working notes first. A row is a pictogram, the name (never cut), the eye «Показывать в
+   переключателе», «Открыть» and ⋯ on its title line, one caption under it, a state line if any and its buttons. The
+   view shown now is tinted and has no «Открыть». Nothing here touches a file of the player's: a linked original's
+   «Удалить» only unlinks it. *@
+<aside class="sheet inspector check-sheet sources-sheet" aria-labelledby="sources-title" data-keeps-selection data-menu-clear="auto">
+    <header class="sources-head">
+        <h2 id="sources-title">@Text["sources.title"]</h2>
+        <span class="add-original">
+            <button class="btn secondary compact" aria-haspopup="menu" aria-expanded="@(_adding ? "true" : "false")" @onclick="() => _adding = !_adding">
+                <Icon Name="plus" /> @Text[AddWord]
+            </button>
+            @if (_adding)
+            {
+                <div class="sources-menu add-menu" role="menu" aria-label="@Text[AddWord]">
+                    <label class="file add-choice" role="menuitem">
+                        <Icon Name="pages" /> <span><strong>@Text["pdf.viewPdfShort"]</strong><span class="caption">@Text["sources.addPdfHint"]</span></span>
+                        <InputFile OnChange="args => PickedAsync(AddPdf, args)" accept="@PdfDocument.Extension" aria-label="@Text["pdf.viewPdfShort"]" />
+                    </label>
+                    <label class="file add-choice" role="menuitem">
+                        <Icon Name="camera" /> <span><strong>@Text["sources.addPhotos"]</strong><span class="caption">@Text["sources.addPhotosHint"]</span></span>
+                        <InputFile OnChange="args => PickedAsync(AddPhotos, args)" accept=".png,.jpg,.jpeg" multiple aria-label="@Text["sources.addPhotos"]" />
+                    </label>
+                    <label class="file add-choice" role="menuitem">
+                        <Icon Name="mic" /> <span><strong>@Text["sources.addRecording"]</strong><span class="caption">@Text["sources.addRecordingHint"]</span></span>
+                        <InputFile @ref="_recordingPicker" OnChange="AddRecordingPickedAsync" accept="@ScanService.AcceptedRecordings" aria-label="@Text["sources.addRecording"]" />
+                    </label>
+                    <label class="file add-choice" role="menuitem">
+                        <Icon Name="file" /> <span><strong>@Text["sources.addFile"]</strong><span class="caption">@Text["sources.addFileHint"]</span></span>
+                        <InputFile OnChange="args => PickedAsync(AddFile, args)" accept="@VersionFile.AcceptedExtensions" aria-label="@Text["sources.addFile"]" />
+                    </label>
+                </div>
+            }
+        </span>
+        <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="Close"><Icon Name="close" /></button>
+    </header>
+
+    @if (_adding || _menu is not null)
+    {
+        <button class="sheet-scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="CloseMenus"></button>
+    }
+
+    <p class="overline">@Text["sources.originals"] · @Views.Originals.Count(original => original.State != SourceState.Removed)</p>
+    <ul class="source-rows" aria-label="@Text["sources.originals"]">
+        @foreach (SourceOriginal original in Views.Originals)
+        {
+            @OriginalRow(original)
+        }
+    </ul>
+
+    <p class="overline">@Text["sources.roleNotes"] · @Views.Notes.Count</p>
+    <ul class="source-rows" aria-label="@Text["sources.roleNotes"]">
+        @foreach (SourceNotes notes in Views.Notes)
+        {
+            @NotesRow(notes)
+        }
+    </ul>
+
+    @if (Status is { } status)
+    {
+        <p class="caption" role="status">@status</p>
+    }
+</aside>
+
+@if (_deleting is { } deleting)
+{
+    @DeleteOriginalDialog(deleting)
+}
+else if (_deletingNotes is { } doomed)
+{
+    @DeleteNotesDialog(doomed)
+}
+
+@code {
+    /// <summary>
+    /// «Добавить», or «Добавить ещё» once the piece has an original (#582 item 5: it said «Добавить оригинал»): another
+    /// source of the same piece, never a new piece.
+    /// </summary>
+    private string AddWord => Views.Originals.Any(original => original.State != SourceState.Removed) ? "sources.addMore" : "sources.add";
+
+    private bool _adding;
+
+    /// <summary>The row whose ⋯ menu is open, by its key.</summary>
+    private string? _menu;
+
+    /// <summary>The original whose recognise panel is open under its row, and whether it is «Распознать ещё раз».</summary>
+    private (string Id, bool Again)? _recognising;
+
+    private SourceOriginal? _deleting;
+    private SourceNotes? _deletingNotes;
+    private InputFile? _recordingPicker;
+    private readonly Dictionary<string, InputFile> _samePickers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, InputFile> _relinkPickers = new(StringComparer.Ordinal);
+
+    [Parameter, EditorRequired]
+    public Project Project { get; set; } = default!;
+
+    /// <summary>The piece's sources as music-core sees them on this device.</summary>
+    [Parameter, EditorRequired]
+    public PieceViews Views { get; set; } = default!;
+
+    /// <summary>The key of the view shown now (<see cref="SourceNames.KeyOf"/>).</summary>
+    [Parameter]
+    public string? Shown { get; set; }
+
+    /// <summary>The piece's title, for Notes no file of the piece made.</summary>
+    [Parameter]
+    public string Piece { get; set; } = "";
+
+    /// <summary>The carries of the assembly, said under assembled working notes.</summary>
+    [Parameter]
+    public int Carries { get; set; }
+
+    /// <summary>The Notes just added, tinted once.</summary>
+    [Parameter]
+    public string? Fresh { get; set; }
+
+    /// <summary>What the last change did, or why it could not.</summary>
+    [Parameter]
+    public string? Status { get; set; }
+
+    /// <summary>Whether this browser can open a view.</summary>
+    [Parameter, EditorRequired]
+    public Func<SourceView, bool> CanOpen { get; set; } = default!;
+
+    /// <summary>The bytes of a PDF or photos original on this device; null when they are elsewhere.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, byte[]?> PdfOf { get; set; } = default!;
+
+    /// <summary>How many pages a PDF or photos original has.</summary>
+    [Parameter, EditorRequired]
+    public Func<PieceOriginal, int?> PagesOf { get; set; } = default!;
+
+    /// <summary>Where an original's bytes are, in words: «Только на iPad», «Нет ни на одном устройстве».</summary>
+    [Parameter, EditorRequired]
+    public Func<PieceOriginal, string> WhereText { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+    /// <summary>«Открыть»: the page shows the view with this key.</summary>
+    [Parameter]
+    public EventCallback<string> Open { get; set; }
+
+    /// <summary>The eye: a view hidden from the switch (true) or shown in it again (false).</summary>
+    [Parameter]
+    public EventCallback<(string Id, bool Hidden)> Hide { get; set; }
+
+    [Parameter]
+    public Func<InputFileChangeEventArgs, Task>? AddPdf { get; set; }
+
+    [Parameter]
+    public Func<InputFileChangeEventArgs, Task>? AddPhotos { get; set; }
+
+    /// <summary>A recording picked: its file, and the picker it is read from in the browser.</summary>
+    [Parameter]
+    public Func<IBrowserFile, ElementReference, Task>? AddRecording { get; set; }
+
+    [Parameter]
+    public Func<InputFileChangeEventArgs, Task>? AddFile { get; set; }
+
+    /// <summary>«Добавить тот же файл» on a deleted original: its id, the file picked and its picker.</summary>
+    [Parameter]
+    public Func<string, IBrowserFile, ElementReference, Task>? AddSame { get; set; }
+
+    /// <summary>«Привязать оригинал»: its id, the file picked and its picker.</summary>
+    [Parameter]
+    public Func<string, InputFileChangeEventArgs, ElementReference, Task>? Relink { get; set; }
+
+    /// <summary>The notes the scan server read from an original (its id); returns why they cannot be used.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, ScanResult, Task<string?>> Recognised { get; set; } = default!;
+
+    /// <summary>An original deleted, with its notes or without.</summary>
+    [Parameter]
+    public EventCallback<(string Id, bool WithNotes)> RemoveOriginal { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DeleteNotes { get; set; }
+
+    [Parameter]
+    public EventCallback<string> MakeWorking { get; set; }
+
+    private RenderFragment OriginalRow(SourceOriginal source) => __builder =>
+    {
+        PieceOriginal original = source.Original;
+        bool removed = source.State == SourceState.Removed;
+        SourceView? view = removed ? null : Views.Views.FirstOrDefault(each => each.Id == original.Id && each.Kind != ViewKind.Notes);
+        string key = $"original:{original.Id}";
+        bool selected = view is not null && SourceNames.KeyOf(view.Kind, view.Id) == Shown;
+        bool readable = original.Kind is OriginalKind.Pdf or OriginalKind.Images && source.State == SourceState.Here && PdfOf(original.Id) is not null && Project.HasNotes;
+        bool canRelink = Relink is not null && source.State is SourceState.OnAnotherDevice or SourceState.Nowhere && (original.Id == PieceOriginal.DocumentId || original.Kind == OriginalKind.Audio);
+        <li class="source-row @(selected ? "selected" : null) @(removed ? "removed" : null)">
+            <span class="op" role="img" aria-label="@SourceNames.OriginalLine(Text, original, null)"><Icon Name="@SourceNames.OriginalIcon(original.Kind)" /></span>
+            <div class="body">
+                <div class="title-line">
+                    <strong class="name">@original.Shown</strong>
+                    <span class="acts">
+                        @Eye(view, original.Shown)
+                        @if (view is not null && !selected && CanOpen(view))
+                        {
+                            <button class="btn secondary compact" @onclick="() => Open.InvokeAsync(SourceNames.KeyOf(view.Kind, view.Id))">@Text["home.open"]</button>
+                        }
+                        @if (!removed)
+                        {
+                            @MoreButton(key, original.Shown)
+                        }
+                    </span>
+                </div>
+                <p class="caption">@(removed ? Text["sources.removedLine"] : SourceNames.OriginalLine(Text, original, PagesOf(original)))</p>
+                @if (source.State is SourceState.OnAnotherDevice or SourceState.Nowhere)
+                {
+                    <p class="held where-@(source.State == SourceState.Nowhere ? "nowhere" : "elsewhere")">@WhereText(original)</p>
+                }
+                @if (canRelink)
+                {
+                    <div class="row">
+                        <label class="file btn secondary compact" title="@Text["originals.relinkHint"]">
+                            @Text["originals.relink"]
+                            <InputFile @ref="_relinkPickers[original.Id]" OnChange="args => RelinkAsync(original.Id, args)"
+                                       accept="@(original.Kind == OriginalKind.Audio ? ScanService.AcceptedRecordings : PdfDocument.Extension)" />
+                        </label>
+                    </div>
+                }
+                @if (removed && AddSame is not null)
+                {
+                    <div class="row">
+                        <label class="file btn secondary compact">
+                            @Text["sources.addSame"]
+                            <InputFile @ref="_samePickers[original.Id]" OnChange="args => AddSameAsync(original.Id, args)" accept="@AcceptFor(original.Kind)" />
+                        </label>
+                    </div>
+                }
+                @if (readable && source.Notes.Count == 0 && _recognising?.Id != original.Id)
+                {
+                    <div class="row">
+                        <button class="btn secondary compact" @onclick="() => _recognising = (original.Id, false)">
+                            @Text["sources.recognise"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                        </button>
+                    </div>
+                }
+                @if (_menu == key)
+                {
+                    <div class="sources-menu row-menu" role="menu" aria-label="@Text.Format("sources.more", original.Shown)">
+                        @if (readable && source.Notes.Count > 0)
+                        {
+                            <button class="btn quiet" role="menuitem" @onclick="() => { _menu = null; _recognising = (original.Id, true); }">
+                                @Text["sources.recogniseAgain"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                            </button>
+                            <hr />
+                        }
+                        <button class="btn quiet danger-text" role="menuitem" @onclick="() => { _menu = null; _deleting = source; }">@Text["sources.delete"]</button>
+                    </div>
+                }
+                @if (_recognising is { } open && open.Id == original.Id && PdfOf(original.Id) is { } pdf)
+                {
+                    int pages = PagesOf(original) ?? 1;
+                    <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@original.FileName" Heading="@Text[open.Again ? "sources.recogniseAgain" : "pdf.readNotes"]"
+                                                      Line="@RecogniseLine(pages)" Send="@Text.Count("sources.send", pages)" Keeps="@(open.Again ? KeepsLine(source) : "")"
+                                                      Cancel="() => _recognising = null" Read="result => RecognisedAsync(original.Id, result)" />
+                }
+            </div>
+        </li>
+    };
+
+    private RenderFragment NotesRow(SourceNotes notes) => __builder =>
+    {
+        SourceView? view = Views.Views.FirstOrDefault(each => each.Id == notes.Id && each.Kind == ViewKind.Notes);
+        string key = $"notes:{notes.Id}";
+        bool selected = SourceNames.KeyOf(ViewKind.Notes, notes.Id) == Shown;
+        bool working = notes.Role == NotesRole.Working;
+        string title = SourceNames.NotesTitle(Views, notes, Piece);
+        string line = SourceNames.NotesLine(Text, notes, working ? Carries : 0);
+        <li class="source-row @(selected ? "selected" : null) @(notes.Id == Fresh ? "fresh" : null)">
+            <span class="op" role="img" aria-label="@SourceNames.IconLabel(Text, notes.Provenance.Op)"><Icon Name="@SourceNames.Icon(notes.Provenance.Op)" /></span>
+            <div class="body">
+                <div class="title-line">
+                    <strong class="name">@title</strong>
+                    <span class="acts">
+                        @if (!working)
+                        {
+                            @Eye(view, title)
+                        }
+                        @if (view is not null && !selected && CanOpen(view))
+                        {
+                            <button class="btn secondary compact" @onclick="() => Open.InvokeAsync(SourceNames.KeyOf(view.Kind, view.Id))">@Text["home.open"]</button>
+                        }
+                        @if (!working)
+                        {
+                            @MoreButton(key, title)
+                        }
+                    </span>
+                </div>
+                <p class="caption">
+                    @if (working)
+                    {
+                        <span class="tag working">@Text["sources.working"]</span>
+                    }
+                    @line
+                </p>
+                @if (notes.State == SourceState.Removed)
+                {
+                    <p class="caption state-gone">@Text["sources.originalRemoved"]</p>
+                }
+                else if (notes.State == SourceState.FileChanged)
+                {
+                    <p class="caption state-changed">@Text["originals.changed"]</p>
+                }
+                @if (_menu == key)
+                {
+                    <div class="sources-menu row-menu" role="menu" aria-label="@Text.Format("sources.more", title)">
+                        @if (notes.Role == NotesRole.Other)
+                        {
+                            <button class="btn quiet" role="menuitem" @onclick="() => MakeWorkingAsync(notes.Id)">@Text["sources.makeWorking"]</button>
+                            <hr />
+                        }
+                        <button class="btn quiet danger-text" role="menuitem" @onclick="() => { _menu = null; _deletingNotes = notes; }">@Text["sources.deleteNotes"]</button>
+                    </div>
+                }
+            </div>
+        </li>
+    };
+
+    /// <summary>The eye of a view: pressed while it shows in the switch; none for a row that is no view.</summary>
+    private RenderFragment Eye(SourceView? view, string name) => __builder =>
+    {
+        if (view is null || view.Working)
+        {
+            return;
+        }
+
+        <button class="btn icon eye @(view.Hidden ? "off" : null)" aria-pressed="@(view.Hidden ? "false" : "true")" aria-label="@Text["sources.showInSwitch"]"
+                title="@($"{Text["sources.showInSwitch"]}: {name}")" @onclick="() => Hide.InvokeAsync((view.Id, !view.Hidden))">
+            <Icon Name="@(view.Hidden ? "eyeoff" : "eye")" />
+        </button>
+    };
+
+    private RenderFragment MoreButton(string key, string name) => @<button class="btn icon more @(_menu == key ? "on" : null)" aria-haspopup="menu" aria-expanded="@(_menu == key ? "true" : "false")"
+                                                                           aria-label="@Text.Format("sources.more", name)" @onclick="() => ToggleMenu(key)"><Icon Name="more" /></button>;
+
+    private RenderFragment DeleteOriginalDialog(SourceOriginal source) => __builder =>
+    {
+        List<SourceNotes> made = [.. source.Notes.Select(id => Views.Notes.FirstOrDefault(notes => notes.Id == id)).OfType<SourceNotes>()];
+        bool workingStays = made.Any(notes => notes.Role == NotesRole.Working);
+        <div class="ask-pop-backdrop apply-backdrop" @onclick="() => _deleting = null"></div>
+        <section class="apply-dialog delete-original" role="dialog" aria-modal="true" aria-labelledby="delete-title" data-keeps-selection>
+            <h2 id="delete-title">@Text.Format("sources.deleteTitle", source.Original.Shown)</h2>
+            @if (made.Count > 0 || source.PageMarks > 0)
+            {
+                <p>@Text["sources.deleteMade"]</p>
+                <ul class="made-list">
+                    @foreach (SourceNotes notes in made)
+                    {
+                        <li>
+                            <span role="img" aria-label="@SourceNames.IconLabel(Text, notes.Provenance.Op)"><Icon Name="@SourceNames.Icon(notes.Provenance.Op)" /></span>
+                            <span>@SourceNames.NotesTitle(Views, notes, Piece)</span>
+                            <span class="caption">· @SourceNames.NotesLine(Text, notes, 0)</span>
+                        </li>
+                    }
+                    @if (source.PageMarks > 0)
+                    {
+                        <li><Icon Name="pen" /> <span>@Text.Count("sources.pageMarks", source.PageMarks)</span></li>
+                    }
+                </ul>
+            }
+            @if (source.Original.Kept == OriginalKept.Link)
+            {
+                <p class="caption">@Text["sources.linkedStays"]</p>
+            }
+            <button class="btn danger" @onclick="() => RemoveAsync(source.Original.Id, false)">@Text["sources.deleteOnly"]</button>
+            @if (made.Count > 0)
+            {
+                @if (workingStays)
+                {
+                    <p class="caption">@Text["sources.deleteWorkingStays"]</p>
+                }
+                else
+                {
+                    <button class="btn danger-outline" @onclick="() => RemoveAsync(source.Original.Id, true)">@Text["sources.deleteWith"]</button>
+                }
+            }
+            <button class="btn quiet" @onclick="() => _deleting = null">@Text["common.cancel"]</button>
+        </section>
+    };
+
+    private RenderFragment DeleteNotesDialog(SourceNotes notes) => __builder =>
+    {
+        string title = SourceNames.NotesTitle(Views, notes, Piece);
+        <div class="ask-pop-backdrop apply-backdrop" @onclick="() => _deletingNotes = null"></div>
+        <section class="apply-dialog delete-original" role="dialog" aria-modal="true" aria-labelledby="delete-notes-title" data-keeps-selection>
+            <h2 id="delete-notes-title">@Text.Format("sources.deleteNotesTitle", title)</h2>
+            <p>@Text["sources.deleteNotesLine"]</p>
+            <button class="btn danger" @onclick="() => DeleteNotesAsync(notes.Id)">@Text["sources.deleteNotesConfirm"]</button>
+            <button class="btn quiet" @onclick="() => _deletingNotes = null">@Text["common.cancel"]</button>
+        </section>
+    };
+
+    private string RecogniseLine(int pages)
+    {
+        string form = MotiffLab.Web.Localization.UiText.PluralForm(Text.Language, pages);
+        return Scans.IsHosted || Scans.Address is null
+            ? Text.Format($"sources.recogniseLineHosted.{form}", pages)
+            : Text.Format($"sources.recogniseLineAt.{form}", pages, Scans.Address);
+    }
+
+    /// <summary>«Ноты от 13.11 и их 14 правок останутся рядом.», of the latest Notes made from the original.</summary>
+    private string KeepsLine(SourceOriginal source)
+    {
+        if (source.Notes.Count == 0 || Views.Notes.FirstOrDefault(notes => notes.Id == source.Notes[^1]) is not { } latest)
+        {
+            return "";
+        }
+
+        string form = MotiffLab.Web.Localization.UiText.PluralForm(Text.Language, latest.Edits);
+        return Text.Format($"sources.keepsAgain.{form}", SourceNames.Day(latest.Provenance.At), latest.Edits);
+    }
+
+    private static string AcceptFor(OriginalKind kind) => kind switch
+    {
+        OriginalKind.Pdf => PdfDocument.Extension,
+        OriginalKind.Images => ".png,.jpg,.jpeg,.pdf",
+        OriginalKind.Audio => ScanService.AcceptedRecordings,
+        _ => VersionFile.AcceptedExtensions,
+    };
+
+    private void ToggleMenu(string key)
+    {
+        _menu = _menu == key ? null : key;
+        _adding = false;
+    }
+
+    private void CloseMenus()
+    {
+        _menu = null;
+        _adding = false;
+    }
+
+    private async Task PickedAsync(Func<InputFileChangeEventArgs, Task>? handler, InputFileChangeEventArgs args)
+    {
+        // The picker stays on the page until its file is read: the menu closes after.
+        if (handler is not null)
+        {
+            await handler(args);
+        }
+
+        _adding = false;
+    }
+
+    private async Task AddRecordingPickedAsync(InputFileChangeEventArgs args)
+    {
+        if (AddRecording is not null && _recordingPicker?.Element is { } input)
+        {
+            await AddRecording(args.File, input);
+        }
+
+        _adding = false;
+    }
+
+    private async Task AddSameAsync(string id, InputFileChangeEventArgs args)
+    {
+        if (AddSame is not null && _samePickers.GetValueOrDefault(id)?.Element is { } input)
+        {
+            await AddSame(id, args.File, input);
+        }
+    }
+
+    private async Task RelinkAsync(string id, InputFileChangeEventArgs args)
+    {
+        if (Relink is not null && _relinkPickers.GetValueOrDefault(id)?.Element is { } input)
+        {
+            await Relink(id, args, input);
+        }
+    }
+
+    private async Task<string?> RecognisedAsync(string id, ScanResult result)
+    {
+        string? problem = await Recognised(id, result);
+        if (problem is null)
+        {
+            // The panel calls back through a plain delegate, which re-renders only the panel: the sheet closes it itself.
+            _recognising = null;
+            StateHasChanged();
+        }
+
+        return problem;
+    }
+
+    private async Task RemoveAsync(string id, bool withNotes)
+    {
+        _deleting = null;
+        await RemoveOriginal.InvokeAsync((id, withNotes));
+    }
+
+    private async Task DeleteNotesAsync(string id)
+    {
+        _deletingNotes = null;
+        await DeleteNotes.InvokeAsync(id);
+    }
+
+    private async Task MakeWorkingAsync(string id)
+    {
+        _menu = null;
+        await MakeWorking.InvokeAsync(id);
+    }
+}

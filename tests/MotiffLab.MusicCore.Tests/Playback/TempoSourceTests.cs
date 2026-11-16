@@ -193,17 +193,17 @@ public class TempoSourceTests
     {
         Project project = Project.Create("p_tempo", "scan.musicxml", Homr(), s_now) with { PlayerTempo = 92 };
 
-        JsonObject file = JsonNode.Parse(ProjectFile.Write(project))!.AsObject();
+        JsonObject file = JsonNode.Parse(ProjectFile.Write(project))!["workspace"]!.AsObject();
 
         Assert.Equal(92, file["tempo"]!["quarterNotesPerMinute"]!.GetValue<int>());
         Assert.Equal(92, ProjectFile.Read(ProjectFile.Write(project)).PlayerTempo);
         Assert.Equal(92, OpenedProject.Open(project).Piece.PlayerTempo);
-        Assert.False(JsonNode.Parse(ProjectFile.Write(project with { PlayerTempo = null }))!.AsObject().ContainsKey("tempo"));
+        Assert.False(JsonNode.Parse(ProjectFile.Write(project with { PlayerTempo = null }))!["workspace"]!.AsObject().ContainsKey("tempo"));
         Assert.Equal(FieldClass.Player, ProjectSync.Fields["tempo"]);
         foreach (string broken in new[] { "92", """{"quarterNotesPerMinute": 19}""", """{"quarterNotesPerMinute": 301}""", """{"quarterNotesPerMinute": 92.5}""", "{}" })
         {
             file["tempo"] = JsonNode.Parse(broken);
-            Assert.Contains("tempo", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()))).Message, StringComparison.Ordinal);
+            Assert.Contains("tempo", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(file.Root.ToJsonString()))).Message, StringComparison.Ordinal);
         }
     }
 
@@ -220,18 +220,18 @@ public class TempoSourceTests
         Assert.Equal(750_000, Call(facade, "playback").GetProperty("tempos")[0].GetProperty("microsecondsPerQuarter").GetInt32());
         Assert.Contains("mm=\"80\"", Call(facade, "notation").GetProperty("mei").GetString()!, StringComparison.Ordinal);
         // The default is not the player's: the project file does not keep it.
-        Assert.False(Call(facade, "project.save").TryGetProperty("tempo", out _));
+        Assert.False(Call(facade, "project.save").GetProperty("workspace").TryGetProperty("tempo", out _));
 
         JsonElement set = Call(facade, "tempo.set", """{"perMinute": 92}""").GetProperty("tempo");
         Assert.Equal((92, "player", 92), (set.GetProperty("perMinute").GetInt32(), set.GetProperty("source").GetString(), set.GetProperty("player").GetInt32()));
         Assert.Equal("default", set.GetProperty("piece").GetProperty("source").GetString());
         Assert.Equal(652_174, Call(facade, "playback").GetProperty("tempos")[0].GetProperty("microsecondsPerQuarter").GetInt32());
         Assert.Contains("mm=\"92\"", Call(facade, "notation").GetProperty("mei").GetString()!, StringComparison.Ordinal);
-        Assert.Equal(92, Call(facade, "project.save").GetProperty("tempo").GetProperty("quarterNotesPerMinute").GetInt32());
+        Assert.Equal(92, Call(facade, "project.save").GetProperty("workspace").GetProperty("tempo").GetProperty("quarterNotesPerMinute").GetInt32());
         Assert.Equal("badRequest", Error(facade, "tempo.set", """{"perMinute": 400}"""));
 
         Assert.Equal("default", Call(facade, "tempo.set", "{}").GetProperty("tempo").GetProperty("source").GetString());
-        Assert.False(Call(facade, "project.save").TryGetProperty("tempo", out _));
+        Assert.False(Call(facade, "project.save").GetProperty("workspace").TryGetProperty("tempo", out _));
     }
 
     [Fact]

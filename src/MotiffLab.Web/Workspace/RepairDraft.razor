@@ -1,0 +1,70 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Assistant.Repairs
+@using MotiffLab.MusicCore.Projects
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Починка по флажку» (an experiment, Settings · Experimental, version 0.6; the AI companion study, section 2.2): under a
+   flagged bar in the Check drawer, the ways music-core works out from the flag's reason (CheckRepairs, no AI), one chosen;
+   the chosen draft as the page renders it (DraftProposal: the plum ossia, hearing, what changes, Accept and Dismiss). A
+   reason with no safe way says why. Nothing changes until Accept, and Accept never resolves the flag: the player does.
+   The page does the hearing and the corrections. *@
+<section class="repair-draft" aria-labelledby="@TitleId">
+    <p class="overline" id="@TitleId">@Text.Format("repair.overline", Bar)</p>
+    @if (Candidates.Count > 0)
+    {
+        <fieldset class="repair-ways">
+            <legend class="visually-hidden">@Text["repair.ways"]</legend>
+            @foreach (RepairCandidate candidate in Candidates)
+            {
+                bool on = candidate.Id == Chosen?.Id;
+                <label class="repair-way @(on ? "on" : null)">
+                    <input type="radio" name="@($"repair-{Bar}")" checked="@on" @onchange="() => Choose.InvokeAsync(candidate)" />
+                    <span>@candidate.Title</span>
+                </label>
+            }
+        </fieldset>
+        <p class="caption">@Text["repair.byEngine"]</p>
+    }
+    @foreach (RepairOptions none in Options.Where(options => options.NoneReason is not null))
+    {
+        <p class="caption repair-none"><strong>@CheckFlag.NameOf(none.Flag.Reason, Words.For(Text.Language))</strong>: @none.NoneReason</p>
+    }
+    @if (Chosen is { } chosen)
+    {
+        @Proposal(chosen)
+    }
+    else
+    {
+        <div class="row">
+            <button class="btn quiet compact" @onclick="Dismiss">@Text["repair.close"]</button>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The flagged bar.</summary>
+    [Parameter, EditorRequired]
+    public int Bar { get; set; }
+
+    /// <summary>The repairs for each of the bar's open flags, as music-core works them out.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RepairOptions> Options { get; set; } = [];
+
+    /// <summary>The way chosen; null when the bar has none.</summary>
+    [Parameter]
+    public RepairCandidate? Chosen { get; set; }
+
+    [Parameter]
+    public EventCallback<RepairCandidate> Choose { get; set; }
+
+    /// <summary>The chosen way as a draft to hear and decide (<see cref="DraftProposal"/>), which the page renders.</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<RepairCandidate> Proposal { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback Dismiss { get; set; }
+
+    private IReadOnlyList<RepairCandidate> Candidates => [.. Options.SelectMany(options => options.Candidates)];
+
+    private string TitleId => $"repair-{Bar}-title";
+}

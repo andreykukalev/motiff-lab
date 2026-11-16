@@ -14,9 +14,9 @@ extension ScoreScreen {
     /// The "Notes" view as it is now, read before the player stops; where the score and the roll are is read as it is kept.
     func notesViewNow() -> NotesViewState {
         var state = NotesViewState()
-        state.selection = score.selection.map { SelectionSpanKept(onset: $0.onset, end: $0.end) }
+        state.selection = score.selection.map { SelectionSpanKept($0) }
         state.position = player.tick
-        state.loop = score.onePosition ? player.cycle && score.selection != nil : player.loop != nil
+        state.loop = player.cycle && score.selection != nil
         state.rollOpen = rollOpen
         return state
     }
@@ -50,17 +50,12 @@ extension ScoreScreen {
         RollFrameHandoff.give(kept.roll, to: piece.id)
         guard await score.whenRendered() else { return }
         if let span = kept.selection, span.end > span.onset {
-            await score.select(request: ScoreController.beatsRequest(span.onset, span.end), step: false)
+            await score.select(request: span.span.request, step: false, picked: span.picked != nil)
         }
-        if score.onePosition {
-            // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).
-            player.hold(selection: score.playRange?.range)
-            if player.cycle != kept.loop { player.apply(.cycle) }
-            player.go(to: kept.position, play: false)
-        } else {
-            if kept.loop, let range = score.playRange?.range { player.setLoop(range, play: false) }
-            player.seek(to: Player.place(kept.position, inside: player.loop))
-        }
+        // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).
+        player.hold(selection: score.playRange?.range)
+        if player.cycle != kept.loop { player.apply(.cycle) }
+        player.go(to: kept.position, play: false)
         rollOpen = kept.rollOpen
         await score.showPlace(kept.place, zoom: kept.zoom, left: kept.left)
     }
@@ -71,10 +66,12 @@ extension ScoreScreen {
         let id = piece.id
         let now = resumeNow()
         let view = notesViewNow()
-        Task {
-            await keepNotesView(view)
+        // The piece's file first, with background time (review 3); the view kept on the device after it, as it waits for
+        // the score's page.
+        BackgroundTime.run {
             await keepResume(now)
             try? await ProjectFiles.save(piece: id, to: file)
+            await keepNotesView(view)
         }
     }
 
@@ -82,9 +79,30 @@ extension ScoreScreen {
     /// web app's `ShowPdfAsync`), once the "Notes" view, the resume point and the piece are saved: the library closes the
     /// piece as the PDF opens (ClosedPieces).
     func showPdf() async {
-        guard let switchView else { return }
+        guard let switchView, !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
         let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
+        await keepForHandOver()
+        await switchView(.page(pages.page(of: tick)))
+    }
+
+    /// A new interface language (InterfaceLanguage): the piece saved as for the PDF, closed, and opened again in the
+    /// "Notes" view kept now, or where the view is in the music; nil without a project file or while handed over already.
+    func handOverForLanguage() async -> InterfaceLanguage.Reopen? {
+        guard let file = piece.file, !handingOver else { return nil }
+        handingOver = true
+        let at = await score.tickInView() ?? 0
+        await keepForHandOver()
+        Metronome.shared.stop()
+        await ClosedPieces.close(piece.id)
+        return InterfaceLanguage.Reopen(file: file, landing: .tick(at))
+    }
+
+    /// The "Notes" view, the resume point and the project file, a variation only tried left first, as the piece goes to
+    /// another screen; playback stops.
+    private func keepForHandOver() async {
         let now = resumeNow()
         let view = notesViewNow()
         player.shutdown()
@@ -92,7 +110,6 @@ extension ScoreScreen {
         await keepResume(now)
         await insights.leave()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-        await switchView(.page(pages.page(of: tick)))
     }
 }
 

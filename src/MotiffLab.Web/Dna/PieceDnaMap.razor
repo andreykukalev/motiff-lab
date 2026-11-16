@@ -242,7 +242,7 @@
                 </div>
             }
 
-            <p class="overline lanes-title">@Text["dna.ideasTitle"]</p>
+            <p class="overline lanes-title">@Text["dna.ideasTitle"]@if (Dna.Ideas.Any(idea => idea.Kind is not (IdeaKind.Found or IdeaKind.Selection))) { <span class="tag assumed">@Text["dna.inferred"]</span> }</p>
             @if (Dna.Ideas.Count == 0)
             {
                 <p class="lane-empty ideas-empty">@Text[Dna.IdeasStatus == DnaStatus.Ready ? "dna.ideasNone" : "dna.ideasEmpty"]</p>
@@ -323,7 +323,7 @@
                 @if (_explainedSpan is { } span)
                 {
                     <div class="row">
-                        <button class="btn secondary compact" @onclick="() => HearIdeaAsync(span)"><Icon Name="play" /> @Text["dna.hear"]</button>
+                        @HearButton(span)
                         <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(span)">@Text["dna.inScore"]</button>
                     </div>
                 }
@@ -339,7 +339,7 @@
                         <h3 id="@($"{idea.Id}-title")" class="ttl">@idea.Title</h3>
                         <p class="caption">@idea.Summary</p>
                         <div class="row">
-                            <button class="btn secondary compact" @onclick="() => HearIdeaAsync(idea.Span)"><Icon Name="play" /> @Text["dna.hear"]</button>
+                            @HearButton(idea.Span)
                             <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(idea.Span)">@Text["dna.inScore"]</button>
                             <button class="btn quiet compact" @onclick="() => ShowInInsights.InvokeAsync(idea.Span)">@Text["dna.inInsights"]</button>
                         </div>
@@ -349,7 +349,7 @@
         }
 
         <div class="dna-actions">
-            <button class="btn primary" @onclick="() => PlayMap.InvokeAsync()"><Icon Name="@(PlayingAt is null ? "play" : "pause")" /> @(PlayingAt is null ? Text["dna.playMap"] : Text["dna.stop"])</button>
+            <button class="btn primary" @onclick="() => PlayMap.InvokeAsync()"><Icon Name="@(MapStops ? "pause" : "play")" /> @(MapStops ? Text["dna.stop"] : Text["dna.playMap"])</button>
             @if (Dna.Form.Count > 0)
             {
                 <button class="btn secondary" @onclick="() => AddBookmarks.InvokeAsync()"><Icon Name="bookmark" /> @Text["dna.addBookmarks"]</button>
@@ -396,9 +396,21 @@
     [Parameter]
     public string? BackLabel { get; set; }
 
-    /// <summary>Plays a passage of the map.</summary>
+    /// <summary>Plays a passage of the map, a mark's or a section's, round and round.</summary>
     [Parameter]
     public EventCallback<TickSpan> Hear { get; set; }
+
+    /// <summary>A card's Hear: plays its passage once (#582 item 14).</summary>
+    [Parameter]
+    public EventCallback<TickSpan> HearOnce { get; set; }
+
+    /// <summary>A card's Stop: stops the passage it started.</summary>
+    [Parameter]
+    public EventCallback Stop { get; set; }
+
+    /// <summary>The passage a card's Hear started, while it sounds: that card's button reads Stop; null for none.</summary>
+    [Parameter]
+    public TickSpan? CardSounding { get; set; }
 
     /// <summary>Leaves for the score, with the passage selected.</summary>
     [Parameter]
@@ -865,9 +877,22 @@
         await Hear.InvokeAsync(span);
     }
 
+    /// <summary>The map's own button reads Stop while the map, a mark or a section plays; a card's passage has its Stop on the card.</summary>
+    private bool MapStops => PlayingAt is not null && CardSounding is null;
+
+    /// <summary>
+    /// A card's Hear (#582 item 14): it plays the passage once and reads Stop while it sounds; Stop, the passage's end, or
+    /// another passage or the map starting brings Hear back.
+    /// </summary>
+    private RenderFragment HearButton(TickSpan span)
+    {
+        bool sounding = CardSounding == span;
+        return @<button class="btn secondary compact dna-hear" @onclick="() => sounding ? Stop.InvokeAsync() : HearIdeaAsync(span)"><Icon Name="@(sounding ? "pause" : "play")" /> @Text[sounding ? "dna.stop" : "dna.hear"]</button>;
+    }
+
     private Task HearIdeaAsync(TickSpan span)
     {
         _heard = span;
-        return Hear.InvokeAsync(span);
+        return HearOnce.InvokeAsync(span);
     }
 }

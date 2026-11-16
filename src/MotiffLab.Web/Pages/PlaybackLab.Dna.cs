@@ -17,6 +17,9 @@ public partial class PlaybackLab
     [SupplyParameterFromQuery(Name = "view")]
     public string? View { get; set; }
 
+    /// <summary>«Идеи по смыслу» (#582 item 15): the map's ideas by what they are in the music, an experiment.</summary>
+    public const string MusicalIdeasSetting = "experimental.musicalIdeas";
+
     private PieceDna? _dna;
 
     /// <summary>What the map's last action did, such as the bookmarks it added.</summary>
@@ -24,6 +27,13 @@ public partial class PlaybackLab
 
     /// <summary>Whether a passage of the map or the whole map is playing, so leaving stops it.</summary>
     private bool _dnaPlaying;
+
+    /// <summary>The passage a card's Hear started, played once (#582 item 14); null when a mark, a section or the map plays.</summary>
+    private TickSpan? _dnaCard;
+
+    /// <summary>The card's passage while it sounds: the engine still loops it and plays; null once it ends, is stopped or another starts.</summary>
+    private TickSpan? DnaCardSounding =>
+        _dnaPlaying && _dnaCard is { } card && Player.State != PlaybackState.Stopped && Player.Loop == card ? card : null;
 
     private void OpenDna()
     {
@@ -40,7 +50,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>The map of the piece, with the doubt of recognised notes still to check in its chords and keys (#352).</summary>
-    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _reading?.Structure, Words, _pieceStructure));
+    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _reading?.Structure, Words, _pieceStructure, SettingsStore.IsOn(MusicalIdeasSetting)));
 
     private async Task CloseDnaAsync()
     {
@@ -56,17 +66,24 @@ public partial class PlaybackLab
         }
 
         _dnaPlaying = false;
+        _dnaCard = null;
         await StopLoopingAsync();
         await Player.PauseAsync();
     }
 
-    /// <summary>A mark, a section or a card's Hear: its passage loops until another is chosen or the map is left.</summary>
-    private async Task HearDnaAsync(TickSpan span)
+    /// <summary>A mark or a section: its passage loops until another is chosen, the map's Stop is pressed or the map is left.</summary>
+    private Task HearDnaAsync(TickSpan span) => HearDnaAsync(span, once: false);
+
+    /// <summary>A card's Hear: its passage plays once from its start, and the card's button reads Stop until it ends.</summary>
+    private Task HearDnaCardAsync(TickSpan span) => HearDnaAsync(span, once: true);
+
+    private async Task HearDnaAsync(TickSpan span, bool once)
     {
+        _dnaCard = once ? span : null;
         _looping = false;
         _alternating = false;
         await Player.SelectSourcesAsync(_hear);
-        await Player.SetLoopAsync(span);
+        await Player.SetLoopAsync(span, once);
         _answerLoop = span;
         _dnaPlaying = true;
         await Player.SeekAsync(span.Onset);
@@ -76,10 +93,13 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>Plays the piece from its start, the map following, as a listening session; pressed again, it stops.</summary>
+    /// <summary>
+    /// Plays the piece from its start, the map following, as a listening session; pressed again, it stops. A card's passage
+    /// has its own Stop, so while one sounds this starts the map in its place.
+    /// </summary>
     private async Task PlayDnaMapAsync()
     {
-        if (_dnaPlaying || Player.State != PlaybackState.Stopped)
+        if (Player.State != PlaybackState.Stopped && DnaCardSounding is null)
         {
             _dnaPlaying = true;
             await StopDnaAsync();
@@ -87,6 +107,7 @@ public partial class PlaybackLab
         }
 
         await StopLoopingAsync();
+        _dnaCard = null;
         _dnaPlaying = true;
         // The piece from its start: under the playback model a move out of the selection turns Цикл off (T12).
         await Player.MoveAsync(Tick.Zero);

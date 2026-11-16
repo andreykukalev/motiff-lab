@@ -648,6 +648,12 @@ export class ScoreGeometry {
         return tickInBar(bar, index < 0 ? [] : this.timePoints(index, onsetOf), x);
     }
 
+    /** The starts of a bar's engraved notes, in time order: where a dragged playhead may stand on a note (#582 item 12). */
+    onsets(bar: ScoreBar, onsetOf: (id: string) => number | undefined): number[] {
+        const index = this.bars.indexOf(bar);
+        return index < 0 ? [] : this.timePoints(index, onsetOf).map((point) => point.tick);
+    }
+
     /** The bar's onsets with the x of their notes (the middle of the noteheads that start together), in time order. */
     private timePoints(index: number, onsetOf: (id: string) => number | undefined): { tick: number; x: number }[] {
         const known = this.points.get(index);

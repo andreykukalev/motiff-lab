@@ -35,18 +35,19 @@ struct SelectionHistory<Selection: Equatable> {
     var canRedo: Bool { !undone.isEmpty }
 
     /// The selection changed from `before` to `after`, by the gesture named (nil for a change of its own, ✕ or a menu): the
-    /// step it makes, or the step of that gesture it joins; nil when the selection ends as it was.
+    /// step it makes, or the step of that gesture it joins; nil when the selection ends as it was. `replaces` for a new
+    /// selection drawn or tapped in place of the one there was (v0.6.2, #601), a replace as one through a clear is.
     @discardableResult
-    mutating func record(from before: Selection?, to after: Selection?, gesture: String? = nil) -> Step? {
+    mutating func record(from before: Selection?, to after: Selection?, gesture: String? = nil, replaces: Bool = false) -> Step? {
         if let gesture, let last = done.last, last.gesture == gesture {
             done.removeLast()
-            let joined = Step(before: last.before, after: after, gesture: gesture, cleared: last.cleared || after == nil)
+            let joined = Step(before: last.before, after: after, gesture: gesture, cleared: last.cleared || after == nil || replaces)
             guard joined.before != joined.after else { return nil }
             done.append(joined)
             return joined
         }
         guard before != after else { return nil }
-        let step = Step(before: before, after: after, gesture: gesture, cleared: after == nil)
+        let step = Step(before: before, after: after, gesture: gesture, cleared: after == nil || replaces)
         done.append(step)
         if done.count > Self.depth { done.removeFirst(done.count - Self.depth) }
         undone.removeAll()
@@ -96,18 +97,44 @@ enum SelectionHistories {
     }
 }
 
-/// A selection as the history keeps it: its span in ticks, which music-core selects again exactly (by beats).
+/// A selection as the history keeps it: its span in ticks, which music-core selects again exactly (by beats), and since
+/// v0.6.2 (#601, the one selection) the hand it is narrowed to and the notes picked, nil for none.
 struct SelectionSpan: Equatable, Sendable {
     var onset: Double
     var end: Double
+    var hand: String?
+    var picked: [String]?
 
-    init(onset: Double, end: Double) {
+    init(onset: Double, end: Double, hand: String? = nil, picked: [String]? = nil) {
         self.onset = onset
         self.end = end
+        self.hand = hand
+        self.picked = picked
     }
 
     init?(_ selection: ScoreSelection?) {
         guard let selection else { return nil }
-        self.init(onset: selection.onset, end: selection.end)
+        self.init(onset: selection.onset, end: selection.end, hand: selection.hand, picked: selection.picked)
+    }
+
+    /// What music-core's `select` takes to select it again: the notes picked (`picked`, the iPad's pick of one note or
+    /// more), else the span exactly as it is (v0.6.4: the pages draw it on the sixteenth grid, selection-grid.ts, so no
+    /// snap to the beats), narrowed to its hand, and kept with no notes in it (`empty`, v0.6.4 #614 item 4: a selection is
+    /// a passage of time, rests or a resting hand too).
+    var request: String {
+        var body: [String: Any]
+        if let picked, !picked.isEmpty {
+            body = ["notes": picked, "picked": true]
+        } else {
+            body = ["span": ["onset": Int(onset), "end": Int(end)], "empty": true]
+            if let hand { body["filter"] = ["hand": hand] }
+        }
+        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The request that selects the notes given, as the iPad picks them.
+    static func picking(_ notes: [String]) -> String {
+        SelectionSpan(onset: 0, end: 0, picked: notes).request
     }
 }

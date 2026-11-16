@@ -71,10 +71,11 @@ public partial class PlaybackLab
         ? [.. Kept.Where(observation => observation.Variation is not null && observation.IsAbout(span))]
         : [];
 
-    /// <summary>The name of the variation heard: a kept one's, the experiment's, or "Variation".</summary>
+    /// <summary>The name of the variation heard: a kept one's, the experiment's, the «Что если» draft's, or "Variation".</summary>
     private string VariationName =>
         HeardKeptId is { } id && Kept.FirstOrDefault(observation => observation.Id == id) is { } kept ? kept.Name
         : ActiveTrial is { } trial ? TrialName(trial)
+        : _variantDraft is { } draft && ReferenceEquals(draft.Chain, _chain) ? draft.Variant.Name
         : Text["focus.variationName"];
 
     /// <summary>What the card lights up as it sounds: the original's staves, the ossia's, or both.</summary>

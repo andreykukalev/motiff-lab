@@ -61,10 +61,8 @@ struct LibraryTabs: View {
             Button {
                 tab = each
             } label: {
-                Text(label(each))
-                    .font(DesignTokens.font(weight: on ? 600 : 400, size: 17, relativeTo: .body))
+                SteadyWord(text: label(each), on: on, size: 17, offWeight: 400, relativeTo: .body)
                     .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                    .lineLimit(1)
                     .fixedSize()
                     .padding(.vertical, CGFloat.ds("s-3"))
                     .overlay(alignment: .bottom) {

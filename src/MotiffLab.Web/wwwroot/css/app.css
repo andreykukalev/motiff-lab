@@ -2537,7 +2537,8 @@ h1:focus {
     }
 }
 
-/* The piece's name in the serif, as on its cover (design/kit/ds.css .bar .ttl); it opens the Contents, so it hovers like a button. */
+/* The piece's name in the serif, as on its cover (design/kit/ds.css .bar .ttl); it opens the Contents, so it hovers like a button.
+   It never gives way to the actions (#582 item 2): whole up to a quarter of the bar, the same on the notes and on the PDF. */
 .workspace .bar .ttl, .lab.workspace .bar button.ttl {
     font: var(--t-title);
     font-size: 17px;
@@ -2545,7 +2546,8 @@ h1:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    flex-shrink: 0;
+    max-width: 25%;
 }
 
 .workspace .bar .pg {
@@ -2832,6 +2834,13 @@ h1:focus {
     width: 19rem;
 }
 
+/* The workspace's two visibilities (#582 item 10): under «Практика», left of ⓘ and More. */
+.workspace .practice-popover {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    right: calc(var(--s-4) + 5 * var(--h-control));
+    width: 19rem;
+}
+
 /* A long popover scrolls rather than squeezing its rows below their touch size. */
 .workspace .popover > * {
     flex-shrink: 0;
@@ -2952,6 +2961,10 @@ h1:focus {
 /* Practice view (#533 11, Scripts/layout/practice-view.ts): the blue playhead of the selection goes, the black one of the piece
    stays to drag; its own Play/Pause and Leave show for a few seconds after a tap on the score, where the pill sits. */
 .lab.workspace:is([data-practice="on"], [data-practice="reveal"]) .score .ph-sel {
+    visibility: hidden;
+}
+/* The selection controls hidden (#582 item 10): the selection's handles go with its menu; the band stays. */
+.lab.workspace[data-selection-hidden] .score .sel-handle {
     visibility: hidden;
 }
 .lab.workspace .practice-controls {
@@ -4028,6 +4041,15 @@ h1:focus {
     transform: translateX(-50%) rotate(45deg);
 }
 
+/* Moved aside by the player (#582 item 7): it no longer points at the band; a finger on it drags it, not the page. */
+.workspace .ctx[data-pinned="true"] .menu::after {
+    display: none;
+}
+
+.workspace .ctx .menu {
+    touch-action: none;
+}
+
 .workspace .ctx[data-below="true"] .menu::after {
     bottom: auto;
     top: -7px;
@@ -4199,7 +4221,8 @@ h1:focus {
 
 /* The phrase's notation only: the icons in the card's buttons and in the focus roll's head keep their own size and line
    (#432: the Edit notes pen, drawn the card's width and filled, crossed the roll's head as a black stripe). */
-.workspace .focus-card .phrase-card-score svg {
+.workspace .focus-card .phrase-card-score svg,
+.workspace .repair-draft .phrase-card-score svg {
     display: block;
     width: 100%;
     height: auto;
@@ -4207,16 +4230,19 @@ h1:focus {
     fill: currentColor;
 }
 
-.workspace .focus-card .phrase-card-score svg use {
+.workspace .focus-card .phrase-card-score svg use,
+.workspace .repair-draft .phrase-card-score svg use {
     fill: currentColor;
 }
 
-.workspace .focus-card .phrase-card-score svg [color]:not(.playing) {
+.workspace .focus-card .phrase-card-score svg [color]:not(.playing),
+.workspace .repair-draft .phrase-card-score svg [color]:not(.playing) {
     color: inherit !important;
 }
 
 /* The ossia's name is the overline on its frame, not Verovio's label at its left. */
-.workspace .focus-card .phrase-card-score svg g.label {
+.workspace .focus-card .phrase-card-score svg g.label,
+.workspace .repair-draft .phrase-card-score svg g.label {
     display: none;
 }
 
@@ -4224,14 +4250,16 @@ h1:focus {
     cursor: pointer;
 }
 
-.workspace .focus-card g.note.playing, .workspace .focus-card g.chord.playing {
+.workspace .focus-card g.note.playing, .workspace .focus-card g.chord.playing,
+.workspace .repair-draft g.note.playing, .workspace .repair-draft g.chord.playing {
     fill: var(--accent);
     stroke: var(--accent);
     color: var(--accent);
 }
 
 /* The ossia (design/kit/ds.css, Ossia panel): a 1.5 px dashed plum frame round its staves, named by an overline on it. */
-.workspace .focus-card .ossia-frame {
+.workspace .focus-card .ossia-frame,
+.workspace .repair-draft .ossia-frame {
     position: absolute;
     box-sizing: border-box;
     border: 1.5px dashed var(--plum);
@@ -4239,7 +4267,8 @@ h1:focus {
     pointer-events: none;
 }
 
-.workspace .focus-card .ossia-frame .overline {
+.workspace .focus-card .ossia-frame .overline,
+.workspace .repair-draft .ossia-frame .overline {
     position: absolute;
     left: var(--s-3);
     top: -8px;
@@ -4314,6 +4343,166 @@ h1:focus {
 
 .workspace .focus-card.has-chips .phrase-card-score {
     margin-top: calc(24px + 2 * var(--s-2));
+}
+
+/* «Что если» (experimental.assistantVariants): the draft's chip has a plum dot, one in the working notes a plum underline. */
+.lab.workspace .var-chips .var-chip.draft {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    border-style: dashed;
+    border-color: var(--plum);
+}
+
+.lab.workspace .var-chips .var-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--plum);
+}
+
+.lab.workspace .var-chips .var-chip.in-work {
+    text-decoration: underline 2px var(--plum);
+    text-underline-offset: 3px;
+}
+
+.workspace .var-chips .var-more {
+    align-self: center;
+    color: var(--ink-2);
+}
+
+/* The panel under the focus card: the engine's «Что если» chips and the variant shown, edged in plum, what the app composed. */
+.workspace .variants-panel {
+    flex: none;
+    max-height: 46%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-sheet);
+    pointer-events: auto;
+}
+
+.workspace .variants-panel p {
+    margin: 0;
+}
+
+.workspace .variants-panel .overline {
+    color: var(--plum);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .variants-panel .variants-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.workspace .variants-panel .what-if {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.lab.workspace .variants-panel .what-if-chip {
+    min-height: 32px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--plum);
+    background: var(--surface);
+    color: var(--plum);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .variants-panel .what-if-chip:hover {
+    background: var(--plum-tint);
+}
+
+.workspace .variants-panel .caption {
+    color: var(--ink-2);
+    font: var(--t-caption);
+}
+
+.workspace .variants-panel .variant-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .variants-panel .variant-title {
+    font: var(--t-body-strong);
+}
+
+.workspace .variants-panel .variant-changes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    font: var(--t-body);
+}
+
+.workspace .variants-panel .variant-changes .overline {
+    color: var(--ink-2);
+}
+
+.workspace .variants-panel .variant-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .variants-panel .variant-checks li {
+    padding: 2px var(--s-2);
+    border-radius: var(--r-pill);
+    font: var(--t-label);
+    background: var(--surface);
+}
+
+.workspace .variants-panel .variant-checks li.kept {
+    background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+
+.workspace .variants-panel .variant-checks li.changed {
+    background: var(--plum-tint);
+}
+
+.workspace .variants-panel .variant-base {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+}
+
+.workspace .variants-panel .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+/* What the variant keeps stays grey in its ossia, so the eye goes to what the app composed (plum, version-added). */
+.workspace .focus-card g.note.repair-kept {
+    fill: var(--ink-3);
+    stroke: var(--ink-3);
+    color: var(--ink-3);
 }
 
 /* The focus bar: Back to page with its word, where the phrase is, then the segmented controls and the actions. */
@@ -5238,6 +5427,117 @@ h1:focus {
 .workspace .check-sheet .check-fix .meta {
     margin: 0;
     font: var(--t-caption);
+}
+
+/* Repairs for the bars to check (an experiment, v0.6; the AI companion study, section 2.2): the engine's proposal under a
+   flagged bar, framed in plum as what the app composed; the bar engraved with the correction as an ossia above it. */
+.workspace .check-sheet .repair-draft,
+.workspace .assistant-draft {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+}
+
+.workspace .check-sheet .repair-draft > .overline,
+.workspace .assistant-draft > .overline {
+    margin: 0;
+    color: var(--plum);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .check-sheet .repair-ways,
+.workspace .assistant-draft .repair-ways {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.workspace .check-sheet .repair-way,
+.workspace .assistant-draft .repair-way {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    font: var(--t-body);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.workspace .check-sheet .repair-way.on,
+.workspace .assistant-draft .repair-way.on {
+    border-color: var(--plum);
+    background: var(--plum-tint);
+}
+
+.workspace .check-sheet .repair-way input,
+.workspace .assistant-draft .repair-way input {
+    accent-color: var(--plum);
+}
+
+.workspace .check-sheet .repair-draft .caption,
+.workspace .assistant-draft .caption {
+    margin: 0;
+}
+
+.workspace .repair-draft .repair-card {
+    position: relative;
+    padding: var(--s-4) var(--s-2) var(--s-2);
+    border-radius: var(--r-s);
+    background: var(--paper);
+}
+
+.workspace .repair-draft .phrase-card-score {
+    position: relative;
+}
+
+/* What the correction keeps stays grey in the ossia, so the eye goes to what it changes (plum, version-added). */
+.workspace .repair-draft g.note.repair-kept {
+    fill: var(--ink-3);
+    stroke: var(--ink-3);
+    color: var(--ink-3);
+}
+
+.workspace .check-sheet .repair-changes {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .repair-changes p {
+    margin: 0;
+}
+
+.workspace .check-sheet .repair-changes .overline {
+    color: var(--ink-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.workspace .check-sheet .repair-accepted {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .check-sheet .repair-accepted .caption {
+    flex: 1 1 12em;
+    margin: 0;
 }
 
 .workspace .check-sheet .check-bars {
@@ -7888,6 +8188,121 @@ body:has(> #app > .library) {
 }
 
 .workspace .assistant .ask-input input::placeholder {
+    color: var(--ink-2);
+}
+
+/* The assistant's conversation (an experiment; design/kit/screens/s9_assistant.png): the consent before the first question,
+   the questions on the right in the selection's tint, the answers as cards, each cited fact a chip that rings its places in
+   the score (cobalt: pointing), the engine's own facts when an answer could not be checked. */
+.workspace .assistant .mentor-consent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    font: var(--t-body);
+}
+
+.workspace .assistant .mentor-consent h3 {
+    margin: 0;
+    font: var(--t-body-strong);
+}
+
+.workspace .assistant .mentor-consent p,
+.workspace .assistant .mentor-consent ul {
+    margin: 0;
+}
+
+.workspace .assistant .mentor-consent ul {
+    padding-inline-start: var(--s-4);
+}
+
+.workspace .assistant .mentor-consent .caption,
+.workspace .assistant .mentor-foot {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant .mentor-consent .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .mentor-talk {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.workspace .assistant .mentor-question {
+    align-self: flex-end;
+    max-width: 85%;
+    margin: 0;
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-m);
+    background: var(--accent-tint);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .assistant .mentor-answer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+}
+
+.workspace .assistant .mentor-answer.fallback {
+    background: var(--surface-2);
+}
+
+.workspace .assistant .mentor-answer .overline {
+    margin: 0;
+    color: var(--ink-2);
+}
+
+.workspace .assistant .mentor-text {
+    margin: 0;
+    font: var(--t-body);
+    white-space: pre-line;
+}
+
+.workspace .assistant .mentor-note {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant .cite {
+    display: inline;
+    margin: 0 var(--s-1);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--accent);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-caption);
+    white-space: normal;
+}
+
+.workspace .assistant button.cite {
+    cursor: pointer;
+}
+
+.workspace .assistant button.cite:hover {
+    background: var(--accent-tint);
+}
+
+.workspace .assistant span.cite {
+    border-color: var(--hairline-strong);
     color: var(--ink-2);
 }
 /* About this idea, on the Try card: the words behind the sound, on request (assessment items 16–20). */
@@ -11826,4 +12241,510 @@ body:has(> #app > .library) {
     display: inline-flex;
     gap: 2px;
     margin-left: var(--s-1);
+}
+
+/* The new sources (version 0.6, behind experimental.sources; sources sheet, 2026-11-14). The switch of all the piece's
+   views where PDF | Notes stood: today's segmented control up to three views, a hairline between files and a dot after
+   the working notes; a menu button from four views, in the same capsule. */
+.lab.workspace .bar .views-seg .file-rule {
+    flex: none;
+    align-self: stretch;
+    width: 1px;
+    margin: var(--s-1) 2px;
+    background: var(--hairline-strong);
+}
+
+.lab.workspace .working-dot {
+    display: inline-block;
+    flex: none;
+    width: 5px;
+    height: 5px;
+    margin-left: var(--s-1);
+    border-radius: 50%;
+    background: var(--ink);
+    vertical-align: middle;
+}
+
+.lab.workspace .bar .views-menu {
+    position: relative;
+    flex: none;
+    align-self: center;
+    margin-left: var(--s-2);
+}
+
+.lab.workspace .bar .views-menu .views-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    width: auto;
+    height: 32px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.lab.workspace .bar .views-menu .views-scrim {
+    position: fixed;
+}
+
+.lab.workspace .views-popover {
+    position: absolute;
+    z-index: 6;
+    top: calc(100% + var(--s-2));
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 300px;
+    box-sizing: border-box;
+    padding: var(--s-2);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-menu);
+    color: var(--ink);
+}
+
+.lab.workspace .views-popover hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.lab.workspace .views-popover .views-group {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    margin: 0;
+    padding: var(--s-1) var(--s-2) 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .bar .views-popover button.views-item {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    height: auto;
+    min-height: 40px;
+    padding: var(--s-1) var(--s-2);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+}
+
+.lab.workspace .bar .views-popover button.views-item:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .views-popover button.views-item.on {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .views-popover .views-item.on > .ic:last-child {
+    color: var(--accent);
+}
+
+.lab.workspace .views-popover .views-item .what {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lab.workspace .views-popover .views-item .word {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body-strong);
+}
+
+.lab.workspace .views-popover .views-item .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .views-popover .views-foot {
+    grid-template-columns: 20px 1fr auto;
+}
+
+.lab.workspace .tag.working {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--ink);
+    color: var(--surface);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* The Sources button follows the switch, even when there is none: the layers and the word, lit while the sheet is open. */
+.lab.workspace .bar .sources-button {
+    flex: none;
+    margin-left: var(--s-2);
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* The Sources sheet in today's side sheet: the title, Add an original and close; then Originals and Notes as rows split
+   by hairlines, no cards. */
+.workspace .sources-sheet {
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .sources-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+}
+
+.workspace .sources-sheet .sources-head h2 {
+    flex: 1;
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.workspace .sources-sheet .add-original {
+    position: relative;
+}
+
+.workspace .sources-sheet .overline {
+    margin: var(--s-3) 0 0;
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.workspace .sources-sheet .source-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .sources-sheet .source-row {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.workspace .sources-sheet .source-row:last-child {
+    border-bottom: 0;
+}
+
+.workspace .sources-sheet .source-row.fresh {
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+/* The view shown wins over the fresh frame: new notes made working are tinted as shown. */
+.workspace .sources-sheet .source-row.selected {
+    border-color: transparent;
+    border-radius: var(--r-s);
+    background: var(--accent-tint);
+}
+
+.workspace .sources-sheet .source-row .op {
+    padding-top: 2px;
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .source-row .body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+}
+
+.workspace .sources-sheet .title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .title-line .name {
+    flex: 1;
+    min-width: 0;
+    font: var(--t-body-strong);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.workspace .sources-sheet .source-row.removed .name {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .title-line .acts {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+/* The eye and ⋯ are quiet icons on the row, as drawn; only «Открыть» is a button with a frame. */
+.lab.workspace .sources-sheet .acts .btn.icon {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-2);
+}
+
+.lab.workspace .sources-sheet .acts .btn.icon:hover, .lab.workspace .sources-sheet .acts .btn.icon.on {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .sources-sheet .eye.off {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .source-row .caption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .state-changed {
+    color: var(--warning);
+}
+
+.workspace .sources-sheet .state-gone {
+    color: var(--ink-3);
+}
+
+.workspace .sources-sheet .held {
+    align-self: flex-start;
+    margin: 0;
+    padding: 0 var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .sources-sheet .source-row .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .sources-sheet .tag.pro {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* ⋯ and Add an original open a menu under their button, right-aligned to it. */
+.workspace .sources-sheet .sources-menu {
+    position: absolute;
+    z-index: 3;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 220px;
+    padding: var(--s-1);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    box-shadow: var(--shadow-menu);
+}
+
+.workspace .sources-sheet .row-menu {
+    top: calc(var(--s-8) + var(--s-1));
+}
+
+.workspace .sources-sheet .add-menu {
+    top: calc(100% + var(--s-1));
+    width: 320px;
+}
+
+.workspace .sources-sheet .sources-menu hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.lab.workspace .sources-sheet .sources-menu .btn {
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    align-items: start;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice strong {
+    display: block;
+    font: var(--t-body-strong);
+}
+
+.lab.workspace .sources-sheet .add-menu .add-choice .caption {
+    display: block;
+}
+
+.lab.workspace .sources-sheet .recognise-inline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-1);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+}
+
+.lab.workspace .sources-sheet .recognise-inline .row {
+    align-items: center;
+}
+
+/* The delete warning in the «Сделать нотами» frame, 440px: what goes with the original, then the choices one under another. */
+.workspace .apply-dialog.delete-original {
+    width: 440px;
+}
+
+.workspace .apply-dialog.delete-original .made-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .apply-dialog.delete-original .made-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .apply-dialog.delete-original .made-list .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .apply-dialog.delete-original .btn {
+    justify-content: center;
+    width: 100%;
+}
+
+.lab.workspace .btn.danger-outline {
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+}
+
+/* The toast centres itself on what the sheet leaves of the score, as the pill does. */
+@media (orientation: landscape) {
+    .workspace.insights-open:has(.sources-sheet) .merge-toast {
+        left: calc(50% - (380px + var(--s-3) + var(--s-4)) / 2);
+    }
+}
+
+/* The full assistant's kept conversations (#582 item 17.1): New conversation, and the list of the piece's conversations by
+   their first question and when, the one on show marked in the selection's tint. */
+.workspace .assistant .mentor-history {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .mentor-history .row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .mentor-history .sp {
+    flex: 1;
+}
+
+.workspace .assistant .mentor-conversations {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .assistant .mentor-conversation {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-1);
+    width: 100%;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: start;
+    cursor: pointer;
+}
+
+.workspace .assistant .mentor-conversation:hover,
+.workspace .assistant .mentor-conversation.on {
+    background: var(--accent-tint);
+}
+
+.workspace .assistant .mentor-conversation .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The contextual assistant (#582 item 17.2): the popup at the selection, one question at a time, Add to context under the answer. */
+.workspace .assistant.context-assistant .context-about,
+.workspace .assistant.context-assistant .context-add .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant.context-assistant .context-add {
+    display: flex;
+    justify-content: flex-end;
 }

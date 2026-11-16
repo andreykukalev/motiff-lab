@@ -11,7 +11,10 @@
 // (#495 UX-07).
 
 import type { Handle } from "../playback/playback-model.js";
-import type { Playhead, ScoreBar } from "./score-geometry.js";
+import { token } from "../layout/tokens.js";
+import type { Playhead, Rect, ScoreBar, ScoreGeometry } from "./score-geometry.js";
+import type { ScoreBeats } from "./selection-beats.js";
+import { type BandHand, handStaves } from "./selection-boxes.js";
 
 /** Where each playhead goes this frame, in ticks; null hides it. */
 export interface PlayheadPlaces {
@@ -28,6 +31,16 @@ export interface PlayheadPlaces {
      * the staves at its place, and fades when it is let go (v0.5.7, #543 5, the lead's decision 4).
      */
     held?: boolean;
+    /**
+     * The selection's band as it is drawn, system by system (the iPad's page, v0.6.3, #608 item 3): the blue playhead is
+     * drawn inside it, never beside it. Without it the blue playhead goes where its tick lies, as before.
+     */
+    band?: readonly BandRun[];
+}
+
+/** What the selection's band covers on one system: across, its drawn edges; down, the staves it covers. */
+export interface BandRun extends Rect {
+    system: number;
 }
 
 /** A stretch of ticks [start, end). */
@@ -70,19 +83,44 @@ export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefi
     return beforeEnd === undefined ? atEnd : { ...beforeEnd, x: beforeEnd.bar.right };
 }
 
+/**
+ * The blue playhead inside the selection's band (v0.6.3, #608 item 3): on a system the band covers it never stands left or
+ * right of the band (a band by beats ends just before the notes of the beat after it, where the end's place lies), and it
+ * spans only the staves the band covers (one hand's staff for a selection of one hand). On another system it is as it was.
+ */
+export function inBand(at: Playhead | undefined, band: readonly BandRun[]): Playhead | undefined {
+    const run = at === undefined ? undefined : band.find((candidate) => candidate.system === at.bar.system);
+    if (at === undefined || run === undefined) {
+        return at;
+    }
+    return { ...at, x: Math.min(Math.max(at.x, run.left), run.right), top: run.top, bottom: run.bottom };
+}
+
+/**
+ * The selection's band as the page draws it (selection-layer.ts, draw), without its padding: on each system it touches, over
+ * the staves of its hand, its ends cut to the beats while the score selects by beats. What the blue playhead keeps to.
+ */
+export function bandOf(geometry: ScoreGeometry, beats: Pick<ScoreBeats, "cutEdges">, selection: TickSpan & { hand?: BandHand }): BandRun[] {
+    const runs = geometry.runs(selection.start, selection.end, handStaves(geometry, selection.start, selection.hand));
+    beats.cutEdges(geometry, runs, selection.start, selection.end);
+    return runs;
+}
+
 /** The black line across the staves while the black playhead is held, and its class while it shows. */
 export const CURSOR_CLASS = "ph-held";
 export const HELD_CLASS = "held";
 
-/** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
+/** The track keeps this far from the bar lines at each side, in pixels. */
 const TRACK_INSET = 3;
-const TRACK_GAP = 10;
 
-/** Where the track goes for a place: across its bar, under its system, and how far it is filled. */
-export function trackOf(at: Playhead, lineBottom: number): { left: number; top: number; width: number; filled: number } {
+/**
+ * Where the track goes for a place: across its bar, `gap` pixels under the lowest ink of its system (the token
+ * --playhead-gap, far enough that it never reads as another staff line, #582 item 11), and how far it is filled.
+ */
+export function trackOf(at: Playhead, lineBottom: number, gap: number): { left: number; top: number; width: number; filled: number } {
     const left = at.bar.left + TRACK_INSET;
     const width = Math.max(0, at.bar.right - at.bar.left - 2 * TRACK_INSET);
-    const top = Math.max(at.bottom, lineBottom) + TRACK_GAP;
+    const top = Math.max(at.bottom, lineBottom) + gap;
     return { left, top, width, filled: Math.min(width, Math.max(0, at.x - left)) };
 }
 
@@ -109,6 +147,8 @@ export class ScorePlayheadMarks {
     private line: HTMLElement | null = null;
     /** The black line across the staves while the black playhead is held. */
     private cursor: HTMLElement | null = null;
+    /** How far the track runs under its line (--playhead-gap), read once it is first drawn. */
+    private gap: number | null = null;
 
     constructor(
         private readonly host: HTMLElement,
@@ -131,7 +171,8 @@ export class ScorePlayheadMarks {
         if (tick === null) {
             return undefined;
         }
-        return places.selectionAtEnd === true ? edgeOf(this.owner.at(tick), this.owner.at(tick - 1), tick) : this.owner.at(tick);
+        const at = places.selectionAtEnd === true ? edgeOf(this.owner.at(tick), this.owner.at(tick - 1), tick) : this.owner.at(tick);
+        return places.band === undefined ? at : inBand(at, places.band);
     }
 
     hide(): void {
@@ -168,7 +209,8 @@ export class ScorePlayheadMarks {
             return;
         }
         const track = (this.track ??= trackMark(this.grabber("black")));
-        const place = trackOf(at, this.owner.lineBottom(at.bar));
+        this.gap ??= Number.parseFloat(token("playhead-gap")) || 0;
+        const place = trackOf(at, this.owner.lineBottom(at.bar), this.gap);
         show(this.host, track.element);
         transform(track.element, place.left, place.top);
         size(track.element, place.width, null);

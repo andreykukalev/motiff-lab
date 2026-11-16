@@ -32,21 +32,20 @@ final class ScanServer: ObservableObject {
     /// The largest file the scan server reads (services/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
     /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
     static let maxUploadBytes = 50 * 1024 * 1024
-    /// The experiment «Выбор движка распознавания» (v0.5.8), as the web app's `ScanService.EngineSetting`: while it is on,
-    /// each scan names the engine chosen in `engineChoice` (homr or copisteria) to the server, so the two can be compared on
-    /// the player's own pages; off, nothing is named and the server reads with homr, as before.
-    static let engineSetting = "experimental.scanEngine"
+    /// «Движок распознавания» (v0.5.8; a setting since v0.6.5, homr by default as before): each scan names the engine
+    /// chosen in `engineChoice` (homr or copisteria) to the server, so the two can be compared on the player's own pages.
     static let engineChoice = "scan.engine"
 
-    /// The engine to name to the server: the experiment's choice while it is on, else nil (the server's own, homr). «Авто»
-    /// is never named: the pages it sends go to the server's own engine (`VectorPages.swift`).
+    /// The engine to name to the server: the one chosen; «Авто» is never named: the pages it sends go to the server's own
+    /// engine (`VectorPages.swift`), nor nothing, before the settings are read.
     static func chosenEngine(_ settings: DeviceSettings) -> String? {
-        settings.isOn(engineSetting) && settings[engineChoice] != auto ? settings[engineChoice] : nil
+        let chosen = settings[engineChoice]
+        return chosen.isEmpty || chosen == auto ? nil : chosen
     }
 
-    /// True when the player chose «Авто» in the experiment: the pages a notation program drew are read on the device.
+    /// True when the player chose «Авто»: the pages a notation program drew are read on the device.
     static func choseAuto(_ settings: DeviceSettings) -> Bool {
-        settings.isOn(engineSetting) && settings[engineChoice] == auto
+        settings[engineChoice] == auto
     }
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.

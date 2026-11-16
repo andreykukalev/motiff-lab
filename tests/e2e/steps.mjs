@@ -314,8 +314,13 @@ export async function scoreChoice(page) {
 export async function clearByPage(page) {
     const sheet = page.locator(".score .score-page").first();
     const box = await sheet.boundingBox();
-    // The page's left margin, clear of the drawers and the pill.
-    await page.mouse.click(box.x + 12, box.y + box.height * 0.3);
+    // The page's left margin, at the first height where the paper itself is under the pointer: the selection menu, the
+    // drawers and the pill lie over the page and may cover the margin at any height.
+    const x = box.x + 12;
+    const heights = [0.3, 0.5, 0.7, 0.15, 0.85].map(share => box.y + box.height * share);
+    const y = await page.evaluate(([left, tops]) => tops.find(top => document.elementFromPoint(left, top)?.closest(".score-page") != null), [x, heights]);
+    expect(y, "no height in the page's left margin shows the paper").toBeDefined();
+    await page.mouse.click(x, y);
     await expect(page.locator(".selection-status")).toContainText(/Nothing selected|Ничего не выделено/);
 }
 

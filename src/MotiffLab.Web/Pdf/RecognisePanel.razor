@@ -16,15 +16,30 @@
         <p class="caption">@Intro</p>
     }
     <ScanReady>
-        <p class="caption">@(Scans.IsHosted ? Text["pdf.readLineHosted"] : Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", Scans.Address!))</p>
-        <button class="btn primary" @onclick="ReadAsync" disabled="@_reading">
-            @(_reading ? Text["import.scanBusy"] : Text["pdf.readSend"])
-        </button>
+        <p class="caption">@(Line ?? (Scans.IsHosted ? Text["pdf.readLineHosted"] : Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", Scans.Address!)))</p>
+        @if (Keeps is { Length: > 0 } keeps && Cancel.HasDelegate)
+        {
+            <p class="caption">@keeps</p>
+        }
+        @if (Cancel.HasDelegate)
+        {
+            <div class="row">
+                @SendButton
+                <button class="btn quiet" @onclick="Cancel" disabled="@_reading">@Text["common.cancel"]</button>
+            </div>
+        }
+        else
+        {
+            @SendButton
+        }
         @if (_reading && _progress is { } progress)
         {
             <ScanProgressBar Progress="progress" />
         }
-        <p class="caption">@(Keeps ?? Text["pdf.readKeeps"])</p>
+        @if (!Cancel.HasDelegate && (Keeps ?? Text["pdf.readKeeps"]) is { Length: > 0 } after)
+        {
+            <p class="caption">@after</p>
+        }
     </ScanReady>
 
     @if (_problem is not null)
@@ -58,6 +73,18 @@
     [Parameter]
     public string? Keeps { get; set; }
 
+    /// <summary>Where the pages go, in place of the line naming the server (the Sources sheet says how many pages go).</summary>
+    [Parameter]
+    public string? Line { get; set; }
+
+    /// <summary>The send button's words, in place of Recognise notes («Отправить 4 страницы»).</summary>
+    [Parameter]
+    public string? Send { get; set; }
+
+    /// <summary>When set, «Отмена» beside the send button closes the panel, and what becomes of the notes is said above it.</summary>
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+
     /// <summary>The PDF's file name, sent with it.</summary>
     [Parameter, EditorRequired]
     public string FileName { get; set; } = "";
@@ -65,6 +92,10 @@
     /// <summary>Takes what the scan server read; returns why the notes cannot be used, or null once they are a piece.</summary>
     [Parameter, EditorRequired]
     public Func<ScanResult, Task<string?>> Read { get; set; } = default!;
+
+    private RenderFragment SendButton => @<button class="btn primary" @onclick="ReadAsync" disabled="@_reading">
+        @(_reading ? Text["import.scanBusy"] : Send ?? Text["pdf.readSend"])
+    </button>;
 
     private async Task ReadAsync()
     {

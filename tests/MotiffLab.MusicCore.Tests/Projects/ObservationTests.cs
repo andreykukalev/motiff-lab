@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
@@ -72,6 +73,29 @@ public class ObservationTests
         Assert.NotNull(reread.Observations[1].Variation!.Pending);
         Assert.Equal((null, null, null), (reread.Observations[1].ExperimentId, reread.Observations[1].Alternative, reread.Observations[1].Variation!.Key));
         Assert.Null(reread.Observations[2].Variation);
+    }
+
+    /// <summary>
+    /// Version 16 (research 4.6): a kept variation names the Notes it was built on, the working notes when it says nothing
+    /// else, and an idea keeps a provenance in the shape of a Notes', so a later build's assistant variation needs no change
+    /// of format.
+    /// </summary>
+    [Fact]
+    public void A_kept_variation_names_the_notes_it_was_built_on_and_an_idea_keeps_a_provenance_of_any_operation()
+    {
+        JsonObject file = JsonNode.Parse(ProjectFile.Write(Worked()))!.AsObject();
+        JsonArray ideas = file["workspace"]!["observations"]!.AsArray();
+        Assert.Equal(Project.FirstNotesId, ideas[0]!["notes"]!.GetValue<string>());
+        Assert.False(ideas[2]!.AsObject().ContainsKey("notes"), "a note alone is built on no notes");
+        Assert.Null(ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString())).Observations[0].Notes);
+
+        ideas[1]!["notes"] = "perf_1";
+        ideas[1]!["provenance"] = JsonNode.Parse("""{"op": "assistant", "from": [], "inputs": ["n_1"], "params": {"request": "r_1", "model": "m"}, "at": "2026-11-14T10:00:00.0000000+00:00"}""");
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()));
+
+        Observation read = project.Observations[1];
+        Assert.Equal(("perf_1", NotesProvenance.Assistant, "n_1"), (read.Notes, read.Provenance!.Op, read.Provenance.Inputs[0]));
+        Assert.True(JsonNode.DeepEquals(file, JsonNode.Parse(ProjectFile.Write(project))), "the idea is written back as the file held it");
     }
 
     [Fact]
@@ -149,8 +173,7 @@ public class ObservationTests
     [InlineData(5)]
     public void Older_files_open_with_no_observations(int version)
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Observations = [] }))
-            .Replace($"\"version\": {ProjectFile.Version}", $"\"version\": {version}", StringComparison.Ordinal)
+        string json = LegacyFile.AsVersion(ProjectFile.Write(Worked() with { Observations = [] }), version)
             .Replace(",\n  \"observations\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("observations", json);
 
@@ -164,7 +187,8 @@ public class ObservationTests
     public void A_version_6_file_needs_its_observations()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Observations = [] }))
-            .Replace(",\n  \"observations\": []", "", StringComparison.Ordinal);
+            .Replace(",\n    \"observations\": []", "", StringComparison.Ordinal);
+        Assert.DoesNotContain("observations", json);
 
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
     }

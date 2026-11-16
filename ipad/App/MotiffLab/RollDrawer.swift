@@ -87,24 +87,34 @@ struct RollDrawer: View {
             Group {
                 head(compact: compact, mode: .navigate, editor: NoteEditorState(), live: false)
                 head(compact: compact, mode: .edit, editor: NoteEditorState(), live: false)
+                // With «Рамка | Лассо» too (#601), so Select's switch appearing changes no form either.
+                head(compact: compact, mode: .navigate, editor: NoteEditorState(), live: false, pick: true)
             }
             .hidden()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            head(compact: compact, mode: roll.shownMode, editor: score.noteEditor, live: true)
+            head(compact: compact, mode: roll.shownMode, editor: score.noteEditor, live: true, pick: pickShown)
         }
+    }
+
+    /// Whether «Рамка | Лассо» shows: the bar's Select (not the Pen), the roll not editing notes.
+    private var pickShown: Bool {
+        RollPickShape.shown(tool: score.penOn ? InteractionMode.pen : score.mode, rollMode: roll.shownMode)
     }
 
     /// The head (the approved mockup v0.5.2, #479 item 23; #521 18): the name and the roll's mode switch first, where they
     /// always are; then in Navigate the selection's place and Clear selection, Note names, the colour scheme, Expand and
     /// Close, or in Edit notes the editor's tools, the selection's place, Cancel and Save. The selection's place takes the
     /// room left and never pushes a control (#521 18.4).
-    @ViewBuilder private func head(compact: Bool, mode: RollMode, editor: NoteEditorState?, live: Bool) -> some View {
+    @ViewBuilder private func head(compact: Bool, mode: RollMode, editor: NoteEditorState?, live: Bool, pick: Bool = false) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             if !compact {
                 Text(text["roll.heading"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink")).lineLimit(1).fixedSize()
             }
             RollModeSwitch(chosen: mode, text: text, labels: !compact) { roll.chooseTool($0, score: score) }
+            if pick {
+                RollPickSwitch(roll: roll, text: text)
+            }
             if mode == .edit, let editor {
                 RollEditTools(score: score, editor: editor, text: text, compact: compact)
                 place
@@ -143,8 +153,7 @@ struct RollDrawer: View {
     }
 
     /// Clear selection in the head (the selection menu gives way to the drawer, #338): its room is kept without a selection,
-    /// so it appearing moves nothing (#521 18.4). Under the modes of version 0.5, Escape removes the selection too, on the
-    /// head shown (`live`) and not on the unseen ones that measure it.
+    /// so it appearing moves nothing (#521 18.4). Escape removes the selection too, on the head shown (`live`) and not on the unseen ones that measure it.
     private func clearSelection(live: Bool) -> some View {
         let shown = score.selection != nil
         return Button {
@@ -153,7 +162,7 @@ struct RollDrawer: View {
             Icon(name: StylusRules.RingControl.clearSelection.icon)
         }
         .buttonStyle(RollHeadStyle(round: true))
-        .keyboardShortcut(live && shown && score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)
+        .keyboardShortcut(live && shown ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .disabled(!shown)
         .opacity(shown ? 1 : 0)
         .accessibilityHidden(!shown)
@@ -233,8 +242,8 @@ struct RollHeadStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+        // At the width of the chosen weight either way, so the head keeps its size (#582 item 3).
+        SteadyLabel(label: configuration.label, on: on)
             .foregroundStyle(on ? Color.ds("accent") : Color.ds(outlined ? "ink" : "ink-2"))
             .lineLimit(1)
             .padding(.horizontal, round ? 0 : CGFloat.ds("s-3"))

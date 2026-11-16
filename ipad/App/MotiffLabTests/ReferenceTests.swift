@@ -2,7 +2,7 @@ import XCTest
 
 @testable import MotiffLab
 
-/// The Reference (an experiment, Settings · Experimental): music-core's circle of fifths and key cards on piece 0
+/// The Reference: music-core's circle of fifths and key cards on piece 0
 /// (`reference.key`, `reference.sound`), its chord and scale cards (`reference.chord`, `reference.scale`) and the open
 /// piece's key as the iPad reads them, and where a tap lands on the circle.
 final class ReferenceTests: XCTestCase {

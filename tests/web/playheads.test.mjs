@@ -35,10 +35,10 @@ test("the blue playhead standing at a bar line stands at the right edge of the s
 
 test("the track runs under the lowest ink of its line, across its bar, filled up to the place (#479 item 19)", () => {
     const bar = { left: 100, right: 300, top: 50, bottom: 150 };
-    assert.deepEqual(trackOf({ x: 160, top: 60, bottom: 140, bar }, 180), { left: 103, top: 190, width: 194, filled: 57 });
-    assert.equal(trackOf({ x: 160, top: 60, bottom: 140, bar }, 100).top, 150, "never over the staves");
-    assert.equal(trackOf({ x: 90, top: 60, bottom: 140, bar }, 180).filled, 0);
-    assert.equal(trackOf({ x: 400, top: 60, bottom: 140, bar }, 180).filled, 194);
+    assert.deepEqual(trackOf({ x: 160, top: 60, bottom: 140, bar }, 180, 10), { left: 103, top: 190, width: 194, filled: 57 });
+    assert.equal(trackOf({ x: 160, top: 60, bottom: 140, bar }, 100, 10).top, 150, "never over the staves");
+    assert.equal(trackOf({ x: 90, top: 60, bottom: 140, bar }, 180, 10).filled, 0);
+    assert.equal(trackOf({ x: 400, top: 60, bottom: 140, bar }, 180, 10).filled, 194);
 });
 
 const space = (extra = {}) => ({ key: " ", code: "Space", altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, defaultPrevented: false, target: { closest: () => null }, ...extra });
@@ -88,7 +88,9 @@ class FakeMark {
 }
 
 test("held, the black playhead stands as a line across the staves at its place, and let go the line fades (#543 5)", async () => {
-    globalThis.document = { createElement: () => new FakeMark() };
+    globalThis.document = { createElement: () => new FakeMark(), documentElement: {} };
+    // The track's gap under its line is the token --playhead-gap (#582 item 11).
+    globalThis.getComputedStyle = () => ({ getPropertyValue: (name) => (name === "--playhead-gap" ? " 24px" : "") });
     try {
         const { ScorePlayheadMarks, CURSOR_CLASS, HELD_CLASS } = await import("../../src/MotiffLab.Web/wwwroot/js/score/playheads.js");
         const host = new FakeMark();
@@ -106,7 +108,10 @@ test("held, the black playhead stands as a line across the staves at its place, 
         marks.place({ global: 1440, selection: null, globalPlays: true });
         assert.equal(cursor().classList.contains(HELD_CLASS), false, "let go, it fades where it was");
         assert.equal(cursor().style.transform, "translate(243px, 60px)");
+        const track = host.children.find((child) => child.className.split(" ").includes("gtrack"));
+        assert.equal(track.style.transform, "translate(103px, 174px)", "the track runs --playhead-gap under the line's lowest ink");
     } finally {
         delete globalThis.document;
+        delete globalThis.getComputedStyle;
     }
 });

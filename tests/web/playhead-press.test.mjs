@@ -56,7 +56,8 @@ test("held still, the press takes the black playhead to its place at once; moved
     timers.run();
     assert.equal(press.holding, true);
     assert.equal(taken(), 7, "the view keeps the pointer");
-    assert.deepEqual(sent, [{ phase: "grab", handle: "black" }, { phase: "move", handle: "black", tick: 500 }], "the music stands (T14), the place is the one pressed");
+    assert.deepEqual(sent, [{ phase: "grab", handle: "black" }, { phase: "place", handle: "black", tick: 500 }],
+        "the music stands (T14), the place is the one pressed, put down there without sounding what it jumped over (#582 item 12)");
     assert.equal(press.move(7, { x: 3000, y: 400 }), true, "after the hold the place follows anywhere, another system too");
     assert.deepEqual(sent.at(-1), { phase: "move", handle: "black", tick: 1500 });
     assert.equal(press.up(7), true, "its release is no tap");
@@ -98,7 +99,7 @@ test("a new primary press ends a stale one whose end was lost, so it never block
     assert.deepEqual(sent.at(-1), { phase: "release", handle: "black" });
     timers.run();
     assert.equal(drag.handle, "black");
-    assert.deepEqual(sent.at(-1), { phase: "move", handle: "black", tick: 200 });
+    assert.deepEqual(sent.at(-1), { phase: "place", handle: "black", tick: 200 });
     assert.equal(press.down(3, { x: 600, y: 40 }, false), false, "a second finger beside the press is not a new one");
     assert.equal(press.end(), true);
     assert.equal(drag.handle, null);

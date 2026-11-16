@@ -106,6 +106,18 @@ public sealed record Observation(
     public string? FactId { get; init; }
 
     /// <summary>
+    /// The Notes the kept variation was built on (project file version 16; research 4.6): it belongs with them, beside their
+    /// corrections; null when the file did not say, which means the working notes.
+    /// </summary>
+    public string? Notes { get; init; }
+
+    /// <summary>
+    /// How the idea was made, in the shape of a Notes' provenance (version 16), so a later build's assistant variation
+    /// (<see cref="Projects.NotesProvenance.Assistant"/>) is kept with no change to the format; null for an idea made in the app.
+    /// </summary>
+    public NotesProvenance? Provenance { get; init; }
+
+    /// <summary>
     /// The phrase the idea belongs to among <paramref name="phrases"/>, the phrases of one level (0018,
     /// section 3; preparation item 4): the one its passage starts in; failing that, the one it overlaps
     /// most; null when it overlaps none. So after the level changes an idea shows under the phrase that

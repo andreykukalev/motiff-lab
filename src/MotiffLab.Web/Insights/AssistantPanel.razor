@@ -10,37 +10,10 @@
    conversation and that place says the answers are coming, and nothing is sent either. It shows in two ways: in the sheet,
    and as a popover at the place Ask was pressed (testing item 23), each a window onto the same conversation. *@
 <section class="assistant @(Popover ? "compact" : null)" aria-labelledby="@TitleId">
-    @if (Popover)
-    {
-        @* The popover at the place Ask was pressed (testing item 23): the same assistant, a window onto the one
-           conversation kept in the Insights stream; the place under it stays as it was. *@
-        <div class="ask-head">
-            <h2 id="@TitleId" class="overline">@Text["ask.title"]</h2>
-            <span class="sp"></span>
-            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
-        </div>
-    }
-    else
-    {
-        <div class="ask-head">
-            @* ‹ names where it goes: the place it was opened from (More, Piece DNA), or the Insights stream (testing item 20). *@
-            <button class="btn quiet back-to" aria-label="@(BackLabel is { } origin ? Text.Format("nav.backTo", origin) : Text["ask.back"])" @onclick="() => Back.InvokeAsync()">
-                <Icon Name="back" Size="IconSize.Small" /> @(BackLabel ?? Text["bar.insights"])
-            </button>
-            <h2 id="@TitleId" class="overline">@Text["ask.title"]</h2>
-            <span class="sp"></span>
-            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
-        </div>
-    }
-
-    <div class="scope-chips" role="radiogroup" aria-label="@Text["ask.scope"]">
-        @if (SelectionLabel is { } selection)
-        {
-            bool on = !WholePiece;
-            <button role="radio" class="chip @(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => WholePieceChanged.InvokeAsync(false)">@selection</button>
-        }
-        <button role="radio" class="chip @(WholePiece ? "on" : null)" aria-checked="@(WholePiece ? "true" : "false")" @onclick="() => WholePieceChanged.InvokeAsync(true)">@Text["ask.wholePiece"]</button>
-    </div>
+    @* In the popover at the place Ask was pressed (testing item 23), the same assistant is a window onto the one
+       conversation kept in the Insights stream; the place under it stays as it was. *@
+    <AskTop Popover="Popover" TitleId="@TitleId" SelectionLabel="@SelectionLabel" WholePiece="WholePiece" WholePieceChanged="WholePieceChanged"
+            BackLabel="@BackLabel" Back="Back" Closed="Closed" />
 
     @if (Knows.Count > 0)
     {

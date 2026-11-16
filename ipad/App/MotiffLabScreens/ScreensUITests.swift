@@ -167,7 +167,7 @@ final class ScreensUITests: XCTestCase {
 
     /// A PDF piece (0023): pages as they were added, the pen, the metronome and More.
     private func pdf() {
-        guard let file = makePdf() else { return miss("pdf file") }
+        guard let file = ScreensPdf.write() else { return miss("pdf file") }
         app.terminate()
         launch(["-ml-screens-open", file.path])
         guard wait(app.buttons["Метроном"].firstMatch, "pdf piece", timeout: 30) else { return }
@@ -285,60 +285,5 @@ final class ScreensUITests: XCTestCase {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         return UIGraphicsImageRenderer(size: turned.size, format: format).pngData { _ in turned.draw(at: .zero) }
-    }
-
-    /// A three-page A4 PDF that looks like printed music from far away: a title, then ten systems of two staves a
-    /// page, with bar lines. It stands in for a player's own PDF, which never goes into the repository.
-    private func makePdf() -> URL? {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Elise.pdf")
-        let page = CGRect(x: 0, y: 0, width: 595, height: 842)
-        let renderer = UIGraphicsPDFRenderer(bounds: page)
-        do {
-            try renderer.writePDF(to: url) { context in
-                for number in 1...3 {
-                    context.beginPage()
-                    let cg = context.cgContext
-                    var top: CGFloat = 70
-                    if number == 1 {
-                        let title = NSAttributedString(string: "Für Elise", attributes: [.font: UIFont(name: "Times New Roman", size: 26) ?? UIFont.systemFont(ofSize: 26)])
-                        title.draw(at: CGPoint(x: (page.width - title.size().width) / 2, y: 48))
-                        let composer = NSAttributedString(string: "L. van Beethoven", attributes: [.font: UIFont(name: "Times New Roman", size: 12) ?? UIFont.systemFont(ofSize: 12)])
-                        composer.draw(at: CGPoint(x: page.width - 60 - composer.size().width, y: 88))
-                        top = 120
-                    }
-                    cg.setStrokeColor(UIColor.black.cgColor)
-                    cg.setLineWidth(0.6)
-                    var system = top
-                    while system + 60 < page.height - 50 {
-                        for staff in 0..<2 {
-                            let y = system + CGFloat(staff) * 38
-                            for line in 0..<5 {
-                                cg.move(to: CGPoint(x: 50, y: y + CGFloat(line) * 4.5))
-                                cg.addLine(to: CGPoint(x: page.width - 50, y: y + CGFloat(line) * 4.5))
-                            }
-                        }
-                        for bar in 0...4 {
-                            let x = 50 + (page.width - 100) * CGFloat(bar) / 4
-                            cg.move(to: CGPoint(x: x, y: system))
-                            cg.addLine(to: CGPoint(x: x, y: system + 56))
-                        }
-                        cg.strokePath()
-                        cg.setFillColor(UIColor.black.cgColor)
-                        for note in 0..<16 {
-                            let x = 70 + (page.width - 140) * CGFloat(note) / 16
-                            let y = system + CGFloat((note * 5) % 9) * 2.25
-                            cg.fillEllipse(in: CGRect(x: x, y: y, width: 5.5, height: 4.2))
-                        }
-                        system += 84
-                    }
-                    let folio = NSAttributedString(string: "\(number)", attributes: [.font: UIFont.systemFont(ofSize: 10)])
-                    folio.draw(at: CGPoint(x: page.width / 2, y: page.height - 34))
-                }
-            }
-            return url
-        } catch {
-            print("SCREEN-WRITE \(url.path): \(error)")
-            return nil
-        }
     }
 }

@@ -1,0 +1,118 @@
+@using MotiffLab.MusicCore.Projects
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The switch of all the piece's views (version 0.6; sources sheet, 2026-11-14), where PDF | Notes stood: three views or
+   fewer as today's segmented control, a hairline between files and a dot after the working notes; four or more as a menu
+   button with the shown view's pictogram, its word and a chevron, opening a list grouped by file with Sources at its
+   foot; one view, no switch. The Sources button follows it always. In music-core's order: a PDF before the Notes read
+   from it (#582 item 2). *@
+@if (Views.Count is > 1 and <= 3)
+{
+    <div class="seg view-switch views-seg" role="radiogroup" aria-label="@Text["pdf.views"]">
+        @for (int index = 0; index < Views.Count; index++)
+        {
+            SwitchView view = Views[index];
+            bool on = view.Key == Shown;
+            @if (index > 0 && Views[index - 1].Group != view.Group)
+            {
+                <span class="file-rule" aria-hidden="true"></span>
+            }
+            <button role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" title="@(view.GroupName ?? view.Line)" @onclick="() => PickAsync(view)">
+                @view.Word@if (view.Working) { <span class="working-dot" aria-label="@Text["sources.working"]"></span> }
+            </button>
+        }
+    </div>
+}
+else if (Views.Count > 3 && Views.FirstOrDefault(view => view.Key == Shown) is var current)
+{
+    SwitchView face = current ?? Views[0];
+    <div class="views-menu">
+        <button class="views-button" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" aria-label="@Text.Format("sources.viewsMenu", face.Word)" @onclick="() => _open = !_open">
+            <Icon Name="@face.Icon" /> <span>@face.Word</span>@if (face.Working) { <span class="working-dot" aria-hidden="true"></span> } <Icon Name="chevd" />
+        </button>
+        @if (_open)
+        {
+            <button class="scrim views-scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="() => _open = false"></button>
+            <div class="views-popover" role="menu" aria-label="@Text["pdf.views"]">
+                @foreach (IGrouping<string?, SwitchView> group in Views.GroupBy(view => view.Group))
+                {
+                    @if (group.Key != Views[0].Group)
+                    {
+                        <hr />
+                    }
+                    @if (group.First() is { GroupName: { } name, GroupIcon: { } icon })
+                    {
+                        <p class="views-group"><Icon Name="@icon" Size="IconSize.Small" /> @name</p>
+                    }
+                    @foreach (SwitchView view in group)
+                    {
+                        @Item(view)
+                    }
+                }
+                <hr />
+                <button class="views-item views-foot" role="menuitem" @onclick="OpenSourcesAsync">
+                    <Icon Name="layers" /> <span class="word">@Text["sources.title"]</span>
+                    @if (Hidden > 0)
+                    {
+                        <span class="caption">@Text.Format("sources.hidden", Hidden)</span>
+                    }
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _open;
+
+    /// <summary>The views shown in the switch, in music-core's order, the hidden ones left out.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SwitchView> Views { get; set; } = [];
+
+    /// <summary>The key of the view shown now.</summary>
+    [Parameter]
+    public string? Shown { get; set; }
+
+    /// <summary>How many views the player hid, said at the menu's foot.</summary>
+    [Parameter]
+    public int Hidden { get; set; }
+
+    /// <summary>A view picked: the page shows it, at the same stretch of music.</summary>
+    [Parameter]
+    public EventCallback<SwitchView> Pick { get; set; }
+
+    /// <summary>The menu's foot: the Sources sheet opens.</summary>
+    [Parameter]
+    public EventCallback OpenSources { get; set; }
+
+    private RenderFragment Item(SwitchView view) => @<button class="views-item @(view.Key == Shown ? "on" : null)" role="menuitemradio" aria-checked="@(view.Key == Shown ? "true" : "false")"
+                                                            @onclick="() => PickAsync(view)">
+        <span class="op" role="img" aria-label="@view.IconLabel"><Icon Name="@view.Icon" /></span>
+        <span class="what">
+            <span class="word">@view.Word @if (view.Working) { <span class="tag working">@Text["sources.working"]</span> }</span>
+            @if (view.Line is { Length: > 0 } line)
+            {
+                <span class="caption">@line</span>
+            }
+        </span>
+        @if (view.Key == Shown)
+        {
+            <Icon Name="check" />
+        }
+    </button>;
+
+    private async Task PickAsync(SwitchView view)
+    {
+        _open = false;
+        if (view.Key != Shown)
+        {
+            await Pick.InvokeAsync(view);
+        }
+    }
+
+    private async Task OpenSourcesAsync()
+    {
+        _open = false;
+        await OpenSources.InvokeAsync();
+    }
+}

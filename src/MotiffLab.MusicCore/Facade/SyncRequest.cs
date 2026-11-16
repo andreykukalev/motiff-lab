@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 using MotiffLab.MusicCore.Projects;
 
@@ -87,6 +88,67 @@ internal static class SyncRequest
             {
                 json.WriteNull("copy");
             }
+        });
+    }
+
+    /// <summary>
+    /// {"pieces": [{"id", "keys": the project summary's "pieceKeys"}]} → {"groups": [[ids]]}: the projects that may be one
+    /// piece, to read and send to project.join (version 0.6.1, #582 item 1; <see cref="SamePiece.Candidates"/>).
+    /// </summary>
+    public static string Same(Request fields)
+    {
+        List<(string Id, IReadOnlyList<string> Keys)> rows = [];
+        foreach (JsonElement piece in fields.Elements("pieces"))
+        {
+            using Request row = Request.Of(piece);
+            rows.Add((row.Required("id"), row.Texts("keys")));
+        }
+
+        IReadOnlyList<IReadOnlyList<string>> groups = SamePiece.Candidates(rows);
+        return Answer.Write(json =>
+        {
+            json.WriteStartArray("groups");
+            foreach (IReadOnlyList<string> group in groups)
+            {
+                json.WriteStartArray();
+                group.ToList().ForEach(json.WriteStringValue);
+                json.WriteEndArray();
+            }
+
+            json.WriteEndArray();
+        });
+    }
+
+    /// <summary>
+    /// {"files": [project file texts that may be one piece], "stay"?: [indices of the files whose bytes are linked on this
+    /// iPad, never joined away]} → {"joined": [{"keeper": index, "from": [indices that join it], "file": the keeper to save in
+    /// its place}]}, only the pieces some file joined (version 0.6.1, #582 item 1; <see cref="SamePiece.Plan"/>). The files
+    /// that join a keeper are the same piece with nothing of their own: the app deletes them.
+    /// </summary>
+    public static string Join(Request fields)
+    {
+        IReadOnlyList<Project> projects = [.. fields.Texts("files").Select(Read)];
+        HashSet<int> stay = [.. fields.Elements("stay").Select(static element => element.TryGetInt32(out int index) ? index : throw FacadeException.BadRequest("\"stay\" holds indices."))];
+        IReadOnlyList<JoinedPiece> joined = SamePiece.Plan(projects, stay, HoldingDevice.Ipad);
+        return Answer.Write(json =>
+        {
+            json.WriteStartArray("joined");
+            foreach (JoinedPiece piece in joined)
+            {
+                json.WriteStartObject();
+                json.WriteNumber("keeper", piece.Keeper);
+                json.WriteStartArray("from");
+                foreach (int index in piece.Joined)
+                {
+                    json.WriteNumberValue(index);
+                }
+
+                json.WriteEndArray();
+                json.WriteString("file", Text(piece.Project));
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
         });
     }
 

@@ -15,6 +15,12 @@ struct ScoreScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
     var switchView: ((Landing) async -> Void)? = nil
+    /// The tag of a view of the switch shown on its own over the piece (version 0.6): other Notes, from a copy never
+    /// saved; nil for the piece itself.
+    var viewing: String? = nil
+    /// Opens the piece's project file again in this screen's place, at a place in the music (version 0.6: «Сделать
+    /// рабочими» and the Sources toast's Undo); nil where the library has none.
+    var reopen: ((Landing) async -> Void)? = nil
     private let text = UIText.current
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -28,17 +34,20 @@ struct ScoreScreen: View {
     /// Whether Check, Other versions or Settings was opened from More, so it shows "‹ More" (testing item 20).
     @State private var fromMore = false
     @StateObject var insights = InsightsController()
+    /// The model-backed assistant (#582 item 17): its side panel and the piece's conversations.
+    @StateObject var assistant = AssistantController()
     /// The piano roll's drawer (0018 section 4), from the bar or the selection menu.
     @State var rollOpen = false
     /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
     @State private var rollBeforeFocus = false
     /// The Contents drawer and the loop as they were when Expand opened, given back with the workspace (#521 17).
     @State private var contentsBeforeFocus = false
-    @State private var loopBeforeFocus: Range<Double>?
     /// The roll drawer's share of the screen's height in landscape (true) and portrait, as the player left it with its handle
     /// (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
     @State private var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
     @State private var drawerDrag: CGFloat?
+    /// How tall the transport floating at the bottom is now: the selection's toast stands above it (v0.6.4, spec 7).
+    @State private var transportHeight: CGFloat = 0
     /// The Insights sheet (0018 section 6), from the bar or the selection menu.
     @State private var insightsOpen = false
     @StateObject private var contents = ContentsController()
@@ -50,19 +59,27 @@ struct ScoreScreen: View {
     @State private var versionsOpen = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
-    /// The Reference's circle of fifths (an experiment, Settings · Experimental), open over the score.
+    /// The Reference's circle of fifths, open over the score.
     @State private var referenceOpen = false
     /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
     @State private var dna: DnaMap?
     /// Whether Piece DNA was opened from More, so it shows "‹ More".
     @State private var dnaFromMore = false
-    /// The questions asked about the piece (testing item 23): one conversation, shown by every Ask popover and in Insights.
-    @StateObject private var conversation = AskConversation()
     /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files; known
     /// from the piece's opening, so PDF | Notes is whole from the first frame (#495 BUG-02).
     @StateObject private var originals: OriginalsController
     /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
     @State private var resumeId: String?
+    /// The piece's sources by layers and the switch of all its views (version 0.6, 0030).
+    @StateObject private var sources = SourcesController()
+    /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
+    @State private var shownView: ShownView?
+    /// The piece is being handed to its other view (PDF | Notes): a second press on the switch meanwhile does nothing
+    /// (#582 item 2), as the first is already saving, closing and opening the piece.
+    @State var handingOver = false
+    /// The roll, Insights and the Contents as they were when Sources opened over them, given back as it closes (#582
+    /// item 4: opening and closing Sources leaves the view as it was); nil while Sources is closed.
+    @State private var beforeSources: SourcesShelved?
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -77,10 +94,18 @@ struct ScoreScreen: View {
                 drawer: rollOpen ? (drawerDrag.map { $0 * screen.size.height } ?? kept) : 0,
                 inset: rollOpen ? kept : 0,
                 screen: screen.size,
-                sheet: insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
+                sheet: sheetPlace(landscape: landscape, height: screen.size.height),
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
+        // The keyboard never changes the screen's size (#582 item 16): before, a chat's keyboard shrank it, portrait read
+        // as landscape and the sheets, the drawer, the pill and the page's room moved, and back again as it went. A chat
+        // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
+        .ignoresSafeArea(.keyboard)
+        .environmentObject(assistant)
+        // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
+        .onChange(of: assistant.panelOpen) { _, open in if open { insightsOpen = false; checkOpen = false; versionsOpen = false } }
+        .onChange(of: insightsOpen || checkOpen || versionsOpen) { _, open in if open { assistant.close() } }
     }
 
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.
@@ -100,19 +125,13 @@ struct ScoreScreen: View {
         return range.lowerBound..<max(range.upperBound, insights.trial?.end ?? 0)
     }
 
-    private var pillShown: Bool {
-        // Under the one playback position (v0.5.2, #479 item 22) the pill always shows: it is where the music plays.
-        // The roll's drawer never hides Play either (#479 item 23): the pill rides over it; nor does focus, whose bar has no
-        // Play of its own (#511 section 8.1).
-        if score.onePosition || rollOpen || score.focused { return true }
-        return ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
-    }
-
     /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
     private func openDna(fromMore: Bool) {
         let id = piece.id
+        // «Идеи по смыслу» (#582 item 15): the ideas by what they are in the music.
+        let request = #"{"ideas":"musical"}"#
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna") }
+            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna", request) }
             guard let map = DnaMap(answer: answer) else { return }
             dnaFromMore = fromMore
             dna = map
@@ -129,19 +148,14 @@ struct ScoreScreen: View {
         }
     }
 
-    /// What the sheet over the right holds: Check, Other versions, or Insights.
+    /// What the sheet over the right holds: Sources, Check, or Insights.
     @ViewBuilder private func sheetContent() -> some View {
-        if versionsOpen {
-            VersionsDrawer(
-                score: score, text: text, close: { versionsOpen = false },
-                back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
-                openPdf: toPdf,
-                originals: originals
-            )
+        if versionsOpen && sourcesOn {
+            sourcesSheet
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
         } else {
-            InsightsSheet(insights: insights, score: score, player: player, conversation: conversation, account: account, range: variationRange, text: text) { insightsOpen = false }
+            InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
         }
     }
 
@@ -189,7 +203,7 @@ struct ScoreScreen: View {
     /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
     @ViewBuilder private var transport: some View {
         // Scrolled away from the playing, a chip leads back to it (testing item 4).
-        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.hints, let bar = player.barNumber(at: away) {
+        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.transport, let bar = player.barNumber(at: away) {
             Button {
                 score.returnToPlayhead()
             } label: {
@@ -206,7 +220,8 @@ struct ScoreScreen: View {
             .transition(.opacity)
         }
         // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
-        if pillShown && score.practiceChrome.transport {
+        // The pill always shows (the playback model, v0.5.2, #479 item 22): it is where the music plays.
+        if score.practiceChrome.transport {
             Pill(player: player, score: score, text: text)
                 .transition(.opacity)
         }
@@ -216,21 +231,35 @@ struct ScoreScreen: View {
         }
     }
 
+    /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed, and the selection
+    /// controls shown (#582 item 10: `ScoreController.selectionControlsShown`, whatever the playback controls do).
+    private var selectionMenuOpen: Bool {
+        score.selection != nil && !score.focused && !rollOpen && score.selectionControlsShown
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
         let pillBottom = covered > 0 ? covered + gap : CGFloat.ds("s-4")
-        let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : 0
+        // The full assistant's panel sits beside the score, which keeps the rest of the width (#582 item 17.1).
+        let side = assistant.panelOpen ? Self.assistantWidth(landscape: screen.width > screen.height) + gap : 0
+        let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : side
         let pillLeading: CGFloat = contentsPlace == .side ? Self.contentsWidth + gap : 0
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
+            // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
+            .padding(.trailing, side).overlay { TypingShield() }
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
-                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Practice view hides it (#533 11).
-                if score.selection != nil, !score.focused, !rollOpen, !score.practicing, let place = score.menuPlace {
-                    SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
+                // controls (#582 item 10), whatever the playback controls do.
+                if selectionMenuOpen, let place = score.menuPlace {
+                    SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                        .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
             }
+            // Put away, the menu forgets where the player dragged it (#582 item 7).
+            .onChange(of: selectionMenuOpen) { _, open in score.menuShown(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
                 if let pick = score.markerPick, !score.focused {
@@ -244,14 +273,20 @@ struct ScoreScreen: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                // What was just done with a version, with Undo (testing item 32).
-                if let toast = score.mergeToast {
+                // What was just done in the Sources sheet, with Undo where it can be undone (version 0.6); beside the sheet.
+                if let toast = sources.toast, sourcesOn {
+                    SourcesToastView(sources: sources, toast: toast, text: text)
+                        .padding(.bottom, pillBottom + 56)
+                        .padding(.trailing, pillTrailing)
+                        .transition(.opacity)
+                } else if let toast = score.mergeToast {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
-                    SelectionToastView(score: score, text: text).padding(.bottom, pillBottom + 56)
+                    // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
+                    SelectionToastView(score: score, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .fullScreenCover(isPresented: $score.comparing) {
@@ -279,10 +314,13 @@ struct ScoreScreen: View {
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
-                        FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
+                        FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: { referenceOpen = true },
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
+                                 width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
+                    if sourcesOn && !score.focused { recordingCapsule }
                     if !score.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, text: text)
@@ -338,10 +376,11 @@ struct ScoreScreen: View {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
                 // shows with a selection or while the music plays, or only while it plays (the setting
                 // "guidance.transportPill", 0018 section 10).
-                VStack(spacing: CGFloat.ds("s-2")) { transport }
+                // Measured, so the selection's toast stands above it (v0.6.4, spec 7); above a hidden keyboard's bar (iPadOS's
+                // «RU» and Undo), never above the keyboard itself (v0.6.4).
+                VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }.keyboardLift(barOnly: true)
                 .padding(.bottom, pillBottom)
-                .padding(.trailing, pillTrailing)
-                .padding(.leading, pillLeading)
+                .padding(.trailing, pillTrailing).padding(.leading, pillLeading)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
@@ -354,7 +393,12 @@ struct ScoreScreen: View {
         content
             .toolbar(.hidden, for: .navigationBar)
             .task { await wire() }
+            // A new interface language saves the piece and opens it again where it is; not a view shown over the piece.
+            .handsOver(piece: viewing == nil ? piece.id : nil) { await handOverForLanguage() }
             .onDisappear {
+                // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
+                // spec section 11: each visit with the sources on stayed in memory).
+                sources.reopen = nil
                 let now = resumeNow()
                 let view = notesViewNow()
                 // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.
@@ -389,7 +433,6 @@ struct ScoreScreen: View {
                     roll.applyInput()
                 }
             }
-            .onChange(of: settings.values) { _, _ in applyExperiments() }
     }
 
     private func wire() async {
@@ -398,9 +441,7 @@ struct ScoreScreen: View {
         // A tap on the page plays nothing (#338): the music starts only with Play or Loop. With the sheet open, a tap that
         // selects nothing puts it away; the selection stays as it is (0018 section 6).
         let sheetOpen = $insightsOpen
-        score.blankTapped = { [weak heard, weak shown] in
-            // With nothing selected, nothing playing and the metronome still, the tap puts away the pill kept after playback.
-            if let heard, heard.state == .stopped, shown?.selection == nil, !Metronome.shared.running { heard.transportKept = false }
+        score.blankTapped = { [weak shown] in
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
             // In practice view the tap shows Play/Pause and Leave for a few seconds too (#533 11).
             shown?.practise(.tap)
@@ -409,7 +450,7 @@ struct ScoreScreen: View {
         // on from there when it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
         score.placeTapped = { [weak heard, weak shown] beat in
             guard let heard, let shown else { return }
-            if shown.onePosition { heard.go(to: beat.lowerBound, play: false) } else { heard.seek(to: Player.place(beat.lowerBound, inside: heard.loop)) }
+            heard.go(to: beat.lowerBound, play: false)
             shown.practise(.tap)
         }
         // A flag tapped on the score opens Check on its bar.
@@ -457,17 +498,22 @@ struct ScoreScreen: View {
         wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
-        // The note edits saved are written to the project file at once.
+        // Picked notes dragged in Select (#601): the first step opens the note editor's draft, and the notes let go are its
+        // edits, kept until Cancel or Save in the roll's head.
+        roll.notesMoveBegan = { [weak shown] in if shown?.noteEditor == nil { shown?.beginNoteEdit() } }
+        roll.notesMoved = { [weak shown] edits in edits.forEach { shown?.editNote($0) } }
+        // The note edits saved, «Мои правки» switched and a correction taken out are written to the project file at once.
         let file = piece.file
-        score.noteEditSaved = {
+        score.editsKept = {
             guard let file else { return }
             Task { try? await ProjectFiles.save(piece: id, to: file) }
         }
         // The bookmarks are drawn as brackets on the score, and again whenever they change.
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
-        await player.load(piece: piece.id, key: piece.own?.id)
-        applyExperiments()
+        assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
+        await player.load(piece: piece.id, key: piece.own?.id); ProbeCounts.shared.mark("sound")
+        applyModel()
         await resume()
         await returnToNotesView()
     }
@@ -498,11 +544,10 @@ struct ScoreScreen: View {
             .onChange(of: score.focused) { _, focused in
                 expandChanged(focused)
             }
-            .onChange(of: score.practicing) { _, on in
-                // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
-                score.sendPractice()
-                roll.practice(on)
-            }
+            // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
+            .onChange(of: score.practicing, initial: true) { _, on in score.sendPractice(); roll.practice(on) }
+            // The selection controls (#582 item 10): the page's handles go with the menu.
+            .onChange(of: score.selectionControlsShown) { _, shown in score.sendSelectionControls(shown) }
             .onChange(of: score.focused && score.focusRoll) { _, shown in
                 expandRollShown(shown)
             }
@@ -541,7 +586,7 @@ struct ScoreScreen: View {
             .fullScreenCover(isPresented: Binding(get: { dna != nil }, set: { if !$0 { dna = nil } })) {
                 if let map = dna {
                     DnaScreen(
-                        map: map, title: piece.title, player: player, conversation: conversation, account: account, text: text,
+                        map: map, title: piece.title, player: player, text: text,
                         back: dnaFromMore ? (label: text["bar.more"], action: { backToMore { dna = nil } }) : nil,
                         close: { dna = nil },
                         showInScore: { range, openInsights in
@@ -555,9 +600,10 @@ struct ScoreScreen: View {
                             let added = await contents.addForm()
                             return text.count("bookmark.structureAdded", added)
                         },
-                        askInInsights: {
+                        ask: {
+                            // The map gives way to the score with the assistant beside it, on the whole piece.
                             dna = nil
-                            insightsOpen = true
+                            assistant.open(wholePiece: true, selection: score.selection)
                         }
                     )
                 }
@@ -606,14 +652,7 @@ struct ScoreScreen: View {
                     versionsOpen = false
                 }
             }
-            .onChange(of: versionsOpen) { _, open in
-                if open {
-                    insightsOpen = false
-                    rollOpen = false
-                    contentsOpen = false
-                    checkOpen = false
-                }
-            }
+            .onChange(of: versionsOpen) { _, open in versionsOpened(open) }
             .onChange(of: insightsOpen || rollOpen || contentsOpen || score.focused) { _, other in
                 if other {
                     checkOpen = false
@@ -687,7 +726,8 @@ struct ScoreScreen: View {
     /// else the PDF linked where it lies in Files, over the score (version 0.3).
     private var toPdf: (() -> Void)? {
         if switchView != nil, piece.other != nil || score.sources.document != nil {
-            return { Task { await showPdf() } }
+            // The switch of all views goes with the piece to its PDF (SourcesHandover).
+            return { ProbeCounts.shared.begin(); if sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf() } }
         }
         guard originals.canOpenLinkedPdf else { return nil }
         return {
@@ -703,10 +743,204 @@ struct ScoreScreen: View {
 
 extension ScoreScreen {
     /// The piece's screen, its originals known from the piece's opening (#495 BUG-02).
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil) {
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil) {
         self.piece = piece
         self.switchView = switchView
+        self.viewing = viewing
+        self.reopen = reopen
         _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
+        // The score opens in Navigate (the modes, permanent since v0.6.5).
+        _score = StateObject(wrappedValue: ScoreController())
+        // The switch of all views as the screen before had it, until this one has read its own (SourcesHandover).
+        _sources = StateObject(wrappedValue: SourcesController(layers: SourcesHandover.layers(for: piece.file)))
+    }
+}
+
+/// The switch of all the piece's views and the Sources sheet (version 0.6; decision record
+/// 0030). The working notes are this screen; the first PDF is the PDF view of PDF | Notes; another PDF or photos, and other
+/// Notes, open on a screen of their own over this one, read-only, from a copy never saved; a version opens its page in
+/// the sheet, as Other versions did; a recording's sound is heard from a capsule under the bar.
+extension ScoreScreen {
+    /// What was open under Sources as it opened (#582 item 4).
+    struct SourcesShelved: Equatable {
+        let roll: Bool
+        let insights: Bool
+        let contents: Bool
+    }
+
+    /// Where the sheet over the score goes: Insights, Check and Other versions beside the score in landscape and over the
+    /// lower half in portrait; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
+    /// the document and its view.
+    func sheetPlace(landscape: Bool, height: CGFloat) -> SheetPlace {
+        if versionsOpen && sourcesOn { return .bottom(height / 2) }
+        return insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(height / 2)) : .none
+    }
+
+    /// Other versions or Sources opened or closed: opening puts the other places away, keeping what was open under Sources;
+    /// closing Sources by its ✕ or the bar's button, not by another place opening, gives the view back as it was (#582 item 4).
+    func versionsOpened(_ open: Bool) {
+        if open {
+            if sourcesOn { beforeSources = SourcesShelved(roll: rollOpen, insights: insightsOpen, contents: contentsOpen) }
+            insightsOpen = false
+            rollOpen = false
+            contentsOpen = false
+            checkOpen = false
+        } else if let before = beforeSources {
+            beforeSources = nil
+            if !(insightsOpen || rollOpen || contentsOpen || checkOpen || score.focused) {
+                rollOpen = before.roll
+                insightsOpen = before.insights
+                contentsOpen = before.contents
+            }
+        }
+    }
+
+    /// A view of the switch on a screen of its own over the score, its piece closed in music-core as it goes.
+    struct ShownView: Identifiable {
+        let piece: OpenPiece
+        /// Shown as a PDF (another original) rather than as notes.
+        let pdf: Bool
+        var id: Int32 { piece.id }
+    }
+
+    /// Whether the switch of all views and Sources are there: never on a view shown over the piece (0030).
+    var sourcesOn: Bool { viewing == nil }
+
+    /// The Sources sheet in Other versions' place.
+    var sourcesSheet: some View {
+        SourcesSheet(
+            sources: sources, score: score, originals: originals, text: text, current: currentView,
+            close: { versionsOpen = false },
+            back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
+            open: pickView,
+            versionPage: SourcesSheet.versionPage(score),
+            versionStatus: score.versionStatus
+        )
+    }
+
+    /// «Исполнение»: the recording's sound kept on this iPad, heard from under the bar.
+    @ViewBuilder var recordingCapsule: some View {
+        if let id = sources.performance, let projectId = sources.projectId, let url = OriginalSounds.file(project: projectId, original: id) {
+            RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
+                sources.performance = nil
+            }
+            .id(id)
+            .transition(.opacity)
+        }
+    }
+
+    /// The views shown over the score, the sources read as the screen opens, and a variation only tried left before the
+    /// Sources sheet writes the project file.
+    func sourcing(_ content: some View) -> some View {
+        content
+            .fullScreenCover(item: $shownView) { view in shownViewScreen(view) }
+            .task(id: sourcesOn) { await loadSources() }
+            .onChange(of: versionsOpen) { _, open in
+                if open && sourcesOn { Task { await insights.leave() } }
+            }
+    }
+
+    /// The view shown now: the recording heard, else the working notes.
+    var currentView: String? { sources.performance ?? sources.layers.working }
+
+    /// The views for the bar's switch, and what picking one does; nil while the switch is off.
+    var switchLayers: SourceLayers? { sourcesOn ? sources.layers : nil }
+    var switchPick: ((SourceLayers.ViewEntry) -> Void)? {
+        guard sourcesOn else { return nil }
+        return { view in pickView(view) }
+    }
+
+    /// The sources as the screen opens then what the screen before handed over: the toast
+    /// of what was done, or a view picked on the PDF's switch.
+    func loadSources() async {
+        guard sourcesOn else { return }
+        sources.reopen = { await reopenHere() }
+        await sources.load(piece: piece.id, file: piece.file)
+        SourcesHandover.drop(piece.file)
+        if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
+        if let id = SourcesHandover.view(for: piece.file), let view = sources.layers.views.first(where: { $0.id == id }) {
+            pickView(view)
+        }
+    }
+
+    /// A view picked in the switch, its menu or the sheet's «Открыть».
+    func pickView(_ view: SourceLayers.ViewEntry) {
+        switch view.kind {
+        case "performance":
+            if player.state == .playing { player.toggle() }
+            sources.performance = view.id
+        case "original":
+            sources.performance = nil
+            if view.id == PdfScreen.documentView, let toPdf {
+                toPdf()
+            } else {
+                Task { await showOriginal(view.id) }
+            }
+        default:
+            sources.performance = nil
+            guard view.id != sources.layers.working else { return }
+            if sources.layers.notes(view.id)?.role == "version", score.versions.entries.contains(where: { $0.id == view.id }) {
+                versionsOpen = true
+                score.openVersionPage(view.id)
+            } else {
+                Task { await showNotes(view.id) }
+            }
+        }
+    }
+
+    /// Another PDF or photos kept in the piece, shown as they are; why not, in the sheet.
+    private func showOriginal(_ id: String) async {
+        guard let original = sources.layers.original(id) else { return }
+        if player.state == .playing { player.toggle() }
+        guard let opened = await sources.openOriginal(original, title: original.shown) else {
+            versionsOpen = true
+            return
+        }
+        shownView = ShownView(piece: opened, pdf: true)
+    }
+
+    /// Other Notes shown on their own, at the place in the music in view here; why not, in the sheet.
+    private func showNotes(_ id: String) async {
+        guard let notes = sources.layers.notes(id) else { return }
+        if player.state == .playing { player.toggle() }
+        let at = await score.tickInView()
+        guard let opened = await sources.openNotes(notes, title: sources.layers.title(of: notes, text), at: at) else {
+            versionsOpen = true
+            return
+        }
+        shownView = ShownView(piece: opened, pdf: false)
+    }
+
+    /// The screen of a view shown over the piece; its piece is closed in music-core once the screen has gone.
+    func shownViewScreen(_ view: ShownView) -> some View {
+        Group {
+            if view.pdf {
+                PdfScreen(piece: view.piece, linked: true, readOnlyNote: text["sources.sheet.viewOnly"])
+            } else {
+                ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"])
+            }
+        }
+        .environmentObject(account)
+        .environmentObject(settings)
+        .onDisappear {
+            let id = view.piece.id
+            Task {
+                // After the screen's own leaving, which still reads the piece.
+                try? await Task.sleep(for: .seconds(2))
+                _ = await MusicCore.run { MusicCore.close(piece: id) }
+            }
+        }
+    }
+
+    /// The piece opened again in this screen's place from its project file, as «Сделать рабочими» or the toast's Undo has
+    /// just left it: the "Notes" view is kept for it and nothing more is written to the file.
+    private func reopenHere() async {
+        guard let reopen else { return }
+        let at = await score.tickInView() ?? 0
+        let view = notesViewNow()
+        player.shutdown()
+        await keepNotesView(view)
+        await reopen(.tick(at))
     }
 }
 
@@ -718,8 +952,24 @@ extension ScoreScreen {
         // The chain is cut into parts so the compiler type-checks each on its own.
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
         let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
+            .overlay(alignment: .bottomTrailing) {
+                // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
+                if assistant.panelOpen {
+                    AssistantSide(assistant: assistant, text: text, selection: score.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                }
+            }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
-        return following(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side)))
+        return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
+    }
+
+    /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
+    private func askAssistant(_ question: String) {
+        let whole = assistant.scope.isWholePiece(score.selection)
+        let ask = AssistantAsk(
+            piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
+            language: text.language, role: AssistantSide.role(settings), relay: account.assistant
+        )
+        Task { await assistant.ask(question, about: ask) }
     }
 
     /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in
@@ -765,26 +1015,22 @@ extension ScoreScreen {
 
     /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
     private var rollSpan: String? {
-        guard score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
+        guard let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
         return text.format("pill.span", span.first, span.last)
     }
 }
 
-/// Settings · Experimental on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
+/// At the instrument, on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
 /// beats (#349).
 extension ScoreScreen {
     /// The playback model as the page and the roll draw it (v0.5.2, #495 UX-10): the selection the blue playhead keeps to and
-    /// Цикл, and the roll's lanes; nil and off for the one playhead of before, and in focus.
+    /// Цикл, and the roll's lanes. In Expand the page draws the black playhead on the card inside the selection, its passage
+    /// (v0.6.4, spec 8); the roll there keeps its own playhead, without lanes.
     private func syncPlayheads() {
-        let on = score.onePosition
-        let range = score.playRange?.range
-        var data: [String: Any]?
-        if on {
-            let selection: Any = range.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
-            data = ["selection": selection, "loop": player.cycle]
-        }
-        score.showPlayheads(data)
-        roll.lanes(on)
+        // The hand the selection is narrowed to (v0.6.2): its band covers that staff, and the blue playhead with it (#608).
+        let selection: Any = score.playRange.map { PlayheadsShown.selection($0.range, hand: $0.selection.hand) as Any } ?? NSNull()
+        score.showPlayheads(["selection": selection, "loop": player.cycle])
+        roll.lanes(score.holdsSelection)
         if rollShown { showRollPosition() }
     }
 
@@ -800,6 +1046,10 @@ extension ScoreScreen {
             }
         }
         roll.cleared = { [weak score] gesture in score?.clearSelection(gesture: gesture) }
+        // Notes a lasso or a tap picked in the roll's Select (#601): the one selection, lit on the score too.
+        roll.notesPicked = { [weak score] pick in score?.selectNotes(pick.ids, add: pick.add, gesture: pick.gesture, replaces: pick.replaces) }
+        // A span drawn there, notes or none (v0.6.4), and the score's tuplets for the roll's grid: one selection for both.
+        roll.sharePlaces(with: score)
         roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
         roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
         // The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:
@@ -825,10 +1075,8 @@ extension ScoreScreen {
             guard let heard, let shown else { return }
             if shown.focused, let passage = shown.playRange?.range {
                 heard.playPassage(passage)
-            } else if shown.onePosition {
-                heard.apply(.press)
             } else {
-                heard.toggle()
+                heard.apply(.press)
             }
         }
         // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops
@@ -839,16 +1087,22 @@ extension ScoreScreen {
             if shown.focused, let passage = shown.playRange?.range {
                 // In Expand within the passage, playing it round from there (#533 2).
                 heard.move(to: tick, play: play, within: passage)
-            } else if shown.onePosition {
-                heard.go(to: tick, play: play)
             } else {
-                heard.move(to: tick, play: play, selection: shown.playRange?.range)
+                heard.go(to: tick, play: play)
             }
         }
         // A playhead dragged by its handle on the score or the roll (#495 UX-08, T14–T16): the player runs the model. The pages
         // send it only under the playback model, and a gesture that ends after the model went is still let go. On Expand's
         // roll it is held inside the passage, which goes on looping (#533 2).
-        score.playheadGestured = { [weak heard] gesture in heard?.handle(gesture) }
+        // On Expand's card the black playhead is held inside the passage too (v0.6.4, spec 8), as on its roll.
+        score.playheadGestured = { [weak heard, weak shown] gesture in
+            guard let heard else { return }
+            if let passage = shown?.expandPassage {
+                heard.handle(gesture, within: passage)
+            } else {
+                heard.handle(gesture)
+            }
+        }
         roll.playheadGestured = { [weak heard, weak shown] gesture in
             guard let heard else { return }
             if shown?.focused == true, let passage = shown?.playRange?.range {
@@ -861,7 +1115,7 @@ extension ScoreScreen {
 
     /// Where the player is, for the roll: with the lanes, also the place as bar.beat and whether the selection loops.
     private func showRollPosition() {
-        let on = score.onePosition
+        let on = score.holdsSelection
         roll.position(player.tick, playing: player.state == .playing, label: on ? player.placeLabel : "", looping: on && player.loop != nil)
     }
 
@@ -873,59 +1127,42 @@ extension ScoreScreen {
             if let new, player.state != .stopped { player.keepWithin(new.range) }
             return
         }
-        if score.onePosition {
-            player.apply(.select(new?.range))
-            return
-        }
-        guard let loop = player.loop, loop == old?.range else { return }
-        if let new, new.selection == old?.selection {
-            player.setLoop(new.range)
-        } else {
-            player.setLoop(nil)
-        }
+        player.apply(.select(new?.range))
     }
 
-    /// The experiments as Settings has them: selecting by beats (#349) snaps the score's selection to the piece's beat
-    /// lines while its switch is on, and with hands separately (#328) off both hands sound again.
-    private func applyExperiments() {
-        // The modes and the two playheads (version 0.5) take the selection by beats too.
-        let playheads = settings.isOn("experimental.playheads")
-        if playheads != (score.mode != nil) {
-            score.mode = playheads ? .navigate : nil
-        }
-        // Under the modes, Select's «По тактам / По долям» (#511 4.2); without them, the experiment Select by beats.
-        score.setBeatLines(player.beatLines, experiment: settings.isOn("experimental.beats"))
+    /// Once the sound has loaded: the piece's beat lines for the one selection on the sixteenth grid (v0.6.4), and the
+    /// playback model as the page and the roll draw it.
+    private func applyModel() {
+        score.setBeatLines(player.beatLines)
         syncPlayheads()
-        if score.onePosition { player.hold(selection: score.playRange?.range) }
-        if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
+        if score.holdsSelection { player.hold(selection: score.playRange?.range) }
     }
 
     /// Back where the player stopped (#327): the project's latest resume point, the web app's too, with its passage, focus,
-    /// tempo, loop and, while hands separately is on, its hands. Nothing starts playing.
+    /// tempo, loop and hands. Nothing starts playing.
     private func resume() async {
         // From the PDF in PDF | Notes the notes open at the page the player came from instead.
-        guard settings.isOn("experimental.resume"), piece.landing == nil else { return }
+        guard piece.landing == nil else { return }
         let id = piece.id
         let answer = await MusicCore.run { MusicCore.call(piece: id, "resume") }
         guard let place = ResumePlace(answer: answer) else { return }
         resumeId = place.id
         player.tempoPercent = place.tempoPercent
-        if settings.isOn("experimental.hands"), player.handsHeld.canSeparate { player.hands = place.hands }
+        if player.handsHeld.canSeparate { player.hands = place.hands }
         await score.arrive(at: place)
         if place.loop, let range = score.playRange?.range ?? place.passage {
             player.setLoop(range, play: false)
         }
     }
 
-    /// Where the player is now, taken before the player stops; nil while the resume point is off.
+    /// Where the player is now, taken before the player stops.
     func resumeNow() -> ResumePlace.Now? {
-        guard settings.isOn("experimental.resume") else { return nil }
-        return ResumePlace.Now(
+        ResumePlace.Now(
             passage: score.selection.map { $0.onset..<$0.end },
             tick: player.tick,
             focused: score.focused,
             tempoPercent: player.tempoPercent,
-            hands: settings.isOn("experimental.hands") ? player.hands : nil,
+            hands: player.hands,
             loop: player.loop != nil
         )
     }
@@ -955,7 +1192,6 @@ struct ScoreBar: View {
     let text: UIText
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
-    @ObservedObject var conversation: AskConversation
     @Binding var more: Bool
     /// Whether the place open now was opened from More, so it shows "‹ More" (testing item 20).
     @Binding var fromMore: Bool
@@ -969,57 +1205,54 @@ struct ScoreBar: View {
     let pdf: (() -> Void)?
     /// Piece DNA from More.
     let openDna: () -> Void
-    /// The Reference's circle of fifths (an experiment, Settings · Experimental); nil while it is off.
+    /// The Reference's circle of fifths; nil where there is none.
     var openReference: (() -> Void)?
+    /// The piece's views for the switch of all views (version 0.6, 0030), in PDF | Notes' place with
+    /// Sources after it.
+    var sourceLayers: SourceLayers? = nil
+    var currentView: String? = nil
+    var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
+    /// The read-only tag of a view shown over the piece; nil for the piece itself.
+    var viewing: String? = nil
+    /// The bar's width, the screen's less its margins (TopBar).
+    var width: CGFloat = 0
     let back: () -> Void
     @State private var phrasesOpen = false
-    /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
-    @State private var asking = false
     /// The list of extra information under the ⓘ button's chevron.
     @State private var extraOpen = false
-    @EnvironmentObject private var account: Account
+    @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
-    /// The bar is laid out as the PDF's (PdfScreen's bar, #479 item 13): Back, the Contents, the title and PDF | Notes in
-    /// the same places in both views, then the pages in view, and each view's own actions at the right.
+    /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
+    /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
+        TopBar(width: width, pages: pageText) {
             BarLeading(title: title, contentsOpen: $contentsOpen, text: text, back: back)
-            if let pdf {
+            if let sourceLayers, let pickView {
+                SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { versionsOpen = true }
+                SourcesButton(open: versionsOpen, text: text) { versionsOpen.toggle() }
+            } else if let pdf {
                 PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
-            if let pageText { BarPages(text: pageText) }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            actions
+            if let viewing { Tag(text: viewing, kind: .assumed) }
+        } actions: {
+            actions(compact: false)
+        } compact: {
+            actions(compact: true)
         }
-        .padding(.leading, CGFloat.ds("s-2"))
-        .padding(.trailing, CGFloat.ds("s-2"))
-        .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
     }
 
     /// In groups without captions, as the approved mockup v0.5.2 (#479 item 21): what the score shows (Phrases, the extra
-    /// information, the piano roll), then how the score is used (the modes, or the Pen before them), then the Circle and
-    /// Insights, then Play and More.
-    @ViewBuilder private var actions: some View {
+    /// information, the piano roll), then how the score is used (the modes), then the Circle and
+    /// Insights, then Play and More. Compact where the bar is short (#582 item 2): the chosen mode by its icon alone.
+    @ViewBuilder private func actions(compact: Bool) -> some View {
         viewButtons
         PaletteDivider()
-        if score.mode != nil {
-            // The modes of version 0.5 (Settings · Experimental): one group for the score and the roll, the Pen in it.
-            ModeGroup(score: score, text: text)
-        } else {
-            Button {
-                score.penOn.toggle()
-            } label: {
-                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: score.penOn))
-            .accessibilityLabel(text["bar.pen"])
-            .accessibilityHint(text["pencil.padHint"])
-            .accessibilityAddTraits(score.penOn ? .isSelected : [])
-        }
+        // The modes (version 0.5): one group for the score and the roll, the Pen in it.
+        ModeGroup(score: score, text: text, compact: compact)
         PaletteDivider()
         if let openReference {
-            // The Reference (an experiment): the Circle, the circle with a sharp, opens the circle of fifths.
+            // The Reference: the Circle, the circle with a sharp, opens the circle of fifths.
             Button(action: openReference) {
                 Icon(name: "keysig", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
             }
@@ -1091,9 +1324,8 @@ struct ScoreBar: View {
         .accessibilityAddTraits(rollOpen ? .isSelected : [])
     }
 
-    /// Play and More.
+    /// More: the pill, always shown, plays (the playback model, v0.5.2, #479 item 22).
     @ViewBuilder private var playAndMore: some View {
-        barPlay
         Button {
             more.toggle()
         } label: {
@@ -1102,60 +1334,30 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: more))
         .accessibilityLabel(text["bar.more"])
         .popover(isPresented: $more) {
-            MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
+            MorePanel(score: score, text: text, problem: player.problem ?? score.problem, openCheck: {
                 more = false
                 checkOpen = true
                 fromMore = true
-            } openVersions: {
-                more = false
-                versionsOpen = true
-                fromMore = true
-            } openSettings: {
+            }, openVersions: viewing == nil ? openSources : nil, openSettings: {
                 more = false
                 settingsOpen = true
                 fromMore = true
-            } openDna: {
+            }, openDna: {
                 more = false
                 openDna()
-            } askAboutPiece: {
+            }, askAboutPiece: {
                 more = false
-                // Once More's popover has gone, the assistant's opens where it was.
-                Task {
-                    try? await Task.sleep(for: .milliseconds(350))
-                    asking = true
-                }
-            }
-        }
-        .background {
-            Color.clear
-                .popover(isPresented: $asking) {
-                    AskPopover(
-                        conversation: conversation, account: account, text: text,
-                        context: AskContext(selection: score.askLabel, wholePiece: true, title: title),
-                        openInInsights: {
-                            asking = false
-                            insightsOpen = true
-                        },
-                        close: { asking = false }
-                    )
-                }
+                // The assistant's panel opens on the whole piece (#582 item 17.1).
+                assistant.open(wholePiece: true, selection: score.selection)
+            })
         }
     }
 
-    /// The bar's Play; none under the one playback position (v0.5.2, #479 item 22), where the pill, always shown, plays.
-    @ViewBuilder private var barPlay: some View {
-        if !score.onePosition {
-            Button {
-                player.toggle()
-            } label: {
-                Icon(name: player.state != .stopped ? "pause" : "play", size: CGFloat.ds("icon-l"))
-                    .foregroundStyle(Color.ds("ink"))
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .disabled(!player.ready)
-            .accessibilityLabel(player.state != .stopped ? text["transport.pause"] : text["transport.play"])
-        }
+    /// Sources from More.
+    private func openSources() {
+        more = false
+        versionsOpen = true
+        fromMore = true
     }
 
     /// "p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; nothing before the score is laid out.
@@ -1164,75 +1366,6 @@ struct ScoreBar: View {
         return pages.first == pages.last
             ? text.format("bar.page", String(pages.first), String(pages.count))
             : text.format("bar.pages", String(pages.first), String(pages.last), String(pages.count))
-    }
-}
-
-/// The start of the bar on the score and on a PDF alike (#479 item 13): Back, the Contents at the left by the way back, as
-/// in a reader (testing item 21), and the title, which opens the Contents too.
-struct BarLeading: View {
-    let title: String
-    @Binding var contentsOpen: Bool
-    let text: UIText
-    let back: () -> Void
-
-    var body: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Button(action: back) {
-                Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["nav.library"])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text["bar.contents"])
-            .accessibilityAddTraits(contentsOpen ? .isSelected : [])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Text(title)
-                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                    .lineLimit(1)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text.format("contents.open", title))
-            .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
-        }
-    }
-}
-
-/// The pages in view, after PDF | Notes in the bar: the first to give way where the bar is short of room, so the places
-/// the two views share do not move (#479 item 13).
-struct BarPages: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .dsType(.label)
-            .foregroundStyle(Color.ds("ink-2"))
-            .lineLimit(1)
-            .padding(.leading, CGFloat.ds("s-2"))
-            .layoutPriority(-1)
-    }
-}
-
-/// An action in the bar (ds.css `.bar .act`): the ink, and the accent on its tint while it is on.
-struct BarActionStyle: ButtonStyle {
-    var on = false
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
-            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(Rectangle())
     }
 }
 
@@ -1246,34 +1379,15 @@ struct Pill: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            // Under the playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span.
-            if score.onePosition {
-                PositionTransport(player: player, text: text)
-            } else {
-                Button {
-                    // In Expand Play loops the passage, from the playhead inside it or its start (#533 2).
-                    if score.focused, let passage = score.playRange?.range { player.playPassage(passage) } else { player.toggle() }
-                } label: {
-                    Icon(name: player.state == .stopped ? "playf" : "pause")
-                        .foregroundStyle(Color.ds("on-accent"))
-                        .frame(width: 40, height: 40)
-                        .background(Color.ds("accent"), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
-                // No Loop in Expand (#533 2): its passage always loops.
-                if score.selection != nil && !score.focused {
-                    LoopButton(score: score, player: player, text: text)
-                }
-            }
+            // The playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span; in
+            // Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
+            PositionTransport(player: player, passage: score.expandPassage, text: text)
             // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
             TempoControl(tempo: player.tempo, text: text) { [weak score] perMinute in
                 Task { await score?.setPieceTempo(perMinute) }
             }
             .equatable()
-            if settings.isOn("experimental.hands") {
-                handsControls
-            }
+            handsControls
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15).
             Button {
@@ -1297,7 +1411,7 @@ struct Pill: View {
         .accessibilityLabel(text["transport.label"])
     }
 
-    /// Hands separately at the instrument (#328, Settings · Experimental): both, right or left, two touches away, and the
+    /// Hands separately at the instrument (#328): both, right or left, two touches away, and the
     /// phrase before or after without lifting it into focus. The hands are the ones music-core gives the notes, and the
     /// menu says when they were worked out rather than read from the file.
     @ViewBuilder private var handsControls: some View {
@@ -1337,38 +1451,6 @@ struct Pill: View {
     }
 }
 
-/// Loop, in the pill and in the selection menu: the selection loops, or stops looping (0018 section 7).
-struct LoopButton: View {
-    @ObservedObject var score: ScoreController
-    @ObservedObject var player: Player
-    let text: UIText
-    /// Its icon alone, as in the selection menu (#495 UX-11); the pill keeps its word.
-    var iconOnly = false
-
-    var body: some View {
-        let range = score.playRange?.range
-        let looping = range != nil && player.loop == range
-        let button = Button {
-            player.setLoop(looping ? nil : range)
-        } label: {
-            HStack(spacing: 6) {
-                Icon(name: "loop")
-                if !iconOnly { Text(text["focus.loop"]) }
-            }
-        }
-        Group {
-            if iconOnly {
-                button.buttonStyle(DSIconItemStyle(on: looping)).help(text["focus.loop"])
-            } else {
-                button.buttonStyle(DSItemStyle(on: looping))
-            }
-        }
-        .disabled(!player.ready)
-        .accessibilityLabel(text["focus.loop"])
-        .accessibilityAddTraits(looping ? .isSelected : [])
-    }
-}
-
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
 /// what applies and what the iPad has so far: Loop, Focus, Bookmark and Note, then the piano roll and Insights (none for a
 /// passage without notes), and More with Highlight. Bookmark and Note turn the menu into their cards, as on the web. Its
@@ -1377,15 +1459,13 @@ struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
-    @ObservedObject var conversation: AskConversation
     let text: UIText
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @State private var more = false
-    /// Ask on the selection: the assistant's popover at the menu, over the selection (testing item 23).
-    @State private var asking = false
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         Group {
@@ -1406,6 +1486,9 @@ struct SelectionMenu: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
+            } else if assistant.here != nil, score.selection != nil {
+                // The assistant at the selection where the menu was (#582 items 17.2 and 17.4).
+                AssistantHereCard(assistant: assistant, score: score, text: text, ask: askHere)
             } else {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                     actions
@@ -1413,25 +1496,15 @@ struct SelectionMenu: View {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
                         Button {
-                            asking = true
+                            // The assistant opens at the selection, where the menu was (#582 item 17.2).
+                            AssistantHereCard.open(assistant, score: score, settings: settings)
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "insight")
                                 Text(text["ask.menu"])
                             }
                         }
-                        .buttonStyle(DSItemStyle(on: asking))
-                        .popover(isPresented: $asking) {
-                            AskPopover(
-                                conversation: conversation, account: account, text: text,
-                                context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
-                                openInInsights: {
-                                    asking = false
-                                    insightsOpen = true
-                                },
-                                close: { asking = false }
-                            )
-                        }
+                        .buttonStyle(DSItemStyle())
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-2"))
@@ -1453,28 +1526,29 @@ struct SelectionMenu: View {
         .accessibilityLabel(text["menu.label"])
     }
 
+    private func askHere(_ question: String) {
+        guard let role = assistant.here?.role, let ask = AssistantHereCard.ask(score: score, text: text, role: role, relay: account.assistant) else { return }
+        Task { await assistant.askHere(question, about: ask) }
+    }
+
     /// Where the selection starts and ends: as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); beat by
-    /// beat while selecting by beats (#349, Settings · Experimental).
+    /// beat until the sound has given the bars' beats.
     private var menuSpan: String? {
-        if score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) {
+        if let range = score.playRange?.range, let span = player.barBeats.span(range) {
             return text.format("pill.span", span.first, span.last)
         }
-        guard settings.isOn("experimental.beats") || score.mode != nil else { return nil }
         return score.selection?.beatSpan(text)
     }
 
     private var actions: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            // Selecting by beats (#349, Settings · Experimental): where the selection starts and ends, beat by beat.
+            // Where the selection starts and ends, by bar and beat.
             if let span = menuSpan {
                 Text(span)
                     .dsType(.label)
                     .foregroundStyle(Color.ds("accent"))
                     .padding(.horizontal, CGFloat.ds("s-2"))
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            }
-            if !score.onePosition {
-                LoopButton(score: score, player: player, text: text, iconOnly: true)
             }
             if !score.penOn {
                 // Expand into focus: two arrows to the corners, unlike Insights' magnifier (#511 section 9).
@@ -1495,8 +1569,9 @@ struct SelectionMenu: View {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
             item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
-            // Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it.
-            item("practice", text["menu.hide"], on: false) { score.practise(.enter) }
+            // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
+            // item 10); ✕ is the one that clears it.
+            item("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
             ClearSelectionButton(score: score, text: text, iconOnly: true)
         }
     }
@@ -1533,8 +1608,8 @@ struct ClearSelectionButton: View {
                 button.buttonStyle(DSItemStyle())
             }
         }
-        // Under the modes of version 0.5, Escape removes the selection too; in practice view it leaves that view (#533 11).
-        .keyboardShortcut(score.mode != nil && !score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
+        // Escape removes the selection too (the modes, version 0.5); in practice view it leaves that view (#533 11).
+        .keyboardShortcut(!score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["menu.clearSelection"])
         .help(text["menu.clearSelection"])
     }
@@ -1589,13 +1664,9 @@ struct FocusShowAs: View {
         return Button {
             score.focusRoll = roll
         } label: {
-            Text(text[key])
-                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+            SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(maxHeight: .infinity)
-                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                .contentShape(Capsule())
+                .modifier(SegmentFill(on: on))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -1605,13 +1676,9 @@ struct FocusShowAs: View {
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
-    @ObservedObject var conversation: AskConversation
     let variationRange: Range<Double>?
     let text: UIText
-    @Binding var insightsOpen: Bool
-    /// Ask on the phrase in focus: the assistant's popover at the button (testing item 23).
-    @State private var asking = false
-    @EnvironmentObject private var account: Account
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -1649,22 +1716,12 @@ struct FocusBar: View {
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
-                asking = true
+                // The assistant's panel opens on the phrase in focus (#582 item 17.1).
+                assistant.open(wholePiece: false, selection: score.selection)
             } label: {
                 Text(text["ask.menu"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 40)
             }
-            .buttonStyle(BarActionStyle(on: asking))
-            .popover(isPresented: $asking) {
-                AskPopover(
-                    conversation: conversation, account: account, text: text,
-                    context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
-                    openInInsights: {
-                        asking = false
-                        insightsOpen = true
-                    },
-                    close: { asking = false }
-                )
-            }
+            .buttonStyle(BarActionStyle(on: assistant.panelOpen))
             // No Play here (#511 section 8.1): the pill's blue Play is the one, and the pill always shows in focus.
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
@@ -1742,7 +1799,8 @@ struct MorePanel: View {
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
-    let openVersions: () -> Void
+    /// Sources; nil on a view shown over the piece, which has none.
+    let openVersions: (() -> Void)?
     let openSettings: () -> Void
     let openDna: () -> Void
     let askAboutPiece: () -> Void
@@ -1764,14 +1822,16 @@ struct MorePanel: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet))
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            // The piece's sources (0022; testing item 16): its base, a PDF kept inside it and other versions.
-            Button(action: openVersions) {
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    Icon(name: "mic")
-                    Text(text["sources.title"])
+            // The piece's sources (0030): its originals and the notes read from them.
+            if let openVersions {
+                Button(action: openVersions) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "mic")
+                        Text(text["sources.title"])
+                    }
                 }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
             }
-            .buttonStyle(DSButtonStyle(kind: .quiet))
             // Piece DNA, the map of the whole piece, and the assistant on the whole piece (testing items 22, 23).
             Button(action: openDna) {
                 HStack(spacing: CGFloat.ds("s-2")) {
@@ -1788,6 +1848,11 @@ struct MorePanel: View {
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            // «Мои правки» (version 0.5): the player's corrections laid over the notes or left out, once there are some.
+            if score.editsLayer?.shows == true {
+                EditsLayerSection(score: score, text: text)
+                Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            }
             LayersList(score: score, text: text)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {
@@ -1849,21 +1914,18 @@ extension ScoreScreen {
         if focused {
             contentsBeforeFocus = contentsOpen
             contentsOpen = false
-            loopBeforeFocus = player.loop
         } else if player.loop != nil {
             // Expand's passage looped: the loop it left goes, so the one before comes back as it was.
             player.setLoop(nil)
         }
         syncPlayheads()
-        if score.onePosition {
+        if focused {
+            // Expand plays on round its passage; the model out of it is left as it is (T18).
+            if player.state != .stopped, let passage = score.playRange?.range { player.keepWithin(passage) }
+        } else {
             player.hold(selection: score.playRange?.range)
-        } else if focused, player.state != .stopped, let passage = score.playRange?.range {
-            player.keepWithin(passage)
-        } else if !focused, let loop = loopBeforeFocus {
-            player.setLoop(loop, play: false)
         }
         guard !focused else { return }
-        loopBeforeFocus = nil
         // Collapse opens the roll drawer again, as Expand found it; Back to page the Contents.
         if rollBeforeFocus {
             rollBeforeFocus = false

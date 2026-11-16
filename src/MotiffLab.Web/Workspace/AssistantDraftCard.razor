@@ -1,0 +1,70 @@
+@using MotiffLab.Web.Compare
+@using MotiffLab.Web.Score
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The assistant's draft (an experiment, «Помощник правит ноты», version 0.6.1; #582 item 17.3): what music-core made for the
+   operation the assistant chose, shown as the repairs show theirs: framed in plum (what the app composed), the bars with
+   the draft as an ossia, heard before and after, what changes in the engine's words, Accept and Cancel. Several drafts
+   of one call (a repair's ways) are chosen among. The page hears and decides. *@
+<section class="repair-draft assistant-draft" aria-labelledby="assistant-draft-title">
+    <p class="overline" id="assistant-draft-title">@Text.Format("assistantDraft.overline", Bars)</p>
+    @if (Ways.Count > 1)
+    {
+        <fieldset class="repair-ways">
+            <legend class="visually-hidden">@Text["repair.ways"]</legend>
+            @for (int index = 0; index < Ways.Count; index++)
+            {
+                int way = index;
+                bool on = way == Chosen;
+                <label class="repair-way @(on ? "on" : null)">
+                    <input type="radio" name="assistant-draft-way" checked="@on" @onchange="() => Choose.InvokeAsync(way)" />
+                    <span>@Ways[way]</span>
+                </label>
+            }
+        </fieldset>
+    }
+    <DraftProposal Card="Card" CardLabel="@Text.Format("assistantDraft.cardLabel", Bars)" Sounding="@Sounding" Compare="Compare" Explanation="@Explanation"
+                   DismissLabel="@Text["assistantDraft.cancel"]" Hear="Hear" Alternate="Alternate" Accept="Accept" Dismiss="Cancel" />
+    <p class="caption">@Text["assistantDraft.byEngine"]</p>
+</section>
+
+@code {
+    /// <summary>"Bars 3–4": the bars the draft covers.</summary>
+    [Parameter, EditorRequired]
+    public string Bars { get; set; } = "";
+
+    /// <summary>The titles of the drafts to choose among; one draft shows no choice.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Ways { get; set; } = [];
+
+    [Parameter]
+    public int Chosen { get; set; }
+
+    [Parameter]
+    public PhraseCardSource? Card { get; set; }
+
+    [Parameter]
+    public string Sounding { get; set; } = "original";
+
+    [Parameter, EditorRequired]
+    public CompareView Compare { get; set; } = null!;
+
+    /// <summary>What changes, written by the engine from the diff.</summary>
+    [Parameter, EditorRequired]
+    public string Explanation { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<int> Choose { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Alternate { get; set; }
+
+    [Parameter]
+    public EventCallback Accept { get; set; }
+
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+}

@@ -1,0 +1,51 @@
+@inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Projects.Preferences Preferences
+
+@* The consent before the first question (0028 section 5; CLAUDE.md): exactly what a question sends and where, asked once
+   on this device; the full assistant and the popup at the selection ask it alike. *@
+<div class="mentor-consent" role="group" aria-labelledby="@($"{IdPrefix}-consent-title")">
+    <h3 id="@($"{IdPrefix}-consent-title")">@Text["mentor.consentTitle"]</h3>
+    <p>@Text["mentor.consentLead"]</p>
+    <ul>
+        <li>@Text["mentor.consentNotes"]</li>
+        <li>@Text["mentor.consentDigest"]</li>
+        <li>@Text["mentor.consentQuestion"]</li>
+    </ul>
+    <p>@Text["mentor.consentWhere"]</p>
+    <p class="caption">@Text["mentor.consentNot"]</p>
+    <div class="row">
+        <button class="btn primary compact" @onclick="AgreeAsync">@Text["mentor.agree"]</button>
+        <button class="btn quiet compact" @onclick="() => NotNow.InvokeAsync()">@Text["mentor.notNow"]</button>
+    </div>
+</div>
+
+@code {
+    /// <summary>The key of the player's consent on this device, and its value once given.</summary>
+    public const string ConsentKey = "ml-assistant-consent";
+
+    public const string Consented = "yes";
+
+    /// <summary>What the heading's id starts with, so two of them never share one.</summary>
+    [Parameter]
+    public string IdPrefix { get; set; } = "mentor";
+
+    /// <summary>The player agreed; the consent is kept.</summary>
+    [Parameter]
+    public EventCallback Agreed { get; set; }
+
+    [Parameter]
+    public EventCallback NotNow { get; set; }
+
+    /// <summary>Whether the player gave the consent on this device.</summary>
+    public static async Task<bool> GivenAsync(MotiffLab.Web.Projects.Preferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        return await preferences.GetAsync(ConsentKey) == Consented;
+    }
+
+    private async Task AgreeAsync()
+    {
+        await Preferences.SetAsync(ConsentKey, Consented);
+        await Agreed.InvokeAsync();
+    }
+}

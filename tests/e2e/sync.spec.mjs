@@ -22,6 +22,7 @@ async function signedIn(page, { online = {}, quota = false } = {}) {
     const stored = { ...online };
     const sent = [];
     const fetched = [];
+    const deleted = [];
     // While true, the API cannot be reached, as with no connection.
     const network = { down: false };
     let etag = 1;
@@ -97,9 +98,13 @@ async function signedIn(page, { online = {}, quota = false } = {}) {
             stored[id] = { file: request.postData(), etag: `"e${++etag}"`, savedAt: new Date().toISOString() };
             return route.fulfill({ status: 204, headers: { ...cors, ETag: stored[id].etag } });
         }
+        if (request.method() === "DELETE") {
+            deleted.push(id);
+            delete stored[id];
+        }
         return route.fulfill({ status: 204, headers: cors });
     });
-    return { stored, sent, fetched, network };
+    return { stored, sent, fetched, network, deleted };
 }
 
 const titles = (page) => page.locator(".lib-table tbody .ttl");
@@ -173,7 +178,7 @@ test("when both changed a piece, the last save wins and the previous copy is kep
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toHaveCount(0);
     const online = JSON.parse(stored[id].file);
-    online.metadata = { tags: ["From the iPad"] };
+    online.workspace.metadata = { tags: ["From the iPad"] };
     stored[id] = { file: JSON.stringify(online), etag: '"ipad"', savedAt: "2020-01-01T09:00:00+00:00" };
     network.down = false;
 
@@ -183,7 +188,7 @@ test("when both changed a piece, the last save wins and the previous copy is kep
     await expect(titles(page).filter({ hasText: /^Für Elise$/ })).toHaveCount(1);
     await expect(titles(page).filter({ hasText: /^Fur Elise, opening \(previous copy, .+\)$/ })).toHaveCount(1);
     await expect.poll(() => sent.filter(put => put.id === id && put.ifMatch === '"ipad"').length, { timeout: 15000 }).toBeGreaterThan(0);
-    expect(JSON.parse(stored[id].file).metadata.title).toBe("Für Elise");
+    expect(JSON.parse(stored[id].file).workspace.metadata.title).toBe("Für Elise");
 });
 
 test("a piece beyond the free account's 300 stays here, and the library says so", async ({ page }) => {
@@ -268,5 +273,32 @@ test("a piece that is only a PDF on the iPad is listed here, says where its PDF 
     // The copy online says this browser holds the PDF now, and still holds no PDF itself.
     await expect.poll(() => JSON.parse(stored[ipadPdfOnlyId].file).originals[0].held.map(mark => mark.device), { timeout: 15000 }).toEqual(["ipad", "web"]);
     expect(JSON.parse(stored[ipadPdfOnlyId].file).document).toBeUndefined();
+    expect(errors).toEqual([]);
+});
+
+test("the same PDF added here and on the iPad is one piece in the library, the iPad's with its bookmark and this PDF", async ({ page }) => {
+    // #582 item 1 (version 0.6.1): a piece is matched between the devices by the files it was made from, not only by its id.
+    const errors = pageErrors(page);
+    const { stored, deleted } = await signedIn(page);
+
+    await page.goto("/");
+    await page.locator(".lib-head").getByRole("button", { name: "Add piece" }).click();
+    await page.getByRole("dialog").locator("input[type=file]").setInputFiles({ name: "Chopin - Nocturne Op. 9 No. 2.pdf", mimeType: "application/pdf", buffer: nocturneOnly });
+    await expect(page).toHaveURL(/project=/);
+    const webId = new URL(page.url()).searchParams.get("project");
+    await expect.poll(() => Object.keys(stored), { timeout: 15000 }).toContain(webId);
+
+    // Meanwhile the iPad added the same PDF, bookmarked a page and named it: its copy comes online.
+    stored[ipadPdfOnlyId] = { file: ipadPdfOnly, etag: '"e1"', savedAt: "2026-11-12T18:30:00+00:00" };
+    await page.goto("/");
+    await expect(titles(page)).toHaveText(["Nocturne Op. 9 No. 2"]);
+    // The iPad's piece stays, with this browser's PDF: nothing says it is only on the iPad any more.
+    await expect(page.locator(".lib-table tbody .tag.held")).toHaveCount(0);
+    await expect.poll(() => deleted, { timeout: 15000 }).toEqual([webId]);
+    expect(Object.keys(stored)).toEqual([ipadPdfOnlyId]);
+
+    // Read again, the library still lists it once.
+    await page.reload();
+    await expect(titles(page)).toHaveText(["Nocturne Op. 9 No. 2"]);
     expect(errors).toEqual([]);
 });

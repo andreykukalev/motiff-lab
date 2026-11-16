@@ -51,7 +51,7 @@
    drawn on the score (#479 item 14); a selection steps and snaps by them. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
 @* The shared workspace state (decision record 0013): one snapshot per render, which the sheet reads; the page is its only writer. *@
 <CascadingValue Value="State">
-    <main class="lab app workspace @WorkspaceClass @(_assembling ? "assembling" : null)" @ref="_main" @onkeydown="WorkspaceKeys">
+    <main class="lab app workspace @WorkspaceClass @(_assembling ? "assembling" : null)" data-selection-hidden="@(SelectionControlsShown ? null : "true")" @ref="_main" @onkeydown="WorkspaceKeys">
         @if ((_score is null || _meter is null) && Opening)
         {
             @* A piece on its way (a reload, a link, the import screen): only a quiet line, never the start's choices, which
@@ -101,6 +101,12 @@
                            BarsChosen="OnAssemblyBarsChosenAsync" PaperTapped="OnAssemblyPaperTappedAsync" VersionAdded="@(_assemblyShown == NotesSource ? AssemblyGhostNotes : null)" Origins="AssemblyOrigins" Ghost="@(_assemblyShown == NotesSource ? AssemblyGhost : null)"
                            Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
             }
+            else if (_otherShown is not null && OtherNotesScore is { } otherNotes)
+            {
+                @* Other Notes (version 0.6, the new sources): read-only in place of the working notes, until those are picked again. *@
+                <ScoreView @key="@($"notes-{_otherShown}")" Source="otherNotes" HoldHeight="false" Heard="false" Follow="false" Title="@ScoreTitle.Of(_title)"
+                           EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
+            }
             else if (ShownScore is { } shown)
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
@@ -137,7 +143,7 @@
                             @onclick="ToggleContentsAsync"><Icon Name="pages" Size="IconSize.Large" /></button>
                     <button class="ttl @(_contentsOpen ? "on" : null)" title="@SessionLine" aria-label="@Text.Format("contents.open", BarTitle)" aria-expanded="@(_contentsOpen ? "true" : "false")"
                             @onclick="ToggleContentsAsync">@BarTitle</button>
-                    @if (VersionsLabel is { } versions)
+                    @if (VersionsLabel is { } versions && !(SourcesOn && MotiffLab.Web.Sources.SourcesExperiment.ButtonReplacesVersionsLabel))
                     {
                         @* The only trace of the assembly in everyday work (0024, section 6): the versions, and the carries once made; it opens Sources. *@
                         <button class="versions-label" aria-expanded="@(_performanceOpen ? "true" : "false")" title="@Text["sources.title"]" @onclick="TogglePerformance">
@@ -148,11 +154,17 @@
                     {
                         <span class="pg" aria-live="off">@pages</span>
                     }
-                    @if (_project is { Document: not null } or { ReadFrom: not null })
+                    @if (SourcesOn && _project is not null)
+                    {
+                        @SourcesBarPart
+                    }
+                    else if (_project is { Document: not null } or { ReadFrom: not null })
                     {
                         <MotiffLab.Web.Pdf.ViewSwitch OnPdf="false" Switch="_ => ShowPdfAsync()" />
                     }
                     <span class="sp"></span>
+                    @if (_otherShown is null)
+                    {
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
                             data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
                     @if (PlayheadsOn)
@@ -173,10 +185,14 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-                    @* Practice view (#533 11): in and out by one press, F too; the selection, playback and the loop go on as they are.
-                       Lit while the selection menu and the controls show, dark in practice view (#543 7). *@
-                    <button class="act @(PracticeLit ? "on" : null)" aria-pressed="@(PracticeLit ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
-                            @onclick="TogglePracticeAsync"><Icon Name="practice" Size="IconSize.Large" /></button>
+                    @* Practice view (#533 11): both groups hidden by one press and shown again, F too; the chevron lists the selection
+                       controls and the playback controls, each on its own (#582 item 10). Lit while both show (#543 7). *@
+                    <span class="act-split @(PracticeLit ? "on" : null)">
+                        <button class="act" aria-pressed="@(PracticeLit ? "true" : "false")" aria-label="@Text["bar.practice"]" title="@Text["practice.hint"] (F)"
+                                @onclick="TogglePracticeAsync"><Icon Name="practice" Size="IconSize.Large" /></button>
+                        <button class="act chev @(_popover == Popover.Practice ? "on" : null)" aria-expanded="@(_popover == Popover.Practice ? "true" : "false")" aria-label="@Text["practice.list"]"
+                                title="@Text["practice.list"]" @onclick="() => TogglePopover(Popover.Practice)"><Icon Name="chevd" /></button>
+                    </span>
                     @if (ReferenceOn)
                     {
                         @* The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap from the score. *@
@@ -198,6 +214,7 @@
                     }
                     <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                             @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
+                    }
                 }
             </header>
 
@@ -257,6 +274,21 @@
                         }
                         <button class="btn quiet" @onclick="ToggleAllMarksAsync">@(AllMarksHidden ? Text["layers.showAll"] : Text["layers.hideAll"])</button>
                         @PopoverScope(LayerIds, "layers")
+                    </div>
+                    break;
+                case Popover.Practice:
+                    @* The workspace's two visibilities (#582 item 10): each its own switch; turning one never moves the other. *@
+                    <div class="popover practice-popover" role="dialog" aria-label="@Text["practice.list"]" data-keeps-selection>
+                        <p class="overline">@Text["practice.listTitle"]</p>
+                        <label class="switch-row">
+                            <span>@Text["practice.selectionControls"]</span>
+                            <input type="checkbox" role="switch" class="switch" checked="@(!_selectionHidden)" @onchange="() => SetSelectionControls(_selectionHidden)" />
+                        </label>
+                        <label class="switch-row">
+                            <span>@Text["practice.playbackControls"]</span>
+                            <input type="checkbox" role="switch" class="switch" checked="@(!_practice)" @onchange="() => SetPlaybackControlsAsync(_practice)" />
+                        </label>
+                        <p class="caption">@Text["practice.listHint"]</p>
                     </div>
                     break;
                 case Popover.Roll:
@@ -361,14 +393,19 @@
                 </div>
             }
 
-            @if (Focused && FocusCard is { } card)
+            @if (Focused && FocusCardShown is { } card)
             {
                 @* Phrase focus (0018 section 4): the page dimmed behind the phrase lifted into a card; a tap on the page goes back to it. *@
                 <div class="focus-layer" data-keeps-selection>
                     <button class="veil" aria-label="@Text[_focusFromRoll ? "focus.collapse" : "focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
                     <div class="focus-stage">
-                        <section class="focus-card @(FocusVariations is { Count: > 0 } ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
-                            @if (FocusVariations is { Count: > 0 } variations)
+                        <section class="focus-card @(FocusHasChips ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
+                            @if (VariantsOn)
+                            {
+                                @* «Что если» (an experiment, version 0.6): the last four kept variants and the draft, plum; one in the working notes marked. *@
+                                <VariantChipRow Chips="VariantChips" Hidden="VariantsHidden" Show="ShowVariantChipAsync" />
+                            }
+                            else if (FocusVariations is { Count: > 0 } variations)
                             {
                                 @* The variations kept for the phrase, in a row in the card over the ossia: a chip picks the one heard and shown. *@
                                 <div class="var-chips" role="group" aria-label="@Text["focus.variations"]">
@@ -391,9 +428,16 @@
                             }
                             else
                             {
-                                <PhraseCard Source="card" Sounding="@FocusSounding" />
+                                <PhraseCard Source="card" Sounding="@FocusSounding" Label="@(VariantsShown ? Text.Format("focus.cardLabel", FocusPosition) : null)" />
                             }
                         </section>
+                        @if (VariantsShown)
+                        {
+                            <VariantsPanel Chips="WhatIfChips" BaseName="@ShownVariantName" FromOriginal="@(_variantFromOriginal || ShownVariantName is null)" FromOriginalChanged="ChooseVariantBase"
+                                           Card="ShownVariantCard" Compare="VariantCompare" Status="@_variantStatus" Make="MakeVariantAsync" Keep="KeepVariantAsync"
+                                           Promote="PromoteVariantAsync" Discard="DiscardVariantAsync" Delete="DeleteVariantAsync" Recompute="RecomputeVariantAsync"
+                                           Hear="CompareAsync" Alternate="ToggleOneAfterTheOtherAsync" />
+                        }
                     </div>
                 </div>
             }
@@ -426,7 +470,18 @@
                 @CheckDrawer
             }
 
-            @if (_performanceOpen)
+            @if (_performanceOpen && SourcesOn && _project is { } sourcesPiece && SourceViews is { } sourcesViews)
+            {
+                <MotiffLab.Web.Sources.SourcesSheet Project="sourcesPiece" Views="sourcesViews" Shown="@ShownViewKey" Piece="@BarTitle" Carries="AssemblyCarries" Fresh="@_freshNotes"
+                                                    Status="@_sourcesStatus" CanOpen="CanShowView" PdfOf="PdfOf" PagesOf="PagesOfOriginal" WhereText="WhereText"
+                                                    Close="() => CloseFromAsync(Place.Performance)" Open="OpenViewAsync" Hide="HideViewAsync"
+                                                    AddPdf="args => ShownAfter(AddPdfOriginalAsync(args))" AddPhotos="args => ShownAfter(AddPhotosOriginalAsync(args))"
+                                                    AddRecording="(file, input) => ShownAfter(AddRecordingOriginalAsync(file, input))" AddFile="args => ShownAfter(AddPerformanceAsync(args))"
+                                                    AddSame="(id, file, input) => ShownAfter(AddSameOriginalAsync(id, file, input))"
+                                                    Relink="(id, args, input) => ShownAfter(RelinkSourceAsync(id, args, input))" Recognised="RecogniseOriginalAsync"
+                                                    RemoveOriginal="RemoveSourceOriginalAsync" DeleteNotes="DeleteSourceNotesAsync" MakeWorking="MakeWorkingAsync" />
+            }
+            else if (_performanceOpen)
             {
                 @PerformanceDrawer
             }
@@ -496,7 +551,7 @@
             }
 
             @* Practice view (#533 11) keeps the page clean of the hints of the selection and of playback. *@
-            @if (_selectionToast && _selectionHistory.CanUndo && !Practicing)
+            @if (_selectionToast && _selectionHistory.CanUndo && SelectionControlsShown)
             {
                 @* After a clear or a replace (#511 11): one tap brings the selection back; no Redo here. *@
                 <div class="merge-toast selection-toast" role="status" data-keeps-selection>
@@ -504,7 +559,7 @@
                     <button class="btn quiet compact" @onclick="UndoSelectionAsync">@Text["selection.bringBack"]</button>
                 </div>
             }
-            else if (_holdHint && !Practicing)
+            else if (_holdHint && SelectionControlsShown)
             {
                 <div class="merge-toast selection-toast" role="status"><span>@Text["selection.holdHint"]</span></div>
             }
@@ -524,7 +579,7 @@
             @if (_dna is { } dna && !_dnaAside)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDna"
+                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" HearOnce="HearDnaCardAsync" Stop="StopDnaAsync" CardSounding="DnaCardSounding" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync"
                                                ShowInInsights="ShowDnaInInsightsAsync" AddBookmarks="AddFormBookmarksAsync" Status="@_dnaStatus"
                                                HearScale="HearDnaScaleAsync" ScalePlaying="_scaleHeard" />
             }
@@ -532,12 +587,22 @@
             @if (_askAt is not null)
             {
                 @* Ask where it was pressed (testing item 23): a popover over the place, which stays as it was under it. *@
-                <div class="ask-pop-backdrop" @onclick="CloseAskPopover"></div>
+                <div class="ask-pop-backdrop" @onclick="CloseAskPopoverAsync"></div>
                 <div class="ask-pop" role="dialog" aria-modal="false" aria-labelledby="ask-pop-title" style="@AskPlace" data-keeps-selection
-                     @onkeydown="AskPopoverKey">
-                    <AssistantPanel Popover="true" SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
-                                    Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
-                                    OpenInInsights="AskInInsightsAsync" Closed="CloseAskPopover" />
+                     @onkeydown="AskPopoverKeyAsync">
+                    @if (ContextOn)
+                    {
+                        <ContextAssistant SelectionLabel="@AskSelectionLabel" Exchange="_contextExchange" Busy="_contextBusy" Added="_contextAdded"
+                                          Asked="AskInContextAsync" Cite="ShowCitedAsync" AddToContext="AddToContextAsync" Closed="CloseAskPopoverAsync">
+                            <DraftContent>@AiDraftViewOf(inConversation: false)</DraftContent>
+                        </ContextAssistant>
+                    }
+                    else
+                    {
+                        <AssistantPanel Popover="true" SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
+                                        Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
+                                        OpenInInsights="AskInInsightsAsync" Closed="CloseAskPopoverAsync" />
+                    }
                 </div>
             }
 
@@ -560,9 +625,18 @@
             {
                 @* The Insights sheet (0018 section 6) over the right of the score: one stream of facts, Try chips and ideas for the selection. *@
                 <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection data-menu-clear="auto">
-                @if (_asking)
+                @if (_asking && MentorOn)
                 {
-                    <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                    <MentorPanel SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
+                                 Exchanges="MentorExchanges" Busy="_mentorBusy" Suggestions="AskSuggestions" Asked="AskMentorAsync" Cite="ShowCitedAsync"
+                                 Kept="ContextOn" Conversations="MentorConversations" Current="@_record?.Id" OpenConversation="OpenConversationAsync" NewConversation="NewConversation" Opened="MentorOpenedAsync"
+                                 BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)">
+                        <DraftContent>@AiDraftViewOf(inConversation: true)</DraftContent>
+                    </MentorPanel>
+                }
+                else if (_asking)
+                {
+                    <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@AskWholePiece" WholePieceChanged="SetAskWholePiece"
                                     Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
                                     BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
                 }
@@ -701,7 +775,7 @@
                     <button class="play" @onclick="PlayPauseAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                         <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
                     </button>
-                    <button class="it" @onclick="TogglePracticeAsync"><Icon Name="practice" /> @Text["practice.leave"]</button>
+                    <button class="it" @onclick="() => SetPlaybackControlsAsync(true)"><Icon Name="practice" /> @Text["practice.leave"]</button>
                 </div>
             }
 
@@ -863,8 +937,8 @@
                 <span class="div" aria-hidden="true"></span>
                 <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
                         @onclick="ToggleMenuMore"><Icon Name="more" /></button>
-                @* Hide (#533 11): the menu goes into practice view, the selection staying; ✕ is the one that clears it. *@
-                <button class="it icon" aria-label="@Text["menu.hide"]" title="@Text["menu.hide"] (F)" @onclick="TogglePracticeAsync"><Icon Name="practice" /></button>
+                @* Hide (#533 11): the selection controls go, the selection and the playback controls staying (#582 item 10); ✕ clears it. *@
+                <button class="it icon" aria-label="@Text["menu.hide"]" title="@Text["menu.hide"]" @onclick="() => SetSelectionControls(false)"><Icon Name="practice" /></button>
                 @if (PlayheadsOn)
                 {
                     @* Only ✕ or Escape removes the selection (version 0.5, the experiment Two playheads and modes). *@
@@ -1342,12 +1416,34 @@
                 <div class="row">
                     <button class="btn secondary compact" @onclick="() => ShowCheckBarAsync(bar.Key)">@Text["scanCheck.show"]</button>
                     <button class="btn quiet compact @(fixing ? "on" : null)" aria-expanded="@(fixing ? "true" : "false")" @onclick="() => FixCheckBarAsync(bar.Key)">@Text["check.fix"]</button>
+                    @if (RepairsShown)
+                    {
+                        bool repairing = _repairBar == bar.Key;
+                        <button class="btn quiet compact repair-open @(repairing ? "on" : null)" aria-expanded="@(repairing ? "true" : "false")" @onclick="() => ToggleRepairAsync(bar.Key)">@Text["repair.open"]</button>
+                    }
                     <button class="btn primary compact" @onclick="() => ResolveCheckAsync(bar.Key, true)">@Text["scanCheck.looksRight"]</button>
                 </div>
                 @if (fixing)
                 {
                     <div class="check-fix corrections" aria-label="@Text["correct.label"]">
                         @NoteCorrections
+                    </div>
+                }
+                @if (RepairsShown && _repairBar == bar.Key)
+                {
+                    <RepairDraft Bar="bar.Key" Options="RepairOptionsOf(bar.Key)" Chosen="RepairChosen" Choose="ChooseRepairAsync" Dismiss="DismissRepairAsync">
+                        <Proposal Context="chosen">
+                            <DraftProposal Card="RepairCard" CardLabel="@Text.Format("repair.cardLabel", bar.Key)" Sounding="@RepairSounding" Compare="RepairCompare"
+                                           Explanation="@chosen.Draft.Variation.Explanation" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync"
+                                           Accept="AcceptRepairAsync" Dismiss="DismissRepairAsync" />
+                        </Proposal>
+                    </RepairDraft>
+                }
+                @if (RepairUndoable == bar.Key)
+                {
+                    <div class="repair-accepted" role="status">
+                        <p class="caption">@Text.Format("repair.acceptedHint", bar.Key)</p>
+                        <button class="btn quiet compact" @onclick="UndoRepairAsync">@Text["repair.undo"]</button>
                     </div>
                 }
             </li>
@@ -1717,15 +1813,24 @@
                 <Icon Name="file" /> @Text["performance.addMidi"]
                 <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
             </label>
+            @* A PDF the notes were read from is never replaced: another goes beside it (sources sheet, 2026-11-14). *@
             <label class="file btn secondary">
-                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : "sources.replacePdf"]
-                <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : PdfHasNotes ? "sources.addMorePdf" : "sources.replacePdf"]
+                <InputFile OnChange="@(PdfHasNotes ? AddAnotherPdfAsync : AddDocumentAsync)" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
             </label>
             <p class="caption">@Text["sources.pdfHow"]</p>
             <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" Picked="FingerprintRecordingAsync" />
         </section>
     }
 </aside>;
+
+    /// <summary>The switch of the piece's views and the Sources button after it (version 0.6, the new sources).</summary>
+    private RenderFragment SourcesBarPart => @<text>
+        <MotiffLab.Web.Sources.SourcesSwitch Views="SwitchViews" Shown="@ShownViewKey" Hidden="@(SourceViews?.HiddenCount ?? 0)" Pick="PickViewAsync" OpenSources="ToggleSources" />
+        <button class="act wide sources-button @(_performanceOpen ? "on" : null)" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="ToggleSources">
+            <Icon Name="layers" Size="IconSize.Large" /> <span class="lbl">@Text["sources.title"]</span>
+        </button>
+    </text>;
 
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
                                                     ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" NoteSaved="SaveKeptNoteAsync" />;
@@ -2589,6 +2694,7 @@
         _project = null;
         _scanCheck = null;
         ForgetSessionObservations();
+        ForgetVariants();
         ForgetAssembly();
         _listenTo = ListenTo.Everything;
         _layered = false;
@@ -3080,6 +3186,16 @@
         }
     }
 
+    /// <summary>
+    /// The assistant's draft on show (#582 item 17.3), where it was asked for: the full assistant's in its panel, the popup's
+    /// at the selection in the popup.
+    /// </summary>
+    private RenderFragment? AiDraftViewOf(bool inConversation) => _aiDraft is { } shown && shown.InConversation == inConversation
+        ? @<AssistantDraftCard Bars="@AiDraftBars" Ways="AiDraftWays" Chosen="AiDraftIndex" Card="AiDraftCard" Sounding="@RepairSounding" Compare="RepairCompare"
+                               Explanation="@shown.Made.Variation.Explanation" Choose="ChooseAiDraftAsync" Hear="HearRepairChoiceAsync" Alternate="HearRepairInTurnAsync"
+                               Accept="AcceptAiDraftAsync" Cancel="CancelAiDraftAsync" />
+        : null;
+
     private async Task ClearSelectionAsync()
     {
         TickSpan? before = _selection?.Span;
@@ -3219,7 +3335,8 @@
 
     private Task RevertNoteAsync(Note note) => ApplyEditsAsync(_edits.Revert(note.Id));
 
-    private Task UndoCorrectionAsync() => _edits.IsEmpty ? Task.CompletedTask : ApplyEditsAsync(_edits.Undo());
+    /// <summary>Undo: the last correction goes, or every correction of a repair accepted just before (<see cref="UndoRepairAsync"/>).</summary>
+    private Task UndoCorrectionAsync() => RepairUndoable is not null ? UndoRepairAsync() : _edits.IsEmpty ? Task.CompletedTask : ApplyEditsAsync(_edits.Undo());
 
     /// <summary>
     /// Plays, draws, engraves and analyses the imported notes with <paramref name="edits"/> applied
@@ -3383,6 +3500,7 @@
     /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
     private async Task ChooseFactAsync(FactChoice? choice)
     {
+        _highlightCited = false;
         _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
         if (choice?.Place is { } place)
         {

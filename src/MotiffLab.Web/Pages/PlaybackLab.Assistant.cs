@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Settings;
 
 namespace MotiffLab.Web.Pages;
@@ -20,8 +21,11 @@ public partial class PlaybackLab
     /// <summary>Whether the Insights sheet holds the assistant rather than the stream.</summary>
     private bool _asking;
 
-    /// <summary>Whether the assistant looks at the whole piece rather than the selection.</summary>
-    private bool _askWholePiece;
+    /// <summary>What the assistant looks at: the selection, unless the player chose the whole piece while that selection stood (#582).</summary>
+    private AskScope _askScope = AskScope.Selection;
+
+    /// <summary>Whether the assistant looks at the whole piece rather than the selection: a new selection is what it looks at.</summary>
+    private bool AskWholePiece => _askScope.IsWholePiece(_selection?.Span);
 
     /// <summary>The Piece DNA map in words, when Ask about the piece came from it, as part of what it knows.</summary>
     private string? _askMap;
@@ -35,20 +39,35 @@ public partial class PlaybackLab
     /// <summary>The popover at the place Ask was pressed: the selection's menu, the focus bar, Piece DNA, More or the keyboard.</summary>
     private void OpenAskPopover(MouseEventArgs? at, bool wholePiece)
     {
+        if (MentorOn && !OpensContext(wholePiece))
+        {
+            // The conversation (an experiment) lives in the Insights sheet, where its answers and their citations have room;
+            // with the contextual assistant on (#582 item 17.2), a question about the selection is asked in the popup there.
+            OpenAsk(wholePiece);
+            return;
+        }
+
+        ForgetContext();
         _popover = Popover.None;
         _menuMore = false;
-        _askWholePiece = wholePiece || _selection is null;
+        _askScope = AskScope.Choose(wholePiece, _selection?.Span);
         _askMap = wholePiece && DnaShown && _dna is { } dna ? Text.Format("ask.knowsMap", Text.Count("dna.ideas", dna.Ideas.Count)) : null;
         _askAt = at is { ClientX: > 0 } or { ClientY: > 0 } ? (at.ClientX, at.ClientY) : (0, 0);
     }
 
-    private void CloseAskPopover() => _askAt = null;
+    /// <summary>The popover put away; the contextual assistant's question, answer and draft go with it (#582 item 17.2).</summary>
+    private async Task CloseAskPopoverAsync()
+    {
+        _askAt = null;
+        ForgetContext();
+        await DropContextDraftAsync();
+    }
 
-    private void AskPopoverKey(KeyboardEventArgs args)
+    private async Task AskPopoverKeyAsync(KeyboardEventArgs args)
     {
         if (args.Key == "Escape")
         {
-            CloseAskPopover();
+            await CloseAskPopoverAsync();
         }
     }
 
@@ -64,7 +83,7 @@ public partial class PlaybackLab
     private async Task AskInInsightsAsync()
     {
         string? map = _askMap;
-        bool whole = _askWholePiece;
+        bool whole = AskWholePiece;
         bool fromDna = DnaShown;
         _askAt = null;
         if (fromDna)
@@ -88,7 +107,7 @@ public partial class PlaybackLab
     {
         get
         {
-            if (!_askWholePiece && _selection is not null)
+            if (!AskWholePiece && _selection is not null)
             {
                 return [Text["ask.suggest.harmony"], Text["ask.suggest.practise"], Text["ask.suggest.returns"]];
             }
@@ -114,6 +133,14 @@ public partial class PlaybackLab
     private void OpenAsk(bool wholePiece)
     {
         _askAt = null;
+        ForgetContext();
+        if (_aiDraft is { InConversation: false })
+        {
+            // The popup's draft goes with the popup (#582 item 17.2).
+            _aiDraft = null;
+            _aiDrafts = [];
+        }
+
         _insightsOpen = true;
         _contentsOpen = false;
         _checkOpen = false;
@@ -121,7 +148,7 @@ public partial class PlaybackLab
         _popover = Popover.None;
         _menuMore = false;
         _asking = true;
-        _askWholePiece = wholePiece || _selection is null;
+        _askScope = AskScope.Choose(wholePiece, _selection?.Span);
         _askMap = null;
     }
 
@@ -134,8 +161,22 @@ public partial class PlaybackLab
     /// <summary>Ask about the piece in More: the popover where More was.</summary>
     private void AskAboutPiece(MouseEventArgs at) => OpenAskPopover(at, wholePiece: true);
 
-    /// <summary>Ask about the piece from Piece DNA: the popover at the button, the map open under it with what it showed going with the question.</summary>
-    private void AskFromDna(MouseEventArgs at) => OpenAskPopover(at, wholePiece: true);
+    /// <summary>
+    /// Ask about the piece from Piece DNA: the popover at the button, the map open under it with what it showed going with the
+    /// question. With the conversation on (an experiment), it goes on in the Insights sheet, Piece DNA waiting under it.
+    /// </summary>
+    private Task AskFromDnaAsync(MouseEventArgs at)
+    {
+        if (!MentorOn)
+        {
+            OpenAskPopover(at, wholePiece: true);
+            return Task.CompletedTask;
+        }
+
+        _askScope = AskScope.Choose(true, _selection?.Span);
+        _askMap = null;
+        return AskInInsightsAsync();
+    }
 
     /// <summary>‹ in the assistant: back where it was opened from, or to the Insights stream it is the last voice of.</summary>
     private Task AskBackAsync()
@@ -149,7 +190,7 @@ public partial class PlaybackLab
         return DropDnaAsideAsync();
     }
 
-    private void SetAskWholePiece(bool wholePiece) => _askWholePiece = wholePiece || _selection is null;
+    private void SetAskWholePiece(bool wholePiece) => _askScope = AskScope.Choose(wholePiece, _selection?.Span);
 
     /// <summary>? from the keyboard (Scripts/phrases/phrase-keys.ts): the assistant on the selection.</summary>
     [JSInvokable]
@@ -181,7 +222,7 @@ public partial class PlaybackLab
                 items.Add(map);
             }
 
-            if (!_askWholePiece && _selection is { } selection)
+            if (!AskWholePiece && _selection is { } selection)
             {
                 items.Add(Text.Format("ask.knowsPassage", BarsOf(selection.Span), Text.Count("ask.facts", Facts.Count)));
             }

@@ -1,0 +1,69 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The piece's kept conversations (#582 item 17.1, the lead's decision 4): New conversation, and the list of the earlier
+   ones by their first question and when they were last added to, to go back to one. The device keeps them; nothing is
+   listed with the experiment off. *@
+<div class="mentor-history">
+    <div class="row">
+        @if (Conversations.Count > 0)
+        {
+            <button class="btn quiet compact" aria-expanded="@(_open ? "true" : "false")" aria-controls="mentor-conversations" disabled="@Busy" @onclick="() => _open = !_open">
+                @Text.Count("mentor.conversations", Conversations.Count)
+            </button>
+        }
+        <span class="sp"></span>
+        <button class="btn quiet compact" disabled="@(Busy || !CanStartNew)" @onclick="StartNewAsync">@Text["mentor.newConversation"]</button>
+    </div>
+    @if (_open && Conversations.Count > 0)
+    {
+        <ul id="mentor-conversations" class="mentor-conversations" aria-label="@Text["mentor.conversationsList"]">
+            @foreach (ConversationEntry entry in Conversations)
+            {
+                bool current = entry.Id == Current;
+                <li>
+                    <button class="mentor-conversation @(current ? "on" : null)" aria-current="@(current ? "true" : null)" disabled="@Busy" @onclick="() => OpenAsync(entry.Id)">
+                        <span class="title">@(entry.Title.Length > 0 ? entry.Title : Text["mentor.untitled"])</span>
+                        <span class="caption">@DateTimeOffset.FromUnixTimeMilliseconds(entry.Updated).ToLocalTime().ToString("g", Text.Culture)</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool _open;
+
+    /// <summary>The piece's kept conversations, newest first.</summary>
+    [Parameter]
+    public IReadOnlyList<ConversationEntry> Conversations { get; set; } = [];
+
+    /// <summary>The id of the conversation on show; null for a new one not kept yet.</summary>
+    [Parameter]
+    public string? Current { get; set; }
+
+    /// <summary>Whether the conversation on show has anything in it, so a new one is something else.</summary>
+    [Parameter]
+    public bool CanStartNew { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Open { get; set; }
+
+    [Parameter]
+    public EventCallback New { get; set; }
+
+    private async Task OpenAsync(string id)
+    {
+        _open = false;
+        await Open.InvokeAsync(id);
+    }
+
+    private async Task StartNewAsync()
+    {
+        _open = false;
+        await New.InvokeAsync();
+    }
+}

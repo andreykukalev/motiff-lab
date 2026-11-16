@@ -50,7 +50,11 @@ public sealed record IdeaOccurrence(OccurrenceKind Kind, TickSpan Span, int Firs
 /// <param name="FromSelection">True when the idea is the player's selection rather than one the engine found.</param>
 /// <param name="Title">The card's title in the piece's language.</param>
 /// <param name="Summary">The card's one line, stating only what the occurrences show.</param>
-public sealed record DnaIdea(string Id, bool FromSelection, TickSpan Span, int FirstBar, int LastBar, IReadOnlyList<string> NoteIds, IReadOnlyList<IdeaOccurrence> Occurrences, string Title, string Summary);
+public sealed record DnaIdea(string Id, bool FromSelection, TickSpan Span, int FirstBar, int LastBar, IReadOnlyList<string> NoteIds, IReadOnlyList<IdeaOccurrence> Occurrences, string Title, string Summary)
+{
+    /// <summary>What the idea stands for: found as before, the selection, or one of <see cref="MusicalIdeas"/>' kinds.</summary>
+    public IdeaKind Kind { get; init; } = FromSelection ? IdeaKind.Selection : IdeaKind.Found;
+}
 
 /// <summary>A stretch of the key lane.</summary>
 /// <param name="ModeInferred">The file gives only sharps or flats, so major or minor was chosen from the notes.</param>
@@ -188,7 +192,11 @@ public sealed record PieceDna(
     /// The structure of the piece (#347), for the form, the closes and the ideas found: the form is its sections as they
     /// are, so the map and the Contents show one form; null leaves them out.
     /// </param>
-    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default, PieceStructure? piece = null)
+    /// <param name="musicalIdeas">
+    /// The ideas by what they are in the music (<see cref="MusicalIdeas"/>, #582 item 15, an experiment) in place of the
+    /// openings heard most often (<see cref="IdeaFinder"/>).
+    /// </param>
+    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default, PieceStructure? piece = null, bool musicalIdeas = false)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -207,19 +215,7 @@ public sealed record PieceDna(
         IReadOnlyList<int> newBars = StructureAnalyzer.NewMaterialBars(notes, meter);
         IReadOnlyList<DnaSection> form = piece?.Sections ?? [];
 
-        var ideas = new List<DnaIdea>();
-        if (selection is { NoteIds.Count: > 0 } && structure is not null)
-        {
-            ideas.Add(Idea(notes, meter, selection, structure, words));
-        }
-
-        if (piece is not null)
-        {
-            // Without a selection the ideas are the piece's own motifs; a selection takes the places it is heard in.
-            ideas.AddRange(ideas.Count == 0
-                ? piece.MotifsIn(words)
-                : IdeaFinder.Find(notes, meter, piece.Levels.Sentences, form, words, ideas[0].Occurrences, firstId: 2));
-        }
+        List<DnaIdea> ideas = IdeasOf(notes, meter, selection, structure, words, piece, form, keyLane, musicalIdeas);
 
         List<(DnaChord Chord, ChordSpan Span)> read = HarmonyLane(notes, meter, keyLane, firstBar, lastBar, first, last);
         IReadOnlyList<DnaChord> harmony = [.. read.Select(pair => pair.Chord)];
@@ -250,6 +246,30 @@ public sealed record PieceDna(
             DynamicsStatus = dynamics.Count > 0 ? DnaStatus.Ready : DnaStatus.NotYet,
             Dynamics = dynamics,
         };
+    }
+
+    /// <summary>The selection as the first idea when there is one, then the ideas found in the piece, by its openings or by what they are.</summary>
+    private static List<DnaIdea> IdeasOf(IReadOnlyList<Note> notes, MeterMap meter, MotifSelection? selection, StructureAnalysis? structure, Words words, PieceStructure? piece, IReadOnlyList<DnaSection> form, IReadOnlyList<DnaKey> keyLane, bool musicalIdeas)
+    {
+        var ideas = new List<DnaIdea>();
+        if (selection is { NoteIds.Count: > 0 } && structure is not null)
+        {
+            ideas.Add(Idea(notes, meter, selection, structure, words));
+        }
+
+        if (piece is not null && musicalIdeas)
+        {
+            ideas.AddRange(MusicalIdeas.Find(notes, meter, piece, keyLane, words, ideas.FirstOrDefault()?.Occurrences, firstId: ideas.Count + 1));
+        }
+        else if (piece is not null)
+        {
+            // Without a selection the ideas are the piece's own motifs; a selection takes the places it is heard in.
+            ideas.AddRange(ideas.Count == 0
+                ? piece.MotifsIn(words)
+                : IdeaFinder.Find(notes, meter, piece.Levels.Sentences, form, words, ideas[0].Occurrences, firstId: 2));
+        }
+
+        return ideas;
     }
 
     /// <summary>

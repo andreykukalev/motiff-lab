@@ -72,6 +72,45 @@ public class SettingsTests
         Assert.Null(SettingsCatalogue.Find("experimental.pieceParts"));
     }
 
+    [Theory]
+    [InlineData("experimental.assistantRepairs")]
+    [InlineData("experimental.assistant")]
+    [InlineData("experimental.assistantVariants")]
+    [InlineData("experimental.musicalIdeas")]
+    [InlineData("experimental.assistantActions")]
+    [InlineData("experimental.assistantContext")]
+    public void The_assistant_experiments_are_off_on_the_device(string id)
+    {
+        Setting setting = SettingsCatalogue.Get(id);
+        Assert.Equal(SettingSection.Experimental, setting.Section);
+        Assert.Equal(SettingScope.Device, setting.Scope);
+        Assert.False(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
+    public void The_place_selection_experiment_is_off_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.placeSelection");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.False(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
+    public void The_dictation_experiment_is_on_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.dictation");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.True(SettingsState.Default.IsOn(setting.Id));
+    }
+
+    [Fact]
+    public void The_new_sources_experiment_is_off_on_the_device()
+    {
+        Setting setting = SettingsCatalogue.Get("experimental.sources");
+        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
+        Assert.False(SettingsState.Default.IsOn(setting.Id));
+    }
+
     [Fact]
     public void The_playheads_experiment_is_off_on_the_device_and_has_no_fade_any_more()
     {

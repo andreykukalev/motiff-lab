@@ -57,6 +57,24 @@ public sealed class MusicCoreFacade
     /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
     /// Also within 12 (decision record 0029, the scan engine «Авто»), scan.vector on piece 0 reads a born-digital PDF's pages
     /// on the device and says which pages go to the scan server (<see cref="ScanRequest.Vector"/>), a call added.
+    /// Also within 12 (version 0.6, the assistant's first steps without a model, 0028), assistant.tools on piece 0 answers
+    /// the assistant's tool registry (<see cref="Assistant.AssistantTools"/>), and on an open piece assistant.call runs a tool
+    /// and answers what it read or its drafts (never applied), assistant.digest the facts digest of bars or of the piece, and
+    /// assistant.address a note's address (bar.hand.index) or the note at one, calls added. Version 0.6.1 (#582) adds
+    /// assistant.context, the context a turn sends for the selection or the whole piece, and the tool notes.join; and
+    /// corrections.acceptDraft, the player's Accept of an assistant's draft on the iPad, its edits added as corrections, and
+    /// corrections.undoDraft, its one Undo; assistant.call takes the turn's "role", checked as the relay checks a call.
+    /// Also within 12 (version 0.6, the sources by the layers of 0030, project file version 16): sources.layers answers the
+    /// originals and Notes with their states and the views of the switch in order; sources.view.hide, sources.original.add,
+    /// .remove, sources.notes.recognise, .hear (a recording already added heard into new Notes, as transcribe hears one),
+    /// .remove and sources.makeWorking change them; sources.pdf takes an "id"; sources.notes.open opens Notes that are not
+    /// working under a new number, "readOnly", answering only the calls that show them (else "readOnly"); a PDF piece takes
+    /// the sheet's calls too, and document, document.marks, ink.* and bookmark.* take an "original" (the first PDF when
+    /// left out), so each PDF or photos original keeps its own page marks. The answer of sources and every other answer
+    /// stay as they were, calls added.
+    /// Also within 12 (version 0.6.4, #614 item 4, the iPad's selection of time): select takes "empty": true, and a span or
+    /// bars with no notes in them are then selected as they are, noteIds empty; understand, circle and try answer
+    /// "unavailable" for such a selection, project.save keeps it as no selection, a field added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -214,10 +232,13 @@ public sealed class MusicCoreFacade
                     "project.sync" => SyncRequest.Next(fields),
                     "project.pulled" => SyncRequest.Pulled(fields),
                     "project.resolve" => SyncRequest.Resolve(fields),
+                    "project.same" => SyncRequest.Same(fields),
+                    "project.join" => SyncRequest.Join(fields),
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),
                     "scan.vector" => ScanRequest.Vector(fields),
+                    "assistant.tools" => AssistantRequest.Tools(),
                     "parts.split" => PartsRequest.Split(fields),
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),
@@ -239,12 +260,85 @@ public sealed class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
-            return open.Call(name, fields);
+            if (open.ReadOnly && !IsShowingCall(name))
+            {
+                throw new FacadeException("readOnly", "These notes are open only to be shown; make them the working notes to work on them.");
+            }
+
+            return name switch
+            {
+                "sources.makeWorking" => MakeWorking(piece, open, fields),
+                "sources.notes.open" => OpenNotes(open, fields),
+                _ => open.Call(name, fields),
+            };
         }
         catch (Exception exception)
         {
             return Failure(exception);
         }
+    }
+
+    /// <summary>The calls that only show a piece, answered on Notes opened to be shown.</summary>
+    private static bool IsShowingCall(string name) =>
+        name is "piece" or "phrases" or "notation" or "playback" or "roll" or "dna" or "marks" or "check" or "language";
+
+    /// <summary>
+    /// «Открыть» on Notes that are not the working ones (version 0.6): "id", other Notes or a version, opened under a new
+    /// number only to be shown (<see cref="SourceOperations.ViewOf"/>), so piece, notation, playback, roll, phrases, dna,
+    /// marks and check answer for them and every other call answers "readOnly". The piece itself does not change; close
+    /// the new number when done. Answers as <c>open</c> does, with "readOnly": true.
+    /// </summary>
+    private string OpenNotes(OpenPiece open, Request fields)
+    {
+        Project shown;
+        try
+        {
+            shown = open.Project.ViewOf(fields.Required("id"));
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(shown), open.Words, open.Layer).AsReadOnly();
+        int number = _next++;
+        _pieces[number] = opened;
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("piece", number);
+            json.WriteBoolean("readOnly", true);
+            opened.Summary(json);
+        });
+    }
+
+    /// <summary>
+    /// «Сделать рабочими» (version 0.6; 0030, section 4 as amended): other Notes, "id", become the working notes and the
+    /// working notes until now stay beside them, so the piece is opened again on the new notes under the same number. Answers
+    /// as <c>open</c> does, with "project" the file to save; making the notes until now working again undoes it.
+    /// </summary>
+    private string MakeWorking(int number, OpenPiece open, Request fields)
+    {
+        Project changed;
+        try
+        {
+            changed = open.Project.MakeWorking(fields.Required("id"));
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw FacadeException.Unavailable(exception.Message);
+        }
+
+        OpenPiece reopened = OpenPiece.Open(ProjectFile.Write(changed), open.Words, open.Layer);
+        _pieces[number] = reopened;
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("piece", number);
+            reopened.Summary(json);
+        });
     }
 
     /// <summary>

@@ -192,8 +192,6 @@ struct DnaScreen: View {
     let map: DnaMap
     let title: String
     @ObservedObject var player: Player
-    @ObservedObject var conversation: AskConversation
-    @ObservedObject var account: Account
     let text: UIText
     /// ‹ More when the map was opened from More; nil for the score.
     let back: (label: String, action: () -> Void)?
@@ -202,13 +200,14 @@ struct DnaScreen: View {
     let showInScore: (Range<Double>, Bool) -> Void
     /// Add Structure bookmarks: answers what was added, in words.
     let addBookmarks: () async -> String?
-    /// Open in Insights from the assistant's popover.
-    let askInInsights: () -> Void
+    /// Ask about the piece: the map closes for the score, with the assistant beside it on the whole piece.
+    let ask: () -> Void
 
     @State private var heard: Range<Double>?
     @State private var playing = false
+    /// The passage a card's Hear plays once: that button reads Stop while it sounds, in place (#582 item 14).
+    @State private var cardHeard: Range<Double>?
     @State private var moreLanes = false
-    @State private var asking = false
     @State private var status: String?
     @ObservedObject private var settings = DeviceSettings.shared
     /// The circle of fifths open over the map, and the chord picked on it by number.
@@ -406,10 +405,13 @@ struct DnaScreen: View {
                     }
                 }
             }
-            Text(text["dna.ideasTitle"])
-                .overline()
-                .padding(.top, CGFloat.ds("s-4"))
-                .padding(.bottom, CGFloat.ds("s-1"))
+            HStack(spacing: CGFloat.ds("s-1")) {
+                Text(text["dna.ideasTitle"]).overline()
+                // The ideas by what they are in the music (#582 item 15) are readings of the phrases and sections.
+                if !map.ideas.isEmpty { laneTag(text["dna.inferred"]) }
+            }
+            .padding(.top, CGFloat.ds("s-4"))
+            .padding(.bottom, CGFloat.ds("s-1"))
             if map.ideas.isEmpty {
                 empty(text[map.ideasStatus == "ready" ? "dna.ideasNone" : "dna.ideasEmpty"])
                     .padding(.vertical, CGFloat.ds("s-2"))
@@ -480,13 +482,7 @@ struct DnaScreen: View {
                     } else {
                         Text(name).dsType(.label).fontWeight(.semibold).lineLimit(2)
                     }
-                    if let tag {
-                        Text(tag)
-                            .dsType(.caption)
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .padding(.horizontal, 4)
-                            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong")))
-                    }
+                    if let tag { laneTag(tag) }
                 }
                 if let accessory { accessory }
                 if let why {
@@ -507,6 +503,15 @@ struct DnaScreen: View {
         }
         .padding(.vertical, 2)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
+    }
+
+    /// A lane's note on what it is, such as "inferred".
+    private func laneTag(_ words: String) -> some View {
+        Text(words)
+            .dsType(.caption)
+            .foregroundStyle(Color.ds("ink-2"))
+            .padding(.horizontal, 4)
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong")))
     }
 
     private func empty(_ words: String) -> some View {
@@ -985,15 +990,7 @@ struct DnaScreen: View {
             }
             if let range = explainedRange {
                 FlowRow(spacing: CGFloat.ds("s-2")) {
-                    Button {
-                        hear(range)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Icon(name: "play")
-                            Text(text["dna.hear"])
-                        }
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                    hearButton(range)
                     Button(text["dna.inScore"]) { leave(range, insights: false) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
@@ -1057,15 +1054,7 @@ struct DnaScreen: View {
                     Text(idea.title).dsType(.heading)
                     Text(idea.summary).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
                     FlowRow(spacing: CGFloat.ds("s-2")) {
-                        Button {
-                            hear(idea.onset..<idea.end)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Icon(name: "play")
-                                Text(text["dna.hear"])
-                            }
-                        }
-                        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                        hearButton(idea.onset..<idea.end)
                         Button(text["dna.inScore"]) { leave(idea.onset..<idea.end, insights: false) }
                             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                         Button(text["dna.inInsights"]) { leave(idea.onset..<idea.end, insights: true) }
@@ -1081,14 +1070,30 @@ struct DnaScreen: View {
         }
     }
 
+    /// A card's Hear: it plays the passage once and reads Stop while it sounds; Stop, the passage's end, or another
+    /// passage or the map starting brings Hear back (#582 item 14).
+    private func hearButton(_ range: Range<Double>) -> some View {
+        let sounding = DnaPlaying.card(range, heard: cardHeard, loop: player.loop, state: player.state)
+        return Button {
+            if sounding { stop() } else { hearOnce(range) }
+        } label: {
+            HStack(spacing: 6) {
+                Icon(name: sounding ? "pause" : "play")
+                Text(text[sounding ? "dna.stop" : "dna.hear"])
+            }
+        }
+        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+    }
+
     private var actions: some View {
-        FlowRow(spacing: CGFloat.ds("s-3")) {
+        let mapStops = DnaPlaying.map(playing: playing, card: cardHeard, state: player.state)
+        return FlowRow(spacing: CGFloat.ds("s-3")) {
             Button {
                 playMap()
             } label: {
                 HStack(spacing: 6) {
-                    Icon(name: playing && player.state != .stopped ? "pause" : "play")
-                    Text(playing && player.state != .stopped ? text["dna.stop"] : text["dna.playMap"])
+                    Icon(name: mapStops ? "pause" : "play")
+                    Text(mapStops ? text["dna.stop"] : text["dna.playMap"])
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .primary))
@@ -1104,7 +1109,8 @@ struct DnaScreen: View {
                 .buttonStyle(DSButtonStyle(kind: .secondary))
             }
             Button {
-                asking = true
+                stop()
+                ask()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "insight")
@@ -1112,19 +1118,6 @@ struct DnaScreen: View {
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .secondary))
-            .popover(isPresented: $asking) {
-                AskPopover(
-                    conversation: conversation, account: account, text: text,
-                    context: AskContext(selection: nil, wholePiece: true, title: title,
-                                        map: text.format("ask.knowsMap", text.count("dna.ideas", map.ideas.count)), form: map.form),
-                    openInInsights: {
-                        asking = false
-                        stop()
-                        askInInsights()
-                    },
-                    close: { asking = false }
-                )
-            }
             if let status {
                 Text(status).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             }
@@ -1142,19 +1135,31 @@ struct DnaScreen: View {
         hear(range)
     }
 
+    /// A mark or a section: its passage loops until another is chosen, the map's Stop is pressed or the map is left.
     private func hear(_ range: Range<Double>) {
         heard = range
+        cardHeard = nil
         playing = true
         player.setLoop(range)
     }
 
-    /// Plays the piece from its start with the map following; pressed again, it stops.
+    /// A card's Hear: its passage plays once from its start and stops at its end.
+    private func hearOnce(_ range: Range<Double>) {
+        heard = range
+        cardHeard = range
+        playing = true
+        player.setLoop(range, from: range.lowerBound, once: true)
+    }
+
+    /// Plays the piece from its start with the map following; pressed again, it stops. A card's passage has its own
+    /// Stop, so while one sounds this starts the map in its place.
     private func playMap() {
-        if playing && player.state != .stopped {
+        if DnaPlaying.map(playing: playing, card: cardHeard, state: player.state) {
             stop()
             return
         }
         player.setLoop(nil)
+        cardHeard = nil
         playing = true
         player.play(from: map.start)
     }
@@ -1162,6 +1167,7 @@ struct DnaScreen: View {
     private func stop() {
         guard playing else { return }
         playing = false
+        cardHeard = nil
         player.setLoop(nil)
         if player.state != .stopped { player.toggle() }
     }
@@ -1181,6 +1187,21 @@ private struct PopSurface: ViewModifier {
             .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             .dsShadow("shadow-menu")
+    }
+}
+
+/// Which of the map's buttons reads Stop (#582 item 14): playback is stopped where it was started.
+enum DnaPlaying {
+    /// A card's Hear reads Stop while the passage it started plays: the engine still loops that passage, once, and sounds.
+    /// It reads Hear again when the passage ends, when Stop is pressed, or when another passage or the map starts.
+    static func card(_ range: Range<Double>, heard: Range<Double>?, loop: Range<Double>?, state: TransportState) -> Bool {
+        heard == range && loop == range && state != .stopped
+    }
+
+    /// The map's own button reads Stop while the map, a mark or a section plays, never for a card's passage, which has
+    /// its Stop on the card.
+    static func map(playing: Bool, card: Range<Double>?, state: TransportState) -> Bool {
+        playing && card == nil && state != .stopped
     }
 }
 

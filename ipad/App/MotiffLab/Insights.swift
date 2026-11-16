@@ -348,13 +348,11 @@ struct InsightsSheet: View {
     @ObservedObject var insights: InsightsController
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
-    /// The questions asked about the piece, which the assistant at the stream's foot shows (testing item 23).
-    @ObservedObject var conversation: AskConversation
-    @ObservedObject var account: Account
     /// What loops while a variation is heard: the selection, to the variation's end.
     let range: Range<Double>?
     let text: UIText
     let close: () -> Void
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -380,9 +378,11 @@ struct InsightsSheet: View {
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
-                        // The assistant is the stream's last voice: the conversation the Ask popovers add to, and its field.
-                        AskStreamFoot(conversation: conversation, account: account, text: text)
+                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true), noNotes: score.selection?.noteIds.isEmpty ?? false)
+                        // The assistant is the stream's last voice: its foot leads to the assistant's panel (#582 item 17.1).
+                        Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: score.selection) }
+                            .dsType(.label)
+                            .foregroundStyle(Color.ds("accent"))
                     }
                     .padding(.leading, CGFloat.ds("s-6"))
                     .padding(.trailing, CGFloat.ds("s-5"))
@@ -390,6 +390,8 @@ struct InsightsSheet: View {
                     .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
+                // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it (#582 item 16).
+                .keyboardRoom()
             }
         }
         .background(Color.ds("surface"))
@@ -412,6 +414,8 @@ struct InsightsStream: View {
     @ObservedObject var insights: InsightsController
     let text: UIText
     let hasSelection: Bool
+    /// A selection with no notes in it (v0.6.4, a passage of time): the stream says so instead of asking for one.
+    var noNotes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -494,7 +498,7 @@ struct InsightsStream: View {
             } else if let problem = insights.problem {
                 Text(problem).dsType(.label).foregroundStyle(Color.ds("danger"))
             } else if !hasSelection {
-                caption(text["insights.selectFirst"])
+                caption(text[noNotes ? "insights.noNotes" : "insights.selectFirst"])
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -762,13 +766,9 @@ struct HearingSwitch: View {
         return Button {
             player.hear(hearing, over: range)
         } label: {
-            Text(text[key])
-                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+            SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(maxHeight: .infinity)
-                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-                .contentShape(Capsule())
+                .modifier(SegmentFill(on: on))
         }
         .buttonStyle(.plain)
         .accessibilityHint(hint)

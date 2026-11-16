@@ -21,40 +21,57 @@ public class ProjectFileGoldenTests
 
     private const string Paterlini = "v12-paterlini-all-my-joy";
     private const string Einaudi = "v12-einaudi-santiago";
-    private const string Worked = "v15-worked.motiff.json";
-    private const string Future = "v16-future.motiff.json";
+    /// <summary>The worked file as version 0.5 wrote it, in version 15: an input, never rewritten.</summary>
+    private const string Worked15 = "v15-worked.motiff.json";
+
+    /// <summary>What today's writer makes of <see cref="Worked15"/>, in version 16.</summary>
+    private const string Worked = "v16-worked.motiff.json";
+
+    /// <summary>The future file made while version 15 was today's: the version 15 file with version 16.</summary>
+    private const string Future15 = "v16-future.motiff.json";
+
+    /// <summary>The future file of today: the version 16 file with version 17.</summary>
+    private const string Future = "v17-future.motiff.json";
 
     /// <summary>
     /// Where the future file puts an unknown value of each enum type the reader names (council fact V28: 24 types behind
-    /// the 33 uses of Name and LowerName in ProjectFile*.cs), as a path into the version 15 file.
+    /// the 33 uses of Name and LowerName in ProjectFile*.cs), as a path into the version 16 file: the working notes are the
+    /// first Notes, the compared ones the second.
     /// </summary>
     public static TheoryData<string, string> EnumValues => new()
     {
-        { "AccentPattern", "variations/3/steps/0/parameters/pattern" },
-        { "AccompanimentPatternKind", "variations/5/steps/0/parameters/kind" },
-        { "ArticulationKind", "variations/1/steps/0/parameters/kind" },
-        { "BassPatternKind", "variations/7/steps/0/parameters/kind" },
-        { "CheckReason", "check/0/reason" },
-        { "CheckSource", "check/0/source" },
-        { "DensityKind", "variations/6/steps/0/parameters/kind" },
-        { "Hand", "motifs/0/filter/hand" },
-        { "HandEditKind", "variations/10/pending/parameters/kind" },
-        { "InkColour", "marks/highlights/0/colour" },
-        { "InkTool", "marks/ink/0/tool" },
-        { "KeyMode", "variations/2/key/mode" },
-        { "MergeChoice", "performances/0/merge/bars/0/choice" },
-        { "MotifMode", "motifs/0/mode" },
-        { "MotifSelectionKind", "motifs/0/kind" },
-        { "OperationScope", "variations/8/steps/0/parameters/scope" },
-        { "OrnamentKind", "variations/2/steps/0/parameters/kind" },
-        { "PassingNoteKind", "variations/4/steps/0/parameters/kind" },
-        { "PatternUnit", "variations/6/steps/0/parameters/unit" },
-        { "PerformanceSource", "performances/0/source" },
-        { "Provenance", "assembly/applied/notes/0/attribution/provenance" },
-        { "ReharmoniseKind", "variations/9/steps/0/parameters/kind" },
-        { "RhythmReshapeKind", "variations/0/steps/0/parameters/kind" },
-        { "VoicingKind", "variations/8/steps/0/parameters/kind" },
+        { "AccentPattern", "workspace/variations/3/steps/0/parameters/pattern" },
+        { "AccompanimentPatternKind", "workspace/variations/5/steps/0/parameters/kind" },
+        { "ArticulationKind", "workspace/variations/1/steps/0/parameters/kind" },
+        { "BassPatternKind", "workspace/variations/7/steps/0/parameters/kind" },
+        { "CheckReason", "notes/0/check/0/reason" },
+        { "CheckSource", "notes/0/check/0/source" },
+        { "DensityKind", "workspace/variations/6/steps/0/parameters/kind" },
+        { "Hand", "workspace/motifs/0/filter/hand" },
+        { "HandEditKind", "workspace/variations/10/pending/parameters/kind" },
+        { "InkColour", "workspace/marks/highlights/0/colour" },
+        { "InkTool", "workspace/marks/ink/0/tool" },
+        { "KeyMode", "workspace/variations/2/key/mode" },
+        { "MergeChoice", "notes/1/performance/merge/bars/0/choice" },
+        { "MotifMode", "workspace/motifs/0/mode" },
+        { "MotifSelectionKind", "workspace/motifs/0/kind" },
+        { "OperationScope", "workspace/variations/8/steps/0/parameters/scope" },
+        { "OrnamentKind", "workspace/variations/2/steps/0/parameters/kind" },
+        { "PassingNoteKind", "workspace/variations/4/steps/0/parameters/kind" },
+        { "PatternUnit", "workspace/variations/6/steps/0/parameters/unit" },
+        { "PerformanceSource", "notes/1/performance/source" },
+        { "Provenance", "workspace/assembly/applied/notes/0/attribution/provenance" },
+        { "ReharmoniseKind", "workspace/variations/9/steps/0/parameters/kind" },
+        { "RhythmReshapeKind", "workspace/variations/0/steps/0/parameters/kind" },
+        { "VoicingKind", "workspace/variations/8/steps/0/parameters/kind" },
     };
+
+    /// <summary>The same place in a version 15 file, where everything stood at the top level.</summary>
+    private static string Path15(string path) =>
+        path.StartsWith("workspace/", StringComparison.Ordinal) ? path["workspace/".Length..]
+        : path.StartsWith("notes/0/", StringComparison.Ordinal) ? path["notes/0/".Length..]
+        : path.StartsWith("notes/1/performance/", StringComparison.Ordinal) ? "performances/0/" + path["notes/1/performance/".Length..]
+        : path;
 
     private const string UnknownValue = "FutureValue";
 
@@ -77,11 +94,11 @@ public class ProjectFileGoldenTests
         get
         {
             TheoryData<string, string> rows = Rows(row => s_onNotesThatSound.Contains(row.Type));
-            rows.Add("Hand", "edits/0/added/hand");
-            rows.Add("Hand", "performances/0/taken/0/added/0/hand");
-            rows.Add("Hand", "performances/0/merge/bars/1/own/added/0/hand");
-            rows.Add("Hand", "assembly/applied/notes/0/hand");
-            rows.Add("KeyMode", "assembly/applied/keys/0/mode");
+            rows.Add("Hand", "notes/0/edits/0/added/hand");
+            rows.Add("Hand", "notes/1/performance/taken/0/added/0/hand");
+            rows.Add("Hand", "notes/1/performance/merge/bars/1/own/added/0/hand");
+            rows.Add("Hand", "workspace/assembly/applied/notes/0/hand");
+            rows.Add("KeyMode", "workspace/assembly/applied/keys/0/mode");
             return rows;
         }
     }
@@ -100,12 +117,19 @@ public class ProjectFileGoldenTests
         return rows;
     }
 
-    /// <summary>The list of the file an entity on the path stands in, as <see cref="UnknownEntity.List"/> names it, and its place.</summary>
-    private static (string List, int Index) EntityOf(string path)
+    /// <summary>
+    /// The list of the file an entity on the path stands in, as <see cref="UnknownEntity.List"/> names it, its place, and
+    /// the path of the entity itself.
+    /// </summary>
+    private static (string List, int Index) EntityOf(string path) => EntityOf(path, out _);
+
+    private static (string List, int Index) EntityOf(string path, out string entity)
     {
         string[] parts = path.Split('/');
-        int at = Array.FindIndex(parts, part => int.TryParse(part, out _));
-        return (string.Join('.', parts[..at]), int.Parse(parts[at], System.Globalization.CultureInfo.InvariantCulture));
+        int from = parts[0] == "workspace" ? 1 : parts[0] == "notes" ? 2 : 0;
+        int at = Array.FindIndex(parts, from, part => int.TryParse(part, out _));
+        entity = string.Join('/', parts[..(at + 1)]);
+        return (string.Join('.', parts[from..at]), int.Parse(parts[at], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static JsonNode At(JsonNode root, string path)
@@ -157,7 +181,7 @@ public class ProjectFileGoldenTests
     [Theory]
     [InlineData(Paterlini)]
     [InlineData(Einaudi)]
-    public void A_version_12_file_opens_and_is_written_as_version_15_with_nothing_else_changed(string name)
+    public void A_version_12_file_opens_and_is_written_as_version_16_with_nothing_else_changed(string name)
     {
         byte[] original = File($"{name}.motiff.json");
 
@@ -167,13 +191,15 @@ public class ProjectFileGoldenTests
 
         AssertWritten(written, $"{name}.written.motiff.json");
         JsonObject before = Node(original);
-        JsonObject after = Node(written);
         Assert.Equal(12, before["version"]!.GetValue<int>());
-        Assert.Equal(ProjectFile.Version, after["version"]!.GetValue<int>());
-        // Version 13 added the performances; nothing else of a version 12 file changes on the way through.
+        Assert.Equal(ProjectFile.Version, Node(written)["version"]!.GetValue<int>());
+        // Laid out at the top level again: version 13 added the performances and version 15 the originals' descriptions,
+        // which version 16 writes for every original; nothing else of a version 12 file changes on the way through.
+        JsonObject after = Node(Projects.LegacyFile.Bytes(written, 12));
         Assert.Equal("[]", after["performances"]!.ToJsonString());
-        before["version"] = ProjectFile.Version;
+        Assert.Equal(project.Originals.Select(original => original.Id), after["originals"]!.AsArray().Select(original => original!["id"]!.GetValue<string>()));
         after.Remove("performances");
+        after.Remove("originals");
         Assert.True(JsonNode.DeepEquals(before, after), "a version 12 file written again keeps every field it had");
         Assert.Equal(written, ProjectFile.Write(ProjectFile.Read(written)));
         Assert.NotEmpty(opened.Notes);
@@ -211,8 +237,30 @@ public class ProjectFileGoldenTests
         Assert.True(opened.Piece.Meter.Changes.Count > 1, "the bars follow the playing, so the meter changes where a short bar moved the downbeat");
     }
 
+    /// <summary>
+    /// The version 15 file is written as version 16, and laid out at the top level again it is the version 15 file, every
+    /// field in the order the version 15 writer wrote them: the conversion moves every field and loses none.
+    /// </summary>
     [Fact]
-    public void The_version_15_file_reads_opens_and_is_written_back_unchanged()
+    public void The_version_15_file_reads_and_is_written_as_the_version_16_file_that_is_it_laid_out_anew()
+    {
+        byte[] earlier = File(Worked15);
+
+        byte[] written = ProjectFile.Write(ProjectFile.Read(earlier));
+
+        AssertWritten(written, Worked);
+        Assert.Equal(15, Node(earlier)["version"]!.GetValue<int>());
+        JsonObject flat = Node(Projects.LegacyFile.Bytes(written, 15));
+        // Version 16 describes every original; the version 15 file left the ones the piece shows to be worked out.
+        Assert.False(Node(earlier).ContainsKey("originals"));
+        Assert.Equal(ProjectFile.Read(earlier).Originals.Select(original => original.Id), flat["originals"]!.AsArray().Select(original => original!["id"]!.GetValue<string>()));
+        flat.Remove("originals");
+        Assert.True(JsonNode.DeepEquals(Node(earlier), flat), "the version 16 file laid out at the top level is the version 15 file");
+        Assert.Equal(Node(earlier).Select(field => field.Key), flat.Select(field => field.Key));
+    }
+
+    [Fact]
+    public void The_version_16_file_reads_opens_and_is_written_back_unchanged()
     {
         byte[] golden = File(Worked);
 
@@ -234,30 +282,50 @@ public class ProjectFileGoldenTests
 
     [Theory]
     [MemberData(nameof(EnumValues))]
-    public void The_version_15_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
+    public void The_version_16_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
     {
         Type found = Assert.Single(typeof(ProjectFile).Assembly.GetTypes(), candidate => candidate.IsEnum && candidate.Name == type);
         string value = Parent(Node(File(Worked)), path, out string last)[last]!.GetValue<string>();
 
         Assert.Contains(value, Enum.GetNames(found), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(value, Parent(Node(File(Worked15)), Path15(path), out string earlier)[earlier]!.GetValue<string>());
     }
 
     [Fact]
-    public void The_future_file_is_the_version_15_file_with_version_16_two_unknown_fields_and_an_unknown_value_of_each_enum_type()
+    public void The_future_file_is_the_version_16_file_with_version_17_three_unknown_fields_and_an_unknown_value_of_each_enum_type()
     {
-        JsonObject expected = Node(File(Worked));
-        expected["version"] = 16;
         Assert.Equal(24, EnumValues.Count);
         Assert.Equal(24, EnumValues.Select(row => (string)row[0]).Distinct().Count());
+
+        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked)), 17, path => path), Node(File(Future))), "the future file is the version 16 file with exactly these changes");
+    }
+
+    /// <summary>The future file made while version 15 was today's is the version 15 file with the same changes in its places.</summary>
+    [Fact]
+    public void The_earlier_future_file_is_the_version_15_file_with_version_16_two_unknown_fields_and_an_unknown_value_of_each_enum_type()
+    {
+        JsonObject expected = Futured(Node(File(Worked15)), 16, Path15);
+
+        Assert.True(JsonNode.DeepEquals(expected, Node(File(Future15))), "the earlier future file is the version 15 file with exactly these changes");
+    }
+
+    /// <summary><paramref name="file"/> with the version, the unknown fields and the unknown value of each enum type of a future file.</summary>
+    private static JsonObject Futured(JsonObject file, int version, Func<string, string> at)
+    {
+        file["version"] = version;
         foreach (object[] row in EnumValues)
         {
-            Parent(expected, (string)row[1], out string last)[last] = UnknownValue;
+            Parent(file, at((string)row[1]), out string last)[last] = UnknownValue;
         }
 
-        expected["future"] = new JsonObject { ["note"] = "A field a later version adds; today's reader does not know it." };
-        expected["motifs"]![0]!["future"] = "A field a later version adds to a motif.";
+        file["future"] = new JsonObject { ["note"] = "A field a later version adds; today's reader does not know it." };
+        Parent(file, at("workspace/motifs/0/future"), out string field)[field] = "A field a later version adds to a motif.";
+        if (file["workspace"] is JsonObject workspace)
+        {
+            workspace["future"] = "A field a later version adds to the workspace.";
+        }
 
-        Assert.True(JsonNode.DeepEquals(expected, Node(File(Future))), "the future file is the version 15 file with exactly these changes");
+        return file;
     }
 
     /// <summary>
@@ -274,6 +342,18 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
+    /// The earlier future file has today's version and the layout of version 15, which no build of version 16 writes: it is
+    /// damaged, for want of its workspace, rather than read as something it is not.
+    /// </summary>
+    [Fact]
+    public void The_earlier_future_file_now_has_this_version_in_another_layout_and_is_damaged()
+    {
+        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(File(Future15)));
+
+        Assert.StartsWith("This project file is damaged", refused.Message);
+    }
+
+    /// <summary>
     /// The tolerant reader (S6, #313), flipping council fact V3: with the version a reader knows, an unknown value of 21 of
     /// the 24 enum types no longer makes the file damaged. The entity that holds it is kept as unknown, out of the
     /// project's lists, and written back unchanged in its place, so the file read and written again is the file it was.
@@ -284,7 +364,7 @@ public class ProjectFileGoldenTests
     {
         JsonObject file = Node(File(Worked));
         Parent(file, path, out string last)[last] = UnknownValue;
-        (string list, int index) = EntityOf(path);
+        (string list, int index) = EntityOf(path, out string entityPath);
 
         Project project = ProjectFile.Read(Bytes(file));
         OpenedProject opened = OpenedProject.Open(project);
@@ -292,7 +372,7 @@ public class ProjectFileGoldenTests
 
         UnknownEntity kept = Assert.Single(AllUnknown(project), entity => entity.Enum is not null);
         Assert.Equal((list, index, type), (kept.List, kept.Index, kept.Enum));
-        Assert.True(JsonNode.DeepEquals(At(file, $"{list.Replace('.', '/')}/{index}"), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
+        Assert.True(JsonNode.DeepEquals(At(file, entityPath), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
         Assert.True(JsonNode.DeepEquals(file, Node(written)), "the file written back is the file read, the unknown value and its entity included");
         Assert.Equal(written, ProjectFile.Write(ProjectFile.Read(written)));
         Assert.NotEmpty(opened.Notes);
@@ -316,12 +396,29 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// The enum part of the future file (criterion 3 of #313, as option A amends it): with the version this build reads, and
-    /// the three values on the notes that sound put back, every other unknown value opens and is written back; an unknown
-    /// field is still lost (council fact V2, a later task) unless it stands in an entity kept whole as unknown.
+    /// In a file of an earlier version every value is one the builds of its time knew (docs/project-file.md, "Unknown
+    /// values"), so an unknown one there is damage, wherever it stands.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EnumValues))]
+    public void An_unknown_value_in_a_version_15_file_makes_it_damaged(string type, string path)
+    {
+        JsonObject file = Node(File(Worked15));
+        Parent(file, Path15(path), out string last)[last] = UnknownValue;
+
+        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
+
+        Assert.StartsWith("This project file is damaged", refused.Message);
+        Assert.NotEmpty(type);
+    }
+
+    /// <summary>
+    /// The future file with the version this build reads (criterion 3 of #313, as option A amends it), and the three values
+    /// on the notes that sound put back: every other unknown value opens and is written back, and so are the unknown fields
+    /// at the top level and in the workspace (S6, version 16).
     /// </summary>
     [Fact]
-    public void The_enum_part_of_the_future_file_opens_with_this_version()
+    public void The_future_file_opens_with_this_version_and_is_written_back_whole()
     {
         JsonObject file = Node(File(Future));
         JsonObject worked = Node(File(Worked));
@@ -346,26 +443,34 @@ public class ProjectFileGoldenTests
             AllUnknown(project).Where(entity => entity.Enum is not null).Select(entity => (entity.List, entity.Index)).Order());
         Assert.Contains(opened.Notes, note => note.Id == "n_added_0001");
         Assert.Single(project.Performances);
-        // The unknown top-level field is lost; the motif's unknown field stays, because the motif is kept whole as unknown.
-        file.Remove("future");
-        Assert.True(JsonNode.DeepEquals(file, written), "everything but the unknown top-level field is written back");
+        // The unknown fields stay: the top level's and the workspace's kept as fields, the motif's with the motif kept whole.
+        Assert.True(JsonNode.DeepEquals(file, written), "the file is written back whole");
     }
 
     /// <summary>
-    /// Council fact V2, run rather than read from the code: the reader tolerates an unknown field and the writer drops it.
-    /// TODAY'S BEHAVIOUR, which preserving unknown fields (basis rule S6) is meant to flip.
+    /// Basis rule S6, flipping council fact V2 in version 16: an unknown field at the top level, in the workspace, in a Notes,
+    /// an original or a provenance is kept and written back after the known ones; one inside a known entity is still lost.
+    /// A version 15 file's unknown field is lost as before, since no build that wrote one knew a field this one does not.
     /// </summary>
     [Fact]
-    public void Today_an_unknown_field_in_a_version_15_file_is_read_and_then_lost_when_the_file_is_written()
+    public void An_unknown_field_in_a_version_16_file_is_kept_where_the_layers_keep_them()
     {
         JsonObject file = Node(File(Worked));
         file["future"] = new JsonObject { ["note"] = "A field a later version adds." };
-        file["motifs"]![0]!["future"] = "A field a later version adds to a motif.";
+        file["workspace"]!["future"] = 1;
+        file["notes"]![0]!["future"] = 2;
+        file["notes"]![0]!["provenance"]!["future"] = 3;
+        file["notes"]![1]!["future"] = 4;
+        file["originals"]![0]!["future"] = 5;
+        file["workspace"]!["motifs"]![0]!["future"] = "A field a later version adds to a motif.";
 
-        Project project = ProjectFile.Read(Bytes(file));
-        string written = Text(ProjectFile.Write(project));
+        JsonObject written = Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))));
 
-        Assert.DoesNotContain("future", written, StringComparison.Ordinal);
-        Assert.Equal(Text(File(Worked)), written);
+        _ = file["workspace"]!["motifs"]![0]!.AsObject().Remove("future");
+        Assert.True(JsonNode.DeepEquals(file, written), "every unknown field but the motif's is written back");
+
+        JsonObject earlier = Node(File(Worked15));
+        earlier["future"] = new JsonObject { ["note"] = "A field a later version adds." };
+        Assert.Equal(Text(File(Worked)), Text(ProjectFile.Write(ProjectFile.Read(Bytes(earlier)))));
     }
 }

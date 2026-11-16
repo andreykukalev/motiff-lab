@@ -66,6 +66,8 @@
   --r-xs: 4px; --r-s: 8px; --r-m: 12px; --r-l: 16px; --r-pill: 999px;
   --h-compact: 32px; --h-control: 40px; --h-touch: 44px;
   --icon-s: 16px; --icon-m: 20px; --icon-l: 24px;
+  /* how far the piece's playhead track runs under the lowest ink of its line, clear of the staff (#582 item 11) */
+  --playhead-gap: 24px;
   --stroke-icon: 1.5px;
   /* motion */
   --t-fast: 120ms; --t-base: 200ms; --t-slow: 320ms;

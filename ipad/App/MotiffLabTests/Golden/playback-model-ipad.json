@@ -1,0 +1,328 @@
+{
+  "about": "The iPad's own rules of the playback model (v0.6.3, #608 item 3, the lead's decision reversing #521 5 on the iPad): while Цикл plays, a selection that appears or changes so that it does not hold the position takes playback to its start and loops it; one that holds it plays on; stopped, as the shared file has it. PlaybackPositionTests runs these in place of the shared cases named in 'replaces' (Golden/playback-model.json, which the web's reference runs unchanged).",
+  "replaces": [
+    "changes with Цикл on: the new one loops, the position stays and is caught when playback reaches it",
+    "changes away from the position with Цикл on: the position does not jump",
+    "changes to behind the position while playing: the loop cannot catch it, so Цикл turns off (#521 5)",
+    "appears while playing before it: Цикл on, the loop waits, the position stays",
+    "appears while playing behind the position: Цикл stays off, nothing loops (#521 5)"
+  ],
+  "cases": [
+    {
+      "rule": "T10",
+      "name": "changes ahead of the position while Цикл plays: playback goes to its start and loops it",
+      "given": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 480,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 1920,
+          "end": 2880
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 1920,
+          "end": 2880
+        },
+        {
+          "type": "seek",
+          "at": 1920
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 1920,
+          "end": 2880
+        },
+        "loop": true,
+        "tick": 1920,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 1920,
+        "blue": 1920,
+        "playing": true,
+        "context": "selection",
+        "at": 1920
+      }
+    },
+    {
+      "rule": "T10",
+      "name": "changes away from the position while Цикл plays: playback goes to the new start",
+      "given": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 1200,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 1440,
+          "end": 2880
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 1440,
+          "end": 2880
+        },
+        {
+          "type": "seek",
+          "at": 1440
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 1440,
+          "end": 2880
+        },
+        "loop": true,
+        "tick": 1440,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 1440,
+        "blue": 1440,
+        "playing": true,
+        "context": "selection",
+        "at": 1440
+      }
+    },
+    {
+      "rule": "T10",
+      "name": "changes to behind the position while Цикл plays: playback goes back to its start, Цикл stays on",
+      "given": {
+        "selection": {
+          "start": 1920,
+          "end": 2880
+        },
+        "loop": true,
+        "tick": 2400,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 480,
+          "end": 1920
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 480,
+          "end": 1920
+        },
+        {
+          "type": "seek",
+          "at": 480
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 480,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 480,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 480,
+        "blue": 480,
+        "playing": true,
+        "context": "selection",
+        "at": 480
+      }
+    },
+    {
+      "rule": "T9",
+      "name": "appears ahead of the position while playing: Цикл on, playback goes to its start",
+      "given": {
+        "selection": null,
+        "loop": false,
+        "tick": 480,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 960,
+          "end": 1920
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 960,
+          "end": 1920
+        },
+        {
+          "type": "seek",
+          "at": 960
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 960,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 960,
+        "blue": 960,
+        "playing": true,
+        "context": "selection",
+        "at": 960
+      }
+    },
+    {
+      "rule": "T9",
+      "name": "appears behind the position while playing: Цикл on, playback goes back to its start",
+      "given": {
+        "selection": null,
+        "loop": true,
+        "tick": 2400,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 960,
+          "end": 1920
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 960,
+          "end": 1920
+        },
+        {
+          "type": "seek",
+          "at": 960
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 960,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 960,
+        "blue": 960,
+        "playing": true,
+        "context": "selection",
+        "at": 960
+      }
+    },
+    {
+      "rule": "T10",
+      "name": "changes while Цикл plays and still holds the position: it plays on",
+      "given": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 1200,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 480,
+          "end": 1920
+        }
+      },
+      "steps": [
+        {
+          "type": "loop",
+          "start": 480,
+          "end": 1920
+        }
+      ],
+      "then": {
+        "selection": {
+          "start": 480,
+          "end": 1920
+        },
+        "loop": true,
+        "tick": 1200,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": true,
+        "black": 1200,
+        "blue": 1200,
+        "playing": true,
+        "context": "selection",
+        "at": 1200
+      }
+    },
+    {
+      "rule": "T10",
+      "name": "changes away from the position while playing with Цикл off: nothing loops, the position stays",
+      "given": {
+        "selection": {
+          "start": 960,
+          "end": 1920
+        },
+        "loop": false,
+        "tick": 1200,
+        "transport": "playing"
+      },
+      "event": {
+        "type": "select",
+        "selection": {
+          "start": 1920,
+          "end": 2880
+        }
+      },
+      "steps": [],
+      "then": {
+        "selection": {
+          "start": 1920,
+          "end": 2880
+        },
+        "loop": false,
+        "tick": 1200,
+        "transport": "playing"
+      },
+      "view": {
+        "inside": false,
+        "black": 1200,
+        "blue": 1920,
+        "playing": true,
+        "context": "piece",
+        "at": 1200
+      }
+    }
+  ]
+}

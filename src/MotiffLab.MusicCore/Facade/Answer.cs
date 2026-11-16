@@ -336,6 +336,7 @@ internal static partial class Answer
         Originals(json, project);
         // Within contract 12 (version 0.4): where a piece made with «Пьесы в файле» is in its collection.
         PartOf(json, project.PartOf);
+        PieceKeys(json, project);
         // Within contract 4 (2026-11-05): notes read from a PDF piece name it, and where each of its pages starts in the
         // notes, in ticks, for PDF | Notes.
         if (project.ReadFrom is { } readFrom)

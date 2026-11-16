@@ -118,11 +118,12 @@ export class PlaybackOwner {
                 }
                 this.gripped = { handle: message.handle, resume: playingOf(engine.transport), last: engine.tick };
                 return this.apply({ type: "grab" }, engine);
+            case "place":
             case "move": {
                 if (held === null) {
                     return null;
                 }
-                const moved = this.apply({ type: "drag", handle: held.handle, at: message.tick }, standing(held));
+                const moved = this.apply({ type: "drag", handle: held.handle, at: message.tick, jump: message.phase === "place" }, standing(held));
                 held.last = moved.engine.tick;
                 return moved;
             }
@@ -192,11 +193,12 @@ export class PassageGrip {
                 this.gripped = { handle: "blue", resume: playingOf(before.transport), last: before.tick };
                 return this.run(passageState(passage, before), { type: "grab" });
             }
+            case "place":
             case "move": {
                 if (held === null) {
                     return null;
                 }
-                const moved = this.run(passageState(passage, standing(held)), { type: "drag", handle: "blue", at: message.tick });
+                const moved = this.run(passageState(passage, standing(held)), { type: "drag", handle: "blue", at: message.tick, jump: message.phase === "place" });
                 held.last = moved.tick;
                 return moved;
             }

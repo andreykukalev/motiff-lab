@@ -101,3 +101,62 @@ test("from the library card, in Russian, with no selection: the lanes are in Rus
     await expect(dna).toHaveCount(0);
     await expect(page.locator(".bar .ttl")).toHaveText("Waltz sketch");
 });
+
+test("a card's Hear becomes Stop in place, and comes back when it is stopped, when another starts and when it ends", async ({ page }) => {
+    // #582 item 14: playback is stopped where it was started; the map's own button has no Stop for a card's passage.
+    const errors = await openFurElise(page);
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Piece DNA" }).click();
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
+    const cards = dna.locator(".dna-card");
+    await expect.poll(() => cards.count()).toBeGreaterThan(1);
+    const first = cards.nth(0).locator(".dna-hear");
+    const second = cards.nth(1).locator(".dna-hear");
+    const map = dna.locator(".dna-actions .btn.primary");
+
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(map).toHaveText("Play the map");
+
+    await second.click();
+    await expect(second).toHaveText("Stop");
+    await expect(first).toHaveText("Hear");
+
+    await second.click();
+    await expect(second).toHaveText("Hear");
+
+    // Played once, the passage ends by itself and the card reads Hear again.
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(first).toHaveText("Hear", { timeout: 30_000 });
+
+    // The map plays with its own Stop, and a card started over it takes over in place.
+    await map.click();
+    await expect(map).toHaveText("Stop");
+    await first.click();
+    await expect(first).toHaveText("Stop");
+    await expect(map).toHaveText("Play the map");
+    expect(errors).toEqual([]);
+});
+
+test("with «Идеи по смыслу» on, the cards are the theme, the contrast and more, each saying why it was chosen", async ({ page }) => {
+    // #582 item 15, an experiment: the ideas by what they are in the music; the cards look and play as before.
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:experimental.musicalIdeas", "on"));
+    const errors = await openFurElise(page);
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Piece DNA" }).click();
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
+
+    await expect(dna.locator(".lanes-title")).toContainText("inferred");
+    const cards = dna.locator(".dna-card");
+    await expect(cards.nth(0).locator(".ttl")).toHaveText("Theme · bars 0–7");
+    await expect(cards.nth(0).locator(".caption")).toContainText("The first two phrases begin alike");
+    await expect(cards.nth(1).locator(".ttl")).toHaveText("Contrast · B · bars 9–15");
+    await expect(cards.nth(1).locator(".caption")).toHaveText("Section B begins here, with material not heard in A: reaching an octave higher.");
+    await expect(dna.locator(".dna-row.idea").first().locator(".lane-name")).toHaveText("Theme · bars 0–7");
+
+    await cards.nth(1).locator(".dna-hear").click();
+    await expect(cards.nth(1).locator(".dna-hear")).toHaveText("Stop");
+    expect(await violations(page)).toEqual([]);
+    expect(errors).toEqual([]);
+});

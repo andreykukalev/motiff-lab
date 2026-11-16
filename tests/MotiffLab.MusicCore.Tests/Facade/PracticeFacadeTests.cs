@@ -134,4 +134,51 @@ public class PracticeFacadeTests
         Assert.Equal("left", cleared.GetProperty("hands").GetString());
         Assert.False(cleared.GetProperty("loop").GetBoolean());
     }
+
+    [Fact]
+    public void A_passage_with_no_notes_is_selected_as_it_is_when_the_iPad_asks_and_the_calls_that_read_notes_say_so()
+    {
+        // Für Elise's pickup holds the right hand alone: its left hand is a passage with no notes (v0.6.4, #614 item 4).
+        JsonElement[] bars = [.. Call("playback").GetProperty("bars").EnumerateArray()];
+        long pickup = bars[0].GetProperty("onset").GetInt64();
+        long bar = bars[1].GetProperty("onset").GetInt64();
+        string rests = $$$"""{"span": {"onset": {{{pickup}}}, "end": {{{bar}}}}, "filter": {"hand": "left"}""";
+        Call("select", $$$"""{"span": {"onset": {{{bar}}}, "end": {{{bar + 240}}}}}""");
+
+        // Without "empty" it is refused as before, the selection with notes staying: the web app is unchanged.
+        Assert.Equal("unavailable", Error("select", rests + "}"));
+        Call("understand");
+
+        // With it, the passage is the selection, as sent and with no notes.
+        JsonElement selection = Call("select", rests + """, "empty": true}""").GetProperty("selection");
+        Assert.Equal((pickup, bar), (selection.GetProperty("onset").GetInt64(), selection.GetProperty("end").GetInt64()));
+        Assert.Equal(0, selection.GetProperty("noteIds").GetArrayLength());
+        Assert.Equal("left", selection.GetProperty("filter").GetProperty("hand").GetString());
+
+        // A place between notes too: the sixteenth after a held note's start, both hands.
+        JsonElement between = Call("select", $$$"""{"span": {"onset": {{{bar + 10}}}, "end": {{{bar + 20}}}}, "empty": true}""").GetProperty("selection");
+        Assert.Equal(0, between.GetProperty("noteIds").GetArrayLength());
+
+        // What reads the notes says there are none; what does not answers as with any selection.
+        foreach (string call in new[] { "understand", "circle" })
+        {
+            JsonElement refused = Json(_facade.Call(1, call));
+            Assert.Equal("unavailable", refused.GetProperty("error").GetString());
+            Assert.Contains("no notes", refused.GetProperty("message").GetString(), StringComparison.Ordinal);
+        }
+
+        Assert.Equal("unavailable", Error("try", """{"chip": "v1.dotted"}"""));
+        Call("dna");
+        Call("playback");
+        Call("notation", """{"bars": "selection"}""");
+
+        // Saved, it is no selection: the project file keeps its shape and opens with none.
+        byte[] file = Encoding.UTF8.GetBytes(_facade.Call(1, "project.save"));
+        JsonElement opened = Json(new MusicCoreFacade().Open("fur.motiff.json", file));
+        Assert.False(opened.TryGetProperty("error", out _), opened.ToString());
+        Assert.Equal(JsonValueKind.Null, opened.GetProperty("selection").ValueKind);
+
+        // Picked notes are never empty: "empty" leaves a pick as it was.
+        Assert.Equal("badRequest", Error("select", """{"notes": [], "picked": true, "empty": true}"""));
+    }
 }

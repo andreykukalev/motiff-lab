@@ -113,6 +113,9 @@ struct PieceSummary: Equatable, Sendable {
     /// Where a piece made with «Пьесы в файле» is in its collection (version 0.4, within contract 12); nil for a piece of
     /// its own.
     var partOf: PartOfEntry?
+    /// What the piece is known by on every device (version 0.6.1, #582 item 1; music-core's `SamePiece.Keys`, within
+    /// contract 12): the fingerprints of the files it was made from, so a sync pass finds the projects that are one piece.
+    var pieceKeys: [String] = []
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
@@ -146,6 +149,7 @@ struct PieceSummary: Equatable, Sendable {
         playlists = project["playlists"] as? [String] ?? []
         originals = OriginalEntry.list(project["originals"])
         partOf = PartOfEntry(project["partOf"])
+        pieceKeys = project["pieceKeys"] as? [String] ?? []
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.
@@ -160,7 +164,45 @@ struct PieceSummary: Equatable, Sendable {
               let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
               let request = String(data: body, encoding: .utf8) else { return nil }
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
+        ProbeCounts.shared.mark("summary")
         return PieceSummary(answer: answer)
+    }
+}
+
+/// What music-core read from each project file, kept by the file's bytes, so the library asks music-core again only for
+/// the files that changed since it last looked (core and iPad review v0.6.5, finding 6): a Back used to read every project
+/// in Documents through music-core, one after another. The bytes are read off the main thread; a file whose details were
+/// written in place keeps its date but not its bytes, so it is read again.
+@MainActor
+final class SummaryCache {
+    private var kept: [URL: (hash: String, summary: PieceSummary)] = [:]
+
+    /// The file's summary, from what was kept while its bytes are the same.
+    func summary(_ url: URL) async -> PieceSummary? {
+        let data = await Task.detached(priority: .userInitiated) { try? Data(contentsOf: url) }.value
+        guard let data else {
+            kept[url] = nil
+            return nil
+        }
+        let hash = CloudSync.hash(data)
+        if let known = kept[url], known.hash == hash { return known.summary }
+        guard let summary = await PieceSummary.read(data) else {
+            kept[url] = nil
+            return nil
+        }
+        kept[url] = (hash, summary)
+        return summary
+    }
+
+    /// The summaries of these files, the ones music-core can read; the files no longer listed are forgotten.
+    func summaries(_ urls: [URL]) async -> [URL: PieceSummary] {
+        var read: [URL: PieceSummary] = [:]
+        for url in urls {
+            if let summary = await summary(url) { read[url] = summary }
+        }
+        let listed = Set(urls)
+        kept = kept.filter { listed.contains($0.key) }
+        return read
     }
 }
 

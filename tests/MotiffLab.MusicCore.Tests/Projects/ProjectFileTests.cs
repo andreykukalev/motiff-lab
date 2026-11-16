@@ -182,7 +182,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":16}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":17}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -226,8 +226,7 @@ public class ProjectFileTests
     [Fact]
     public void A_version_1_file_opens_with_its_variation_as_one_step()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
-            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 1", StringComparison.Ordinal)
+        string json = LegacyFile.AsVersion(ProjectFile.Write(Worked() with { Variations = [] }), 1)
             .Replace(
                 "\"variations\": []",
                 "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
@@ -339,7 +338,7 @@ public class ProjectFileTests
         Assert.Equal(project.PhraseLevels, read.PhraseLevels);
         Assert.Equal(ProjectFile.Write(project), ProjectFile.Write(read));
 
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
+        string json = LegacyFile.AsVersion(ProjectFile.Write(project), 15);
         int shortAt = json.IndexOf(",\n    \"short\"", StringComparison.Ordinal);
         int marksAt = json.IndexOf("\n  },\n  \"marks\"", StringComparison.Ordinal);
         string without = json[..shortAt] + json[marksAt..];
@@ -352,8 +351,7 @@ public class ProjectFileTests
     [Fact]
     public void A_version_4_file_opens_with_the_suggested_phrases()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 4", StringComparison.Ordinal);
+        string json = LegacyFile.AsVersion(ProjectFile.Write(Worked()), 4);
         json = json[..json.IndexOf(",\n  \"phrases\"", StringComparison.Ordinal)] + "\n}";
         Assert.DoesNotContain("phrases", json);
 
@@ -379,8 +377,7 @@ public class ProjectFileTests
     [Fact]
     public void A_version_2_file_opens_with_no_corrections()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 2", StringComparison.Ordinal)
+        string json = LegacyFile.AsVersion(ProjectFile.Write(Worked()), 2)
             .Replace(",\n  \"edits\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("edits", json);
 

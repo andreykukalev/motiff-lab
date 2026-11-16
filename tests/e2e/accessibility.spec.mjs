@@ -119,9 +119,16 @@ test("marks: the note card, a marker, the highlight swatches, the Contents' note
         expect(await violations(page)).toEqual([]);
     }
     await page.locator(".note-card").getByRole("button", { name: "Done" }).click();
+    // The swatches are checked while the overflow shows them: it belongs to the page, so once the Contents move the score
+    // the pill and the drawer lie over it (docs/ui-conventions.md). A swatch chosen closes the overflow.
     await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await expect(page.locator(".ctx .menu-more .swatch")).toHaveCount(4);
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+    }
     await page.locator(".ctx .menu-more").getByRole("button", { name: "Highlight in ochre" }).click();
-    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await expect(page.locator(".ctx .menu-more")).toHaveCount(0);
     await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
     await page.locator(".sheet.contents").getByRole("button", { name: "Notes", exact: true }).click();
     for (const theme of ["daylight", "night"]) {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The modes of version 0.5 (the experiment Two playheads and modes, Settings · Experimental; product spec
+/// The modes of version 0.5 (product spec
 /// interaction-modes, «Правила выделения по режимам»): one group in the bar, as on the web, without Edit notes on the iPad
 /// (`inBar`, #479 item 23). Who writes, selects and scrolls on the iPad in each mode is InputRules' (#479 item 18). The
 /// Pen is the bar's Pen being on (`ScoreController.penOn`).

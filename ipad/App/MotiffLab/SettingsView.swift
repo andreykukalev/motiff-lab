@@ -4,8 +4,8 @@ import SwiftUI
 /// The player's settings on this iPad (0018 section 10), as the web app's DeviceSettings keeps them: music-core's settings
 /// state (`settings.state` on piece 0) read from the values kept in the device's preferences, one value to a setting, and
 /// the presets applied by music-core. Device-only settings stay on the device (the free tier has no cloud account). The
-/// score, the roll and the app's appearance read them here and follow every change at once. The language is the iPad's
-/// own choice for the app (iPad Settings), as iPad apps do.
+/// score, the roll and the app's appearance read them here and follow every change at once. The language is kept apart
+/// (InterfaceLanguage), as only a language the player picked is kept.
 @MainActor
 final class DeviceSettings: ObservableObject {
     static let shared = DeviceSettings()
@@ -27,7 +27,8 @@ final class DeviceSettings: ObservableObject {
 
     /// The preferences key that holds the kept values.
     static let storeKey = "motiff.settings"
-    /// What this store does not keep: the language is the iPad's, and saving online and analytics have their own places.
+    /// What this store does not keep: it holds every value music-core states, defaults too, and the language is kept only
+    /// once picked (`UIText.languageKey`); saving online and analytics have their own places.
     private static let notKept: Set<String> = ["appearance.language", "account.saveOnline", "account.analytics", "score.layout"]
 
     private let store: UserDefaults
@@ -84,7 +85,10 @@ final class DeviceSettings: ObservableObject {
     /// what it answers.
     func update(_ change: [String: Any]) async {
         var request = change
-        request["values"] = store.dictionary(forKey: Self.storeKey) as? [String: String] ?? [:]
+        var kept = store.dictionary(forKey: Self.storeKey) as? [String: String] ?? [:]
+        // The language as the interface shows it: the one picked, else the iPad's.
+        kept["appearance.language"] = UIText.language(in: store)
+        request["values"] = kept
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
         let body = String(decoding: data, as: UTF8.self)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "settings.state", body) }
@@ -109,7 +113,7 @@ final class DeviceSettings: ObservableObject {
 /// iPad acts on are shown: the others join the sheet with the features they switch.
 struct SettingsSheet: View {
     enum SheetSection: String, CaseIterable, Hashable {
-        case guidance, score, layers, roll, appearance, account, experimental, about
+        case guidance, score, layers, roll, appearance, account, about
     }
 
     @ObservedObject var settings: DeviceSettings
@@ -170,8 +174,7 @@ struct SettingsSheet: View {
                 Button {
                     section = item
                 } label: {
-                    Text(name(item))
-                        .font(DesignTokens.font(weight: on ? 600 : 500, size: 15, relativeTo: .body))
+                    SteadyWord(text: name(item), on: on, size: 15, relativeTo: .body, alignment: .leading)
                         .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
                         .padding(.horizontal, CGFloat.ds("s-3"))
                         .frame(minHeight: CGFloat.ds("h-control"))
@@ -240,7 +243,6 @@ struct SettingsSheet: View {
             Text(text["settings.presetHint.\(settings.preset)"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-            switchRow("guidance.transportPill", text["settings.pillWithSelection"], on: "selection", off: "playing", hint: text["settings.pillWithSelectionHint"])
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
             switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
@@ -264,13 +266,13 @@ struct SettingsSheet: View {
             choiceRow("roll.colour", text["roll.colourBy"]) { text["settings.rollColour.\($0)"] }
         case .appearance:
             choiceRow("appearance.theme", text["settings.theme"], hint: text["settings.themeHint"]) { text["settings.theme.\($0)"] }
+            // Русский or English, picked here (Andrei, 2026-11-15); until then the iPad's. The screens are built again in it.
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["settings.language"]).dsType(.label).foregroundStyle(Color.ds("ink"))
-                Text(text["settings.languageDevice"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                Button(text["settings.openDeviceSettings"]) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                SegmentedChoice(options: UIText.languages.map { ($0, text["settings.language.\($0)"]) }, chosen: text.language, label: text["settings.language"]) { picked in
+                    Task { await InterfaceLanguage.shared.choose(picked) }
                 }
-                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                Text(text["settings.languagePadHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             }
         case .account:
             AccountPanel(account: account, text: text)
@@ -280,30 +282,9 @@ struct SettingsSheet: View {
                 // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
                 ScanPanel(scan: ScanServer.shared, text: text)
             }
-        case .experimental:
-            // New ideas tried in the app before they become features (governance, "Experiments"): each off until turned
-            // on, on this iPad. Only the experiments the iPad acts on are listed.
-            Text(text["settings.experimentalHow"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-            switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
-            switchRow("experimental.photoPages", text["settings.photoPages"], hint: text["settings.photoPagesHint"])
-            switchRow("experimental.pieces", text["settings.pieces"], hint: text["settings.piecesPdfHint"])
-            switchRow("experimental.editsLayer", text["settings.editsLayer"], hint: text["settings.editsLayerHint"])
-            switchRow("experimental.liveTempo", text["settings.liveTempo"], hint: text["settings.liveTempoHint"])
-            // Version 0.5: a whole folder of scores into the library, kept by link or copied, and their notes read in a batch.
-            switchRow("experimental.libraryImport", text["folderImport.setting"], hint: text["folderImport.settingHint"])
-            // At the instrument (#327, #328, #349).
-            switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
-            switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])
-            switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
-            // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
-            switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
-            // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
-            switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
-            if settings.isOn(ScanServer.engineSetting) {
-                choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
-            }
+            // The engine that reads scans (v0.5.7; a setting since v0.6.5): homr or copisteria on the scan server, or «Авто»
+            // (0029), which reads a notation program's pages on the iPad; homr until chosen.
+            choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"], hint: text["settings.scanEngineHint"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)
@@ -340,7 +321,6 @@ struct SettingsSheet: View {
         case .roll: text["settings.section.roll"]
         case .appearance: text["settings.appearance"]
         case .account: text["settings.section.account"]
-        case .experimental: text["settings.section.experimental"]
         case .about: text["settings.section.about"]
         }
     }

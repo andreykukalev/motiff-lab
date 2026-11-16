@@ -62,6 +62,20 @@ final class FacadeTests: XCTestCase {
         XCTAssertLessThanOrEqual(sentences.units.count, shown.units.count)
     }
 
+    /// v0.6.4 (#614 item 4): the iPad's span is a passage of time; with no notes in it, it is still the selection.
+    func testAPassageWithNoNotesIsSelectedAsTheIPadAsks() throws {
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
+        let first = try XCTUnwrap(shown.units.first)
+        // Ten ticks just after a note starts, where no other note starts.
+        let between = SelectionSpan(onset: first.selectableOnset + 10, end: first.selectableOnset + 20)
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", between.request)))
+        XCTAssertEqual(selected.onset, between.onset)
+        XCTAssertTrue(selected.noteIds.isEmpty)
+        let understood = try object(MusicCore.call(piece: piece, "understand"))
+        XCTAssertEqual(understood["error"] as? String, "unavailable")
+        XCTAssertEqual(ScoreController.refusal(understood["message"] as? String), "selection.noNotes")
+    }
+
     func testSelectAndUnderstandInRussian() throws {
         let selected = try call("select", #"{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}"#)
         let selection = try XCTUnwrap(selected["selection"] as? [String: Any])
@@ -219,16 +233,23 @@ final class FacadeTests: XCTestCase {
     }
 
     func testCheckListsTheBarsToReviewWithTheirReasonsAndResolvesThem() throws {
-        // A project file from a scan, with flags on bar 3 and one already checked on bar 6.
+        // A project file from a scan, with flags on bar 3 and one already checked on bar 6. Since version 16 (0030) the
+        // Check flags and the scan are the working notes' own (notes[0]), and the engine is in their provenance.
         var file = try object(MusicCore.call(piece: piece, "project.save"))
         let flags: [[String: Any]] = [
             ["bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false],
             ["bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false],
             ["bar": 6, "source": "Scan", "reason": "BarTooShort", "resolved": true],
         ]
-        let scan: [String: Any] = ["engine": "homr 0.7.0", "confirmedBars": [Int]()]
-        file["check"] = flags
-        file["scan"] = scan
+        var notes = try XCTUnwrap(file["notes"] as? [[String: Any]])
+        var working = try XCTUnwrap(notes.first)
+        var provenance = working["provenance"] as? [String: Any] ?? [:]
+        provenance["engine"] = "homr 0.7.0"
+        working["provenance"] = provenance
+        working["check"] = flags
+        working["scan"] = ["confirmedBars": [Int]()] as [String: Any]
+        notes[0] = working
+        file["notes"] = notes
         let data = try JSONSerialization.data(withJSONObject: file)
         let opened = try object(MusicCore.open(fileName: "elise.motiff.json", data: data, request: #"{"language": "ru"}"#))
         let scanned = Int32(opened["piece"] as? Int ?? 0)
@@ -316,7 +337,8 @@ final class FacadeTests: XCTestCase {
         await again.load()
         XCTAssertEqual(again["layers.notes"], "on")
         XCTAssertEqual(again.preset, "custom")
-        XCTAssertNil((store.dictionary(forKey: DeviceSettings.storeKey) as? [String: String])?["appearance.language"], "the language is the iPad's")
+        XCTAssertNil((store.dictionary(forKey: DeviceSettings.storeKey) as? [String: String])?["appearance.language"], "only a language picked is kept, on its own")
+        XCTAssertEqual(again["appearance.language"], UIText.language(in: store), "the language shown: none picked, the iPad's")
 
         // A piece's own choice wins for the settings a piece keeps, and only for those.
         let resolved = again.resolved(overrides: ["layers.notes": "off", "appearance.theme": "night"])
@@ -439,9 +461,13 @@ final class FacadeTests: XCTestCase {
 
     func testAPdfAndTheNotesReadFromItFindEachOtherOnTheShelf() throws {
         // Notes read from a PDF piece name it and where each of its pages starts in them (PDF | Notes, 0023).
+        // In a file of version 16 the working notes' pageMap names the other piece's PDF (docs/project-file.md).
         let saved = MusicCore.call(piece: piece, "project.save")
-        let brace = try XCTUnwrap(saved.firstIndex(of: "{"))
-        let linked = saved.replacingCharacters(in: brace...brace, with: #"{"readFrom": {"project": "p_pdf", "pages": [0, 5760, 11520]}, "#)
+        var file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(saved.utf8)) as? [String: Any])
+        var entries = try XCTUnwrap(file["notes"] as? [[String: Any]])
+        entries[0]["pageMap"] = ["original": "src_pdf", "project": "p_pdf", "starts": [0, 5760, 11520]] as [String: Any]
+        file["notes"] = entries
+        let linked = String(decoding: try JSONSerialization.data(withJSONObject: file), as: UTF8.self)
         let body = try JSONSerialization.data(withJSONObject: ["file": linked])
         let notes = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: body, as: UTF8.self))))
         XCTAssertEqual(notes.readFrom, "p_pdf")

@@ -20,6 +20,22 @@ internal sealed partial class OpenPiece
 {
     private EditsLayer _layer = EditsLayer.Strict;
 
+    /// <summary>How the corrections are laid over the notes the piece is open on.</summary>
+    internal EditsLayer Layer => _layer;
+
+    /// <summary>
+    /// True for Notes opened only to be shown (sources.notes.open): the facade answers the calls that show them and
+    /// refuses every other (<see cref="MusicCoreFacade"/>).
+    /// </summary>
+    internal bool ReadOnly { get; private set; }
+
+    /// <summary>This piece, open only to be shown from now on.</summary>
+    internal OpenPiece AsReadOnly()
+    {
+        ReadOnly = true;
+        return this;
+    }
+
     /// <summary>The corrections laid one by one over the notes, for the log they were laid from.</summary>
     private (NoteEditLog Log, EditsApplied Applied)? _layered;
 
@@ -162,13 +178,16 @@ internal sealed partial class OpenPiece
         return CorrectionsAnswer(LayerBar(request));
     }
 
-    /// <summary>The selection's passage over the notes as they are now; none when no note is left there.</summary>
+    /// <summary>
+    /// The selection's passage over the notes as they are now; none when no note is left there, unless it held none to begin
+    /// with (a passage of time, v0.6.4).
+    /// </summary>
     private void Reselect()
     {
         if (Selection is { } selection)
         {
             MotifSelection again = MotifSelector.Select(Notes, Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
-            Selection = again.NoteIds.Count > 0 ? again : null;
+            Selection = again.NoteIds.Count > 0 || selection.NoteIds.Count == 0 ? again : null;
         }
     }
 

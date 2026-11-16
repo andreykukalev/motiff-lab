@@ -1,0 +1,153 @@
+@using MotiffLab.MusicCore.Assistant.Conversation
+@inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Projects.Preferences Preferences
+
+@* The assistant's conversation (an experiment, Settings · Experimental, version 0.6; 0028 section 4; the AI companion study;
+   design/kit/screens/s9_assistant.png): the mentor in the Insights sheet. Before the first question it asks once for consent,
+   listing exactly what a question sends; then the scope chips, the questions on the right, the answers as cards whose cited
+   facts are chips that ring their places in the score, and the input. An answer the engine could not check is shown as the
+   engine's facts. What the page could not send says why in a line, and nothing was sent. The page does the asking. *@
+<section class="assistant mentor" aria-labelledby="mentor-title">
+    <AskTop TitleId="mentor-title" SelectionLabel="@SelectionLabel" WholePiece="WholePiece" WholePieceChanged="WholePieceChanged" BackLabel="@BackLabel" Back="Back" Closed="Closed" />
+
+    @if (_consented is false)
+    {
+        <MentorConsent Agreed="() => _consented = true" NotNow="() => Back.InvokeAsync()" />
+    }
+    else if (_consented is true)
+    {
+        @if (Kept)
+        {
+            <ConversationList Conversations="Conversations" Current="@Current" CanStartNew="Exchanges.Count > 0" Busy="Busy" Open="OpenConversation" New="NewConversation" />
+        }
+        <div class="mentor-talk" aria-live="polite">
+            @foreach (MentorExchange exchange in Exchanges)
+            {
+                <MentorExchangeView Exchange="exchange" Cite="Cite" />
+            }
+            @DraftContent
+            @if (Busy)
+            {
+                <p class="mentor-note" role="status">@Text["mentor.thinking"]</p>
+            }
+            else if (Exchanges.Count == 0)
+            {
+                <p class="caption">@Text["mentor.empty"]</p>
+            }
+        </div>
+
+        @if (Suggestions.Count > 0 && Exchanges.Count == 0)
+        {
+            <div class="suggestions" aria-label="@Text["ask.suggestions"]">
+                @foreach (string suggestion in Suggestions)
+                {
+                    <button class="chip" disabled="@Busy" @onclick="() => AskAsync(suggestion)">@suggestion</button>
+                }
+            </div>
+        }
+
+        <form class="ask-input" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+            <input type="text" maxlength="@TurnRequest.MaxQuestion" disabled="@Busy" aria-label="@Text["ask.placeholder"]" placeholder="@Text["ask.placeholder"]" @bind="_draft" />
+            <button type="submit" class="btn quiet icon" disabled="@Busy" aria-label="@Text["mentor.send"]" title="@Text["mentor.send"]"><Icon Name="fwd" /></button>
+        </form>
+        <p class="caption mentor-foot">@Text["mentor.sentNote"] <button class="link" @onclick="WithdrawAsync">@Text["mentor.withdraw"]</button></p>
+    }
+</section>
+
+@code {
+    /// <summary>Whether the player agreed to what a question sends; null until it is read.</summary>
+    private bool? _consented;
+
+    private string _draft = "";
+
+    /// <summary>"This phrase · 9–16" or "This selection · 9–16"; null with nothing selected, when only the whole piece is offered.</summary>
+    [Parameter]
+    public string? SelectionLabel { get; set; }
+
+    [Parameter]
+    public bool WholePiece { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> WholePieceChanged { get; set; }
+
+    /// <summary>The questions asked about this piece and what came of each.</summary>
+    [Parameter]
+    public IReadOnlyList<MentorExchange> Exchanges { get; set; } = [];
+
+    /// <summary>Whether a question is being answered.</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Suggestions { get; set; } = [];
+
+    /// <summary>A question the player asked, once they consented.</summary>
+    [Parameter]
+    public EventCallback<string> Asked { get; set; }
+
+    /// <summary>A cited fact the player tapped: its places are ringed in the score.</summary>
+    [Parameter]
+    public EventCallback<CitedFact> Cite { get; set; }
+
+    /// <summary>The assistant's draft for the last question, when it made one (#582 item 17.3), under the answer.</summary>
+    [Parameter]
+    public RenderFragment? DraftContent { get; set; }
+
+    /// <summary>Whether the piece's conversations are kept on this device (#582 item 17.1), so the list is shown.</summary>
+    [Parameter]
+    public bool Kept { get; set; }
+
+    /// <summary>The piece's kept conversations, newest first.</summary>
+    [Parameter]
+    public IReadOnlyList<ConversationEntry> Conversations { get; set; } = [];
+
+    /// <summary>The id of the conversation on show; null for one not kept yet.</summary>
+    [Parameter]
+    public string? Current { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OpenConversation { get; set; }
+
+    [Parameter]
+    public EventCallback NewConversation { get; set; }
+
+    /// <summary>The panel opened: the page follows the piece, so the latest conversation is there.</summary>
+    [Parameter]
+    public EventCallback Opened { get; set; }
+
+    [Parameter]
+    public EventCallback Back { get; set; }
+
+    [Parameter]
+    public string? BackLabel { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _consented = await MentorConsent.GivenAsync(Preferences);
+        await Opened.InvokeAsync();
+    }
+
+    private async Task WithdrawAsync()
+    {
+        await Preferences.SetAsync(MentorConsent.ConsentKey, null);
+        _consented = false;
+    }
+
+    private async Task SubmitAsync()
+    {
+        string question = _draft.Trim();
+        _draft = "";
+        await AskAsync(question);
+    }
+
+    private async Task AskAsync(string question)
+    {
+        if (_consented is true && !Busy && question.Length > 0)
+        {
+            await Asked.InvokeAsync(question);
+        }
+    }
+}

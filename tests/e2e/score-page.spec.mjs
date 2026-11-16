@@ -20,9 +20,10 @@ test("the score fills the screen, draws no phrase brackets, and the selection st
     const pill = page.locator(".pill");
 
     // The page and the bar, with nothing docked: no pill, roll or sheet until asked for.
-    await expect(page.locator(".score .score-page")).toHaveCount(5);
+    // Four A4 pages since a page holds one more system (#521 14, v0.5.5).
+    await expect(page.locator(".score .score-page")).toHaveCount(4);
     await expect(bar).toContainText("Für Elise");
-    await expect(bar).toContainText(/1(–2)? of 5/);
+    await expect(bar).toContainText(/1(–2)? of 4/);
     await expect(pill).toHaveCount(0);
     await expect(page.locator(".roll")).toHaveCount(0);
     await expect(page.locator(".sheet")).toHaveCount(0);

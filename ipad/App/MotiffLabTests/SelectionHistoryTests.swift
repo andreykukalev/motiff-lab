@@ -88,25 +88,12 @@ final class SelectionHistoryTests: XCTestCase {
 
     // MARK: - The stylus menu (option B)
 
-    func testSwitchToPreviousTakesThePenAndSelectInTurnUnderTheModes() {
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: .navigate).penOn, true)
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: .navigate).mode, .navigate, "the Pen comes on over the mode, which comes back after it")
-        let off = StylusRules.previous(penOn: true, mode: .navigate)
-        XCTAssertFalse(off.penOn)
-        XCTAssertEqual(off.mode, .select)
-        XCTAssertFalse(off.previousTool)
-        let without = StylusRules.previous(penOn: true, mode: nil)
-        XCTAssertTrue(without.penOn && without.previousTool, "without the modes the tool before, as before")
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: nil).penOn, true, "outside the Pen it comes on")
-    }
-
     func testUndoIsTheHistoryOfTheToolInForceAndNavigateHasNone() {
         // #521 9: each editing tool its own history; Navigate none, so ⌘Z there takes back no selection step.
         XCTAssertEqual(StylusRules.undoOwner(penOn: true, mode: .select, rollEditing: false), .ink)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .select, rollEditing: false), .selection)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: false), .nothing)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: true), .noteEdits, "the roll in Edit notes")
-        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: nil, rollEditing: false), .selection, "before the modes, as before")
     }
 
     func testTheStylusMenuShowsOnlyTheChosenToolsControls() {
@@ -141,15 +128,12 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(ink.done.map(\.added), [["a"], ["c"]])
     }
 
-    func testSelectsOptionsChooseBarsOrBeatsUnderTheModes() {
-        XCTAssertTrue(StylusRules.byBeats(modes: true, chosen: true, experiment: false))
-        XCTAssertFalse(StylusRules.byBeats(modes: true, chosen: false, experiment: true), "by bars as Select's options say")
-        XCTAssertTrue(StylusRules.byBeats(modes: false, chosen: false, experiment: true), "without the modes the experiment decides")
+    func testTheOldBarsOrBeatsChoiceIsForgotten() {
         let defaults = UserDefaults(suiteName: "SelectionHistoryTests")!
         defaults.removePersistentDomain(forName: "SelectionHistoryTests")
-        XCTAssertTrue(SelectBy.saved(defaults), "by beats until bars are chosen")
-        SelectBy.keep(false, defaults)
-        XCTAssertFalse(SelectBy.saved(defaults))
+        defaults.set(false, forKey: SelectBy.key)
+        SelectBy.forget(defaults)
+        XCTAssertNil(defaults.object(forKey: SelectBy.key), "an iPad that chose «По тактам» keeps nothing of it")
     }
 
     /// The bug of the evaluation: outside the Pen, «switch to eraser» and «switch to previous» changed the tool unseen.

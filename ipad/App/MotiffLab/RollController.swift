@@ -53,6 +53,22 @@ final class RollController: NSObject, ObservableObject {
     var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
+    /// Selection by where you touch (#601): notes a box, a lasso or a tap picked in Select, with
+    /// how they change the selection and the gesture for its history.
+    var notesPicked: (@MainActor (RollNotesPick) -> Void)?
+    /// A span of time the place rule drew in Select (v0.6.4): the one selection, exactly as drawn on the grid.
+    var spanPicked: (@MainActor (RollSpan) -> Void)?
+    /// Picked notes dragged in Select: the first step opens the note editor's draft, and where they were let go is its edits.
+    var notesMoveBegan: (@MainActor () -> Void)?
+    var notesMoved: (@MainActor ([RollNoteEdit]) -> Void)?
+    /// How Select picks notes on the roll: «Рамка | Лассо» in its head (RollPickShape), kept on the device.
+    @Published var pickShape: RollPickShape = .saved() {
+        didSet {
+            guard pickShape != oldValue else { return }
+            pickShape.keep()
+            sendShape()
+        }
+    }
 
     let webView: WKWebView
     /// Where the roll is on screen, as the score screen has it (RollPlace.shown): the one place whose holder has the web view
@@ -64,12 +80,16 @@ final class RollController: NSObject, ObservableObject {
     }
     private let text = UIText.current
     private var pageReady = false
+    /// The page loaded again if iPadOS ends the web view's process (WebContentWatch).
+    private var contentWatch: WebContentWatch?
     private var loaded = false
     private var piece: OpenPiece?
     /// The piece whose notes the roll shows: its notes loaded again keep the roll's zoom and view (#495 BUG-04).
     private var shownPiece: Int32?
     private var dark = false
     private var shownSelection: [String: Any]?
+    /// The tuplet blocks the score's page read (v0.6.4), which the roll's selection grid never splits.
+    private var shownTuplets: [[String: Double]] = []
     private var shownHighlight: [[String: Any]] = []
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
@@ -85,15 +105,16 @@ final class RollController: NSObject, ObservableObject {
     var penOn = false {
         didSet { if penOn != oldValue { applyInput() } }
     }
-    /// The bar's tool under the modes (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in
-    /// Navigate a long press puts the playhead where it is held; none before the modes.
-    var barTool: InputRules.Tool = .none {
+    /// The bar's tool (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in Navigate a long
+    /// press puts the playhead where it is held.
+    var barTool: InputRules.Tool = .navigate {
         didSet { if barTool != oldValue { applyInput() } }
     }
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
     override init() {
+        ProbeCounts.shared.add("roll")
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -102,7 +123,20 @@ final class RollController: NSObject, ObservableObject {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
+        let watch = WebContentWatch { [weak self] in self?.pageLost() }
+        contentWatch = watch
+        webView.navigationDelegate = watch
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/roll.html")))
+    }
+
+    /// The web view's process ended: the roll is loaded again in full, the view kept, once its page is ready.
+    private func pageLost() {
+        pageReady = false
+        loaded = false
+    }
+
+    deinit {
+        ProbeCounts.shared.add("roll", -1)
     }
 
     /// Shows a piece's notes; again when the appearance changes.
@@ -153,7 +187,10 @@ final class RollController: NSObject, ObservableObject {
     func showSelection(_ selection: ScoreSelection?, loop: Range<Double>?) {
         var data: [String: Any] = [:]
         if let selection {
-            data["selected"] = ["start": selection.onset, "end": selection.end, "ids": selection.noteIds] as [String: Any]
+            var selected: [String: Any] = ["start": selection.onset, "end": selection.end, "ids": selection.noteIds]
+            // Chosen by notes (#601): the roll rings them, and a drag of one moves them.
+            if let picked = selection.picked { selected["picked"] = picked }
+            data["selected"] = selected
         }
         if let loop {
             data["loop"] = ["start": loop.lowerBound, "end": loop.upperBound]
@@ -161,6 +198,14 @@ final class RollController: NSObject, ObservableObject {
         shownSelection = data
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The tuplet groups as blocks ({start, end} in ticks, the score's page read them, v0.6.4): the roll's selection grid
+    /// has no line inside one, as the score's has none.
+    func tuplets(_ spans: [[String: Double]]) {
+        shownTuplets = spans
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.tuplets(spans)", arguments: ["spans": spans], contentWorld: .page) }
     }
 
     /// Binds the roll to the passage Expand shows (#521 19), or lets it go (nil): bound, it lays the passage across itself,
@@ -200,10 +245,23 @@ final class RollController: NSObject, ObservableObject {
     /// Who edits and who moves the roll (RollInput, #479 item 23): again when the mode changes and when the app comes back,
     /// as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+        input = pageInput()
         guard loaded else { return }
         let data = input
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// What the roll is told of who does what (RollInput.page), with selection by where you touch (#601): whether a stylus
+    /// is used, so a finger beside it moves the roll (RollPlaceInput).
+    private func pageInput() -> [String: Any] {
+        RollPlaceInput(stylus: InkInput.stylusPreferred)
+            .added(to: RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page)
+    }
+
+    private func sendShape() {
+        guard loaded else { return }
+        let by = pickShape.rawValue
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.shape(by)", arguments: ["by": by], contentWorld: .page) }
     }
 
     /// The zoom controls' steps (#479 item 23): the time or the pitch, +1 in and −1 out, Fit, or Zoom Out (#521 2.2).
@@ -230,6 +288,8 @@ final class RollController: NSObject, ObservableObject {
         let settings = DeviceSettings.shared
         let names = settings.isOn("roll.noteNames")
         if noteNames != names { noteNames = names }
+        // Selection by where you touch turned on or off (#601).
+        applyInput()
         guard loaded else { return }
         if settings["notes.naming"] != naming {
             Task { await load() }
@@ -282,6 +342,25 @@ final class RollController: NSObject, ObservableObject {
         if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
             noteEdited?(made)
         }
+        receivedPlace(message)
+    }
+
+    /// Selection by where you touch (#601): a span drawn (v0.6.4), notes picked, and picked notes moved (the draft opens at
+    /// the first step).
+    private func receivedPlace(_ message: [String: Any]) {
+        if let span = RollSpan(message["span"]) {
+            spanPicked?(span)
+        }
+        if let picked = RollNotesPick(message["notes"]) {
+            notesPicked?(picked)
+        }
+        if message["moveBegan"] != nil {
+            notesMoveBegan?()
+        }
+        if let moved = message["moved"] as? [String: Any] {
+            let edits = RollNoteEdit.moved(moved["notes"])
+            if !edits.isEmpty { notesMoved?(edits) }
+        }
     }
 
     private func load() async {
@@ -312,6 +391,9 @@ final class RollController: NSObject, ObservableObject {
             if practiceOn {
                 _ = try? await webView.callAsyncJavaScript("return roll.practice(on)", arguments: ["on": true], contentWorld: .page)
             }
+            if !shownTuplets.isEmpty {
+                _ = try? await webView.callAsyncJavaScript("return roll.tuplets(spans)", arguments: ["spans": shownTuplets], contentWorld: .page)
+            }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
             }
@@ -322,8 +404,9 @@ final class RollController: NSObject, ObservableObject {
             if editor["on"] as? Bool == true {
                 _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
             }
-            input = RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page
+            input = pageInput()
             _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": input], contentWorld: .page)
+            sendShape()
             if passage != nil {
                 await sendPassage()
             }

@@ -205,309 +205,14 @@ struct VersionShelf: Equatable, Sendable {
     }
 }
 
-/// Sources (0022; testing items 16 and 32, the web app's `.perf-sheet`), from More or a marker's popover, in two levels.
-/// The list: "My version", a line on what it holds beyond the base, a row for the base, the PDF kept inside the piece and
-/// each other version with its role, and one Add a source (a MIDI or MusicXML file, a PDF, a recording). A version's row
-/// opens its page, with "‹ Sources" back: a verdict, a strip of the piece's bars and three ways into a merge draft that
-/// changes nothing until applied; the draft itself; what was merged, to open again or undo; and its name and Remove, which
-/// the toast can undo. Over the right of the page in landscape and the lower half in portrait, as Check.
-struct VersionsDrawer: View {
-    @ObservedObject var score: ScoreController
-    let text: UIText
-    let close: () -> Void
-    /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
-    var back: (label: String, action: () -> Void)?
-    /// The piece's PDF view, when it keeps a PDF or links to it in Files.
-    var openPdf: (() -> Void)?
-    /// The piece's originals on this iPad: where each one is, and «Привязать оригинал» (version 0.3).
-    @ObservedObject var originals: OriginalsController
-    @EnvironmentObject private var account: Account
-    @ObservedObject private var scan = ScanServer.shared
-    @ObservedObject private var settings = DeviceSettings.shared
-    @State private var choosing = false
-    @State private var choosingPdf = false
-    /// The original whose file the importer picks, to link it again; nil for a version or a PDF to add.
-    @State private var relinking: OriginalEntry?
-    @State private var adding = false
-    @State private var readingPdf = false
-    @State private var name = ""
-
-    /// What a version can be: a MIDI file, or a score in MusicXML.
-    static let versionFiles: [UTType] = [
+/// What a version can be: a MIDI file, or a score in MusicXML (Sources' «Добавить»).
+enum VersionFiles {
+    static let types: [UTType] = [
         .midi,
         UTType(filenameExtension: "musicxml") ?? .xml,
         UTType(filenameExtension: "mxl") ?? .data,
         .xml,
     ]
-
-    private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
-
-    /// The version whose page shows, once music-core has it shown.
-    private var page: VersionEntry? {
-        guard let id = score.versionPage, let shown = score.versions.shown, shown.id == id else { return nil }
-        return shown
-    }
-
-    var body: some View {
-        let versions = score.versions
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                    if let page {
-                        VersionPage(score: score, text: text, version: page, name: $name)
-                    } else {
-                        sourceRows(versions)
-                        status
-                        Button {
-                            adding.toggle()
-                            readingPdf = false
-                        } label: {
-                            Label { Text(text["sources.add"]) } icon: { Icon(name: "plus") }
-                        }
-                        .buttonStyle(DSButtonStyle(kind: .primary))
-                        .accessibilityAddTraits(adding ? .isSelected : [])
-                        if adding {
-                            addChoices
-                        }
-                    }
-                }
-                .padding(.leading, CGFloat.ds("s-6"))
-                .padding(.trailing, CGFloat.ds("s-5"))
-                .padding(.vertical, CGFloat.ds("s-4"))
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .background(Color.ds("surface"))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["sources.title"])
-        // One importer for both choices: SwiftUI presents only one of two on the same view.
-        .fileImporter(isPresented: $choosing, allowedContentTypes: choosingPdf || relinking != nil ? [.pdf] : Self.versionFiles) { result in
-            if let original = relinking {
-                // «Привязать оригинал»: the file stays where it is until the player chooses a link or a copy.
-                relinking = nil
-                if case .success(let url) = result { Task { await originals.picked(url, for: original) } }
-                return
-            }
-            guard case .success(let url) = result else { return }
-            let lent = url.startAccessingSecurityScopedResource()
-            defer { if lent { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url) else { return }
-            let fileName = url.lastPathComponent
-            let pdf = choosingPdf
-            adding = false
-            Task {
-                if pdf {
-                    await score.keepDocument(data)
-                } else {
-                    await score.addVersion(fileName: fileName, data: data)
-                }
-            }
-        }
-        .sheet(isPresented: $readingPdf) {
-            ReadNotesPanel(
-                address: scanAddress,
-                hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account),
-                signedIn: account.player != nil,
-                pro: account.allows(.scan),
-                text: text,
-                heading: text["sources.readPdf"],
-                keeps: text["sources.readPdfKeeps"],
-                settings: { readingPdf = false },
-                read: {
-                    guard let address = scanAddress else { return text["pdf.readNone"] }
-                    let problem = await score.readDocumentVersion(address: address, account: account)
-                    if problem == nil { readingPdf = false }
-                    return problem
-                }
-            )
-            .fittedSheet()
-        }
-        .onAppear {
-            name = versions.shown?.name ?? ""
-            score.refreshSources()
-            Task { await originals.verify() }
-        }
-        .onChange(of: versions.shown?.name) { _, shown in
-            name = shown ?? ""
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-                if let page {
-                    BackChip(label: text["sources.title"], text: text) { score.closeVersionPage() }
-                        .padding(.leading, -CGFloat.ds("s-2"))
-                    Text(text[page.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]).overline()
-                    Text(page.name)
-                        .dsType(.heading)
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                } else {
-                    if let back {
-                        BackChip(label: back.label, text: text, action: back.action)
-                            .padding(.leading, -CGFloat.ds("s-2"))
-                    }
-                    Text(text["sources.title"]).overline()
-                    Text(text["sources.mine"])
-                        .dsType(.heading)
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: close) {
-                Icon(name: "close").frame(width: 32, height: 32)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["performance.close"])
-        }
-        .padding(.leading, CGFloat.ds("s-6"))
-        .padding(.trailing, CGFloat.ds("s-4"))
-        .padding(.top, CGFloat.ds("s-4"))
-    }
-
-    @ViewBuilder private var status: some View {
-        if let status = score.versionStatus {
-            Text(status)
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// A row for the base, for the PDF kept inside the piece and for each other version, which opens its page.
-    @ViewBuilder private func sourceRows(_ versions: VersionShelf) -> some View {
-        let sources = score.sources
-        if !sources.summary.isEmpty {
-            Text(sources.summary)
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        sourceRow(icon: baseIcon(sources.base), title: text["sources.base"], detail: sources.baseName, opens: false)
-        if let document = sources.document {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                sourceLine(icon: "pages", title: document.fileName, detail: text["sources.pdfInside"], opens: false)
-                OriginalPlaceLabel(label: OriginalBadge.here.text(text), badge: .here)
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    if let openPdf {
-                        Button(text["sources.openPdf"], action: openPdf)
-                            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    }
-                    Button {
-                        readingPdf = true
-                        adding = false
-                    } label: {
-                        HStack(spacing: CGFloat.ds("s-1")) {
-                            Text(text["sources.readPdf"])
-                            if scanAddress != nil && scanAddress == ScanServer.hosted(account) { Tag(text: "Pro", kind: .saved) }
-                        }
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                }
-            }
-            .padding(CGFloat.ds("s-3"))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
-        }
-        // The PDF, photos and recordings whose bytes are not in the piece here: where each one is (version 0.3).
-        ForEach(originals.originals.filter { $0.isShown && !$0.inFile }) { original in
-            OriginalCard(originals: originals, original: original, text: text, openPdf: originals.canOpenLinkedPdf ? openPdf : nil) {
-                relinking = original
-                choosingPdf = false
-                adding = false
-                choosing = true
-            }
-        }
-        ForEach(versions.entries) { entry in
-            Button { score.openVersionPage(entry.id) } label: {
-                sourceRow(icon: versionIcon(entry), title: entry.name, detail: versionDetail(entry), opens: true)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func sourceRow(icon: String, title: String, detail: String, opens: Bool) -> some View {
-        sourceLine(icon: icon, title: title, detail: detail, opens: opens)
-            .padding(CGFloat.ds("s-3"))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
-            .contentShape(Rectangle())
-    }
-
-    private func sourceLine(icon: String, title: String, detail: String, opens: Bool) -> some View {
-        HStack(spacing: CGFloat.ds("s-3")) {
-            Icon(name: icon).foregroundStyle(Color.ds("ink-2"))
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(DesignTokens.font(weight: 600, size: 15))
-                    .foregroundStyle(Color.ds("ink"))
-                Text(detail)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if opens {
-                Icon(name: "fwd", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-3"))
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func versionIcon(_ entry: VersionEntry) -> String {
-        switch entry.source {
-        case "recording": "mic"
-        case "score": "note"
-        default: "file"
-        }
-    }
-
-    /// "Performance · 2 bars taken": what the version is to the notes, and what a merge applied took from it.
-    private func versionDetail(_ entry: VersionEntry) -> String {
-        let role = text[entry.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]
-        guard entry.mergedAt != nil else { return role }
-        return role + " · " + text.count("merge.takenShort", entry.takenBars)
-    }
-
-    private func baseIcon(_ base: String) -> String {
-        switch base {
-        case "recording": "mic"
-        case "scan", "pdf": "pages"
-        default: "file"
-        }
-    }
-
-    /// Add a source: a MIDI or MusicXML file, a PDF kept inside the piece, or a recording.
-    private var addChoices: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["performance.how"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
-            Button(text["performance.addMidi"]) {
-                choosingPdf = false
-                relinking = nil
-                choosing = true
-            }
-            .buttonStyle(DSButtonStyle(kind: .secondary))
-            Button(text[score.sources.document == nil ? "sources.addPdf" : "sources.replacePdf"]) {
-                choosingPdf = true
-                relinking = nil
-                choosing = true
-            }
-            .buttonStyle(DSButtonStyle(kind: .secondary))
-            Text(text["sources.pdfHow"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
-            RecordingVersionSection(score: score, text: text)
-        }
-        .padding(CGFloat.ds("s-3"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-    }
 }
 
 /// The colour of a draft's view (testing item 34): Mine graphite, Version plum, Result green.
@@ -902,8 +607,7 @@ struct MergeShowSwitch: View {
                 Button { score.showMergeView(view) } label: {
                     HStack(spacing: 4) {
                         Circle().fill(mergeViewColor(view)).frame(width: 8, height: 8)
-                        Text(text["merge.view.\(view)"])
-                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13))
+                        SteadyWord(text: text["merge.view.\(view)"], on: on)
                             .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
                     }
                     .padding(.horizontal, CGFloat.ds("s-2"))
@@ -936,15 +640,27 @@ struct MergeToastView: View {
     let toast: ScoreController.MergeToast
 
     var body: some View {
+        UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { score.undoToast() } : nil) { score.closeToast() }
+    }
+}
+
+/// The score's toast: a light capsule with what was just done, a quiet «Отменить» where it can be undone, and ✕.
+struct UndoToast: View {
+    let words: String
+    let text: UIText
+    let undo: (() -> Void)?
+    let close: () -> Void
+
+    var body: some View {
         HStack(spacing: CGFloat.ds("s-3")) {
-            Text(toast.text)
+            Text(words)
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
-            if toast.undo != nil {
-                Button(text["merge.toastUndo"]) { score.undoToast() }
+            if let undo {
+                Button(text["merge.toastUndo"], action: undo)
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
-            Button { score.closeToast() } label: { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
+            Button(action: close) { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
                 .buttonStyle(BarActionStyle())
                 .accessibilityLabel(text["bar.close"])
         }

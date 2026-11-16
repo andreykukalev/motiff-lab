@@ -12,80 +12,58 @@ public static partial class ProjectFile
 {
     private const string OriginalsList = "originals";
 
-    /// <summary>
-    /// "originals": [ … ], the descriptions the piece's own data does not show already (<see cref="PieceOriginals.Derived"/>):
-    /// one with a fingerprint or a device's mark, or one whose bytes are not in this file. Left out while there is none,
-    /// so a file of a piece with nothing more to say about its originals is written as before.
-    /// </summary>
-    private static void WriteOriginals(Utf8JsonWriter json, Project project)
+    /// <summary>The fields of an original's description (version 0.3), as every original of version 16 starts.</summary>
+    private static void WriteOriginalFields(Utf8JsonWriter json, PieceOriginal original)
     {
-        Dictionary<string, PieceOriginal> derived = PieceOriginals.Derived(project).ToDictionary(static original => original.Id, StringComparer.Ordinal);
-        List<PieceOriginal> kept = [.. project.KeptOriginals.Where(original => !derived.TryGetValue(original.Id, out PieceOriginal? same) || !same.Equals(original))];
-        List<UnknownEntity> unknown = KeptUnknown(project.Unknown, OriginalsList, project.KeptOriginals.Select(static original => original.Id), null, out _);
-        if (kept.Count == 0 && unknown.Count == 0)
+        json.WriteString("id", original.Id);
+        json.WriteString("kind", original.Kind.ToString().ToLowerInvariant());
+        if (original.Name is { } name)
         {
-            return;
+            json.WriteString("name", name);
         }
 
-        WriteList(json, OriginalsList, kept, unknown, original =>
+        json.WriteString("fileName", original.FileName);
+        if (original.Folder is { } folder)
         {
-            json.WriteStartObject();
-            json.WriteString("id", original.Id);
-            json.WriteString("kind", original.Kind.ToString().ToLowerInvariant());
-            if (original.Name is { } name)
+            json.WriteString("folder", folder);
+        }
+
+        if (original.Sha256 is { } sha256)
+        {
+            json.WriteString("sha256", sha256);
+        }
+
+        if (original.Bytes is { } bytes)
+        {
+            json.WriteNumber("bytes", bytes);
+        }
+
+        if (original.Pages is { } pages)
+        {
+            json.WriteNumber("pages", pages);
+        }
+
+        if (original.DurationMs is { } duration)
+        {
+            json.WriteNumber("durationMs", duration);
+        }
+
+        json.WriteString("addedAt", original.AddedAt.ToString("O", CultureInfo.InvariantCulture));
+        json.WriteString("kept", original.Kept.ToString().ToLowerInvariant());
+        if (original.Held.Count > 0)
+        {
+            json.WriteStartArray("held");
+            foreach (OriginalHeld mark in original.Held)
             {
-                json.WriteString("name", name);
+                json.WriteStartObject();
+                json.WriteString("device", mark.Device.ToString().ToLowerInvariant());
+                json.WriteString("at", mark.At.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteEndObject();
             }
 
-            json.WriteString("fileName", original.FileName);
-            if (original.Folder is { } folder)
-            {
-                json.WriteString("folder", folder);
-            }
-
-            if (original.Sha256 is { } sha256)
-            {
-                json.WriteString("sha256", sha256);
-            }
-
-            if (original.Bytes is { } bytes)
-            {
-                json.WriteNumber("bytes", bytes);
-            }
-
-            if (original.Pages is { } pages)
-            {
-                json.WriteNumber("pages", pages);
-            }
-
-            if (original.DurationMs is { } duration)
-            {
-                json.WriteNumber("durationMs", duration);
-            }
-
-            json.WriteString("addedAt", original.AddedAt.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteString("kept", original.Kept.ToString().ToLowerInvariant());
-            if (original.Held.Count > 0)
-            {
-                json.WriteStartArray("held");
-                foreach (OriginalHeld mark in original.Held)
-                {
-                    json.WriteStartObject();
-                    json.WriteString("device", mark.Device.ToString().ToLowerInvariant());
-                    json.WriteString("at", mark.At.ToString("O", CultureInfo.InvariantCulture));
-                    json.WriteEndObject();
-                }
-
-                json.WriteEndArray();
-            }
-
-            json.WriteEndObject();
-        });
+            json.WriteEndArray();
+        }
     }
-
-    /// <summary>The project with the originals its file keeps; none when it has no "originals", as every file before version 0.3.</summary>
-    private static Project WithOriginalsOf(this Project project, JsonElement root, Unknowns unknowns) =>
-        project with { KeptOriginals = ReadOriginals(root, unknowns) };
 
     private static List<PieceOriginal> ReadOriginals(JsonElement root, Unknowns unknowns)
     {
@@ -138,20 +116,7 @@ public static partial class ProjectFile
     private static Project Described(this Project project) =>
         project.HasNotes || project.Document is not null || project.DescribesDocument ? project : throw Damaged("source");
 
-    /// <summary>"from" and "at" on a scan, a transcription or a performance (version 0.3): the original the notes were made from, and when.</summary>
-    private static void WriteMadeFrom(Utf8JsonWriter json, string? from, DateTimeOffset? at)
-    {
-        if (from is not null)
-        {
-            json.WriteString("from", from);
-        }
-
-        if (at is { } time)
-        {
-            json.WriteString("at", time.ToString("O", CultureInfo.InvariantCulture));
-        }
-    }
-
+    /// <summary>"from" and "at" on a scan, a transcription or a performance of a file before version 16 (version 0.3): the original the notes were made from, and when.</summary>
     private static (string? From, DateTimeOffset? At) ReadMadeFrom(JsonElement element) => (
         element.TryGetProperty("from", out _) ? Text(element, "from") : null,
         element.TryGetProperty("at", out _) ? Time(element, "at") : null);

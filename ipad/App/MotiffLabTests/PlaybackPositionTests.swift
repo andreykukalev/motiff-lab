@@ -13,7 +13,14 @@ final class PlaybackPositionTests: XCTestCase {
     }
 
     func testThePortAnswersEveryCaseAsTheReferenceDoes() throws {
-        let cases = try Self.cases()
+        // The iPad's own rule (v0.6.3, #608 item 3): its cases stand in for the shared ones they name; the web runs those.
+        let own = try Self.file("playback-model-ipad")
+        let replaces = try XCTUnwrap(own["replaces"] as? [String])
+        let ownCases = try XCTUnwrap(own["cases"] as? [[String: Any]])
+        let replaced = Set(replaces)
+        let shared = try Self.cases()
+        XCTAssertEqual(Set(shared.compactMap { $0["name"] as? String }).intersection(replaced), replaced, "each case replaced is in the shared file")
+        let cases = shared.filter { !replaced.contains($0["name"] as? String ?? "") } + ownCases
         XCTAssertGreaterThan(cases.count, 40, "the case file is read whole")
         let rules = Set(cases.compactMap { $0["rule"] as? String })
         for rule in ["view", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14", "T15", "T16"] {
@@ -42,6 +49,7 @@ final class PlaybackPositionTests: XCTestCase {
     func testAPlayheadGestureIsReadFromThePagesMessage() {
         XCTAssertEqual(PlayheadGesture(message: ["phase": "grab", "handle": "blue"] as [String: Any]), .grab(.blue))
         XCTAssertEqual(PlayheadGesture(message: ["phase": "move", "handle": "black", "tick": 960] as [String: Any]), .move(960))
+        XCTAssertEqual(PlayheadGesture(message: ["phase": "place", "handle": "black", "tick": 3840] as [String: Any]), .place(3840), "a long press puts it down (#582 item 12)")
         XCTAssertEqual(PlayheadGesture(message: ["phase": "release", "handle": "black", "tick": NSNull()] as [String: Any]), .release)
         XCTAssertNil(PlayheadGesture(message: ["phase": "grab", "handle": "green"] as [String: Any]), "no such playhead")
         XCTAssertNil(PlayheadGesture(message: ["phase": "move", "handle": "black"] as [String: Any]), "a move without its tick")
@@ -58,9 +66,12 @@ final class PlaybackPositionTests: XCTestCase {
     // MARK: - Reading the case file
 
     private static func cases() throws -> [[String: Any]] {
-        let url = try XCTUnwrap(Bundle(for: Marker.self).url(forResource: "playback-model", withExtension: "json"), "the case file is bundled with the tests")
-        let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        return try XCTUnwrap(file["cases"] as? [[String: Any]])
+        try XCTUnwrap(file("playback-model")["cases"] as? [[String: Any]])
+    }
+
+    private static func file(_ name: String) throws -> [String: Any] {
+        let url = try XCTUnwrap(Bundle(for: Marker.self).url(forResource: name, withExtension: "json"), "\(name).json is bundled with the tests")
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     }
 
     private static func number(_ value: Any?) -> Double? {
@@ -123,7 +134,7 @@ final class PlaybackPositionTests: XCTestCase {
             return .grab
         case "drag":
             guard let handle, let at = number(object["at"]) else { return nil }
-            return .drag(handle, to: at)
+            return .drag(handle, to: at, jump: object["jump"] as? Bool ?? false)
         default:
             guard let handle, let resume = object["resume"] as? Bool else { return nil }
             return .release(handle, resume: resume)
@@ -180,5 +191,14 @@ final class PlaybackPositionTests: XCTestCase {
         XCTAssertEqual(beats.span(240..<960)?.last, "1.3", "the last beat that starts inside")
         XCTAssertNil(BarBeats().at(100))
         XCTAssertTrue(BarBeats.read([["at": 0]]).marks.isEmpty, "an older answer without bar and beat")
+    }
+
+    func testThePageIsToldTheHandTheSelectionIsNarrowedTo() {
+        // The blue playhead covers the band's staff alone for a selection of one hand (#608 item 3).
+        let one = PlayheadsShown.selection(960..<1920, hand: "left")
+        XCTAssertEqual(one["start"] as? Double, 960)
+        XCTAssertEqual(one["end"] as? Double, 1920)
+        XCTAssertEqual(one["hand"] as? String, "left")
+        XCTAssertNil(PlayheadsShown.selection(960..<1920, hand: nil)["hand"], "both hands: no hand, every staff")
     }
 }

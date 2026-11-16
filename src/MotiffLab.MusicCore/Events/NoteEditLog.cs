@@ -30,6 +30,37 @@ public sealed record NoteEdit(string NoteId, NoteValues? Before, NoteValues? Aft
 
     /// <summary>The hand an added note is played with, when the piece has hands; null otherwise and for every other edit.</summary>
     public Hand? Hand { get; init; }
+
+    /// <summary>
+    /// The corrections accepted together, such as a batch of repairs (project file version 16; research 4.6), so they are
+    /// undone as one; null for a correction on its own.
+    /// </summary>
+    public string? Group { get; init => field = value is null || value.Trim().Length > 0 ? value : throw new ArgumentException("A group has an id.", nameof(Group)); }
+
+    /// <summary>
+    /// Who proposed it (version 16): null for the player, as every correction before it; <see cref="NoteEditOrigin.Repair"/>
+    /// or <see cref="NoteEditOrigin.Assistant"/>, or a later build's own name, kept as it is.
+    /// </summary>
+    public string? Origin
+    {
+        get;
+        init => field = value is null or NoteEditOrigin.Player ? null
+            : value.Length > 0 && char.IsAsciiLetter(value[0]) && value.All(char.IsAsciiLetterOrDigit) ? value
+            : throw new ArgumentException("An origin is a name.", nameof(Origin));
+    }
+}
+
+/// <summary>Who proposed a note correction (project file version 16).</summary>
+public static class NoteEditOrigin
+{
+    /// <summary>The player's own correction; the file leaves it out.</summary>
+    public const string Player = "player";
+
+    /// <summary>A repair candidate of the engine the player accepted (0028).</summary>
+    public const string Repair = "repair";
+
+    /// <summary>A correction the assistant proposed and the player accepted.</summary>
+    public const string Assistant = "assistant";
 }
 
 /// <summary>

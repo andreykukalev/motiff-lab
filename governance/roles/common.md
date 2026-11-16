@@ -16,6 +16,54 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 - Only Andrei's subscription pays for models: no API keys, no purchased tokens.
 - GitHub and the repository's documents are in English; the chat with Andrei is in Russian, in plain words.
 
+## Documents
+
+- One living document per topic, named clearly by that topic; change it in place (same file, same artifact link),
+  never a parallel copy.
+- Each document opens with a status line: current, or replaced by <link>; the update date; what it replaces. Follow a
+  replaced document to its successor. If two documents conflict, the latest update date wins.
+- Changing a decision updates, in the same turn, its source document, the decision log and project memory.
+- A research report is a proposal; once built, its rules live in `docs/` and the report is marked "history, current:
+  docs/…".
+- Once per version the lead checks the current documents against the decision log and marks contradictions.
+- Working files that are no source of truth (drafts, mockups, screenshots, histories, discussion notes) go to
+  `/mnt/project-files/scratch/<date>-<topic>/`, one folder per task, never elsewhere. It is a cache: never cited as
+  current, may be cleared.
+
+## Context and tokens
+
+Every step resends the whole context, so what you read once is paid again on every later step; the context is
+compacted automatically at about 200K tokens.
+
+- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 2 KB):
+  goal, decisions with reasons, root causes found, the files and line ranges that matter, done and next, open
+  questions. Write it after you have studied the code, after each pull request and before any long step, so that a
+  compaction loses nothing you need. After a compaction read the note first, then only the ranges you need.
+- Read code and documents in ranges (`grep -n`, then `sed -n a,b`), not whole files and never several files in one
+  `cat`; print only the tail of build, test and CI output.
+- A lead keeps the same kind of note in the version's state file.
+
+## Platform focus
+
+- Every track in a version plan has an area: iPad, web, core or shared. Without Andrei's explicit word it is the focus
+  in `governance/README.md`; «shared» only when he asks for both platforms at once.
+- An iPad track reads and changes `ipad/`, `src/MotiffLab.MusicCore` and the score and roll modules the iPad page runs
+  (`Scripts/score`, `Scripts/roll`, checked by node tests); it does not read or change the web pages and components or
+  run the web Playwright suites. A web track mirrors this.
+- A change with a counterpart on the other platform is not ported: append one line to
+  `/mnt/project-files/product/web-backlog.md` (or `ipad-backlog.md`): what changed, the pull request, the shared code
+  touched. A porting version is planned from that list.
+
+## Code maps and tracks
+
+- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, web), under 3 KB: which files do what, the
+  key functions with line ranges, the rules not to break. Read your area's map before the code. A pull request that
+  adds, moves or splits structure updates the map in the same pull request; the first agent in an area with no map
+  writes it from what it studied, in its first pull request.
+- A lead splits a version into tracks by code area, not by spec item: items that touch the same files go to one agent
+  in sequence (up to about three pull requests, the track note between them); parallel agents only on files that do
+  not overlap.
+
 ## Branches, commits and pull requests
 
 - One change, one branch (`claude/*`), one pull request to `develop` (to `main` only for a release or a hotfix).
