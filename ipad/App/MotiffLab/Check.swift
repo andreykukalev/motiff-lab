@@ -280,6 +280,13 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
+                    if !score.editsOn {
+                        // «Мои правки» off (version 0.5): the notes are as recognised and Fix notes waits for them on.
+                        Text(text["edits.off"])
+                            .dsType(.caption)
+                            .foregroundStyle(Color.ds("ink-2"))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
                     PhotoPagesCheck(score: score, text: text)
                     if !check.pieces.isEmpty {
@@ -392,7 +399,7 @@ struct CheckDrawer: View {
                     .disabled(bar.span == nil)
                 Button(text["check.fix"]) { score.fixCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    .disabled(bar.span == nil)
+                    .disabled(bar.span == nil || !score.editsOn)
                 Button(text["scanCheck.looksRight"]) { score.resolveCheck(bar.bar, true) }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }

@@ -502,9 +502,9 @@ struct ScoreScreen: View {
         // edits, kept until Cancel or Save in the roll's head.
         roll.notesMoveBegan = { [weak shown] in if shown?.noteEditor == nil { shown?.beginNoteEdit() } }
         roll.notesMoved = { [weak shown] edits in edits.forEach { shown?.editNote($0) } }
-        // The note edits saved are written to the project file at once.
+        // The note edits saved, «Мои правки» switched and a correction taken out are written to the project file at once.
         let file = piece.file
-        score.noteEditSaved = {
+        score.editsKept = {
             guard let file else { return }
             Task { try? await ProjectFiles.save(piece: id, to: file) }
         }
@@ -1848,6 +1848,11 @@ struct MorePanel: View {
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            // «Мои правки» (version 0.5): the player's corrections laid over the notes or left out, once there are some.
+            if score.editsLayer?.shows == true {
+                EditsLayerSection(score: score, text: text)
+                Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            }
             LayersList(score: score, text: text)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {

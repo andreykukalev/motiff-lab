@@ -157,6 +157,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var check = CheckShelf()
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
+    /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that
+    /// no longer fit, as music-core answered last; nil for notes opened only to be shown.
+    @Published private(set) var editsLayer: EditsLayerState?
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
     /// The other versions of the piece and the one shown, compared bar by bar (0022).
@@ -273,8 +276,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var problem: String?
     /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
     @Published private(set) var noteEditor: NoteEditorState?
-    /// The note edits were saved: the screen writes the project file.
-    var noteEditSaved: (@MainActor () -> Void)?
+    /// The note edits were saved, «Мои правки» switched or a correction that no longer fits taken out: the screen writes
+    /// the project file at once.
+    var editsKept: (@MainActor () -> Void)?
     /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
     @Published private(set) var pages = PagesInView()
 
@@ -389,6 +393,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            editsLayer = piece.edits
             #if DEBUG
             ScreensProbe.score = self
             #endif
@@ -950,6 +955,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             corrections = nil
             return
         }
+        guard editsOn else {
+            showNotice("padEdits.offNotice")
+            return
+        }
         showCheckBar(bar)
         correct("corrections", ["bar": bar])
     }
@@ -973,12 +982,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// are now and adds its edits as corrections (`corrections.acceptDraft`), each undone like any other, and the score is
     /// engraved again. Nil when it is accepted, else why not, in music-core's words (empty when it gave none).
     func acceptAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard editsOn else { return text["edits.off"] }
         guard let piece, let body = draft.acceptRequest?.text else { return "" }
         let id = piece.id
         let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.acceptDraft", body) }
         guard NoteCorrections(answer: answer) != nil else {
             return facadeObject(answer)?["message"] as? String ?? ""
         }
+        readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.accepted")
         return nil
@@ -987,6 +998,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Undo on the assistant's accepted draft: the whole draft goes at once (`corrections.undoDraft`), as on the web. Nil
     /// when it is undone, else why not, in music-core's words.
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
         let id = piece.id
         let bar = draft.firstBar ?? 1
@@ -994,6 +1006,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard NoteCorrections(answer: answer) != nil else {
             return facadeObject(answer)?["message"] as? String ?? ""
         }
+        readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.undone")
         return nil
@@ -1011,8 +1024,49 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 return
             }
             corrections = read
+            readEdits(answer)
             if notes { await notesDidChange() }
         }
+    }
+
+    // MARK: - My corrections (version 0.5, «Мои правки: вкл / выкл»)
+
+    /// Whether notes can be corrected now: not while «Мои правки» is off, when music-core refuses every correction.
+    var editsOn: Bool { editsLayer?.on ?? true }
+
+    /// «Мои правки» switched: music-core lays the corrections over the notes one by one, or leaves them out, and keeps that
+    /// in the piece's file (`corrections.layer`); the score is engraved again from the notes as they are now. Off, the
+    /// bar listed to correct in Check closes, as nothing can be corrected then.
+    func switchEdits(on: Bool) {
+        let bar = on ? corrections?.bar : nil
+        if !on { corrections = nil }
+        editsCall("corrections.layer", EditsLayerState.layerRequest(on: on, bar: bar))
+    }
+
+    /// «Убрать» on a note whose corrections no longer fit: they leave the piece's edit log (`corrections.drop`).
+    func dropUnfitEdits(_ noteIds: [String]) {
+        editsCall("corrections.drop", EditsLayerState.dropRequest(noteIds, bar: corrections?.bar))
+    }
+
+    private func editsCall(_ call: String, _ fields: [String: Any]) {
+        guard let piece else { return }
+        let body = Self.json(fields) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
+            guard let read = EditsLayerState(answer: answer) else {
+                problem = facadeObject(answer)?["message"] as? String
+                return
+            }
+            editsLayer = read
+            if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            await notesDidChange()
+            editsKept?()
+        }
+    }
+
+    /// Every corrections answer says how many corrections there are and, with a layer, which no longer fit.
+    private func readEdits(_ answer: String) {
+        if let read = EditsLayerState(answer: answer) { editsLayer = read }
     }
 
     // MARK: - Note editor on the roll
@@ -1020,6 +1074,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Edit notes in the roll's drawer (testing item 15): the editor opens on a draft in music-core, so every edit sounds
     /// and shows at once but the project file keeps the notes as they were until Save; Cancel puts them back.
     func beginNoteEdit() {
+        guard editsOn else {
+            showNotice("padEdits.offNotice")
+            return
+        }
         noteEditor = NoteEditorState()
         noteEditCall("corrections.begin", [:])
     }
@@ -1062,7 +1120,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func saveNoteEdit() {
         guard noteEditor != nil else { return }
         noteEditor = nil
-        noteEditCall("corrections.save", [:]) { [weak self] in self?.noteEditSaved?() }
+        noteEditCall("corrections.save", [:]) { [weak self] in self?.editsKept?() }
     }
 
     private func noteEditCall(_ call: String, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
@@ -1084,6 +1142,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 if let added = read["added"] as? String { noteEditor?.picked = added }
             }
             if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            readEdits(answer)
             if notes { await notesDidChange() }
             then?()
         }
