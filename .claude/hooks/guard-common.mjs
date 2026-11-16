@@ -11,7 +11,10 @@ import path from 'node:path';
 export const AGENT_BRANCH = /^(claude|task|env)\/[A-Za-z0-9._\/-]+$/;
 
 // Paths that only an environment task may change (E3): the rules and tools the agents themselves work under.
-export const PROTECTED_PATHS = ['.claude/**', 'governance/**', '.github/**', 'CLAUDE.md', 'tests/backend/Acceptance/**'];
+export const PROTECTED_PATHS = [
+  '.claude/**', 'governance/**', '.github/**', 'CLAUDE.md', 'tests/backend/Acceptance/**',
+  'docs/ux-baseline.md', 'tests/ipad/Baseline/**', 'tests/contracts/page-scenarios/**',
+];
 
 export async function readEvent() {
   const chunks = [];

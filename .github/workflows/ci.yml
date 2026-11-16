@@ -139,6 +139,8 @@ jobs:
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
+                # The UX baseline's guard test (governance/tests/baseline.test.mjs) runs with the build.
+                docs/ux-baseline.md) code=true ;;
                 *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|VERSION|archive/*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/workflows/version.yml) ;;
                 src/backend/omr/*) scan=true ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
@@ -148,7 +150,7 @@ jobs:
             done <<< "$changed"
           fi
           # Changes to the agents' own rules (decision 6 in governance/README.md) are flagged: Andrei merges them.
-          environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/backend/Acceptance/)' <<< "${changed:-}" || true)"
+          environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/backend/Acceptance/|tests/ipad/Baseline/|tests/contracts/page-scenarios/|docs/ux-baseline\.md$)' <<< "${changed:-}" || true)"
           if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
             echo "::warning title=env-scope::This pull request changes the agents' rules; Andrei merges it: $(tr '\n' ' ' <<< "$environment")"
             { echo "### env-scope: the agents' rules change (Andrei merges)"; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
@@ -245,10 +247,11 @@ jobs:
           pip install -r requirements-test.txt
           python -m pytest -q
 
-      # The protected acceptance scenarios (tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md, #310): a pull request that adds, changes,
-      # removes or renames a file there needs the label protected-scenarios-ok, which only Andrei sets. It runs last
-      # in a build and again in every label run, from the pull request's files and labels as GitHub has them now.
-      # A file list shorter than the pull request's count of changed files counts as touching the scenarios.
+      # The protected scenarios (tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md, #310) and the UX baseline
+      # (docs/ux-baseline.md) with its scenarios in tests/ipad/Baseline and tests/contracts/page-scenarios: a pull request
+      # that adds, changes, removes or renames a file there needs the label protected-scenarios-ok, which only Andrei sets.
+      # It runs last in a build and again in every label run, from the pull request's files and labels as GitHub has
+      # them now. A file list shorter than the pull request's count of changed files counts as touching the scenarios.
       - name: Check approval of the protected scenarios
         if: github.event_name == 'pull_request'
         env:
@@ -261,18 +264,18 @@ jobs:
           labels="$(gh api "$pull" --jq '.labels[].name')"
           files="$(gh api --paginate "$pull/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')"
           listed="$(gh api --paginate "$pull/files?per_page=100" --jq '.[].filename' | grep -c . || true)"
-          protected="$(grep -E '^tests/backend/Acceptance/' <<< "$files" | sort -u || true)"
+          protected="$(grep -E '^(tests/backend/Acceptance/|tests/ipad/Baseline/|tests/contracts/page-scenarios/|docs/ux-baseline\.md$)' <<< "$files" | sort -u || true)"
           if (( listed < count )); then
-            protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch tests/backend/Acceptance)}"
+            protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch the protected scenarios)}"
           fi
           if [[ -z "$protected" ]]; then
-            echo "No protected acceptance scenario changes."
+            echo "No protected scenario or baseline changes."
             exit 0
           fi
-          { echo '### Protected acceptance scenarios (tests/backend/Acceptance)'; echo; sed 's/^/- /' <<< "$protected"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### Protected scenarios and the UX baseline'; echo; sed 's/^/- /' <<< "$protected"; } >> "$GITHUB_STEP_SUMMARY"
           if grep -qxF "$label" <<< "$labels"; then
             echo "The protected scenarios change with the label $label."
             exit 0
           fi
-          echo "::error title=$label::This pull request changes the protected acceptance scenarios, which only Andrei approves: it needs the label $label. $(tr '\n' ' ' <<< "$protected")"
+          echo "::error title=$label::This pull request changes the protected scenarios or the UX baseline, which only Andrei approves: it needs the label $label. $(tr '\n' ' ' <<< "$protected")"
           exit 1
