@@ -16,7 +16,7 @@ from pathlib import Path
 
 def main() -> int:
     library = ctypes.CDLL(sys.argv[1])
-    piece_path = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).parents[2] / "design/kit/elise.musicxml")
+    piece_path = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).parents[3] / "design/kit/elise.musicxml")
     for name in ("ml_version", "ml_open", "ml_call"):
         getattr(library, name).restype = ctypes.c_void_p
     library.ml_open.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int32, ctypes.c_char_p]
