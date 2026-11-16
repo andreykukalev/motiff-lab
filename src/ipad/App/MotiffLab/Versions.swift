@@ -73,27 +73,31 @@ struct MergeInfo: Equatable, Sendable {
     var changed: Bool
     var bars: [Bar]
 
-    /// The draft in an answer; nil when it answers none open.
+    /// The draft in a `performance.merge` answer (`Answer.Merge`); nil when it answers none open ("merge": null), and when
+    /// it cannot be read.
     init?(object: [String: Any]) {
-        guard let merge = object["merge"] as? [String: Any], let id = merge["id"] as? String else { return nil }
-        func int(_ value: Any?) -> Int { (value as? NSNumber)?.intValue ?? 0 }
+        guard let open = FacadeAnswer(call: "performance.merge", fields: object).entryOrNull("merge"), let merge = open,
+              let id = merge.required("id", String.self), let name = merge.required("name", String.self),
+              let decided = merge.int("decided"), let total = merge.int("total"), let sure = merge.int("sure"), let taking = merge.int("taking"),
+              let canUndo = merge.required("canUndo", Bool.self), let canRedo = merge.required("canRedo", Bool.self),
+              let changed = merge.required("changed", Bool.self), let bars = merge.list("bars", Self.readBar) else { return nil }
         self.id = id
-        name = merge["name"] as? String ?? ""
-        decided = int(merge["decided"])
-        total = int(merge["total"])
-        sure = int(merge["sure"])
-        taking = int(merge["taking"])
-        canUndo = merge["canUndo"] as? Bool ?? false
-        canRedo = merge["canRedo"] as? Bool ?? false
-        changed = merge["changed"] as? Bool ?? false
-        bars = (merge["bars"] as? [[String: Any]] ?? []).compactMap { bar in
-            guard let number = bar["bar"] as? NSNumber else { return nil }
-            return Bar(
-                bar: number.intValue, kind: bar["kind"] as? String ?? "", group: bar["group"] as? String ?? "otherNotes",
-                marker: bar["marker"] as? String ?? "", confidence: int(bar["confidence"]), sure: bar["sure"] as? Bool ?? false,
-                choice: bar["choice"] as? String
-            )
-        }
+        self.name = name
+        self.decided = decided
+        self.total = total
+        self.sure = sure
+        self.taking = taking
+        self.canUndo = canUndo
+        self.canRedo = canRedo
+        self.changed = changed
+        self.bars = bars
+    }
+
+    private static func readBar(_ bar: FacadeAnswer) -> Bar? {
+        guard let number = bar.int("bar"), let kind = bar.required("kind", String.self), let group = bar.required("group", String.self),
+              let marker = bar.required("marker", String.self), let confidence = bar.int("confidence"),
+              let sure = bar.required("sure", Bool.self), let choice = bar.nullable("choice", String.self) else { return nil }
+        return Bar(bar: number, kind: kind, group: group, marker: marker, confidence: confidence, sure: sure, choice: choice)
     }
 
     func choice(at bar: Int) -> String? {
