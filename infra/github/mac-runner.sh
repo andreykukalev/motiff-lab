@@ -36,8 +36,8 @@ path=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin
 
 say() { printf '\n== %s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-# A command as the runner's account, with the environment its daemon gets.
-as_runner() { sudo -u "$account" env HOME="$home" USER="$account" PATH="$path" "$@"; }
+# A command as the runner's account, with the environment its daemon gets, from a folder it can read (not yours).
+as_runner() { (cd / && sudo -u "$account" env HOME="$home" USER="$account" PATH="$path" "$@"); }
 
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || fail "this script is for an Apple Silicon Mac"
 [[ $EUID -ne 0 ]] || fail "run it as yourself, not with sudo: it asks for the password itself"
@@ -89,9 +89,10 @@ if id "$account" >/dev/null 2>&1; then
 else
   say "Creating the hidden account $account"
   sudo sysadminctl -addUser "$account" -fullName "GitHub Actions runner" -password "$(openssl rand -base64 24)" -home "$home"
-  sudo createhomedir -c -u "$account" >/dev/null
   sudo dscl . create "/Users/$account" IsHidden 1
 fi
+sudo test -d "$home" || sudo createhomedir -c -u "$account" >/dev/null
+sudo test -d "$home" || fail "the home folder $home was not created"
 
 say "Checking that $account can use Xcode and an iPad simulator"
 as_runner xcodebuild -version | head -1
@@ -113,12 +114,12 @@ else
   say "Downloading the runner"
   version=$(gh api repos/actions/runner/releases/latest --jq .tag_name)
   version=${version#v}
-  tarball=$(mktemp -t actions-runner).tar.gz
-  curl -fsSL -o "$tarball" "https://github.com/actions/runner/releases/download/v$version/actions-runner-osx-arm64-$version.tar.gz"
-  chmod 644 "$tarball"
+  # Downloaded by the runner's account into its own folder: your temporary folder is closed to it.
   as_runner mkdir -p "$dir"
-  as_runner tar xzf "$tarball" -C "$dir"
-  rm -f "$tarball"
+  as_runner curl -fsSL -o "$dir/runner.tar.gz" \
+    "https://github.com/actions/runner/releases/download/v$version/actions-runner-osx-arm64-$version.tar.gz"
+  as_runner tar xzf "$dir/runner.tar.gz" -C "$dir"
+  as_runner rm -f "$dir/runner.tar.gz"
 
   say "Registering it as $name with the label $label"
   token=$(gh api -X POST "repos/$repo/actions/runners/registration-token" --jq .token)
