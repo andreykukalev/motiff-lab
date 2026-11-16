@@ -613,7 +613,7 @@ struct PdfScreen: View {
     private func save() {
         guard let file = piece.file else { return }
         let id = piece.id
-        Task { try? await ProjectFiles.save(piece: id, to: file) }
+        BackgroundTime.run { try? await ProjectFiles.save(piece: id, to: file) }
     }
 
     /// «Пьесы в этом файле» from the Contents, for a PDF kept in the piece.

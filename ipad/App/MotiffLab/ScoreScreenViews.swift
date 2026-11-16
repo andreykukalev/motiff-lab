@@ -66,10 +66,12 @@ extension ScoreScreen {
         let id = piece.id
         let now = resumeNow()
         let view = notesViewNow()
-        Task {
-            await keepNotesView(view)
+        // The piece's file first, with background time (review 3); the view kept on the device after it, as it waits for
+        // the score's page.
+        BackgroundTime.run {
             await keepResume(now)
             try? await ProjectFiles.save(piece: id, to: file)
+            await keepNotesView(view)
         }
     }
 

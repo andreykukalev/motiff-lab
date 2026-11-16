@@ -294,5 +294,9 @@
   "dictation.notOnDevice": "Dictation is not available: this iPad cannot recognise English speech on the iPad itself, and the sound is never sent anywhere.",
   "dictation.denied": "Dictation needs the microphone and speech recognition: allow them for Motiff Lab in the iPad's Settings.",
   "dictation.restricted": "Dictation is not allowed by this iPad's settings.",
-  "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again."
+  "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again.",
+  "padEdits.unfitRow": "Bar {0} · {1}",
+  "padEdits.more": "And {0} more: they come up as these are removed.",
+  "padEdits.offNotice": "My corrections are off: turn them on in More to correct notes.",
+  "padEdits.saveEditFirst": "Save or cancel the note editing in the piano roll first."
 }

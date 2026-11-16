@@ -27,6 +27,8 @@ struct LibraryView: View {
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
+    @State private var summaryCache = SummaryCache()
+    @State private var reloads = 0
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
     /// Saving online and sync, on until the player turns it off in Settings (version 0.2).
@@ -326,15 +328,13 @@ struct LibraryView: View {
         }
     }
 
-    /// The projects in Documents, and what music-core reads from each.
+    /// The projects in Documents, and what music-core reads from each; only the newest reload writes what it read.
     private func reload() async {
+        reloads += 1
+        let mine = reloads
         projects = ProjectFiles.list()
-        var read: [URL: PieceSummary] = [:]
-        for entry in projects {
-            if let summary = await PieceSummary.read(entry.url) {
-                read[entry.url] = summary
-            }
-        }
+        let read = await summaryCache.summaries(projects.map(\.url))
+        guard mine == reloads else { return }
         summaries = read
         shelve()
     }

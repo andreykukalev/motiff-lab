@@ -60,6 +60,8 @@ final class Player: ObservableObject {
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
     private var polling: Task<Void, Never>?
+    /// Starts the engine again after a call, Siri, AirPods or dictation stopped it (EngineKeeper); none once shut down.
+    private var keeper: EngineKeeper?
     /// The screen has gone (`shutdown`): a load still on its way starts nothing (#582 item 2: a view switched while the
     /// notes were loading left a player clicking the metronome for a screen no longer there).
     private var shutDown = false
@@ -82,11 +84,14 @@ final class Player: ObservableObject {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
+            // An interruption pauses the music where it is; the engine starts again after it, and after a route change.
+            keeper = EngineKeeper(audio) { [weak self] in self?.send(.pause) }
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
             let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
             let samples = try await piano.value
             guard !shutDown else {
+                keeper = nil
                 audio.stop()
                 return
             }
@@ -380,6 +385,7 @@ final class Player: ObservableObject {
         polling?.cancel()
         polling = nil
         send(.pause)
+        keeper = nil
         audio.stop()
         ready = false
         Metronome.shared.detach(self)
