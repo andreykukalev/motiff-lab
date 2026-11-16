@@ -239,6 +239,18 @@ jobs:
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
+      # The walk's Swift (tests/ipad/MotiffLabScreens, the Screens scheme) is in no target of the MotiffLab scheme: on a
+      # pull request and on develop it is compiled here, not run, so a walk that no longer compiles shows before the tag.
+      # Same destination and derived data as the tests above, so only the UI-test bundle is built.
+      - name: Compile the walk
+        if: github.event_name == 'pull_request' || github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        working-directory: src/ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee walk-build.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" walk-build.log
+
       # PDF | Notes switched again and again (v0.6.4, #614 section 11): each switch timed on the app's clock and the memory
       # logged; by hand and nightly, as it takes about half an hour.
       - name: Switch PDF | Notes repeatedly

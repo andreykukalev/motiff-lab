@@ -95,8 +95,8 @@ context. The context is compacted automatically at about 400K tokens (the enviro
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
 - A pull request that touches what the iPad app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core,
-  `design/kit`, `tests/contracts`, `global.json`, `Directory.Build.props`) runs the Swift tests in the iPad simulator on
-  every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
+  `design/kit`, `tests/contracts`, `global.json`, `Directory.Build.props`) runs the Swift tests in the iPad simulator and
+  compiles the walk of the screens (`tests/ipad/MotiffLabScreens`) on every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
   every pull request (passed when the iPad run was not needed) and is required on `develop` with `build-test`: a red or
   cancelled iPad run blocks the merge. The same tests run on `develop` after each merge that touches those inputs, on
   every version tag (`v*`, with the asserting walk of the screens) and by hand; the walk and the switch tests also run
