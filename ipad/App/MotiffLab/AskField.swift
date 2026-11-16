@@ -200,7 +200,8 @@ struct AskInputRow: View {
         _dictation = StateObject(wrappedValue: Dictation(language: text.language))
     }
 
-    private var dictating: Bool { settings.isOn(Dictation.setting) }
+    /// Dictation (v0.6.4): the microphone beside the field, always since v0.6.5.
+    private let dictating = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
@@ -237,7 +238,6 @@ struct AskInputRow: View {
         // Typing, sending, a busy assistant or the chat going: the dictation stops, so it never writes over the player.
         .onChange(of: flow.focused) { _, focused in if focused { dictation.halt() } }
         .onChange(of: enabled) { _, now in if !now { dictation.halt() } }
-        .onChange(of: dictating) { _, now in if !now { dictation.halt() } }
         .onDisappear { dictation.halt() }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             flow.apply(.keyboard(true))

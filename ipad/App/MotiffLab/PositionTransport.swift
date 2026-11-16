@@ -77,44 +77,31 @@ struct PositionTransport: View {
 }
 
 extension ScoreController {
-    /// Whether the playback model holds (v0.5.2): the modes are on (Settings · Experimental), in Expand too (v0.6.4, spec 8,
-    /// the architect's slice I5): one Play by the place, the black playhead with its handle on the card, dragged as on the
-    /// page. Expand keeps its passage (`expandPassage`): the model over it as a selection that always loops (ExpandRules),
-    /// and the selection and Цикл outside it are left as they are (T18).
-    var onePosition: Bool {
-        PlaybackScope.onePosition(modes: mode != nil)
-    }
-
     /// Expand's passage while it is open (#521 19, #533 2): the selection it was opened on, which plays round and round and
     /// which the playhead is kept inside; nil out of Expand.
     var expandPassage: Range<Double>? {
         PlaybackScope.expandPassage(focused: focused, playRange: playRange?.range)
     }
 
-    /// Whether the playback model takes the score's selection and Цикл (T9–T11): under the modes and out of Expand, whose
-    /// passage loops on its own and leaves them as they are (T18).
+    /// Whether the playback model takes the score's selection and Цикл (T9–T11): out of Expand, whose passage loops on its
+    /// own and leaves them as they are (T18).
     var holdsSelection: Bool {
-        PlaybackScope.holdsSelection(modes: mode != nil, focused: focused)
+        PlaybackScope.holdsSelection(focused: focused)
     }
 }
 
 /// Where the playback model holds on the score's screen (v0.5.2; Expand since v0.6.4, spec 8), the rules apart from the
-/// controller so that they are tested: one model everywhere under the modes; Expand holds it over its passage, which always
-/// loops, and leaves the selection and Цикл of the page as they are.
+/// controller so that they are tested: one model everywhere, Expand too, which has no playback of its own; Expand holds it
+/// over its passage, which always loops, and leaves the selection and Цикл of the page as they are.
 enum PlaybackScope {
-    /// The one playback position under the modes, in Expand too: Expand has no playback of its own.
-    static func onePosition(modes: Bool) -> Bool {
-        modes
-    }
-
     /// Expand's passage while it is open: the selection it was opened on; nil out of it.
     static func expandPassage(focused: Bool, playRange: Range<Double>?) -> Range<Double>? {
         focused ? playRange : nil
     }
 
-    /// Whether the model takes the page's selection and Цикл (T9–T11): under the modes, out of Expand (T18).
-    static func holdsSelection(modes: Bool, focused: Bool) -> Bool {
-        modes && !focused
+    /// Whether the model takes the page's selection and Цикл (T9–T11): out of Expand (T18).
+    static func holdsSelection(focused: Bool) -> Bool {
+        !focused
     }
 
     /// The model the pill's Play shows: in Expand the passage as a selection that always loops (ExpandRules.held), so its

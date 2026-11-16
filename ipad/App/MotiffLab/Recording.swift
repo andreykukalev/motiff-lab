@@ -195,6 +195,16 @@ struct HeardRecording: Sendable {
             "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
         ]
     }
+
+    /// The request as a new piece's "transcription" (version 0.5, «Темп живого исполнения», contract 12): "tempo": "live",
+    /// so music-core finds the beat again after each pause and tempo jump and a concert of several pieces keeps its bars.
+    /// No "starts": the iPad does not know where the pieces begin; and no "hint": a recording heard on the iPad becomes a
+    /// new piece, with no score of it to take a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so it keeps `request`.
+    var transcription: [String: Any] {
+        var fields = request
+        fields["tempo"] = "live"
+        return fields
+    }
 }
 
 /// Hearing a recording (0014): its sound read on the iPad, however long, the parts music-core plans sent to the scan
@@ -313,47 +323,6 @@ struct ProTag: View {
     }
 }
 
-/// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
-/// Motiff Lab's scan server, however long, in parts of about two minutes; the notes heard become another version. It
-/// needs an account and Pro, offered here; choosing the recording sends its sound.
-struct RecordingVersionSection: View {
-    @ObservedObject var score: ScoreController
-    @EnvironmentObject private var account: Account
-    let text: UIText
-    @State private var progress: String?
-    @State private var problem: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["version.recordingHeading"]).overline()
-            RecordingChooser(
-                text: text,
-                line: text["version.recordingLineDevice"],
-                button: text["version.addRecording"],
-                hint: text["version.chooseRecording"],
-                progress: progress,
-                problem: problem
-            ) { url in
-                Task { await hear(url) }
-            }
-        }
-        .padding(.top, CGFloat.ds("s-2"))
-    }
-
-    /// Hears the recording and gives the notes to music-core as another version.
-    private func hear(_ url: URL) async {
-        problem = nil
-        defer { progress = nil }
-        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
-        case .success(let heard):
-            problem = await score.addRecordingVersion(heard)
-        case .failure(let failure):
-            problem = failure.message
-        }
-    }
-}
-
-/// The parts music-core plans for a recording (`recording.parts`): what of the sound each sends, in milliseconds.
 enum RecordingParts {
     struct Part: Sendable {
         var index: Int

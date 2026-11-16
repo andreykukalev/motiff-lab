@@ -4,17 +4,9 @@ import WebKit
 /// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C-F): in Select the place a press
 /// lands decides what it does, never how long it is held (the page's rule, Scripts/score/selection-places.ts, the same for
 /// the score and the roll). Since v0.6.3 (#608, the lead's decision 1, Andrei's spec «как на макете») it is how Select
-/// works on the iPad, with no switch: the experiment `experimental.placeSelection` stays in the catalogue for the web and is
-/// no longer read here. The selection is one object (Andrei, 2026-11-15): a span by beats, narrowed to a hand
-/// (`ScoreSelection.hand`, music-core's filter) or to notes picked (`ScoreSelection.picked`), kept on the device, never in
-/// the project file.
-enum PlaceSelection {
-    static let setting = "experimental.placeSelection"
-    /// Whether Select goes by the place of the touch on the score and the roll: always (to undo v0.6.3's decision, read
-    /// `DeviceSettings.shared.isOn(setting)` here and bring back its row in Settings · Experimental).
-    static let on = true
-}
-
+/// works on the iPad, with no switch (the web app's experiment `experimental.placeSelection` is not read here). The
+/// selection is one object (Andrei, 2026-11-15): a span by beats, narrowed to a hand (`ScoreSelection.hand`, music-core's
+/// filter) or to notes picked (`ScoreSelection.picked`), kept on the device, never in the project file.
 extension ScoreController {
     /// Makes the notes picked the selection (a tap on a note head on the score, a box or a lasso on the roll): music-core
     /// takes the span out to the beats around them; one note or more, within the bars a selection spans. With `add` the
@@ -48,10 +40,10 @@ extension ScoreController {
 }
 
 extension ScoreController {
-    /// What the toast after a clear or a replace says: «Выделение заменено» for a replace by the place rule; otherwise, as
-    /// in version 0.6.1, «Выделение снято».
+    /// What the toast after a clear or a replace says: «Выделение заменено» for a replace by the place rule; otherwise
+    /// «Выделение снято».
     var selectionToastKey: String {
-        placeSelection && selectionToast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
+        selectionToast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
     }
 }
 
@@ -109,9 +101,8 @@ extension ScoreController {
 
     /// music-core refused a selection the place rule asked for (#601 H 11, the lead's decision 7): the band the page kept
     /// showing goes back to the selection there is, never clipped; a passage too long or with no notes says so softly, and
-    /// true. Off, or for another refusal, false: the problem shows as before.
+    /// true. For another refusal, false: the problem shows as before.
     func softlyRefused(_ message: String?) -> Bool {
-        guard placeSelection else { return false }
         Task { await showSelection() }
         guard let key = Self.refusal(message) else { return false }
         showNotice(key)

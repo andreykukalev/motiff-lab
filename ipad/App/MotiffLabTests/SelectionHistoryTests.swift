@@ -88,25 +88,12 @@ final class SelectionHistoryTests: XCTestCase {
 
     // MARK: - The stylus menu (option B)
 
-    func testSwitchToPreviousTakesThePenAndSelectInTurnUnderTheModes() {
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: .navigate).penOn, true)
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: .navigate).mode, .navigate, "the Pen comes on over the mode, which comes back after it")
-        let off = StylusRules.previous(penOn: true, mode: .navigate)
-        XCTAssertFalse(off.penOn)
-        XCTAssertEqual(off.mode, .select)
-        XCTAssertFalse(off.previousTool)
-        let without = StylusRules.previous(penOn: true, mode: nil)
-        XCTAssertTrue(without.penOn && without.previousTool, "without the modes the tool before, as before")
-        XCTAssertEqual(StylusRules.previous(penOn: false, mode: nil).penOn, true, "outside the Pen it comes on")
-    }
-
     func testUndoIsTheHistoryOfTheToolInForceAndNavigateHasNone() {
         // #521 9: each editing tool its own history; Navigate none, so ⌘Z there takes back no selection step.
         XCTAssertEqual(StylusRules.undoOwner(penOn: true, mode: .select, rollEditing: false), .ink)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .select, rollEditing: false), .selection)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: false), .nothing)
         XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: .navigate, rollEditing: true), .noteEdits, "the roll in Edit notes")
-        XCTAssertEqual(StylusRules.undoOwner(penOn: false, mode: nil, rollEditing: false), .selection, "before the modes, as before")
     }
 
     func testTheStylusMenuShowsOnlyTheChosenToolsControls() {
@@ -141,10 +128,7 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(ink.done.map(\.added), [["a"], ["c"]])
     }
 
-    func testUnderTheModesTheScoreAlwaysHasTheBeatsAndTheOldChoiceIsForgotten() {
-        XCTAssertTrue(StylusRules.byBeats(modes: true, experiment: false), "one selection on the grid (v0.6.4): no bars or beats to choose")
-        XCTAssertTrue(StylusRules.byBeats(modes: false, experiment: true), "without the modes the experiment decides")
-        XCTAssertFalse(StylusRules.byBeats(modes: false, experiment: false))
+    func testTheOldBarsOrBeatsChoiceIsForgotten() {
         let defaults = UserDefaults(suiteName: "SelectionHistoryTests")!
         defaults.removePersistentDomain(forName: "SelectionHistoryTests")
         defaults.set(false, forKey: SelectBy.key)

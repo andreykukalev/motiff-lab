@@ -52,9 +52,7 @@ final class PlaceSelectionTests: XCTestCase {
 
     func testThePageIsToldTheSwitchOnTheNotesOnly() {
         var rules = InputRules(stylus: true, tool: .select)
-        XCTAssertEqual(rules.page["places"] as? Bool, false)
-        rules.places = true
-        XCTAssertEqual(rules.page["places"] as? Bool, true)
+        XCTAssertEqual(rules.page["places"] as? Bool, true, "always on the notes, since v0.6.5")
         XCTAssertEqual(rules.selectStart(.stylus), .now, "the rules of who selects stay as they are")
         XCTAssertEqual(rules.selectStart(.finger), .longPress)
         rules.surface = .pdf

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Which hands sound (#328, an experiment, Settings · Experimental): both, or one alone, as music-core gives that hand's
+/// Which hands sound (#328): both, or one alone, as music-core gives that hand's
 /// notes (`playback` with "hands"). The hands are the ones the notes carry, read from the file or inferred by music-core;
 /// the app never works out a hand itself.
 enum PlayerHands: String, CaseIterable, Sendable {
@@ -39,7 +39,7 @@ struct HandsHeld: Equatable, Sendable {
     }
 }
 
-/// Where the player stopped in a piece (#327, an experiment, Settings · Experimental): the latest of the project's resume
+/// Where the player stopped in a piece (#327): the latest of the project's resume
 /// points, as music-core's `resume` lists them, most recent first. The web app saves the same points in the same project
 /// file, so a piece left on the web resumes here at its passage too. The point is kept with `resume.save` when the piece
 /// closes or the app goes to the background; the project file's format does not change.

@@ -1,7 +1,7 @@
 import AVFoundation
 import SwiftUI
 
-/// The Reference (an experiment, Settings · Experimental; Andrei, 2026-11-11): the circle of fifths with any key's card, as
+/// The Reference (Andrei, 2026-11-11): the circle of fifths with any key's card, as
 /// music-core writes them (facade `reference.key` on piece 0, `KeyReference`). The app only lays them out.
 struct ReferenceAnswer {
     /// A choice of the lookup: a number of sharps or flats.
@@ -337,6 +337,8 @@ final class ReferencePiano {
     private var watching: Task<Void, Never>?
     /// Called when music played once has come to its end.
     var ended: (() -> Void)?
+    /// Starts the engine again after an interruption or a route change (EngineKeeper); an interruption pauses the music.
+    private var keeper: EngineKeeper?
 
     func play(_ score: PlaybackScore, loop: Bool = false) async {
         if starting == nil {
@@ -345,6 +347,11 @@ final class ReferencePiano {
         guard let renderer = await starting?.value else {
             starting = nil
             return
+        }
+        // Stopped as the sheet closed, or by the system: the audio runs again for this music.
+        if !audio.isRunning {
+            audio.prepare()
+            try? audio.start()
         }
         watching?.cancel()
         _ = renderer.takeReports()
@@ -406,6 +413,7 @@ final class ReferencePiano {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
+            keeper = EngineKeeper(audio) { [weak self] in self?.pause() }
             let samples = try await Task.detached(priority: .userInitiated) { try Piano.load() }.value
             renderer.send(.samples(samples))
             self.renderer = renderer

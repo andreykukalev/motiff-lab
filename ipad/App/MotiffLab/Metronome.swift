@@ -85,6 +85,8 @@ final class Metronome: ObservableObject {
 
     private let clock = ClickClock()
     private var engine: AVAudioEngine?
+    /// Starts the clicks' engine again after an interruption or a route change while it clicks (EngineKeeper).
+    private var keeper: EngineKeeper?
     private var timer: Timer?
     private var taps: [Double] = []
     private var id: String?
@@ -164,6 +166,9 @@ final class Metronome: ObservableObject {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
             let engine = try self.engine ?? makeEngine()
+            if self.engine == nil {
+                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }) { [weak self] in self?.stop() }
+            }
             self.engine = engine
             running = true
             restartClock()

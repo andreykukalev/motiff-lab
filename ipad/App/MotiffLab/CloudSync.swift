@@ -63,11 +63,14 @@ struct CloudSync {
         var reset: Int64?
     }
 
-    /// A project file here as the pass sees it.
+    /// A project file here as the pass sees it: its bytes are read again only for the piece being sent or merged, so a
+    /// pass never holds the whole library in memory (core and iPad review v0.6.5, finding 4).
     private struct Local {
         let url: URL
-        let data: Data
+        let hash: String
         let modified: Date
+
+        var data: Data? { try? Data(contentsOf: url) }
     }
 
     /// One pass; nothing happens while signed out or offline, or when everything was cleared from another device since
@@ -81,7 +84,7 @@ struct CloudSync {
         // The most recently changed file first, so a copy made in Files does not stand for the piece.
         for entry in ProjectFiles.list(in: folder) {
             guard let data = try? Data(contentsOf: entry.url), let id = await PieceSummary.read(data)?.id, here[id] == nil else { continue }
-            here[id] = Local(url: entry.url, data: data, modified: entry.modified)
+            here[id] = Local(url: entry.url, hash: Self.hash(data), modified: entry.modified)
         }
         var records = SyncRecords.load(from: recordsURL)
         var outcome = Outcome()
@@ -104,7 +107,7 @@ struct CloudSync {
 
     private func sync(_ id: String, _ local: Local?, _ row: OnlineProject?, _ records: inout [String: SyncRecord], roomy: Bool) async -> Bool {
         let record = records[id] ?? SyncRecord()
-        let hash = local.map { Self.hash($0.data) }
+        let hash = local.map(\.hash)
         let facts: [String: Any] = [
             "here": local != nil, "online": row != nil, "known": record.known,
             "changedHere": !record.known || hash != record.hash,
@@ -135,16 +138,16 @@ struct CloudSync {
 
     /// Sends the copy without the PDF; a piece that is only a PDF is not sent.
     private func upload(_ id: String, _ local: Local, ifMatch: String?, _ record: SyncRecord) async -> SyncRecord {
-        guard let file = String(data: local.data, encoding: .utf8),
+        guard let data = local.data, let file = String(data: data, encoding: .utf8),
               let copy = await Self.core("project.online", ["file": file])?["file"] as? String
         else { return record }
         var noted = record
         switch await online.upload(id, file: copy, ifMatch: ifMatch) {
         case .saved(let etag):
-            return SyncRecord(etag: etag, savedAt: nil, hash: Self.hash(local.data))
+            return SyncRecord(etag: etag, savedAt: nil, hash: Self.hash(data))
         case .overQuota:
             noted.overQuota = true
-            noted.hash = Self.hash(local.data)
+            noted.hash = Self.hash(data)
         case .changedOnline:
             // Changed on another device since this one saw it: the next pass fetches it and keeps both.
             noted.savedAt = nil
@@ -166,7 +169,7 @@ struct CloudSync {
             return false
         }
         var fields: [String: Any] = ["file": remote]
-        if let local, let text = String(data: local.data, encoding: .utf8) { fields["here"] = text }
+        if let data = local?.data, let text = String(data: data, encoding: .utf8) { fields["here"] = text }
         guard let kept = await Self.core("project.pulled", fields)?["file"] as? String,
               write(kept, to: local?.url, title: row.title) != nil
         else { return false }
@@ -176,7 +179,7 @@ struct CloudSync {
 
     private func resolve(_ id: String, _ local: Local, _ row: OnlineProject, _ records: inout [String: SyncRecord]) async -> Bool {
         guard case .success(let fetched) = await online.fetch(id), let remote = String(data: fetched.data, encoding: .utf8),
-              let here = String(data: local.data, encoding: .utf8)
+              let data = local.data, let here = String(data: data, encoding: .utf8)
         else { return false }
         let record = records[id] ?? SyncRecord()
         if let etag = fetched.etag, etag == record.etag {

@@ -265,7 +265,7 @@ final class OutsideTouchView: UIView, UIGestureRecognizerDelegate {
 }
 
 /// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. Without the modes (a
-/// PDF's pages, the score before them) the tools (the pencil, the marker, the eraser) on an inner half circle, exactly one
+/// PDF's pages) the tools (the pencil, the marker, the eraser) on an inner half circle, exactly one
 /// chosen; the active tool's settings on an outer one (#495 UX-06): the pencil's inks and its thicknesses, the marker's
 /// thicknesses in the same places, nothing for the eraser; Undo in the middle; whatever is chosen turns the Pen on and
 /// leaves the palette open. On the score under the modes it is the stylus menu (#521 11): Navigate, Select and the Pen on

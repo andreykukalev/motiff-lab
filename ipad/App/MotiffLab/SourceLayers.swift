@@ -1,13 +1,10 @@
 import Foundation
 
-/// The piece's sources by the layers of decision record 0030 (version 0.6, behind the experiment «Новые источники»,
-/// `experimental.sources`), as music-core answers `sources.layers` for this iPad: the originals, live and deleted, with
+/// The piece's sources by the layers of decision record 0030 (version 0.6, «Новые источники»; permanent on the iPad since
+/// v0.6.5), as music-core answers `sources.layers` for this iPad: the originals, live and deleted, with
 /// where their bytes are, the Notes made from them with their provenance and the state of their original, and the views
 /// of the switch at the top of the score in its order. Everything here is music-core's answer, never worked out by the app.
 struct SourceLayers: Equatable, Sendable {
-    /// The experiment's switch in Settings · Experimental, off by default.
-    static let setting = "experimental.sources"
-
     struct Original: Identifiable, Equatable, Sendable {
         var id: String
         /// "pdf", "images", "audio", "midi" or "musicxml".

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2; Settings · Experimental, «Два
+/// The playback model of v0.5.2 (#495 UX-10, the architect's design playback-model-v0.5.2; «Два
 /// указателя и режимы»): one position in the engine, two playheads on screen, one Play button and the selection's Цикл. The
 /// engine's position is the black playhead, the piece's place; the blue one stores nothing, it is the position held to the
 /// selection; Цикл is the promise that while it is on, playback keeps the position inside the selection.

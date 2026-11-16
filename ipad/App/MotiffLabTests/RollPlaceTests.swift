@@ -2,7 +2,7 @@ import XCTest
 
 @testable import MotiffLab
 
-/// Selection by where you touch on the roll (#601, experimental.placeSelection): «Рамка | Лассо» kept on the device and
+/// Selection by where you touch on the roll (#601): «Рамка | Лассо» kept on the device and
 /// shown only in Select, what the roll page is told, and what it says back (notes picked, picked notes moved).
 final class RollPlaceTests: XCTestCase {
     func testTheBoxOrTheLassoIsKeptOnTheDeviceTheBoxFirst() throws {
@@ -18,13 +18,11 @@ final class RollPlaceTests: XCTestCase {
         XCTAssertEqual(RollPickShape.allCases, [.box, .lasso])
     }
 
-    func testTheSwitchShowsOnlyInSelectWithTheExperimentOn() {
-        XCTAssertTrue(RollPickShape.shown(experiment: true, tool: .select, rollMode: .navigate))
-        XCTAssertFalse(RollPickShape.shown(experiment: false, tool: .select, rollMode: .navigate), "off, the roll is as in 0.6.1")
-        XCTAssertFalse(RollPickShape.shown(experiment: true, tool: .navigate, rollMode: .navigate))
-        XCTAssertFalse(RollPickShape.shown(experiment: true, tool: .pen, rollMode: .navigate))
-        XCTAssertFalse(RollPickShape.shown(experiment: true, tool: nil, rollMode: .navigate))
-        XCTAssertFalse(RollPickShape.shown(experiment: true, tool: .select, rollMode: .edit), "Edit notes adds notes, no box")
+    func testTheSwitchShowsOnlyInSelect() {
+        XCTAssertTrue(RollPickShape.shown(tool: .select, rollMode: .navigate))
+        XCTAssertFalse(RollPickShape.shown(tool: .navigate, rollMode: .navigate))
+        XCTAssertFalse(RollPickShape.shown(tool: .pen, rollMode: .navigate))
+        XCTAssertFalse(RollPickShape.shown(tool: .select, rollMode: .edit), "Edit notes adds notes, no box")
     }
 
     func testTheSwitchSpeaksBothLanguages() {
@@ -39,14 +37,13 @@ final class RollPlaceTests: XCTestCase {
         XCTAssertEqual(UIText(language: "en")[RollPickShape.lasso.label], "Lasso")
     }
 
-    func testThePageIsToldWhetherTheExperimentIsOnAndWhetherAStylusIsUsed() {
+    func testThePageIsToldThePlaceRuleIsOnAndWhetherAStylusIsUsed() {
         let page = RollInput(stylus: true, mode: .navigate, tool: .select).page
-        let told = RollPlaceInput(on: true, stylus: true).added(to: page)
+        let told = RollPlaceInput(stylus: true).added(to: page)
         XCTAssertEqual(told["place"] as? Bool, true)
         XCTAssertEqual(told["stylus"] as? Bool, true)
         XCTAssertEqual(told["mode"] as? String, "select", "RollInput's own fields stay")
-        XCTAssertEqual(RollPlaceInput(on: false, stylus: false).added(to: page)["place"] as? Bool, false)
-        XCTAssertEqual(RollPlaceInput.setting, "experimental.placeSelection")
+        XCTAssertEqual(RollPlaceInput(stylus: false).added(to: page)["place"] as? Bool, true, "always, since v0.6.3")
     }
 
     func testNotesPickedComeWithHowTheyChangeTheSelectionAndTheirGesture() {

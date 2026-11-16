@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Selection by where you touch on the roll (#601, the experiment experimental.placeSelection, selection report E): in the
+/// Selection by where you touch on the roll (#601, selection report E; Select's only way since v0.6.3): in the
 /// bar's Select a press over the whole roll is read by its place (Scripts/roll/roll-place-gesture.ts), a box or a lasso picks
 /// notes as the one selection the score shows, and picked notes dragged are an edit on the note editor's draft. What the
 /// roll page is told and what it says back, and «Рамка | Лассо» in the roll's head, live here.
@@ -22,26 +22,23 @@ enum RollPickShape: String, CaseIterable, Sendable {
         defaults.set(rawValue, forKey: Self.key)
     }
 
-    /// Whether «Рамка | Лассо» shows in the roll's head: only with the experiment on, in the bar's Select, while the roll is
-    /// not editing notes (report E: «только пока включено „Выделение“»).
-    static func shown(experiment: Bool, tool: InteractionMode?, rollMode: RollMode) -> Bool {
-        experiment && tool == .select && rollMode == .navigate
+    /// Whether «Рамка | Лассо» shows in the roll's head: only in the bar's Select, while the roll is not editing notes
+    /// (report E: «только пока включено „Выделение“»).
+    static func shown(tool: InteractionMode, rollMode: RollMode) -> Bool {
+        tool == .select && rollMode == .navigate
     }
 }
 
-/// What the roll page is told of selection by where you touch, beside RollInput.page: whether the experiment is on, and
-/// whether a stylus is used, so a finger beside it always moves the roll; without one, one finger selects (report C).
+/// What the roll page is told of selection by where you touch, beside RollInput.page: that it is on (the page's `place`,
+/// which the web app still turns on and off), and whether a stylus is used, so a finger beside it always moves the roll;
+/// without one, one finger selects (report C).
 struct RollPlaceInput: Equatable, Sendable {
-    /// The experiment's switch in Settings · Experimental (PlaceSelection.swift).
-    static let setting = PlaceSelection.setting
-
-    var on: Bool
     var stylus: Bool
 
-    /// RollInput's page with `place` and `stylus` added (roll.js `input`); off, the page is told nothing new is on.
+    /// RollInput's page with `place` and `stylus` added (roll.js `input`).
     func added(to page: [String: Any]) -> [String: Any] {
         var data = page
-        data["place"] = on
+        data["place"] = true
         data["stylus"] = stylus
         return data
     }
