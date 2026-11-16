@@ -302,5 +302,6 @@
   "dictation.restricted": "Dictation is not allowed by this iPad's settings.",
   "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again.",
   "settings.dictation": "Dictation in the assistant's field",
-  "settings.dictationHint": "A microphone beside the question's field: speak and the words appear in the field. Speech is recognised on the iPad itself, in the interface's language; the sound goes nowhere. It stops on a tap or after a pause. On until you turn it off."
+  "settings.dictationHint": "A microphone beside the question's field: speak and the words appear in the field. Speech is recognised on the iPad itself, in the interface's language; the sound goes nowhere. It stops on a tap or after a pause. On until you turn it off.",
+  "settings.experimentalHowPad": "New ideas to try before they become part of the app. Almost all are off until you turn them on, on this iPad; Dictation is on from the start."
 }

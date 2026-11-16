@@ -286,7 +286,7 @@ struct SettingsSheet: View {
         case .experimental:
             // New ideas tried in the app before they become features (governance, "Experiments"): each off until turned
             // on, on this iPad. Only the experiments the iPad acts on are listed.
-            Text(text["settings.experimentalHow"])
+            Text(text["settings.experimentalHowPad"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
             switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
