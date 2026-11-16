@@ -530,37 +530,42 @@ struct PlaybackScore: Sendable {
     /// The tempo at the start and where it comes from (v0.5.4, #511 section 17); nil from a music-core before it.
     var tempo: TempoReading?
 
+    /// Every answer `Answer.Playback` writes (`playback`, `performance.merge.playback`, the reference's sounds); nil for a
+    /// refusal or an answer that cannot be read. "hands" only `playback` writes.
     static func read(_ text: String) -> PlaybackScore? {
-        guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
-        let items = { (key: String) in object[key] as? [[String: Any]] ?? [] }
-        let notes = items("notes").compactMap { note -> PlaybackNote? in
-            guard let onset = number(note["onset"]), let duration = number(note["duration"]),
-                  let pitch = number(note["pitch"]), let velocity = number(note["velocity"]) else { return nil }
-            return PlaybackNote(onset: onset, duration: duration, pitch: Int(pitch), velocity: Int(velocity), track: Int(number(note["track"]) ?? 0))
-        }
-        let tempos = items("tempos").compactMap { tempo -> PlaybackTimeline.Tempo? in
-            guard let at = number(tempo["at"]), let uspq = number(tempo["microsecondsPerQuarter"]) else { return nil }
-            return .init(at: at, microsecondsPerQuarter: uspq)
-        }
-        let beats = items("beats").compactMap { beat -> PlaybackTimeline.Beat? in
-            guard let at = number(beat["at"]) else { return nil }
-            return .init(at: at, downbeat: beat["downbeat"] as? Bool ?? false)
-        }
-        let bars = items("bars").compactMap { bar -> PlaybackTimeline.Bar? in
-            guard let start = number(bar["onset"]), let beatTicks = number(bar["beatTicks"]),
-                  let beatsPerBar = number(bar["beatsPerBar"]) else { return nil }
-            return .init(start: start, beatTicks: beatTicks, beatsPerBar: beatsPerBar)
-        }
-        let numbers = items("bars").compactMap { bar -> (start: Double, number: Int)? in
-            guard let start = number(bar["onset"]), let printed = number(bar["number"]) else { return nil }
-            return (start, Int(printed))
-        }
+        guard let answer = FacadeAnswer(text, of: "playback"), let end = answer.number("end"),
+              let notes = answer.list("notes", readNote), let tempos = answer.list("tempos", readTempo), let beats = answer.list("beats", readBeat),
+              let bars = answer.list("bars", readBar), let numbers = answer.list("bars", readBarNumber),
+              let beatFields = answer.required("beats", [[String: Any]].self) else { return nil }
         let timeline = PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end)
-        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: object), barBeats: BarBeats.read(items("beats")),
-                             tempo: TempoReading.read(object))
+        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: answer.fields), barBeats: BarBeats.read(beatFields),
+                             tempo: TempoReading.read(answer.fields))
     }
 
-    private static func number(_ value: Any?) -> Double? {
-        (value as? NSNumber)?.doubleValue
+    private static func readNote(_ note: FacadeAnswer) -> PlaybackNote? {
+        guard let onset = note.number("onset"), let duration = note.number("duration"), let pitch = note.number("pitch"),
+              let velocity = note.number("velocity"), let track = note.number("track") else { return nil }
+        return PlaybackNote(onset: onset, duration: duration, pitch: Int(pitch), velocity: Int(velocity), track: Int(track))
+    }
+
+    private static func readTempo(_ tempo: FacadeAnswer) -> PlaybackTimeline.Tempo? {
+        guard let at = tempo.number("at"), let uspq = tempo.number("microsecondsPerQuarter") else { return nil }
+        return .init(at: at, microsecondsPerQuarter: uspq)
+    }
+
+    private static func readBeat(_ beat: FacadeAnswer) -> PlaybackTimeline.Beat? {
+        guard let at = beat.number("at"), let downbeat = beat.required("downbeat", Bool.self) else { return nil }
+        return .init(at: at, downbeat: downbeat)
+    }
+
+    private static func readBar(_ bar: FacadeAnswer) -> PlaybackTimeline.Bar? {
+        guard let start = bar.number("onset"), let beatTicks = bar.number("beatTicks"), let beatsPerBar = bar.number("beatsPerBar") else { return nil }
+        return .init(start: start, beatTicks: beatTicks, beatsPerBar: beatsPerBar)
+    }
+
+    /// Where each bar starts and the number it is printed with.
+    private static func readBarNumber(_ bar: FacadeAnswer) -> (start: Double, number: Int)? {
+        guard let start = bar.number("onset"), let printed = bar.number("number") else { return nil }
+        return (start, Int(printed))
     }
 }

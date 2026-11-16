@@ -127,10 +127,14 @@ final class ViewStatesTests: XCTestCase {
     @MainActor
     func testTheSwitchOfAllViewsIsHandedToTheNextScreenOfTheFile() throws {
         let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("handover.motiff.json")
-        let none = try XCTUnwrap(SourceLayers(answer: #"{"views": []}"#))
+        let none = try XCTUnwrap(SourceLayers(answer: #"{"working": null, "originals": [], "notes": [], "views": [], "hidden": 0}"#))
         SourcesHandover.give(none, to: file)
         XCTAssertNil(SourcesHandover.layers(for: file), "layers without working notes are not handed over")
-        let layers = try XCTUnwrap(SourceLayers(answer: #"{"working": "n1", "views": [{"id": "src_pdf", "kind": "original"}, {"id": "n1", "kind": "notes"}]}"#))
+        let layers = try XCTUnwrap(SourceLayers(answer: #"""
+            {"working": "n1", "originals": [], "notes": [], "hidden": 0, "views": [
+             {"id": "src_pdf", "kind": "original", "group": "src_pdf", "working": false, "hidden": false, "op": "pdf"},
+             {"id": "n1", "kind": "notes", "group": "src_pdf", "working": true, "hidden": false, "op": "pdfRecognition"}]}
+            """#))
         SourcesHandover.give(layers, to: file)
         XCTAssertEqual(SourcesHandover.layers(for: file), layers)
         XCTAssertEqual(SourcesHandover.layers(for: URL(fileURLWithPath: file.path + "/../handover.motiff.json")), layers, "the same file by another spelling")
