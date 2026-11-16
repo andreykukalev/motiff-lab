@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { openInsights, violations } from "./steps.mjs";
 
-const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
+const minuet = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 async function addMinuet(page) {
     await page.getByRole("button", { name: "Add piece" }).click();

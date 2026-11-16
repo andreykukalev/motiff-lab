@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import { closePopover, openMore, violations, librarySessions } from "./steps.mjs";
 
-const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
+const fixtures = "../backend/Unit/MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
 const furElise = fileURLToPath(new URL(`${fixtures}transkun-fur-elise.mid`, import.meta.url));
 

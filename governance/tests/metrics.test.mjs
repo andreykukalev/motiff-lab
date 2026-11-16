@@ -77,7 +77,7 @@ test('owner commits, files out of scope, a stale verdict and a low class are all
   const r = computeTask({
     ...d,
     commits: [...d.commits, { sha: 'c'.repeat(40), message: 'quick fix', parents: 1 }],
-    files: [...d.files, 'src/MotiffLab.MusicCore/Facade/Facade.cs'],
+    files: [...d.files, 'src/backend/MotiffLab.MusicCore/Facade/Facade.cs'],
     pr: { ...d.pr, headSha: 'c'.repeat(40) },
     checks: [...d.checks, { sha: 'c'.repeat(40), conclusions: ['failure', 'success'] }],
   });

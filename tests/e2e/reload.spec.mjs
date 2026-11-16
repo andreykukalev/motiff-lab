@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { librarySessions, selectPhrase } from "./steps.mjs";
 import { fileURLToPath } from "node:url";
 
-const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
+const minuet = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 // The bar names the piece by the title engraved on its first page (0018 section 2).
 const title = page => page.locator(".bar .ttl");
 

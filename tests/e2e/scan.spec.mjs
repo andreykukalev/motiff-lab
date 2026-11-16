@@ -7,7 +7,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { openRoll, violations, librarySessions } from "./steps.mjs";
 
-const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
+const scanned = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const photo = fileURLToPath(new URL("../../src/MotiffLab.Web/wwwroot/icon-192.png", import.meta.url));
 const server = "http://localhost:8765";
 
@@ -133,7 +133,7 @@ test("a file larger than the scan server reads is refused before it is sent, in 
     await page.getByRole("button", { name: "Save and check" }).click();
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
-    // One byte over the 50 MB the scan server reads (services/omr MAX_UPLOAD_MB).
+    // One byte over the 50 MB the scan server reads (src/backend/omr MAX_UPLOAD_MB).
     const big = testInfo.outputPath("big.pdf");
     await writeFile(big, Buffer.alloc(50 * 1024 * 1024 + 1));
     await page.goto("/import/scan");

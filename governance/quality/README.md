@@ -17,7 +17,7 @@ node --test "tools/quality/*.test.mjs"            # the ratchet's own tests
 
 It installs the tools in `src/MotiffLab.Web/node_modules` on the first run (`npm ci`). SwiftLint needs Docker; without
 it the command says it skipped SwiftLint, and CI runs it. A pull request that changes only the scan server
-(`services/omr`) is not built, so CI runs only `config`, `jscpd` and `suppressions` on it. The report is Markdown on standard output; in CI it goes to the
+(`src/backend/omr`) is not built, so CI runs only `config`, `jscpd` and `suppressions` on it. The report is Markdown on standard output; in CI it goes to the
 job summary, and each new violation is an annotation on its line.
 
 ## What is checked

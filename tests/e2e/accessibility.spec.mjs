@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations, librarySessions, focusSelection, selectPhrase } from "./steps.mjs";
 
-const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
+const midi = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
 for (const path of ["/", "/settings", "/privacy", "/terms"]) {
     test(`page ${path}`, async ({ page }) => {

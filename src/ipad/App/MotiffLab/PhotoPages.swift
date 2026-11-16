@@ -1,7 +1,7 @@
 import Foundation
 
 /// How a photo of a page looks before it is sent (v0.4, experiment «Фото страниц»): how dark its print is against the paper
-/// and how sharp its edges are, measured on the iPad as the scan server measures them (services/omr/app/quality.py, a
+/// and how sharp its edges are, measured on the iPad as the scan server measures them (src/backend/omr/app/quality.py, a
 /// port), so the warning here says what the server's page report would say. Numbers only; nothing about the music.
 struct PageLook: Equatable, Sendable {
     /// How steep the edges of the print are against its contrast; about 1 is crisp.

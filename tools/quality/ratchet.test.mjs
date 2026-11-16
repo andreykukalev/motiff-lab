@@ -111,7 +111,7 @@ test('a way to hide a violation is found in every language', async () => {
     ['src/A.cs', '[SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity")]'],
     ['src/A.razor', '    #pragma warning disable CA1505'],
     ['src/A.cs', '// jscpd:ignore-start'],
-    ['services/omr/a.py', '# jscpd:ignore-start'],
+    ['src/backend/omr/a.py', '# jscpd:ignore-start'],
     ['src/MotiffLab.Web/.editorconfig', 'dotnet_diagnostic.CA1502.severity = none'],
     ['.editorconfig', 'dotnet_analyzer_diagnostic.category-Maintainability.severity = none'],
     ['src/X/X.csproj', '    <NoWarn>$(NoWarn);CA1502</NoWarn>'],

@@ -69,7 +69,7 @@ test('curl writes to the GitHub API and the Azure CLI are refused', () => {
 
 test('environment files ask outside an environment task, and pass in one', () => {
   const plain = { envTask: false, scope: null, scopeExists: false };
-  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/acceptance/a.md']) {
+  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/a.md']) {
     assert.equal(decideFile(file, plain).decision, 'ask', file);
     assert.equal(decideFile(file, { ...plain, envTask: true }).decision, 'allow', file);
   }
@@ -82,7 +82,7 @@ test('allowed_paths: a file outside the task asks, and so does changing the scop
   const context = { envTask: false, scope, scopeExists: true };
   assert.equal(decideFile('src/MotiffLab.Web/Pages/Library.razor', context).decision, 'allow');
   assert.equal(decideFile('tests/web/library/empty.test.mjs', context).decision, 'allow');
-  assert.equal(decideFile('src/MotiffLab.MusicCore/Facade/Facade.cs', context).decision, 'ask');
+  assert.equal(decideFile('src/backend/MotiffLab.MusicCore/Facade/Facade.cs', context).decision, 'ask');
   assert.equal(decideFile('.aom/task.json', context).decision, 'ask');
   assert.equal(decideFile('.aom/task.json', { envTask: false, scope: null, scopeExists: false }).decision, 'allow');
 });

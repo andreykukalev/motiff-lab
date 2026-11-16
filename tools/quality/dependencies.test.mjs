@@ -9,8 +9,8 @@ const rules = (list) => list.map((v) => `${v.rule} ${v.symbol}`);
 
 test('music-core may use its own namespaces and plain .NET, not the web, the cloud or AI', () => {
   const files = {
-    'src/MotiffLab.MusicCore/A.cs': 'using System.Text.Json;\nusing MotiffLab.MusicCore.Time;\nusing Azure.Storage;\n',
-    'src/MotiffLab.MusicCore/B.cs': 'global using static Microsoft.AspNetCore.Http.Results;\n',
+    'src/backend/MotiffLab.MusicCore/A.cs': 'using System.Text.Json;\nusing MotiffLab.MusicCore.Time;\nusing Azure.Storage;\n',
+    'src/backend/MotiffLab.MusicCore/B.cs': 'global using static Microsoft.AspNetCore.Http.Results;\n',
   };
   const out = coreViolations(Object.keys(files), reader(files));
   assert.deepEqual(rules(out), ['core-using Azure.Storage', 'core-using Microsoft.AspNetCore.Http.Results']);
@@ -20,7 +20,7 @@ test('music-core may use its own namespaces and plain .NET, not the web, the clo
 test('music-core references no project and no forbidden package', () => {
   const csproj = '<ItemGroup>\n  <PackageReference Include="PdfPig" Version="1" />\n'
     + '  <PackageReference Include="OpenAI" Version="2" />\n  <ProjectReference Include="..\\Web\\Web.csproj" />\n</ItemGroup>';
-  const out = coreViolations(['src/MotiffLab.MusicCore/M.csproj'], reader({ 'src/MotiffLab.MusicCore/M.csproj': csproj }));
+  const out = coreViolations(['src/backend/MotiffLab.MusicCore/M.csproj'], reader({ 'src/backend/MotiffLab.MusicCore/M.csproj': csproj }));
   assert.deepEqual(rules(out), ['core-reference ..\\Web\\Web.csproj', 'core-package OpenAI']);
 });
 

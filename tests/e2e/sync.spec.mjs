@@ -9,7 +9,7 @@ import { pageErrors } from "./steps.mjs";
 
 const api = "https://api.example.test";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Expose-Headers": "ETag" };
-const fixture = (path) => fileURLToPath(new URL(`../MotiffLab.MusicCore.Tests/${path}`, import.meta.url));
+const fixture = (path) => fileURLToPath(new URL(`../backend/Unit/MotiffLab.MusicCore.Tests/${path}`, import.meta.url));
 const elise = fixture("Experiments/Fixtures/fur-elise-original.musicxml");
 // A project saved on the iPad: "Waltz sketch", with its own GUID id.
 const ipadFile = readFileSync(fixture("Golden/v15-worked.motiff.json"), "utf8");

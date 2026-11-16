@@ -1,5 +1,5 @@
 // The pages of a PDF piece drawn one at a time as images for the scan server (version 0.5, the library's batch recognition):
-// at 300 dpi, as the scan server draws a PDF it is sent (services/omr/app/pages.py), so the notes read come page by page
+// at 300 dpi, as the scan server draws a PDF it is sent (src/backend/omr/app/pages.py), so the notes read come page by page
 // and are joined in music-core (ScanJoin). Only the bytes the player's piece already has are read; nothing is written.
 
 import { openPdf, type PdfDocumentProxy, type PdfLoadingTask } from "../pdf/pdfjs.js";

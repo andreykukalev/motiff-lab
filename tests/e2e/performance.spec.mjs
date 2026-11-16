@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { pdf } from "./pdf-fixture.mjs";
 import { closePopover, openMore, violations } from "./steps.mjs";
 
-const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
+const score = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
 const cover = fileURLToPath(new URL("fixtures/fur-elise-cover.mid", import.meta.url));
 const server = "http://localhost:8765";
 
@@ -328,7 +328,7 @@ test("in focus, the other version stands above the phrase, is heard, and leads i
 
 /** The stand-in scan server, set in Settings: it answers with what Transkun heard in a recording of Für Elise. */
 async function standInScanServer(page) {
-    const heard = await readFile(fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/transkun-fur-elise.mid", import.meta.url)));
+    const heard = await readFile(fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/transkun-fur-elise.mid", import.meta.url)));
     const uploads = [];
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
     await page.route(`${server}/health`, route => route.fulfill({

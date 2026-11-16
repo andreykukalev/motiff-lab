@@ -3,7 +3,7 @@ name: Browser tests
 # The browser specs (tests/e2e, Playwright) on the published app, in the browsers playwright.config.mjs names,
 # one job per browser side by side (about 15 minutes).
 #
-# The web app is archived (docs/decisions/0032-ipad-first-web-archived.md, docs/web-archive.md), so these specs are
+# The web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md, docs/web-archive.md), so these specs are
 # out of the active workflow: they run only by hand from the Actions tab, on any branch. The daily run on main, the
 # run on every version tag and the run on a pull request labelled `browser-tests` (#309) come back when the web is
 # reactivated: restore this `on:` block from the commit that archived the web. The jobs below still handle those

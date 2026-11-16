@@ -1,6 +1,6 @@
 # Motiff Lab web app (archived)
 
-Archived on 2026-11-16 by [0032](../../docs/decisions/0032-ipad-first-web-archived.md): the iPad app is the only
+Archived on 2026-11-16 by [0032](../../docs/architecture/adr/0032-ipad-first-web-archived.md): the iPad app is the only
 actively developed client. This folder stays in place and keeps compiling; it is not developed, browser-tested or
 deployed.
 

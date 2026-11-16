@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { pageErrors, violations } from "./steps.mjs";
 
-const fixture = (path) => fileURLToPath(new URL(`../MotiffLab.MusicCore.Tests/${path}`, import.meta.url));
+const fixture = (path) => fileURLToPath(new URL(`../backend/Unit/MotiffLab.MusicCore.Tests/${path}`, import.meta.url));
 const minuet = fixture("Import/MusicXml/Fixtures/importer-grand-staff.musicxml");
 const elise = fixture("Experiments/Fixtures/fur-elise-original.musicxml");
 const ode = fixture("Experiments/Fixtures/ode-to-joy.musicxml");

@@ -3,7 +3,7 @@
 Agreed with Andrei on 2026-11-11. It replaces the Agent Operating Model (Task Records, per-PR Reviewer and QA,
 councils). The product is steered by **working versions**: agents prepare a version, Andrei installs it on his iPad,
 tries it at the instrument, and his feedback becomes the next version (the web app is archived:
-`docs/decisions/0032-ipad-first-web-archived.md`). Documents serve the
+`docs/architecture/adr/0032-ipad-first-web-archived.md`). Documents serve the
 versions, not the other way round.
 
 Every agent reads this file, `roles/common.md` and its role's file before it starts. `CLAUDE.md` holds the product and
@@ -16,7 +16,7 @@ code rules.
 3. A change of the saved data format that affects projects already saved (project file, facade contract, HTTP API).
 4. Anything that costs money or adds an external service.
 5. A release to `main` (his «в стабильную» in a version thread, or «ок» for a hotfix).
-6. The agents' own rules: `CLAUDE.md`, `governance/`, `.claude/`, `.github/`, `tests/acceptance/`. A pull request that
+6. The agents' own rules: `CLAUDE.md`, `governance/`, `.claude/`, `.github/`, `tests/backend/Acceptance/`. A pull request that
    changes them is merged by Andrei.
 
 Everything else agents decide themselves, openly: each such decision is one line in the decision log (what, why, how
@@ -144,7 +144,7 @@ Soft mode: all agents act under Andrei's GitHub identity, so the guards catch mi
 | Environment `production` | GitHub | Deploys of the API and the scan server from `main` wait for Andrei; `develop`'s go to `rg-motifflab-dev` (test data only) by themselves |
 | Deny rules and hooks | `.claude/settings.json`, `.claude/hooks/` | On Andrei's computer only (a claude.ai cloud thread does not load them): refuse merges, workflow runs, settings, Azure, force push, pushes to other branches |
 | `env-scope` | CI | Marks a pull request that changes the agents' rules (decision 6) |
-| Protected scenarios | CI, label `protected-scenarios-ok` | A change to `tests/acceptance/` needs Andrei's label |
+| Protected scenarios | CI, label `protected-scenarios-ok` | A change to `tests/backend/Acceptance/` needs Andrei's label |
 
 `risk-paths.yml`, `metrics/` and `tests/` are kept from the previous process: the guards' tests and the acceptance
 check still use them.

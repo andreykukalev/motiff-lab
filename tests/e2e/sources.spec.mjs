@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { pdf } from "./pdf-fixture.mjs";
 import { violations } from "./steps.mjs";
 
-const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
+const scanned = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const server = "http://localhost:8765";
 const shots = process.env.SOURCES_SHOTS;
 

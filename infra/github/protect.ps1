@@ -229,7 +229,7 @@ if (-not $SkipLabels) {
     @('agent', '5319e7', 'Opened or changed by an agent (soft mode: the identity is the owner)'),
     @('bug', 'd73a4a', 'Something in a version does not work as it should'),
     @('blocker', 'b60205', 'A bug that blocks testing a version: a same-day version is needed'),
-    @('protected-scenarios-ok', '0e8a16', 'Andrei approves a change to tests/acceptance; only Andrei sets it')
+    @('protected-scenarios-ok', '0e8a16', 'Andrei approves a change to tests/backend/Acceptance/MotiffLab.Acceptance.Tests; only Andrei sets it')
   )
   foreach ($label in $labels) {
     if ($DryRun) { Write-Info "label $($label[0])"; continue }

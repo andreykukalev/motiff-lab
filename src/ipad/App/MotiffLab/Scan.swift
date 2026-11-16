@@ -29,7 +29,7 @@ final class ScanServer: ObservableObject {
     static let off = "off"
     /// The address the service's README starts it on.
     static let suggested = "http://localhost:8765"
-    /// The largest file the scan server reads (services/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
+    /// The largest file the scan server reads (src/backend/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
     /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
     static let maxUploadBytes = 50 * 1024 * 1024
     /// «Движок распознавания» (v0.5.8; a setting since v0.6.5, homr by default as before): each scan names the engine

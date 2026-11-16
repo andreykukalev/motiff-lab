@@ -81,7 +81,7 @@ export async function clearTestLibrary(): Promise<number> {
 }
 
 // «Очистить всё» (Andrei, 2026-11-13): the reset stamp the API's list of projects carries on develop (the header
-// Motiff-Reset, src/MotiffLab.Api/TestReset.cs), and the one this browser last applied. A newer stamp means the player
+// Motiff-Reset, src/backend/MotiffLab.Api/TestReset.cs), and the one this browser last applied. A newer stamp means the player
 // cleared everything from another device: this browser clears its test library too before it syncs or sends anything.
 // The applied stamp is kept outside the library's entries, so the clear never takes it.
 

@@ -14,7 +14,7 @@ namespace MotiffLab.Web.Account;
 /// </summary>
 public sealed class TestReset(IJSRuntime js)
 {
-    /// <summary>The player's last reset stamp, on the list of projects (src/MotiffLab.Api/TestReset.cs).</summary>
+    /// <summary>The player's last reset stamp, on the list of projects (src/backend/MotiffLab.Api/TestReset.cs).</summary>
     public const string Header = "Motiff-Reset";
 
     /// <summary>The stamp this browser last applied, sent with a save.</summary>

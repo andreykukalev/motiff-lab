@@ -98,7 +98,7 @@ enum TestLibrary {
 }
 
 /// «Очистить всё» across the player's devices (Andrei, 2026-11-13): pressing it on one device deletes the player's data in
-/// the test database (the API's POST /me/reset, src/MotiffLab.Api/TestReset.cs), which records a reset stamp; develop's
+/// the test database (the API's POST /me/reset, src/backend/MotiffLab.Api/TestReset.cs), which records a reset stamp; develop's
 /// API then sends the stamp with every list of projects. Each device keeps the stamp it last applied, per environment, in
 /// its preferences (never among the files the clear deletes). A newer stamp in a list means the player cleared everything
 /// from another device: the iPad clears its own test library before the pass syncs anything (`applyReset`), and its saves

@@ -1,9 +1,9 @@
 # The web app archive: what is frozen, what stays live, how to bring it back
 
-Status: current, 2026-11-16. Decision: [0032](decisions/0032-ipad-first-web-archived.md). One living document: update it
+Status: current, 2026-11-16. Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
 when a live shared module moves or the web is reactivated.
 
-The web app (Blazor WebAssembly PWA, the Music Studio of [0025](decisions/0025-two-studios.md)) is archived in place.
+The web app (Blazor WebAssembly PWA, the Music Studio of [0025](architecture/adr/0025-two-studios.md)) is archived in place.
 Its code stays in the repository and keeps compiling; it is not developed, tested in browsers or deployed.
 
 ## Restore point

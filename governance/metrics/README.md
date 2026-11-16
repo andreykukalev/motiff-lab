@@ -25,7 +25,7 @@ builds the summary from those comments. Agents do not run the script: `--post` w
 | --- | --- | --- | --- |
 | M1 | Task without a manual edit by Andrei | The PR's commits without the trailers `Claude-Session` or `Co-Authored-By: Claude`, apart from merges from `main` | `m1_no_manual_edit`, `m1_owner_commits` |
 | M2 | Defects after merge | Issues labelled `defect`, created within 14 days of the merge and referring to `#task` or `#PR`; `defect:serious` are the serious ones | `m2_defects`, `m2_serious` |
-| M3 | Regressions on `main` | `build-test` failed on the merge commit in `main`; once `tests/acceptance` exists, their failures too | `m3_main_regression` |
+| M3 | Regressions on `main` | `build-test` failed on the merge commit in `main`; once `tests/backend/Acceptance/MotiffLab.Acceptance.Tests` exists, their failures too | `m3_main_regression` |
 | M4 | Returns from review and QA | Reports `<!-- aom:review -->` with blocking findings or `changes-requested`, `<!-- aom:qa -->` with `fail`; a PR closed without merge was rejected by Andrei | `m4_returned`, `m4_rejected_by_andrei` |
 | M5 | Reliability of the required check | PR SHAs on which `build-test` both failed and passed; a merge without a green `build-test` on the last SHA (the ruleset should keep this at 0) | `m5_flaky_shas`, `m5_merged_without_green_check` |
 | M6 | Conflicts of parallel tasks | Not counted: one task at a time | — |

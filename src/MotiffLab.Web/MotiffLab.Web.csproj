@@ -106,7 +106,7 @@
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="..\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+    <ProjectReference Include="..\backend\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>
 
 </Project>

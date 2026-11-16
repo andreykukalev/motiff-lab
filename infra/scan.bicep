@@ -1,4 +1,4 @@
-// The hosted scan server (docs/decisions/0014-hosted-scan-server.md): homr behind services/omr, unmodified,
+// The hosted scan server (docs/architecture/adr/0014-hosted-scan-server.md): homr behind src/backend/omr, unmodified,
 // in Azure Container Apps. Deployed by .github/workflows/scan-server.yml after it publishes the image,
 // not by CI's main.bicep run, so the app is never created before its image exists.
 //

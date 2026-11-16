@@ -54,7 +54,7 @@ test("the clear refuses to run anywhere but on a test site", async () => {
     await assert.rejects(clearTestLibrary(), /only on the test site/);
 });
 
-// «Очистить всё»: a reset made on another device (src/MotiffLab.Api/TestReset.cs) reaches this browser at its next list.
+// «Очистить всё»: a reset made on another device (src/backend/MotiffLab.Api/TestReset.cs) reaches this browser at its next list.
 async function withStorage(entries, run) {
     const store = new Map(Object.entries(entries));
     const storage = {

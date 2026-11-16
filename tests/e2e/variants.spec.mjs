@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { focusSelection, selectPhrase, violations } from "./steps.mjs";
 
-const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
+const score = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
 
 /** The score added to the library and opened, its first phrase lifted into focus. */
 async function focusFirstPhrase(page) {

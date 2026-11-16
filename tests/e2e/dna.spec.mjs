@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { openFurElise, openMore, selectBar, violations } from "./steps.mjs";
 
-const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
+const minuet = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 test("from the overflow, the map reads form, key, harmony, density and ideas, and a mark leads back into the score", async ({ page }) => {
     const errors = await openFurElise(page);

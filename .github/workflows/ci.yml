@@ -1,7 +1,7 @@
 name: CI
 
 # The browser tests (tests/e2e) are heavy, so they are not here: browser-tests.yml runs them, by hand only while the
-# web app is archived (docs/decisions/0032-ipad-first-web-archived.md).
+# web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
@@ -143,7 +143,7 @@ jobs:
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
                   app=true ;;
-                services/omr/*) scan=true ;;
+                src/backend/omr/*) scan=true ;;
                 *) code=true ;;
               esac
               case "$f" in
@@ -151,7 +151,7 @@ jobs:
               esac
             done <<< "$changed"
           fi
-          # The web app is archived (docs/decisions/0032-ipad-first-web-archived.md): it is published and deployed
+          # The web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md): it is published and deployed
           # only while the repository variable WEB_ACTIVE is true, which reactivating the web sets
           # (docs/web-archive.md). Then main deploys the main address; develop deploys the Static Web App's
           # environment "develop", the web test site, once Andrei has set the repository variable DEPLOY_DEVELOP to
@@ -170,7 +170,7 @@ jobs:
           fi
           publish="$azure"
           # Changes to the agents' own rules (decision 6 in governance/README.md) are flagged: Andrei merges them.
-          environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/acceptance/)' <<< "${changed:-}" || true)"
+          environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/backend/Acceptance/)' <<< "${changed:-}" || true)"
           if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
             echo "::warning title=env-scope::This pull request changes the agents' rules; Andrei merges it: $(tr '\n' ' ' <<< "$environment")"
             { echo "### env-scope: the agents' rules change (Andrei merges)"; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
@@ -256,22 +256,22 @@ jobs:
           fi
           node tools/quality/quality.mjs --ci "${checks[@]}" --base "$BASE_SHA"
 
-      # The scan server (services/omr, decision record 0011), with homr replaced by a stand-in: a few seconds.
+      # The scan server (src/backend/omr, decision record 0011), with homr replaced by a stand-in: a few seconds.
       - uses: actions/setup-python@v5
         if: steps.changes.outputs.scan == 'true'
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: services/omr/requirements-test.txt
+          cache-dependency-path: src/backend/omr/requirements-test.txt
 
       - name: Test scan server
         if: steps.changes.outputs.scan == 'true'
-        working-directory: services/omr
+        working-directory: src/backend/omr
         run: |
           pip install -r requirements-test.txt
           python -m pytest -q
 
-      # The protected acceptance scenarios (tests/acceptance/README.md, #310): a pull request that adds, changes,
+      # The protected acceptance scenarios (tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md, #310): a pull request that adds, changes,
       # removes or renames a file there needs the label protected-scenarios-ok, which only Andrei sets. It runs last
       # in a build and again in every label run, from the pull request's files and labels as GitHub has them now.
       # A file list shorter than the pull request's count of changed files counts as touching the scenarios.
@@ -287,15 +287,15 @@ jobs:
           labels="$(gh api "$pull" --jq '.labels[].name')"
           files="$(gh api --paginate "$pull/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')"
           listed="$(gh api --paginate "$pull/files?per_page=100" --jq '.[].filename' | grep -c . || true)"
-          protected="$(grep -E '^tests/acceptance/' <<< "$files" | sort -u || true)"
+          protected="$(grep -E '^tests/backend/Acceptance/' <<< "$files" | sort -u || true)"
           if (( listed < count )); then
-            protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch tests/acceptance)}"
+            protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch tests/backend/Acceptance)}"
           fi
           if [[ -z "$protected" ]]; then
             echo "No protected acceptance scenario changes."
             exit 0
           fi
-          { echo '### Protected acceptance scenarios (tests/acceptance)'; echo; sed 's/^/- /' <<< "$protected"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### Protected acceptance scenarios (tests/backend/Acceptance)'; echo; sed 's/^/- /' <<< "$protected"; } >> "$GITHUB_STEP_SUMMARY"
           if grep -qxF "$label" <<< "$labels"; then
             echo "The protected scenarios change with the label $label."
             exit 0

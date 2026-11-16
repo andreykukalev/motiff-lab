@@ -14,7 +14,7 @@ async function manageIdeas(page) {
     }
 }
 
-const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
+const minuet = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 test("keep a variation with a note, come back to it, rename, export and delete it", async ({ page }) => {
     const errors = await openFurElise(page);

@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the scan server said of one page (`X-Page-Report`, services/omr): numbers only. music-core works out the page's
+/// What the scan server said of one page (`X-Page-Report`, src/backend/omr): numbers only. music-core works out the page's
 /// quality from them (`scan.join`); the iPad reads them only to know a page was reported on and how far it was turned.
 struct PageReportEntry: Equatable, Sendable {
     var rotation: Int

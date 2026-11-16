@@ -1,6 +1,6 @@
 # Motiff Lab design kit
 
-The visual design system of the redesign (decision record [0018](../../docs/decisions/0018-redesign.md)): "blue pencil on cream paper", as delivered by Andrei on 2026-11-01 (rev 3 of the kit, 2026-10-31, with the fourth user ink `--ink-ochre` added) and again on 2026-11-04 with the handoff, unchanged otherwise.
+The visual design system of the redesign (decision record [0018](../../docs/architecture/adr/0018-redesign.md)): "blue pencil on cream paper", as delivered by Andrei on 2026-11-01 (rev 3 of the kit, 2026-10-31, with the fourth user ink `--ink-ochre` added) and again on 2026-11-04 with the handoff, unchanged otherwise.
 
 **Start with [`HANDOFF.md`](HANDOFF.md)**: how to read the kit, which source wins when two disagree (the documents' text, then `tokens.css`, then `ds.css`, then the screens, then the wireframes), the decisions and their reasons, what in the mockups is invented, and the known stale spots. Its description of the current build (section 3) is older than this repository: the iPad app is now native SwiftUI over the C# music-core (0019, 0020), and the WebView shell it mentions is gone.
 

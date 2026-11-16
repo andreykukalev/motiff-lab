@@ -39,7 +39,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'MotiffAzure.psm1') -Force
 
 $ApiAppName = 'Motiff Lab API'
-# The names are a contract with the API and the scan server (MotiffLab.MusicCore.Accounts.Plans, services/omr/app/auth.py).
+# The names are a contract with the API and the scan server (MotiffLab.MusicCore.Accounts.Plans, src/backend/omr/app/auth.py).
 $Roles = @(
   [ordered]@{ value = 'Pro'; name = 'Pro'; description = 'Scanning, transcription and saving online on Motiff Lab''s servers, and the assistant.' },
   [ordered]@{ value = 'Tester'; name = 'Tester'; description = 'May switch between Pro and no Pro to test both modes.' }

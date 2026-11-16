@@ -1,5 +1,5 @@
 // Tests of the protection of the acceptance scenarios (Task Record #310, criterion 3): node --test "governance/tests/*.test.mjs".
-// tests/acceptance/** is Guardrail by path, and CI's build-test fails a pull request that changes it without the label
+// tests/backend/Acceptance/** is Guardrail by path, and CI's build-test fails a pull request that changes it without the label
 // protected-scenarios-ok. The CI steps are run as written in ci.yml, with bash and jq, against a stand-in for gh that answers
 // from hand-made GitHub data.
 
@@ -79,11 +79,11 @@ const approval = (changed, labels = [], count = changed.length) => run(APPROVAL,
   [files]: changed.map((file) => (typeof file === 'string' ? { filename: file } : file)),
 }, { PR: '7' });
 
-test('tests/acceptance/** is Guardrail by path; other tests stay Standard', () => {
+test('tests/backend/Acceptance/** is Guardrail by path; other tests stay Standard', () => {
   const table = parseRiskPaths(readFileSync(path.join(root, 'governance', 'risk-paths.yml'), 'utf8'));
-  assert.equal(minimumRisk(['tests/acceptance/README.md'], table), 'guardrail');
-  assert.equal(minimumRisk(['tests/acceptance/Fixtures/scale-type0.mid'], table), 'guardrail');
-  assert.equal(minimumRisk(['tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs'], table), 'standard');
+  assert.equal(minimumRisk(['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md'], table), 'guardrail');
+  assert.equal(minimumRisk(['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/Fixtures/scale-type0.mid'], table), 'guardrail');
+  assert.equal(minimumRisk(['tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs'], table), 'standard');
 });
 
 test('the approval check runs on every pull request run, whatever changed, and label events start a run', () => {
@@ -98,20 +98,20 @@ test('a pull request that changes no scenario passes without the label', needsTo
 });
 
 test('a pull request that changes a scenario fails without protected-scenarios-ok', needsTools, () => {
-  for (const changed of [['tests/acceptance/OpeningAPiece.cs'], ['README.md', 'tests/acceptance/Fixtures/new.musicxml']]) {
+  for (const changed of [['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/OpeningAPiece.cs'], ['README.md', 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/Fixtures/new.musicxml']]) {
     const result = approval(changed, ['agent', 'risk:guardrail', 'protected-scenarios-ok-later']);
     assert.equal(result.code, 1, result.out);
-    assert.match(result.out, /::error title=protected-scenarios-ok::.*tests\/acceptance\//);
+    assert.match(result.out, /::error title=protected-scenarios-ok::.*tests\/backend\/Acceptance\//);
   }
 });
 
 test('a pull request that changes a scenario passes with protected-scenarios-ok', needsTools, () => {
-  const result = approval(['tests/acceptance/README.md', 'MotiffLab.slnx'], ['agent', 'protected-scenarios-ok']);
+  const result = approval(['tests/backend/Acceptance/MotiffLab.Acceptance.Tests/README.md', 'MotiffLab.slnx'], ['agent', 'protected-scenarios-ok']);
   assert.equal(result.code, 0, result.out);
 });
 
-test('moving a scenario out of tests/acceptance counts as changing it', needsTools, () => {
-  const result = approval([{ filename: 'tests/old/OpeningAPiece.cs', previous_filename: 'tests/acceptance/OpeningAPiece.cs' }]);
+test('moving a scenario out of tests/backend/Acceptance/MotiffLab.Acceptance.Tests counts as changing it', needsTools, () => {
+  const result = approval([{ filename: 'tests/old/OpeningAPiece.cs', previous_filename: 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/OpeningAPiece.cs' }]);
   assert.equal(result.code, 1, result.out);
 });
 

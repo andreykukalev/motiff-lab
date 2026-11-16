@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { violations } from "./steps.mjs";
 
-const twoPieces = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Analysis/Fixtures/two-pieces.musicxml", import.meta.url));
+const twoPieces = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Analysis/Fixtures/two-pieces.musicxml", import.meta.url));
 
 test("with the experiment on, the Contents propose where the second piece begins, to move, name and confirm", async ({ page }) => {
     await page.goto("/");

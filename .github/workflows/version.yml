@@ -2,7 +2,7 @@
 # version or a hotfix), it tags that commit v<VERSION>, then starts the iPad tests on the tag. Agents cannot
 # push tags from a cloud thread, so a version is a pull request that changes VERSION. A tag pushed with the workflow's
 # token starts no other workflow by itself, hence the explicit run. The browser tests belong to the archived web app
-# (docs/decisions/0032-ipad-first-web-archived.md) and are not started; reactivating the web brings their run back.
+# (docs/architecture/adr/0032-ipad-first-web-archived.md) and are not started; reactivating the web brings their run back.
 name: Version
 
 on:

@@ -5,7 +5,7 @@ import XCTest
 /// The phrases at their three levels, the form and the Piece DNA from music-core built with NativeAOT, against the
 /// answers the same calls give on Linux (task #293; basis rule S7 and pre-build check 2 of the project-continuity
 /// council). The goldens in Golden/ are written and asserted on Linux by
-/// tests/MotiffLab.MusicCore.Tests/Golden/AnalysisParityTests.cs; a difference here is a parity difference between the
+/// tests/backend/Unit/MotiffLab.MusicCore.Tests/Golden/AnalysisParityTests.cs; a difference here is a parity difference between the
 /// two builds, to be recorded rather than smoothed over.
 final class AnalysisParityTests: XCTestCase {
     private final class Marker {}

@@ -16,7 +16,7 @@ namespace MotiffLab.Web.Import;
 
 /// <summary>
 /// Sheet music scanning (decision record 0011): sends a PDF or photo of printed music to the scan
-/// server the player runs on their own computer (services/omr, homr in Docker) and gets MusicXML back.
+/// server the player runs on their own computer (src/backend/omr, homr in Docker) and gets MusicXML back.
 /// In a build with sign-in, Motiff Lab's hosted server (0014) is the choice until the player picks their own server
 /// or turns scanning off in Settings; it reads pages only for a signed-in player, and each send asks first. In a build
 /// without sign-in, scanning is off until the player gives their own server's address.
@@ -46,7 +46,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
 
-    /// <summary>The largest upload the server accepts (services/omr <c>MAX_UPLOAD_MB</c>, 50 there and on Motiff Lab's server); a larger file is not sent.</summary>
+    /// <summary>The largest upload the server accepts (src/backend/omr <c>MAX_UPLOAD_MB</c>, 50 there and on Motiff Lab's server); a larger file is not sent.</summary>
     public const long MaxUploadBytes = 50 * 1024 * 1024;
 
     public const string AcceptedExtensions = ".pdf,.png,.jpg,.jpeg";

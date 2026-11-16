@@ -79,7 +79,7 @@ test("Clear selection and the pen's tools have icons of their own, in both apps"
 });
 
 test("the theme's choices are the setting appearance.theme's, Auto first and the default", () => {
-    const catalogue = read("src/MotiffLab.MusicCore/Settings/SettingsCatalogue.cs").toString();
+    const catalogue = read("src/backend/MotiffLab.MusicCore/Settings/SettingsCatalogue.cs").toString();
     assert.match(catalogue, /Choice\("appearance\.theme", SettingSection\.Appearance, \["auto", "daylight", "night", "slate"\], "auto"/);
     assert.equal(readChoice(null), "auto");
     assert.equal(readChoice("sepia"), "auto");

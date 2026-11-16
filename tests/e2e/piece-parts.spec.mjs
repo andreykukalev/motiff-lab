@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { librarySessions, pageErrors, violations } from "./steps.mjs";
 
-const twoPieces = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Analysis/Fixtures/two-pieces.musicxml", import.meta.url));
+const twoPieces = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Analysis/Fixtures/two-pieces.musicxml", import.meta.url));
 
 /** Turns the experiments on in Settings · Experimental. */
 async function experiments(page, names) {

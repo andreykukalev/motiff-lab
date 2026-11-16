@@ -6,7 +6,7 @@ using Microsoft.JSInterop;
 namespace MotiffLab.Web.Localization;
 
 /// <summary>
-/// The interface's words in the player's language (docs/decisions/0012-workspace-structure.md, localization).
+/// The interface's words in the player's language (docs/architecture/adr/0012-workspace-structure.md, localization).
 /// Strings live in <c>wwwroot/i18n/{language}.json</c>, one flat file per language keyed by
 /// <c>area.name</c>; English is the fallback for a key a language has not got yet, and the key itself
 /// is the last resort, so a missing string is visible rather than a crash. Components read

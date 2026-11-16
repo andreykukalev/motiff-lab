@@ -12,7 +12,7 @@ facade contract, HTTP API, Cosmos). The architecture follows the product concept
   facade, the tolerant reader, the golden files and protected scenarios.
 - Prefer a first version that tests the idea without changing the saved format; a format change is Andrei's decision 3.
 - Output: a short design note (what changes where, what stays, the contract if any, the risks, how to undo), linked from
-  the task; a decision record in `docs/decisions/` only for a lasting architecture decision.
+  the task; a decision record in `docs/architecture/adr/` only for a lasting architecture decision.
 
 ## Team mode
 

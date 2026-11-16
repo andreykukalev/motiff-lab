@@ -2,7 +2,7 @@
 
 Status: current, a proposal for the refactoring task (not yet reviewed by Andrei). Written 2026-11-16 on `develop` at
 `0d2bc52` (after #627, #628, #630 and #631). Read-only: no source file was changed to write it. It replaces nothing and
-builds on [decision record 0031](decisions/0031-ipad-score-modules.md), the [iPad UI review](code-map/ui-review-2026-11.md),
+builds on [decision record 0031](architecture/adr/0031-ipad-score-modules.md), the [iPad UI review](code-map/ui-review-2026-11.md),
 the code maps in [`code-map/`](code-map/) and the quality ratchet ([`governance/quality/README.md`](../governance/quality/README.md)).
 
 Goal: a surgical plan that brings the three subsystems (the C# music-core, the Swift iPad app, the web app) to SOLID,
@@ -53,7 +53,7 @@ its tests).
   tolerant reader, and the API checking only the envelope ([`project-file.md`](project-file.md), 0026).
 - Shared case files already pin three cross-platform rules: the playback model, scrubbing and the analysis answers
   (`tests/ipad/MotiffLabTests/Golden/*.json`, read by node, xUnit and XCTest). This is the pattern to extend.
-- Protected acceptance scenarios (`tests/acceptance`) go only through the facade and may not be edited by the agent that
+- Protected acceptance scenarios (`tests/backend/Acceptance/MotiffLab.Acceptance.Tests`) go only through the facade and may not be edited by the agent that
   broke them.
 - The ratchet is blocking since 2026-11-16: baselined code may not grow.
 
@@ -63,14 +63,14 @@ its tests).
 
 | Path | What it is | Size | Built and tested by |
 | --- | --- | --- | --- |
-| `src/MotiffLab.MusicCore` | The domain: 19 namespaces (table in 2.4) | 296 files, 60,070 lines | `build-test`; `tests/MotiffLab.MusicCore.Tests` (178 files, 2,130 tests), `tests/acceptance` (24) |
+| `src/backend/MotiffLab.MusicCore` | The domain: 19 namespaces (table in 2.4) | 296 files, 60,070 lines | `build-test`; `tests/backend/Unit/MotiffLab.MusicCore.Tests` (178 files, 2,130 tests), `tests/backend/Acceptance/MotiffLab.Acceptance.Tests` (24) |
 | `src/ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by the `iPad` workflow |
-| `src/MotiffLab.Api` | ASP.NET Core API: projects in Cosmos DB, profile, plan, the assistant relay | 16 files, 1,799 lines | `build-test`; `tests/MotiffLab.Api.Tests` (79); deployed by `API` |
+| `src/backend/MotiffLab.Api` | ASP.NET Core API: projects in Cosmos DB, profile, plan, the assistant relay | 16 files, 1,799 lines | `build-test`; `tests/backend/Integration/MotiffLab.Api.Tests` (79); deployed by `API` |
 | `src/MotiffLab.Web` | Blazor WebAssembly: 9 pages, 110 Razor files, 122 C# files in 24 feature folders; one stylesheet | 38,587 lines of C# and Razor; 12,865 of CSS | `build-test` compiles it; **no unit-test project**; `tests/e2e` (58 Playwright spec files) by label, tag or nightly on `main` |
 | `src/MotiffLab.Web/Scripts` | TypeScript in 11 folders (`score` 26 files, `roll` 12, `playback` 7, `layout`, `storage`, `import`, …), compiled to `wwwroot/js` | 84 files, 23,907 lines | `tsc` in the build; `tests/web` (59 files, 593 node tests) |
 | `src/ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS (label `ipad-tests`, tags, by hand): `MotiffLabTests` (52 files, 451 tests), `MotiffLabScreens` (6 UI tests) |
 | `src/ipad/App/Web` | The pages inside the app's two web views: `score.js`, `roll.js`, their HTML and CSS | 2,188 lines | nothing compiles or lints them; the `dependencies` check follows their imports |
-| `services/omr` | The scan server (Python: homr, Basic Pitch) | 1,810 lines with tests | `pytest` in `build-test` when it changes; `Scan server` workflow |
+| `src/backend/omr` | The scan server (Python: homr, Basic Pitch) | 1,810 lines with tests | `pytest` in `build-test` when it changes; `Scan server` workflow |
 | `design/kit` | Tokens, component CSS, mockups | — | `tests/web/design.test.mjs` keeps the web's copy of `tokens.css` identical |
 | `tools/quality`, `governance` | The ratchet, the guards | — | `node --test` in `build-test` |
 
@@ -281,34 +281,34 @@ services after the plus sign.
 
 | File | Lines | Deps | Responsibilities mixed | Split into |
 | --- | --- | --- | --- | --- |
-| `src/MotiffLab.MusicCore/Projects/ProjectFile.cs` | 1,744 | 11 | 8: the envelope and version switch; readers of versions 1–15; ink and marks; bookmarks, resume points, Check; performances and merges; phrases, scan, transcription, bars; the variation chain and every operation's parameters; JSON primitives and the tolerant reader's unknown entities (92 methods) | Keep `ProjectFile.Read` / `.Write`. Move the rest to `Projects/File/`: `JsonRead` (primitives, also used by `Facade/Request`), `Legacy/` (everything `ReadEarlier` needs), `MarksCodec`, `PerformanceCodec`, `VariationCodec`, `UnknownEntities`. Golden files pin it |
-| `src/MotiffLab.MusicCore/Notation/NotationGenerator.cs` | 1,597 | 8 | 6: planning bars and parts; rhythm of heard notes (`Snap`, `AsHeard`); tuplets; staves, clefs and voices; beams and rests; writing MEI with tempos and directions (20 types, 69 methods; `PlanPart` complexity 28) | `NotationPlan`, `HeardRhythm`, `StaffLayout`, `MeiWriter`; `NotationGenerator` keeps `FromMidi` / `FromMusicXml` / `Generate` |
-| `src/MotiffLab.MusicCore/Facade/Answer.cs` | 1,366 | 16 | 12 or more: the JSON of every feature (piece, project, phrases, selection, facts, circle, harmony, DNA, variation, checks, notation, roll, playback, catalogue); coupled to 216 types; `Dna` is 153 lines | `Answer.<Feature>.cs` by feature and `JsonWrite` for the primitives; later each writer sits beside the typed result of its session |
-| `src/MotiffLab.MusicCore/Import/MusicXml/MusicXmlImporter.cs` | 1,275 | 6 | 6: loading and sniffing XML and MXL; the part list; the per-part reader (notes, ties, slurs, tuplets, graces, barlines, repeats, directions, key, time); merging parts; aligning bars; issues (`Build` is 256 lines, complexity 43) | `MusicXmlDocument` (load), `PartReader` in its own files by element group, `MusicXmlAssembler` (`Build` cut into ties, slurs, barlines, texts) |
-| `src/MotiffLab.MusicCore/Import/Transcription/BarGrid.cs` | 1,055 | 4 | 5: the grid as a model (signature and beat lookup); beat tracking; bass tracking; search and refine; applying the grid to notes | `BarGrid` (model, moved to `Pieces`), `BeatTracker`, `GridSearch`, `GridApply`; `BarGrid.Sections.cs` (382) becomes `LiveSections` |
-| `src/MotiffLab.MusicCore/Projects/Project.cs` | 978 | 10 | 7: the aggregate's 35 properties; creation from a file, a document, a recognition; originals; bookmarks and categories; resume points; performances; assembly; plus summary and saved-record types (105 public members with its partials) | First a file per sub-aggregate (`Project.Bookmarks`, `.ResumePoints`, `.Performances`, records in their own files); then, as a separate decision, group the state as the file's three layers (originals, notes, workspace; 0030) |
-| `src/MotiffLab.MusicCore/Variations/OperationTemplates.cs` | 818 | 4 | 2 at scale: the explanation text of about 15 operations, in two languages, with its own formatters (`Revoiced` complexity 38, `Densified` 34) | One template file per operation family; formatters to the phrasing module |
-| `src/MotiffLab.MusicCore/Analysis/MotifAnalyzer.cs` (+ `.Character.cs` 374, `.Rhythm.cs`, `.Texture.cs`) | 739 | 3 | 4: measuring the melody; reading the key; facts as sentences; English and Russian grammar helpers (`Analyze` 129 lines) | `MotifMeasures` (numbers) and `MotifFacts` (sentences) per lens; helpers to the phrasing module |
-| `src/MotiffLab.MusicCore/Facade/OpenPiece.cs` (+ 8 partial files, about 2,500 lines) | 734 | 17 | 8: the session's state; import, open, transcribe; dispatch; phrases and levels; selection; understanding, Try, variation; notation; playback and roll; save. Every method takes a `Request` and returns JSON text | Typed feature sessions (`SelectionSession`, `CorrectionsSession`, `MergeSession`, `SourcesSession`, `PerformanceSession`, …), each the owner of its state; `OpenPiece` composes them; JSON only in the adapter |
-| `src/MotiffLab.MusicCore/Analysis/Harmony.cs` | 674 | 2 | 3: chord types; finding chords (windows, scoring); harmony facts as text | `ChordModel`, `ChordFinder`, `HarmonyFacts` |
-| `src/MotiffLab.MusicCore/Analysis/PieceDna.cs` | 593 | 4 | 3: 11 record types; seven lanes; the key read from notes | `DnaModel`, `DnaLanes`, key reading shared with `KeyFinder` |
-| `src/MotiffLab.MusicCore/Facade/MusicCoreFacade.cs` | 532 | 6 | 4: the registry of open pieces; four ways to open; the dispatch of piece 0; a 115-line history of the contract in a comment | The history to `docs/`; a call registry as data (name, handler, «showing», «without a piece») in place of the `switch` blocks and name lists |
-| `src/MotiffLab.MusicCore/Analysis/SentenceMap.cs` | 526 | 2 | 3: the model and its edits; suggesting sentences (`Group` complexity 21); facts as text | `SentenceMap`, `SentenceFinder`, `SentenceFacts` |
-| `src/MotiffLab.MusicCore/Projects/PieceParts.cs` | 524 | 5 | 3: the parts model; splitting a PDF, notes or a recording; cuts and titles | `PiecePart` types; a splitter per origin |
-| `src/MotiffLab.MusicCore/Analysis/PhraseBoundaries.cs` | 508 | 2 | 3: evidence types; the finder (slurs, rests, repeats); the player's boundaries | One file per kind of evidence |
-| `src/MotiffLab.MusicCore/Variations/VariationFacts.cs` | 503 | 4 | 2: the Keep checks; the explanation text (`Explain` 112 lines, complexity 34) | `KeepChecks`, `VariationExplanation` |
-| `src/MotiffLab.MusicCore/Experiments/ExperimentCatalogue.cs` | 475 | 6 | 3: types; four experiments; the context and its text | Types apart; one file per experiment |
-| `src/MotiffLab.MusicCore/Import/Midi/MidiImporter.cs` | 472 | 3 | 2: the import; the track reader with the pedal | `TrackReader` in its own file |
-| `src/MotiffLab.MusicCore/Projects/SourceOperations.cs` | 466 | 2 | 2: originals (add, remove, revive); Notes (add, delete, recognise, make working) | `OriginalOperations`, `NotesOperations` |
-| `src/MotiffLab.MusicCore/Import/PieceImporter.cs` | 445 | 6 | 3: sniffing the format; importing; the model `ImportedPiece` every namespace uses | `ImportedPiece`, `ImportedTrack` to `Pieces` (this breaks three cycles); `FormatSniffer` |
-| `src/MotiffLab.MusicCore/Analysis/StructureAnalyzer.cs` | 432 | 4 | 2: recurrences and spans; facts as text | Measures and facts apart |
-| `src/MotiffLab.MusicCore/Projects/ProjectFile.Layers.Read.cs` | 401 | 3 | 1: the reader of version 16 | Leave; it moves into `Projects/File/` |
-| `src/MotiffLab.MusicCore/Analysis/ShortMap.cs`, `PhraseMap.cs` | 399, 396 | 2, 3 | Each: a level's model, its suggestion and its edits. With `SentenceMap` they are three parallel implementations of `Make…`, `JoinWithNext`, `SplitAt`, `Snap`, `EditsFor` | One edit algebra for the three levels |
-| `src/MotiffLab.MusicCore/Analysis/MusicalIdeas.cs` | 395 | 2 | 2: finding ideas; text | Measures and facts apart |
-| `src/MotiffLab.MusicCore/Assembly/Assembled.cs` | 391 | 5 | 2: replaying the journal; `Carry` (105 lines, complexity 26) | One method per step kind; raise branch coverage first (Assembly: 61 %) |
-| `src/MotiffLab.MusicCore/Performance/PerformanceComparison.cs` | 381 | 2 | 2: matching (`Compare` 123 lines); classifying | `NoteMatcher`, `DifferenceClassifier` |
-| `src/MotiffLab.MusicCore/Import/Scan/ScanRepair.cs` | 371 | 5 | 2: parsing the scan's MusicXML; mending and re-timing | Leave until touched |
-| `src/MotiffLab.MusicCore/Facade/Answer.Project.cs` | 361 | 7 | Part of `Answer` (marks, bookmarks, resume, Check, settings) | With `Answer.cs` |
+| `src/backend/MotiffLab.MusicCore/Projects/ProjectFile.cs` | 1,744 | 11 | 8: the envelope and version switch; readers of versions 1–15; ink and marks; bookmarks, resume points, Check; performances and merges; phrases, scan, transcription, bars; the variation chain and every operation's parameters; JSON primitives and the tolerant reader's unknown entities (92 methods) | Keep `ProjectFile.Read` / `.Write`. Move the rest to `Projects/File/`: `JsonRead` (primitives, also used by `Facade/Request`), `Legacy/` (everything `ReadEarlier` needs), `MarksCodec`, `PerformanceCodec`, `VariationCodec`, `UnknownEntities`. Golden files pin it |
+| `src/backend/MotiffLab.MusicCore/Notation/NotationGenerator.cs` | 1,597 | 8 | 6: planning bars and parts; rhythm of heard notes (`Snap`, `AsHeard`); tuplets; staves, clefs and voices; beams and rests; writing MEI with tempos and directions (20 types, 69 methods; `PlanPart` complexity 28) | `NotationPlan`, `HeardRhythm`, `StaffLayout`, `MeiWriter`; `NotationGenerator` keeps `FromMidi` / `FromMusicXml` / `Generate` |
+| `src/backend/MotiffLab.MusicCore/Facade/Answer.cs` | 1,366 | 16 | 12 or more: the JSON of every feature (piece, project, phrases, selection, facts, circle, harmony, DNA, variation, checks, notation, roll, playback, catalogue); coupled to 216 types; `Dna` is 153 lines | `Answer.<Feature>.cs` by feature and `JsonWrite` for the primitives; later each writer sits beside the typed result of its session |
+| `src/backend/MotiffLab.MusicCore/Import/MusicXml/MusicXmlImporter.cs` | 1,275 | 6 | 6: loading and sniffing XML and MXL; the part list; the per-part reader (notes, ties, slurs, tuplets, graces, barlines, repeats, directions, key, time); merging parts; aligning bars; issues (`Build` is 256 lines, complexity 43) | `MusicXmlDocument` (load), `PartReader` in its own files by element group, `MusicXmlAssembler` (`Build` cut into ties, slurs, barlines, texts) |
+| `src/backend/MotiffLab.MusicCore/Import/Transcription/BarGrid.cs` | 1,055 | 4 | 5: the grid as a model (signature and beat lookup); beat tracking; bass tracking; search and refine; applying the grid to notes | `BarGrid` (model, moved to `Pieces`), `BeatTracker`, `GridSearch`, `GridApply`; `BarGrid.Sections.cs` (382) becomes `LiveSections` |
+| `src/backend/MotiffLab.MusicCore/Projects/Project.cs` | 978 | 10 | 7: the aggregate's 35 properties; creation from a file, a document, a recognition; originals; bookmarks and categories; resume points; performances; assembly; plus summary and saved-record types (105 public members with its partials) | First a file per sub-aggregate (`Project.Bookmarks`, `.ResumePoints`, `.Performances`, records in their own files); then, as a separate decision, group the state as the file's three layers (originals, notes, workspace; 0030) |
+| `src/backend/MotiffLab.MusicCore/Variations/OperationTemplates.cs` | 818 | 4 | 2 at scale: the explanation text of about 15 operations, in two languages, with its own formatters (`Revoiced` complexity 38, `Densified` 34) | One template file per operation family; formatters to the phrasing module |
+| `src/backend/MotiffLab.MusicCore/Analysis/MotifAnalyzer.cs` (+ `.Character.cs` 374, `.Rhythm.cs`, `.Texture.cs`) | 739 | 3 | 4: measuring the melody; reading the key; facts as sentences; English and Russian grammar helpers (`Analyze` 129 lines) | `MotifMeasures` (numbers) and `MotifFacts` (sentences) per lens; helpers to the phrasing module |
+| `src/backend/MotiffLab.MusicCore/Facade/OpenPiece.cs` (+ 8 partial files, about 2,500 lines) | 734 | 17 | 8: the session's state; import, open, transcribe; dispatch; phrases and levels; selection; understanding, Try, variation; notation; playback and roll; save. Every method takes a `Request` and returns JSON text | Typed feature sessions (`SelectionSession`, `CorrectionsSession`, `MergeSession`, `SourcesSession`, `PerformanceSession`, …), each the owner of its state; `OpenPiece` composes them; JSON only in the adapter |
+| `src/backend/MotiffLab.MusicCore/Analysis/Harmony.cs` | 674 | 2 | 3: chord types; finding chords (windows, scoring); harmony facts as text | `ChordModel`, `ChordFinder`, `HarmonyFacts` |
+| `src/backend/MotiffLab.MusicCore/Analysis/PieceDna.cs` | 593 | 4 | 3: 11 record types; seven lanes; the key read from notes | `DnaModel`, `DnaLanes`, key reading shared with `KeyFinder` |
+| `src/backend/MotiffLab.MusicCore/Facade/MusicCoreFacade.cs` | 532 | 6 | 4: the registry of open pieces; four ways to open; the dispatch of piece 0; a 115-line history of the contract in a comment | The history to `docs/`; a call registry as data (name, handler, «showing», «without a piece») in place of the `switch` blocks and name lists |
+| `src/backend/MotiffLab.MusicCore/Analysis/SentenceMap.cs` | 526 | 2 | 3: the model and its edits; suggesting sentences (`Group` complexity 21); facts as text | `SentenceMap`, `SentenceFinder`, `SentenceFacts` |
+| `src/backend/MotiffLab.MusicCore/Projects/PieceParts.cs` | 524 | 5 | 3: the parts model; splitting a PDF, notes or a recording; cuts and titles | `PiecePart` types; a splitter per origin |
+| `src/backend/MotiffLab.MusicCore/Analysis/PhraseBoundaries.cs` | 508 | 2 | 3: evidence types; the finder (slurs, rests, repeats); the player's boundaries | One file per kind of evidence |
+| `src/backend/MotiffLab.MusicCore/Variations/VariationFacts.cs` | 503 | 4 | 2: the Keep checks; the explanation text (`Explain` 112 lines, complexity 34) | `KeepChecks`, `VariationExplanation` |
+| `src/backend/MotiffLab.MusicCore/Experiments/ExperimentCatalogue.cs` | 475 | 6 | 3: types; four experiments; the context and its text | Types apart; one file per experiment |
+| `src/backend/MotiffLab.MusicCore/Import/Midi/MidiImporter.cs` | 472 | 3 | 2: the import; the track reader with the pedal | `TrackReader` in its own file |
+| `src/backend/MotiffLab.MusicCore/Projects/SourceOperations.cs` | 466 | 2 | 2: originals (add, remove, revive); Notes (add, delete, recognise, make working) | `OriginalOperations`, `NotesOperations` |
+| `src/backend/MotiffLab.MusicCore/Import/PieceImporter.cs` | 445 | 6 | 3: sniffing the format; importing; the model `ImportedPiece` every namespace uses | `ImportedPiece`, `ImportedTrack` to `Pieces` (this breaks three cycles); `FormatSniffer` |
+| `src/backend/MotiffLab.MusicCore/Analysis/StructureAnalyzer.cs` | 432 | 4 | 2: recurrences and spans; facts as text | Measures and facts apart |
+| `src/backend/MotiffLab.MusicCore/Projects/ProjectFile.Layers.Read.cs` | 401 | 3 | 1: the reader of version 16 | Leave; it moves into `Projects/File/` |
+| `src/backend/MotiffLab.MusicCore/Analysis/ShortMap.cs`, `PhraseMap.cs` | 399, 396 | 2, 3 | Each: a level's model, its suggestion and its edits. With `SentenceMap` they are three parallel implementations of `Make…`, `JoinWithNext`, `SplitAt`, `Snap`, `EditsFor` | One edit algebra for the three levels |
+| `src/backend/MotiffLab.MusicCore/Analysis/MusicalIdeas.cs` | 395 | 2 | 2: finding ideas; text | Measures and facts apart |
+| `src/backend/MotiffLab.MusicCore/Assembly/Assembled.cs` | 391 | 5 | 2: replaying the journal; `Carry` (105 lines, complexity 26) | One method per step kind; raise branch coverage first (Assembly: 61 %) |
+| `src/backend/MotiffLab.MusicCore/Performance/PerformanceComparison.cs` | 381 | 2 | 2: matching (`Compare` 123 lines); classifying | `NoteMatcher`, `DifferenceClassifier` |
+| `src/backend/MotiffLab.MusicCore/Import/Scan/ScanRepair.cs` | 371 | 5 | 2: parsing the scan's MusicXML; mending and re-timing | Leave until touched |
+| `src/backend/MotiffLab.MusicCore/Facade/Answer.Project.cs` | 361 | 7 | Part of `Answer` (marks, bookmarks, resume, Check, settings) | With `Answer.cs` |
 
 ### 3.2 iPad app
 
@@ -376,7 +376,7 @@ services after the plus sign.
 
 ### 3.4 Tests and tools over 350 lines
 
-`tests/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `tests/ipad/MotiffLabTests/FacadeTests.swift`
+`tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/MusicCoreFacadeTests.cs` (1,328) and `tests/ipad/MotiffLabTests/FacadeTests.swift`
 (701) test the same contract from its two sides without sharing a case; they become readers of the facade fixtures
 (section 5.3). The others are long because they are lists of cases and need no split: `NotationGeneratorTests.cs` (632),
 `PlaybackTests.swift` (598), `PencilTests.swift` (573), `ProjectFileGoldenTests.cs` (475), `playback-processor.test.mjs`
@@ -400,7 +400,7 @@ Tools: `tools/quality/quality.mjs` (544), `infra/azure/setup.ps1` (482), `.githu
 | L6 | Razor components call JavaScript directly | `IJSRuntime` invoked in 113 files | A renamed TypeScript export fails only in the browser |
 | L7 | TypeScript folders depend on each other | `score` ↔ `playback` (the hold timing constants live in `score/selection-gesture.ts`, the playhead drag in `playback`); `roll` → `score` for the selection rules; `playback` → `import/recording.ts` | The pure selection rules have no folder of their own |
 | L8 | The shared TypeScript belongs to the web project | `project.yml` bundles `src/MotiffLab.Web/wwwroot/js/*`; an iPad task must build the web project | iPad tracks «do not read web pages», yet their page's code is there |
-| L9 | The API is rebuilt and redeployed on any music-core change | `api.yml` paths include `src/MotiffLab.MusicCore/**`; the API uses only `Assistant.Conversation`, `Accounts` and the project envelope | Every core refactoring step deploys the API (to the `develop` servers) |
+| L9 | The API is rebuilt and redeployed on any music-core change | `api.yml` paths include `src/backend/MotiffLab.MusicCore/**`; the API uses only `Assistant.Conversation`, `Accounts` and the project envelope | Every core refactoring step deploys the API (to the `develop` servers) |
 
 ### 4.2 Encapsulation
 
@@ -488,12 +488,12 @@ Run for this audit on a clean clone of `0d2bc52` (Linux, .NET 10, Node 22):
 
 | Suite | Where | Result today | Runs in CI |
 | --- | --- | --- | --- |
-| music-core unit tests | `tests/MotiffLab.MusicCore.Tests` (xUnit) | **2,130 passed**, 0 failed, 22 s | `build-test`, every pull request |
-| Protected acceptance scenarios | `tests/acceptance` (xUnit, through the facade) | **23 passed, 1 skipped** (a known defect) | `build-test` |
-| API tests | `tests/MotiffLab.Api.Tests` | **79 passed** | `build-test` |
+| music-core unit tests | `tests/backend/Unit/MotiffLab.MusicCore.Tests` (xUnit) | **2,130 passed**, 0 failed, 22 s | `build-test`, every pull request |
+| Protected acceptance scenarios | `tests/backend/Acceptance/MotiffLab.Acceptance.Tests` (xUnit, through the facade) | **23 passed, 1 skipped** (a known defect) | `build-test` |
+| API tests | `tests/backend/Integration/MotiffLab.Api.Tests` | **79 passed** | `build-test` |
 | TypeScript node tests | `tests/web/*.test.mjs` | **593 passed** | `build-test` |
 | Guards and ratchet | `governance/tests`, `tools/quality` | **27 passed** | `build-test` |
-| Scan server | `services/omr/tests` (pytest) | not run here | `build-test` when it changes |
+| Scan server | `src/backend/omr/tests` (pytest) | not run here | `build-test` when it changes |
 | iPad unit tests | `tests/ipad/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: label `ipad-tests`, tags, by hand |
 | iPad UI tests | `tests/ipad/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
 | Web browser tests | `tests/e2e` (Playwright, 58 spec files, 5 browser projects) | **failing on `develop`**: the runs for the tags v0.6.1, v0.6.2, v0.6.3, v0.6.4 and v0.6.5 all failed. On v0.6.5 Chromium: 183 passed, 5 failed (`pdf-scan.spec` «Add a version on a PDF», three of `performance.spec` on sources and recordings, `playhead.spec` «Back to playback»); Firefox, WebKit and the Android tablet failed, the iPad tablet project was cancelled at its time limit | label `browser-tests`, tags, nightly on `main` only |

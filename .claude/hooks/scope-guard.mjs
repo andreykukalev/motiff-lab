@@ -1,5 +1,5 @@
 // scope-guard (PreToolUse: Edit, Write, MultiEdit, NotebookEdit, Bash): asks before a change outside the task.
-//  1. The agents' own environment (.claude/, governance/, .github/, CLAUDE.md, tests/acceptance/) changes only in an
+//  1. The agents' own environment (.claude/, governance/, .github/, CLAUDE.md, tests/backend/Acceptance/) changes only in an
 //     environment task: on a branch env/*, or when AOM_ENV_TASK=1 is set for the session by Andrei. Elsewhere: ask.
 //  2. When the task's scope is written to .aom/task.json ({"task": 12, "allowed_paths": ["src/MotiffLab.Web/Pages/**"]}),
 //     a file outside allowed_paths: ask. The file itself is changed only by Andrei's decision: ask.

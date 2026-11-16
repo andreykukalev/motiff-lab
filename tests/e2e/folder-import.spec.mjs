@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { pdf } from "./pdf-fixture.mjs";
 import { pageErrors, violations } from "./steps.mjs";
 
-const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
+const minuet = fileURLToPath(new URL("../backend/Unit/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 /** A folder of notes as a player keeps one: two folders of pieces, a repeat, a damaged PDF and a file that is no notes. */
 function notesFolder() {

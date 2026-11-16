@@ -7,7 +7,7 @@
 //    reaches a folder the app does not bundle would only fail on the device, as a page that never loads.
 import { posix } from 'node:path';
 
-export const CORE = 'src/MotiffLab.MusicCore';
+export const CORE = 'src/backend/MotiffLab.MusicCore';
 const SCRIPTS = 'src/MotiffLab.Web/Scripts';
 export const IPAD_PAGES = 'src/ipad/App/Web';
 export const IPAD_PROJECT = 'src/ipad/App/project.yml';

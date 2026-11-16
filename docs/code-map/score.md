@@ -1,6 +1,6 @@
 # Code map: the score's selection (`src/MotiffLab.Web/Scripts/score`, the iPad's `src/ipad/App/Web/score.js`)
 
-**Status (2026-11-16):** the web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`); these modules stay live in the web project's folder because the iPad bundles them, and iPad work owns them. The web's own callers are frozen.
+**Status (2026-11-16):** the web app is archived (`docs/architecture/adr/0032-ipad-first-web-archived.md`); these modules stay live in the web project's folder because the iPad bundles them, and iPad work owns them. The web's own callers are frozen.
 
 The web and the iPad run the same TS modules; the iPad's page (`score.js`) builds the layers with its host options and
 posts what the player did to Swift. Node tests: `tests/web/selection-*.test.mjs` (after `tsc`).
