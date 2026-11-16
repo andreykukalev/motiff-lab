@@ -64,6 +64,10 @@ context. The context is compacted automatically at about 400K tokens (the enviro
   did is in `docs/web-archive.md` and the tag `v0.6.5`. Search tools skip `archive/` (`.ignore`), and on a computer
   `.claude/hooks/archive-guard.mjs` asks before any use of it; only a task whose `allowed_paths` name `archive/`
   (reactivation, Andrei's decision) opens it.
+- The one move into the archive Andrei decided (`docs/REFACTORING_AUDIT.md` section 6, decision 1; the v0.7 blueprint's
+  decision 5): the W0.6 / A6 task may `git mv` the 16 web-only shared modules, the parts of the node tests that read
+  them and the unused interface texts from `src/shared` and `tests/shared` into `archive/web`, reading nothing there
+  and writing nothing else there, and updates `docs/web-archive.md`.
 - A change to a live shared module that alters what the web would show is not ported: append one line to
   `/mnt/project-files/product/web-backlog.md`: what changed, the pull request, the shared code touched. It is the
   porting list for the web's reactivation.
