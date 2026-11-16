@@ -6,6 +6,7 @@ extension Walk {
     /// Where the bar's start and the switch are on one screen (VIEW-04).
     struct BarPlaces {
         let title: String
+        let titleFrame: CGRect
         let back: CGRect
         let contents: CGRect
         let pdf: CGRect
@@ -17,16 +18,18 @@ extension Walk {
     var notesSwitch: XCUIElement { button(beginning: "Ноты") }
 
     /// VIEW-01, VIEW-04: from the notes to the PDF and back. The bar reads Back, the Contents, the title, PDF | Notes,
-    /// Sources, then the view's own actions with More last, in both views, the start in the same places; while the notes
-    /// open no old control (the bar's Play or Pause, the old Loop) appears, and the pill's Play is there once they have.
+    /// Sources, then the view's own actions with More last, in both views, Back, the Contents and the title in the same
+    /// places; while the notes open no old control (the bar's Play or Pause, the old Loop) appears, and the pill's Play is
+    /// there once they have. The bar is looked at a few times a second: a flash shorter than a look is not seen (VIEW-01's
+    /// «not even for a moment» is the device's to see).
     func pdfAndNotes() throws {
         let onNotes = try barPlaces("on the notes")
         try press(pdfSwitch, "PDF in the switch")
         try until("the PDF shown", timeout: 30) { $0.screen == "pdf" && $0.ready }
-        pause(1)
-        shot("44-switch-pdf")
+        shot("44-switch-pdf", settle: 1)
         let onPdf = try barPlaces("on the PDF")
-        let moved: [(String, CGRect, CGRect)] = [("Back", onNotes.back, onPdf.back), ("Contents", onNotes.contents, onPdf.contents)]
+        let moved: [(String, CGRect, CGRect)] = [("Back", onNotes.back, onPdf.back), ("Contents", onNotes.contents, onPdf.contents),
+                                                 ("the title", onNotes.titleFrame, onPdf.titleFrame)]
             + (onNotes.title == onPdf.title ? [("PDF", onNotes.pdf, onPdf.pdf), ("Notes", onNotes.notes, onPdf.notes)] : [])
         for (name, notes, pdf) in moved where abs(notes.minX - pdf.minX) > 2 {
             throw miss("\(name) moved in the bar with the view: \(Int(notes.minX)) on the notes, \(Int(pdf.minX)) on the PDF (VIEW-04)")
@@ -34,8 +37,7 @@ extension Walk {
         try press(notesSwitch, "Notes in the switch")
         try watchNotesOpen()
         try need(button(beginning: "Играть с"), "the pill's Play on the notes")
-        pause(1)
-        shot("45-switch-notes")
+        shot("45-switch-notes", settle: 1)
     }
 
     /// The bar's start, the switch, Sources and More in that order on one line (VIEW-04).
@@ -56,7 +58,7 @@ extension Walk {
             throw miss("\(left.0) is not before \(right.0) in the bar \(view) (VIEW-04): \(line)")
         }
         print("SCREEN-BAR \(tag) \(view): \(line)")
-        return BarPlaces(title: title.label, back: row[0].1, contents: row[1].1, pdf: row[3].1, notes: row[4].1)
+        return BarPlaces(title: title.label, titleFrame: row[2].1, back: row[0].1, contents: row[1].1, pdf: row[3].1, notes: row[4].1)
     }
 
     /// While the notes open after PDF, the bar is looked at again and again: none of the old model's controls (the bar's
@@ -82,11 +84,9 @@ extension Walk {
         try press(button("Источники"), "Sources in the bar")
         try need(button("Закрыть другие версии"), "the Sources sheet")
         try need(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Оригиналы ·'")).firstMatch, "the originals in Sources")
-        pause(1)
-        shot("51-sources-pdf")
+        shot("51-sources-pdf", settle: 1)
         try press(button("Открыть"), "Open on the PDF's row in Sources")
         try until("the PDF opened from Sources", timeout: 30) { $0.screen == "pdf" && $0.ready }
-        pause(1)
         try press(notesSwitch, "Notes in the switch")
         try until("back on the notes", timeout: 30) { $0.screen == "score" && $0.ready }
         let close = button("Закрыть другие версии")
@@ -96,21 +96,20 @@ extension Walk {
     /// A PDF piece (0023): its pages, the pen, the metronome and More.
     func pdfPiece() throws {
         try need(button("Метроном"), "the metronome in the PDF's bar")
-        pause(2)
-        shot("40-pdf-piece")
+        shot("40-pdf-piece", settle: 2)
         try press(button("Перо"), "the Pen on the PDF")
         try need(button("Убрать карандаш"), "the PDF's pen palette")
         stroke(from: CGVector(dx: 0.3, dy: 0.4), to: CGVector(dx: 0.5, dy: 0.42))
         shot("41-pdf-pen")
         try press(button("Убрать карандаш"), "Put the pen away on the PDF")
-        try press(button("Метроном"), "the metronome in the PDF's bar")
-        try need(button("Убрать метроном"), "the metronome's pill")
-        pause(1)
-        shot("42-pdf-metronome")
-        try press(button("Убрать метроном"), "Close the metronome")
         try press(more, "More on the PDF")
         try need(app.otherElements["PopoverDismissRegion"], "the PDF's More")
         shot("43-pdf-more")
         dismissPopover()
+        // Last: in the runs so far the metronome's pill did not show in the simulator (its sound may not start there).
+        try press(button("Метроном"), "the metronome in the PDF's bar")
+        try need(button("Убрать метроном"), "the metronome's pill")
+        shot("42-pdf-metronome", settle: 1)
+        try press(button("Убрать метроном"), "Close the metronome")
     }
 }

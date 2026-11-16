@@ -4,7 +4,7 @@ import XCTest
 /// The UI walk (the `Screens` scheme, run by the `iPad` workflow by hand and for a version tag): the journeys of the
 /// architecture blueprint's layer T4, each asserting what a player does and sees through the controls and the app's Debug
 /// probe (ScreensProbe), with the screenshots for the redesign's mockups taken on the way. A control or a screen a journey
-/// expects and does not find fails the test, with the baseline entries (docs/ux-baseline.md) the journey protects.
+/// expects and does not find fails the test, with the baseline entries (docs/ux-baseline.md) the journey checks.
 ///
 /// A journey stops at its first miss: its later steps build on that one and would only fail after it, each waiting out its
 /// own timeout. The test goes on (`continueAfterFailure`) and the app is launched again for the next journey, so a missing
@@ -17,7 +17,8 @@ import XCTest
 final class ScreensUITests: XCTestCase {
     private struct Journey {
         let name: String
-        /// The entries of the UX baseline it protects, by their ids.
+        /// The entries of the UX baseline (docs/ux-baseline.md) it checks, by their ids. The walk is not yet an entry's
+        /// «Protected by»: that is a test under tests/ipad/Baseline, which this target does not compile.
         let protects: [String]
         let start: Walk.Start
         /// Where it leaves the app when it passes, if not where it started.
@@ -29,7 +30,7 @@ final class ScreensUITests: XCTestCase {
         Journey(name: "open-and-play", protects: [], start: .fresh, end: .example, run: { try $0.openExampleAndPlay() }),
         Journey(name: "select-loop-change", protects: ["PLAY-04"], start: .example, run: { try $0.selectLoopAndChange() }),
         Journey(name: "select-by-drag", protects: ["SEL-03"], start: .example, run: { try $0.selectByDragAndOver() }),
-        Journey(name: "roll-and-expand", protects: ["ROLL-01", "PLAY-01", "PLAY-03"], start: .example, run: { try $0.rollAndExpand() }),
+        Journey(name: "roll-and-expand", protects: ["ROLL-01", "PLAY-03"], start: .example, run: { try $0.rollAndExpand() }),
         Journey(name: "insights-and-try", protects: [], start: .example, run: { try $0.insightsAndTry() }),
         Journey(name: "pen-and-eraser", protects: ["INK-01"], start: .example, run: { try $0.penAndEraser() }),
         Journey(name: "assistant-panel", protects: [], start: .example, run: { try $0.assistantPanel() }),

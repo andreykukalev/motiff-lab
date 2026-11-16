@@ -63,6 +63,11 @@ final class Walk {
     private(set) var app = XCUIApplication()
     /// Where the app is between journeys; nil after a journey failed, so the next one launches again.
     var state: Start?
+    /// Whether the pictures for the mockups are asked for (SCREENS_DIR): without them a journey takes none and waits for
+    /// nothing to settle.
+    let pictures = !(ProcessInfo.processInfo.environment["SCREENS_DIR"] ?? "").isEmpty
+    /// Drags made by `choosePhrase`, so that each starts outside the selection the one before made.
+    private var drags = 0
 
     init(tag: String, dark: Bool, test: XCTestCase) {
         self.tag = tag
@@ -118,9 +123,10 @@ final class Walk {
 
     // MARK: - The probe
 
+    /// One query of the accessibility tree (a snapshot), not two: `exists` and then `label` would each take one.
     func probe() -> Probe? {
-        let element = app.descendants(matching: .any)["ml-screens-probe"]
-        return element.exists ? Probe(element.label) : nil
+        guard let element = try? app.descendants(matching: .any)["ml-screens-probe"].snapshot() else { return nil }
+        return Probe(element.label)
     }
 
     /// Waits until the probe says `holds`; the probe then, or a miss naming `what` with the last line read.
@@ -175,23 +181,24 @@ final class Walk {
         app.buttons.matching(NSPredicate(format: "label ENDSWITH 'открыть оглавление'")).firstMatch
     }
 
-    /// The control is there within `timeout`, or the journey stops here.
+    /// The control is there within `timeout`, or the journey stops here. A control a step has just shown is there at
+    /// once: the short default makes a miss cost seconds, not tens; a step that waits on work passes its own.
     @discardableResult
-    func need(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 10) throws -> XCUIElement {
+    func need(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 4) throws -> XCUIElement {
         guard element.waitForExistence(timeout: timeout) else { throw miss("\(what) is not there") }
         return element
     }
 
     /// The control is there and takes a press, which it gets.
-    func press(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 10) throws {
+    func press(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 4) throws {
         try need(element, what, timeout: timeout)
         let start = Date()
         while !element.isHittable {
-            guard Date().timeIntervalSince(start) < 3 else { throw miss("\(what) is there but cannot be pressed") }
+            guard Date().timeIntervalSince(start) < 2 else { throw miss("\(what) is there but cannot be pressed") }
             pause(0.25)
         }
         element.tap()
-        pause(0.8)
+        pause(0.5)
     }
 
     /// The control has gone within `timeout`, or the journey stops here.
@@ -214,7 +221,7 @@ final class Walk {
     func stroke(from: CGVector, to: CGVector) {
         let window = app.windows.firstMatch
         window.coordinate(withNormalizedOffset: from).press(forDuration: 0.1, thenDragTo: window.coordinate(withNormalizedOffset: to))
-        pause(1)
+        pause(0.5)
     }
 
     func pause(_ seconds: TimeInterval) {
@@ -223,14 +230,25 @@ final class Walk {
 
     // MARK: - Steps on the score
 
-    /// Another phrase selected by the app's hidden chooser (ScreensHook, Debug builds), as a tap on its bracket would:
-    /// phrase 2, then 3, and so on, so a choice never lifts the selection into Expand. The probe once the selection shows.
+    /// The row a drag in Select runs along: the second system of the first page, in both orientations.
+    static let selectRow: CGFloat = 0.40
+    /// Where a drag along that row starts and ends, as shares of the window's width: two places apart from each other,
+    /// so that one drag starts outside the selection the other made (SEL-02: a press inside would extend it).
+    static let selectPlaces: [(CGFloat, CGFloat)] = [(0.12, 0.22), (0.30, 0.40)]
+
+    /// A new selection, made as a player makes one: a drag in Select (the mode chosen first if it is not), starting
+    /// outside the selection there is, so it replaces it (SEL-03). The probe once the new selection shows.
     @discardableResult
     func choosePhrase() throws -> Probe {
+        if probe()?["mode"] != "select" {
+            try press(button("Выделение"), "Select in the bar's modes")
+            try until("Select chosen") { $0["mode"] == "select" }
+        }
         let before = probe()?["sel"]
-        let chooser = try need(button("ml-screens-phrase"), "the walk's phrase chooser (ScreensHook)", timeout: 5)
-        chooser.tap()
-        return try until("a new phrase selected by the walk's chooser") { $0.span("sel") != nil && $0["sel"] != before }
+        let (from, to) = Self.selectPlaces[drags % Self.selectPlaces.count]
+        drags += 1
+        stroke(from: CGVector(dx: from, dy: Self.selectRow), to: CGVector(dx: to, dy: Self.selectRow))
+        return try until("a new selection made by a drag in Select") { $0.span("sel") != nil && $0["sel"] != before }
     }
 
     func clearSelection() throws {
@@ -254,9 +272,15 @@ final class Walk {
 
     // MARK: - Pictures
 
-    /// The screen as it is now, for the mockups: attached to the test and written to SCREENS_DIR when it is given.
-    func shot(_ name: String) {
-        pause(0.6)
+    /// The screen as it is now, for the mockups, once it has settled for `settle` seconds: attached to the test and
+    /// written to SCREENS_DIR, only when the pictures are asked for.
+    func shot(_ name: String, settle: TimeInterval = 0.6) {
+        guard pictures else { return }
+        pause(settle)
+        take(name)
+    }
+
+    private func take(_ name: String) {
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "\(name)-\(tag)"
@@ -281,7 +305,7 @@ final class Walk {
     /// What the screen showed when a journey failed: its picture and the buttons there (one snapshot of the screen), for
     /// the log.
     func failed(_ journey: String) {
-        shot("fail-\(journey)")
+        take("fail-\(journey)")
         var labels: [String] = []
         func visit(_ node: XCUIElementSnapshot) {
             if node.elementType == .button, !node.label.isEmpty, labels.count < 120 { labels.append(node.label) }

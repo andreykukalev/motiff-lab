@@ -13,8 +13,7 @@ extension Walk {
         }
         try need(more, "More in the score's bar")
         try need(button(beginning: "Играть с"), "the pill's Play")
-        pause(1.5)
-        shot("10-score")
+        shot("10-score", settle: 1.5)
         try play("on the piece")
         try stop()
     }
@@ -23,8 +22,8 @@ extension Walk {
     /// follows a new selection while it plays (the playing goes to its start), and stays as it was when the selection
     /// changes with it off (T10).
     func selectLoopAndChange() throws {
-        let first = try choosePhrase()
-        guard first.on("cycle") else { throw miss("Цикл did not turn on as the selection appeared (PLAY-04)") }
+        try choosePhrase()
+        try until("Цикл on as the selection appeared (PLAY-04)") { $0.on("cycle") }
         try need(button("Фокус"), "the selection menu")
         try need(button(beginning: "Цикл "), "the pill's Цикл with the selection's span")
         shot("13-selection-menu")
@@ -47,51 +46,50 @@ extension Walk {
         try clearSelection()
     }
 
-    /// SEL-03: in Select a drag selects where the finger goes, and a second drag begun over the selection makes a new one
-    /// rather than leaving the old one as it was. The drags run along the second system, the same in both orientations.
+    /// SEL-03: in Select a drag begun outside the selection replaces it in one gesture, «Выделение заменено · Вернуть»
+    /// says so, and «Вернуть» brings the old one back. (A drag begun inside it extends it, SEL-02: not walked here.)
     func selectByDragAndOver() throws {
-        try press(button("Выделение"), "Select in the bar's modes")
-        try until("Select chosen") { $0["mode"] == "select" }
-        stroke(from: CGVector(dx: 0.12, dy: 0.40), to: CGVector(dx: 0.30, dy: 0.40))
-        let first = try until("a selection made by a drag in Select") { $0.span("sel") != nil }
-        guard let made = first.span("sel") else { throw miss("no selection") }
-        stroke(from: CGVector(dx: 0.21, dy: 0.40), to: CGVector(dx: 0.40, dy: 0.40))
-        try until("a new selection begun over the one there was (SEL-03)") { ($0.span("sel")?.lowerBound ?? 0) > made.lowerBound }
+        let first = try choosePhrase()
+        guard let made = first.span("sel") else { throw miss("no selection made by a drag in Select") }
+        let second = try choosePhrase()
+        guard let new = second.span("sel"), !new.overlaps(made) else {
+            throw WalkMiss(what: "a drag begun outside the selection did not replace it (SEL-03)", probe: second.line)
+        }
+        try need(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Выделение заменено")).firstMatch, "«Выделение заменено» (SEL-03)")
+        try press(button("Вернуть"), "«Вернуть» on the toast (SEL-03)")
+        try until("«Вернуть» brings the selection replaced back (SEL-03)") { $0["sel"] == first["sel"] }
         try clearSelection()
-        try press(button("Навигация"), "Navigate in the bar's modes")
-        try until("Navigate chosen") { $0["mode"] == "navigate" }
     }
 
-    /// ROLL-01, PLAY-01, PLAY-03: the roll's drawer keeps its zoom when the selection changes; Expand from the drawer shows
-    /// the passage as a roll and Collapse gives the drawer back; Expand from the notes has its own playhead, which a tap
-    /// on the card moves inside the passage; in Expand Play plays the passage round and round.
+    /// ROLL-01, PLAY-03: the roll's drawer keeps its zoom when the selection changes and through Expand; Expand from the
+    /// drawer shows the passage as a roll, Play there plays it round and round, and Collapse gives the drawer back; Expand
+    /// from the notes plays inside the passage. PLAY-01 (the card's playhead dragged by its dot) is not walked: the dot is
+    /// drawn in the page, and the probe does not say where.
     func rollAndExpand() throws {
         try choosePhrase()
         try press(button("Фортепианный ролл"), "the piano roll in the bar")
         let open = try until("the roll drawer open and drawn", timeout: 15) { $0["roll"] == "drawer" && $0["zoom"] != "none" }
         try need(button(beginning: "Потяните"), "the roll drawer's handle")
-        pause(1)
-        shot("15-piano-roll")
+        shot("15-piano-roll", settle: 1)
         try choosePhrase()
-        try holds(for: 2, "the roll's zoom changed with the selection (ROLL-01)") { $0["zoom"] == open["zoom"] }
+        try holds(for: 1.5, "the roll's zoom changed with the selection (ROLL-01)") { $0["zoom"] == open["zoom"] }
 
         try expandFromDrawer()
         try until("Expand from the drawer shows the passage as a roll", timeout: 8) { $0.on("focus") && $0["as"] == "roll" && $0["roll"] == "focus" }
         try playRoundThePassage()
         try press(button("Свернуть"), "Collapse in Expand's bar")
-        try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" }
+        let back = try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
+        guard back["zoom"] == open["zoom"] else { throw WalkMiss(what: "Expand changed the roll's zoom from \(open["zoom"] ?? "?") (ROLL-01)", probe: back.line) }
         try press(button("Фортепианный ролл"), "the piano roll in the bar again")
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
         try press(button("Фокус"), "Expand in the selection menu")
         try until("Expand from the notes", timeout: 8) { $0.on("focus") && $0["as"] == "notes" }
         try need(button("К странице"), "Back to the page in Expand's bar")
-        pause(1.5)
-        shot("21-focus")
-        let still = try until("stopped in Expand") { !$0.playing }
-        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.5)).tap()
-        try until("a tap on Expand's card moves its playhead, inside the passage (PLAY-01)") { $0.tick != still.tick && $0.insideRange }
-        try playRoundThePassage()
+        shot("21-focus", settle: 1.5)
+        let playing = try play("in Expand from the notes")
+        guard playing.insideRange else { throw WalkMiss(what: "Expand played outside its passage", probe: playing.line) }
+        try stop()
         try press(button("К странице"), "Back to the page")
         try until("back on the page") { !$0.on("focus") }
         try clearSelection()
@@ -108,11 +106,11 @@ extension Walk {
         }
     }
 
-    /// In Expand the pill's Play plays the passage (PLAY-01: Expand has the transport) and comes round to its start again
-    /// (PLAY-03: the passage loops), never playing outside it.
+    /// In Expand the pill's Play plays the passage and comes round to its start again (PLAY-03: the passage loops), never
+    /// playing outside it.
     private func playRoundThePassage() throws {
         let first = try play("in Expand")
-        guard first.insideRange else { throw WalkMiss(what: "Expand played outside its passage (PLAY-01)", probe: first.line) }
+        guard first.insideRange else { throw WalkMiss(what: "Expand played outside its passage (PLAY-03)", probe: first.line) }
         var furthest = first.tick
         try until("Expand's passage played round to its start again (PLAY-03)", timeout: 25) { probe in
             guard probe.playing, probe.insideRange else { return false }
@@ -129,8 +127,7 @@ extension Walk {
         try need(button(beginning: "Спросить помощника"), "the Insights sheet")
         let tryIt = button("Попробовать")
         try need(tryIt, "Try on a fact of the phrase", timeout: 20)
-        pause(1)
-        shot("16-insights")
+        shot("16-insights", settle: 1)
         try press(tryIt, "Try")
         let way = button(id: "insights.tryWay")
         try need(way, "a way to try")
@@ -138,8 +135,7 @@ extension Walk {
         try press(way, "a way to try")
         try until("the way tried sounds as a variation", timeout: 15) { $0.on("variation") }
         try need(button("Отказаться"), "Leave on the variation tried")
-        pause(1)
-        shot("19-insights-variation")
+        shot("19-insights-variation", settle: 1)
         try press(button("Отказаться"), "Leave")
         try until("the variation left", timeout: 8) { !$0.on("variation") }
         if probe()?.playing == true { try stop() }
@@ -175,8 +171,7 @@ extension Walk {
         try press(button("Спросить о пьесе"), "Ask about the piece in More")
         try until("the assistant's panel open") { $0.on("assistant") }
         try need(button("Новый разговор"), "the assistant's panel")
-        pause(1)
-        shot("35-assistant")
+        shot("35-assistant", settle: 1)
         try press(button("Закрыть"), "Close on the assistant's panel")
         try until("the assistant's panel closed") { !$0.on("assistant") }
     }
@@ -192,17 +187,14 @@ extension Walk {
         try choosePhrase()
         try press(button("Закладка"), "Bookmark in the selection menu")
         try need(button("Готово"), "the new bookmark's card")
-        pause(1)
-        shot("22-bookmark-card")
+        shot("22-bookmark-card", settle: 1)
         try press(button("Готово"), "Done on the bookmark's card")
-        pause(1)
-        shot("24-marks-on-page")
+        shot("24-marks-on-page", settle: 1)
         try clearSelection()
 
         try press(title, "the title, which opens the Contents")
         try need(button("Страницы"), "the Contents drawer")
-        pause(1)
-        shot("25-contents")
+        shot("25-contents", settle: 1)
         // The chips scroll sideways: where Notes is off the drawer's width, its picture is not taken.
         let notes = button("Заметки")
         if notes.exists && notes.isHittable {
@@ -210,8 +202,7 @@ extension Walk {
             shot("26-contents-notes")
         }
         try press(button("Страницы"), "Pages in the Contents")
-        pause(2)
-        shot("27-contents-pages")
+        shot("27-contents-pages", settle: 2)
         try press(title, "the title again")
 
         try press(more, "More")
@@ -219,21 +210,18 @@ extension Walk {
         shot("30-more")
         try press(button("Все настройки"), "All settings")
         try need(button("Закрыть настройки"), "the Settings sheet")
-        pause(1)
-        shot("32-settings")
+        shot("32-settings", settle: 1)
         try press(button("Оформление"), "Appearance in Settings")
         shot("33-settings-appearance")
         try press(button("Закрыть настройки"), "Close settings")
 
         try press(button("Источники"), "Sources in the bar")
         try need(button("Закрыть другие версии"), "the Sources sheet")
-        pause(1)
-        shot("50-sources")
+        shot("50-sources", settle: 1)
         try press(button("Закрыть другие версии"), "Close Sources")
 
         try press(button("Библиотека"), "Back to the library")
         try need(button("Добавить пьесу"), "the library with the example's card")
-        pause(2)
-        shot("04-library")
+        shot("04-library", settle: 2)
     }
 }

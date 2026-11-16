@@ -47,6 +47,21 @@ reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run b
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
   the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
 
+## The UI walk (what protects the journeys)
+
+- `tests/ipad/MotiffLabScreens/ScreensUITests` (the `Screens` scheme): the journeys of the blueprint's layer T4 in a table,
+  each naming the baseline ids it protects; a journey stops at its first miss (`WalkMiss`), the app is launched again for
+  the next, and every miss fails the test. `Walk.swift` drives the app and reads the probe; `ScoreJourneys.swift` (open and
+  play, select-loop-change, drag, roll and Expand, Insights and Try, pen and eraser, the assistant's panel, other places),
+  `SwitchJourneys.swift` (PDF | Notes, Sources, a PDF piece). A selection is made as a player makes one, by a drag in
+  Select (`Walk.choosePhrase`); the Debug phrase chooser `ml-screens-phrase` is not used (no selection followed its tap in
+  the first run). The screenshots for the mockups are taken on the way, only when SCREENS_DIR asks for them.
+- The probe (`ScreensHook.swift`, Debug only, under `-ml-screens`): `ScreensProbe.line()` on the hidden element
+  `ml-screens-probe`; on the score's screen `workspace()` adds the selection and Play's range in ticks, Expand, the mode, the
+  Pen and its ink, the scroll, the roll's place and zoom, the transport and its tick, Цикл, the sound, a variation, the
+  assistant's panel (`ScoreScreen.wire` hands the player, roll and assistant over). Identifiers the walk uses besides the
+  labels: `insights.tryWay`, `roll.more`.
+
 ## The assistant
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
