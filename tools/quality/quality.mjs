@@ -12,7 +12,7 @@
 // (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd,
 // suppressions (an inline or configured way to hide a violation from the others is itself a violation).
 // In soft mode the command reports and exits 0; in blocking mode it exits 1 on a violation not in the baseline,
-// a baseline entry no longer needed, an entry without a reason, or a check that could not run.
+// a baselined file or function that got worse, a baseline entry no longer needed, an entry without a reason, or a check that could not run.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -417,7 +417,7 @@ function where(v) {
 
 function report({ mode, results, outcome, configProblems, prAdded, elapsed }) {
   const { added, stale, grew, unjustified } = outcome;
-  const failing = added.length + stale.length + unjustified.length + configProblems.length
+  const failing = added.length + grew.length + stale.length + unjustified.length + configProblems.length
     + results.filter((r) => r.error).length;
   const md = [];
   md.push(`### Code quality (${mode} mode): ${failing === 0 ? 'clean against the baseline' : `${failing} to fix`}`);
@@ -466,7 +466,7 @@ function report({ mode, results, outcome, configProblems, prAdded, elapsed }) {
     section('Baseline entries this pull request adds (the Reviewer checks each reason)', prAdded,
       '| File | Rule | Symbol | Why |', (e) => `| ${cell(e.file)} | ${e.tool} ${e.rule} | ${cell(e.symbol)} | ${cell(e.why)} |`);
   }
-  section('Got worse but still in the baseline (does not fail)', grew, '| Where | Rule | Symbol | Was | Now |',
+  section('To fix: got worse than its baseline entry (split or simplify, never raise the entry)', grew, '| Where | Rule | Symbol | Was | Now |',
     ({ violation: v, entry: e }) => `| ${cell(where(v))} | ${v.tool} ${v.rule} | ${cell(v.symbol)} | ${e.value} | ${v.value} |`);
   md.push(`Total ${elapsed}s.`);
   return { markdown: md.join('\n') + '\n', failing };

@@ -102,6 +102,7 @@ Sonnet is not used. `model` and `effort` are set at the start of each thread by 
 | Ideas partner | `roles/ideas-partner.md` | When Andrei brings an idea or asks | Opus high |
 | Architect | `roles/architect.md` | A change touches Music Core, both apps or saved data | Opus high |
 | Developer | `roles/developer.md` | One per change | Opus high (features, Music Core, iPad, data); Opus medium (small UI, texts, a bug with a clear cause) |
+| Pull request reviewer | `roles/pr-reviewer.md` | Every pull request to `develop`, on green `build-test`; at most two rounds | Opus high |
 | Version mechanics | `roles/product-lead.md` | Tag, note, thread | Opus medium |
 | Release reviewer | `roles/release-reviewer.md` | Before a release to `main` | Opus high |
 
