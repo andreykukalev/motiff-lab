@@ -672,6 +672,7 @@ struct TryRow: View {
                     }
                     .buttonStyle(DSChipStyle())
                     .disabled(insights.starting != nil)
+                    .accessibilityIdentifier("insights.tryWay")
                 }
             }
             if holds, let trial = insights.trial, !trial.kept {

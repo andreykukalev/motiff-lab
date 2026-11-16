@@ -24,8 +24,8 @@ struct MotiffLabApp: App {
                 // Built again in the language the player picks, the piece open then coming back where it was.
                 .id(language.id)
                 #if DEBUG
-                // What the switch test reads (ScreensProbe), over whichever screen shows; not in the screenshot walk.
-                .overlay(alignment: .topLeading) { if ScreensHook.bothViews { ScreensProbeView() } }
+                // What the UI tests read (ScreensProbe), over whichever screen shows.
+                .overlay(alignment: .topLeading) { if ScreensHook.active { ScreensProbeView() } }
                 #endif
                 .environmentObject(account)
                 .environmentObject(settings)

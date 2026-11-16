@@ -436,6 +436,9 @@ struct ScoreScreen: View {
     }
 
     private func wire() async {
+        #if DEBUG
+        ScreensProbe.wired(player: player, roll: roll, assistant: assistant)
+        #endif
         let heard = player
         let shown = score
         // A tap on the page plays nothing (#338): the music starts only with Play or Loop. With the sheet open, a tap that
