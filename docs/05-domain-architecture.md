@@ -2,7 +2,7 @@
 
 # Domain Model & Technical Architecture
 
-**Platform (2026-11-16):** the web app is archived ([0032](decisions/0032-ipad-first-web-archived.md)); the shared domain model, music-core and the backend described here serve the iPad app and stay platform-independent.
+**Platform (2026-11-16):** the web app is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); the shared domain model, music-core and the backend described here serve the iPad app and stay platform-independent.
 
 *Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs in the browser, as described in MVP · Stage 1, plus a thin AI gateway (decision record 0003); the analysis pipeline and backend arrive with Stage 3. The technology choices below (Rust, Flutter, FastAPI) are superseded by decision record 0001: C# music-core, Blazor WebAssembly, .NET MAUI and Azure Functions.*
 
@@ -42,7 +42,7 @@ One event model serves display, hints, feedback, explanations, variations, playb
 - Events store both: `onset_s` for audio sync and `pos` (bar, beat, tick) for grid logic.
 - A tuning offset in cents keeps rendered sound in tune with the original.
 
-*Implementation note: decision record 0002 (`docs/decisions/0002-canonical-time.md`) makes absolute canonical ticks the stored truth for notation input, with bar and beat derived from a meter map. It also defines exact source conversion and the rounding policy. Decision record 0004 reconciles the note event below with Stage 1: timing is a tick span, provenance adds `imported`, and hand carries its own provenance.*
+*Implementation note: decision record 0002 (`docs/architecture/adr/0002-canonical-time.md`) makes absolute canonical ticks the stored truth for notation input, with bar and beat derived from a meter map. It also defines exact source conversion and the rounding policy. Decision record 0004 reconciles the note event below with Stage 1: timing is a tick span, provenance adds `imported`, and hand carries its own provenance.*
 
 **Event types**
 

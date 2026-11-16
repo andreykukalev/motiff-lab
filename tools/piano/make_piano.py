@@ -1,4 +1,4 @@
-"""Builds the playback piano in src/MotiffLab.Web/wwwroot/audio/piano from Salamander Grand Piano V3.
+"""Builds the playback piano in src/shared/wwwroot/audio/piano from Salamander Grand Piano V3.
 
 Usage:
     curl -LO https://archive.org/download/SalamanderGrandPianoV3/SalamanderGrandPianoV3_OggVorbis.tar.bz2
@@ -20,7 +20,7 @@ import sys
 LAYER = 10
 NAMES = {"C": 0, "D#": 3, "F#": 6, "A": 9}
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = ROOT / "src" / "MotiffLab.Web" / "wwwroot" / "audio" / "piano"
+OUT = ROOT / "src" / "shared" / "wwwroot" / "audio" / "piano"
 
 
 def regions(sfz: pathlib.Path):

@@ -45,13 +45,16 @@ compacted automatically at about 200K tokens.
 
 ## Platform focus
 
-- The web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
+- The web app is archived (`docs/architecture/adr/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
   backend (API, scan server). There are no web tracks until Andrei reactivates the web.
-- A track reads and changes `ipad/`, `src/MotiffLab.MusicCore`, the backend and the live shared modules the iPad bundles
-  from the web project's folder (`Scripts/score`, `roll`, `layout`, `storage`, `playback`, `wwwroot/i18n`, the piano, the
-  design kit's mirrors; the list is in `docs/web-archive.md`). It does not read, change or test the frozen web pages, components, services or
-  Playwright suites, and the iPad never imports frozen web code. If a change breaks the frozen web's compilation, it
-  makes the smallest mechanical fix there in the same pull request, nothing more.
+- A track reads and changes `src/ipad/`, `src/backend/` and `src/shared/` (the modules, words, piano and example piece
+  the iPad bundles; `docs/repository-structure.md`), with their tests in `tests/`. It does not read, change or test
+  anything in `archive/` (the frozen web: pages, components, services, web-only scripts, Playwright suites), and
+  neither the iPad nor `src/shared` imports archived code. Archived code never enters an agent's context: no Read,
+  search, `cat` or `grep` there, no citing it as how something works, and no subagent sent to look at it. What the web
+  did is in `docs/web-archive.md` and the tag `v0.6.5`. Search tools skip `archive/` (`.ignore`), and on a computer
+  `.claude/hooks/archive-guard.mjs` asks before any use of it; only a task whose `allowed_paths` name `archive/`
+  (reactivation, Andrei's decision) opens it.
 - A change to a live shared module that alters what the web would show is not ported: append one line to
   `/mnt/project-files/product/web-backlog.md`: what changed, the pull request, the shared code touched. It is the
   porting list for the web's reactivation.
@@ -82,8 +85,8 @@ compacted automatically at about 200K tokens.
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
 - The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
-  before a version. The browser tests belong to the archived web and run only by hand. For `ipad/App`, fix the expectations in
-  `ipad/App/MotiffLabTests` in the same commit.
+  before a version. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
+  `tests/ipad/MotiffLabTests` in the same commit.
 
 ## Never
 

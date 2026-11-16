@@ -1,0 +1,160 @@
+name: Browser tests
+
+# The browser specs (archive/web/tests/e2e, Playwright) on the published app, in the browsers playwright.config.mjs names,
+# one job per browser side by side (about 15 minutes).
+#
+# The web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md, docs/web-archive.md), and this workflow
+# with it: GitHub runs only files in .github/workflows, so it runs nowhere. Reactivating the web moves it back there; its
+# daily run on main, the run on every version tag and the run on a pull request labelled `browser-tests` (#309) come
+# back by restoring this `on:` block from .github/workflows/browser-tests.yml at commit 44360d2. The jobs below still
+# handle those events.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a labelled pull request supersedes the run in progress; runs on main are never cancelled.
+# Adding another label (agent, risk:*, ...) starts a run too, which does nothing (see decide), so it gets a
+# group of its own and never cancels the browser run in progress.
+concurrency:
+  group: browser-tests-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  # Decides whether to run, in seconds and without a build. A scheduled run goes ahead only when main has a
+  # commit the last scheduled run (passed or failed) did not test; a pull request only with the label; a run by
+  # hand always.
+  decide:
+    name: decide
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft != true && contains(github.event.pull_request.labels.*.name, 'browser-tests') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'browser-tests'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read # the scheduled runs before this one
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=true
+          # Only a run that passed or failed has tested its commit; after a cancelled or timed-out one the next day
+          # tests the same commit again.
+          if [[ "$GITHUB_EVENT_NAME" == schedule ]]; then
+            last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/browser-tests.yml/runs?event=schedule&branch=main&status=completed&per_page=20" \
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID and (.conclusion == \"success\" or .conclusion == \"failure\"))][0].head_sha // empty")"
+            echo "main is at $GITHUB_SHA; the last scheduled run tested ${last:-nothing}"
+            if [[ "$last" == "$GITHUB_SHA" ]]; then
+              run=false
+              echo "### main has not changed since the last scheduled run ($last): skipped" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  # The app is published once and shared with the five browser jobs.
+  publish:
+    name: publish
+    needs: decide
+    if: needs.decide.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Publishing needs the wasm-tools workload (about 30 s) and a trimming publish (about a minute and a half).
+      # The committed appsettings.json is kept: no accounts, as in a pull request build.
+      - name: Install WebAssembly build tools
+        run: dotnet workload install wasm-tools
+
+      - name: Publish web app
+        run: dotnet publish archive/web/src/MotiffLab.Web --configuration Release --output publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: publish/wwwroot
+          retention-days: 1
+
+  # One job per project of playwright.config.mjs, side by side: the whole suite takes about 50 minutes on one
+  # runner, a project about 10 to 15. A job past its 30 minutes is a fault to look into, not a reason to raise
+  # the limit (#309).
+  browser-tests:
+    name: browser-tests (${{ matrix.project }})
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: chromium, browser: chromium }
+          - { project: firefox, browser: firefox }
+          - { project: webkit, browser: webkit }
+          - { project: tablet-ipad, browser: webkit }
+          - { project: tablet-android, browser: chromium }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: published-app
+          path: publish/wwwroot
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('archive/web/tests/e2e/package-lock.json') }}
+
+      # Firefox plays audio only with a sound device, so PulseAudio gives the runner a silent one.
+      - name: Install the browser
+        working-directory: archive/web/tests/e2e
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          npm ci
+          npx playwright install --with-deps "$BROWSER"
+          sudo apt-get install --yes --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+
+      - name: Test in the browser
+        working-directory: archive/web/tests/e2e
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: npx playwright test --project="$PROJECT"
+
+      # The HTML report (archive/web/tests/e2e/playwright-report) and, for a failed spec, its trace and screenshots; also
+      # when the job ran out of time.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: |
+            archive/web/tests/e2e/playwright-report
+            archive/web/tests/e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 14

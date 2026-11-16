@@ -17,8 +17,8 @@ One agent per change, from start to end. Automated tests, the code-quality check
 5. The cleanup pass, once the change works (`CLAUDE.md`, «Writing code» 10): read the whole diff against `develop` as a
    reviewer would and simplify it: duplicates, dead code, broken conventions, abstractions the task does not need,
    anything added that existing code already does.
-6. Check before the push: build, unit tests, the node tests in `tests/web`, whitespace,
-   `node tools/quality/quality.mjs`; for `ipad/App`, the expectations in `ipad/App/MotiffLabTests`. Fix what the
+6. Check before the push: build, unit tests, the node tests in `tests/shared`, whitespace,
+   `node tools/quality/quality.mjs`; for `src/ipad/App`, the expectations in `tests/ipad/MotiffLabTests`. Fix what the
    quality checks find instead of adding baseline entries; an entry that cannot be avoided gets its reason in `why` and
    a line in the pull request.
 7. Open the pull request to `develop` (template `.github/pull_request_template.md`), assignee Andrei. When `build-test`

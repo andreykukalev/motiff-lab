@@ -1,6 +1,6 @@
 # Playback piano
 
-The piano that Motiff Lab plays notes with (S1-W4) lives in `src/MotiffLab.Web/wwwroot/audio/piano`: 30 MP3 samples (about 1.7 MB) and `piano.json`, which lists each sample's MIDI note and tuning correction. `make_piano.py` rebuilds them from the source download.
+The piano that Motiff Lab plays notes with (S1-W4) lives in `src/shared/wwwroot/audio/piano`: 30 MP3 samples (about 1.7 MB) and `piano.json`, which lists each sample's MIDI note and tuning correction. `make_piano.py` rebuilds them from the source download.
 
 ## Source and licence
 

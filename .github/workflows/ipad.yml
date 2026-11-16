@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       switch_test:
-        description: Switch PDF | Notes 40 times and measure each switch and the memory (MotiffLabScreens/SwitchUITests.swift, ~30 min)
+        description: Switch PDF | Notes 40 times and measure each switch and the memory (tests/ipad/MotiffLabScreens/SwitchUITests.swift, ~30 min)
         type: boolean
         default: false
   # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
@@ -66,44 +66,44 @@ jobs:
           xcrun simctl boot "$id" || true
 
       - name: Build MotiffLabCore.xcframework
-        run: ipad/Core/build.sh | tee core.log
+        run: src/ipad/Core/build.sh | tee core.log
 
       # The core as a macOS library, called through its C functions as the app calls it.
       - name: Check the core's C functions
         run: |
-          dotnet publish ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
-          python3 ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
+          dotnet publish src/ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
+          python3 src/ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
 
       # Verovio takes several minutes to compile; its build changes only with the script and the patch.
       - uses: actions/cache/restore@v4
         id: verovio
         with:
           path: |
-            ipad/build/Verovio.xcframework
-            ipad/build/verovio-data
-          key: verovio-ios-${{ hashFiles('ipad/Verovio/build.sh', 'ipad/Verovio/verovio-classic-locale.patch') }}
+            src/ipad/build/Verovio.xcframework
+            src/ipad/build/verovio-data
+          key: verovio-ios-${{ hashFiles('src/ipad/Verovio/build.sh', 'src/ipad/Verovio/verovio-classic-locale.patch') }}
 
       - name: Build Verovio.xcframework
         if: steps.verovio.outputs.cache-hit != 'true'
-        run: ipad/Verovio/build.sh | tee verovio.log
+        run: src/ipad/Verovio/build.sh | tee verovio.log
 
       # Saved straight after the build, so a failing test later does not throw the build away.
       - uses: actions/cache/save@v4
         if: steps.verovio.outputs.cache-hit != 'true'
         with:
           path: |
-            ipad/build/Verovio.xcframework
-            ipad/build/verovio-data
+            src/ipad/build/Verovio.xcframework
+            src/ipad/build/verovio-data
           key: ${{ steps.verovio.outputs.cache-primary-key }}
 
-      # The score's scripts are the web app's (Scripts/score, compiled to wwwroot/js/score): the iPad's web view runs
-      # the same score geometry and pencil marks (0019 section 1.4).
-      - name: Compile the web app's score scripts
-        run: dotnet build src/MotiffLab.Web -c Release -warnaserror | tail -3
+      # The score's scripts are the shared layer's (src/shared/Scripts, compiled to wwwroot/js): the iPad's web view runs
+      # the score geometry and pencil marks there (0019 section 1.4).
+      - name: Compile the shared score scripts
+        run: dotnet build src/shared -c Release -warnaserror | tail -3
 
       # Xcode in the IDE refuses a project that xcodebuild only warns about (a file in two groups), so the warning fails here.
       - name: Generate the Xcode project
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           xcodegen
           xcodebuild -list -project MotiffLab.xcodeproj 2>&1 | tee list.log
@@ -112,11 +112,11 @@ jobs:
       # The Swift packages (MSAL) are fetched once per project.yml, not on every run.
       - uses: actions/cache@v4
         with:
-          path: ipad/build/packages
-          key: ipad-packages-${{ hashFiles('ipad/App/project.yml') }}
+          path: src/ipad/build/packages
+          key: ipad-packages-${{ hashFiles('src/ipad/App/project.yml') }}
 
       - name: Test in the iPad simulator
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
           set -o pipefail
@@ -128,7 +128,7 @@ jobs:
       # logged; only by hand, as it takes about half an hour.
       - name: Switch PDF | Notes repeatedly
         if: inputs.switch_test
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           set -o pipefail
           TEST_RUNNER_SWITCH_TEST=1 xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
@@ -136,11 +136,11 @@ jobs:
             -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
-      # The screens as a player sees them (MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
+      # The screens as a player sees them (tests/ipad/MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
       # walk cannot reach is listed as SCREEN-MISS and costs that picture only.
       - name: Photograph the screens
         if: github.event_name == 'push' || inputs.screenshots
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           mkdir -p "$RUNNER_TEMP/screens"
           TEST_RUNNER_SCREENS_DIR="$RUNNER_TEMP/screens" xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
@@ -160,7 +160,7 @@ jobs:
       # On main and by hand: a pull request's Swift is already compiled by the tests.
       - name: Build for a real iPad (unsigned)
         if: github.event_name != 'pull_request'
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           set -o pipefail
           xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
@@ -180,8 +180,8 @@ jobs:
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
             echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
             echo "Screenshots: ${SCREENS:-not taken}"
-            grep -h 'OPEN-AND-ENGRAVE' ipad/App/test.log 2>/dev/null || true
-            grep -hE "Executed [0-9]+ tests" ipad/App/test.log 2>/dev/null | tail -1 || true
+            grep -h 'OPEN-AND-ENGRAVE' src/ipad/App/test.log 2>/dev/null || true
+            grep -hE "Executed [0-9]+ tests" src/ipad/App/test.log 2>/dev/null | tail -1 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -189,5 +189,5 @@ jobs:
         if: failure()
         with:
           name: ipad-test-log
-          path: ipad/App/test.log
+          path: src/ipad/App/test.log
           if-no-files-found: ignore

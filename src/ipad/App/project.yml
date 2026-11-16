@@ -1,0 +1,170 @@
+# The Motiff Lab iPad app (decision record 0019): SwiftUI over the one C# music-core. XcodeGen makes
+# MotiffLab.xcodeproj from this file (not committed). First build the two frameworks:
+#   src/ipad/Core/build.sh        music-core with NativeAOT -> src/ipad/build/MotiffLabCore.xcframework
+#   src/ipad/Verovio/build.sh     Verovio from source       -> src/ipad/build/Verovio.xcframework, src/ipad/build/verovio-data
+# then run xcodegen in this folder (src/ipad/README.md).
+name: MotiffLab
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  # No groups for the folders between the project and the files outside it (../.., ../../../design, ../../../tests, ../build): Xcode 27 refuses
+  # to open a project where such a folder ends up in two groups.
+  createIntermediateGroups: false
+# Sign-in (0014): Microsoft's MSAL, as a binary Swift package.
+packages:
+  MSAL:
+    url: https://github.com/AzureAD/microsoft-authentication-library-for-objc
+    from: 2.17.1
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # music-core is built for Apple silicon only; a Release build for the simulator would otherwise also ask
+    # for an Intel (x86_64) slice and drop the arm64 one.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+targets:
+  MotiffLab:
+    type: application
+    platform: iOS
+    sources:
+      - path: MotiffLab
+      # The example piece, the interface's words and the design tokens are shared files (src/shared, design/kit): Für Elise
+      # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).
+      - path: ../../shared/Playback/FurElise.musicxml
+        buildPhase: resources
+      - path: ../../../design/kit/tokens.css
+        buildPhase: resources
+      # The kit's faces, Source Sans 3 and Source Serif 4 (SIL Open Font License), registered at launch.
+      - path: ../../../design/kit/fonts
+        type: folder
+        buildPhase: resources
+      - path: ../../shared/wwwroot/i18n
+        type: folder
+        buildPhase: resources
+      # What only the iPad says (version 0.5, «Импорт папки»), in English and Russian beside the web app's words.
+      - path: Words
+        type: folder
+        buildPhase: resources
+      # The score page and the shared score modules (src/shared/Scripts/score, compiled to wwwroot/js/score by
+      # `dotnet build src/shared`): the same geometry and pencil marks as the web had (0019 section 1.4).
+      - path: Web
+        type: folder
+        buildPhase: resources
+      - path: ../../shared/wwwroot/js/score
+        type: folder
+        buildPhase: resources
+      # The piano roll in the drawer is shared too (src/shared/Scripts/roll), with the token and theme modules it reads
+      # (Scripts/layout, Scripts/storage).
+      - path: ../../shared/wwwroot/js/roll
+        type: folder
+        buildPhase: resources
+      - path: ../../shared/wwwroot/js/layout
+        type: folder
+        buildPhase: resources
+      - path: ../../shared/wwwroot/js/storage
+        type: folder
+        buildPhase: resources
+      # The playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts): the score and the roll draw both
+      # playheads from its viewOf, as the web does.
+      - path: ../../shared/wwwroot/js/playback
+        type: folder
+        buildPhase: resources
+      # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
+      - path: ../../shared/wwwroot/audio/piano
+        type: folder
+        buildPhase: resources
+      # Verovio's font data and licence (src/ipad/Verovio/build.sh), copied into the app as a folder.
+      - path: ../build/verovio-data
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: ../build/MotiffLabCore.xcframework
+        embed: true
+        codeSign: true
+      - framework: ../build/Verovio.xcframework
+        embed: true
+        codeSign: true
+      - package: MSAL
+    settings:
+      base:
+        # What GENERATE_INFOPLIST_FILE has no setting for: sign-in comes back on msauth.<bundle id>://auth, and MSAL
+        # may ask the Microsoft Authenticator app. Xcode adds the generated keys to this file.
+        INFOPLIST_FILE: Config/Info.plist
+        TARGETED_DEVICE_FAMILY: "2"
+        # The app's icon (product/icon/icon.svg, rendered at 1024 x 1024, opaque and full-bleed; iOS rounds the corners)
+        # is the "AppIcon" set in AppIcon.xcassets, a catalog of its own: Icons.xcassets is written again whole by
+        # tools/icons/build.mjs.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Motiff Lab
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        # Projects are files in the app's Documents, shown in the Files app (0019).
+        INFOPLIST_KEY_UIFileSharingEnabled: YES
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+        # Photos of pages (v0.4, experiment «Фото страниц»): the document camera photographs the pages on the iPad. In
+        # English, as the app's other Info.plist strings (they are not localised).
+        INFOPLIST_KEY_NSCameraUsageDescription: "Motiff Lab photographs the pages of your sheet music to make a piece of them. The photos stay on this iPad until you send a page to read its notes."
+        # Dictation into the assistant's field (v0.6.4, experiment «Диктовка»): speech is recognised on the iPad itself only.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Motiff Lab hears what you dictate into a question's field. The sound stays on this iPad: it is recognised on the iPad itself and never recorded or sent."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Motiff Lab turns what you dictate into a question's text on this iPad itself. Nothing you say is sent to Apple or to Motiff Lab."
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  MotiffLabTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      # The tests live with the repository's other tests (tests/ipad).
+      - path: ../../../tests/ipad/MotiffLabTests
+      # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
+      - path: ../../../design/kit/elise.musicxml
+        buildPhase: resources
+      # The score page's contract (0031): the functions and messages score.js and the app agree on.
+      - path: ../../../tests/contracts/score-page.json
+        buildPhase: resources
+    dependencies:
+      - target: MotiffLab
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "2"
+  # Screenshots of the screens for the redesign's mockups (tests/ipad/MotiffLabScreens/ScreensUITests.swift), in a scheme of their
+  # own so the Swift tests above never wait for them: the iPad workflow runs it by hand or for a release tag.
+  MotiffLabScreens:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ../../../tests/ipad/MotiffLabScreens
+    dependencies:
+      - target: MotiffLab
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "2"
+        PRODUCT_BUNDLE_IDENTIFIER: com.andreykukalev.motifflab.screens
+        TEST_TARGET_NAME: MotiffLab
+schemes:
+  MotiffLab:
+    build:
+      targets:
+        MotiffLab: all
+        MotiffLabTests: [test]
+    test:
+      targets:
+        - MotiffLabTests
+    run:
+      config: Release
+  Screens:
+    build:
+      targets:
+        MotiffLab: all
+        MotiffLabScreens: [test]
+    test:
+      config: Debug
+      targets:
+        - MotiffLabScreens

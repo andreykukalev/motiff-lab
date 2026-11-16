@@ -6,8 +6,9 @@
     "**/obj/**",
     "**/wwwroot/**",
     "artifacts/**",
-    "ipad/Verovio/**",
-    "ipad/App/Web/**"
+    "archive/**",
+    "src/ipad/Verovio/**",
+    "src/ipad/App/Web/**"
   ],
   "gitignore": true,
   "absolute": false

@@ -9,8 +9,8 @@ const rules = (list) => list.map((v) => `${v.rule} ${v.symbol}`);
 
 test('music-core may use its own namespaces and plain .NET, not the web, the cloud or AI', () => {
   const files = {
-    'src/MotiffLab.MusicCore/A.cs': 'using System.Text.Json;\nusing MotiffLab.MusicCore.Time;\nusing Azure.Storage;\n',
-    'src/MotiffLab.MusicCore/B.cs': 'global using static Microsoft.AspNetCore.Http.Results;\n',
+    'src/backend/MotiffLab.MusicCore/A.cs': 'using System.Text.Json;\nusing MotiffLab.MusicCore.Time;\nusing Azure.Storage;\n',
+    'src/backend/MotiffLab.MusicCore/B.cs': 'global using static Microsoft.AspNetCore.Http.Results;\n',
   };
   const out = coreViolations(Object.keys(files), reader(files));
   assert.deepEqual(rules(out), ['core-using Azure.Storage', 'core-using Microsoft.AspNetCore.Http.Results']);
@@ -20,13 +20,13 @@ test('music-core may use its own namespaces and plain .NET, not the web, the clo
 test('music-core references no project and no forbidden package', () => {
   const csproj = '<ItemGroup>\n  <PackageReference Include="PdfPig" Version="1" />\n'
     + '  <PackageReference Include="OpenAI" Version="2" />\n  <ProjectReference Include="..\\Web\\Web.csproj" />\n</ItemGroup>';
-  const out = coreViolations(['src/MotiffLab.MusicCore/M.csproj'], reader({ 'src/MotiffLab.MusicCore/M.csproj': csproj }));
+  const out = coreViolations(['src/backend/MotiffLab.MusicCore/M.csproj'], reader({ 'src/backend/MotiffLab.MusicCore/M.csproj': csproj }));
   assert.deepEqual(rules(out), ['core-reference ..\\Web\\Web.csproj', 'core-package OpenAI']);
 });
 
 test('the bundled folders are the wwwroot/js paths of the iPad project', () => {
-  const yml = '      - path: ../../src/MotiffLab.Web/wwwroot/js/score\n        type: folder\n'
-    + '      - path: ../../src/MotiffLab.Web/wwwroot/js/layout\n      - path: ../../src/MotiffLab.Web/wwwroot/audio/piano\n';
+  const yml = '      - path: ../../shared/wwwroot/js/score\n        type: folder\n'
+    + '      - path: ../../shared/wwwroot/js/layout\n      - path: ../../shared/wwwroot/audio/piano\n';
   assert.deepEqual([...bundledFolders(yml)], ['score', 'layout']);
 });
 
@@ -39,14 +39,14 @@ test('type-only imports are erased, value and side-effect imports load', () => {
 
 test('the iPad page may reach only the bundled folders, through every module it loads', () => {
   const files = {
-    'ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',
-    'src/MotiffLab.Web/Scripts/score/s.ts': 'import type { T } from "../import/t.js";\nimport { p } from "../playback/p.js";\n',
-    'src/MotiffLab.Web/Scripts/playback/p.ts': 'import { r } from "../import/recording.js";\nimport { q } from "./q.js";\n',
+    'src/ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',
+    'src/shared/Scripts/score/s.ts': 'import type { T } from "../import/t.js";\nimport { p } from "../playback/p.js";\n',
+    'src/shared/Scripts/playback/p.ts': 'import { r } from "../import/recording.js";\nimport { q } from "./q.js";\n',
   };
   const exists = (file) => file in files;
-  const out = ipadPageViolations(['ipad/App/Web/score.js'], reader(files), exists, new Set(['score', 'playback']));
+  const out = ipadPageViolations(['src/ipad/App/Web/score.js'], reader(files), exists, new Set(['score', 'playback']));
   assert.deepEqual(out.map((v) => `${v.rule} ${v.file} ${v.symbol}`), [
-    'ipad-unbundled src/MotiffLab.Web/Scripts/playback/p.ts ../import/recording.js',
-    'ipad-missing src/MotiffLab.Web/Scripts/playback/p.ts ./q.js',
+    'ipad-unbundled src/shared/Scripts/playback/p.ts ../import/recording.js',
+    'ipad-missing src/shared/Scripts/playback/p.ts ./q.js',
   ]);
 });

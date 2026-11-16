@@ -1,10 +1,12 @@
 # The web app archive: what is frozen, what stays live, how to bring it back
 
-Status: current, 2026-11-16. Decision: [0032](decisions/0032-ipad-first-web-archived.md). One living document: update it
-when a live shared module moves or the web is reactivated.
+Status: current, 2026-11-16. Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
+when a shared module moves or the web is reactivated.
 
-The web app (Blazor WebAssembly PWA, the Music Studio of [0025](decisions/0025-two-studios.md)) is archived in place.
-Its code stays in the repository and keeps compiling; it is not developed, tested in browsers or deployed.
+The web app (Blazor WebAssembly PWA, the Music Studio of [0025](architecture/adr/0025-two-studios.md)) is archived in
+`archive/web` ([0033](architecture/adr/0033-repository-layout.md), [repository-structure.md](repository-structure.md)). Its
+code stays in the repository; it is not built, developed, tested or deployed, and it does not compile by itself any more:
+the parts the iPad bundles moved to `src/shared` (see "Reactivation").
 
 ## Restore point
 
@@ -17,43 +19,51 @@ Its code stays in the repository and keeps compiling; it is not developed, teste
 | Deferred web work | GitHub issues labelled `web-deferred` (at archival: #66, #319, #323, #325, #326, #337, #350, #401, #418, #419, #433, #561), kept open with their text |
 | What the iPad changed since that the web lacks | `/mnt/project-files/product/web-backlog.md` (project files) |
 
-## The web project's folder, split
+## What moved where
 
-`src/MotiffLab.Web` holds two kinds of files. The iPad app bundles the live part (`ipad/App/project.yml`), so it stays
-in place and is maintained by iPad work; the rest is frozen.
+The iPad app bundles part of the former web project (`src/ipad/App/project.yml`); that part is now `src/shared` and is
+maintained by iPad work. The rest is in `archive/web`, frozen.
 
-| Live, shared with the iPad (maintained) | Why |
+| Live, in `src/shared` (maintained) | Why |
 | --- | --- |
-| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll run them (`ipad/App/Web`) |
-| `MotiffLab.Web.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/MotiffLab.Web` compiles that TypeScript for the iPad (`ipad.yml`, `ipad/build-version.sh`) |
-| `wwwroot/i18n` | The interface words both apps read |
+| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll run them (`src/ipad/App/Web`) |
+| `MotiffLab.Shared.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/shared` compiles that TypeScript for the iPad (`ipad.yml`, `src/ipad/build-version.sh`) |
+| `wwwroot/i18n` | The interface words |
 | `wwwroot/audio/piano` | The piano samples the iPad plays |
+| `wwwroot/lib/verovio` | The npm build of Verovio the score scripts were written against (`tools/verovio`) |
 | `Playback/FurElise.musicxml` | The iPad's example piece |
-| `wwwroot/css/tokens.css`, `wwwroot/css/fonts`, `wwwroot/img/icons.svg` | Mirrors of `design/kit` kept in sync: `tests/web/design.test.mjs` (in `build-test`) requires them to equal the kit, and `node tools/icons/build.mjs` writes `icons.svg` together with the iPad's icons. A change to the kit's tokens, fonts or icons updates them in the same pull request; an icon the frozen web names stays in the kit (the same test checks it) |
-| `tests/web` (node tests) | Cover the live modules; they also cover some frozen scripts and stay in `build-test` |
+| `tests/shared` (node tests) | Cover the shared modules; in `build-test` |
 
-| Frozen (archived) | What it is |
+| Frozen, in `archive/web` | What it is |
 | --- | --- |
-| `Pages`, `Layout`, `App.razor`, `_Imports.razor`, `Program.cs` and the feature folders (`Account`, `Analytics`, `Compare`, `Design`, `Dna`, `Explore`, `Import`, `Insights`, `Library`, `Localization`, `Observations`, `Pdf`, `Playback` except the example piece, `Projects`, `Reference`, `Roll`, `Score`, `Settings`, `Sources`, `Understand`, `Versions`, `Workspace`) | The Blazor app: pages, components, `PlaybackLab`, services (`ProjectStore`, `CloudSync`, `ScanService`, …) |
-| `Scripts/account`, `import`, `metronome`, `pdf`, `phrases`, `reference`, and inside the live folders the web-only `storage/recording-store.ts`, `storage/test-library.ts`, `playback/playback.ts` and `layout/test-site.ts` (they import frozen `Scripts/import` or test-site code; the iPad does not load them) | Web-only browser layer |
-| `wwwroot/css/app.css`, `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, the rest of `img`, the app icons, `lib/pdfjs`, `lib/verovio` | The site's shell, styles, offline worker and hosting configuration |
+| `src/MotiffLab.Web`: `Pages`, `Layout`, `App.razor`, `_Imports.razor`, `Program.cs` and the feature folders (`Account`, `Analytics`, `Compare`, `Design`, `Dna`, `Explore`, `Import`, `Insights`, `Library`, `Localization`, `Observations`, `Pdf`, `Playback` except the example piece, `Projects`, `Reference`, `Roll`, `Score`, `Settings`, `Sources`, `Understand`, `Versions`, `Workspace`) | The Blazor app: pages, components, `PlaybackLab`, services (`ProjectStore`, `CloudSync`, `ScanService`, …) |
+| `src/MotiffLab.Web/Scripts`: `account`, `import`, `metronome`, `pdf`, `phrases`, `reference`, and the web-only `score/score-view.ts`, `storage/originals.ts`, `storage/project-store.ts`, `storage/recording-store.ts`, `storage/test-library.ts`, `playback/playback.ts`, `layout/test-site.ts` | Web-only browser layer; they import the shared modules by relative paths that no longer resolve |
+| `src/MotiffLab.Web/wwwroot`: `css/app.css`, the mirrors `css/tokens.css`, `css/fonts`, `img/icons.svg`, `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, the rest of `img`, the app icons, `lib/pdfjs` | The site's shell, styles, offline worker and hosting configuration. The mirrors of `design/kit` are no longer checked against the kit; `node tools/icons/build.mjs` still writes `icons.svg` |
 | `tests/e2e` | 58 Playwright spec files on the published app |
-| `infra/main.bicep`, `main.bicepparam`, `infra/azure/develop.ps1`, `test-site-signin.ps1` | The Static Web App and the test site's setup |
+| `tests/web` | Node tests of web-only code, and the web halves of `design`, `i18n`, `stylesheets` and `pencil-marks` |
+| `tools/pdfjs`, `tools/perf` | Web-only tools |
+| `workflows/browser-tests.yml` | The browser tests' workflow (GitHub runs only `.github/workflows`) |
+| `infra/main.bicep`, `main.bicepparam`, `infra/azure/develop.ps1`, `test-site-signin.ps1` (still in `infra/`) | The Static Web App and the test site's setup |
 
-Rules while frozen (0032): no features, fixes or ports in the frozen part; if a change elsewhere breaks its compilation,
-the smallest mechanical fix in the same pull request. A change to a live module that alters what the web would show gets
-one line in `web-backlog.md`. Never import frozen code into the iPad app, nor into a live module the iPad loads.
+`archive/Directory.Build.props` is empty on purpose: it keeps the repository's MSBuild rules (warnings as errors, code
+style, metrics) away from the archived project.
+
+Rules while frozen (0032, 0033): no changes in `archive/`, not even to keep it compiling (the one exception: the icon
+sprite `node tools/icons/build.mjs` writes with the iPad's icons). A change to a shared module that
+alters what the web would show gets one line in `web-backlog.md`. Never import archived code into the iPad app or
+`src/shared`.
 
 ## Workflows
 
 | Workflow | Active | Archived |
 | --- | --- | --- |
-| `CI` (`build-test`) | Build of the whole solution, unit and node tests, guards, quality | Publish, provisioning and deploy of the web: only with the repository variable `WEB_ACTIVE` = `true` |
-| `Browser tests` | — | By hand only (Actions tab) |
-| `iPad`, `API`, `Scan server`, `Version` | Unchanged | — |
+| `CI` (`build-test`) | Build of the solution (backend, `src/shared`, iPad core), unit and node tests, guards, quality; a change only in `archive/` builds nothing | The web's publish, provisioning and deploy steps: in `ci.yml` at commit 6088b98 |
+| `Browser tests` | — | `archive/web/workflows/browser-tests.yml`, not run; its triggers at commit 44360d2 |
+| `iPad`, `API`, `Scan server`, `Version` | Unchanged except paths | — |
 
-Developer commands that belong to the archive: `dotnet run --project src/MotiffLab.Web`, `dotnet publish src/MotiffLab.Web`
-and the Playwright run (`tests/e2e/README.md`).
+Developer commands that belong to the archive (they work again after step 3 of "Reactivation"): `dotnet run --project
+archive/web/src/MotiffLab.Web`, `dotnet publish archive/web/src/MotiffLab.Web` and the Playwright run
+(`archive/web/tests/e2e/README.md`).
 
 ## Infrastructure
 
@@ -70,10 +80,20 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    them), or the restore point. `develop` is the default: it already has the current music-core and project file.
 2. A decision record that ends 0032's hold, and the platform focus in `governance/README.md`, `roles/common.md` and
    `CLAUDE.md` set back to both platforms.
-3. Bring the web to the current project file version and facade before any writer of a newer version ships to it
+3. Move the web project back out of the archive (`archive/web/src/MotiffLab.Web` → `src/web/MotiffLab.Web`, its tests to
+   `tests/web`), add it to `MotiffLab.slnx`, delete `archive/Directory.Build.props` if nothing else is archived, and
+   make it build with `src/shared`: its `tsconfig.json` and `MotiffLab.Web.csproj` compile `src/shared/Scripts` with
+   its own scripts into its `wwwroot/js`, and its publish copies `src/shared/wwwroot/{i18n,audio,lib/verovio}` and
+   `src/shared/Playback/FurElise.musicxml` (or one shared folder is laid out so both read it in place). Copy the
+   design kit's tokens, fonts and icons into its `wwwroot` again, and move the web halves of the node tests back into
+   `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`). The reactivation task's `allowed_paths` name
+   `archive/web/**`, which opens it to the agents (`.claude/hooks/archive-guard.mjs`); once nothing is left in
+   `archive/`, remove it from `.ignore`.
+4. Bring the web to the current project file version and facade before any writer of a newer version ships to it
    (0026 section 3 applies again).
-4. Andrei sets `WEB_ACTIVE` to `true`; the `browser-tests.yml` triggers (schedule, tags, label) come back from the
-   commit that removed them.
-5. Run the browser suite by hand, fix what is red, then plan the porting versions from `web-backlog.md` and the issues
+5. Restore the web's publish, provisioning and deploy steps in `ci.yml` from commit 6088b98 (and its paths), move
+   `archive/web/workflows/browser-tests.yml` back to `.github/workflows` with its triggers from commit 44360d2, and
+   Andrei sets `WEB_ACTIVE` to `true`.
+6. Run the browser suite by hand, fix what is red, then plan the porting versions from `web-backlog.md` and the issues
    labelled `web-deferred`.
-6. Mark this document "history" and remove the frozen notes from the earlier records (0018, 0019, 0025, 0026, 0027).
+7. Mark this document "history" and remove the frozen notes from the earlier records (0018, 0019, 0025, 0026, 0027).

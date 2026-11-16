@@ -1,6 +1,6 @@
 # Verovio (score view)
 
-The score view (S1-W7, decision record 0008) engraves notation with Verovio. The files in `src/MotiffLab.Web/wwwroot/lib/verovio` are the unmodified npm build; nothing in them is changed.
+The score view (S1-W7, decision record 0008) engraves notation with Verovio. The files in `src/shared/wwwroot/lib/verovio` are the unmodified npm build; nothing in them is changed.
 
 ## Source and licence
 
@@ -26,7 +26,7 @@ How Motiff Lab meets the LGPL (section 4, combined works): Verovio is loaded at 
 ```bash
 npm pack verovio@<version>
 tar xzf verovio-<version>.tgz
-cp package/dist/verovio-module.mjs package/dist/verovio.mjs src/MotiffLab.Web/wwwroot/lib/verovio/
+cp package/dist/verovio-module.mjs package/dist/verovio.mjs src/shared/wwwroot/lib/verovio/
 ```
 
 Then, in the same change: update the version and checksums above, the licence files if they changed, `VEROVIO_CACHE` in `wwwroot/service-worker.published.js` (so devices fetch the new files), the credit in the score view, and run the Node tests, which load the vendored build.
