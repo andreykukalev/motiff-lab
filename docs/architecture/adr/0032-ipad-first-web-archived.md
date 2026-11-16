@@ -13,7 +13,8 @@ bundles to `src/shared`. The inventory of what was archived and how to restore i
 - The product is still evolving; its core experience (selection, playback, practice at the instrument, the assistant,
   the sources model) is being established through Andrei's test cycles on the iPad.
 - Two actively developed clients cost more than they return at this stage. Measured on `develop` 0d2bc52
-  ([REFACTORING_AUDIT.md](../../REFACTORING_AUDIT.md) sections 1–2): the web app is 38.6k lines of C# and Razor, 12.9k of CSS
+  (the first edition of [REFACTORING_AUDIT.md](../../REFACTORING_AUDIT.md), sections 1–2, PR #632, commit 06b49d2;
+  the current edition no longer covers the web): the web app is 38.6k lines of C# and Razor, 12.9k of CSS
   and 23.9k of TypeScript, with its own application layer (`PlaybackLab`) beside the facade's `OpenPiece`, its own
   page controller beside the iPad's, and 58 Playwright spec files that have been red since v0.6.1. Versions 0.6.1 to
   0.6.5 were iPad-only, and the list of iPad changes waiting to be ported to the web
