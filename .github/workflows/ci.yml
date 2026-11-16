@@ -204,6 +204,16 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: node --test "tests/shared/*.test.mjs"
 
+      # The iPad's pages in Chromium (tests/contracts/page-scenarios/README.md): every scenario, pressed twice, on the
+      # pages the build compiled. playwright-core alone, with the runner's own Chrome: about 10 seconds.
+      - name: Test the iPad's pages
+        if: steps.changes.outputs.code == 'true'
+        env:
+          PAGES_CHANNEL: chrome
+        run: |
+          npm ci --prefix tests/pages --no-audit --no-fund
+          node tests/pages/run.mjs
+
       # The agents' guards in .claude/hooks (governance/roles/common.md): a second.
       - name: Test agent guards
         if: steps.changes.outputs.code == 'true'

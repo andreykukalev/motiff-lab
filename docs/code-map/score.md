@@ -4,6 +4,9 @@
 
 The web and the iPad run the same TS modules; the iPad's page (`score.js`) builds the layers with its host options and
 posts what the player did to Swift. Node tests: `tests/shared/selection-*.test.mjs` (after `tsc`).
+What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/score-*.json` (SEL-01, SEL-03,
+SEL-04, PLAY-05, VIEW-03), replayed on `score.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's
+WKWebView (`PageScenarioTests.swift`); a change to what the page posts or draws there fails them.
 
 ## Modules
 

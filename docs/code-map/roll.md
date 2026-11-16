@@ -4,6 +4,9 @@
 
 One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor on the web and by `src/ipad/App/Web/roll.js`
 (`window.roll`, messages to Swift) on the iPad. Tests: `tests/shared/roll-*.test.mjs` (node, on the compiled modules).
+What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/roll-*.json` (SEL-01, SEL-03,
+PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's WKWebView
+(`PageScenarioTests.swift`). The roll's selection handles are drawn on its canvas, so the scenarios check what it posts.
 
 ## Modules
 

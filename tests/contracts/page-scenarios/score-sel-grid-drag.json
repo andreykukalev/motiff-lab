@@ -1,0 +1,176 @@
+{
+  "id": "score-sel-grid-drag",
+  "protects": [
+    "SEL-01"
+  ],
+  "says": "In Select a stylus drag across the score chooses the span its rectangle covers on the sixteenth grid, from inside one bar to inside another, and a part of one bar; never whole bars.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 3,
+          "x": 0.3,
+          "y": 0.4
+        },
+        {
+          "bar": 4,
+          "x": 0.6,
+          "y": 0.6
+        }
+      ],
+      "note": "from a third into bar 3 to past the middle of bar 4"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 1080,
+                "end": 2160,
+                "hand": null,
+                "how": "create"
+              }
+            }
+          ]
+        },
+        "marks": {
+          "band": [
+            {
+              "left": 355,
+              "top": 227,
+              "right": 534,
+              "bottom": 358
+            }
+          ]
+        },
+        "note": "bar 3 starts at 960 and bar 4 ends at 2400: 1080 and 2160 are sixteenths inside them (120 ticks each)"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 1080,
+        "end": 2160,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "the app selects what the page chose (music-core select) and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 1080,
+          "end": 2160
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 6,
+          "x": 0.3,
+          "y": 0.3
+        },
+        {
+          "bar": 6,
+          "x": 0.55,
+          "y": 0.6
+        }
+      ],
+      "note": "inside bar 6 alone"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 3240,
+                "end": 3600,
+                "hand": null,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "bar 6 is 3120 to 3840: three sixteenths of it"
+      }
+    }
+  ]
+}

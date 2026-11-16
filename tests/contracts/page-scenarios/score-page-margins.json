@@ -1,0 +1,89 @@
+{
+  "id": "score-page-margins",
+  "protects": [
+    "VIEW-03"
+  ],
+  "says": "A page of the score keeps its paper margins at the top and the bottom, the systems spread down to the bottom one, and the pages start below the floating bar and end above the pill.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "paper": {
+            "pages": [
+              {
+                "top": 72,
+                "bottom": 1430,
+                "inkTop": 163,
+                "inkBottom": 112
+              }
+            ],
+            "above": 72,
+            "below": 84
+          }
+        },
+        "note": "the A4 page 1358 px high; the bars' ink 163 px below its top (the 20 mm margin and the title) and 112 px above its bottom (the 20 mm margin and less than a grand staff); 72 px above the page for the floating bar, 84 px below it for the pill"
+      }
+    }
+  ]
+}

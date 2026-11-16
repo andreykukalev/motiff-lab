@@ -1,0 +1,226 @@
+{
+  "id": "roll-zoom-kept",
+  "protects": [
+    "ROLL-01"
+  ],
+  "says": "The roll's zoom and view stay as the player set them while the selection is made, changed and cleared, and its zoom while it plays; only the zoom controls change it.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "viewport": {
+    "width": 1024,
+    "height": 420
+  },
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 0,
+        "playing": false,
+        "label": "",
+        "looping": false
+      }
+    },
+    {
+      "wait": 100
+    },
+    {
+      "call": "zoom",
+      "with": {
+        "axis": "time",
+        "direction": 1
+      },
+      "note": "the player zooms in on time"
+    },
+    {
+      "call": "zoom",
+      "with": {
+        "axis": "pitch",
+        "direction": -1
+      },
+      "note": "and out on pitch"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "expect": {
+        "marks": {
+          "frame": {
+            "zoom": 68.93,
+            "rowScale": 0.64,
+            "scroll": 1461,
+            "pitchTop": 105
+          }
+        },
+        "note": "the zoom and the view the player set"
+      }
+    },
+    {
+      "call": "selection",
+      "with": {
+        "selected": {
+          "start": 960,
+          "end": 2400,
+          "ids": []
+        },
+        "loop": null
+      },
+      "note": "a selection from the score"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "expect": {
+        "marks": {
+          "frame": {
+            "zoom": 68.93,
+            "rowScale": 0.64,
+            "scroll": 1461,
+            "pitchTop": 105
+          }
+        },
+        "note": "unchanged by the selection"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 2700,
+          "y": 0.4
+        },
+        {
+          "tick": 3500,
+          "y": 0.6
+        }
+      ],
+      "note": "a new selection drawn on the roll"
+    },
+    {
+      "call": "selection",
+      "with": {
+        "selected": {
+          "start": 2640,
+          "end": 3600,
+          "ids": []
+        },
+        "loop": null
+      },
+      "note": "the app selects the span (music-core select) and shows it on the roll"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "span",
+            "notes",
+            "range"
+          ],
+          "messages": [
+            {
+              "span": {
+                "start": 2640,
+                "end": 3600,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "marks": {
+          "frame": {
+            "zoom": 68.93,
+            "rowScale": 0.64,
+            "scroll": 1461,
+            "pitchTop": 105
+          }
+        },
+        "note": "unchanged by a selection drawn and shown"
+      }
+    },
+    {
+      "call": "selection",
+      "with": {
+        "loop": null
+      },
+      "note": "the selection cleared"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "expect": {
+        "marks": {
+          "frame": {
+            "zoom": 68.93,
+            "rowScale": 0.64,
+            "scroll": 1461,
+            "pitchTop": 105
+          }
+        },
+        "note": "unchanged by the selection cleared"
+      }
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 2400,
+        "playing": true,
+        "label": "",
+        "looping": false
+      },
+      "note": "playing"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "expect": {
+        "marks": {
+          "frame": {
+            "zoom": 68.93,
+            "rowScale": 0.64
+          }
+        },
+        "note": "the zoom unchanged while it plays (the view may follow the playhead)"
+      }
+    }
+  ]
+}

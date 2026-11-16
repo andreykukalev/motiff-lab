@@ -1,0 +1,196 @@
+{
+  "id": "roll-playhead-drag-playing",
+  "protects": [
+    "PLAY-02"
+  ],
+  "says": "While the piece plays, the roll's playhead is taken at once by the stylus in Select and by a finger in Navigate, dragged on the sixteenth grid and let go: nothing holds the touch first.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "viewport": {
+    "width": 1024,
+    "height": 420
+  },
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 0,
+        "playing": false,
+        "label": "",
+        "looping": false
+      }
+    },
+    {
+      "wait": 100
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 1920,
+        "playing": true,
+        "label": "",
+        "looping": false
+      },
+      "note": "playing, at 1920"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 1920,
+          "y": 0.7
+        },
+        {
+          "tick": 3000,
+          "y": 0.7
+        }
+      ],
+      "note": "the stylus on the playhead's line, dragged right"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "drag",
+            "seek",
+            "span",
+            "notes"
+          ],
+          "includes": [
+            {
+              "drag": {
+                "phase": "grab",
+                "handle": "black"
+              }
+            },
+            {
+              "drag": {
+                "phase": "move",
+                "handle": "black",
+                "tick": 3000
+              }
+            },
+            {
+              "drag": {
+                "phase": "release",
+                "handle": "black"
+              }
+            }
+          ]
+        },
+        "note": "taken at the press, on to 3000 on the grid, let go; nothing else in between"
+      }
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "navigate",
+        "place": true,
+        "stylus": true
+      },
+      "note": "Navigate"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 1920,
+        "playing": true,
+        "label": "",
+        "looping": false
+      }
+    },
+    {
+      "wait": 1000,
+      "note": "the place shown after the drag gives way to the player's"
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "tick": 1920,
+          "y": 0.7
+        },
+        {
+          "tick": 3000,
+          "y": 0.7
+        }
+      ],
+      "note": "a finger on the playhead's line, dragged right"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "drag",
+            "seek",
+            "span",
+            "notes"
+          ],
+          "includes": [
+            {
+              "drag": {
+                "phase": "grab",
+                "handle": "black"
+              }
+            },
+            {
+              "drag": {
+                "phase": "move",
+                "handle": "black",
+                "tick": 3000
+              }
+            },
+            {
+              "drag": {
+                "phase": "release",
+                "handle": "black"
+              }
+            }
+          ]
+        },
+        "note": "taken at the press, on to 3000 on the grid, let go; nothing else in between"
+      }
+    }
+  ]
+}
