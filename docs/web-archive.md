@@ -1,6 +1,6 @@
 # The web app archive: what is frozen, what stays live, how to bring it back
 
-Status: current, 2026-11-16 (the web-only shared modules archived, v0.7 step A6). Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
+Status: current, 2026-11-16 (the web-only shared modules and interface words archived, v0.7 step A6). Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
 when a shared module moves or the web is reactivated.
 
 The web app (Blazor WebAssembly PWA, the Music Studio of [0025](architecture/adr/0025-two-studios.md)) is archived in
@@ -28,7 +28,7 @@ maintained by iPad work. The rest is in `archive/web`, frozen.
 | --- | --- |
 | `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll load them (`src/ipad/App/Web`), all but `score/score-page.ts`, the A4 layout the node tests engrave with (`Engraver.swift` keeps the same values) |
 | `MotiffLab.Shared.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/shared` compiles that TypeScript for the iPad (`ipad.yml`, `src/ipad/build-version.sh`) |
-| `wwwroot/i18n` | The interface words |
+| `wwwroot/i18n` | The interface words the iPad names, or may name (`tests/shared/i18n.test.mjs` checks that each is there in both languages) |
 | `wwwroot/audio/piano` | The piano samples the iPad plays |
 | `wwwroot/lib/verovio` | The npm build of Verovio the score scripts were written against (`tools/verovio`) |
 | `Playback/FurElise.musicxml` | The iPad's example piece |
@@ -42,6 +42,7 @@ maintained by iPad work. The rest is in `archive/web`, frozen.
 | `src/MotiffLab.Web/wwwroot`: `css/app.css`, the mirrors `css/tokens.css`, `css/fonts`, `img/icons.svg`, `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, the rest of `img`, the app icons, `lib/pdfjs` | The site's shell, styles, offline worker and hosting configuration. The mirrors of `design/kit` are no longer checked against the kit; `node tools/icons/build.mjs` still writes `icons.svg` |
 | `tests/e2e` | 58 Playwright spec files on the published app |
 | `tests/web` | Node tests of web-only code, and the web halves of `design`, `i18n`, `stylesheets` and `pencil-marks`; from v0.7 (A6) also the tests of the modules above: `conversation-store`, `drawer-resize`, `hold-repeat`, `long-press`, `pencil-read-only`, `playback-owner`, `playback-processor`, `playback-scrub`, `scrub-rule` whole, and the web halves of four live tests as files of their own: `mode-keys` (from `score-modes`, `playheads`, `selection-gesture`), `pdf-export` (from `score-pdf`), `scrub-notes-heard` (from `scrub-notes`). They still import `../../src/shared/wwwroot/js/…`: they run unchanged once back in `tests/shared` |
+| `src/MotiffLab.Web/wwwroot/i18n/en.json`, `ru.json`, moved from `src/shared/wwwroot/i18n` in v0.7 (step A6, W0.6/F6, Andrei's decision 5): 1401 English and 1432 Russian keys | The words only the web said: no iPad code, page script, music-core or API text names them, literally or by a family it builds. Same names as before; the live files kept 1111 English and 1134 Russian keys |
 | `tools/pdfjs`, `tools/perf` | Web-only tools |
 | `workflows/browser-tests.yml` | The browser tests' workflow (GitHub runs only `.github/workflows`) |
 | `infra/main.bicep`, `main.bicepparam`, `infra/azure/develop.ps1`, `test-site-signin.ps1` (still in `infra/`) | The Static Web App and the test site's setup |
@@ -91,7 +92,9 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    back to `src/shared/Scripts/<folder>` and their 12 test files to `tests/shared`, where both run unchanged; web code that
    took `parseSvg`, `parseTransform`, `viewBoxOf` or `num` from `svg-to-pdf.js` takes them from `svg-parse.js`. The
    iPad's case file `tests/ipad/MotiffLabTests/Golden/scrub.json` has had no node reader since then: `scrub-rule` runs
-   the web's engine on it again. The reactivation task's `allowed_paths` name
+   the web's engine on it again. The words archived then (`archive/web/src/MotiffLab.Web/wwwroot/i18n/{en,ru}.json`) are
+   merged back into `src/shared/wwwroot/i18n/{en,ru}.json` before the web's `i18n` test runs (no key is in both). The
+   reactivation task's `allowed_paths` name
    `archive/web/**`, which opens it to the agents (`.claude/hooks/archive-guard.mjs`); once nothing is left in
    `archive/`, remove it from `.ignore`.
 4. Bring the web to the current project file version and facade before any writer of a newer version ships to it
