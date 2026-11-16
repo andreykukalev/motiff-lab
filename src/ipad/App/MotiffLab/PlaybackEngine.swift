@@ -1,7 +1,7 @@
 import Foundation
 
-// The playback engine for the audio thread (decision record 0019 section 2.1): the Swift port of the web app's engine
-// (src/shared/Scripts/playback/playback-processor.ts, 0007), so both apps sound and keep time alike. It owns
+// The playback engine for the audio thread (decision records 0019 section 2.1 and 0007): the one engine that runs; the
+// web app's AudioWorklet engine it was ported from is archived with the web (docs/web-archive.md). It owns
 // musical time: it advances a canonical tick position frame by frame through the tempo map, so loops wrap on the exact
 // frame, tempo changes apply at the exact tick, and the main thread cannot delay a note. It renders the sampled piano
 // and a synthesised metronome. The pedal is already in the notes' lengths: music-core's playback score holds a note
@@ -726,8 +726,7 @@ final class PlaybackEngine {
 }
 
 /// Scrubbing (#495 UX-09, the architect's design playback-model-v0.5.2, slice I4; #582 items 12 and 13): the notes a dragged
-/// playhead passes, by the rule the web's engine has (scrubStrikes in Scripts/playback/playback-processor.ts), both on
-/// tests/ipad/MotiffLabTests/Golden/scrub.json.
+/// playhead passes, by the rule of the case file tests/ipad/MotiffLabTests/Golden/scrub.json (`scrubStrikes`).
 extension PlaybackEngine {
     /// The drag's voices, apart from the piece's, so its end, Play or a seek fades them all.
     static let scrubSource = "scrub"

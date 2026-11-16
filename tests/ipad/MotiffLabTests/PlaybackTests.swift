@@ -3,8 +3,8 @@ import XCTest
 
 @testable import MotiffLab
 
-/// The playback engine (decision record 0019 section 2.1), held to the web engine's own tests
-/// (tests/shared/playback-processor.test.mjs): the same notes start on the same frames.
+/// The playback engine (decision record 0019 section 2.1): which notes start on which frames, the tempo, the loop and
+/// the scrub.
 final class PlaybackEngineTests: XCTestCase {
     let rate = 48_000.0
     let quarter = 24_000 // frames per quarter note at 120 BPM
@@ -366,7 +366,7 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(e.voiceCount, 4, "the start at 0")
     }
 
-    /// The rule of what sounds on the case file the web's engine runs too (Golden/scrub.json, tests/shared/scrub-rule.test.mjs).
+    /// The rule of what sounds, on the case file Golden/scrub.json.
     func testTheScrubRuleAnswersEveryCaseAsTheWebDoes() throws {
         let url = try XCTUnwrap(Bundle(for: PlaybackEngineTests.self).url(forResource: "scrub", withExtension: "json"), "the case file is bundled with the tests")
         let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

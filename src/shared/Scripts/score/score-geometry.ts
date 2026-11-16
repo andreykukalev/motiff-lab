@@ -7,7 +7,7 @@
 // says where each page sits on screen and at what size.
 
 import type { BarFrame } from "./pencil-marks.js";
-import { multiply, parseSvg, parseTransform, viewBoxOf, type Matrix, type SvgNode } from "./svg-to-pdf.js";
+import { multiply, parseSvg, parseTransform, viewBoxOf, type Matrix, type SvgNode } from "./svg-parse.js";
 
 /** A box: left < right, top < bottom (y grows downwards). */
 export interface Rect {

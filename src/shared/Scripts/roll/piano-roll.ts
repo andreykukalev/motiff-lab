@@ -127,7 +127,7 @@ interface PlayerHandle {
     /** Strikes and releases a key by hand, over playback or without it. */
     noteOn?(pitch: number, velocity?: number): void;
     noteOff?(pitch: number): void;
-    /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
+    /** The playback model while the player holds it (#495 UX-10), else null. */
     model?(): ModelState | null;
     /**
      * A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll;
