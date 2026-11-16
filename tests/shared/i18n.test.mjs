@@ -39,10 +39,10 @@ function bracketed(source, open, untilComma = false) {
 }
 
 /**
- * The keys the iPad app names (UIText.swift): every literal in a lookup (`text[…]`, the key of `text.format(…)`
- * and of `text.count(…)` with its plural forms), ternaries included, and every literal in a declaration that holds a
- * key (`var … key`, `labelKey`, `hint`, an assistant state's `note`, …); `prefixes` are the starts of keys built in
- * either (`text["edit.\($0)"]`).
+ * The keys the iPad app names (UIText.swift): every literal in a lookup (`text[…]`, `UIText.current[…]`, the key
+ * of `text.format(…)` and of `text.count(…)` with its plural forms), ternaries included, and every literal in a
+ * declaration that holds a key (`var … key`, `labelKey`, `hint`, an assistant state's `note`, …); `prefixes` are
+ * the starts of keys built in either (`text["edit.\($0)"]`).
  */
 function namedKeys() {
     const dir = new URL("../../src/ipad/App/MotiffLab/", import.meta.url);
@@ -50,7 +50,7 @@ function namedKeys() {
     const prefixes = new Set();
     for (const name of readdirSync(dir).filter((file) => file.endsWith(".swift"))) {
         const swift = readFileSync(new URL(name, dir), "utf8").replace(/^\s*\/\/.*$/gm, "");
-        for (const lookup of swift.matchAll(/\btext(\[|\.format\(|\.count\()/g)) {
+        for (const lookup of swift.matchAll(/\b(?:text|UIText\.current)(\[|\.format\(|\.count\()/g)) {
             const inner = bracketed(swift, lookup.index + lookup[0].length - 1, lookup[1] !== "[");
             for (const match of inner.matchAll(KEY)) {
                 for (const key of lookup[1] === ".count(" ? [`${match[1]}.one`, `${match[1]}.many`] : [match[1]]) keys.add(key);
