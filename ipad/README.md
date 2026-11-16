@@ -1,5 +1,7 @@
 # The Motiff Lab iPad app
 
+**Status (2026-11-16):** the only actively developed client ([0032](../docs/decisions/0032-ipad-first-web-archived.md)). The web app is archived, but the files this app bundles from its folder stay live and are maintained here: the score, roll, layout, storage and playback modules (`Scripts/…`, compiled by `dotnet build src/MotiffLab.Web`, which builds no site), the interface words, the piano and the example piece ([`docs/web-archive.md`](../docs/web-archive.md)). The app never imports the frozen web code, and its build needs no web publish, deploy or browser test.
+
 A native SwiftUI app over the same C# music-core as the web app (decision record [0019](../docs/decisions/0019-native-ipad-app.md)). Swift draws the screens; everything musical comes from music-core through its facade ([0020](../docs/decisions/0020-music-core-facade.md)), and the score is engraved by the same Verovio as the web's.
 
 ```

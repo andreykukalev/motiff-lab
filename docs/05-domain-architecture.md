@@ -2,6 +2,8 @@
 
 # Domain Model & Technical Architecture
 
+**Platform (2026-11-16):** the web app is archived ([0032](decisions/0032-ipad-first-web-archived.md)); the shared domain model, music-core and the backend described here serve the iPad app and stay platform-independent.
+
 *Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs in the browser, as described in MVP · Stage 1, plus a thin AI gateway (decision record 0003); the analysis pipeline and backend arrive with Stage 3. The technology choices below (Rust, Flutter, FastAPI) are superseded by decision record 0001: C# music-core, Blazor WebAssembly, .NET MAUI and Azure Functions.*
 
 ## Domain model at a glance

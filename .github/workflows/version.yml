@@ -1,7 +1,8 @@
 # Cuts a version (governance/README.md, "Versions"): when VERSION changes on develop (a test version) or main (a stable
-# version or a hotfix), it tags that commit v<VERSION>, then starts the iPad and browser tests on the tag. Agents cannot
+# version or a hotfix), it tags that commit v<VERSION>, then starts the iPad tests on the tag. Agents cannot
 # push tags from a cloud thread, so a version is a pull request that changes VERSION. A tag pushed with the workflow's
-# token starts no other workflow by itself, hence the two explicit runs.
+# token starts no other workflow by itself, hence the explicit run. The browser tests belong to the archived web app
+# (docs/decisions/0032-ipad-first-web-archived.md) and are not started; reactivating the web brings their run back.
 name: Version
 
 on:
@@ -42,5 +43,4 @@ jobs:
           git tag -a "$tag" -m "Version $version from ${GITHUB_REF_NAME}"
           git push origin "refs/tags/$tag"
           gh workflow run ipad.yml --ref "$tag"
-          gh workflow run browser-tests.yml --ref "$tag"
-          echo "### $tag on ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}: iPad and browser tests started" >> "$GITHUB_STEP_SUMMARY"
+          echo "### $tag on ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}: iPad tests started" >> "$GITHUB_STEP_SUMMARY"

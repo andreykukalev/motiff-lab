@@ -45,18 +45,21 @@ compacted automatically at about 200K tokens.
 
 ## Platform focus
 
-- Every track in a version plan has an area: iPad, web, core or shared. Without Andrei's explicit word it is the focus
-  in `governance/README.md`; «shared» only when he asks for both platforms at once.
-- An iPad track reads and changes `ipad/`, `src/MotiffLab.MusicCore` and the score and roll modules the iPad page runs
-  (`Scripts/score`, `Scripts/roll`, checked by node tests); it does not read or change the web pages and components or
-  run the web Playwright suites. A web track mirrors this.
-- A change with a counterpart on the other platform is not ported: append one line to
-  `/mnt/project-files/product/web-backlog.md` (or `ipad-backlog.md`): what changed, the pull request, the shared code
-  touched. A porting version is planned from that list.
+- The web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
+  backend (API, scan server). There are no web tracks until Andrei reactivates the web.
+- A track reads and changes `ipad/`, `src/MotiffLab.MusicCore`, the backend and the live shared modules the iPad bundles
+  from the web project's folder (`Scripts/score`, `roll`, `layout`, `storage`, `playback`, `wwwroot/i18n`, the piano;
+  the list is in `docs/web-archive.md`). It does not read, change or test the frozen web pages, components, services or
+  Playwright suites, and the iPad never imports frozen web code. If a change breaks the frozen web's compilation, it
+  makes the smallest mechanical fix there in the same pull request, nothing more.
+- A change to a live shared module that alters what the web would show is not ported: append one line to
+  `/mnt/project-files/product/web-backlog.md`: what changed, the pull request, the shared code touched. It is the
+  porting list for the web's reactivation.
 
 ## Code maps and tracks
 
-- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, web), under 3 KB: which files do what, the
+- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, roll; the archived web has
+  `docs/web-archive.md` instead), under 3 KB: which files do what, the
   key functions with line ranges, the rules not to break. Read your area's map before the code. A pull request that
   adds, moves or splits structure updates the map in the same pull request; the first agent in an area with no map
   writes it from what it studied, in its first pull request.
@@ -78,8 +81,8 @@ compacted automatically at about 200K tokens.
 
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
-- The iPad macOS tests and the browser tests run on every version tag (`v*`), by hand, or by label (`ipad-tests`,
-  `browser-tests`) when a change needs them before a version. For `ipad/App`, fix the expectations in
+- The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
+  before a version. The browser tests belong to the archived web and run only by hand. For `ipad/App`, fix the expectations in
   `ipad/App/MotiffLabTests` in the same commit.
 
 ## Never

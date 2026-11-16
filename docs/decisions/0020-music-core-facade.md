@@ -2,6 +2,8 @@
 
 Status: proposed, 2026-11-01. Andrei asked for one stable API with JSON in and out, shared by the web app and the native iPad app, with the project file as the contract between them (redesign preparation, item 21). Number 0019 (the native iPad app) is reserved for a record still to be written; the redesign is [0018](0018-redesign.md).
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app, so its move onto the facade waits for the web's reactivation; the iPad remains the facade's client.
+
 ## Context
 
 The web app calls music-core directly from Razor code: `PlaybackLab.razor` alone imports a piece, suggests phrases, selects a passage, analyses it, offers experiments, drives a variation chain, generates notation and playback scores and saves the project, with the orchestration spread over two thousand lines of UI code. The spike `spikes/ios-core` (PR #176) showed that the same C# music-core runs natively on the iPad through NativeAOT, and that Verovio engraves its MEI there in about 50 ms. The redesigned iPad app is native Swift ([[0015]] is superseded by [[0019]]), so Swift needs a way to call music-core, and the redesigned web app needs the same orchestration without copying it from the old page.

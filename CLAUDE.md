@@ -2,6 +2,8 @@
 
 Musical exploration workspace: help musicians move from reproducing music to understanding, transforming and creating it. Specs: `docs/` (start with `docs/README.md`). Current stage: **Stage 1, notation-based motif exploration** (`docs/01-mvp-stage-1.md`), framed by `docs/08-central-product-model.md`: the loaded piece is the context for a work session, the phrase is the unit of work.
 
+**iPad first** (`docs/decisions/0032-ipad-first-web-archived.md`): the iPad app is the only actively developed client. The web app is archived in place: its frozen part gets no features, fixes, ports or browser tests and is not deployed; it only keeps compiling. What in `src/MotiffLab.Web` stays live because the iPad bundles it, and how the web comes back: `docs/web-archive.md`.
+
 This file holds the rules of the product and its code. How the work is run (versions on `develop` and `main`, experiments behind a switch, the six things only Andrei decides, roles and models) is in `governance/README.md`: read it, `governance/roles/common.md` and your role's file before you start. `CLAUDE.md`, `governance/`, `.claude/`, `.github/` and `tests/acceptance/` are the agents' own rules: a pull request that changes them is merged by Andrei.
 
 ## Stack
@@ -10,15 +12,15 @@ Decision records: `docs/decisions/`, listed with what each decides in `docs/READ
 
 - `src/MotiffLab.MusicCore`: C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies. Tests: `tests/MotiffLab.MusicCore.Tests`.
 - `src/MotiffLab.Api`: ASP.NET Core API saving a signed-in player's projects in Cosmos DB (0014); tests in `tests/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
-- `src/MotiffLab.Web`: Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer (JS interop): sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) by `dotnet build`; `tests/web` tests run on the compiled output.
+- `src/MotiffLab.Web`: **archived** Blazor WebAssembly PWA (0032). Live inside it, because the iPad bundles them: the TypeScript modules `Scripts/score`, `roll`, `layout`, `storage`, `playback` (compiled to `wwwroot/js/`, not committed, by `dotnet build src/MotiffLab.Web`), `wwwroot/i18n`, `wwwroot/audio/piano` and `Playback/FurElise.musicxml`; `tests/web` node tests run on the compiled output. Everything else there is frozen.
 - `services/omr`: the scan server: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a Python HTTP service, run by the player in Docker (0011) or hosted in Azure Container Apps (0014, `Scan server` workflow, not CI). Tests: `python -m pytest` there.
 - `ipad`: native iPad app (0019, `ipad/README.md`): SwiftUI in `ipad/App` (XcodeGen, Mac); music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it); Verovio from source in `ipad/Verovio`. Swift is built and tested by the `iPad` workflow, not CI.
-- `design/kit`: the redesign kit (0018); the web app serves copies of `tokens.css` and fonts in `wwwroot/css`, icons as `docs/ui-conventions.md` says.
-- `tests/e2e`: Playwright on the published app (browsers, offline, WCAG 2.2 AA).
+- `design/kit`: the redesign kit (0018); the iPad reads `tokens.css` and the fonts from it; the archived web app serves copies of `tokens.css` and fonts in `wwwroot/css`, icons as `docs/ui-conventions.md` says.
+- `tests/e2e`: **archived** Playwright specs on the published web app; run by hand only (0032).
 
 ## Redesign
 
-The web Music Studio and the iPad Practice Studio are two workspaces of one product with no parity: a function is not built in one app because the other has it; weigh product decisions by `docs/decisions/0025-two-studios.md`. Both UIs are being rebuilt to 0018, replacing the old screens directly.
+The web Music Studio and the iPad Practice Studio are two workspaces of one product with no parity (`docs/decisions/0025-two-studios.md`); while the web is archived (0032) only the iPad Practice Studio is built, and a function is not ported to or from the web. Weigh product decisions by 0025's six questions. The iPad UI is being rebuilt to 0018, replacing the old screens directly.
 
 - Read `design/kit/HANDOFF.md` before any UI work. What the mockups invent (demo score, `phraseRanges()`, facts, counts, texts) is not data.
 - Source of truth in `design/kit`, highest first: `docs/01-ux-concept.md` and `docs/02-design-system.md` (text) → `tokens.css` (values) → `ds.css` (components, score marks) → `screens/*.png` (look) → `docs/wireframes/*.png` (structure only). Text beats a picture.
@@ -66,12 +68,12 @@ node --test "tests/web/*.test.mjs"  # after a build; Node 22+
 node --test "governance/tests/*.test.mjs"  # the guards
 node tools/quality/quality.mjs  # code quality against the ratchet baseline (governance/quality/README.md, blocking); before every push of code
 ipad/build-version.sh v0.1  # on Andrei's Mac: build a version from its tag and install it on the iPad
-dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)
 dotnet format MotiffLab.slnx  # CI: dotnet format whitespace --folder --verify-no-changes
-dotnet run --project src/MotiffLab.Web
 ```
 
-Warnings are errors (`Directory.Build.props`). What CI `build-test` runs and when heavy tests may run: `governance/roles/common.md`; run the browser specs you touch locally.
+Archived with the web (0032, `docs/web-archive.md`), not part of the active workflow: `dotnet run --project src/MotiffLab.Web`, `dotnet publish src/MotiffLab.Web -c Release -o publish` and the Playwright run in `tests/e2e`.
+
+Warnings are errors (`Directory.Build.props`). What CI `build-test` runs and when heavy tests may run: `governance/roles/common.md`.
 
 ## Conventions
 

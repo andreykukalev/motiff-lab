@@ -1,5 +1,7 @@
 # Code map: the piano roll (`Scripts/roll`, the iPad's drawer)
 
+**Status (2026-11-16):** the web app is archived (`docs/decisions/0032-ipad-first-web-archived.md`); `Scripts/roll` stays live because the iPad's drawer runs it, and iPad work owns it. The Blazor side is frozen.
+
 One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor on the web and by `ipad/App/Web/roll.js`
 (`window.roll`, messages to Swift) on the iPad. Tests: `tests/web/roll-*.test.mjs` (node, on the compiled modules).
 
