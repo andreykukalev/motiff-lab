@@ -1,0 +1,3 @@
+# Search tools (ripgrep, so the agents' Grep and Glob, and VS Code search) skip the archived web: agents work only on
+# active code (docs/repository-structure.md, "Archive"). git grep and find still see it.
+archive/

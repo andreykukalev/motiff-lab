@@ -86,7 +86,9 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    its own scripts into its `wwwroot/js`, and its publish copies `src/shared/wwwroot/{i18n,audio,lib/verovio}` and
    `src/shared/Playback/FurElise.musicxml` (or one shared folder is laid out so both read it in place). Copy the
    design kit's tokens, fonts and icons into its `wwwroot` again, and move the web halves of the node tests back into
-   `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`).
+   `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`). The reactivation task's `allowed_paths` name
+   `archive/web/**`, which opens it to the agents (`.claude/hooks/archive-guard.mjs`); once nothing is left in
+   `archive/`, remove it from `.ignore`.
 4. Bring the web to the current project file version and facade before any writer of a newer version ships to it
    (0026 section 3 applies again).
 5. Restore the web's publish, provisioning and deploy steps in `ci.yml` from commit 6088b98 (and its paths), move

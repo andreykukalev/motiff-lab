@@ -50,7 +50,11 @@ compacted automatically at about 200K tokens.
 - A track reads and changes `src/ipad/`, `src/backend/` and `src/shared/` (the modules, words, piano and example piece
   the iPad bundles; `docs/repository-structure.md`), with their tests in `tests/`. It does not read, change or test
   anything in `archive/` (the frozen web: pages, components, services, web-only scripts, Playwright suites), and
-  neither the iPad nor `src/shared` imports archived code.
+  neither the iPad nor `src/shared` imports archived code. Archived code never enters an agent's context: no Read,
+  search, `cat` or `grep` there, no citing it as how something works, and no subagent sent to look at it. What the web
+  did is in `docs/web-archive.md` and the tag `v0.6.5`. Search tools skip `archive/` (`.ignore`), and on a computer
+  `.claude/hooks/archive-guard.mjs` asks before any use of it; only a task whose `allowed_paths` name `archive/`
+  (reactivation, Andrei's decision) opens it.
 - A change to a live shared module that alters what the web would show is not ported: append one line to
   `/mnt/project-files/product/web-backlog.md`: what changed, the pull request, the shared code touched. It is the
   porting list for the web's reactivation.

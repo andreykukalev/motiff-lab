@@ -62,6 +62,14 @@ motiff-lab/
 Each platform keeps its native layout inside its folder: .NET projects one per folder with their `.csproj`, XcodeGen's
 `project.yml` with relative paths in `src/ipad/App`, Python's `requirements*.txt` and `tests/` beside its code.
 
+## Archive
+
+`archive/` holds code that is kept for a possible return, not maintained: today the web app (0032). It is not built,
+tested, linted or deployed, and agents do not read, search or change it, so it never enters their context
+(`governance/roles/common.md`, "Platform focus"). Search tools skip it (`.ignore`: ripgrep, the agents' Grep, VS Code
+search; `git grep` and `find` still see it), and `.claude/hooks/archive-guard.mjs` asks before a read, search or change
+there, except in a task whose `allowed_paths` name `archive/`. Bringing a part back moves it out of `archive/`.
+
 ## How the builds find things
 
 - `dotnet build MotiffLab.slnx` builds the backend, `src/shared` (its TypeScript to `src/shared/wwwroot/js`, not

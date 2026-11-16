@@ -50,7 +50,7 @@ function readScope(root) {
   }
 }
 
-function relativeToRoot(root, file) {
+export function relativeToRoot(root, file) {
   const abs = path.resolve(root, file);
   const rel = path.relative(root, abs).split(path.sep).join('/');
   return rel.startsWith('..') || path.isAbsolute(rel) ? null : rel;
