@@ -21,7 +21,7 @@ What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»)
 2. Responsibility: logic in the right layer (analysis in Music Core, not in the UI; UI not in Music Core); a function
    or type does one thing; a file the change makes bigger is split when the change gives a natural seam.
 3. Side effects: shared state, events and timers the change touches; what else reads them; behaviour Andrei approved
-   earlier still holds: look up the entries of the area in `docs/ux-baseline.md` against the pull request's «Baseline»
+   earlier still holds: look up the entries of the area in `docs/ux-baseline.md` against the pull request's «UX baseline»
    line.
 4. Reuse and size: nothing added that the code base already does (a helper, a type, a code path beside an existing
    one); the diff no larger than the task needs; no duplicate, dead code or abstraction with one user left after the

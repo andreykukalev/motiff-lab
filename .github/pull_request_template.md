@@ -10,7 +10,7 @@ commands and their outcome (build, tests, whitespace, node tools/quality/quality
 
 Quality baseline entries added: none <!-- or one line each: what, where, why -->
 
-Baseline: unchanged <!-- or the entries of docs/ux-baseline.md this changes, with Andrei's word for each -->
+UX baseline: unchanged <!-- or the entries of docs/ux-baseline.md this changes, with Andrei's word for each -->
 
 ## Decided without Andrei
 

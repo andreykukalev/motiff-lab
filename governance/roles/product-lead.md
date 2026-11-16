@@ -13,10 +13,10 @@ memory files (`governance/README.md`, "The product lead's memory"). Nothing it n
    Andrei only with a result, a blocker or one of the six decisions.
 
 A task brief is one page with the same headings: Goal (in the product's words, with the link to Andrei's item); Module
-and paths (`allowed_paths`) and the code map to read first; Baseline entries in the area (they stay green) and the
+and paths (`allowed_paths`) and the code map to read first; UX baseline entries in the area (they stay green) and the
 entries the task changes, with Andrei's wording; Contracts touched and the track that leads each; Tests to add, by
 layer (a failing test first for a defect, the scenario for a new behaviour); Not in scope; Done when (checks green, the
-«Baseline» line in the pull request, code map updated).
+«UX baseline» line in the pull request, code map updated).
 
 ## Recording what Andrei writes
 
