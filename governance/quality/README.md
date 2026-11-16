@@ -1,6 +1,7 @@
 # Code-quality checks
 
-Agents write code to a measurable spec: functions and files stay small and simple, and copy-paste is caught (#332).
+Agents write code to a measurable spec: functions and files stay small and simple, copy-paste is caught (#332), and each module uses only the modules it may
+(the `dependencies` check, `CLAUDE.md` «Writing code» 4).
 The checks run in the repository, with no external service: locally with one command, in CI in `build-test` on every
 pull request. The thresholds and the switch below are the agents' own rules (decision 6 in `governance/README.md`):
 they change only in a pull request Andrei merges.
@@ -9,7 +10,7 @@ they change only in a pull request Andrei merges.
 
 ```bash
 node tools/quality/quality.mjs                    # all checks; the CA rules need a quality build (about a minute)
-node tools/quality/quality.mjs --only eslint,jscpd,csharp,swiftlint,suppressions   # quick, no build
+node tools/quality/quality.mjs --only eslint,jscpd,csharp,swiftlint,suppressions,dependencies   # quick, no build
 node tools/quality/quality.mjs --update-baseline  # after fixing code, or to list a new deviation (then write its why)
 node --test "tools/quality/*.test.mjs"            # the ratchet's own tests
 ```
@@ -33,6 +34,7 @@ The thresholds are kept in one place, [`settings.json`](settings.json): function
 | `swiftlint` | SwiftLint in Docker on Linux, `ipad/App` | `cyclomatic_complexity` (15), `function_body_length` (80), `file_length` (600), `type_body_length` (600), `nesting` (4) |
 | `jscpd` | jscpd, C#, Razor, TypeScript, Swift and Python (`.jscpd.json`) | duplicated blocks from 10 lines |
 | `suppressions` | `tools/quality/quality.mjs` (a scan of the tracked sources and build files) | each way to hide a violation from the checks above is a violation itself: `eslint-disable` and other ESLint directives (ignored anyway: `noInlineConfig`), `swiftlint:disable`, `jscpd:ignore`, `#pragma warning disable` (bare or naming CA1502/CA1505/CA1506), `SuppressMessage` for them, `dotnet_diagnostic.CA150x` or a Maintainability-wide severity in an `.editorconfig` or `.globalconfig`, `NoWarn` naming them, analyzers turned off |
+| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device) |
 | `config` | `tools/quality/quality.mjs` | the generated configuration matches `settings.json` |
 
 The CA rules report only in a quality build (`-p:QualityMetrics=true`, `Directory.Build.props`), and there as warnings

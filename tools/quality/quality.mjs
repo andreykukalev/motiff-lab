@@ -10,7 +10,8 @@
 //
 // CI (.github/workflows/ci.yml) passes --ci, the log of its own build (--dotnet-log) and the pull request's base
 // (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd,
-// suppressions (an inline or configured way to hide a violation from the others is itself a violation).
+// suppressions (an inline or configured way to hide a violation from the others is itself a violation),
+// dependencies (which module may use which: tools/quality/dependencies.mjs).
 // In soft mode the command reports and exits 0; in blocking mode it exits 1 on a violation not in the baseline,
 // a baselined file or function that got worse, a baseline entry no longer needed, an entry without a reason, or a check that could not run.
 import { spawnSync } from 'node:child_process';
@@ -30,6 +31,7 @@ import {
   updateBaseline,
   valueIn,
 } from './ratchet.mjs';
+import { CORE, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreViolations, ipadPageViolations } from './dependencies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WEB = join(ROOT, 'src', 'MotiffLab.Web');
@@ -41,7 +43,7 @@ const SWIFTLINT_IMAGE =
 const BASELINE_NOTE =
   'Known violations of the code-quality thresholds (governance/quality/README.md). Only shrinks: fixing code '
   + 'removes its entry; a new entry needs a reason in "why" and an explanation in the pull request.';
-const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd', 'suppressions'];
+const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd', 'suppressions', 'dependencies'];
 
 const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf8'));
 const limits = settings.thresholds;
@@ -386,6 +388,17 @@ function suppressionsCheck() {
   return out;
 }
 
+/** Which module may use which, where the build would not notice (tools/quality/dependencies.mjs). */
+function dependenciesCheck() {
+  const read = (file) => readFileSync(join(ROOT, file), 'utf8');
+  const exists = (file) => existsSync(join(ROOT, file));
+  const pages = gitFiles(`${IPAD_PAGES}/*.js`);
+  return [
+    ...coreViolations(gitFiles(`${CORE}/*.cs`, `${CORE}/*.csproj`), read),
+    ...ipadPageViolations(pages, read, exists, bundledFolders(read(IPAD_PROJECT))),
+  ];
+}
+
 const RUNNERS = {
   dotnet: dotnetCheck,
   csharp: csharpCheck,
@@ -393,6 +406,7 @@ const RUNNERS = {
   swiftlint: swiftlintCheck,
   jscpd: jscpdCheck,
   suppressions: suppressionsCheck,
+  dependencies: dependenciesCheck,
 };
 
 // ---- Report -------------------------------------------------------------------------------------------------

@@ -25,6 +25,38 @@ The web Music Studio and the iPad Practice Studio are two workspaces of one prod
 - Never hard-code a colour, size, radius, shadow, font or timing: use a `tokens.css` token (a canvas reads them via `Scripts/layout/tokens.ts`). Port tokens, `ds.css` rules, icons and Verovio options, never the mockup HTML (`s*.html`).
 - Non-negotiables: the score is the whole screen, nothing docked; one continuously scrolling document of A4 pages (no page jumps); the score is the selection surface (no phrase list or strip); one Insights stream (no Understand/Explore/Build tabs); any iPad, no stylus needed; one accent (cobalt = pointing and selection only; plum = what the app composed and Pro; amber = what the player marked); Russian and English for the interface and all generated content; on the device = free, cloud or AI = Pro, except sync between the workspaces, free with a quota (0025).
 
+## Writing code
+
+Every agent that changes code follows these rules (Andrei, 2026-11-16); `docs/guidelines.md` names the official guides
+behind them and the pull request reviewer (`governance/roles/pr-reviewer.md`) checks them.
+
+1. **Read before writing.** Read the area's code map (`docs/code-map/`), then find how the code base already does this
+   (search the names, helpers and similar features) and follow it. No new helper, utility, type or file when one that
+   does the same exists: reuse or extend it.
+2. **The smallest diff.** Change the existing function rather than add a second one beside it; touch only what the task
+   needs (a refactoring task aside). Extend or replace, never stack: replaced code is deleted in the same pull request,
+   no new layer beside one that still runs.
+3. **One model per concept, one owner per state.** Selection, time, structure and playback state each have one model; a
+   piece of state is written in one place, the rest read it or get an event, no second copy kept in sync by hand.
+4. **The right layer and module.** Analysis, notes and rules in music-core; the apps display and route input; shared score
+   and roll behaviour once, in `Scripts/score` and `Scripts/roll`. One responsibility per type and file: a change that
+   adds one to a big file moves it to its own file, and the code map names it. Which module may use which: the
+   `dependencies` check (`governance/quality/README.md`).
+5. **A duplicate** is the same logic in two places, copied or reworded: 10 or more copied lines (jscpd), a second
+   implementation of an existing rule (a tick conversion, a hit test, a selection rule, a text format), a helper that
+   does what another does. Call the existing one, or move it where both can.
+6. **Style:** the official guides in `docs/guidelines.md`, `.editorconfig` and the linters; within a file, its naming and
+   layout.
+7. **No hidden side effects.** A function that changes shared state, starts a timer or posts an event says so in its
+   name or signature; the pull request lists what else reads the state it touches.
+8. **A rule has a test** that fails without the change; a test is never rewritten to match a regression.
+9. **Delete what is unused** in the change's area: dead code, an experiment called «убрать», a switch with no owner.
+10. **A cleanup pass before the push.** Once the change works, read the whole diff again as a reviewer would
+    (`git diff origin/develop...`): duplicates, dead code, broken conventions, abstractions the task does not need,
+    anything added that existing code already does. Simplify, then run the checks again.
+11. **The checks are the limit.** Tests and the quality checks (size, complexity, duplicates, suppressions,
+    dependencies) block a merge; they are never loosened to pass.
+
 ## Commands
 
 ```bash
