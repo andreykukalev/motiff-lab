@@ -53,6 +53,7 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 | A hover recogniser added to the window per score | `PencilPalette.watch` | moved, not added, as long as one controller lives; leaked controllers left theirs | none now that the screens are freed (item 5 above) |
 | The kept "Notes" view waits for the sound | `ScoreScreen.wire` awaits `player.load` before `returnToNotesView`, which lands the pages | the notes are drawn ~2.2 s after the press in the simulator and shown at ~5 s (Evidence) | restore the view and land, then give the player its place once the sound is in (track P owns the transport) |
 | Every screen makes its own web view and loads the score page again | `ScoreController.init` (score), `RollController` (roll) | a WebContent process and the page's scripts per switch: ~1.5 s of the notes' time in the simulator | keep the score's web view between the screens of one piece |
+| The kept view waits 10 s for the render, then gives up | `ScoreController.whenRendered` (100 × 0.1 s), `returnToNotesView` | when the web page is slow (once in 96 switches, Evidence) the pages show from the top, blank until drawn, and the kept place is lost | land on the render's own end (`rendered`), not after a time guess |
 | The piano's samples decoded again for every screen | `Player.load` → `Piano.load` per `Player` | the files read and decoded at every switch to the notes | decode once per app (owner of `Player`) |
 | `docs/code-map/ipad.md` over its 3 KB | — | — | split the map by area when it next grows |
 
@@ -84,8 +85,8 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 
 `SwitchUITests` in the iPad workflow's simulator (iPad, Debug build, landscape, Russian), 20 rounds each way (8 in the
 library of 15 more pieces); a scanned-size PDF of 6 pages inside the piece. Runs by hand on evidence branches that skip the
-screenshot walk: baseline 43767626872 (v0.6.3 with the probe), fixes 43767801585 and 43773520691 (with the phases).
-Times are the test's own wait from the tap to the screen ready.
+screenshot walk: baseline 43767626872 (v0.6.3 with the probe), fixes 43767801585, 43773520691 (with the phases) and
+43778911858 (the app's own clock). In the first table, times are the test's own wait from the tap to the screen ready.
 
 | Test | Build | Switches | Median | Slowest | Memory, first → last | Controllers alive at the end | Score renders | Old Play drawn |
 |---|---|---|---|---|---|---|---|---|
@@ -116,8 +117,16 @@ Where a switch spends its time now (run 43773520691, medians, ms from the press 
 
 The test's wait is ~3 s longer than the app's time for the notes (8.5 s median) and ~1 s for the PDF: each read of the
 probe is a query of the whole screen, the score's SVG included. The switch test now holds each switch to 10 s by the
-app's own clock, as a freeze guard in the simulator; the iPad itself is not measured here. What is left of the notes'
-time is in the three structural risks above (the sound before the kept view, a web view per screen, the piano per
+app's own clock, as a freeze guard in the simulator; the iPad itself is not measured here.
+
+By the app's own clock (run 43778911858, medians, slowest in brackets): to the PDF 0.56 s (0.9) plain, 0.42 s (0.8)
+with Sources, 1.0 s (1.6) in the library; to the notes 4.0 s, 3.3 s (4.4) and 5.5 s (8.3). A tap on More answered after
+every one of the 96 switches; memory 180–285 MB throughout, ~190 MB at the end of each test; one controller of each kind
+alive. One switch to the notes took 21 s: its new web view's page loaded after 19.4 s (WebKit's process in the
+simulator), the kept view gave up waiting at 10 s and showed the pages from the top before they were drawn
+(`whenRendered`, structural risks). The app answered taps meanwhile; it is not the freeze, but it is the web view per
+screen at its worst. What is left of the notes'
+time is in the structural risks above (the sound before the kept view, a web view per screen, the piano per
 screen), none a defect that changes what the player sees, and none in this track's files to change safely now.
 
 music-core's calls of one switch, timed on a PC on the same 12 MB project (`switchbench`, medians): open as notes 40 ms,
