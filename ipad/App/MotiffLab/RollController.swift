@@ -53,7 +53,7 @@ final class RollController: NSObject, ObservableObject {
     var playheadGestured: (@MainActor (PlayheadGesture) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
-    /// Selection by where you touch (#601, experimental.placeSelection): notes a box, a lasso or a tap picked in Select, with
+    /// Selection by where you touch (#601): notes a box, a lasso or a tap picked in Select, with
     /// how they change the selection and the gesture for its history.
     var notesPicked: (@MainActor (RollNotesPick) -> Void)?
     /// A span of time the place rule drew in Select (v0.6.4): the one selection, exactly as drawn on the grid.
@@ -103,9 +103,9 @@ final class RollController: NSObject, ObservableObject {
     var penOn = false {
         didSet { if penOn != oldValue { applyInput() } }
     }
-    /// The bar's tool under the modes (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in
-    /// Navigate a long press puts the playhead where it is held; none before the modes.
-    var barTool: InputRules.Tool = .none {
+    /// The bar's tool (RollInput.barTool, #543 2–4): only Select changes the selection on the roll, and in Navigate a long
+    /// press puts the playhead where it is held.
+    var barTool: InputRules.Tool = .navigate {
         didSet { if barTool != oldValue { applyInput() } }
     }
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
@@ -240,10 +240,10 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.input(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
-    /// What the roll is told of who does what (RollInput.page), with selection by where you touch (#601): whether the
-    /// experiment is on, and whether a stylus is used, so a finger beside it moves the roll (RollPlaceInput).
+    /// What the roll is told of who does what (RollInput.page), with selection by where you touch (#601): whether a stylus
+    /// is used, so a finger beside it moves the roll (RollPlaceInput).
     private func pageInput() -> [String: Any] {
-        RollPlaceInput(on: PlaceSelection.on, stylus: InkInput.stylusPreferred)
+        RollPlaceInput(stylus: InkInput.stylusPreferred)
             .added(to: RollInput(stylus: InkInput.stylusPreferred, mode: shownMode, penOn: penOn, tool: barTool).page)
     }
 

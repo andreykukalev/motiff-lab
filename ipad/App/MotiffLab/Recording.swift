@@ -313,47 +313,6 @@ struct ProTag: View {
     }
 }
 
-/// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
-/// Motiff Lab's scan server, however long, in parts of about two minutes; the notes heard become another version. It
-/// needs an account and Pro, offered here; choosing the recording sends its sound.
-struct RecordingVersionSection: View {
-    @ObservedObject var score: ScoreController
-    @EnvironmentObject private var account: Account
-    let text: UIText
-    @State private var progress: String?
-    @State private var problem: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["version.recordingHeading"]).overline()
-            RecordingChooser(
-                text: text,
-                line: text["version.recordingLineDevice"],
-                button: text["version.addRecording"],
-                hint: text["version.chooseRecording"],
-                progress: progress,
-                problem: problem
-            ) { url in
-                Task { await hear(url) }
-            }
-        }
-        .padding(.top, CGFloat.ds("s-2"))
-    }
-
-    /// Hears the recording and gives the notes to music-core as another version.
-    private func hear(_ url: URL) async {
-        problem = nil
-        defer { progress = nil }
-        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
-        case .success(let heard):
-            problem = await score.addRecordingVersion(heard)
-        case .failure(let failure):
-            problem = failure.message
-        }
-    }
-}
-
-/// The parts music-core plans for a recording (`recording.parts`): what of the sound each sends, in milliseconds.
 enum RecordingParts {
     struct Part: Sendable {
         var index: Int

@@ -50,9 +50,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             sendMode()
         }
     }
-    /// The mode the bar chose (version 0.5, the experiment Two playheads and modes), other than the Pen; nil while the
-    /// experiment is off, which keeps the score as before.
-    @Published var mode: InteractionMode? {
+    /// The mode the bar chose (version 0.5; the only model since v0.6.5), other than the Pen.
+    @Published var mode: InteractionMode {
         didSet {
             guard mode != oldValue else { return }
             applyInput()
@@ -62,7 +61,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
     var penChanged: (@MainActor (Bool) -> Void)?
     /// The bar's mode or the Pen changed: the roll reads presses by the same tool (#543 2, RollInput.barTool).
-    var toolChanged: (@MainActor (InteractionMode?, Bool) -> Void)?
+    var toolChanged: (@MainActor (InteractionMode, Bool) -> Void)?
     /// Whether the roll is in Edit notes: then Undo is the note edits' (#521 9).
     var rollEditing: (@MainActor () -> Bool)?
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
@@ -95,15 +94,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var key: String
         var id = UUID()
     }
-    /// The piece's beat lines and the experiment Select by beats (SelectionTools.swift); the bars/beats choice went in v0.6.4.
+    /// The piece's beat lines (SelectionTools.swift): the one selection's grid; the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
     var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
-    var beatsExperiment = false
-    /// Selection by the place of the touch (v0.6.2, #601; Select's way since v0.6.3, PlaceSelection.on): the page's rules follow it.
-    var placeSelection = PlaceSelection.on {
-        didSet { if placeSelection != oldValue { applyInput() } }
-    }
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
     var zoomedFrom: (scale: CGFloat, offset: CGPoint)?
     /// The tool the Pencil's «switch to previous» left for Select, which its next one goes back to (StylusRules.selectTurn).
@@ -343,9 +337,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var id: Int { page }
     }
 
-    /// `mode` is the bar's mode the screen opens with, as Settings has the modes (v0.6.4 spec section 13): known before the
-    /// screen's first frame, so the score never draws the model without the modes while its sound loads.
-    init(mode: InteractionMode? = nil) {
+    /// `mode` is the bar's mode the screen opens with, known before the screen's first frame (v0.6.4 spec section 13).
+    init(mode: InteractionMode = .navigate) {
         _mode = Published(initialValue: mode)
         ProbeCounts.shared.add("score")
         ProbeCounts.shared.mark("made")
@@ -1163,67 +1156,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let read = SourcesInfo(answer: answer) { sources = read }
     }
 
-    /// A PDF kept inside the piece (`sources.document`): its pages shared over the bars until its notes are read; it stays
-    /// on the iPad. A PDF kept before is replaced.
-    func keepDocument(_ data: Data) async {
-        guard let piece else { return }
-        var fields: [String: Any] = ["pdf": data.base64EncodedString()]
-        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
-        let request = Self.json(fields) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.document", request) }
-        guard let read = SourcesInfo(answer: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        sources = read
-        versionStatus = text["sources.pdfKept"]
-        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-    }
-
-    /// «Добавить ещё PDF» (version 0.6): with a PDF kept already, another one is added as an original of its own beside it
-    /// (`sources.original.add`), never in its place, so the notes read from the first keep their pages.
-    func addAnotherPdf(_ data: Data, fileName: String) async {
-        guard let piece else { return }
-        var fields: [String: Any] = ["kind": "pdf", "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": ISO8601DateFormatter().string(from: Date())]
-        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
-        let request = Self.json(fields) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.original.add", request) }
-        guard let object = facadeObject(answer), object["error"] == nil else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        versionStatus = text.format("sources.sheet.toastAdded", fileName)
-        await readSources()
-        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-    }
-
-    /// Read as a version: the PDF kept in the piece goes to the scan server, and the notes it reads are added as another
-    /// version from a score, its pages linked to these bars (`sources.documentNotes`). Answers why not, or nil once added.
-    func readDocumentVersion(address: URL, account: Account) async -> String? {
-        guard let piece else { return nil }
-        let kept = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.pdf") }
-        guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
-            return facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
-        }
-        let fileName = object["fileName"] as? String ?? "score.pdf"
-        let result: ScanResult
-        switch await ScanServer.recognise(fileName: fileName, data: data, address: address, account: account) {
-        case .failure(let problem): return problem.text(text)
-        case .success(let read): result = read
-        }
-        let pages = max(1, sources.document?.pages ?? result.pages)
-        let request = Self.json(["musicXml": result.musicXml.base64EncodedString(), "engine": result.engine, "pages": pages]) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.documentNotes", request) }
-        guard versions.read(performance: answer) else {
-            return facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]
-        }
-        versionStatus = versions.matched == 0
-            ? text["performance.noMatch"]
-            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
-        await versionAdded(piece)
-        return nil
-    }
-
     /// Show on a bar of the version: the bar is selected and comes into view.
     func showVersionBar(_ bar: Int) {
         guard let span = versions.bars.first(where: { $0.bar == bar })?.span else { return }
@@ -1787,7 +1719,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": tick]], contentWorld: .page)
     }
 
-    // MARK: - Resume and beats (Settings · Experimental)
+    // MARK: - Resume and beats
 
     /// Whether the page is engraved and everything on it drawn, so a resume point can be shown on it (#327).
     private(set) var rendered = false
@@ -2157,7 +2089,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
     /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn), places: placeSelection)
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
         ink.apply(rules)
         toolChanged?(mode, penOn)
         guard shown else { return }
@@ -2182,17 +2114,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return spots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
     }
 
-    /// The mode as the page has it: "pen" while the Pen is on, none before the modes.
+    /// The mode as the page has it: "pen" while the Pen is on.
     private func sendMode() {
         guard shown else { return }
         Task { await sendModeNow() }
     }
 
     private func sendModeNow() async {
-        var data: [String: Any] = [:]
-        if let mode {
-            data["name"] = penOn ? InteractionMode.pen.rawValue : mode.rawValue
-        }
+        let data: [String: Any] = ["name": penOn ? InteractionMode.pen.rawValue : mode.rawValue]
         _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
     }
 

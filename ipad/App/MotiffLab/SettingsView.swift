@@ -113,7 +113,7 @@ final class DeviceSettings: ObservableObject {
 /// iPad acts on are shown: the others join the sheet with the features they switch.
 struct SettingsSheet: View {
     enum SheetSection: String, CaseIterable, Hashable {
-        case guidance, score, layers, roll, appearance, account, experimental, about
+        case guidance, score, layers, roll, appearance, account, about
     }
 
     @ObservedObject var settings: DeviceSettings
@@ -243,7 +243,6 @@ struct SettingsSheet: View {
             Text(text["settings.presetHint.\(settings.preset)"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-            switchRow("guidance.transportPill", text["settings.pillWithSelection"], on: "selection", off: "playing", hint: text["settings.pillWithSelectionHint"])
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
             switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
@@ -283,39 +282,9 @@ struct SettingsSheet: View {
                 // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
                 ScanPanel(scan: ScanServer.shared, text: text)
             }
-        case .experimental:
-            // New ideas tried in the app before they become features (governance, "Experiments"): each off until turned
-            // on, on this iPad. Only the experiments the iPad acts on are listed.
-            Text(text["settings.experimentalHowPad"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-            switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
-            switchRow("experimental.photoPages", text["settings.photoPages"], hint: text["settings.photoPagesHint"])
-            switchRow("experimental.pieces", text["settings.pieces"], hint: text["settings.piecesPdfHint"])
-            switchRow("experimental.editsLayer", text["settings.editsLayer"], hint: text["settings.editsLayerHint"])
-            switchRow("experimental.liveTempo", text["settings.liveTempo"], hint: text["settings.liveTempoHint"])
-            // Version 0.5: a whole folder of scores into the library, kept by link or copied, and their notes read in a batch.
-            switchRow("experimental.libraryImport", text["folderImport.setting"], hint: text["folderImport.settingHint"])
-            // At the instrument (#327, #328, #349).
-            switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
-            switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])
-            switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
-            // Version 0.5: the modes and, since 0.5.2, the playback model (#495 UX-10); no fade of the other bars.
-            switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsPadHint"])
-            // Version 0.6.1 (#582 item 15): Piece DNA's ideas by what they are in the music, each card saying why.
-            switchRow("experimental.musicalIdeas", text["settings.musicalIdeas"], hint: text["settings.musicalIdeasHint"])
-            // Version 0.6.1 (#582 item 17.3): the assistant proposes notes as drafts, music-core making them, the player accepting
-            // them. The assistant itself, at the selection and in its panel, has no switch since 0.6.3 (the lead's decision 3).
-            switchRow(AssistantController.actionsSetting, text["settings.assistantActions"], hint: text["settings.assistantActionsPadHint"])
-            // Version 0.6.4: the microphone in the assistant's field, speech recognised on the iPad only (on until turned off).
-            switchRow(Dictation.setting, text["settings.dictation"], hint: text["settings.dictationHint"])
-            // Version 0.5.7: homr or copisteria on the scan server, or «Авто» (0029), to compare them on the player's own pages.
-            switchRow(ScanServer.engineSetting, text["settings.scanEngine"], hint: text["settings.scanEngineHint"])
-            if settings.isOn(ScanServer.engineSetting) {
-                choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
-            }
-            // Version 0.6: the switch of all the piece's views and the new Sources sheet (0030).
-            switchRow(SourceLayers.setting, text["settings.sources"], hint: text["settings.sourcesHint"])
+            // The engine that reads scans (v0.5.7; a setting since v0.6.5): homr or copisteria on the scan server, or «Авто»
+            // (0029), which reads a notation program's pages on the iPad; homr until chosen.
+            choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"], hint: text["settings.scanEngineHint"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)
@@ -352,7 +321,6 @@ struct SettingsSheet: View {
         case .roll: text["settings.section.roll"]
         case .appearance: text["settings.appearance"]
         case .account: text["settings.section.account"]
-        case .experimental: text["settings.section.experimental"]
         case .about: text["settings.section.about"]
         }
     }

@@ -4,37 +4,34 @@ import XCTest
 /// PDF | Notes switched again and again (v0.6.4 spec sections 11 and 13): a piece with notes and a scanned-size PDF inside
 /// it, opened on its notes, goes to its PDF and back `rounds` times. Each switch must land within `limit` seconds by the
 /// app's own clock (from the press to the screen ready: the PDF's pages laid out, or the notes drawn and shown), the app
-/// must answer a tap on More in between, and the bar's old Play must never be drawn while the modes are on. Every switch
+/// must answer a tap on More in between, and the bar's old Play must never be drawn. Every switch
 /// is written down as a SCREEN-SWITCH line with the app's own probe (ScreensProbe, Debug builds): its memory, the
 /// controllers alive, the score's renders, music-core's longest call and the phases since the press, so the log shows
 /// whether anything piles up. The test's own wait is longer than the app's time: each read of the probe is a query of
 /// the whole screen. Runs in the `Screens` scheme only when the runner has `SWITCH_TEST` (`TEST_RUNNER_SWITCH_TEST=1`):
-/// the three take about 28 minutes in the workflow's simulator, more than the screenshot walk's job has left.
+/// the two take about 20 minutes in the workflow's simulator, more than the screenshot walk's job has left.
 @MainActor
 final class SwitchUITests: XCTestCase {
     private var app: XCUIApplication!
     /// The app's own time for one switch in the workflow's simulator; a freeze guard, not the iPad's time (v0.6.4 review).
     private let limit: TimeInterval = 10
 
-    /// The modes on, the sources off: the bar's PDF | Notes.
-    func testSwitchPdfNotes() throws { try asked(); switchAgainAndAgain(sources: false) }
-
-    /// The modes and the sources on: the switch of all views (`experimental.sources`), as Andrei uses the app.
-    func testSwitchWithSources() throws { try asked(); switchAgainAndAgain(sources: true) }
+    /// The switch of all views (the modes and Sources, permanent since v0.6.5), as Andrei uses the app.
+    func testSwitchWithSources() throws { try asked(); switchAgainAndAgain() }
 
     /// As above in a library of 15 more pieces with notes and a scanned PDF each, as a player's library is.
-    func testSwitchInAFullLibrary() throws { try asked(); switchAgainAndAgain(sources: true, copies: 15, rounds: 8) }
+    func testSwitchInAFullLibrary() throws { try asked(); switchAgainAndAgain(copies: 15, rounds: 8) }
 
     private func asked() throws {
         guard ProcessInfo.processInfo.environment["SWITCH_TEST"] != nil else { throw XCTSkip("the switch test runs when asked (SWITCH_TEST)") }
     }
 
-    private func switchAgainAndAgain(sources: Bool, copies: Int = 0, rounds: Int = 20) {
+    private func switchAgainAndAgain(copies: Int = 0, rounds: Int = 20) {
         continueAfterFailure = true
-        let tag = (sources ? "sources" : "plain") + (copies > 0 ? "-library\(copies)" : "")
+        let tag = "sources" + (copies > 0 ? "-library\(copies)" : "")
         XCUIDevice.shared.orientation = .landscapeLeft
         guard let pdf = ScreensPdf.write(name: "Elise-\(tag).pdf", scanned: true) else { return XCTFail("no PDF") }
-        let settings = "{\"appearance.theme\" = \"daylight\"; \"experimental.playheads\" = \"on\"; \"experimental.sources\" = \"\(sources ? "on" : "off")\";}"
+        let settings = "{\"appearance.theme\" = \"daylight\";}"
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", settings,
                                "-ml-screens", "-ml-screens-reset", "-ml-screens-both", "-ml-screens-open", pdf.path, "-ml-screens-copies", String(copies)]

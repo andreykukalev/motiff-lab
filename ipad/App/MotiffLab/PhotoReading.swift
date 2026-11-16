@@ -106,7 +106,7 @@ struct PhotoPagesCheck: View {
 
     var body: some View {
         let pages = score.check.pages.filter { PageSummaryLine.of($0, text).unsure }
-        if DeviceSettings.shared.isOn("experimental.photoPages"), !pages.isEmpty {
+        if !pages.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["check.pagesHeading"]).overline()
                 Text(text["check.pagesHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)

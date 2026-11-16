@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Reference's sheet, «Справочник» (an experiment, Settings · Experimental; the web app's HandbookSheet, v0.5): its
+/// The Reference's sheet, «Справочник» (the web app's HandbookSheet, v0.5): its
 /// sections as tabs, Тональности, Аккорды и гаммы and Исследователь. Keys first, as the player most often calls the circle
 /// up: the key signatures, as he most often looks a key up by them (Andrei, 2026-11-11 23:44 UTC), then the circle of
 /// fifths, the chosen key's card and the own card of its chord or scale, side by side as far as the sheet's width allows,

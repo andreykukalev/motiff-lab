@@ -1,7 +1,7 @@
 import AVFoundation
 import SwiftUI
 
-/// The views switch in the bar (version 0.6, behind `experimental.sources`; sources sheet handoff, board s5b): every view
+/// The views switch in the bar (version 0.6; sources sheet handoff, board s5b): every view
 /// of the piece music-core lists (`sources.layers`), the working notes first, then by file. Three views or fewer are the
 /// segmented choice of PDF | Notes, with a hairline between files and the working notes' dot after the word; four or
 /// more are a menu button with the shown view's pictogram, its word and a chevron, its popover grouped by file; one view

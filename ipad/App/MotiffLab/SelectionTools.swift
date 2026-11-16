@@ -17,13 +17,6 @@ struct RingModes {
 
 /// The stylus menu's rules (#511 4.2), apart from the views so that they are tested.
 enum StylusRules {
-    /// What the Pencil's «switch to previous» does on the score: with the modes the Pen and Select take turns (the Pen
-    /// on, or off into Select); without them the Pen comes on, and while it is on the tool before comes back.
-    static func previous(penOn: Bool, mode: InteractionMode?) -> (penOn: Bool, mode: InteractionMode?, previousTool: Bool) {
-        guard mode != nil else { return (true, nil, penOn) }
-        return penOn ? (false, .select, false) : (true, mode, false)
-    }
-
     /// The Pencil's «switch to previous» with selection by the place of the touch (v0.6.2, #601 H 5, the lead's decision 9):
     /// Select and the tool before it take turns, from any tool; back from Select with no tool before it, the Pen, as the
     /// turn of the Pen and Select was before. What the next turn goes back to comes with it.
@@ -36,14 +29,13 @@ enum StylusRules {
     enum UndoOwner: Equatable { case ink, selection, noteEdits, nothing }
 
     /// The history of the tool in force: the Pen's ink while the Pen is on; the roll's note edits while the roll is in Edit
-    /// notes (the two never at once, RollInput.penOff); else the bar's mode: Select's selection, nothing in Navigate. Before
-    /// the modes the score selects as it did, so the selection's.
-    static func undoOwner(penOn: Bool, mode: InteractionMode?, rollEditing: Bool) -> UndoOwner {
+    /// notes (the two never at once, RollInput.penOff); else the bar's mode: Select's selection, nothing in Navigate.
+    static func undoOwner(penOn: Bool, mode: InteractionMode, rollEditing: Bool) -> UndoOwner {
         if penOn { return .ink }
         if rollEditing { return .noteEdits }
         switch mode {
         case .navigate: return .nothing
-        case .select, nil: return .selection
+        case .select: return .selection
         case .edit: return .noteEdits
         case .pen: return .ink
         }
@@ -73,13 +65,6 @@ enum StylusRules {
         case .navigate, .edit: []
         }
     }
-
-    /// Whether the score is sent the piece's beat lines: always under the modes, where the one selection's edges stop on
-    /// the sixteenth grid (v0.6.4, Andrei 19:53Z: no «По тактам / По долям»; the page draws the band and its beat ticks with
-    /// the lines); without the modes, as the experiment Select by beats says (#349).
-    static func byBeats(modes: Bool, experiment: Bool) -> Bool {
-        modes || experiment
-    }
 }
 
 /// Select's «По тактам / По долям» of before v0.6.4, kept on this device under `key`: no longer read (Andrei, 19:53Z, one
@@ -99,16 +84,9 @@ extension ScoreController {
             pencilGesture(action, at: point)
             return
         }
-        if placeSelection, let mode {
-            let turn = StylusRules.selectTurn(current: penOn ? .pen : mode, before: toolBeforeSelect)
-            toolBeforeSelect = turn.before
-            chooseMode(turn.chosen)
-            return
-        }
-        let next = StylusRules.previous(penOn: penOn, mode: mode)
-        if next.previousTool { pen.choosePrevious() }
-        if let chosen = next.mode, chosen != mode { mode = chosen }
-        penOn = next.penOn
+        let turn = StylusRules.selectTurn(current: penOn ? .pen : mode, before: toolBeforeSelect)
+        toolBeforeSelect = turn.before
+        chooseMode(turn.chosen)
     }
 
     /// A mode chosen in the ring, as in the bar: the Pen is the Pen being on; another mode leaves it.
@@ -122,10 +100,8 @@ extension ScoreController {
         }
     }
 
-    /// The stylus menu's tools and the chosen one's controls, while the modes are on: the Pen's on its ink, Select's on the
-    /// selection; Navigate's none.
-    var ringModes: RingModes? {
-        guard let mode else { return nil }
+    /// The stylus menu's tools and the chosen one's controls: the Pen's on its ink, Select's on the selection; Navigate's none.
+    var ringModes: RingModes {
         let chosen = penOn ? InteractionMode.pen : mode
         let ink = chosen == .pen
         return RingModes(
@@ -165,12 +141,13 @@ extension ScoreController {
         }
     }
 
-    /// The piece's beat lines and the experiment Select by beats, as the screen reads them; the lines the score is sent follow.
-    func setBeatLines(_ lines: [Double], experiment: Bool) {
+    /// The piece's beat lines, as the screen reads them: the score is always sent them, as the one selection's edges stop
+    /// on the sixteenth grid (v0.6.4, Andrei 19:53Z: no «По тактам / По долям»; the page draws the band and its beat ticks
+    /// with the lines).
+    func setBeatLines(_ lines: [Double]) {
         SelectBy.forget()
         pieceBeatLines = lines
-        beatsExperiment = experiment
-        beatLines = StylusRules.byBeats(modes: mode != nil, experiment: beatsExperiment) ? pieceBeatLines : []
+        beatLines = lines
     }
 }
 

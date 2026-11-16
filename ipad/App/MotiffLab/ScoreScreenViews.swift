@@ -14,10 +14,9 @@ extension ScoreScreen {
     /// The "Notes" view as it is now, read before the player stops; where the score and the roll are is read as it is kept.
     func notesViewNow() -> NotesViewState {
         var state = NotesViewState()
-        // With the place selection off, the span only, as in v0.6.1 (#601).
-        state.selection = score.selection.map { score.placeSelection ? SelectionSpanKept($0) : SelectionSpanKept(onset: $0.onset, end: $0.end) }
+        state.selection = score.selection.map { SelectionSpanKept($0) }
         state.position = player.tick
-        state.loop = score.onePosition ? player.cycle && score.selection != nil : player.loop != nil
+        state.loop = player.cycle && score.selection != nil
         state.rollOpen = rollOpen
         return state
     }
@@ -53,15 +52,10 @@ extension ScoreScreen {
         if let span = kept.selection, span.end > span.onset {
             await score.select(request: span.span.request, step: false, picked: span.picked != nil)
         }
-        if score.onePosition {
-            // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).
-            player.hold(selection: score.playRange?.range)
-            if player.cycle != kept.loop { player.apply(.cycle) }
-            player.go(to: kept.position, play: false)
-        } else {
-            if kept.loop, let range = score.playRange?.range { player.setLoop(range, play: false) }
-            player.seek(to: Player.place(kept.position, inside: player.loop))
-        }
+        // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).
+        player.hold(selection: score.playRange?.range)
+        if player.cycle != kept.loop { player.apply(.cycle) }
+        player.go(to: kept.position, play: false)
         rollOpen = kept.rollOpen
         await score.showPlace(kept.place, zoom: kept.zoom, left: kept.left)
     }

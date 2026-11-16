@@ -112,7 +112,6 @@ extension Player {
             toggle()
             return
         }
-        transportKept = true
         setLoop(passage, from: ExpandRules.playStart(at: tick, in: passage))
     }
 
@@ -133,7 +132,6 @@ extension Player {
     func move(to tick: Double, play: Bool, within passage: Range<Double>) {
         let at = ExpandRules.place(tick, in: passage)
         if play && state == .stopped {
-            transportKept = true
             setLoop(passage, from: at)
         } else {
             seek(to: at)

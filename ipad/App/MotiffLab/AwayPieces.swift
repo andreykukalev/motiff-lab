@@ -173,7 +173,7 @@ struct AwayPrompt: Identifiable {
 struct AwayPieceSheet: View {
     let prompt: AwayPrompt
     let text: UIText
-    /// «Проверить папку»; nil when no folder is known here or the experiment is off.
+    /// «Проверить папку»; nil when no folder is known here.
     let recheck: (() -> Void)?
     /// Opens the piece with its PDF found.
     let open: (AwayFound) async -> Void

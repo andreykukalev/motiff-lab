@@ -1,7 +1,7 @@
 import AVFoundation
 import SwiftUI
 
-/// The Reference (an experiment, Settings · Experimental; Andrei, 2026-11-11): the circle of fifths with any key's card, as
+/// The Reference (Andrei, 2026-11-11): the circle of fifths with any key's card, as
 /// music-core writes them (facade `reference.key` on piece 0, `KeyReference`). The app only lays them out.
 struct ReferenceAnswer {
     /// A choice of the lookup: a number of sharps or flats.

@@ -274,7 +274,7 @@ extension PdfController {
     /// iPad without a stylus one finger writes with Pen on and two scroll. Again when the app comes back, as the iPad's
     /// setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        ink.apply(InputRules(stylus: InkInput.stylusPreferred, tool: .init(mode: nil, penOn: penOn), surface: .pdf))
+        ink.apply(InputRules(stylus: InkInput.stylusPreferred, tool: .init(mode: .navigate, penOn: penOn), surface: .pdf))
     }
 
     /// The page under a point of the PDF view, with its box and its space (a hundred and twentieth of its width).

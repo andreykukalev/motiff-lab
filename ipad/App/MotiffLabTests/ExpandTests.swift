@@ -63,17 +63,13 @@ final class ExpandTests: XCTestCase {
     }
 
     /// v0.6.4 spec 8: the playback model holds in Expand too (one Play, the black playhead with its handle on the card), over
-    /// Expand's passage; the page's selection and Цикл are the model's only out of Expand (T18), and without the modes
-    /// nothing changes.
+    /// Expand's passage; the page's selection and Цикл are the model's only out of Expand (T18).
     func testExpandHasThePlaybackModelOverItsPassage() {
         let passage = 1920.0..<3840.0
-        XCTAssertTrue(PlaybackScope.onePosition(modes: true), "in Expand and out of it")
-        XCTAssertFalse(PlaybackScope.onePosition(modes: false))
         XCTAssertEqual(PlaybackScope.expandPassage(focused: true, playRange: passage), passage)
         XCTAssertNil(PlaybackScope.expandPassage(focused: false, playRange: passage))
-        XCTAssertTrue(PlaybackScope.holdsSelection(modes: true, focused: false))
-        XCTAssertFalse(PlaybackScope.holdsSelection(modes: true, focused: true), "Expand loops its passage and leaves Цикл as it is")
-        XCTAssertFalse(PlaybackScope.holdsSelection(modes: false, focused: false))
+        XCTAssertTrue(PlaybackScope.holdsSelection(focused: false))
+        XCTAssertFalse(PlaybackScope.holdsSelection(focused: true), "Expand loops its passage and leaves Цикл as it is")
 
         // The pill in Expand: the selection's cobalt Play, at the playhead inside the passage, else naming its start, even
         // with Цикл off on the page; out of Expand the player's model as it is.
