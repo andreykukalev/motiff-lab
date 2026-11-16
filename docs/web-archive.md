@@ -13,7 +13,8 @@ Its code stays in the repository and keeps compiling; it is not developed, teste
 | Last developed and deployed web | tag `v0.6.5` (`develop` d8050f4); `main` at 9b98d6b (release 0.6, PR #633), deployed to the main address |
 | Main address (frozen at that deploy) | https://delightful-ground-046924d0f.4.azurestaticapps.net |
 | Web test site (frozen at the last `develop` deploy) | https://delightful-ground-046924d0f-develop.eastus2.4.azurestaticapps.net |
-| Known state at archival | Browser suite red since v0.6.1 (GitHub issues labelled `web-deferred`) |
+| Known state at archival | Browser suite red since v0.6.1 |
+| Deferred web work | GitHub issues labelled `web-deferred` (at archival: #66, #319, #323, #325, #326, #337, #350, #401, #418, #419, #433, #561), kept open with their text |
 | What the iPad changed since that the web lacks | `/mnt/project-files/product/web-backlog.md` (project files) |
 
 ## The web project's folder, split
