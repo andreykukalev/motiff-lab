@@ -59,9 +59,11 @@ permissions:
   contents: read
 
 # A newer push cancels the run under way on the same pull request; its ipad-gate then fails for the superseded commit
-# (see the job), never passes. Runs on develop, tags and by hand are never cancelled: they queue.
+# (see the job), never passes. Every other run (develop, a tag, by hand, nightly) gets a group of its own: in a shared
+# group GitHub keeps at most one pending run and cancels it when a newer one arrives, even without cancel-in-progress,
+# so of three quick merges the middle one would never be tested on develop. They wait for the runner instead.
 concurrency:
-  group: ipad-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ipad-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -304,16 +306,19 @@ jobs:
           path: src/ipad/App/test.log
           if-no-files-found: ignore
 
-  # The required check (the develop ruleset, infra/github/protect.ps1): fixed name, and it runs in every run but the
-  # schedule's, so it reports on every pull request. GitHub counts a skipped required check as passed, so this job is
-  # never skipped on a pull request: always(), not !cancelled(), which would skip it in a cancelled run. It passes only
+  # The required check (the develop ruleset, infra/github/protect.ps1): fixed name, and it reports in every pull
+  # request run and in no other. A run on develop, a tag or by hand shows its result in `ipad` itself; a gate there
+  # would report for the same commit as a pull request's head, and a green run by hand on the branch (the head alone,
+  # not the merge commit) could cover the pull request's red one. Nothing needs this job. GitHub counts a skipped
+  # required check as passed, so it is never skipped on a pull request: always(), not !cancelled(), which would skip
+  # it in a cancelled run. It passes only
   # when `changes` succeeded and either said no input changed or `ipad` succeeded; a failed, timed-out or cancelled
   # `ipad` (a newer push cancels the run) fails it. A pull request from a fork runs on GitHub's machines like any other;
   # until Andrei approves an outside contributor's run, nothing reports and the pull request waits.
   ipad-gate:
     name: ipad-gate
     needs: [changes, ipad]
-    if: always() && github.event_name != 'schedule'
+    if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -345,8 +350,8 @@ jobs:
 
   # Blueprint 6.3: the walk and the switch tests nightly on develop when it changed. This job runs in main's copy of the
   # file (a schedule runs the default branch's) and starts develop's own copy by hand, once per commit of develop: a
-  # commit that already had a nightly run, passed or failed, gets no second one. A workflow_dispatch with the workflow's
-  # token does start a run.
+  # commit that already had a nightly run, passed, failed or still under way, gets no second one; a cancelled one is
+  # tried again. A workflow_dispatch with the workflow's token does start a run.
   nightly:
     name: nightly
     if: github.event_name == 'schedule'
@@ -363,7 +368,7 @@ jobs:
         run: |
           sha="$(gh api "repos/$GH_REPO/commits/develop" --jq .sha)"
           before="$(gh api "repos/$GH_REPO/actions/workflows/ipad.yml/runs?event=workflow_dispatch&branch=develop&head_sha=$sha&per_page=100" \
-            --jq '[.workflow_runs[] | select(.display_title | startswith("iPad tests nightly"))] | length')"
+            --jq '[.workflow_runs[] | select((.display_title | startswith("iPad tests nightly")) and .conclusion != "cancelled")] | length')"
           if (( before > 0 )); then
             echo "develop at ${sha::7} had its nightly run already."
             exit 0
