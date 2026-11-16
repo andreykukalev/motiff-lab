@@ -1,7 +1,7 @@
 # Refactoring audit: structure and architecture of the repository
 
-Status: current, second edition, 2026-11-16, measured on `develop` at `a2d767b` (after #634, #635 and #636). A proposal
-for the refactoring task, not yet reviewed by Andrei. It replaces, in place, the first edition of the same day (PR #632,
+Status: current, second edition, 2026-11-16, measured on `develop` at `a2d767b` (after #634, #635 and #636). The plan
+of the refactoring task; its three decisions were taken by Andrei on 2026-11-16, 21:29 UTC (section 6). It replaces, in place, the first edition of the same day (PR #632,
 measured on `0d2bc52`, still readable as `git show 06b49d2:docs/REFACTORING_AUDIT.md`); section 0 says what changed
 and why. The web's sizes that 0032 quotes are in that first edition. Read-only: no source file was changed to write it. It
 builds on [decision record 0031](architecture/adr/0031-ipad-score-modules.md), the [iPad UI review](code-map/ui-review-2026-11.md),
@@ -50,7 +50,7 @@ the first edition's, re-checked where noted; the suites were run again on `a2d76
 | Decision 3: fix the red browser suite (W0.2) during the iPad period | Answered by 0032: no browser tests; the suite is archived with the web |
 | Decision 2: the 19 switches the web branches on | The web's branches are archived; the question changes (section 6, decision 2) |
 | «Every type is public because the web consumes them» (4.2) | The only consumers left are the API (`Accounts`, `Assistant.Conversation`, `Projects`, the root namespace), `src/ipad/Core` (`Facade`) and the tests, so the rule engines can become internal (W1.12) |
-| Rule «waves 0–2 touch web pages only for a forced `using`» | Replaced: no step touches `archive/`; reactivation adapts the web to whatever music-core and `src/shared` are then (`web-archive.md`, "Reactivation", step 3) |
+| Rule «waves 0–2 touch web pages only for a forced `using`» | Replaced: no step touches `archive/`, except W0.6's move of the web-only modules into `archive/web` (decision 1), which reads nothing there; reactivation adapts the web to whatever music-core and `src/shared` are then (`web-archive.md`, "Reactivation", step 3) |
 
 ### 0.3 What the moves brought to light
 
@@ -538,7 +538,7 @@ D11 and D13 to D17 can be removed.
 - **Experiment switches.** `Settings/SettingsCatalogue.cs` still lists 23 `experimental.*` switches. No active code
   branches on any of them: the iPad dropped its switches in v0.6.5 (#625) and the web, which branched on 19, is archived.
   What remains is the catalogue, its tests (`SettingsTests`) and comments that name a switch as the history of a rule.
-  Keeping or removing them is decision 2 (section 6).
+  They are removed in W1.11 (decision 2, section 6).
 - **Selection paths no host may use.** The code maps say the iPad always passes `places` and the web passed none
   (`docs/code-map/score.md`, `roll.md`). With the web archived, the branches taken without `places` in
   `selection-layer.ts` and `piano-roll.ts` (the strips' hold gesture of 0.6.1, the modes of 0.5) may be dead, but
@@ -605,7 +605,7 @@ not a protected scenario and not a statement that the behaviour is right.
 | C2 | The facade's call list | The registry of call names as a file in `tests/contracts`; a node test scans `src/ipad/App/MotiffLab/*.swift` for the names it sends and fails on one that is not in the list. It runs on Linux in `build-test` | W1.6, and every Swift step |
 | C3 | What Swift decodes | XCTest decodes the C1 files into the typed DTOs; a field the DTO needs and the file lacks fails on macOS | W2.2 onwards |
 | C4 | The order of calls of the score screen | With the ports of 0031 in place, a recording fake of `ScorePage` and `PieceCore`; XCTest replays scripted scenarios (open, select, add a note, resolve a Check flag, start a merge, enter focus) and compares the transcript of commands and calls with a kept file | W2.4 to W2.10 |
-| C5 | The iPad's score page | A headless browser (Playwright with Chromium on Linux; WebKit where available) opens `src/ipad/App/Web/score.html` over the compiled modules with a stub `webkit.messageHandlers`, sends `window.motiff` commands from `tests/contracts/score-page.json` and compares the messages posted and the overlays drawn with kept files. Lives in `tests/ipad` or `tests/shared`; decision 3 | W0.7; any change to `Scripts/score`, `Scripts/roll` or `src/ipad/App/Web`; W2.13, W3.x |
+| C5 | The iPad's score page | A headless browser (Playwright with Chromium on Linux; WebKit where available) opens `src/ipad/App/Web/score.html` over the compiled modules with a stub `webkit.messageHandlers`, sends `window.motiff` commands from `tests/contracts/score-page.json` and compares the messages posted and the overlays drawn with kept files. Runs in `build-test` (decision 3); where its files live is W0.7's choice | W0.7; any change to `Scripts/score`, `Scripts/roll` or `src/ipad/App/Web`; W2.13, W3.x |
 | C6 | The roll's painting and input | A node test builds `PianoRoll` over a recording canvas context: a fixed payload and frame give a kept list of draw calls; scripted pointer sequences give a kept list of callbacks | W2.14, W3.12 |
 | C9 | Assembly and merge | Unit tests for the uncovered branches of `Assembled.Carry`, `AssemblyMatch.Of`, `OpenPiece.Merge` | W1.9 |
 | C10 | The live ports | Shared case files in `tests/contracts` for ink geometry (`pencil-marks.ts` ↔ `InkGeometry.swift`) and the A4 engraving options (`score-page.ts` ↔ `Engraver.swift`), read by node and XCTest, as `playback-model.json` is | Before either side of a port is cut |
@@ -625,7 +625,7 @@ Rules for every step:
 - A step moves code or adds a seam, never both with a behaviour fix. A defect found on the way is written down and fixed
   in its own pull request.
 - The code map of the area is updated in the same pull request.
-- No step reads or changes `archive/`. A move of a public music-core type or of a shared module that the archived web
+- No step reads or changes `archive/`, except W0.6's move of the web-only modules into `archive/web` (decision 1), which reads nothing there. A move of a public music-core type or of a shared module that the archived web
   used is fine; reactivation adapts the web (`web-archive.md`, "Reactivation", step 3). A step that changes what a live
   shared module would show the web adds one line to `web-backlog.md` (0032); a behaviour-preserving step does not.
 
@@ -642,7 +642,7 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 | W0.4 | C9: Assembly and merge branches | `Assembly` branch coverage at or above the core's average |
 | W0.5 | C10: shared cases for ink geometry and the A4 engraving options | The same file read by both sides |
 | W0.6 | The web-only modules out of `src/shared` as decision 1 says, with the parts of the node tests that read them; then a member-level sweep of the loaded modules with the TypeScript language service, writing down (not yet cutting) the branches no page takes | `build-test` green; the `dependencies` check and the iPad's compile green; the list in the shared code maps |
-| W0.7 | C5: the score page's test, as decision 3 says | Green in `build-test` (or in the `iPad` workflow, if decision 3 puts it there) |
+| W0.7 | C5: the score page's test, as decision 3 says | Green in `build-test` (decision 3) |
 
 (W0.2 of the first edition is dropped.)
 
@@ -686,23 +686,23 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 | W3.13 | `score-geometry.ts` into `page-reader.ts` and `ScoreGeometry`; `svg-to-pdf.ts` keeps only its SVG parser (the PDF half left in W0.6) | node tests; C5 |
 | W3.14 | `selection-layer.ts`, `selection-place-layer.ts`: drawing apart from input and reporting | node tests; C5 |
 
-### Decisions for Andrei before or during the work
+### Decisions (taken by Andrei, 2026-11-16, 21:29 UTC: all three as recommended)
 
 1. **The web-only modules in `src/shared`** (16 files, 3,175 lines, and the parts of fourteen node test files that
-   read them; section 3.3). Recommended: move them to `archive/web` (with their tests to `archive/web/tests/web`), so `src/shared` is only
-   what the iPad runs, as 0033 intended; reactivation brings them back with the rest. This adds files to `archive/`,
-   which 0033 says is not changed, so it needs your word. The alternatives: delete them (they stay in tag v0.6.5 and in
-   git history), or keep them where they are and mark them in the code map.
-2. **The 23 `experimental.*` switches in the settings catalogue**, which no active code reads (section 4.5).
-   Recommended: remove them from `SettingsCatalogue` and its tests in W1.11; the features they guarded on the iPad are
-   already switchless, and the web, if it returns, gets its switches back with its own code. The alternative: keep the
-   catalogue as it is until the web's reactivation.
-3. **A test of the iPad's score page in a headless browser (C5, W0.7).** 0032 removed the web's browser tests; this
-   one would test iPad code (`src/ipad/App/Web` over `src/shared`) and would be the only net for the score page off the
-   device. Recommended: yes, in `build-test` on Linux with Playwright and Chromium, a few kept scenarios rather than a
-   suite. The alternative: rely on the UI walk on macOS and Andrei's test of each version; then every step that names C5 as
-   its guard (W0.6, W2.13, W3.11–W3.14) merges only after the `iPad` workflow's tests with the label `ipad-tests`, and
-   the risk «a shared-module step breaks a page on the device only» stays open until the version is tried.
+   read them; section 3.3) **move to `archive/web`**, their tests to `archive/web/tests/web`, so `src/shared` is only
+   what the iPad runs, as 0033 intended; reactivation brings them back with the rest. This is an exception to 0033's rule «nothing in `archive/`
+   is changed», by Andrei's decision of 2026-11-16, 21:29 UTC, for this move only: the W0.6 task names `archive/web/**` in its
+   `allowed_paths` for the move only (`.claude/hooks/archive-guard.mjs`), writes no other file there, and updates the
+   inventory in `docs/web-archive.md` in the same pull request. `governance/roles/common.md` names reactivation as the
+   only task that opens `archive/`; adding this move there is a change to the agents' rules, which Andrei merges, and
+   W0.6 waits for it. Rejected: deleting them, or keeping them in place.
+2. **The 23 `experimental.*` switches are removed** from `SettingsCatalogue` and its tests in W1.11; the features they
+   guarded on the iPad are already switchless, and the web, if it returns, gets its switches back with its own code.
+   Rejected: keeping the catalogue until the web's reactivation.
+3. **A test of the iPad's score page in a headless browser (C5, W0.7) runs in `build-test`** on Linux with Playwright
+   and Chromium: a few kept scenarios, not a suite. It tests iPad code (`src/ipad/App/Web` over `src/shared`), so it is
+   not the web's browser suite 0032 removed. Rejected: relying only on the UI walk on macOS and the device test of each
+   version.
 
 The first edition's three decisions are answered by 0032 (section 0.2).
 
@@ -711,8 +711,8 @@ The first edition's three decisions are answered by 0032 (section 0.2).
 Behaviour changes the reviews already list (the fair queue for music-core calls, closing a piece left by Back, the piano
 decoded once): they are fixes, to be scheduled as fixes. A change of the wire format to generated serialisers: the
 hand-written writers give byte-stable output that C1 can pin; generated ones would not. Splitting the iPad app into Swift
-packages: feature folders give the locality now; packages can follow once the ports exist. Anything in `archive/`,
-including making the web compile again: that is reactivation, Andrei's decision (0032).
+packages: feature folders give the locality now; packages can follow once the ports exist. Anything in `archive/`
+beyond W0.6's move, including making the web compile again: that is reactivation, Andrei's decision (0032).
 
 ### Risks of the plan
 
