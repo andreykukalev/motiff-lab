@@ -88,13 +88,20 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
 
 ## iPad builds
 
-- The `iPad` workflow runs on a pull request only when it touches what the app is built from (`src/ipad`, `tests/ipad`,
-  `src/shared`, music-core, `design/kit`, `tests/contracts`). Without the label `ipad-tests` it only compiles the app
-  and its tests (`xcodebuild build-for-testing`, no simulator); with the label, on every version tag and by hand it
-  runs the Swift tests in the simulator.
-- music-core's framework is cached by the hash of its sources. `iPad core` (`ipad-core.yml`) builds it on `develop`
-  after a change, so pull requests to `develop` take it from the cache instead of three NativeAOT builds.
-- Both run on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`
+- The `iPad` workflow starts on every pull request; its first job decides whether the pull request touches what the
+  app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core, `design/kit`, `tests/contracts`, `global.json`,
+  `Directory.Build.props`), and only then are the app built, the Swift tests run in the simulator and the walk's
+  UI tests compiled (not run), on every push.
+  Its job `ipad-gate` reports on every pull request and is a required check on `develop` (`infra/github/protect.ps1`).
+  The same tests run on `develop` after a merge that touches those inputs, on every version tag and by hand. The walk
+  of the screens' journeys (`tests/ipad/MotiffLabScreens`, asserting, one appearance, a few minutes) runs on tags,
+  nightly and with Walk ticked; the pictures for the mockups only with Screenshots ticked (every appearance, about half
+  an hour, during which the Mac takes no other run and pull requests queue behind it). Either fails its run when the
+  walk fails. A scheduled job starts the walk and the switch test on `develop` each night it changed; a schedule runs
+  the default branch's copy of the workflow, so it works once the workflow is released to `main`.
+- music-core's framework is cached by the hash of its sources. The `iPad` run on `develop` after a change saves it, so
+  pull requests to `develop` take it from the cache instead of three NativeAOT builds.
+- It runs on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`
   names its label (`motiff-mac`). A pull request from a fork always runs on GitHub's machines; outside collaborators'
   runs need approval (Settings → Actions → General). Removing the variable moves the runs back to GitHub.
   `infra/github/mac-runner.sh` on the Mac sets all of this up, under a hidden account `runner` as a background daemon
