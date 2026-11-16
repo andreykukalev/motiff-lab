@@ -104,7 +104,7 @@ final class SelectionHistoryTests: XCTestCase {
     }
 
     func testClearSelectionHasItsOwnIconAndNotTheCrossThatCloses() {
-        // #533 5: the same icon wherever the action is (tests/web/design.test.mjs checks the catalogue holds every kit icon).
+        // #533 5: the same icon wherever the action is (tests/shared/design.test.mjs checks the catalogue holds every kit icon).
         XCTAssertEqual(StylusRules.RingControl.clearSelection.icon, "deselect")
         XCTAssertNotEqual(StylusRules.RingControl.clearSelection.icon, "close")
         XCTAssertEqual(StylusRules.RingControl.undo.icon, "undo")

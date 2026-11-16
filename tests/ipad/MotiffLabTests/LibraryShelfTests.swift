@@ -2,8 +2,8 @@ import XCTest
 import UIKit
 @testable import MotiffLab
 
-/// The library's search, filters and order (version 0.2), held to the web app's rules (src/MotiffLab.Web/Projects/
-/// LibraryShelf.cs and tests/e2e/library.spec.mjs): letter case and accents do not matter, every word searched must be
+/// The library's search, filters and order (version 0.2), held to the web app's rules (archive/web/src/MotiffLab.Web/Projects/
+/// LibraryShelf.cs and archive/web/tests/e2e/library.spec.mjs): letter case and accents do not matter, every word searched must be
 /// found, one composer and one tag filter whatever their case, the title and composer orders follow the language, and
 /// tags are cleaned and kept once as music-core keeps them. The tabs, the index at the list's edge, the playlists and the
 /// composers offered while typing follow the approved library screens (ux-prototype/v2, lib-1 and lib-4).

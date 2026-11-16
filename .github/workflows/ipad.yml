@@ -96,10 +96,10 @@ jobs:
             src/ipad/build/verovio-data
           key: ${{ steps.verovio.outputs.cache-primary-key }}
 
-      # The score's scripts are the web app's (Scripts/score, compiled to wwwroot/js/score): the iPad's web view runs
-      # the same score geometry and pencil marks (0019 section 1.4).
-      - name: Compile the web app's score scripts
-        run: dotnet build src/MotiffLab.Web -c Release -warnaserror | tail -3
+      # The score's scripts are the shared layer's (src/shared/Scripts, compiled to wwwroot/js): the iPad's web view runs
+      # the score geometry and pencil marks there (0019 section 1.4).
+      - name: Compile the shared score scripts
+        run: dotnet build src/shared -c Release -warnaserror | tail -3
 
       # Xcode in the IDE refuses a project that xcodebuild only warns about (a file in two groups), so the warning fails here.
       - name: Generate the Xcode project

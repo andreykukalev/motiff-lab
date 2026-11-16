@@ -3,7 +3,7 @@ import XCTest
 @testable import MotiffLab
 
 /// The score page's contract (decision record 0031, step 2): the app names the functions and decodes the messages listed
-/// in tests/contracts/score-page.json, the lists tests/web/score-page-contract.test.mjs checks score.js against.
+/// in tests/contracts/score-page.json, the lists tests/shared/score-page-contract.test.mjs checks score.js against.
 final class ScorePageContractTests: XCTestCase {
     private final class Marker {}
 

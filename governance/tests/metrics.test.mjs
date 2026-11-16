@@ -17,7 +17,7 @@ const issueBody = [
   '### Acceptance criteria', '', '1. The button is visible.', '2. Both languages.', '3. Old projects open.', '',
   '### Risk class', '', 'Standard', '',
   '### Track', '', 'Product Delivery', '',
-  '### allowed_paths', '', '```text', 'src/MotiffLab.Web/Pages/Library*', 'tests/web/**', '```', '',
+  '### allowed_paths', '', '```text', 'src/ipad/App/MotiffLab/Library*', 'tests/shared/**', '```', '',
   '### Depends on', '', '_No response_',
 ].join('\n');
 
@@ -31,7 +31,7 @@ function data(overrides = {}) {
     pr: { number: 34, merged: true, closed: true, mergedAt: '2026-11-11T11:00:00Z', headSha: head },
     commits: [{ sha: 'a'.repeat(40), message: 'Library empty state\n\nClaude-Session: https://claude.ai/code/x', parents: 1 },
       { sha: head, message: 'Fix review\n\nCo-Authored-By: Claude Opus <noreply@anthropic.com>', parents: 1 }],
-    files: ['src/MotiffLab.Web/Pages/Library.razor', 'tests/web/library.test.mjs'],
+    files: ['src/ipad/App/MotiffLab/LibraryView.swift', 'tests/shared/library.test.mjs'],
     checks: [{ sha: 'a'.repeat(40), conclusions: ['failure'] }, { sha: head, conclusions: ['success'] }],
     mainRegression: false, defects: { total: 0, serious: 0 }, ruleset: { fail: 1, bypass: 0 },
     comments: {
@@ -49,12 +49,12 @@ test('risk minimum by paths takes the highest match, and unknown paths are stand
   assert.equal(minimumRisk(['docs/project-file.md'], table), 'high');
   assert.equal(minimumRisk(['docs/a.md', 'governance/roles/common.md'], table), 'guardrail');
   assert.equal(minimumRisk(['tools/icons/build.mjs'], table), 'standard');
-  assert.equal(minimumRisk(['src/MotiffLab.Web/Pages/PlaybackLab.razor'], table), 'high');
+  assert.equal(minimumRisk(['src/shared/Scripts/playback/playback-model.ts'], table), 'high');
 });
 
 test('the Issue Form is read: risk, scope and the number of criteria', () => {
   assert.deepEqual(taskFields(issueBody), {
-    risk: 'standard', kind: 'Product Delivery', allowedPaths: ['src/MotiffLab.Web/Pages/Library*', 'tests/web/**'], criteria: 3,
+    risk: 'standard', kind: 'Product Delivery', allowedPaths: ['src/ipad/App/MotiffLab/Library*', 'tests/shared/**'], criteria: 3,
   });
 });
 

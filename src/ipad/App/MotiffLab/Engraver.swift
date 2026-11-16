@@ -52,7 +52,7 @@ final class Engraver {
     /// take too, so a piece breaks into the same systems and pages on both, and a resume point, a page bookmark or a page
     /// count means the same page. Version 0.5.5 (#521 section 14): 20 mm margins at the top and the bottom and the systems
     /// spread down each page but the last, as a typeset page has them; the notes keep their size, and the title stands
-    /// clear of a tempo mark over the first system. tests/web/score-pdf.test.mjs keeps the two equal.
+    /// clear of a tempo mark over the first system. tests/shared/score-pdf.test.mjs keeps the two equal.
     static let a4Leland = """
     {"font": "Leland", "scale": 50, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
      "pageMarginTop": 200, "pageMarginBottom": 200, "spacingSystem": 14, "spacingStaff": 10, "bottomMarginHeader": 5,
@@ -60,7 +60,7 @@ final class Engraver {
     """
 
     /// Even bars (Settings · Notes, `score.evenBars`; testing item 35): the bars take room by their length, so the playhead
-    /// keeps one pace; the web app's `EVEN_SPACING` in Scripts/score/score-page.ts, which tests/web/score-pdf.test.mjs keeps equal.
+    /// keeps one pace; the web app's `EVEN_SPACING` in Scripts/score/score-page.ts, which tests/shared/score-pdf.test.mjs keeps equal.
     static let evenSpacing = """
     {"spacingLinear": 0.08, "spacingNonLinear": 0.9}
     """

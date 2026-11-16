@@ -1,6 +1,6 @@
 import Foundation
 
-/// The interface's words, from the web app's own string files (src/MotiffLab.Web/wwwroot/i18n/*.json, copied into the
+/// The interface's words, from the web app's own string files (src/shared/wwwroot/i18n/*.json, copied into the
 /// app as i18n/), so both apps say the same thing (0018 section 14), and the iPad's own few (src/ipad/App/Words/*.json), in the
 /// language the player picked in Settings, else the iPad's. Musical text never comes from here: music-core writes it in the
 /// language the app asks for, this one.

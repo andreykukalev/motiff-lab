@@ -34,7 +34,7 @@
     <None Include="..\..\..\ipad\MotiffLabTests\Golden\*.json" Link="Golden\Analysis\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\..\design\kit\elise.musicxml" Link="Golden\Analysis\elise.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <!-- The example piece of both apps (tools/fur-elise/build.mjs). -->
-    <None Include="..\..\..\..\src\MotiffLab.Web\Playback\FurElise.musicxml" Link="Import\MusicXml\Fixtures\FurElise.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\src\shared\Playback\FurElise.musicxml" Link="Import\MusicXml\Fixtures\FurElise.musicxml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,7 +4,7 @@ import XCTest
 
 /// Selection by the place of the touch (v0.6.2, #601, PlaceSelection.swift): the one selection (a span by beats, a hand,
 /// notes picked) as the history keeps it and music-core selects it again, the iPad's pick of one note, and the switch in
-/// the page's rules. The gesture itself is the page's (tests/web/selection-places.test.mjs).
+/// the page's rules. The gesture itself is the page's (tests/shared/selection-places.test.mjs).
 final class PlaceSelectionTests: XCTestCase {
     func testTheOneSelectionIsSelectedAgainAsItWas() {
         XCTAssertEqual(SelectionSpan(onset: 0, end: 1920).request, #"{"empty":true,"span":{"end":1920,"onset":0}}"#)

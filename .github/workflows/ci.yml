@@ -1,7 +1,7 @@
 name: CI
 
-# The browser tests (tests/e2e) are heavy, so they are not here: browser-tests.yml runs them, by hand only while the
-# web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md).
+# The web app is archived (archive/web, docs/web-archive.md): this workflow neither builds, tests nor deploys it. Its
+# browser tests' workflow is kept in archive/web/workflows and its deploy steps in this file at commit 6088b98.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
@@ -35,7 +35,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
-  # One job for build, test, publish and deploy: a second job would pay for another runner start, checkout,
+  # One job for build and test: a second job would pay for another runner start, checkout,
   # artifact upload and download, and billing rounds each job up to a whole minute.
   # The job name is the required check (the ruleset on main, infra/github/protect.ps1), so it is fixed text and
   # the job always runs and reports; what it skips it skips by step.
@@ -54,18 +54,15 @@ jobs:
     runs-on: ubuntu-latest
     # Balance rule (governance/roles/common.md, "CI and heavy checks"): the repository is public, so minutes are
     # free, but build-test stays quick (a few minutes) and runs on every pull request; the limit below is a
-    # safety net, not a budget. Long suites run only by label or by hand, in their own workflows (the browser
-    # tests in browser-tests.yml). A label run builds nothing, but waits for the build before it, so its limit
+    # safety net, not a budget. Long suites run only by label or by hand, in their own workflows (the iPad
+    # tests in ipad.yml). A label run builds nothing, but waits for the build before it, so its limit
     # covers that build.
     timeout-minutes: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && 15 || 10 }}
     permissions:
       actions: read # a label run reads the run before it
       contents: read
-      id-token: write # OIDC sign-in to Azure
       pull-requests: read # the approval of the protected scenarios reads the pull request's files and labels
     env:
-      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      SWA_NAME: swa-motifflab
       LABEL_ONLY: ${{ github.event.action == 'labeled' || github.event.action == 'unlabeled' }}
     steps:
       # A run for adding or removing a label: report the build-test of the CI run on this commit just before this
@@ -113,62 +110,33 @@ jobs:
       - uses: actions/checkout@v4
         if: env.LABEL_ONLY != 'true'
 
-      # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
-      # build settings) are published and deployed, and only while the web is active (WEB_ACTIVE, below); test-only
-      # changes are built and tested but not deployed.
-      # Any doubt (a commit that cannot be fetched) runs everything.
+      # Documentation-only changes skip the build and tests; archive/ (the archived web, docs/repository-structure.md)
+      # is not built here. Any doubt (a commit that cannot be fetched) runs everything.
       - name: Find what changed
         id: changes
         if: env.LABEL_ONLY != 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
         run: |
           code=true
-          app=true
-          infra=true
           scan=true
           if [[ -n "$BASE_SHA" && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] \
             && git fetch --depth=1 --no-tags origin "$BASE_SHA" 2>/dev/null; then
             changed="$(git diff --name-only "$BASE_SHA" HEAD)"
             echo "$changed"
             code=false
-            app=false
-            infra=false
             scan=false
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
-                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|VERSION|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/workflows/version.yml) ;;
-                src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
-                  code=true
-                  app=true ;;
+                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|VERSION|archive/*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/workflows/version.yml) ;;
                 src/backend/omr/*) scan=true ;;
+                src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
+                  code=true ;;
                 *) code=true ;;
-              esac
-              case "$f" in
-                infra/*) infra=true ;;
               esac
             done <<< "$changed"
           fi
-          # The web app is archived (docs/architecture/adr/0032-ipad-first-web-archived.md): it is published and deployed
-          # only while the repository variable WEB_ACTIVE is true, which reactivating the web sets
-          # (docs/web-archive.md). Then main deploys the main address; develop deploys the Static Web App's
-          # environment "develop", the web test site, once Andrei has set the repository variable DEPLOY_DEVELOP to
-          # true (the develop branch needs its own sign-in to Azure first: infra/bootstrap.bicep, github-develop).
-          azure=false
-          site=production
-          if [[ "$app" == true && -n "$AZURE_CLIENT_ID" && "${{ vars.WEB_ACTIVE }}" == true ]] \
-            && [[ "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ]]; then
-            if [[ "${{ github.ref }}" == refs/heads/main ]]; then
-              azure=true
-            elif [[ "${{ github.ref }}" == refs/heads/develop && "${{ vars.DEPLOY_DEVELOP }}" == true ]]; then
-              azure=true
-              site=develop
-              infra=false
-            fi
-          fi
-          publish="$azure"
           # Changes to the agents' own rules (decision 6 in governance/README.md) are flagged: Andrei merges them.
           environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/backend/Acceptance/)' <<< "${changed:-}" || true)"
           if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
@@ -176,12 +144,8 @@ jobs:
             { echo "### env-scope: the agents' rules change (Andrei merges)"; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "deploy=$azure" >> "$GITHUB_OUTPUT"
-          echo "site=$site" >> "$GITHUB_OUTPUT"
-          echo "infra=$infra" >> "$GITHUB_OUTPUT"
           echo "scan=$scan" >> "$GITHUB_OUTPUT"
-          echo "code=$code publish=$publish deploy=$azure infra=$infra scan=$scan"
+          echo "code=$code scan=$scan"
 
       - uses: actions/setup-dotnet@v4
         if: steps.changes.outputs.code == 'true'
@@ -223,12 +187,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: src/MotiffLab.Web/package-lock.json
+          cache-dependency-path: src/shared/package-lock.json
 
       # The build compiles the TypeScript layer to wwwroot/js; these tests run the compiled engine.
       - name: Test TypeScript layer
         if: steps.changes.outputs.code == 'true'
-        run: node --test "tests/web/*.test.mjs"
+        run: node --test "tests/shared/*.test.mjs"
 
       # The agents' guards in .claude/hooks (governance/roles/common.md): a second.
       - name: Test agent guards
@@ -246,7 +210,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           BUILT: ${{ steps.changes.outputs.code }}
         run: |
-          npm ci --prefix src/MotiffLab.Web --no-audit --no-fund \
+          npm ci --prefix src/shared --no-audit --no-fund \
             || echo "::warning title=quality::npm ci failed; the quality report says which checks did not run"
           node --test "tools/quality/*.test.mjs"
           if [[ "$BUILT" == true ]]; then
@@ -302,85 +266,3 @@ jobs:
           fi
           echo "::error title=$label::This pull request changes the protected acceptance scenarios, which only Andrei approves: it needs the label $label. $(tr '\n' ' ' <<< "$protected")"
           exit 1
-
-      # Publishing needs the wasm-tools workload (about 30 s to install) and a trimming publish (about a minute),
-      # so it only runs when the result is deployed.
-      - name: Install WebAssembly build tools
-        if: steps.changes.outputs.publish == 'true'
-        run: dotnet workload install wasm-tools
-
-      # Sign-in and saving online (0014) in the deployed app, on the main address and on the web test site (develop,
-      # whose address infra/azure/test-site-signin.ps1 registers for sign-in): the External ID tenant and the services'
-      # addresses come from repository variables that infra/azure/setup.ps1 sets. The test site uses develop's own API and
-      # scan server (rg-motifflab-dev, API_URL_DEV and SCAN_URL_DEV from infra/azure/dev-env.ps1) once they are set, and
-      # main's until then. Pull request builds keep the committed appsettings.json, with no accounts.
-      - name: Write the sign-in settings
-        if: >-
-          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
-          vars.AUTH_AUTHORITY != '' && vars.AUTH_CLIENT_ID != '' && vars.AUTH_AUDIENCE != '' && vars.API_URL != ''
-        env:
-          AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
-          CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
-          AUDIENCE: ${{ vars.AUTH_AUDIENCE }}
-          API_URL: ${{ steps.changes.outputs.site == 'develop' && vars.API_URL_DEV || vars.API_URL }}
-          SCAN_URL: ${{ steps.changes.outputs.site == 'develop' && vars.SCAN_URL_DEV || vars.SCAN_URL }}
-        run: |
-          for address in "$API_URL" "${SCAN_URL:-https://unset}"; do
-            if [[ ! "$address" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
-              echo "::error::API_URL and SCAN_URL must be plain https addresses; one is: ${address:0:80}"
-              exit 1
-            fi
-          done
-          jq -n --arg authority "${AUTHORITY%/v2.0}" --arg client "$CLIENT_ID" --arg audience "$AUDIENCE" \
-            --arg api "$API_URL" --arg scan "$SCAN_URL" \
-            '{Account: {Authority: $authority, ClientId: $client, ApiScope: "api://\($audience)/Projects.ReadWrite",
-              ScanScope: "api://\($audience)/Scan", Api: $api, Scan: $scan}}' \
-            > src/MotiffLab.Web/wwwroot/appsettings.json
-          cat src/MotiffLab.Web/wwwroot/appsettings.json
-
-      - name: Publish web app
-        if: steps.changes.outputs.publish == 'true'
-        run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
-
-      # Provisions infra/main.bicep (from main only) and deploys the published app to Azure Static Web Apps: main to
-      # the main address, develop to the environment "develop" (the web test site, with the same sign-in). Pull
-      # requests are built and tested but not deployed.
-      # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
-      # Skipped until the bootstrap has set the AZURE_* repository variables.
-      - uses: azure/login@v2
-        if: steps.changes.outputs.deploy == 'true'
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      # Infrastructure is provisioned only when infra/ changed (about 40 s).
-      - name: Provision infrastructure
-        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true'
-        run: >-
-          az deployment group create
-          --resource-group "$RESOURCE_GROUP"
-          --name "main-${{ github.run_number }}"
-          --template-file infra/main.bicep
-          --parameters infra/main.bicepparam
-          --output none
-
-      # The deployment token is read at run time, so it is never stored in GitHub.
-      - name: Get deployment token
-        if: steps.changes.outputs.deploy == 'true'
-        run: |
-          token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --query properties.apiKey --output tsv)"
-          echo "::add-mask::$token"
-          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
-
-      - name: Deploy to Static Web Apps
-        if: steps.changes.outputs.deploy == 'true'
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
-          action: upload
-          app_location: publish/wwwroot
-          output_location: ''
-          skip_app_build: true
-          skip_api_build: true
-          deployment_environment: ${{ steps.changes.outputs.site == 'develop' && 'develop' || '' }}

@@ -25,8 +25,8 @@ test('music-core references no project and no forbidden package', () => {
 });
 
 test('the bundled folders are the wwwroot/js paths of the iPad project', () => {
-  const yml = '      - path: ../../src/MotiffLab.Web/wwwroot/js/score\n        type: folder\n'
-    + '      - path: ../../src/MotiffLab.Web/wwwroot/js/layout\n      - path: ../../src/MotiffLab.Web/wwwroot/audio/piano\n';
+  const yml = '      - path: ../../shared/wwwroot/js/score\n        type: folder\n'
+    + '      - path: ../../shared/wwwroot/js/layout\n      - path: ../../shared/wwwroot/audio/piano\n';
   assert.deepEqual([...bundledFolders(yml)], ['score', 'layout']);
 });
 
@@ -40,13 +40,13 @@ test('type-only imports are erased, value and side-effect imports load', () => {
 test('the iPad page may reach only the bundled folders, through every module it loads', () => {
   const files = {
     'src/ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',
-    'src/MotiffLab.Web/Scripts/score/s.ts': 'import type { T } from "../import/t.js";\nimport { p } from "../playback/p.js";\n',
-    'src/MotiffLab.Web/Scripts/playback/p.ts': 'import { r } from "../import/recording.js";\nimport { q } from "./q.js";\n',
+    'src/shared/Scripts/score/s.ts': 'import type { T } from "../import/t.js";\nimport { p } from "../playback/p.js";\n',
+    'src/shared/Scripts/playback/p.ts': 'import { r } from "../import/recording.js";\nimport { q } from "./q.js";\n',
   };
   const exists = (file) => file in files;
   const out = ipadPageViolations(['src/ipad/App/Web/score.js'], reader(files), exists, new Set(['score', 'playback']));
   assert.deepEqual(out.map((v) => `${v.rule} ${v.file} ${v.symbol}`), [
-    'ipad-unbundled src/MotiffLab.Web/Scripts/playback/p.ts ../import/recording.js',
-    'ipad-missing src/MotiffLab.Web/Scripts/playback/p.ts ./q.js',
+    'ipad-unbundled src/shared/Scripts/playback/p.ts ../import/recording.js',
+    'ipad-missing src/shared/Scripts/playback/p.ts ./q.js',
   ]);
 });

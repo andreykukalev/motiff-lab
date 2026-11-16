@@ -1,0 +1,6 @@
+<!--
+  Archived projects (docs/repository-structure.md, "Archive"): this empty file stops MSBuild from reading the repository's
+  Directory.Build.props, so the active rules (warnings as errors, code style, quality metrics) do not reach code that is
+  no longer built or maintained. Bringing a project back moves it out of archive/ again (docs/web-archive.md).
+-->
+<Project />

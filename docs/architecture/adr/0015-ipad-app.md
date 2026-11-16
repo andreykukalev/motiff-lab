@@ -33,7 +33,7 @@ The options weighed:
    - The score reflows with the window, so a mark is kept against **the bar it starts in** (its start tick), where in the bar it starts (a share of the bar's width) and its height from the bar's top staff line, with its shape in staff spaces (`Scripts/score/pencil-marks.ts`). After a new layout each mark returns to its bar at the staves' size. The as-written and generated scores share their bars, so marks show on both; the score with a variation in it shows none.
    - Marks belong to the piece. Since project file version 12 ([docs/project-file.md](../../project-file.md)) a project keeps its strokes in the file under `marks.ink`, in the pencil layer's own shape and the design kit's four inks, so export, saving online and the iPad app carry them; the layer hands each change to the page half a second after it, and the page saves the project. Marks saved on the device before that (the `motiff-lab-pencil` IndexedDB database, `Scripts/storage/pencil-store.ts`) are taken into their project the first time its score is shown; a piece open without a project still keeps its marks there.
    - Marks are the player's own writing and are never read as music: nothing turns them into notes, facts or analysis.
-   - This works in Safari on the iPad as well as in the app, so the web app stays the place it is tested (`tests/e2e/pencil.spec.mjs`, Chromium, where the DevTools protocol can drive a pen).
+   - This works in Safari on the iPad as well as in the app, so the web app stays the place it is tested (`archive/web/tests/e2e/pencil.spec.mjs`, Chromium, where the DevTools protocol can drive a pen).
 
 ## Consequences
 

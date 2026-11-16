@@ -4,7 +4,9 @@ Status: accepted, 2026-11-16 (Andrei's task «Archive Web Application and Transi
 and 18:03 UTC, thread «Перейти на iPad-first, заархивировать веб»); in force when its pull request merges. Puts the web
 half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continuity.md) section 3,
 [0019](0019-native-ipad-app.md) section 3 item 1, [0018](0018-redesign.md) and [0027](0027-product-concept-v1.md) (see
-"What this record changes"). The inventory of what was archived and how to restore it: [`docs/web-archive.md`](../../web-archive.md).
+"What this record changes"). Amended the same day by [0033](0033-repository-layout.md) (Andrei's 18:57 UTC task
+«Repository Structure Reorganization»): the web moved from "archived in place" to `archive/web`, the parts the iPad
+bundles to `src/shared`. The inventory of what was archived and how to restore it: [`docs/web-archive.md`](../../web-archive.md).
 
 ## Context
 
@@ -27,19 +29,17 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
 
 1. **iPad is the primary and only actively developed client platform.** The product frame of 0025 (two specialised
    workspaces of one product) stays as the long-term architecture; its web Music Studio is on hold.
-2. **Web development is suspended and the existing implementation is archived in place, frozen.**
+2. **Web development is suspended and the existing implementation is archived, frozen** (in place at first; in
+   `archive/web` since 0033).
    - Restore point: the tag `v0.6.5` (`develop` d8050f4) and `main` at 9b98d6b, the last version in which the web was
      developed and deployed to the main address. Both already exist; nothing has to be reconstructed.
-   - The code stays where it is (`src/MotiffLab.Web`, `tests/e2e`), so the iPad's bundled paths do not move and no
-     shared code is restructured. `docs/web-archive.md` splits the folder into its **live shared part** (the five
-     modules, words, piano, example piece, the TypeScript build and the mirrors of the design kit, owned by iPad work
-     from now on) and its **frozen
-     part** (everything else: pages, components, C# features and services, web-only scripts, styles, service worker,
-     hosting configuration, Playwright specs).
-   - Frozen means: no features, fixes or ports. It keeps compiling in `build-test`, which keeps it recoverable and costs
-     nothing extra; a change elsewhere that breaks its compilation gets the smallest mechanical fix in the same pull
-     request, never behaviour work. Its run-time behaviour on `develop` is not maintained (the shared modules move on
-     with the iPad): the working web is the restore point.
+   - The project is split (0033, `docs/web-archive.md`): its **live shared part** (the five modules, words, piano,
+     Verovio's npm build, example piece and the TypeScript build, owned by iPad work) is `src/shared`; its **frozen
+     part** (everything else: pages, components, C# features and services, web-only scripts, styles, the mirrors of
+     the design kit, service worker, hosting configuration, Playwright specs) is `archive/web`.
+   - Frozen means: no features, fixes or ports, and no changes at all in `archive/`. It is out of the solution and of
+     `build-test`, and it no longer compiles by itself (its scripts import the shared modules by paths that moved);
+     `docs/web-archive.md`, "Reactivation", says how it builds again. The working web is the restore point.
 3. **Web remains a potential future platform.** The API keeps serving the web origin, the sign-in registration keeps the
    web's redirects, the Static Web App and its environments stay in Azure, and the project file stays the contract both
    clients read (`docs/project-file.md`).
@@ -49,13 +49,12 @@ half of [0025](0025-two-studios.md) on hold, amends [0026](0026-project-continui
 
 ### Workflows
 
-- `build-test` (`ci.yml`) still builds the whole solution, the frozen web included, and runs the node tests in
-  `tests/web` (they cover the live shared modules too). It no longer publishes or deploys the web app: publishing,
-  provisioning `infra/main.bicep` and deploying to Static Web Apps run only when the repository variable `WEB_ACTIVE`
-  is `true` (it is not set, so both the main address and the web test site stay at their last deploy).
-- `Browser tests` (`browser-tests.yml`) run only by hand: no daily run, no run on version tags, no label.
-- The `iPad` workflow and `src/ipad/build-version.sh` are unchanged: they run `dotnet build src/MotiffLab.Web` only to
-  compile the live shared TypeScript; they need no web publish, deploy, site or browser test.
+- `build-test` (`ci.yml`) builds the solution, which no longer lists the web, and runs the node tests in `tests/shared`.
+  It does not publish, provision or deploy the web (since 0033 those steps are removed; they are in `ci.yml` at commit
+  6088b98), so the main address and the web test site stay at their last deploy.
+- `Browser tests` is kept as `archive/web/workflows/browser-tests.yml` and does not run.
+- The `iPad` workflow and `src/ipad/build-version.sh` run `dotnet build src/shared` to compile the shared TypeScript;
+  they need no web publish, deploy, site or browser test.
 - A test version is the iPad app built from its tag; there is no web test site to check. A release to `main` releases
   the iPad app and the shared backend; it deploys no web.
 
@@ -94,24 +93,23 @@ current version first.
 - Web-specific development, testing and deployment leave the active workflow; the shared backend and domain (music-core,
   API, scan server, storage, sign-in) stay platform-independent and in service.
 - The existing web implementation and its documents are preserved for reactivation: the restore point, the code in
-  place, the porting list and the reactivation path.
+  `archive/web`, the porting list and the reactivation path.
 - Future web development is evaluated as a separate initiative.
 - Costs accepted: the main web address keeps v0.6.5 with its known defects and the browser suite stays red until
-  reactivation; the frozen web keeps compiling in `build-test`, so a public music-core change may need a mechanical edit
-  there; Android-tablet users (Andrei's 2026-11-10 reason, in the project chat, for keeping the web the most complete version) have no maintained
+  reactivation; the archived web is not compiled, so reactivating it starts with making it build again; Android-tablet users (Andrei's 2026-11-10 reason, in the project chat, for keeping the web the most complete version) have no maintained
   client meanwhile.
-- The live shared modules still sit in the web project's folder. Giving them their own home (REFACTORING_AUDIT Wave 3)
-  belongs to the separate refactoring task; after it, the frozen web project can leave the solution build.
+- The shared modules have their own home, `src/shared` (0033), and the frozen web project left the solution build.
 
 ## Alternatives considered
 
 - **Delete the web code and keep only the tag.** Rejected: the iPad needs the shared modules, words and piano from that
   folder, and the task forbids deleting the web application.
-- **Move the web project to an `archive/` folder.** Rejected: it changes every path the iPad bundles and the TypeScript
-  build, and separating the shared modules first is a refactoring of shared architecture, outside this task.
+- **Move the web project to an `archive/` folder.** Rejected at first (it changes every path the iPad bundles and the
+  TypeScript build); adopted the same day by 0033, which moves the shared modules to `src/shared` first.
 - **An archive branch.** Adds nothing over the existing tag and `main`; agents cannot push branches other than their own
   or tags from a cloud thread. Andrei may add a tag `web-archive` on 9b98d6b if he wants a named one.
-- **Remove the web project from the solution now.** Rejected for now: the TypeScript build the iPad needs lives in it.
+- **Remove the web project from the solution now.** Rejected at first because the TypeScript build the iPad needs lived
+  in it; done by 0033, which gives that build its own project (`src/shared/MotiffLab.Shared.csproj`).
 
 ## What this record changes in earlier records
 

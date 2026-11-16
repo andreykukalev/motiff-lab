@@ -2,7 +2,7 @@ import XCTest
 @testable import MotiffLab
 
 /// PDF | Notes keep each view as the player left it (#511 section 10): the places are the web app's
-/// (tests/web/view-anchor.test.mjs, the same cases), each view is kept by the piece on the device, a view kept wins over the
+/// (tests/shared/view-anchor.test.mjs, the same cases), each view is kept by the piece on the device, a view kept wins over the
 /// landing on the same stretch of music, and a piece the library closed is not saved again by its screen.
 final class ViewStatesTests: XCTestCase {
     /// Three systems of 200 points with 40 between them, starting at bars of 0, 3840 and 7680 ticks.

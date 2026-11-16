@@ -66,11 +66,14 @@ echo "    $(git log -1 --format='%h %s'), version $version ($build)"
 commit="$(git rev-parse --short=7 HEAD)"
 if git rev-parse --verify --quiet "refs/tags/$ref" >/dev/null; then shown="$ref"; else shown="$ref $commit"; fi
 built="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-# Versions from before the move (v0.6.5 and older) keep the app in ipad/, and their build reads the signing team there.
+# Versions from before the move (v0.6.5 and older) keep the app in ipad/, and their build reads the signing team there;
+# their score scripts are compiled by the web app's project, since then by src/shared.
 if [[ -f src/ipad/App/project.yml ]]; then
   folder=src/ipad
+  scripts=src/shared
 else
   folder=ipad
+  scripts=src/MotiffLab.Web
   mkdir -p ipad/App/Config
   cp src/ipad/App/Config/Local.xcconfig ipad/App/Config/Local.xcconfig
 fi
@@ -106,7 +109,7 @@ if [[ ! -d "$folder/build/Verovio.xcframework" ]]; then
   "$folder/Verovio/build.sh" > /tmp/motiff-verovio.log 2>&1 || { tail -20 /tmp/motiff-verovio.log; exit 1; }
 fi
 echo "==> The score's scripts"
-dotnet build src/MotiffLab.Web -v quiet -nologo > /tmp/motiff-web.log 2>&1 || { tail -20 /tmp/motiff-web.log; exit 1; }
+dotnet build "$scripts" -v quiet -nologo > /tmp/motiff-web.log 2>&1 || { tail -20 /tmp/motiff-web.log; exit 1; }
 
 echo "==> The app"
 cd "$folder/App"

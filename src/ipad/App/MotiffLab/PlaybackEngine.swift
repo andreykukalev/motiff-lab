@@ -1,7 +1,7 @@
 import Foundation
 
 // The playback engine for the audio thread (decision record 0019 section 2.1): the Swift port of the web app's engine
-// (src/MotiffLab.Web/Scripts/playback/playback-processor.ts, 0007), so both apps sound and keep time alike. It owns
+// (src/shared/Scripts/playback/playback-processor.ts, 0007), so both apps sound and keep time alike. It owns
 // musical time: it advances a canonical tick position frame by frame through the tempo map, so loops wrap on the exact
 // frame, tempo changes apply at the exact tick, and the main thread cannot delay a note. It renders the sampled piano
 // and a synthesised metronome. The pedal is already in the notes' lengths: music-core's playback score holds a note

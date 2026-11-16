@@ -5,7 +5,7 @@ import XCTest
 
 /// The eraser on the score rubs out as it moves (BUG-05): the score page takes the marks under it at each move
 /// (`motiff.rub`), from where the move before left off, and hands the press over as one step when it lifts
-/// (`motiff.rubEnd`). The geometry is pencil-marks.ts `rubAlong` (tests/web/pencil-marks.test.mjs); the PDF's pages are
+/// (`motiff.rubEnd`). The geometry is pencil-marks.ts `rubAlong` (tests/shared/pencil-marks.test.mjs); the PDF's pages are
 /// StylusTests' PageEraser.
 @MainActor
 final class EraserTests: XCTestCase {

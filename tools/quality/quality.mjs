@@ -34,7 +34,7 @@ import {
 import { CORE, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreViolations, ipadPageViolations } from './dependencies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const WEB = join(ROOT, 'src', 'MotiffLab.Web');
+const SHARED = join(ROOT, 'src', 'shared');
 const SETTINGS_PATH = join(ROOT, 'governance', 'quality', 'settings.json');
 const BASELINE_PATH = join(ROOT, 'tools', 'quality', 'baseline.json');
 const OUT = join(ROOT, 'artifacts', 'quality');
@@ -101,8 +101,10 @@ function toRepoPath(path) {
   return relativePath(ROOT, absolute).split('\\').join('/');
 }
 
+/** The repository's files matching the patterns, without archive/: archived code is not checked (docs/repository-structure.md). */
 function gitFiles(...patterns) {
-  const result = run('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...patterns]);
+  const result = run('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...patterns,
+    ':(exclude)archive/**']);
   if (result.status !== 0) {
     throw new Error(`git ls-files failed: ${result.stderr}`);
   }
@@ -242,22 +244,22 @@ function csharpCheck() {
 }
 
 function ensureNodeTools(ci) {
-  if (existsSync(join(WEB, 'node_modules', 'eslint')) && existsSync(join(WEB, 'node_modules', 'jscpd'))) {
+  if (existsSync(join(SHARED, 'node_modules', 'eslint')) && existsSync(join(SHARED, 'node_modules', 'jscpd'))) {
     return;
   }
   if (ci) {
-    throw new Error('The quality tools are not installed: npm ci --prefix src/MotiffLab.Web');
+    throw new Error('The quality tools are not installed: npm ci --prefix src/shared');
   }
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const result = run(npm, ['ci', '--no-audit', '--no-fund'], { cwd: WEB, shell: process.platform === 'win32' });
+  const result = run(npm, ['ci', '--no-audit', '--no-fund'], { cwd: SHARED, shell: process.platform === 'win32' });
   if (result.status !== 0) {
-    throw new Error(`npm ci in src/MotiffLab.Web failed:\n${result.stderr}`);
+    throw new Error(`npm ci in src/shared failed:\n${result.stderr}`);
   }
 }
 
 /** The names of the functions around a position, outermost first, from the TypeScript syntax tree. */
 function tsSymbolFinder() {
-  const ts = createRequire(join(WEB, 'package.json'))('typescript');
+  const ts = createRequire(join(SHARED, 'package.json'))('typescript');
   const trees = new Map();
   const nameOf = (node, sf) => {
     const named = node.name && (ts.isIdentifier(node.name) || ts.isPrivateIdentifier(node.name)
@@ -300,8 +302,8 @@ function tsSymbolFinder() {
 
 function eslintCheck(args) {
   ensureNodeTools(args.ci);
-  const result = run(process.execPath, [join(WEB, 'node_modules', 'eslint', 'bin', 'eslint.js'), '--format', 'json',
-    'Scripts'], { cwd: WEB });
+  const result = run(process.execPath, [join(SHARED, 'node_modules', 'eslint', 'bin', 'eslint.js'), '--format', 'json',
+    'Scripts'], { cwd: SHARED });
   if (result.status !== 0 && result.status !== 1) {
     throw new Error(`eslint failed:\n${result.stderr || result.stdout}`);
   }
@@ -354,7 +356,7 @@ function swiftlintCheck(args) {
 function jscpdCheck(args) {
   ensureNodeTools(args.ci);
   mkdirSync(OUT, { recursive: true });
-  const result = run(process.execPath, [join(WEB, 'node_modules', 'jscpd', 'run-jscpd.js'), '--config', '.jscpd.json',
+  const result = run(process.execPath, [join(SHARED, 'node_modules', 'jscpd', 'run-jscpd.js'), '--config', '.jscpd.json',
     '--min-lines', String(limits.duplicateLines), '--reporters', 'json,silent', '--output', OUT, '--no-tips', '.']);
   const report = join(OUT, 'jscpd-report.json');
   if (result.status !== 0 || !existsSync(report)) {

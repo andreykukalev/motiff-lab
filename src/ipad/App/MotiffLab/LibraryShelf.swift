@@ -152,7 +152,7 @@ struct LibraryPage: Equatable, Sendable {
     }
 }
 
-/// The library's search, filters and order (version 0.2), the web app's rules (src/MotiffLab.Web/Projects/LibraryShelf.cs):
+/// The library's search, filters and order (version 0.2), the web app's rules (archive/web/src/MotiffLab.Web/Projects/LibraryShelf.cs):
 /// pure functions over the cards, so the shelf narrows as the player types without reading a project file again. Search
 /// ignores letter case and accents ("fur elise" finds "Für Elise", "ежи" finds "Ёжик", and "и" finds "й").
 enum LibraryShelf {

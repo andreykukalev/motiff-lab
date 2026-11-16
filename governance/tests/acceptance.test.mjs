@@ -93,7 +93,7 @@ test('the approval check runs on every pull request run, whatever changed, and l
 });
 
 test('a pull request that changes no scenario passes without the label', needsTools, () => {
-  const result = approval(['src/MotiffLab.Web/Pages/Home.razor.cs', 'tests/web/home.test.mjs']);
+  const result = approval(['archive/web/src/MotiffLab.Web/Pages/Home.razor.cs', 'tests/shared/home.test.mjs']);
   assert.equal(result.code, 0, result.out);
 });
 

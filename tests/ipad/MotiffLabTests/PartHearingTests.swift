@@ -2,7 +2,7 @@ import XCTest
 @testable import MotiffLab
 
 /// A long recording's parts sent several at once, a busy part again after a wait (0014 item 7), as the web app's
-/// tests/web/long-recording.test.mjs checks its Pacer and hearParts.
+/// archive/web/tests/web/long-recording.test.mjs checks its Pacer and hearParts.
 @MainActor
 final class PartHearingTests: XCTestCase {
     private func parts(_ count: Int) -> [RecordingParts.Part] {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The pen's three thicknesses in staff spaces, thin to thick, as the web app's (Scripts/score/pencil-marks.ts
-/// PEN_SIZES and HIGHLIGHTER_SIZES; tests/web/pencil-marks.test.mjs checks the two agree). The middle one is the
+/// PEN_SIZES and HIGHLIGHTER_SIZES; tests/shared/pencil-marks.test.mjs checks the two agree). The middle one is the
 /// default; the highlighter is a wide translucent band.
 enum PenSizes {
     static let pen: [Double] = [0.1, 0.16, 0.3]

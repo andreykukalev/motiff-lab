@@ -30,9 +30,9 @@ targets:
     platform: iOS
     sources:
       - path: MotiffLab
-      # The example piece, the interface's words and the design tokens are the web app's own files: Für Elise
+      # The example piece, the interface's words and the design tokens are shared files (src/shared, design/kit): Für Elise
       # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).
-      - path: ../../MotiffLab.Web/Playback/FurElise.musicxml
+      - path: ../../shared/Playback/FurElise.musicxml
         buildPhase: resources
       - path: ../../../design/kit/tokens.css
         buildPhase: resources
@@ -40,39 +40,39 @@ targets:
       - path: ../../../design/kit/fonts
         type: folder
         buildPhase: resources
-      - path: ../../MotiffLab.Web/wwwroot/i18n
+      - path: ../../shared/wwwroot/i18n
         type: folder
         buildPhase: resources
       # What only the iPad says (version 0.5, «Импорт папки»), in English and Russian beside the web app's words.
       - path: Words
         type: folder
         buildPhase: resources
-      # The score page and the web app's score modules (Scripts/score, compiled to wwwroot/js/score by
-      # `dotnet build src/MotiffLab.Web`): the same geometry and pencil marks as the web (0019 section 1.4).
+      # The score page and the shared score modules (src/shared/Scripts/score, compiled to wwwroot/js/score by
+      # `dotnet build src/shared`): the same geometry and pencil marks as the web had (0019 section 1.4).
       - path: Web
         type: folder
         buildPhase: resources
-      - path: ../../MotiffLab.Web/wwwroot/js/score
+      - path: ../../shared/wwwroot/js/score
         type: folder
         buildPhase: resources
-      # The piano roll in the drawer is the web app's too (Scripts/roll), with the token and theme modules it reads
+      # The piano roll in the drawer is shared too (src/shared/Scripts/roll), with the token and theme modules it reads
       # (Scripts/layout, Scripts/storage).
-      - path: ../../MotiffLab.Web/wwwroot/js/roll
+      - path: ../../shared/wwwroot/js/roll
         type: folder
         buildPhase: resources
-      - path: ../../MotiffLab.Web/wwwroot/js/layout
+      - path: ../../shared/wwwroot/js/layout
         type: folder
         buildPhase: resources
-      - path: ../../MotiffLab.Web/wwwroot/js/storage
+      - path: ../../shared/wwwroot/js/storage
         type: folder
         buildPhase: resources
       # The playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts): the score and the roll draw both
       # playheads from its viewOf, as the web does.
-      - path: ../../MotiffLab.Web/wwwroot/js/playback
+      - path: ../../shared/wwwroot/js/playback
         type: folder
         buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
-      - path: ../../MotiffLab.Web/wwwroot/audio/piano
+      - path: ../../shared/wwwroot/audio/piano
         type: folder
         buildPhase: resources
       # Verovio's font data and licence (src/ipad/Verovio/build.sh), copied into the app as a folder.

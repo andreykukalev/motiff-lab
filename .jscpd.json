@@ -6,6 +6,7 @@
     "**/obj/**",
     "**/wwwroot/**",
     "artifacts/**",
+    "archive/**",
     "src/ipad/Verovio/**",
     "src/ipad/App/Web/**"
   ],

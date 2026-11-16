@@ -3,7 +3,7 @@ import XCTest
 @testable import MotiffLab
 
 /// The playback model of version 0.5.2 (#495 UX-10, PlaybackModel) on the case file the web's reference runs too
-/// (Golden/playback-model.json, tests/web/playback-model.test.mjs on Scripts/playback/playback-model.ts): the steps to the
+/// (Golden/playback-model.json, tests/shared/playback-model.test.mjs on Scripts/playback/playback-model.ts): the steps to the
 /// engine, the state after them and what the views draw, case by case; and bar.beat.
 final class PlaybackPositionTests: XCTestCase {
     private final class Marker {}

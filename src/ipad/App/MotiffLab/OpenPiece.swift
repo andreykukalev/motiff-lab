@@ -75,7 +75,7 @@ struct OpenPiece: Identifiable, Sendable {
         return fields
     }
 
-    /// The example piece in the app: Für Elise, the whole piece, the web app's own (src/MotiffLab.Web/Playback/FurElise.musicxml).
+    /// The example piece in the app: Für Elise, the whole piece, the web app's own (src/shared/Playback/FurElise.musicxml).
     static var example: (fileName: String, data: Data, title: String)? {
         guard let url = Bundle.main.url(forResource: "FurElise", withExtension: "musicxml"),
               let data = try? Data(contentsOf: url) else { return nil }

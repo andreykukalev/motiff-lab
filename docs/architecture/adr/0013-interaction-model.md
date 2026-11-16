@@ -1,6 +1,6 @@
 # 0013. The shared interaction model of the workspace
 
-**Status:** proposed, for Andrei's review · **Date:** 2026-10-27 · **Scope:** `MotiffLab.MusicCore` (musical objects, claims, sessions, guidance, annotations), `src/MotiffLab.Web` (one workspace state behind Practise, Understand and Explore, and the Guidance Layer over it)
+**Status:** proposed, for Andrei's review · **Date:** 2026-10-27 · **Scope:** `MotiffLab.MusicCore` (musical objects, claims, sessions, guidance, annotations), `archive/web/src/MotiffLab.Web` (one workspace state behind Practise, Understand and Explore, and the Guidance Layer over it)
 
 > 2026-11-01: the redesign ([0018](0018-redesign.md)) keeps this model and changes two things: Practise, Understand and Explore are the verbs of one Insights stream, not modes, and the Tag mark of section 10 becomes bookmarks with categories. Sections 3, 6 and 9 landed with PR #145 (SentenceMap, FactRanking, the Interpretation claim kind).
 

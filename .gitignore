@@ -481,10 +481,11 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# TypeScript output (compiled from src/MotiffLab.Web/Scripts by Microsoft.TypeScript.MSBuild)
-src/MotiffLab.Web/wwwroot/js/
+# TypeScript output (compiled from Scripts/ by Microsoft.TypeScript.MSBuild: src/shared, and the archived web)
+src/shared/wwwroot/js/
+archive/web/src/MotiffLab.Web/wwwroot/js/
 
-# Playwright reports (tests/e2e)
+# Playwright reports (archive/web/tests/e2e)
 playwright-report/
 
 # The iPad app (src/ipad/): built frameworks, Verovio source, generated Xcode project, per-Mac signing

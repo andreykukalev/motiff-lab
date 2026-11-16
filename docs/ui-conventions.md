@@ -2,7 +2,7 @@
 
 **Status (2026-11-16):** the web UI these rules were written for is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); they apply to the iPad app as its Swift and score-page counterparts and to the live shared modules (`Scripts/score`, `Scripts/roll`). Web-only rules are kept for reactivation.
 
-Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (decision record 0018), so a fix in one corner reads like the rest. The native iPad app (0019) follows these rules in SwiftUI where it has the same function; which functions it has, and in which form, follows 0025 (two workspaces, no parity). Where this file and `design/kit` disagree, the kit's documents win (`design/kit/HANDOFF.md` says which source wins), and this file is corrected in the same PR.
+Rules for the web UI (`archive/web/src/MotiffLab.Web`) as it is on main after the redesign (decision record 0018), so a fix in one corner reads like the rest. The native iPad app (0019) follows these rules in SwiftUI where it has the same function; which functions it has, and in which form, follows 0025 (two workspaces, no parity). Where this file and `design/kit` disagree, the kit's documents win (`design/kit/HANDOFF.md` says which source wins), and this file is corrected in the same PR.
 
 ## What the UI may do
 
@@ -17,7 +17,7 @@ Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (
 - One accent: cobalt (`--accent`) is pointing and selection only; plum is what the app composed and Pro; amber is what the player marked. The player's inks (carmine, graphite, ochre) do not change with the theme.
 - Icons come from `wwwroot/img/icons.svg`, drawn in Razor with `<Icon Name="…" />`; `node tools/icons/build.mjs` writes the set for both apps.
 - Switches use the kit's switch (`input[type=checkbox].switch` with `role="switch"`); overlines are uppercase; the piece's name is the serif title.
-- A control a finger uses is at least 44px (`--h-touch`); a compact control is `--h-compact`. Text meets WCAG 2.2 AA contrast; the axe checks in `tests/e2e` run on every screen they reach.
+- A control a finger uses is at least 44px (`--h-touch`); a compact control is `--h-compact`. Text meets WCAG 2.2 AA contrast; the axe checks in `archive/web/tests/e2e` run on every screen they reach.
 
 ## The score page
 
@@ -83,7 +83,7 @@ Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (
 
 ## Localization
 
-- Interface strings live in `wwwroot/i18n/en.json` and `ru.json`, read through `UiText` (`Text["key"]`, `Text.Format`, `Text.Count` with `.one`, `.few`, `.many`). Add every new string to both files; `tests/web/i18n.test.mjs` checks that every key used exists in both.
+- Interface strings live in `wwwroot/i18n/en.json` and `ru.json`, read through `UiText` (`Text["key"]`, `Text.Format`, `Text.Count` with `.one`, `.few`, `.many`). Add every new string to both files; `tests/shared/i18n.test.mjs` checks that every key used exists in both.
 - Musical text (facts, briefs, bases, place labels) comes from music-core in the language the page passes (`Words.For(Text.Language)`); the UI never translates or rewrites it. Terms shared across screens live under `term.*` (0013 section 7).
 
 ## General

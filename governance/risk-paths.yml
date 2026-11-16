@@ -21,17 +21,15 @@ high:
   - src/backend/MotiffLab.MusicCore/**
   - src/backend/MotiffLab.Api/**
   - src/backend/omr/**
-  - src/MotiffLab.Web/Scripts/**
-  - src/MotiffLab.Web/wwwroot/i18n/**
-  - src/MotiffLab.Web/wwwroot/audio/**
-  - src/MotiffLab.Web/wwwroot/css/**
-  - src/MotiffLab.Web/Pages/PlaybackLab*
+  # The score, roll, storage and playback scripts, words and piano the iPad bundles (docs/repository-structure.md).
+  - src/shared/**
 standard:
   - tests/**
   - src/ipad/App/**
-  - src/MotiffLab.Web/**
   - design/kit/**
   - docs/architecture/adr/**
 low:
+  # Archived code is not built, tested or deployed (docs/web-archive.md).
+  - archive/**
   - docs/**
   - README.md
