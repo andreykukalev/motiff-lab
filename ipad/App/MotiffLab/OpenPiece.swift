@@ -35,6 +35,7 @@ struct OpenPiece: Identifiable, Sendable {
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
         return await MusicCore.run {
             let answer = MusicCore.open(fileName: fileName, data: data, request: request)
+            ProbeCounts.shared.mark("opened")
             guard let opened = facadeObject(answer) else {
                 return .failure(EngraveError(message: "music-core did not answer."))
             }
@@ -48,6 +49,7 @@ struct OpenPiece: Identifiable, Sendable {
             }
             switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
             case .success(let engraving):
+                ProbeCounts.shared.mark("engraved")
                 return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap, own: own))
             case .failure(let error):
                 MusicCore.close(piece: piece)

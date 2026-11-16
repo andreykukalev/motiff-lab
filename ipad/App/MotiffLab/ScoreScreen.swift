@@ -411,6 +411,9 @@ struct ScoreScreen: View {
             // A new interface language saves the piece and opens it again where it is; not a view shown over the piece.
             .handsOver(piece: viewing == nil ? piece.id : nil) { await handOverForLanguage() }
             .onDisappear {
+                // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
+                // spec section 11: each visit with the sources on stayed in memory).
+                sources.reopen = nil
                 let now = resumeNow()
                 let view = notesViewNow()
                 // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.
@@ -527,7 +530,7 @@ struct ScoreScreen: View {
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
         assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
-        await player.load(piece: piece.id, key: piece.own?.id)
+        await player.load(piece: piece.id, key: piece.own?.id); ProbeCounts.shared.mark("sound")
         applyExperiments()
         await resume()
         await returnToNotesView()
@@ -741,7 +744,8 @@ struct ScoreScreen: View {
     /// else the PDF linked where it lies in Files, over the score (version 0.3).
     private var toPdf: (() -> Void)? {
         if switchView != nil, piece.other != nil || score.sources.document != nil {
-            return { Task { await showPdf() } }
+            // The switch of all views goes with the piece to its PDF (SourcesHandover).
+            return { ProbeCounts.shared.begin(); if sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf() } }
         }
         guard originals.canOpenLinkedPdf else { return nil }
         return {
@@ -763,6 +767,11 @@ extension ScoreScreen {
         self.viewing = viewing
         self.reopen = reopen
         _originals = StateObject(wrappedValue: OriginalsController(opened: piece.own))
+        // The screen's model is known before its first frame (v0.6.4 spec section 13): with the modes on, the score opens
+        // in Navigate, so the bar's old Play and the pill of before never show while the sound loads (wire, applyExperiments).
+        _score = StateObject(wrappedValue: ScoreController(mode: DeviceSettings.shared.isOn("experimental.playheads") ? .navigate : nil))
+        // The switch of all views as the screen before had it, until this one has read its own (SourcesHandover).
+        _sources = StateObject(wrappedValue: SourcesController(layers: SourcesHandover.layers(for: piece.file)))
     }
 }
 
@@ -866,6 +875,7 @@ extension ScoreScreen {
         guard sourcesOn else { return }
         sources.reopen = { await reopenHere() }
         await sources.load(piece: piece.id, file: piece.file)
+        SourcesHandover.drop(piece.file)
         if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
         if let id = SourcesHandover.view(for: piece.file), let view = sources.layers.views.first(where: { $0.id == id }) {
             pickView(view)
@@ -1408,6 +1418,10 @@ struct ScoreBar: View {
 
     /// The bar's Play; none under the one playback position (v0.5.2, #479 item 22), where the pill, always shown, plays.
     @ViewBuilder private var barPlay: some View {
+        #if DEBUG
+        // The switch test counts the old Play drawn while the modes are on (v0.6.4 spec section 13).
+        let _ = ScreensProbe.drawn(oldBarPlay: !score.onePosition && !score.focused && settings.isOn("experimental.playheads"))
+        #endif
         if !score.onePosition {
             Button {
                 player.toggle()

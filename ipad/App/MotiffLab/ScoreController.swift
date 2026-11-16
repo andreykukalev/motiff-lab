@@ -296,10 +296,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     let webView: WKWebView
     /// The pen, and who writes and who scrolls (#479 items 7 and 18).
     private let ink = InkInput()
-    private var piece: OpenPiece?
+    private(set) var piece: OpenPiece?
     private var dark = false
     private var pageReady = false
     private var shown = false
+    /// The render under way (`scheduleRender`), and whether another is wanted after it.
+    private var rendering: Task<Void, Never>?
+    private var renderAgain = false
     /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
     @Published var pencilPalette: PencilPaletteCall?
     /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
@@ -340,7 +343,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var id: Int { page }
     }
 
-    override init() {
+    /// `mode` is the bar's mode the screen opens with, as Settings has the modes (v0.6.4 spec section 13): known before the
+    /// screen's first frame, so the score never draws the model without the modes while its sound loads.
+    init(mode: InteractionMode? = nil) {
+        _mode = Published(initialValue: mode)
+        ProbeCounts.shared.add("score")
+        ProbeCounts.shared.mark("made")
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -364,12 +372,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
     }
 
+    deinit {
+        ProbeCounts.shared.add("score", -1)
+    }
+
     /// Shows a piece's pages and its marks; again when the appearance changes.
     func show(_ piece: OpenPiece, dark: Bool) {
-        guard self.piece?.id != piece.id || self.dark != dark || !shown else { return }
+        let changed = self.piece?.id != piece.id || self.dark != dark
+        guard changed || !shown else { return }
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            #if DEBUG
+            ScreensProbe.score = self
+            #endif
+            ProbeCounts.shared.mark("show")
             // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             historyKey = SelectionHistories.key(piece)
@@ -389,7 +406,26 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             versionPlayback = nil
         }
         self.dark = dark
-        if pageReady { Task { await render() } }
+        // Every update of the web view came here until the first render had shown the pages, and each started another
+        // render over it: the pages sent and laid out again and again as the screen opened (v0.6.4 spec section 11).
+        if pageReady && (changed || rendering == nil) { scheduleRender() }
+    }
+
+    /// One render at a time; a piece or an appearance that changed meanwhile is drawn once it is done.
+    private func scheduleRender() {
+        guard rendering == nil else {
+            renderAgain = true
+            return
+        }
+        rendering = Task { [weak self] in
+            await self?.render()
+            guard let self else { return }
+            self.rendering = nil
+            if self.renderAgain {
+                self.renderAgain = false
+                self.scheduleRender()
+            }
+        }
     }
 
     /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
@@ -1944,11 +1980,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     fileprivate func pageDidLoad() {
         pageReady = true
-        if piece != nil { Task { await render() } }
+        ProbeCounts.shared.mark("page")
+        if piece != nil { scheduleRender() }
     }
 
     private func render() async {
         guard let piece else { return }
+        ProbeCounts.shared.add("renders")
         let timemap = (try? JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))) ?? []
         do {
             let laid = try await webView.callAsyncJavaScript(
@@ -1960,6 +1998,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 staffSpace = space
             }
             shown = true
+            ProbeCounts.shared.mark("drawn")
             if let tick = piece.landing?.tick {
                 // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
                 _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick, "instant": true]], contentWorld: .page)
@@ -1972,6 +2011,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await sendVisibilities()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
+            ProbeCounts.shared.mark("marks")
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
@@ -1982,6 +2022,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()
             rendered = true
+            ProbeCounts.shared.mark("rendered")
         } catch {
             problem = error.localizedDescription
             land()
@@ -1990,6 +2031,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Shows the pages held out of sight while they landed (#533 6), now that they stand where they open.
     func land() {
+        ProbeCounts.shared.mark("land")
         webView.alpha = 1
     }
 

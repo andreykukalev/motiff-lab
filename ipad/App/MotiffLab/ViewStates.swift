@@ -161,6 +161,7 @@ enum ClosedPieces {
     static func close(_ piece: Int32) async {
         closed.insert(piece)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
+        ProbeCounts.shared.mark("closed")
     }
 
     /// Whether the piece was closed; asked once, as its screen goes.

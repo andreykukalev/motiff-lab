@@ -207,7 +207,7 @@ struct LibraryView: View {
                 if let again = InterfaceLanguage.shared.takeReopen() { await openFile(again.file, at: again.landing) }
                 await refreshOnline()
                 #if DEBUG
-                if let screensFile { await open(.success(screensFile)) }
+                if let screensFile { if ScreensHook.bothViews, let both = await ScreensHook.withNotes(screensFile) { await reload(); await openProject(both) } else { await open(.success(screensFile)) } }
                 #endif
             }
             // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
@@ -560,9 +560,6 @@ struct LibraryView: View {
         problem = nil
         switch await opener() {
         case .success(var opened):
-            if let earlier = piece {
-                await ClosedPieces.close(earlier.id)
-            }
             if let file {
                 opened.file = file
             } else if let title {
@@ -574,12 +571,15 @@ struct LibraryView: View {
                     problem = (error as? ProjectError)?.message ?? error.localizedDescription
                 }
             }
-            await reload()
+            // In a screen's place (a landing) only that file is read again; every project is read when the library shows again.
+            if landing != nil, let saved = opened.file { summaries[saved] = await PieceSummary.read(saved) } else { await reload() }
             if let saved = opened.file {
                 opened.other = OtherView.of(saved, own: opened.own, in: summaries)
                 opened.family = PieceFamily.of(saved, in: summaries)
             }
             opened.landing = ViewStates.landing(landing, for: opened)
+            // Closed only as its screen gives way: before, it was closed while the files were read and its screen stayed.
+            if let earlier = piece { await ClosedPieces.close(earlier.id) }
             piece = opened
         case .failure(let error):
             problem = error.message
