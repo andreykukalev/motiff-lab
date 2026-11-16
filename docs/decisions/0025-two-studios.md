@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-11-08. Supersedes the parity of the web app and the iPad app in [0018](0018-redesign.md) (section 14, the iPad's copy of Piece DNA in section 11, the Pro-only online saving of sections 10 and 12) and in [0019](0019-native-ipad-app.md) (the context and section 5).
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app. The frame of two workspaces stays; only the iPad Practice Studio is developed until Andrei reactivates the web Music Studio.
+
 Source: Andrei's decisions of 2026-11-08 (UTC), given as comments on the product review document *Ревью продукта: две студии* (https://claude.ai/artifact/4S7ynFjr4UqSHXGP6mck9T) and in the review thread: 17:39, 17:42, 17:45, 17:47, 17:48, 17:49, 17:50, 17:51, his review of the specification at 17:53, and the product working context at 18:12. His concept *One product, two workspaces* (11:51) is the background; the decisions below are what he took from it.
 
 This record holds **product decisions and the working hypothesis** only. How the product is built (the shared project model, sync, the hand-over of the working context, independent releases, the code architecture) gets its own architecture record; the feature audit and the delivery tasks stay outside it. Every statement is marked:

@@ -2,6 +2,8 @@
 
 **Status:** accepted; partly superseded by [0025](0025-two-studios.md) (2026-11-08: two specialised workspaces with no parity, section 14; Piece DNA with its own purpose on the iPad, section 11; sync free with a quota, sections 10 and 12) · **Date:** 2026-11-01 · **Scope:** the whole user interface of the web app (`src/MotiffLab.Web`) and of the native iPad app; the project file (version 12, in its own records); the design kit in `design/kit`. Andrei wrote the two documents this record rests on, *Motiff Lab UX Concept* and *Motiff Lab Visual Design System* (both 2026-10-31), delivered the design kit (`tokens.css`, `ds.css`, `icons.js`, `score.js`, the Verovio options, eleven screens and four boards) and answered the open questions on 2026-10-31 and 2026-11-01. The preparation list, with what must land in the engine and the data model before the first screen changes, is the Claude Doc [Что сделать до редизайна](https://claude.ai/artifact/TVHGtpHFAG5uksrVznyK7v); this record is item 16 of it.
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app; the redesign continues on the iPad only, and the web screens stay as built at v0.6.5.
+
 ## Context
 
 The current build (main after PR #177) does a lot: three import routes with per-bar confidence reports, detected phrases with manual adjustment, loop and tempo practice, hand and melody isolation, stylus ink, facts with evidence, experiments that produce variations, a build-your-own-variation tool, sessions and saved ideas, A4 pages with a PDF, Russian for the interface and the musical layer. What gets in the way is how it is laid out, and the UX concept names it:

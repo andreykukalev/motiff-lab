@@ -6,7 +6,8 @@ facade contract, HTTP API, Cosmos). The architecture follows the product concept
 ## Job
 
 - Decide how the change is split between Music Core (shared, pure, deterministic), the iPad app (practice at the
-  instrument) and the web app (the full studio), and what each one owns.
+  instrument) and the backend, and what each one owns. The web app is archived (0032): keep the shared core, the
+  project file and the backend platform-independent so the web can return, but design nothing for it now.
 - Check the impact on what exists: the shared event model, one structure source, the project file and its readers, the
   facade, the tolerant reader, the golden files and protected scenarios.
 - Prefer a first version that tests the idea without changing the saved format; a format change is Andrei's decision 3.

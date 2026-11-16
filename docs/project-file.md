@@ -1,5 +1,7 @@
 # The project file (`.motiff.json`), version 16
 
+**Status (2026-11-16):** the web app is archived ([0032](decisions/0032-ipad-first-web-archived.md)); the file stays the contract between the iPad app, the API and the web when it returns. While the web is frozen, a new version ships with the iPad alone, and the frozen web refuses files newer than it knows.
+
 The project file is what a player keeps of a piece. Since version 16 ([0030](decisions/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
 Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`) unless a section says lower case; the facade answers them in lower camel case.

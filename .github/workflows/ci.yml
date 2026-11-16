@@ -1,7 +1,7 @@
 name: CI
 
-# The browser tests (tests/e2e) are heavy, so they are not here: browser-tests.yml runs them daily on main,
-# on a pull request labelled `browser-tests`, and by hand, and says when they must pass before a release.
+# The browser tests (tests/e2e) are heavy, so they are not here: browser-tests.yml runs them, by hand only while the
+# web app is archived (docs/decisions/0032-ipad-first-web-archived.md).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
@@ -114,7 +114,8 @@ jobs:
         if: env.LABEL_ONLY != 'true'
 
       # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
-      # build settings) are published and deployed; test-only changes are built and tested but not deployed.
+      # build settings) are published and deployed, and only while the web is active (WEB_ACTIVE, below); test-only
+      # changes are built and tested but not deployed.
       # Any doubt (a commit that cannot be fetched) runs everything.
       - name: Find what changed
         id: changes
@@ -150,12 +151,14 @@ jobs:
               esac
             done <<< "$changed"
           fi
-          # main deploys the main address; develop deploys the Static Web App's environment "develop", the web test
-          # site (governance/README.md), once Andrei has set the repository variable DEPLOY_DEVELOP to true (the
-          # develop branch needs its own sign-in to Azure first: infra/bootstrap.bicep, github-develop).
+          # The web app is archived (docs/decisions/0032-ipad-first-web-archived.md): it is published and deployed
+          # only while the repository variable WEB_ACTIVE is true, which reactivating the web sets
+          # (docs/web-archive.md). Then main deploys the main address; develop deploys the Static Web App's
+          # environment "develop", the web test site, once Andrei has set the repository variable DEPLOY_DEVELOP to
+          # true (the develop branch needs its own sign-in to Azure first: infra/bootstrap.bicep, github-develop).
           azure=false
           site=production
-          if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
+          if [[ "$app" == true && -n "$AZURE_CLIENT_ID" && "${{ vars.WEB_ACTIVE }}" == true ]] \
             && [[ "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ]]; then
             if [[ "${{ github.ref }}" == refs/heads/main ]]; then
               azure=true

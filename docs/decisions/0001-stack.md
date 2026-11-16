@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-10-22. Extended by 0003, which adds a thin AI gateway in Azure Functions.
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the Blazor WebAssembly app; the C# music-core, the API and Azure hosting of the backend stay as decided here.
+
 ## Context
 
 Stage 1 (notation-based motif exploration) runs fully in the browser: files are parsed, analysed, transformed and played on the device, and only anonymous analytics leave it. The specification left two questions open: music-core in Rust or TypeScript, and Flutter or React Native for mobile. The team is one .NET developer and Azure solution architect, and the Azure budget for the MVP is $150 a month.

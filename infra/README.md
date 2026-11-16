@@ -1,5 +1,7 @@
 # Infrastructure
 
+**Status (2026-11-16):** the web app is archived ([0032](../docs/decisions/0032-ipad-first-web-archived.md)). Its Static Web App `swa-motifflab` (Free plan, with the environment `develop`) is kept but no longer updated: CI publishes, provisions `main.bicep` and deploys only while the repository variable `WEB_ACTIVE` is `true`, and it is not set. Everything else here (sign-in, the API, the databases, the scan servers, the develop environment, the CI identities) is shared with the iPad app and in service. `develop.ps1` and `test-site-signin.ps1` belong to the archived web. Web-only and shared components: 0032, "Infrastructure".
+
 The web app needs one Azure resource: a Static Web App on the Free plan in East US 2 ([`main.bicep`](main.bicep)), `swa-motifflab` in `rg-motifflab`, next to the scan server, the API and their database. The app runs fully in the browser (see [docs/decisions/0001-stack.md](../docs/decisions/0001-stack.md)). The hosted scan server and the database are below.
 
 Static Web Apps is only offered in a few regions. West Europe, the only EU one, stopped accepting new Static Web Apps in 2026-11 (`RequestDisallowedByAzure`), so the app is in East US 2. Static content is served from the global edge; the region holds the app's metadata and, later, its managed Functions.
@@ -29,6 +31,7 @@ The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) bu
 - **Push to `develop`**: deploys the app to the Static Web App's environment `develop`, the web test site, with develop's own API and scan server ([below](#the-develop-environment)).
 - **Pull request**: builds and tests only. There are no preview sites (Andrei, 2026-10-31): a preview can't sign in, and the iPad app opens the production site, so a change is checked there after it is merged.
 - Until the bootstrap has set the `AZURE_*` repository variables, the deploy steps are skipped.
+- **While the web is archived** (0032): none of the above deploys. Publishing, `main.bicep` and the Static Web Apps deploy run only when the repository variable `WEB_ACTIVE` is `true`; Andrei sets it when he reactivates the web (`docs/web-archive.md`). The `API` and `Scan server` workflows deploy as before.
 
 ## One-time setup
 

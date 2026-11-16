@@ -2,6 +2,8 @@
 
 # MVP · Stage 1: Notation-Based Motif Exploration
 
+**Platform (2026-11-16):** Stage 1 is now built on the iPad app only; the web app this spec describes as the platform is archived ([0032](decisions/0032-ipad-first-web-archived.md), [web-archive.md](web-archive.md)). Requirements stay valid as product intent; "in the browser" reads "on the device".
+
 ## Stage 1 at a glance
 
 The first release of Motiff Lab works on structured music, not audio. Players import a MIDI or MusicXML file, explore the piece and its motifs, restore the rhythm of a played performance, and transform a motif through controlled, explained variations. A deterministic music engine computes every note, timing, analysis and transformation. Optional AI assistance, hosted on Azure AI Foundry, explains those results in plain words and suggests what to try next. Stage 1 is the first implementation milestone of the full vision, not a replacement for it.
@@ -15,7 +17,7 @@ The first release of Motiff Lab works on structured music, not audio. Players im
 | Central feature | The variation engine, with explicit Keep choices and an explanation built from the actual change |
 | AI role | Interprets engine results, asks questions, gives hints and suggests goals and parameters. It never produces the notes, the timing or the analysis |
 | Learning | Discovery, Guided and Analysis modes; the player tries first and help comes on request |
-| Platform | Desktop and tablet browser (Blazor WebAssembly PWA). The core journey works offline and without AI |
+| Platform | Desktop and tablet browser (Blazor WebAssembly PWA), archived since 2026-11-16; now the native iPad app (0019, 0032). The core journey works offline and without AI |
 | Cloud | Static hosting, an anonymous analytics endpoint and a thin AI gateway (Azure Functions). Imported files never leave the device |
 | Output | Saved variations in the project; MIDI export |
 | Not in Stage 1 | Audio import or transcription, audio-based rhythm restoration, MIDI keyboard input or MIDI output to instruments, sync with other devices or apps, reconstruction attempts with hints, PDF or image scores, reharmonisation |

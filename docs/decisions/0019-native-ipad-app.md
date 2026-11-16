@@ -2,6 +2,8 @@
 
 Status: proposed, 2026-11-04. Andrei chose a fully native Swift iPad app for the redesign (2026-10-31) and kept one C# music-core for it after the spike (2026-11-01); this record is item 25 of the redesign preparation and supersedes [0015](0015-ipad-app.md). It also settles item 15 (the web site as the development environment, the iPad app as production). Its parity with the web app (the context and section 5) and sign-in only for Pro (section 2.4) are superseded by [0025](0025-two-studios.md) (2026-11-08); the stack decisions stand.
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app: it is no longer the development site (section 3, item 1) and no workflow deploys it; the API and scan server deploy as before. The iPad still bundles the shared score, roll, layout, storage and playback modules from its folder (`docs/web-archive.md`).
+
 ## Context
 
 The iPad app was the Swift shell of 0015: one `WKWebView` that opens the deployed web app, plus sound with the silent switch on, a screen that stays on, the Apple Pencil's double tap and squeeze, files and offline start. Every merge to main reaches the iPad on its next start.

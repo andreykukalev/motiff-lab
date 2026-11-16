@@ -1,8 +1,9 @@
 # How Motiff Lab is developed
 
 Agreed with Andrei on 2026-11-11. It replaces the Agent Operating Model (Task Records, per-PR Reviewer and QA,
-councils). The product is steered by **working versions**: agents prepare a version, Andrei installs it on his iPad and
-opens the web test site, tries it at the instrument, and his feedback becomes the next version. Documents serve the
+councils). The product is steered by **working versions**: agents prepare a version, Andrei installs it on his iPad,
+tries it at the instrument, and his feedback becomes the next version (the web app is archived:
+`docs/decisions/0032-ipad-first-web-archived.md`). Documents serve the
 versions, not the other way round.
 
 Every agent reads this file, `roles/common.md` and its role's file before it starts. `CLAUDE.md` holds the product and
@@ -25,7 +26,8 @@ to undo it), and each version note lists them under «Решено без вас
 
 - `main`: stable versions only. Moves by a release (Andrei's decision 5) or a hotfix. Agents never push or merge to it.
 - `develop`: the line of development. Always builds, always green. Agents open pull requests to it and merge them
-  themselves when `build-test` (with the code-quality checks) is green. Every push deploys the web test site.
+  themselves when `build-test` (with the code-quality checks) is green. While the web is archived (0032), no web is
+  deployed (the API and scan server deploy as before).
 - Task branches: short, one per change, `claude/*`. Parallel agents work on branches whose files do not overlap.
 - `hotfix/<version>`: from the last stable tag, for an urgent fix of a stable version.
 
@@ -45,8 +47,8 @@ to undo it), and each version note lists them under «Решено без вас
   piece that will not open) gets a same-day version `v0.<n>.1`; in a stable version, a hotfix.
 - **Rollback** of a broken version: Andrei installs the previous tag (iPad) or the release is reverted on `main`.
 - Where to see a version: the iPad app is built by Andrei on his Mac from the tag with one command
-  (`ipad/build-version.sh`, no paid developer account, 7-day signing); the web test site is the Static Web App's
-  environment `develop`; the main web address changes only from `main`.
+  (`ipad/build-version.sh`, no paid developer account, 7-day signing). The web test site and the main web address
+  stay frozen at their last deploy while the web is archived (`docs/web-archive.md`).
 
 ## Experiments
 
@@ -88,7 +90,9 @@ checked in the code. At each stable version the lead tidies `concept.md` and `id
 
 ## Platform focus
 
-Now: **iPad**. The web follows later. Only Andrei changes this line; the lead edits it on his word.
+Now: **iPad only** (0032, 2026-11-16). The web app is archived: no web tracks, no ports, no browser tests, no deploys;
+it comes back only as a separate initiative Andrei starts (`docs/web-archive.md`, "Reactivation"). Only Andrei changes
+this line; the lead edits it on his word.
 How tracks use it: `roles/common.md`, "Platform focus".
 
 ## Agents and models

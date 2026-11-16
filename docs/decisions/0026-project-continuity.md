@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-11-08. Andrei accepted the basis of the project-continuity council with its round-3 amendments and answered its open questions (19:41, 19:45, 19:48 UTC), and set the release rule (22:04, agreed 22:05 UTC). Amends [0014](0014-hosted-scan-server.md), [0019](0019-native-ipad-app.md), [0020](0020-music-core-facade.md) and [0023](0023-pdf-pieces.md) (section "What this record changes in earlier records"). Decides the architecture questions A1–A4 and the code-architecture question that [0025](0025-two-studios.md) (section 13) left to this record; A5 (one source for the form of a piece) keeps its own task.
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app. Section 3 (releasing both apps together) is suspended: the iPad releases alone, and the web gets the current reader before it returns. The project file stays the shared contract.
+
 Sources: the council's decision record *Совет: один проект на вебе и iPad — запись решения* (https://claude.ai/artifact/PSJzSAPho6vbYCpkw924Vd) and the council folder `/mnt/project-files/councils/project-continuity/`: `facts-baseline.md` (facts F1–F71, read on `main` `c86d48e`), `facts.md` (facts V0–V31, checked against the code between rounds), `r3-instructions.md` (S1–S11 and C1–C6), `r3/` (the round-3 amendments) and `README.md`, section "Ответы Андрея" (Andrei's answers). A fact number below points into those two files.
 
 ## Context

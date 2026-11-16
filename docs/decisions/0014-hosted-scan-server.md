@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-10-28. Andrei chose sign-in with Apple, Google or an email code through Microsoft Entra External ID. The scan server, the API and the sign-in tenant wait on the one-time setup, `infra/azure/setup.ps1` (`infra/README.md`).
 
+**Web on hold (2026-11-16):** [0032](0032-ipad-first-web-archived.md) archives the web app; the API, the scan server, the database and sign-in described here are shared and unchanged, and only the Static Web App is frozen.
+
 ## Context
 
 The iOS app cannot carry homr: its AGPL licence keeps it out of an App Store build, and an on-device engine waits on a licence answer or on another model (the research of 2026-10-28, project folder `omr/on-device/`). An app that sends a page to our own server and reads MusicXML back stays closed source, and homr runs unmodified there, as it does on the player's computer (0011). Andrei also wants sessions and imported scores saved in the cloud, in Cosmos DB, rather than only in the browser.

@@ -4,19 +4,23 @@
 
 Motiff Lab is a musical exploration workspace that helps musicians understand the music they love, reconstruct musical ideas, and create their own variations.
 
-The first release (Stage 1) is a browser app for notation-based motif exploration: import a MIDI or MusicXML file, pick a motif, explore its rhythm and melody, and transform it with controlled, explained variations.
+Stage 1 is notation-based motif exploration: import a MIDI or MusicXML file, pick a motif, explore its rhythm and melody, and transform it with controlled, explained variations.
+
+Development is **iPad first** ([0032](docs/decisions/0032-ipad-first-web-archived.md)): the native iPad app ([`ipad/`](ipad/README.md)) is the only actively developed client, over the shared C# music-core, the API and the scan server. The web app (`src/MotiffLab.Web`, Blazor WebAssembly) is archived in place and recoverable: see [docs/web-archive.md](docs/web-archive.md).
 
 ## Development
 
 Requires the .NET 10 SDK, and Node 22 or later for the TypeScript tests.
 
 ```bash
+dotnet build MotiffLab.slnx   # also compiles the shared TypeScript modules the iPad bundles
 dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"
-dotnet run --project src/MotiffLab.Web
 ```
 
-The stack is described in [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md). Hosting (Azure Static Web Apps) and the deploy setup are in [infra/README.md](infra/README.md).
+The iPad app is built on a Mac (`ipad/README.md`).
+
+The stack is described in [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md). The backend's hosting (Azure Container Apps, Cosmos DB, sign-in) and the archived web app's Static Web App are in [infra/README.md](infra/README.md).
 
 ## Documentation
 
