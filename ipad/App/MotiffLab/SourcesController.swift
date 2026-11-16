@@ -56,7 +56,7 @@ enum SourcesHandover {
     }
 }
 
-/// The piece's sources on its screen (version 0.6, behind `experimental.sources`; decision record 0030): music-core's
+/// The piece's sources on its screen (version 0.6; decision record 0030): music-core's
 /// `sources.layers` for this iPad, with the recordings whose sound is kept here, and the Sources sheet's operations, each
 /// saved to the project file at once. What changes the working notes («Сделать рабочими», an Undo) opens the piece
 /// again in its screen's place (`reopen`). The player's own files are never changed: a recording is a copy kept in

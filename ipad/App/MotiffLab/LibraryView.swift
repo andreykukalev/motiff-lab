@@ -15,10 +15,10 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
-    /// The device's settings, for the experiments' switches (Settings · Experimental).
+    /// The device's settings.
     @EnvironmentObject private var deviceSettings: DeviceSettings
     @State private var settings = false
-    /// The Reference's circle of fifths (an experiment), open over the library.
+    /// The Reference's circle of fifths, open over the library.
     @State private var reference = false
     @State private var adding = false
     @State private var opening = false
@@ -51,9 +51,9 @@ struct LibraryView: View {
     @FocusState private var searching: Bool
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @State private var away: AwayPrompt?
-    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    /// «Импорт папки» (version 0.5): the folders imported, their review and «Держать на этом iPad».
     @StateObject private var folderImport = FolderImportModel()
-    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
+    private var importOn: Bool { true }
     /// «Распознать ноты» for several pieces: those picked while choosing (nil when not), and the batch's consent.
     @State private var chosen: Set<URL>?
     @State private var consenting = false
@@ -268,12 +268,10 @@ struct LibraryView: View {
             if !projects.isEmpty {
                 LibrarySearchField(search: $query.search, text: text, focus: $searching)
             }
-            if deviceSettings.isOn("experimental.reference") {
-                // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
-                Button(text["reference.open"]) { reference = true }
-                    .buttonStyle(DSButtonStyle(kind: .quiet))
-                    .accessibilityHint(text["reference.openHint"])
-            }
+            // The Reference: the circle of fifths in one tap.
+            Button(text["reference.open"]) { reference = true }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+                .accessibilityHint(text["reference.openHint"])
             Button {
                 adding = true
             } label: {
@@ -464,7 +462,7 @@ struct LibraryView: View {
         }
     }
 
-    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    /// «Держать на этом iPad» beside a playlist's name.
     private var playlistToggle: ((String) -> AnyView)? {
         guard importOn else { return nil }
         return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }

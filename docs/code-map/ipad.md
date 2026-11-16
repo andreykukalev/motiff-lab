@@ -21,19 +21,19 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
 - `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
 - `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two switches
   under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).
-- `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the model holds under the modes, Expand too
-  (`onePosition`), over its passage (`expandPassage`); the page's selection and Цикл only out of it (`holdsSelection`).
+- `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes, `ScoreController.mode`
+  never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and Цикл only out of it (`holdsSelection`).
   The card's black playhead: `score.js` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8).
 - `Insights.swift`: `InsightsController` (facts, Try ways, `trial`), `InsightsSheet` (the stream; Ask's foot).
 - `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures.
-- `PlaceSelection.swift` (v0.6.2; `PlaceSelection.on` since v0.6.3, no switch): the one selection (span, hand, notes picked) and
+- `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`; the page's rule is `Scripts/score/selection-places.ts` (map: `docs/code-map/score.md`).
 - The roll in the drawer (`RollController`, `RollDrawer`, `RollTools`, `RollPlace`, `Web/roll.js`): `docs/code-map/roll.md`.
 
 ## PDF | Notes (lifecycle, `docs/code-map/ui-review-2026-11.md`)
 
 - `LibraryView.switchView` → `openFile` → `show`: opens the other view, reads only that file's summary, closes the old
-  piece (`ClosedPieces`), swaps the navigation item. The screen's model is set in its `init` (`ScoreController(mode:)`,
+  piece (`ClosedPieces`), swaps the navigation item. The screen's model is set in its `init` (`ScoreController()` in Navigate,
   the handed `SourcesHandover.layers`), never after an await; `onDisappear` clears `sources.reopen` (it held the screen).
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
   the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
@@ -44,7 +44,7 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   (UITextField, Scribble declined so the Pencil opens the keyboard; focused only by a press), `AskInputRow` (the kit's
   field `DSFieldLook` + microphone + Send), `KeyboardRoom`. `TypingFocus.swift` (v0.6.4): the app's one keyboard rule,
   `Typing` (a tap outside any focused field hides the keyboard), `TypingShield` (over the score's and roll's web views).
-  `Dictation.swift` (`experimental.dictation`, on): `DictationFlow`, `Dictation` (SFSpeech on the device only).
+  `Dictation.swift` (always on since v0.6.5): `DictationFlow`, `Dictation` (SFSpeech on the device only).
 - Every Ask opens the real assistant, no switch (v0.6.3): selection menu → `AssistantHereCard`, others → the panel.
 - `AssistantStates.swift`: `AssistantScope` (core AskScope), `AssistantPhase` (no streaming), `AssistantRecovery`.
 - `AssistantController.swift`: panel state, `scope`, `phase`, `standing` (`check`: `/assistant/status`), the piece's
@@ -53,7 +53,7 @@ reads `design/kit/tokens.css`. Tests: `MotiffLabTests` (XCTest, run by the `iPad
   `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`. `AssistantStore.swift`: conversations by piece in
   Application Support (never the project file). `AssistantPanel.swift`, `AssistantSide.swift`: the side panel (the score
   narrowed in `ScoreScreen.layers`), the consent, the list, `AssistantPendingView`, `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection
-  (`SelectionMenu` turns into it), `KeyboardLift`. `AssistantDrafts.swift` (`experimental.assistantActions`): the drafts
+  (`SelectionMenu` turns into it), `KeyboardLift`. `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts
   a question's tools made, Accept by `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features.
 

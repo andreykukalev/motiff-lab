@@ -282,7 +282,7 @@ struct CheckDrawer: View {
                     }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
                     PhotoPagesCheck(score: score, text: text)
-                    if DeviceSettings.shared.isOn("experimental.pieces"), !check.pieces.isEmpty {
+                    if !check.pieces.isEmpty {
                         // Check by piece (version 0.5): the pieces of the layer with their bars to check.
                         Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))
                         ForEach(check.pieces) { piece in pieceEntry(piece) }

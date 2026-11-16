@@ -206,8 +206,8 @@ struct PracticeControls: View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button {
                 score.practise(.touch)
-                // The pill's own Play: the playback model's press under one position, else Play and Pause as before.
-                if score.onePosition { player.apply(.press) } else { player.toggle() }
+                // The pill's own Play: the playback model's press.
+                player.apply(.press)
             } label: {
                 Icon(name: playing ? "pause" : "playf")
                     .foregroundStyle(Color.ds("on-accent"))

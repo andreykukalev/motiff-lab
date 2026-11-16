@@ -2,7 +2,7 @@ import AVFoundation
 import Speech
 import SwiftUI
 
-/// Dictation into a chat's field (v0.6.4, Andrei 2026-11-15, experiment `experimental.dictation`, on until turned off): the
+/// Dictation into a chat's field (v0.6.4, Andrei 2026-11-15): the
 /// microphone beside the field hears the player in the interface's language and writes what it hears into the field as it
 /// hears it, after what was typed. Speech is recognised on the iPad itself only: where this iPad cannot recognise the
 /// language on the device, a press on the microphone says so and nothing is heard (the sound never goes to Apple's servers
@@ -39,7 +39,7 @@ struct DictationFlow: Equatable {
         case silence(TimeInterval)
         /// The recogniser ended by itself (its final result, or an error).
         case ended(failed: Bool)
-        /// Stop now: the player types or sends, the assistant is busy, the chat went or the experiment was turned off.
+        /// Stop now: the player types or sends, the assistant is busy, the chat went.
         case halt
     }
 
@@ -130,8 +130,6 @@ struct DictationFlow: Equatable {
 /// What it hears goes to `write`, whole, each time it hears more. No sound and no text leave the iPad.
 @MainActor
 final class Dictation: ObservableObject {
-    /// The experiment's switch in Settings · Экспериментальное (music-core's settings catalogue), on until turned off.
-    static let setting = "experimental.dictation"
     @Published private(set) var flow: DictationFlow
     /// The field's new text, as words are heard.
     var write: (String) -> Void = { _ in }
@@ -198,7 +196,7 @@ final class Dictation: ObservableObject {
         }
         round += 1
         let request = SFSpeechAudioBufferRecognitionRequest()
-        // On the device only: never Apple's servers (the experiment's one condition).
+        // On the device only: never Apple's servers (its one condition).
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
@@ -301,7 +299,7 @@ final class Dictation: ObservableObject {
     }
 }
 
-/// The microphone inside a chat's field (Dictation), with the words for what it is doing; shown only with the experiment
+/// The microphone inside a chat's field (Dictation), with the words for what it is doing; shown
 /// on. Its line under the field says why it cannot dictate, or that it listens.
 struct DictationButton: View {
     @ObservedObject var dictation: Dictation

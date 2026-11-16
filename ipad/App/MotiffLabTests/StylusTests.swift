@@ -31,10 +31,7 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(navigate.selectStart(.finger), .none, "in Navigate nothing selects (#543 2.4)")
         XCTAssertEqual(navigate.selectStart(.stylus), .none)
         XCTAssertEqual(navigate.scrollFingers, 1)
-
-        let none = InputRules(stylus: true, tool: .none)
-        XCTAssertFalse(none.writes(.stylus), "before the modes, with the Pen off, the stylus does not write")
-        XCTAssertTrue(none.scrolls(.stylus))
+        XCTAssertFalse(navigate.writes(.stylus), "with the Pen off the stylus does not write")
     }
 
     func testWithoutAStylusOneFingerTakesTheToolAndTwoScroll() {
@@ -71,7 +68,7 @@ final class StylusTests: XCTestCase {
     func testTheBarsChoiceIsTheToolAndThePageIsToldHowEachPointerSelects() {
         XCTAssertEqual(InputRules.Tool(mode: .select, penOn: true), .pen, "the Pen on is the Pen in any mode")
         XCTAssertEqual(InputRules.Tool(mode: .edit, penOn: false), .edit)
-        XCTAssertEqual(InputRules.Tool(mode: nil, penOn: false), .none)
+        XCTAssertEqual(InputRules.Tool(mode: .navigate, penOn: false), .navigate)
         let page = InputRules(stylus: true, tool: .select).page
         let pen = page["pen"] as? [String: Any]
         let touch = page["touch"] as? [String: Any]
@@ -99,9 +96,8 @@ final class StylusTests: XCTestCase {
         XCTAssertTrue(bare.inkTakes(.finger, nearHandle: false))
         XCTAssertTrue(bare.inkTakes(.stylus, nearHandle: true))
 
-        // Out of the Pen nothing writes, the playheads move with every pointer, and the selection's handles only in Select
-        // and before the modes.
-        for tool in [InputRules.Tool.select, .navigate, .none] {
+        // Out of the Pen nothing writes, the playheads move with every pointer, and the selection's handles only in Select.
+        for tool in [InputRules.Tool.select, .navigate] {
             let rules = InputRules(stylus: true, tool: tool)
             XCTAssertTrue(rules.takesPlayheads(.stylus))
             XCTAssertTrue(rules.takesPlayheads(.finger))
@@ -114,7 +110,7 @@ final class StylusTests: XCTestCase {
 
     func testOnlyTheToolDecidesWhatALongPressMeans() {
         // #543 2-4, the lead's decisions 1-3: in Navigate a long press of either pointer puts the black playhead and never
-        // selects; with the Pen the finger beside the stylus does the same; in Select it selects; before the modes as before.
+        // selects; with the Pen the finger beside the stylus does the same; in Select it selects.
         let navigate = InputRules(stylus: true, tool: .navigate)
         for pointer in InputRules.Pointer.allCases {
             XCTAssertEqual(navigate.selectStart(pointer), .none)
@@ -130,11 +126,7 @@ final class StylusTests: XCTestCase {
         XCTAssertFalse(select.holdsPlayhead(.stylus))
         XCTAssertFalse(select.holdsPlayhead(.finger))
         XCTAssertEqual(select.selectStart(.finger), .longPress, "Select keeps its rules")
-        let none = InputRules(stylus: true, tool: .none)
-        XCTAssertEqual(none.selectStart(.stylus), .longPress, "before the modes nothing changes")
-        XCTAssertEqual(none.selectStart(.finger), .longPress)
-        XCTAssertFalse(none.holdsPlayhead(.finger))
-        XCTAssertTrue(none.takesHandles(.finger))
+        XCTAssertTrue(select.takesHandles(.finger))
         XCTAssertFalse(InputRules(stylus: true, tool: .navigate, surface: .pdf).holdsPlayhead(.stylus), "a PDF has no playhead")
         let page = navigate.page
         XCTAssertEqual((page["pen"] as? [String: Any])?["hold"] as? Bool, true)
@@ -144,7 +136,7 @@ final class StylusTests: XCTestCase {
     }
 
     func testWhileThePenIsOnTheStylusChangesNoSelectionOnTheRoll() {
-        let on = RollInput(stylus: true, mode: .navigate, penOn: true)
+        let on = RollInput(stylus: true, mode: .navigate, penOn: true, tool: .select)
         XCTAssertFalse(on.selects(.stylus))
         XCTAssertTrue(on.selects(.finger))
         XCTAssertEqual(on.page["penSelects"] as? Bool, false)
