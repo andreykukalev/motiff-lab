@@ -11,7 +11,7 @@ the files the diff touches, only the ranges around the changes. Not the whole fi
 
 ## Checklist
 
-What the tests and the quality checks cannot see (`docs/guidelines.md`, project rules 1–7):
+What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»):
 
 1. Layering: the change extends or replaces what is there; no second model of something that has one (selection,
    time, structure, playback state), no new layer beside an old one that still runs. Replaced code is deleted in the
@@ -20,10 +20,13 @@ What the tests and the quality checks cannot see (`docs/guidelines.md`, project 
    or type does one thing; a file the change makes bigger is split when the change gives a natural seam.
 3. Side effects: shared state, events and timers the change touches; what else reads them; behaviour Andrei approved
    earlier (version notes) still holds.
-4. Tests: the changed rule has a test that fails without the change; no test was rewritten to match a regression.
-5. `CLAUDE.md` rules: ticks without floating point, provenance and confidence, pure variations, tokens instead of
+4. Reuse and size: nothing added that the code base already does (a helper, a type, a code path beside an existing
+   one); the diff no larger than the task needs; no duplicate, dead code or abstraction with one user left after the
+   developer's cleanup pass.
+5. Tests: the changed rule has a test that fails without the change; no test was rewritten to match a regression.
+6. `CLAUDE.md` product rules: ticks without floating point, provenance and confidence, pure variations, tokens instead of
    literals, Russian and English, no note content leaving the device.
-6. Platform focus and scope: the change stays in its track's area (`roles/common.md`).
+7. Platform focus and scope: the change stays in its track's area (`roles/common.md`).
 
 ## Output
 
