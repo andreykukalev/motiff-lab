@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The modes in the bar (version 0.5, the experiment Two playheads and modes; the web app's Score/ModeGroup.razor; the
+/// The modes in the bar (version 0.5; the web app's Score/ModeGroup.razor; the
 /// approved mockup v0.5.2, #479 items 21 and 23): Navigate, Select and Pen in one capsule (Edit notes lives in the piano roll),
 /// the chosen one with its icon and its name, the others with the icon alone, and H, S and P on a keyboard. No caption over it.
 struct ModeCapsule: View {
@@ -62,7 +62,7 @@ struct ModeGroup: View {
     var compact = false
 
     var body: some View {
-        ModeCapsule(chosen: score.penOn ? .pen : score.mode ?? .navigate, text: text, compact: compact) { mode in
+        ModeCapsule(chosen: score.penOn ? .pen : score.mode, text: text, compact: compact) { mode in
             if mode == .pen {
                 if !score.penOn { score.pen.writeOnChoosing() }
                 score.penOn = true

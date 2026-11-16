@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Sources sheet (version 0.6, behind `experimental.sources`; decision record 0030 and the sources sheet handoff), in
+/// The Sources sheet (version 0.6; decision record 0030 and the sources sheet handoff), in
 /// the side sheet where Other versions was: «Оригиналы» and «Ноты», each row its pictogram, its name never cut, the eye
 /// «Показывать в переключателе», «Открыть» and ⋯, a line under the name and a state line. An original is added without
 /// recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
@@ -473,7 +473,7 @@ struct SourcesSheet: View {
     private var types: [UTType] {
         switch picking {
         case .recording: RecordingHearing.recordings
-        case .score: VersionsDrawer.versionFiles
+        case .score: VersionFiles.types
         case .same(let original): original.isRecording ? RecordingHearing.recordings : [.pdf]
         default: [.pdf]
         }

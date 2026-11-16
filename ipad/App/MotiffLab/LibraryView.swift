@@ -15,10 +15,10 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
-    /// The device's settings, for the experiments' switches (Settings · Experimental).
+    /// The device's settings.
     @EnvironmentObject private var deviceSettings: DeviceSettings
     @State private var settings = false
-    /// The Reference's circle of fifths (an experiment), open over the library.
+    /// The Reference's circle of fifths, open over the library.
     @State private var reference = false
     @State private var adding = false
     @State private var opening = false
@@ -27,6 +27,8 @@ struct LibraryView: View {
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
+    @State private var summaryCache = SummaryCache()
+    @State private var reloads = 0
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
     /// Saving online and sync, on until the player turns it off in Settings (version 0.2).
@@ -51,9 +53,9 @@ struct LibraryView: View {
     @FocusState private var searching: Bool
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @State private var away: AwayPrompt?
-    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    /// «Импорт папки» (version 0.5): the folders imported, their review and «Держать на этом iPad».
     @StateObject private var folderImport = FolderImportModel()
-    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
+    private var importOn: Bool { true }
     /// «Распознать ноты» for several pieces: those picked while choosing (nil when not), and the batch's consent.
     @State private var chosen: Set<URL>?
     @State private var consenting = false
@@ -268,12 +270,10 @@ struct LibraryView: View {
             if !projects.isEmpty {
                 LibrarySearchField(search: $query.search, text: text, focus: $searching)
             }
-            if deviceSettings.isOn("experimental.reference") {
-                // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
-                Button(text["reference.open"]) { reference = true }
-                    .buttonStyle(DSButtonStyle(kind: .quiet))
-                    .accessibilityHint(text["reference.openHint"])
-            }
+            // The Reference: the circle of fifths in one tap.
+            Button(text["reference.open"]) { reference = true }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+                .accessibilityHint(text["reference.openHint"])
             Button {
                 adding = true
             } label: {
@@ -328,15 +328,13 @@ struct LibraryView: View {
         }
     }
 
-    /// The projects in Documents, and what music-core reads from each.
+    /// The projects in Documents, and what music-core reads from each; only the newest reload writes what it read.
     private func reload() async {
+        reloads += 1
+        let mine = reloads
         projects = ProjectFiles.list()
-        var read: [URL: PieceSummary] = [:]
-        for entry in projects {
-            if let summary = await PieceSummary.read(entry.url) {
-                read[entry.url] = summary
-            }
-        }
+        let read = await summaryCache.summaries(projects.map(\.url))
+        guard mine == reloads else { return }
         summaries = read
         shelve()
     }
@@ -464,7 +462,7 @@ struct LibraryView: View {
         }
     }
 
-    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    /// «Держать на этом iPad» beside a playlist's name.
     private var playlistToggle: ((String) -> AnyView)? {
         guard importOn else { return nil }
         return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }

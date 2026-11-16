@@ -40,7 +40,7 @@ final class Player: ObservableObject {
         ProbeCounts.shared.add("player", -1)
     }
 
-    /// Which hands sound (#328, an experiment): the piece's notes as music-core gives them for both hands or for one
+    /// Which hands sound (#328): the piece's notes as music-core gives them for both hands or for one
     /// alone. A change applies at once, also while playing, and the loop and the place stay.
     @Published var hands = PlayerHands.both {
         didSet { if oldValue != hands { Task { await applyHands() } } }
@@ -60,6 +60,8 @@ final class Player: ObservableObject {
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
     private var polling: Task<Void, Never>?
+    /// Starts the engine again after a call, Siri, AirPods or dictation stopped it (EngineKeeper); none once shut down.
+    private var keeper: EngineKeeper?
     /// The screen has gone (`shutdown`): a load still on its way starts nothing (#582 item 2: a view switched while the
     /// notes were loading left a player clicking the metronome for a screen no longer there).
     private var shutDown = false
@@ -82,11 +84,14 @@ final class Player: ObservableObject {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
+            // An interruption pauses the music where it is; the engine starts again after it, and after a route change.
+            keeper = EngineKeeper(audio) { [weak self] in self?.send(.pause) }
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
             let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
             let samples = try await piano.value
             guard !shutDown else {
+                keeper = nil
                 audio.stop()
                 return
             }
@@ -115,13 +120,8 @@ final class Player: ObservableObject {
     }
 
     func toggle() {
-        if state == .stopped { transportKept = true }
         send(state == .stopped ? .play : .pause)
     }
-
-    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and the tempo with
-    /// it); a tap on the page with nothing selected puts it away.
-    @Published var transportKept = false
 
     /// Back to the start, playing on if it was playing.
     func rewind() {
@@ -137,19 +137,6 @@ final class Player: ObservableObject {
     func play(from tick: Double) {
         send(.seek(tick))
         if state == .stopped { send(.play) }
-    }
-
-    /// The playhead moved on the roll (v0.2). Dragged or nudged it only moves: playing, the music goes on from there; paused,
-    /// it waits there, and Play goes on from there. A tap (`play`) plays from there, looping `selection` first when nothing
-    /// loops yet. It stays inside the loop, which keeps its span, as the tempo does.
-    func move(to tick: Double, play: Bool, selection: Range<Double>?) {
-        if play, loop == nil, let selection {
-            setLoop(selection, from: Self.place(tick, inside: selection))
-            return
-        }
-        send(.seek(Self.place(tick, inside: loop)))
-        // Playing already, the engine plays on; Play is only for when it was still.
-        if play { send(.play) }
     }
 
     /// Where the playhead may go: inside the loop when one plays (before its end, so playing does not run past it), else
@@ -197,7 +184,7 @@ final class Player: ObservableObject {
         send(.loop(start: range.lowerBound, end: range.upperBound, once: once))
     }
 
-    // MARK: - The playback model (version 0.5.2, #495 UX-10; Settings · Experimental, «Два указателя и режимы»)
+    // MARK: - The playback model (version 0.5.2, #495 UX-10; «Два указателя и режимы»)
 
     /// The selection as the range it plays (the model's S), the player's copy of the score's: the player owns it and Цикл,
     /// and the views only read them (PlaybackModel).
@@ -235,7 +222,7 @@ final class Player: ObservableObject {
         return decided.state
     }
 
-    /// The score's selection as it is now, after focus or with the experiment turned on: the model takes it (T9–T11), and
+    /// The score's selection as it is now, after focus: the model takes it (T9–T11), and
     /// the engine loops what the model says again, in place of the loop another owner, such as focus, gave it.
     func hold(selection range: Range<Double>?) {
         apply(.select(range))
@@ -259,7 +246,6 @@ final class Player: ObservableObject {
             case .pause:
                 send(.pause)
             case .play:
-                transportKept = true
                 send(.play)
             case .seek(let at):
                 send(.seek(at))
@@ -385,7 +371,7 @@ final class Player: ObservableObject {
         send(.source(id: Self.pieceSource, notes: score.notes))
     }
 
-    /// The `playback` request for the hands chosen: nothing for both, as before the experiment.
+    /// The `playback` request for the hands chosen: nothing for both, as before.
     nonisolated static func handsRequest(_ hands: PlayerHands) -> String? {
         hands == .both ? nil : "{\"hands\": \"\(hands.rawValue)\"}"
     }
@@ -399,6 +385,7 @@ final class Player: ObservableObject {
         polling?.cancel()
         polling = nil
         send(.pause)
+        keeper = nil
         audio.stop()
         ready = false
         Metronome.shared.detach(self)

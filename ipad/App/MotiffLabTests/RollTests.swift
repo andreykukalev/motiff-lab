@@ -98,13 +98,10 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(RollInput(stylus: false, mode: .navigate, tool: .select).page["mode"] as? String, "select")
     }
 
-    func testBeforeTheModesTheRollSelectsAsBefore() {
-        let before = RollInput(stylus: true, mode: .navigate)
-        XCTAssertTrue(before.selects(.stylus))
-        XCTAssertTrue(before.selects(.finger))
-        XCTAssertEqual(before.page["mode"] as? String, "")
-        XCTAssertEqual(RollInput.barTool(mode: nil, penOn: true), InputRules.Tool.none, "the Pen before the modes changes nothing else on the roll")
-        XCTAssertEqual(RollInput.barTool(mode: nil, penOn: false), InputRules.Tool.none)
+    func testTheRollReadsTheBarsTool() {
+        let opened = RollInput(stylus: true, mode: .navigate)
+        XCTAssertFalse(opened.selects(.finger), "until the bar's tool comes, Navigate: nothing selects")
+        XCTAssertEqual(opened.page["mode"] as? String, "navigate")
         XCTAssertEqual(RollInput.barTool(mode: .select, penOn: false), InputRules.Tool.select)
         XCTAssertEqual(RollInput.barTool(mode: .select, penOn: true), InputRules.Tool.pen)
         XCTAssertEqual(RollInput.barTool(mode: .navigate, penOn: false), InputRules.Tool.navigate)

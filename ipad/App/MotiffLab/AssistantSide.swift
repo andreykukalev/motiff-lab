@@ -34,8 +34,9 @@ struct AssistantSide: View {
             .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
-    /// The role a new conversation takes: the proposer, which may make drafts, with «Помощник правит ноты» on.
+    /// The role a new conversation takes: the proposer, which explains and may make drafts («Помощник правит ноты», #582
+    /// item 17.3; the only role on the iPad since v0.6.5).
     @MainActor static func role(_ settings: DeviceSettings) -> String {
-        settings.isOn(AssistantController.actionsSetting) ? "proposer" : "mentor"
+        "proposer"
     }
 }

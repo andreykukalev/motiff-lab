@@ -7,12 +7,10 @@ import Foundation
 /// is on for the account, and only to the Motiff Lab API with the signed-in player's token: the selected bars' facts digest
 /// and notes, or the whole piece's digest (music-core's `assistant.context`), with the conversation. The model's tool calls
 /// run here in music-core (`assistant.call`); its answer cites the facts, shown in the engine's words. The same questions
-/// are asked at the selection, one at a time (17.2, 17.4), and with «Помощник правит ноты» the drafts the tools made wait
+/// are asked at the selection, one at a time (17.2, 17.4), and the drafts the tools made («Помощник правит ноты») wait
 /// for the player's Accept or Cancel (17.3).
 @MainActor
 final class AssistantController: ObservableObject {
-    /// «Помощник правит ноты» (#582 item 17.3): the conversation is the proposer, whose tools make drafts.
-    static let actionsSetting = "experimental.assistantActions"
     /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"

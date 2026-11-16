@@ -43,12 +43,10 @@ struct AddPieceSheet: View {
                 .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
                     picked(result)
                 }
-                if let folder, settings.isOn("experimental.libraryImport") {
+                if let folder {
                     fromFolder(folder)
                 }
-                if settings.isOn("experimental.photoPages") {
-                    fromPhotos
-                }
+                fromPhotos
                 if account.isAvailable {
                     fromRecording
                 }

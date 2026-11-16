@@ -140,14 +140,11 @@ final class ViewStatesTests: XCTestCase {
         XCTAssertEqual(SourcesController().layers, SourceLayers(), "a screen opened from the library reads its own")
     }
 
-    /// v0.6.4 spec section 13: the score's screen knows its model before its first frame; with the modes on it opens in
-    /// Navigate, so the bar's old Play is never drawn while the sound loads.
+    /// v0.6.4 spec section 13: the score's screen knows its model before its first frame: it opens in Navigate.
     @MainActor
     func testTheScoreOpensInItsModeBeforeItsFirstFrame() {
-        let modes = ScoreController(mode: .navigate)
-        XCTAssertEqual(modes.mode, .navigate)
-        XCTAssertTrue(modes.onePosition, "the playback model holds from the start")
-        XCTAssertNil(ScoreController().mode, "without the modes, as before")
+        XCTAssertEqual(ScoreController().mode, .navigate)
+        XCTAssertEqual(ScoreController(mode: .select).mode, .select)
     }
 
     @MainActor

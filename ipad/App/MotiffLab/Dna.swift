@@ -408,7 +408,7 @@ struct DnaScreen: View {
             HStack(spacing: CGFloat.ds("s-1")) {
                 Text(text["dna.ideasTitle"]).overline()
                 // The ideas by what they are in the music (#582 item 15) are readings of the phrases and sections.
-                if settings.isOn("experimental.musicalIdeas") && !map.ideas.isEmpty { laneTag(text["dna.inferred"]) }
+                if !map.ideas.isEmpty { laneTag(text["dna.inferred"]) }
             }
             .padding(.top, CGFloat.ds("s-4"))
             .padding(.bottom, CGFloat.ds("s-1"))

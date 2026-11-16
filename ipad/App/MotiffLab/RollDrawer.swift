@@ -88,9 +88,7 @@ struct RollDrawer: View {
                 head(compact: compact, mode: .navigate, editor: NoteEditorState(), live: false)
                 head(compact: compact, mode: .edit, editor: NoteEditorState(), live: false)
                 // With «Рамка | Лассо» too (#601), so Select's switch appearing changes no form either.
-                if pickExperiment {
-                    head(compact: compact, mode: .navigate, editor: NoteEditorState(), live: false, pick: true)
-                }
+                head(compact: compact, mode: .navigate, editor: NoteEditorState(), live: false, pick: true)
             }
             .hidden()
             .allowsHitTesting(false)
@@ -99,12 +97,9 @@ struct RollDrawer: View {
         }
     }
 
-    /// Whether selection by where you touch is on (#601): always since v0.6.3 (PlaceSelection.on).
-    private var pickExperiment: Bool { PlaceSelection.on }
-
-    /// Whether «Рамка | Лассо» shows: the experiment on, the bar's Select (not the Pen), the roll not editing notes.
+    /// Whether «Рамка | Лассо» shows: the bar's Select (not the Pen), the roll not editing notes.
     private var pickShown: Bool {
-        RollPickShape.shown(experiment: pickExperiment, tool: score.penOn ? InteractionMode.pen : score.mode, rollMode: roll.shownMode)
+        RollPickShape.shown(tool: score.penOn ? InteractionMode.pen : score.mode, rollMode: roll.shownMode)
     }
 
     /// The head (the approved mockup v0.5.2, #479 item 23; #521 18): the name and the roll's mode switch first, where they
@@ -158,8 +153,7 @@ struct RollDrawer: View {
     }
 
     /// Clear selection in the head (the selection menu gives way to the drawer, #338): its room is kept without a selection,
-    /// so it appearing moves nothing (#521 18.4). Under the modes of version 0.5, Escape removes the selection too, on the
-    /// head shown (`live`) and not on the unseen ones that measure it.
+    /// so it appearing moves nothing (#521 18.4). Escape removes the selection too, on the head shown (`live`) and not on the unseen ones that measure it.
     private func clearSelection(live: Bool) -> some View {
         let shown = score.selection != nil
         return Button {
@@ -168,7 +162,7 @@ struct RollDrawer: View {
             Icon(name: StylusRules.RingControl.clearSelection.icon)
         }
         .buttonStyle(RollHeadStyle(round: true))
-        .keyboardShortcut(live && shown && score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)
+        .keyboardShortcut(live && shown ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .disabled(!shown)
         .opacity(shown ? 1 : 0)
         .accessibilityHidden(!shown)

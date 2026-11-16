@@ -50,9 +50,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             sendMode()
         }
     }
-    /// The mode the bar chose (version 0.5, the experiment Two playheads and modes), other than the Pen; nil while the
-    /// experiment is off, which keeps the score as before.
-    @Published var mode: InteractionMode? {
+    /// The mode the bar chose (version 0.5; the only model since v0.6.5), other than the Pen.
+    @Published var mode: InteractionMode {
         didSet {
             guard mode != oldValue else { return }
             applyInput()
@@ -62,7 +61,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The Pen turned on or off: the roll's rules follow it (#511 4.1).
     var penChanged: (@MainActor (Bool) -> Void)?
     /// The bar's mode or the Pen changed: the roll reads presses by the same tool (#543 2, RollInput.barTool).
-    var toolChanged: (@MainActor (InteractionMode?, Bool) -> Void)?
+    var toolChanged: (@MainActor (InteractionMode, Bool) -> Void)?
     /// Whether the roll is in Edit notes: then Undo is the note edits' (#521 9).
     var rollEditing: (@MainActor () -> Bool)?
     /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
@@ -95,15 +94,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var key: String
         var id = UUID()
     }
-    /// The piece's beat lines and the experiment Select by beats (SelectionTools.swift); the bars/beats choice went in v0.6.4.
+    /// The piece's beat lines (SelectionTools.swift): the one selection's grid; the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
     var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
-    var beatsExperiment = false
-    /// Selection by the place of the touch (v0.6.2, #601; Select's way since v0.6.3, PlaceSelection.on): the page's rules follow it.
-    var placeSelection = PlaceSelection.on {
-        didSet { if placeSelection != oldValue { applyInput() } }
-    }
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
     var zoomedFrom: (scale: CGFloat, offset: CGPoint)?
     /// The tool the Pencil's «switch to previous» left for Select, which its next one goes back to (StylusRules.selectTurn).
@@ -163,6 +157,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var check = CheckShelf()
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
+    /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that
+    /// no longer fit, as music-core answered last; nil for notes opened only to be shown.
+    @Published private(set) var editsLayer: EditsLayerState?
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
     /// The other versions of the piece and the one shown, compared bar by bar (0022).
@@ -279,8 +276,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var problem: String?
     /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
     @Published private(set) var noteEditor: NoteEditorState?
-    /// The note edits were saved: the screen writes the project file.
-    var noteEditSaved: (@MainActor () -> Void)?
+    /// The note edits were saved, «Мои правки» switched or a correction that no longer fits taken out: the screen writes
+    /// the project file at once.
+    var editsKept: (@MainActor () -> Void)?
     /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
     @Published private(set) var pages = PagesInView()
 
@@ -300,6 +298,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var dark = false
     private var pageReady = false
     private var shown = false
+    /// The page loaded again if iPadOS ends the web view's process (WebContentWatch).
+    private var contentWatch: WebContentWatch?
     /// The render under way (`scheduleRender`), and whether another is wanted after it.
     private var rendering: Task<Void, Never>?
     private var renderAgain = false
@@ -343,9 +343,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var id: Int { page }
     }
 
-    /// `mode` is the bar's mode the screen opens with, as Settings has the modes (v0.6.4 spec section 13): known before the
-    /// screen's first frame, so the score never draws the model without the modes while its sound loads.
-    init(mode: InteractionMode? = nil) {
+    /// `mode` is the bar's mode the screen opens with, known before the screen's first frame (v0.6.4 spec section 13).
+    init(mode: InteractionMode = .navigate) {
         _mode = Published(initialValue: mode)
         ProbeCounts.shared.add("score")
         ProbeCounts.shared.mark("made")
@@ -369,7 +368,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.penDown = { [weak self] down in self?.penDown(down) }
         applyInput()
 
+        let watch = WebContentWatch { [weak self] in self?.pageLost() }
+        contentWatch = watch
+        webView.navigationDelegate = watch
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
+    }
+
+    /// The web view's process ended: nothing on the page is there any more, so it is drawn again in full once it loads.
+    private func pageLost() {
+        pageReady = false
+        shown = false
+        rendered = false
+        playheadsShown = ""
     }
 
     deinit {
@@ -383,6 +393,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            editsLayer = piece.edits
             #if DEBUG
             ScreensProbe.score = self
             #endif
@@ -944,6 +955,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             corrections = nil
             return
         }
+        guard editsOn else {
+            showNotice("padEdits.offNotice")
+            return
+        }
         showCheckBar(bar)
         correct("corrections", ["bar": bar])
     }
@@ -967,12 +982,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// are now and adds its edits as corrections (`corrections.acceptDraft`), each undone like any other, and the score is
     /// engraved again. Nil when it is accepted, else why not, in music-core's words (empty when it gave none).
     func acceptAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard editsOn else { return text["edits.off"] }
         guard let piece, let body = draft.acceptRequest?.text else { return "" }
         let id = piece.id
         let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.acceptDraft", body) }
         guard NoteCorrections(answer: answer) != nil else {
             return facadeObject(answer)?["message"] as? String ?? ""
         }
+        readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.accepted")
         return nil
@@ -981,6 +998,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Undo on the assistant's accepted draft: the whole draft goes at once (`corrections.undoDraft`), as on the web. Nil
     /// when it is undone, else why not, in music-core's words.
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
+        guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
         let id = piece.id
         let bar = draft.firstBar ?? 1
@@ -988,6 +1006,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard NoteCorrections(answer: answer) != nil else {
             return facadeObject(answer)?["message"] as? String ?? ""
         }
+        readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.undone")
         return nil
@@ -1005,8 +1024,49 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 return
             }
             corrections = read
+            readEdits(answer)
             if notes { await notesDidChange() }
         }
+    }
+
+    // MARK: - My corrections (version 0.5, «Мои правки: вкл / выкл»)
+
+    /// Whether notes can be corrected now: not while «Мои правки» is off, when music-core refuses every correction.
+    var editsOn: Bool { editsLayer?.on ?? true }
+
+    /// «Мои правки» switched: music-core lays the corrections over the notes one by one, or leaves them out, and keeps that
+    /// in the piece's file (`corrections.layer`); the score is engraved again from the notes as they are now. Off, the
+    /// bar listed to correct in Check closes, as nothing can be corrected then.
+    func switchEdits(on: Bool) {
+        let bar = on ? corrections?.bar : nil
+        if !on { corrections = nil }
+        editsCall("corrections.layer", EditsLayerState.layerRequest(on: on, bar: bar))
+    }
+
+    /// «Убрать» on a note whose corrections no longer fit: they leave the piece's edit log (`corrections.drop`).
+    func dropUnfitEdits(_ noteIds: [String]) {
+        editsCall("corrections.drop", EditsLayerState.dropRequest(noteIds, bar: corrections?.bar))
+    }
+
+    private func editsCall(_ call: String, _ fields: [String: Any]) {
+        guard let piece else { return }
+        let body = Self.json(fields) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
+            guard let read = EditsLayerState(answer: answer) else {
+                problem = facadeObject(answer)?["message"] as? String
+                return
+            }
+            editsLayer = read
+            if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            await notesDidChange()
+            editsKept?()
+        }
+    }
+
+    /// Every corrections answer says how many corrections there are and, with a layer, which no longer fit.
+    private func readEdits(_ answer: String) {
+        if let read = EditsLayerState(answer: answer) { editsLayer = read }
     }
 
     // MARK: - Note editor on the roll
@@ -1014,6 +1074,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Edit notes in the roll's drawer (testing item 15): the editor opens on a draft in music-core, so every edit sounds
     /// and shows at once but the project file keeps the notes as they were until Save; Cancel puts them back.
     func beginNoteEdit() {
+        guard editsOn else {
+            showNotice("padEdits.offNotice")
+            return
+        }
         noteEditor = NoteEditorState()
         noteEditCall("corrections.begin", [:])
     }
@@ -1056,7 +1120,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func saveNoteEdit() {
         guard noteEditor != nil else { return }
         noteEditor = nil
-        noteEditCall("corrections.save", [:]) { [weak self] in self?.noteEditSaved?() }
+        noteEditCall("corrections.save", [:]) { [weak self] in self?.editsKept?() }
     }
 
     private func noteEditCall(_ call: String, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
@@ -1078,6 +1142,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 if let added = read["added"] as? String { noteEditor?.picked = added }
             }
             if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            readEdits(answer)
             if notes { await notesDidChange() }
             then?()
         }
@@ -1161,67 +1226,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
         if let read = SourcesInfo(answer: answer) { sources = read }
-    }
-
-    /// A PDF kept inside the piece (`sources.document`): its pages shared over the bars until its notes are read; it stays
-    /// on the iPad. A PDF kept before is replaced.
-    func keepDocument(_ data: Data) async {
-        guard let piece else { return }
-        var fields: [String: Any] = ["pdf": data.base64EncodedString()]
-        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
-        let request = Self.json(fields) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.document", request) }
-        guard let read = SourcesInfo(answer: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        sources = read
-        versionStatus = text["sources.pdfKept"]
-        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-    }
-
-    /// «Добавить ещё PDF» (version 0.6): with a PDF kept already, another one is added as an original of its own beside it
-    /// (`sources.original.add`), never in its place, so the notes read from the first keep their pages.
-    func addAnotherPdf(_ data: Data, fileName: String) async {
-        guard let piece else { return }
-        var fields: [String: Any] = ["kind": "pdf", "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": ISO8601DateFormatter().string(from: Date())]
-        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
-        let request = Self.json(fields) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.original.add", request) }
-        guard let object = facadeObject(answer), object["error"] == nil else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        versionStatus = text.format("sources.sheet.toastAdded", fileName)
-        await readSources()
-        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-    }
-
-    /// Read as a version: the PDF kept in the piece goes to the scan server, and the notes it reads are added as another
-    /// version from a score, its pages linked to these bars (`sources.documentNotes`). Answers why not, or nil once added.
-    func readDocumentVersion(address: URL, account: Account) async -> String? {
-        guard let piece else { return nil }
-        let kept = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.pdf") }
-        guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
-            return facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
-        }
-        let fileName = object["fileName"] as? String ?? "score.pdf"
-        let result: ScanResult
-        switch await ScanServer.recognise(fileName: fileName, data: data, address: address, account: account) {
-        case .failure(let problem): return problem.text(text)
-        case .success(let read): result = read
-        }
-        let pages = max(1, sources.document?.pages ?? result.pages)
-        let request = Self.json(["musicXml": result.musicXml.base64EncodedString(), "engine": result.engine, "pages": pages]) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.documentNotes", request) }
-        guard versions.read(performance: answer) else {
-            return facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]
-        }
-        versionStatus = versions.matched == 0
-            ? text["performance.noMatch"]
-            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
-        await versionAdded(piece)
-        return nil
     }
 
     /// Show on a bar of the version: the bar is selected and comes into view.
@@ -1787,7 +1791,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": tick]], contentWorld: .page)
     }
 
-    // MARK: - Resume and beats (Settings · Experimental)
+    // MARK: - Resume and beats
 
     /// Whether the page is engraved and everything on it drawn, so a resume point can be shown on it (#327).
     private(set) var rendered = false
@@ -2157,7 +2161,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
     /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn), places: placeSelection)
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
         ink.apply(rules)
         toolChanged?(mode, penOn)
         guard shown else { return }
@@ -2182,17 +2186,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return spots.map { webView.scrollView.convert(CGPoint(x: $0.x * zoom, y: $0.y * zoom), to: webView) }
     }
 
-    /// The mode as the page has it: "pen" while the Pen is on, none before the modes.
+    /// The mode as the page has it: "pen" while the Pen is on.
     private func sendMode() {
         guard shown else { return }
         Task { await sendModeNow() }
     }
 
     private func sendModeNow() async {
-        var data: [String: Any] = [:]
-        if let mode {
-            data["name"] = penOn ? InteractionMode.pen.rawValue : mode.rawValue
-        }
+        let data: [String: Any] = ["name": penOn ? InteractionMode.pen.rawValue : mode.rawValue]
         _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
     }
 
