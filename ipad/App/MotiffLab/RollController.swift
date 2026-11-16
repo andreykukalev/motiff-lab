@@ -80,6 +80,8 @@ final class RollController: NSObject, ObservableObject {
     }
     private let text = UIText.current
     private var pageReady = false
+    /// The page loaded again if iPadOS ends the web view's process (WebContentWatch).
+    private var contentWatch: WebContentWatch?
     private var loaded = false
     private var piece: OpenPiece?
     /// The piece whose notes the roll shows: its notes loaded again keep the roll's zoom and view (#495 BUG-04).
@@ -121,7 +123,16 @@ final class RollController: NSObject, ObservableObject {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
+        let watch = WebContentWatch { [weak self] in self?.pageLost() }
+        contentWatch = watch
+        webView.navigationDelegate = watch
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/roll.html")))
+    }
+
+    /// The web view's process ended: the roll is loaded again in full, the view kept, once its page is ready.
+    private func pageLost() {
+        pageReady = false
+        loaded = false
     }
 
     deinit {

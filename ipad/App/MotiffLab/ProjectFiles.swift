@@ -169,6 +169,37 @@ struct PieceSummary: Equatable, Sendable {
     }
 }
 
+/// What music-core read from each project file, kept by the file's bytes, so the library asks music-core again only for
+/// the files that changed since it last looked (core and iPad review v0.6.5, finding 6): a Back used to read every project
+/// in Documents through music-core, one after another. The bytes are read off the main thread; a file whose details were
+/// written in place keeps its date but not its bytes, so it is read again.
+@MainActor
+final class SummaryCache {
+    private var kept: [URL: (hash: String, summary: PieceSummary)] = [:]
+
+    /// The file's summary, from what was kept while its bytes are the same.
+    func summary(_ url: URL) async -> PieceSummary? {
+        let data = await Task.detached(priority: .userInitiated) { try? Data(contentsOf: url) }.value
+        guard let data else {
+            kept[url] = nil
+            return nil
+        }
+        let hash = CloudSync.hash(data)
+        if let known = kept[url], known.hash == hash { return known.summary }
+        guard let summary = await PieceSummary.read(data) else {
+            kept[url] = nil
+            return nil
+        }
+        kept[url] = (hash, summary)
+        return summary
+    }
+
+    /// Forgets the files that are no longer in the library.
+    func keep(only urls: Set<URL>) {
+        kept = kept.filter { urls.contains($0.key) }
+    }
+}
+
 /// A piece's title, composer, tags and playlists as the player sets them in the library (version 0.2, facade contract 12):
 /// `project.metadata` on piece 0 with the project file's text as "file", which music-core answers changed; the app writes
 /// it back in place. A field sent as null is cleared, so the card shows what the file says again.

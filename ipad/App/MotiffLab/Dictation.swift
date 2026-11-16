@@ -291,6 +291,8 @@ final class Dictation: ObservableObject {
         if recording {
             recording = false
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            // The score's and the metronome's engines stopped as the microphone came in: they start again (review 2).
+            NotificationCenter.default.post(name: EngineKeeper.soundReturned, object: nil)
         }
     }
 
@@ -299,8 +301,7 @@ final class Dictation: ObservableObject {
     }
 }
 
-/// The microphone inside a chat's field (Dictation), with the words for what it is doing; shown
-/// on. Its line under the field says why it cannot dictate, or that it listens.
+/// The microphone inside a chat's field (Dictation), with the words for what it is doing. Its line under the field says why it cannot dictate, or that it listens.
 struct DictationButton: View {
     @ObservedObject var dictation: Dictation
     let text: UIText

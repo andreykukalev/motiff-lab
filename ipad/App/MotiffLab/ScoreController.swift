@@ -294,6 +294,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var dark = false
     private var pageReady = false
     private var shown = false
+    /// The page loaded again if iPadOS ends the web view's process (WebContentWatch).
+    private var contentWatch: WebContentWatch?
     /// The render under way (`scheduleRender`), and whether another is wanted after it.
     private var rendering: Task<Void, Never>?
     private var renderAgain = false
@@ -362,7 +364,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.penDown = { [weak self] down in self?.penDown(down) }
         applyInput()
 
+        let watch = WebContentWatch { [weak self] in self?.pageLost() }
+        contentWatch = watch
+        webView.navigationDelegate = watch
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
+    }
+
+    /// The web view's process ended: nothing on the page is there any more, so it is drawn again in full once it loads.
+    private func pageLost() {
+        pageReady = false
+        shown = false
+        rendered = false
+        playheadsShown = ""
     }
 
     deinit {
