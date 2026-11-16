@@ -224,7 +224,8 @@
           ]
         },
         "note": "the end's edge and handle went with the band"
-      }
+      },
+      "question": "Recorded as the page does it; for Andrei. SEL-04 says the edge stays where it is released; SEL-01 says edges move by sixteenths. The page puts a released edge on the nearest sixteenth: the pen let go 60 px right of the end, and the end is drawn 66 px right (373, not 367). Is the edge landing on the nearest sixteenth what was approved?"
     },
     {
       "pointer": "pen",

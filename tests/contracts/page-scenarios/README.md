@@ -43,7 +43,14 @@ Use it to write a scenario from what the page does. `PAGES_CHANNEL=chrome` uses 
 - `chromiumOnly: true` leaves the scenario to Chromium (see below). No scenario sets it yet.
 
 Every step may carry a `note` (where in the app it comes from, or why). Differences name the step by its number and its
-note. A step is one of four kinds:
+note.
+
+A step may also carry a `question`. It marks what the step records but Andrei has not settled: the specs, the notes and
+the code disagree, or the behaviour looks doubtful. The step still records what the page does now, and the question says
+what it does, what each source said, and what to decide. `run.mjs` prints the questions after every run. Once Andrei
+answers, the question goes, and the expectation is changed if he chose otherwise, with his label.
+
+A step is one of four kinds:
 
 | Step | What it does |
 |---|---|

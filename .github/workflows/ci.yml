@@ -207,7 +207,7 @@ jobs:
         run: node --test "tests/shared/*.test.mjs"
 
       # The iPad's pages in Chromium (tests/contracts/page-scenarios/README.md): every scenario, pressed twice, on the
-      # pages the build compiled. playwright-core alone, with the runner's own Chrome: about 10 seconds.
+      # pages the build compiled. playwright-core alone, with the runner's own Chrome: about 25 seconds.
       - name: Test the iPad's pages
         if: steps.changes.outputs.code == 'true'
         env:

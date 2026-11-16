@@ -151,6 +151,10 @@ try {
             console.log(`       ${line}`);
         }
     });
+    // What a scenario records but Andrei has not settled (README.md, "Questions"): shown on every run until answered.
+    for (const { scenario } of runs.filter((run) => run.input === "browser")) {
+        scenario.steps.forEach((step, index) => step.question && console.log(`?    ${scenario.id} step ${index + 1}: ${step.question}`));
+    }
 } finally {
     await browser.close();
     server.close();
