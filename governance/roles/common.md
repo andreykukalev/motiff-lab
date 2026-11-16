@@ -5,7 +5,8 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 ## Working
 
 - Do the work yourself. Split it or start another agent only when it truly needs it (team mode, a second Developer on
-  files that do not overlap); never a thread or sub-agent for a routine step.
+  files that do not overlap, an `Explore` survey, below); never a thread or sub-agent for a
+  routine step.
 - Act; do not ask Andrei to confirm intermediate steps. Ask only about the six decisions in `governance/README.md`, or
   when a request can be read in ways that lead to different products. Every question names the task in a few words,
   links the exact place, restates the question with your recommendation and says how to answer.
@@ -30,17 +31,25 @@ Read `governance/README.md` (the process) first, then this file, then your role'
   `/mnt/project-files/scratch/<date>-<topic>/`, one folder per task, never elsewhere. It is a cache: never cited as
   current, may be cleared.
 
-## Context and tokens
+## Context and completeness
 
-Every step resends the whole context, so what you read once is paid again on every later step; the context is
-compacted automatically at about 200K tokens.
+Understanding the code comes before saving tokens (Andrei, 2026-11-16): a missed dependency costs more than a long
+context. The context is compacted automatically at about 400K tokens (the environment's
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, 500K, at 80 %).
 
-- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 2 KB):
-  goal, decisions with reasons, root causes found, the files and line ranges that matter, done and next, open
+- Read the files you change whole, and every place that uses what they export: find the users by name across `src/`
+  and `tests/` (`git grep -n -w <symbol> -- src tests`), including the score page's messages (`src/ipad/App/Web`,
+  `src/shared/Scripts`) and the facade's request names, which are strings. Read the decision records and the design
+  note the task follows before the code.
+- Start `Explore` sub-agents for a survey that spans more than a few files: who calls what, which state is written
+  where, which tests cover it. Give each a narrow question and the paths; it returns the map, not the file contents.
+  Write what they found into the track note and the area's code map.
+- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 4 KB):
+  goal, decisions with reasons, root causes found, the files and dependencies that matter, done and next, open
   questions. Write it after you have studied the code, after each pull request and before any long step, so that a
-  compaction loses nothing you need. After a compaction read the note first, then only the ranges you need.
-- Read code and documents in ranges (`grep -n`, then `sed -n a,b`), not whole files and never several files in one
-  `cat`; print only the tail of build, test and CI output.
+  compaction loses nothing you need. After a compaction read the note first, then read again what the next step
+  touches.
+- Print the tail of build, test and CI output first, and the whole of a failing test's output.
 - A lead keeps the same kind of note in the version's state file.
 
 ## Platform focus
@@ -62,10 +71,11 @@ compacted automatically at about 200K tokens.
 ## Code maps and tracks
 
 - Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, roll; the archived web has
-  `docs/web-archive.md` instead), under 3 KB: which files do what, the
-  key functions with line ranges, the rules not to break. Read your area's map before the code. A pull request that
+  `docs/web-archive.md` instead), under 6 KB: which files do what, the key functions, what depends on what (the module's
+  callers and the modules it calls, the state it owns), the rules not to break. Read your area's map before the code. A pull request that
   adds, moves or splits structure updates the map in the same pull request; the first agent in an area with no map
-  writes it from what it studied, in its first pull request.
+  writes it from what it studied, in its first pull request (before its first change, so the map
+  is the survey).
 - A lead splits a version into tracks by code area, not by spec item: items that touch the same files go to one agent
   in sequence (up to about three pull requests, the track note between them); parallel agents only on files that do
   not overlap.
@@ -84,8 +94,9 @@ compacted automatically at about 200K tokens.
 
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
-- The iPad macOS tests run on every version tag (`v*`), by hand, or by the label `ipad-tests` when a change needs them
-  before a version. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
+- A pull request that touches what the iPad app is built from compiles the app and its Swift tests on macOS with each
+  push (no simulator, about 10 minutes). The Swift tests run on every version tag (`v*`), by hand, or by the label
+  `ipad-tests`: set it once, when the pull request is otherwise ready to merge, since with it every push runs them. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
   `tests/ipad/MotiffLabTests` in the same commit.
 
 ## Never

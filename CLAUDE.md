@@ -34,7 +34,9 @@ behind them and the pull request reviewer (`governance/roles/pr-reviewer.md`) ch
 
 1. **Read before writing.** Read the area's code map (`docs/code-map/`), then find how the code base already does this
    (search the names, helpers and similar features) and follow it. No new helper, utility, type or file when one that
-   does the same exists: reuse or extend it.
+   does the same exists: reuse or extend it. Read the files you change whole and every user of what they export, and
+   start `Explore` sub-agents for a survey of callers, state and tests that spans more than a few files
+   (`governance/roles/common.md`, "Context and completeness").
 2. **The smallest diff.** Change the existing function rather than add a second one beside it; touch only what the task
    needs (a refactoring task aside). Extend or replace, never stack: replaced code is deleted in the same pull request,
    no new layer beside one that still runs.

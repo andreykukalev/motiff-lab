@@ -116,7 +116,8 @@ circles). The lead picks the class when it starts a task and steps up (medium â†
 harder.
 
 One Developer by default; a second in parallel only when the tasks share no files and the limits allow. No threads or
-sub-agents for routine steps.
+sub-agents for routine steps; `Explore` sub-agents for a survey of the code (`roles/common.md`, "Context and
+completeness").
 
 ## Team mode
 

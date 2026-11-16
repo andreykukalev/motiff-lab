@@ -1,4 +1,5 @@
 name: Scan server
+run-name: ${{ format('Deploy scan server · {0} to {1}', github.event_name == 'workflow_dispatch' && 'by hand' || 'push', github.ref_name) }}
 
 # Publishes the scan server's image (src/backend/omr) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/scan.bicep, decision record 0014). Its own workflow, not a CI step:

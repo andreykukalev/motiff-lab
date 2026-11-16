@@ -7,7 +7,9 @@ thread that wrote it. The lead starts it with a fresh context once `build-test` 
 ## Input
 
 The pull request's diff and description, `docs/guidelines.md`, `CLAUDE.md`, the code map of the area (`docs/code-map/<area>.md`) and, for
-the files the diff touches, only the ranges around the changes. Not the whole files, not the chat.
+the files the diff touches, the whole files. Also the decision record and design note the change follows, and every
+user of a symbol it moves, renames or changes (`git grep -n -w`), so that a caller left on the old path or a second
+copy left behind is found; an `Explore` sub-agent may do that survey. Not the chat.
 
 ## Checklist
 

@@ -81,6 +81,18 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
 - The `iPad` workflow runs `dotnet build src/shared` before XcodeGen; `src/ipad/build-version.sh` does the same, and for a
   tag made before this layout it uses the old paths (`ipad/`, `src/MotiffLab.Web`).
 
+## iPad builds
+
+- The `iPad` workflow runs on a pull request only when it touches what the app is built from (`src/ipad`, `tests/ipad`,
+  `src/shared`, music-core, `design/kit`, `tests/contracts`). Without the label `ipad-tests` it only compiles the app
+  and its tests (`xcodebuild build-for-testing`, no simulator); with the label, on every version tag and by hand it
+  runs the Swift tests in the simulator.
+- music-core's framework is cached by the hash of its sources. `iPad core` (`ipad-core.yml`) builds it on `develop`
+  after a change, so pull requests to `develop` take it from the cache instead of three NativeAOT builds.
+- Both run on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`
+  names its label (`motiff-mac`). A pull request from a fork always runs on GitHub's machines; outside collaborators'
+  runs need approval (Settings → Actions → General). Removing the variable moves the runs back to GitHub.
+
 ## The move of 2026-11-16 (0033)
 
 | Before | After |
