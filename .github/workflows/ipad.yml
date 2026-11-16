@@ -8,9 +8,11 @@
 # - Every push to develop (a merge) that touches the same inputs: the same tests on develop, and the build for a real
 #   iPad. The core's framework built there is the cache that pull requests to develop read.
 # - Every version tag (version.yml starts it by hand on the tag) and by hand from the Actions tab: everything, with the
-#   screenshot walk (on a tag, or with Screenshots ticked) and the switch test (ticked).
+#   walk of the screens' journeys (on a tag, or with Walk ticked: asserting, one appearance, a few minutes), the
+#   pictures for the mockups (only with Screenshots ticked: every appearance, about half an hour, during which the Mac
+#   takes no other run and pull requests queue behind it) and the switch test (ticked).
 # - Nightly, once per new commit of develop: the job `nightly` starts this workflow by hand on develop with the walk and
-#   the switch test. A schedule runs the default branch's (main's) copy of this file, so that job only dispatches
+#   the switch test, without pictures. A schedule runs the default branch's (main's) copy of this file, so that job only dispatches
 #   develop's own copy; it starts working once this file is released to main.
 # The runner is Andrei's Mac when the repository variable IPAD_RUNNER names it; deleting the variable moves every run
 # to GitHub's macOS (docs/repository-structure.md, "iPad builds"). Releases are built by Andrei in Xcode.
@@ -24,13 +26,18 @@ run-name: >-
   || startsWith(github.ref, 'refs/tags/') && format('tag {0}', github.ref_name)
   || github.event_name == 'push' && format('push to {0}', github.ref_name)
   || format('by hand on {0}', github.ref_name),
-  inputs.screenshots && ' + screenshots' || '', inputs.switch_test && ' + switch test' || '') }}
+  format('{0}{1}', inputs.walk && ' + walk' || '', inputs.screenshots && ' + screenshots' || ''),
+  inputs.switch_test && ' + switch test' || '') }}
 
 on:
   workflow_dispatch:
     inputs:
+      walk:
+        description: Walk the screens' journeys, asserting, without pictures (landscape and light, a few minutes)
+        type: boolean
+        default: false
       screenshots:
-        description: Photograph the app's screens (Russian, landscape and portrait, light and dark)
+        description: Walk and photograph the screens (Russian, landscape and portrait, light and dark; ~30 min, other runs wait)
         type: boolean
         default: false
       switch_test:
@@ -244,18 +251,35 @@ jobs:
             -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
-      # The screens as a player sees them (tests/ipad/MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups,
-      # on every tag (version.yml starts the tag's run by hand, so the ref decides, not the event) and when ticked. A
-      # failing walk fails the run; the pictures it took and its log are kept either way.
+      # The journeys of the walk (tests/ipad/MotiffLabScreens/ScreensUITests.swift) without pictures: without SCREENS_DIR
+      # the walk asserts in one appearance, a few minutes. On every tag (version.yml starts the tag's run by hand, so the
+      # ref decides, not the event), nightly and when ticked; not when the pictures are asked for, which walk as well.
+      # The switch test runs only when asked (above, and by its own variable). A stuck walk stops at the step's limit
+      # instead of holding the only Mac for the job's hour.
+      - name: Walk the screens
+        if: (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots
+        timeout-minutes: 10
+        working-directory: src/ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild test -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO -skip-testing:MotiffLabScreens/SwitchUITests \
+            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" walk.log
+
+      # The screens as a player sees them, for the redesign's mockups: the same walk in every appearance, only when
+      # ticked (about half an hour; the Mac takes no other run meanwhile). A failing walk fails the run; the pictures it
+      # took and its log are kept either way.
       - name: Photograph the screens
-        if: startsWith(github.ref, 'refs/tags/') || inputs.screenshots
+        if: inputs.screenshots
+        timeout-minutes: 30
         working-directory: src/ipad/App
         run: |
           mkdir -p "$RUNNER_TEMP/screens"
           status=0
           TEST_RUNNER_SCREENS_DIR="$RUNNER_TEMP/screens" xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
             -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
-            > screens.log 2>&1 || status=$?
+            -skip-testing:MotiffLabScreens/SwitchUITests > screens.log 2>&1 || status=$?
           grep -E "SCREEN|error:|\*\* TEST" screens.log || true
           echo "SCREENS=$(find "$RUNNER_TEMP/screens" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
           cp screens.log "$RUNNER_TEMP/screens/"
@@ -265,7 +289,7 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v4
-        if: always() && (startsWith(github.ref, 'refs/tags/') || inputs.screenshots)
+        if: always() && inputs.screenshots
         with:
           name: ipad-screens
           path: ${{ runner.temp }}/screens
@@ -373,5 +397,5 @@ jobs:
             echo "develop at ${sha::7} had its nightly run already."
             exit 0
           fi
-          gh workflow run ipad.yml --ref develop -f nightly=true -f screenshots=true -f switch_test=true
+          gh workflow run ipad.yml --ref develop -f nightly=true -f walk=true -f switch_test=true
           echo "### Nightly run of develop at ${sha::7} started" >> "$GITHUB_STEP_SUMMARY"

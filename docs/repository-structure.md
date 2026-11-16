@@ -87,10 +87,12 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
   app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core, `design/kit`, `tests/contracts`, `global.json`,
   `Directory.Build.props`), and only then are the app built and the Swift tests run in the simulator, on every push.
   Its job `ipad-gate` reports on every pull request and is a required check on `develop` (`infra/github/protect.ps1`).
-  The same tests run on `develop` after a merge that touches those inputs, on every version tag and by hand; the
-  screenshot walk (`tests/ipad/MotiffLabScreens`) runs on tags and when ticked, and fails its run when it fails. A
-  scheduled job starts the walk and the switch test on `develop` each night it changed; a schedule runs the default
-  branch's copy of the workflow, so it works once the workflow is released to `main`.
+  The same tests run on `develop` after a merge that touches those inputs, on every version tag and by hand. The walk
+  of the screens' journeys (`tests/ipad/MotiffLabScreens`, asserting, one appearance, a few minutes) runs on tags,
+  nightly and with Walk ticked; the pictures for the mockups only with Screenshots ticked (every appearance, about half
+  an hour, during which the Mac takes no other run and pull requests queue behind it). Either fails its run when the
+  walk fails. A scheduled job starts the walk and the switch test on `develop` each night it changed; a schedule runs
+  the default branch's copy of the workflow, so it works once the workflow is released to `main`.
 - music-core's framework is cached by the hash of its sources. The `iPad` run on `develop` after a change saves it, so
   pull requests to `develop` take it from the cache instead of three NativeAOT builds.
 - It runs on GitHub's macOS, or on Andrei's Mac as a self-hosted runner when the repository variable `IPAD_RUNNER`

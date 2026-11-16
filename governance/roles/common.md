@@ -99,9 +99,11 @@ context. The context is compacted automatically at about 400K tokens (the enviro
   every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
   every pull request (passed when the iPad run was not needed) and is required on `develop` with `build-test`: a red or
   cancelled iPad run blocks the merge. The same tests run on `develop` after each merge that touches those inputs, on
-  every version tag (`v*`, with the screenshot walk) and by hand; the walk and the switch tests also run nightly on
-  `develop` when it changed, once that schedule is on `main`. A failing walk fails its run. For `src/ipad/App`, fix the
-  expectations in `tests/ipad/MotiffLabTests` in the same commit.
+  every version tag (`v*`, with the asserting walk of the screens) and by hand; the walk and the switch tests also run
+  nightly on `develop` when it changed, once that schedule is on `main`. A failing walk fails its run. By hand, tick
+  Walk for the asserting walk (a few minutes); Screenshots, the pictures for the mockups, holds the only Mac for about
+  half an hour and every pull request's iPad run queues behind it, so start it only when the pictures are needed. For
+  `src/ipad/App`, fix the expectations in `tests/ipad/MotiffLabTests` in the same commit.
 - When Andrei's Mac is off, iPad runs wait for it in the queue, and so do the pull requests that need them: Andrei
   deletes the repository variable `IPAD_RUNNER` (Settings → Secrets and variables → Actions → Variables), cancels the
   waiting runs and starts them again (a re-run or a new push), and they run on GitHub's macOS (10–20 minutes);
