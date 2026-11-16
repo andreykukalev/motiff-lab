@@ -81,7 +81,8 @@ async function open(browser, base, scenario) {
     const errors = [];
     page.on("pageerror", (error) => errors.push(`page error: ${error.message}`));
     await page.goto(`${base}/Web/${scenario.page}.html`);
-    await page.waitForFunction((name) => typeof window[name] === "object", scenario.page === "roll" ? "roll" : "motiff");
+    // A command its script defines, as PageScenarioTests waits for: roll.html's <div id="roll"> is window.roll before roll.js runs.
+    await page.waitForFunction((roll) => typeof (roll ? window.roll?.load : window.motiff?.show) === "function", scenario.page === "roll");
     await page.addScriptTag({ content: readFileSync(join(repo, "tests/pages/replay.js"), "utf8") });
     return { page, errors };
 }

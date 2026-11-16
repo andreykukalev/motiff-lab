@@ -50,7 +50,7 @@ final class PageScenarioTests: XCTestCase {
         let roll = scenario["page"] as? String == "roll"
         let viewport = scenario["viewport"] as? [String: Any]
         let size = CGSize(width: (viewport?["width"] as? NSNumber)?.doubleValue ?? 1024, height: (viewport?["height"] as? NSNumber)?.doubleValue ?? 1366)
-        let page = try await webPage(roll ? "Web/roll.html" : "Web/score.html", ready: roll ? "window.roll" : "window.motiff", size: size)
+        let page = try await webPage(roll ? "Web/roll.html" : "Web/score.html", ready: roll ? "window.roll?.load" : "window.motiff?.show", size: size)
         // As a function's body, which answers nothing (evaluateJavaScript would have to bridge the script's undefined).
         _ = try await page.callAsyncJavaScript(replayer, arguments: [:], contentWorld: .page)
         // As text, parsed by the page: what JSON says reaches the page as it is (a true stays a boolean, not a number).
@@ -60,7 +60,8 @@ final class PageScenarioTests: XCTestCase {
         return (found as? [Any] ?? ["the replayer answered nothing"]).map { "\($0)" }
     }
 
-    /// A page of the app's in a web view on screen at the scenario's size, once the object it fills has appeared.
+    /// A page of the app's in a web view on screen at the scenario's size, once its script has defined the command `ready`
+    /// (not only its object: roll.html's `<div id="roll">` is `window.roll` before roll.js runs).
     private func webPage(_ path: String, ready: String, size: CGSize) async throws -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
@@ -83,8 +84,8 @@ final class PageScenarioTests: XCTestCase {
         throw URLError(.resourceUnavailable)
     }
 
-    /// Whether the page has filled the object its scripts make (none yet while it loads).
-    private static func has(_ view: WKWebView, _ object: String) async -> Bool {
-        (try? await view.callAsyncJavaScript("return typeof \(object) === \"object\"", contentWorld: .page)) as? Bool == true
+    /// Whether the page's script has defined that command (none yet while it loads).
+    private static func has(_ view: WKWebView, _ command: String) async -> Bool {
+        (try? await view.callAsyncJavaScript("return typeof \(command) === \"function\"", contentWorld: .page)) as? Bool == true
     }
 }
