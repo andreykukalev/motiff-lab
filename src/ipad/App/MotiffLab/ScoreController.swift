@@ -648,7 +648,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
         guard var chosen = ScoreSelection(answer: answer) else {
-            let message = facadeObject(answer)?["message"] as? String
+            let message = FacadeAnswer.problem(answer)
             if !softlyRefused(message) { problem = message }
             return
         }
@@ -1009,9 +1009,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece, let body = draft.acceptRequest?.text else { return "" }
         let id = piece.id
         let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.acceptDraft", body) }
-        guard NoteCorrections(answer: answer) != nil else {
-            return facadeObject(answer)?["message"] as? String ?? ""
-        }
+        guard NoteCorrections(answer: answer) != nil else { return FacadeAnswer.problem(answer) }
         readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.accepted")
@@ -1026,9 +1024,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let id = piece.id
         let bar = draft.firstBar ?? 1
         let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.undoDraft", "{\"bar\": \(bar)}") }
-        guard NoteCorrections(answer: answer) != nil else {
-            return facadeObject(answer)?["message"] as? String ?? ""
-        }
+        guard NoteCorrections(answer: answer) != nil else { return FacadeAnswer.problem(answer) }
         readEdits(answer)
         await notesDidChange()
         showNotice("padAssistant.undone")
@@ -1043,7 +1039,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard let read = NoteCorrections(answer: answer) else {
-                problem = facadeObject(answer)?["message"] as? String
+                problem = FacadeAnswer.problem(answer)
                 return
             }
             corrections = read
@@ -1077,7 +1073,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard let read = EditsLayerState(answer: answer) else {
-                problem = facadeObject(answer)?["message"] as? String
+                problem = FacadeAnswer.problem(answer)
                 return
             }
             editsLayer = read
@@ -1154,15 +1150,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let body = facadeRequest(request)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
-            guard let read = facadeObject(answer), read["error"] == nil else {
-                problem = facadeObject(answer)?["message"] as? String
+            guard let read = FacadeAnswer(answer, of: call), let canUndo = read.required("canUndo", Bool.self),
+                  let changed = read.required("changed", Bool.self), let count = read.int("count") else {
+                problem = FacadeAnswer.problem(answer)
                 return
             }
             if noteEditor != nil {
-                noteEditor?.canUndo = read["canUndo"] as? Bool ?? false
-                noteEditor?.changed = read["changed"] as? Bool ?? false
-                noteEditor?.canReset = ((read["count"] as? NSNumber)?.intValue ?? 0) > 0
-                if let added = read["added"] as? String { noteEditor?.picked = added }
+                noteEditor?.canUndo = canUndo
+                noteEditor?.changed = changed
+                noteEditor?.canReset = count > 0
+                if let added = read.fields["added"] as? String { noteEditor?.picked = added }
             }
             if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
             readEdits(answer)
@@ -1680,11 +1677,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @discardableResult private func mergeCall(_ piece: Int32, _ call: String, _ fields: [String: Any] = [:]) async -> Bool {
         let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
-        guard let object = facadeObject(answer), object["error"] == nil else {
-            versionStatus = facadeObject(answer)?["message"] as? String
+        let read = FacadeAnswer(answer, of: call)
+        let draft = read.flatMap { MergeInfo(object: $0.fields) }
+        // A refusal, or a draft that cannot be read: "merge" is null only with none open.
+        guard let read, draft != nil || read.fields["merge"] is NSNull else {
+            versionStatus = FacadeAnswer.problem(answer)
             return false
         }
-        merge = MergeInfo(object: object)
+        merge = draft
         if let merge, let mergeAt, !merge.bars.contains(where: { $0.bar == mergeAt }) { self.mergeAt = merge.bars.first?.bar }
         return true
     }

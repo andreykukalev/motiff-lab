@@ -213,23 +213,33 @@ struct NoteCorrections: Equatable, Sendable {
     var removed: [Removed]
     var count: Int
 
+    /// Every corrections answer (`CorrectionsAnswer` in OpenPiece.Corrections.cs); nil for a refusal or an answer that
+    /// cannot be read.
     init?(answer: String) {
-        guard let object = facadeObject(answer), object["error"] == nil, let bar = (object["bar"] as? NSNumber)?.intValue else { return nil }
-        func int(_ value: Any?) -> Int { (value as? NSNumber)?.intValue ?? 0 }
-        func place(_ entry: [String: Any]) -> Place { Place(bar: int(entry["atBar"]), beat: int(entry["beat"]), offset: entry["offset"] as? String) }
+        guard let object = FacadeAnswer(answer, of: "corrections"), let bar = object.int("bar"), let notes = object.list("notes", Self.readEntry),
+              let removed = object.list("removed", Self.readRemoved), let count = object.int("count") else { return nil }
         self.bar = bar
-        notes = (object["notes"] as? [[String: Any]] ?? []).compactMap { entry in
-            guard let id = entry["id"] as? String else { return nil }
-            return Entry(
-                id: id, pitch: int(entry["pitch"]), name: entry["name"] as? String ?? "", place: place(entry),
-                length: entry["length"] as? String ?? "", velocity: int(entry["velocity"]), edited: entry["edited"] as? Bool ?? false,
-                taken: entry["taken"] as? Bool ?? false, canEarlier: entry["canEarlier"] as? Bool ?? false, canShorter: entry["canShorter"] as? Bool ?? false
-            )
-        }
-        removed = (object["removed"] as? [[String: Any]] ?? []).compactMap { entry in
-            (entry["id"] as? String).map { Removed(id: $0, name: entry["name"] as? String ?? "", place: place(entry)) }
-        }
-        count = int(object["count"])
+        self.notes = notes
+        self.removed = removed
+        self.count = count
+    }
+
+    private static func readPlace(_ entry: FacadeAnswer) -> Place? {
+        guard let bar = entry.int("atBar"), let beat = entry.int("beat"), let offset = entry.nullable("offset", String.self) else { return nil }
+        return Place(bar: bar, beat: beat, offset: offset)
+    }
+
+    private static func readEntry(_ entry: FacadeAnswer) -> Entry? {
+        guard let id = entry.required("id", String.self), let pitch = entry.int("pitch"), let name = entry.required("name", String.self),
+              let place = readPlace(entry), let length = entry.required("length", String.self), let velocity = entry.int("velocity"),
+              let edited = entry.required("edited", Bool.self), let taken = entry.required("taken", Bool.self),
+              let canEarlier = entry.required("canEarlier", Bool.self), let canShorter = entry.required("canShorter", Bool.self) else { return nil }
+        return Entry(id: id, pitch: pitch, name: name, place: place, length: length, velocity: velocity, edited: edited, taken: taken, canEarlier: canEarlier, canShorter: canShorter)
+    }
+
+    private static func readRemoved(_ entry: FacadeAnswer) -> Removed? {
+        guard let id = entry.required("id", String.self), let name = entry.required("name", String.self), let place = readPlace(entry) else { return nil }
+        return Removed(id: id, name: name, place: place)
     }
 }
 
