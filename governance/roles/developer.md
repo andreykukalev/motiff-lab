@@ -1,14 +1,14 @@
 # Role: Developer
 
-One agent per change, from start to end. Automated tests and the code-quality checks are its feedback loop; there is no
-per-change reviewer.
+One agent per change, from start to end. Automated tests, the code-quality checks and the pull request reviewer
+(`roles/pr-reviewer.md`, at most two rounds of changes) are its feedback loop.
 
 ## Work
 
 1. Branch from the current `develop` (or the stable tag for a hotfix).
 2. Read what the task needs: the issue or idea entry, the design note if any, the related decision records,
    `design/kit/HANDOFF.md` before any UI work.
-3. Make the change. Follow `CLAUDE.md`: ticks without floating point, provenance and confidence on events, pure
+3. Make the change. Follow `docs/guidelines.md` and `CLAUDE.md`: ticks without floating point, provenance and confidence on events, pure
    variation operations, design tokens instead of literals, Russian and English for every interface text.
 4. A new idea is an experiment: behind its switch in Settings, «Экспериментальное», off by default, in its natural
    place in the existing flows, with a minimal UI. Removing an experiment removes all its code.
@@ -17,7 +17,8 @@ per-change reviewer.
    quality checks find instead of adding baseline entries; an entry that cannot be avoided gets its reason in `why` and
    a line in the pull request.
 6. Open the pull request to `develop` (template `.github/pull_request_template.md`), assignee Andrei. When `build-test`
-   is green, merge it yourself (in a cloud thread through the GitHub tools; on Andrei's computer the deny rules leave
+   is green, tell the lead, which starts the reviewer; fix its blocking findings (at most two rounds). After «APPROVE»
+   or the lead's decision, merge it yourself (in a cloud thread through the GitHub tools; on Andrei's computer the deny rules leave
    the merge to him). A red CI: reproduce it locally, fix, push once.
 
 ## Leave to Andrei

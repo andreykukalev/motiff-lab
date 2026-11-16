@@ -50,8 +50,9 @@ duplicate), never by line number, so moving code keeps its entry; `value` is wha
 - An entry without a reason in `why` fails.
 - An entry no violation matches any more (the code was fixed, renamed or moved to another file) must be removed:
   `--update-baseline` removes it. The baseline only shrinks unless a pull request justifies an entry.
-- A baselined violation that got worse (a longer function, a bigger file) is listed in the report but does not fail,
-  in soft or blocking mode; the release reviewer reads that list.
+- A baselined violation that got worse (a longer function, a bigger file) fails in blocking mode (since 2026-11-16,
+  Andrei: `piano-roll.ts` had grown from 2,149 to 4,077 lines unnoticed). Split or simplify the code; never raise the
+  entry's `value` to pass. The values were reset to the measured ones on 2026-11-16.
 - A suppression (the `suppressions` check) is fixed by removing it; when it truly cannot go, it is a baseline entry
   with a reason like any other.
 - In CI the report lists the entries the pull request adds to the baseline, with their reasons.
@@ -62,8 +63,8 @@ duplicate), never by line number, so moving code keeps its entry; `value` is wha
 
 - `"soft"` (from the merge of #332 until 2026-11-11): the report goes to the job summary and annotations, and the checks
   never fail `build-test`, whatever they find, even when a check cannot run.
-- `"blocking"` (since 2026-11-11, the current mode): `build-test` fails on a new violation, an entry to remove, an entry without a reason, a configuration
-  that differs from `settings.json`, or a check that could not run. Old code in the baseline does not fail: only new
-  code is held to the thresholds.
+- `"blocking"` (since 2026-11-11, the current mode): `build-test` fails on a new violation, a baselined violation that got worse, an entry to remove, an entry without a reason, a configuration
+  that differs from `settings.json`, or a check that could not run. Old code in the baseline does not fail as long as it
+  does not get worse; new code is held to the thresholds.
 
 Changing the mode, or raising or lowering a threshold, is a pull request Andrei merges, followed by `--write-config` and `--update-baseline`.
