@@ -98,7 +98,7 @@ One pull request a step, in this order; each keeps the behaviour, keeps `MotiffL
 only in type names), runs the iPad workflow (label `ipad-tests`) before the merge, removes the baseline entries of what
 it moved, updates the code map and gets the pull request reviewer.
 
-1. `PieceCore` and the one JSON encoding; the five copies go.
+1. a) The one JSON encoding of a facade request; the five copies go. b) `PieceCore`.
 2. `ScorePage`: `PageCommand` and `PageEvent` in Swift, the root routes events; fixtures and tests on both sides.
 3. – 9. One model a step: Pen, Selection, Marks, Check, Sources, Merge, Focus. Each moves its state and methods out of
    `ScoreController`, gets tests against fake ports, and switches the views that show it.

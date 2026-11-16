@@ -250,8 +250,7 @@ enum PieceDetailsFile {
         }
         var request = fields
         request["file"] = file
-        let encoded = try JSONSerialization.data(withJSONObject: request)
-        let body = String(decoding: encoded, as: UTF8.self)
+        let body = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.metadata", body) }
         guard let object = facadeObject(answer), object["error"] == nil,
               let changed = object["file"] as? String, let summary = PieceSummary(answer: answer) else {

@@ -73,9 +73,10 @@ enum MusicCore {
     }
 }
 
-/// A facade request as JSON text, the one encoding every call uses; "{}" when the object is not JSON.
+/// A facade request as JSON text, the one encoding every call uses; "{}" when the object is not JSON. Its keys are sorted,
+/// so the same fields always give the same text (a selection's request is compared as text, SelectionHistory).
 func facadeRequest(_ fields: [String: Any]) -> String {
-    guard let data = try? JSONSerialization.data(withJSONObject: fields) else { return "{}" }
+    guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys]) else { return "{}" }
     return String(decoding: data, as: UTF8.self)
 }
 

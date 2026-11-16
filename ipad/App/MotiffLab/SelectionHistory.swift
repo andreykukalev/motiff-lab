@@ -129,8 +129,7 @@ struct SelectionSpan: Equatable, Sendable {
             body = ["span": ["onset": Int(onset), "end": Int(end)], "empty": true]
             if let hand { body["filter"] = ["hand": hand] }
         }
-        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data("{}".utf8)
-        return String(decoding: data, as: UTF8.self)
+        return facadeRequest(body)
     }
 
     /// The request that selects the notes given, as the iPad picks them.
