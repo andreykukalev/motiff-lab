@@ -1051,7 +1051,7 @@ extension ScoreScreen {
         // A span drawn there, notes or none (v0.6.4), and the score's tuplets for the roll's grid: one selection for both.
         roll.sharePlaces(with: score)
         roll.gestureCancelled = { [weak score] gesture in score?.revertGesture(gesture) }
-        roll.holdHinted = { [weak score] in score?.receivedGesture(["holdHint": true]) }
+        roll.holdHinted = { [weak score] in score?.handle(.holdHint) }
         // The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:
         // one tool at a time.
         score.penChanged = { [weak roll, weak score] on in

@@ -46,7 +46,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         didSet {
             applyInput()
             penChanged?(penOn)
-            if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
+            if shown { Task { await scorePage.send(.pen, penOn) } }
             sendMode()
         }
     }
@@ -292,6 +292,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     let webView: WKWebView
+    /// The page in `webView`, the one way to its functions (`PageCommand`, decision record 0031).
+    let scorePage: ScorePage
     /// The pen, and who writes and who scrolls (#479 items 7 and 18).
     private let ink = InkInput()
     private(set) var piece: OpenPiece?
@@ -351,6 +353,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
+        scorePage = WebScorePage(webView)
         super.init()
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
@@ -469,84 +472,104 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     // MARK: - The page
 
-    /// What the page reports: the pages in view, where the menu goes, and what the player did on the score.
+    /// What the page reports (`PageEvent`): the pages in view, where the menu goes, and what the player did on the score.
     fileprivate func received(_ message: [String: Any]) {
-        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
-        if let report = message["pages"] as? [String: Any] {
-            pages = PagesInView(first: Int(number(report["first"]) ?? 0), last: Int(number(report["last"]) ?? 0), count: Int(number(report["count"]) ?? 0))
+        for event in PageEvent.events(in: message) {
+            handle(event)
         }
-        if message.keys.contains("menu") {
-            let place = message["menu"] as? [String: Any]
-            menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
+    }
+
+    /// Acts on one thing the page reported; the roll's long press comes here too (its hold hint).
+    func handle(_ event: PageEvent) {
+        if !handleSelection(event) {
+            handleMarks(event)
         }
-        // What the place rule chose is receivedPlace's (#601).
-        if let chosen = message["chosen"] as? [String: Any], chosen["places"] as? Bool != true, let start = number(chosen["start"]), let end = number(chosen["end"]) {
-            // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before. The gesture's
-            // changes are one step of the selection's history (#511 11).
-            let gesture = chosen["gesture"] as? String
-            if chosen["beats"] as? Bool == true {
-                selectBeats(start, end, gesture: gesture)
-            } else {
-                Task { await select(start, end, gesture: gesture) }
-            }
-        }
-        receivedGesture(message)
-        receivedPlace(message)
-        // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
-        // choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
-        if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
+    }
+
+    /// The selection's events; false for the others.
+    private func handleSelection(_ event: PageEvent) -> Bool {
+        switch event {
+        case .menu(let place):
+            menuPlace = place
+        case let .chosen(chosen, start, end):
+            choose(chosen, start, end)
+        case .cleared(let gesture):
+            clearSelection(gesture: gesture)
+        case .gestureCancelled(let gesture):
+            revertGesture(gesture)
+        case .holdHint:
+            showHoldHint()
+        case let .picked(id, picked):
+            selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
+        case .zoomSelection(let box):
+            zoomToSelection(box)
+        case .tuplets(let groups):
+            tupletsRead?(Self.tuplets(groups))
+        case let .bar(start, end):
+            // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or
+            // another choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
             if selection == nil {
                 Task { await select(start, end) }
             } else {
                 blankTapped?()
             }
+        case .handles(let spots):
+            handleSpots = spots
+        default:
+            return false
         }
-        if let bookmark = message["bookmark"] as? String {
-            goToBookmark(bookmark)
-        }
-        if let note = message["noteMarker"] as? String {
-            openNote(note)
-        }
-        if let handles = message["handles"] as? [[String: Any]] {
-            handleSpots = handles.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
-        }
-        if let away = number(message["playheadAway"]) {
-            playheadAway = away < 0 ? nil : away
-        }
-        if let bar = number(message["checkFlag"]) {
-            showCheckBar(Int(bar))
-            checkPicked?(Int(bar))
-        }
-        if let bar = number(message["performanceBar"]) {
-            markerPick = MarkerPick(bar: Int(bar), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0)
-            showVersionBar(Int(bar))
-        }
-        receivedUnderModes(message)
-        // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
-        if message["blank"] != nil {
-            blankTapped?()
-        }
-        if message["leave"] != nil {
-            leaveFocus()
-        }
-        if let options = message["cardLayout"] as? [String: Any] {
-            cardOptions = facadeRequest(options)
-            Task { await engraveCard() }
+        return true
+    }
+
+    /// A span the selection rule chose. By places on the notes (#601) it is PlaceSelection's; by beats (#349) music-core
+    /// takes the edges to the beat lines; otherwise to the bars. The gesture's changes are one step of the selection's
+    /// history (#511 11).
+    private func choose(_ chosen: [String: Any], _ start: Double, _ end: Double) {
+        let gesture = chosen["gesture"] as? String
+        if chosen["places"] as? Bool == true {
+            chosenByPlace(chosen, start, end)
+        } else if chosen["beats"] as? Bool == true {
+            selectBeats(start, end, gesture: gesture)
+        } else {
+            Task { await select(start, end, gesture: gesture) }
         }
     }
 
-    /// Under the modes (version 0.5) a tap places a playhead on its beat; notes are edited only in the roll (#479 item 23).
-    /// A playhead's handle dragged goes to the player, and where the handles are is kept for the pen (#495 UX-08).
-    private func receivedUnderModes(_ message: [String: Any]) {
-        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
-        if let place = message["place"] as? [String: Any], let start = number(place["start"]), let end = number(place["end"]) {
+    /// The pages, the marks, the playheads and Expand's card. Under the modes (version 0.5) a tap places a playhead on its
+    /// beat; notes are edited only in the roll (#479 item 23). A playhead's handle dragged goes to the player, and where the
+    /// handles are is kept for the pen (#495 UX-08).
+    private func handleMarks(_ event: PageEvent) {
+        switch event {
+        case let .pages(first, last, count):
+            pages = PagesInView(first: first, last: last, count: count)
+        case .bookmark(let id):
+            goToBookmark(id)
+        case .noteMarker(let id):
+            openNote(id)
+        case .checkFlag(let bar):
+            showCheckBar(bar)
+            checkPicked?(bar)
+        case let .performanceBar(bar, left, bottom):
+            markerPick = MarkerPick(bar: bar, left: left, bottom: bottom)
+            showVersionBar(bar)
+        case .playheadAway(let away):
+            playheadAway = away < 0 ? nil : away
+        case let .place(start, end):
             placeTapped?(start..<max(end, start + 1))
-        }
-        if let heads = message["heads"] as? [[String: Any]] {
-            headSpots = heads.compactMap { spot in number(spot["x"]).map { CGPoint(x: $0, y: number(spot["y"]) ?? 0) } }
-        }
-        if let gesture = PlayheadGesture(message: message["drag"]) {
+        case .heads(let spots):
+            headSpots = spots
+        case .drag(let gesture):
             playheadGestured?(gesture)
+        case .blank:
+            // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
+            blankTapped?()
+        case .leave:
+            leaveFocus()
+        case .cardLayout(let options):
+            cardOptions = facadeRequest(options)
+            Task { await engraveCard() }
+        default:
+            break
         }
     }
 
@@ -670,7 +693,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func drawBookmarks() async {
-        _ = try? await webView.callAsyncJavaScript("return motiff.bookmarks(data)", arguments: ["data": ["items": bookmarkItems]], contentWorld: .page)
+        await scorePage.send(.bookmarks, ["items": bookmarkItems])
     }
 
     /// A bookmark gone to from its bracket or its entry: the score selects it and brings it into view; gone to again with
@@ -685,7 +708,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             await select(span.lowerBound, span.upperBound)
             if let selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
-            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+            await scorePage.send(.reveal, ["start": span.lowerBound])
         }
         return false
     }
@@ -725,13 +748,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// A drawer over the left of the page this wide: the selection menu keeps to its right.
     func clearLeft(_ width: CGFloat) {
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.clearLeft(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) }
+        Task { await scorePage.send(.clearLeft, ["width": Double(width)]) }
     }
 
     /// The pages with their stretches of the piece and their pictures, `width` pixels wide, for the Pages tab.
     func outline(width: CGFloat) async -> [PageOutline] {
         guard shown,
-              let answer = try? await webView.callAsyncJavaScript("return motiff.outline(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) as? [Any]
+              let answer = try? await scorePage.call(.outline, ["width": Double(width)]) as? [Any]
         else { return [] }
         return answer.compactMap { entry in
             guard let page = entry as? [String: Any], let number = (page["page"] as? NSNumber)?.intValue else { return nil }
@@ -751,14 +774,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Where the notes on a page (from 1) start, for PDF | Notes (0023); nil before the score is shown.
     func firstTick(onPage page: Int) async -> Double? {
         guard shown, page > 0 else { return nil }
-        let tick = try? await webView.callAsyncJavaScript("return motiff.firstTickOn(data)", arguments: ["data": ["page": page]], contentWorld: .page)
+        let tick = try? await scorePage.call(.firstTickOn, ["page": page])
         return (tick as? NSNumber)?.doubleValue
     }
 
     /// Brings a page to the top of the view, under the bar.
     func showPage(_ page: Int) {
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.showPage(data)", arguments: ["data": ["page": page]], contentWorld: .page) }
+        Task { await scorePage.send(.showPage, ["page": page]) }
     }
 
     // MARK: - Margin notes, highlights and layers
@@ -776,7 +799,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             if selection?.onset != note.onset || selection?.end != note.end {
                 await select(note.onset, note.end)
-                _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": note.onset]], contentWorld: .page)
+                await scorePage.send(.reveal, ["start": note.onset])
             }
             noteDraft = draft
         }
@@ -864,7 +887,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var hidden = Self.layers.filter(hiddenLayers.contains)
         if !extraShown("check") && !checkDrawerOpen { hidden.append("check") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
-        _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": hidden, "slate": slate]], contentWorld: .page)
+        await scorePage.send(.layers, ["hidden": hidden, "slate": slate])
     }
 
     /// The level a piece opens in (the setting "phrases.granularity"), shown without becoming the piece's own; a piece that
@@ -920,7 +943,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             ?? check.lengths.first(where: { $0.bar == bar })?.span else { return }
         Task {
             await select(span.lowerBound, span.upperBound)
-            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+            await scorePage.send(.reveal, ["start": span.lowerBound])
         }
     }
 
@@ -1160,7 +1183,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "label": text.format("check.flagLabel", String(bar.bar), CheckShelf.reasonNames(bar.flags, text))]
         }
-        _ = try? await webView.callAsyncJavaScript("return motiff.checks(data)", arguments: ["data": ["flags": flags]], contentWorld: .page)
+        await scorePage.send(.checks, ["flags": flags])
     }
 
     // MARK: - Other versions
@@ -1233,7 +1256,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let span = versions.bars.first(where: { $0.bar == bar })?.span else { return }
         Task {
             await select(span.lowerBound, span.upperBound)
-            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+            await scorePage.send(.reveal, ["start": span.lowerBound])
         }
     }
 
@@ -1385,7 +1408,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             "added": viewed ? mergeAdded : [], "artefacts": [String](), "own": viewed ? mergeOwn : [],
             "taken": extraShown("taken") && !viewed ? versions.taken.compactMap { $0.span?.lowerBound } : [],
         ]
-        _ = try? await webView.callAsyncJavaScript("return motiff.performance(data)", arguments: ["data": data], contentWorld: .page)
+        await scorePage.send(.performance, data)
         await updateFocusVersion()
         await applyMergeView()
     }
@@ -1722,7 +1745,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         setPageStill(true)
         let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text[entry.backKey]]
         Task {
-            let answer = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
+            let answer = try? await scorePage.call(.focus, request) as? [String: Any]
             if let options = answer?["options"] as? [String: Any] { cardOptions = facadeRequest(options) }
             await updatePlayRange()
             await engraveCard()
@@ -1759,7 +1782,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         focusVersion = nil
         setPageStill(false)
         Task {
-            _ = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": ["open": false]], contentWorld: .page)
+            await scorePage.send(.focus, ["open": false])
             await updatePlayRange()
         }
     }
@@ -1787,7 +1810,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Scrolls the page smoothly to where a tick is, without a jump of page.
     private func reveal(_ tick: Double) async {
-        _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": tick]], contentWorld: .page)
+        await scorePage.send(.reveal, ["start": tick])
     }
 
     // MARK: - Resume and beats
@@ -1805,7 +1828,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func applyBeats() async {
         guard shown else { return }
-        _ = try? await webView.callAsyncJavaScript("return motiff.beats(data)", arguments: ["data": ["lines": beatLines]], contentWorld: .page)
+        await scorePage.send(.beats, ["lines": beatLines])
     }
 
     /// Back where the player stopped (#327): the passage selected and brought into view, and in focus when it was. It
@@ -1864,9 +1887,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let timemap = (try? JSONSerialization.jsonObject(with: Data(card.timemap.utf8))) ?? []
             let label = name.map { text.format("focus.ossia", $0) } ?? version.map { text.format("focus.version", $0.name) } ?? ""
             let ossias = card.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": label, "added": $0.added] as [String: Any] }
-            _ = try? await webView.callAsyncJavaScript(
-                "return motiff.card(data)", arguments: ["data": ["pages": card.pages, "timemap": timemap, "start": selection.onset, "ossias": ossias]], contentWorld: .page
-            )
+            await scorePage.send(.card, ["pages": card.pages, "timemap": timemap, "start": selection.onset, "ossias": ossias])
         case .failure(let error):
             problem = error.message
         }
@@ -1897,7 +1918,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func showRings(scroll: Bool) async {
         let data: [String: Any] = ["places": ringed.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }, "scroll": scroll]
-        _ = try? await webView.callAsyncJavaScript("return motiff.highlight(data)", arguments: ["data": data], contentWorld: .page)
+        await scorePage.send(.highlight, data)
     }
 
     /// Where the player is (0018 section 7): the notes sounding at the tick turn cobalt on the page, or on the card in focus,
@@ -1907,28 +1928,26 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard shown else { return }
         // The page follows the playing unless the player turned that off ("playback.follow", testing item 4).
         let data: [String: Any] = ["tick": tick, "playing": playing, "follow": follow, "auto": DeviceSettings.shared.isOn("playback.follow")]
-        webView.callAsyncJavaScript("return motiff.playing(data)", arguments: ["data": data], in: nil, in: .page, completionHandler: nil)
+        scorePage.post(.playing, data)
     }
 
     /// Back to playback: the page scrolls to the playhead and follows again.
     func returnToPlayhead() {
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.returnToPlayhead()", arguments: [:], contentWorld: .page) }
+        Task { await scorePage.send(.returnToPlayhead) }
     }
 
     /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.
     func insetBottom(_ height: CGFloat) {
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.inset(data)", arguments: ["data": ["bottom": Double(height)]], contentWorld: .page) }
+        Task { await scorePage.send(.inset, ["bottom": Double(height)]) }
     }
 
     /// The size of the selection menu, for the page to place it over the band.
     func menuSize(_ size: CGSize) {
         guard shown, size.width > 0 else { return }
         Task {
-            _ = try? await webView.callAsyncJavaScript(
-                "return motiff.menuSize(data)", arguments: ["data": ["width": size.width, "height": size.height]], contentWorld: .page
-            )
+            await scorePage.send(.menuSize, ["width": size.width, "height": size.height])
         }
     }
 
@@ -1938,14 +1957,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard shown, let place = menuPlace else { return }
         menuPlace = CGPoint(x: place.x + translation.width, y: place.y + translation.height)
         let data: [String: Any] = ["dx": Double(translation.width), "dy": Double(translation.height)]
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuMoved(data)", arguments: ["data": data], contentWorld: .page) }
+        Task { await scorePage.send(.menuMoved, data) }
     }
 
     /// Whether the selection menu is shown; put away (the selection gone, Hide, the roll's drawer, Expand), the next one
     /// opens over its band.
     func menuShown(_ open: Bool) {
         guard shown, !open else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.menuClosed()", arguments: [:], contentWorld: .page) }
+        Task { await scorePage.send(.menuClosed) }
     }
 
     private func loadPhrases(_ piece: OpenPiece) async {
@@ -1964,7 +1983,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             if let picked = selection.picked { drawn["picked"] = picked }
             band = drawn
         }
-        _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
+        await scorePage.send(.select, band)
     }
 
     /// What a unit is called, as a screen reader and the assistant say it: "Phrase 3, bars 9–12".
@@ -1987,11 +2006,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ProbeCounts.shared.add("renders")
         let timemap = (try? JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))) ?? []
         do {
-            let laid = try await webView.callAsyncJavaScript(
-                "return motiff.show(data)",
-                arguments: ["data": ["pages": piece.pages, "timemap": timemap, "dark": dark]],
-                contentWorld: .page
-            ) as? [String: Any]
+            let laid = try await scorePage.call(.show, ["pages": piece.pages, "timemap": timemap, "dark": dark]) as? [String: Any]
             if let space = (laid?["space"] as? NSNumber)?.doubleValue, space > 0 {
                 staffSpace = space
             }
@@ -1999,10 +2014,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             ProbeCounts.shared.mark("drawn")
             if let tick = piece.landing?.tick {
                 // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
-                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick, "instant": true]], contentWorld: .page)
+                await scorePage.send(.showTick, ["tick": tick, "instant": true])
             }
             if Landing.notesShowOnRender(piece.landing) { land() }
-            _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
+            await scorePage.send(.pen, penOn)
             applyInput()
             await sendModeNow()
             await sendPlayheadsNow()
@@ -2044,13 +2059,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         markCount = ink.count
         let shelf = MarksShelf(object: object)
         marks = shelf
-        _ = try? await webView.callAsyncJavaScript("return motiff.draw(data)", arguments: ["data": ["marks": ink]], contentWorld: .page)
+        await scorePage.send(.draw, ["marks": ink])
         let notes: [[String: Any]] = shelf.notes.map { note in
             let label = text.format("margin.markerLabel", String(shelf.number(of: note)), barsText(note.firstBar, note.lastBar, text), MarksShelf.firstWords(note.text))
             return ["id": note.id, "tick": note.onset, "number": shelf.number(of: note), "label": label]
         }
         let highlights: [[String: Any]] = shelf.highlights.map { ["id": $0.id, "start": $0.onset, "end": $0.end, "ink": $0.colour] }
-        _ = try? await webView.callAsyncJavaScript("return motiff.notes(data)", arguments: ["data": ["notes": notes, "highlights": highlights]], contentWorld: .page)
+        await scorePage.send(.notes, ["notes": notes, "highlights": highlights])
     }
 
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
@@ -2121,13 +2136,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let points = rubPoints
         rubPoints = []
         guard !points.isEmpty else { return }
-        _ = try? await webView.callAsyncJavaScript("return motiff.rub(data)", arguments: ["data": ["points": points]], contentWorld: .page)
+        await scorePage.send(.rub, ["points": points])
     }
 
     /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
     /// marks it cut, drawn once both are done), and Undo puts it back whole.
     private func endRub(_ piece: Int32?) async {
-        guard let cut = try? await webView.callAsyncJavaScript("return motiff.rubEnd()", contentWorld: .page) as? [String: Any],
+        guard let cut = try? await scorePage.call(.rubEnd) as? [String: Any],
               let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty, let piece
         else { return }
         let pieces = cut["added"] as? [[String: Any]] ?? []
@@ -2142,7 +2157,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
     private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String, width: Int) async {
         let request: [String: Any] = ["points": points, "tool": tool, "colour": colour, "width": width]
-        guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],
+        guard let mark = try? await scorePage.call(.anchor, request) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
         steps.record(InkStep(added: [id], strokes: [mark]))
@@ -2158,7 +2173,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.apply(rules)
         toolChanged?(mode, penOn)
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.input(data)", arguments: ["data": rules.page], contentWorld: .page) }
+        Task { await scorePage.send(.input, rules.page) }
     }
 
     /// Where the Pencil hovers over the window, for the stylus menu's place over the roll and the rest of the screen (#521 7).
@@ -2170,7 +2185,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// follows again as long after as after a scroll by hand.
     private func penDown(_ down: Bool) {
         guard shown else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return motiff.writing(data)", arguments: ["data": ["on": down]], contentWorld: .page) }
+        Task { await scorePage.send(.writing, ["on": down]) }
     }
 
     /// Handles, given in the document's pixels, where they are on the screen now, in the web view's coordinates.
@@ -2187,7 +2202,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func sendModeNow() async {
         let data: [String: Any] = ["name": penOn ? InteractionMode.pen.rawValue : mode.rawValue]
-        _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
+        await scorePage.send(.mode, data)
     }
 
     /// The one playback position the page draws (v0.5.2, #479 item 19): `{ selection: {start, end} or null }`, inside which it
@@ -2203,7 +2218,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func sendPlayheadsNow() async {
         let value: Any = playheadsWanted.map { $0 as Any } ?? NSNull()
-        _ = try? await webView.callAsyncJavaScript("return motiff.playheads(data)", arguments: ["data": value], contentWorld: .page)
+        await scorePage.send(.playheads, value)
     }
 
     /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the
@@ -2305,20 +2320,6 @@ extension ScoreController {
     /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
     static let selectionToastSeconds = 6.0
     static let holdHintSeconds = 2.0
-
-    /// The page's gesture messages: a hold outside took the selection away, a gesture was cancelled, or a pointer that
-    /// cannot scroll moved off the selection before the hold.
-    func receivedGesture(_ message: [String: Any]) {
-        if let cleared = message["cleared"] as? [String: Any] {
-            clearSelection(gesture: cleared["gesture"] as? String)
-        }
-        if let gesture = message["gestureCancelled"] as? String {
-            revertGesture(gesture)
-        }
-        if message["holdHint"] != nil {
-            showHoldHint()
-        }
-    }
 
     /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a
     /// replace shows «Вернуть»; any other step puts it away, as it would no longer take back the clear.

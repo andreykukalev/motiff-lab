@@ -53,24 +53,6 @@ extension ScoreController {
     /// How far round the selection a double tap zooms to, in points.
     static var zoomMargin: CGFloat { CGFloat.ds("s-6") }
 
-    /// The place layer's messages: a passage it chose (`chosen` with `places`), a note head tapped (`picked`), a double tap
-    /// inside the selection (`zoomSelection`).
-    func receivedPlace(_ message: [String: Any]) {
-        if let chosen = message["chosen"] as? [String: Any], chosen["places"] as? Bool == true,
-           let start = (chosen["start"] as? NSNumber)?.doubleValue, let end = (chosen["end"] as? NSNumber)?.doubleValue {
-            chosenByPlace(chosen, start, end)
-        }
-        if let picked = message["picked"] as? [String: Any], let id = picked["id"] as? String {
-            selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
-        }
-        if message.keys.contains("zoomSelection") {
-            zoomToSelection(message["zoomSelection"] as? [String: Any])
-        }
-        if let groups = message["tuplets"] as? [[String: Any]] {
-            tupletsRead?(Self.tuplets(groups))
-        }
-    }
-
     /// The tuplet blocks the page read ({start, end} in ticks), the ones with both ends.
     nonisolated static func tuplets(_ groups: [[String: Any]]) -> [[String: Double]] {
         groups.compactMap { group in
