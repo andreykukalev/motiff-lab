@@ -298,9 +298,9 @@ final class InsightsController: ObservableObject {
             guard let onset = (note["onset"] as? NSNumber)?.doubleValue, let duration = (note["duration"] as? NSNumber)?.doubleValue else { return nil }
             return onset + duration
         }
-        let heard = await MusicCore.run { MusicCore.call(piece: piece, "playback", #"{"of": "inPlace"}"#) }
-        guard let score = PlaybackScore.read(heard) else {
-            problem = facadeObject(heard)?["message"] as? String
+        let heard = await PieceCore(piece: piece).playback(#"{"of": "inPlace"}"#)
+        guard let score = heard.value.map(PlaybackScore.init) else {
+            problem = heard.message
             return
         }
         trial = Trial(factId: fact.id, way: way, explanation: result["explanation"] as? String ?? "", end: ends.max() ?? 0)

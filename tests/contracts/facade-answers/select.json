@@ -1,0 +1,103 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "select",
+   "request": {
+    "bars": {
+     "first": 4,
+     "last": 6
+    }
+   },
+   "answer": {
+    "selection": {
+     "onset": 2400,
+     "end": 4560,
+     "firstBar": 4,
+     "lastBar": 6,
+     "firstBeat": 1,
+     "lastBeat": 3,
+     "barCount": 3,
+     "filter": {},
+     "noteIds": [
+      "n_0023",
+      "n_0024",
+      "n_0025",
+      "n_0026",
+      "n_0027",
+      "n_0028",
+      "n_0029",
+      "n_0030",
+      "n_0031",
+      "n_0032",
+      "n_0033",
+      "n_0034",
+      "n_0035",
+      "n_0036",
+      "n_0037",
+      "n_0038",
+      "n_0039",
+      "n_0040",
+      "n_0041",
+      "n_0042"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  },
+  {
+   "call": "select",
+   "request": {
+    "bars": {
+     "first": 4,
+     "last": 6
+    },
+    "filter": {
+     "hand": "right"
+    }
+   },
+   "answer": {
+    "selection": {
+     "onset": 2400,
+     "end": 4560,
+     "firstBar": 4,
+     "lastBar": 6,
+     "firstBeat": 1,
+     "lastBeat": 3,
+     "barCount": 3,
+     "filter": {
+      "hand": "right"
+     },
+     "noteIds": [
+      "n_0024",
+      "n_0027",
+      "n_0028",
+      "n_0029",
+      "n_0030",
+      "n_0031",
+      "n_0032",
+      "n_0033",
+      "n_0034",
+      "n_0035",
+      "n_0037",
+      "n_0040",
+      "n_0041",
+      "n_0042"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  }
+ ]
+}

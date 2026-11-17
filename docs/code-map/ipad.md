@@ -30,8 +30,10 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings, About |
 
 Which folder may use which (blueprint 5.2): `Platform` uses nothing above it; a feature uses `Platform` and, where the
-blueprint's table says so, reads Selection; only `Workspace` knows several features. The check that enforces it is the
-second half of B1 (not yet in `tools/quality`).
+blueprint's table says so, reads Selection; only `Workspace` knows several features. The `dependencies` check enforces
+it (`IPAD_FOLDER_USES` in `tools/quality/dependencies.mjs`, `governance/quality/README.md`). The edges the app had when
+the check came are `ipad-folder` entries of `tools/quality/baseline.json`, one per file and type named, which the
+folders' maps do not repeat: `grep '"ipad-folder","file":"src/ipad/App/MotiffLab/<Folder>/' tools/quality/baseline.json`.
 
 ## The UI walk
 

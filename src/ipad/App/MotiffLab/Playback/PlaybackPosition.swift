@@ -303,12 +303,12 @@ struct BarBeats: Equatable, Sendable {
         return (first.text, last.text)
     }
 
-    /// The beats of music-core's playback answer, each with its "at", "bar" and "beat".
-    static func read(_ beats: [[String: Any]]) -> BarBeats {
+    /// The beats of music-core's playback answer, each with its "at", "bar" and "beat"; a beat without its bar and beat is
+    /// left out.
+    static func read(_ beats: [PlaybackAnswer.Beat]) -> BarBeats {
         let marks = beats.compactMap { beat -> Mark? in
-            guard let at = (beat["at"] as? NSNumber)?.doubleValue, let bar = (beat["bar"] as? NSNumber)?.intValue,
-                  let number = (beat["beat"] as? NSNumber)?.intValue else { return nil }
-            return Mark(at: at, place: BarBeat(bar: bar, beat: number))
+            guard let bar = beat.bar, let number = beat.beat else { return nil }
+            return Mark(at: beat.at, place: BarBeat(bar: bar, beat: number))
         }
         return BarBeats(marks: marks)
     }
