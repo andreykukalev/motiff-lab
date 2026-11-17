@@ -11,11 +11,16 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`).
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
+- `Versions.swift`: `MergeInfo` (the draft, from `MergeAnswer`: `PieceCore.merge`), `VersionShelf` (the versions and the
+  one compared, from `PerformanceAnswer`: `PieceCore.mergeApply` and `.mergeUndoApplied`, or from the text of the version
+  calls not yet in the port, `read(performance:)`, `read(list:)`), `VersionEntry` (`init?(_: VersionHead)`), the views.
 
 ## The contract others may rely on
 
 - `SourceLayers` holds only what music-core answered (`tests/contracts/facade-answers/sources.layers.json`, decoded by
   `FacadeAnswerFixturesTests`); every request of the sheet carries `"device": "ipad"` and `"here"`.
+- `MergeInfo` and `VersionShelf` likewise (`performance.merge.json`); the draft's calls are made only by `ScoreController`'s
+  `mergeCall`, `applyDraft`, `unapply` and `hearMerge`, through `PieceCore`.
 
 ## The state it owns
 

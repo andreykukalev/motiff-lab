@@ -9,7 +9,7 @@
 //      or, inside `enum`/`extension MusicCore`, `Self.call`, `self.call` or `call`. `MusicCore.run { … }` only runs work
 //      on the core's thread, `facadeRequest` only encodes the request's fields, `MusicCore.open` and `MusicCore.close` are
 //      `ml_open` and `ml_close`, not calls by name.
-//   2. A parameter passed on as the name: a helper such as `correct(_ call: String, …)`, `mergeCall(_ piece:, _ call:, …)`
+//   2. A parameter passed on as the name: a helper such as `change(_ piece:, _ call: String, …)`, `correctionsCall(_ name:, …)`
 //      or `FolderPlan.call(_ name:, …)` hands its own parameter to MusicCore.call or to another such helper; the names
 //      are then the literals at the helper's call sites, followed through any depth of helpers, by position for an
 //      unlabelled parameter and by label for a labelled one. A site reaches the helper through its type's name, through
@@ -584,10 +584,23 @@ test("a call the port makes is made from no other file", () => {
     const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
     const corrections = ["", ".change", ".remove", ".revert", ".undo", ".acceptDraft", ".undoDraft", ".layer", ".drop", ".begin", ".set", ".add", ".reset", ".discard", ".save"]
         .map((call) => `corrections${call}`);
-    assert.ok(["select", "playback", "sources.layers", ...corrections].every((name) => ported.has(name)), `the port's calls read: ${[...ported].join(", ")}`);
+    const merge = ["open", "choose", "undecide", "undo", "redo", "reset", "cancel", "playback", "apply", "undoApplied"].map((call) => `performance.merge.${call}`);
+    const required = ["select", "playback", "sources.layers", ...corrections, "phrases.level", ...merge];
+    assert.deepEqual(required.filter((name) => !ported.has(name)), [], `the port's calls read: ${[...ported].join(", ")}`);
     const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
         .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
     assert.deepEqual(elsewhere, [], "make these calls through PieceCore");
+});
+
+test("each case of the port's enums of calls sends the call it is named after", () => {
+    // PieceCore.Correction and PieceCore.Merge: the case is the last part of its call's name, so two literals swapped fail
+    // here. The one exception: `.bar` is the plain `corrections`.
+    const port = readFileSync(join(swiftRoot, "Platform", "PieceCore.swift"), "utf8");
+    const named = { bar: "corrections" };
+    const cases = [...port.matchAll(/case \.(\w+):\s*\n\s*return await \w+\("([^"]+)"/g)].map(([, name, call]) => ({ name, call }));
+    assert.ok(cases.length >= 22, `only ${cases.length} cases read`);
+    const wrong = cases.filter(({ name, call }) => (name in named ? call !== named[name] : call.split(".").pop() !== name)).map(({ name, call }) => `.${name} → ${call}`);
+    assert.deepEqual(wrong, []);
 });
 
 test("the reader still sees the Swift's calls", () => {

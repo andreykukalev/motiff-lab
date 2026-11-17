@@ -36,6 +36,58 @@ struct SelectionAnswer: Decodable, Sendable {
     }
 }
 
+/// The phrases at the level shown (`Answer.Phrases`): `phrases`, `phrases.edit`, and `phrases.level` with its selection
+/// (`PhraseLevelAnswer`). The level and the units are read as before they were typed: every field but "level" and "units"
+/// with the default it had, and a unit without its number, onset or end left out.
+struct PhrasesAnswer: Decodable, Sendable {
+    /// One level with how many units it has.
+    struct Level: Decodable, Sendable {
+        let id: String?
+        let count: Int?
+    }
+
+    /// The player's own boundaries at a level: the ticks added and taken away.
+    struct Edits: Decodable, Sendable {
+        let added: [Int]?
+        let removed: [Int]?
+    }
+
+    struct Unit: Decodable, Sendable {
+        let number: Int?
+        let name: String?
+        let firstBar: Int?
+        let lastBar: Int?
+        let onset: Double?
+        let end: Double?
+        let selectable: SpanAnswer?
+        let start: Start?
+    }
+
+    /// How a unit's start was found: "imported", "inferred", "userEdited", …
+    struct Start: Decodable, Sendable {
+        let provenance: String?
+    }
+
+    /// "short", "phrase" or "sentence".
+    let level: String
+    let levels: [Level]?
+    /// By level id.
+    let edits: [String: Edits]?
+    let units: [Unit]
+}
+
+/// `phrases.level` (`ChangeLevel` in OpenPiece.cs): the phrases at the new level, and the selection as it now is (null with
+/// none), both read from the one object.
+struct PhraseLevelAnswer: Decodable, Sendable {
+    let phrases: PhrasesAnswer
+    let selection: SelectionAnswer
+
+    init(from decoder: Decoder) throws {
+        phrases = try PhrasesAnswer(from: decoder)
+        selection = try SelectionAnswer(from: decoder)
+    }
+}
+
 /// The playback score (`Answer.Playback`: `playback`, `performance.merge.playback`, the reference's sounds): notes with
 /// the pedal already in their lengths, tempos, the tempo shown, beats and bars; "hands" only `playback` writes.
 struct PlaybackAnswer: Decodable, Sendable {
@@ -325,6 +377,124 @@ struct EditsLayerAnswer: Decodable, Sendable {
 /// The open answer's "edits" (`MusicCore.open`, OpenPiece.cs), written only for a piece opened with a layer.
 struct OpenedEdits: Decodable, Sendable {
     let edits: EditsLayerAnswer?
+}
+
+/// The merge draft (`Answer.Merge`, contract 7), the answer of `performance.merge.open` and of each change to the draft:
+/// {"merge": {…}}, null when none is open (`performance.merge.cancel`). music-core writes every field.
+struct MergeAnswer: Decodable, Sendable {
+    struct Draft: Decodable, Sendable {
+        let id: String
+        let name: String
+        let decided: Int
+        let total: Int
+        let sure: Int
+        let taking: Int
+        let canUndo: Bool
+        let canRedo: Bool
+        let changed: Bool
+        let bars: [Bar]
+    }
+
+    struct Bar: Decodable, Sendable {
+        let bar: Int
+        let kind: String
+        let group: String
+        let marker: String
+        let confidence: Int
+        let sure: Bool
+        /// Null while undecided.
+        let choice: String?
+
+        private enum CodingKeys: String, CodingKey { case bar, kind, group, marker, confidence, sure, choice }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            bar = try fields.decode(Int.self, forKey: .bar)
+            kind = try fields.decode(String.self, forKey: .kind)
+            group = try fields.decode(String.self, forKey: .group)
+            marker = try fields.decode(String.self, forKey: .marker)
+            confidence = try fields.decode(Int.self, forKey: .confidence)
+            sure = try fields.decode(Bool.self, forKey: .sure)
+            choice = try fields.decodeNullable(String.self, forKey: .choice)
+        }
+    }
+
+    /// Always written, null with no draft open.
+    let merge: Draft?
+
+    private enum CodingKeys: String, CodingKey { case merge }
+
+    init(from decoder: Decoder) throws {
+        merge = try decoder.container(keyedBy: CodingKeys.self).decodeNullable(Draft.self, forKey: .merge)
+    }
+}
+
+/// A version compared with the piece bar by bar (`Answer.Performance`, decision record 0022): the answer of
+/// `performance.merge.apply` and `.undoApplied`, and of `performance` and the changes to a version. Read as before it was
+/// typed: "performance" is needed, its fields each with the default it had, and a bar without its number left out.
+struct PerformanceAnswer: Decodable, Sendable {
+    struct Performance: Decodable, Sendable {
+        let head: VersionHead
+        let matched: Int?
+        let printed: Int?
+        let bars: [Bar]?
+
+        private enum CodingKeys: String, CodingKey { case matched, printed, bars }
+
+        init(from decoder: Decoder) throws {
+            head = try VersionHead(from: decoder)
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            matched = try fields.decodeIfPresent(Int.self, forKey: .matched)
+            printed = try fields.decodeIfPresent(Int.self, forKey: .printed)
+            bars = try fields.decodeIfPresent([Bar].self, forKey: .bars)
+        }
+    }
+
+    struct Bar: Decodable, Sendable {
+        let bar: Int?
+        let span: SpanAnswer?
+        let aligned: Bool?
+        let kind: String?
+        let marker: String?
+        let confidence: Int?
+        let dismissed: Bool?
+        let taken: Bool?
+        let notHeard: [String]?
+        /// Only how many there are is read.
+        let played: [Counted]?
+        let artefacts: [Counted]?
+    }
+
+    let performance: Performance
+}
+
+/// The versions of the piece (`Answer.Performances`): `performances`, and what removing one answers. A missing list is none.
+struct PerformancesAnswer: Decodable, Sendable {
+    let performances: [VersionHead]?
+}
+
+/// A version as `PerformanceHead` writes it, in `performances` and at the head of `performance`; read with the defaults it
+/// had, and left out without its id.
+struct VersionHead: Decodable, Sendable {
+    let id: String?
+    let name: String?
+    let takenBars: Int?
+    /// "score", "midi" or "recording".
+    let source: String?
+    /// ISO 8601, null before any merge is applied or once it is undone.
+    let mergedAt: String?
+    let mergeKept: Bool?
+}
+
+/// A span in ticks (`Answer.Span`), each end read as none when missing.
+struct SpanAnswer: Decodable, Sendable {
+    let onset: Double?
+    let end: Double?
+}
+
+/// An entry of a list the app only counts: any JSON value, read as nothing.
+struct Counted: Decodable, Sendable {
+    init(from decoder: Decoder) throws {}
 }
 
 extension KeyedDecodingContainer {

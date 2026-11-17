@@ -9,17 +9,19 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
-  `facadeRequest` and the answer read by `facadeObject`. The hot answers' readers use `FacadeAnswer` (A7): a refusal is
-  no success; a field music-core always writes, missing, is logged, asserts in Debug and shows `.problem`.
-  `FacadeAnswer.decode` (B5) reads an answer once into its typed answer, reporting through the same `broken`.
-- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b): `select`, `playback`, `sourceLayers` and
-  `corrections` (every `corrections.*` call, named by `PieceCore.Correction`), each answered as `PieceCore.Answer` (the
-  typed value, the text, music-core's `message`). Features make these calls only here; the others move here with their
-  typed answers (B5).
-- `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PlaybackAnswer`, `SourceLayersAnswer`,
-  `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`), mirroring their C#
-  writers; the features build `ScoreSelection`, `PlaybackScore`, `SourceLayers`, `NoteCorrections` and
-  `EditsLayerState` from them. They name no feature type.
+  `facadeRequest` and the answer read by `facadeObject`. `FacadeAnswer.decode` (B5) reads an answer once into its typed
+  answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
+  `.problem` (`broken`). `FacadeAnswer(_:of:)` with `required`/`entry`/`has` (A7) is left only for the roll's payload
+  (track R). `FacadeAnswer.message` is the one reading of music-core's words.
+- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b; a struct, the ADR's note): the hot features'
+  calls, `select`, `playback`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls), `phraseLevel`, `merge`
+  (`PieceCore.Merge`, the draft's 7 calls), `mergePlayback`, `mergeApply` and `mergeUndoApplied`, each answered as
+  `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls only here; the other
+  calls move with their features in phase C.
+- `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` and `PhraseLevelAnswer`, `PlaybackAnswer`,
+  `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
+  `MergeAnswer`, `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
+  features build their own types from them. They name no feature type.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages.
 - `Design.swift` reads `design/kit/tokens.css`.
@@ -35,7 +37,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## The contract others may rely on
 
 - Every facade name sent must be in `tests/contracts/facade-calls.json` (`tests/shared/facade-calls-contract.test.mjs`
-  reads the Swift for them); a call `PieceCore` makes is made from no other file.
+  reads the Swift for them); a call `PieceCore` makes is made from no other file, and each case of its enums of calls
+  sends the call it is named after.
 - The typed answers decode `tests/contracts/facade-answers/*.json` (`FacadeAnswerFixturesTests`), which
   `FacadeAnswersContractTests` keeps equal to the facade's answers on the example piece.
 - `PageCommand` and `PageEvent` are `tests/contracts/score-page.json`, checked by

@@ -1,0 +1,3395 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "phrases.level",
+   "request": {
+    "level": "sentence"
+   },
+   "answer": {
+    "level": "sentence",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "sentence",
+      "name": "sentence",
+      "firstBar": 0,
+      "lastBar": 8,
+      "onset": 0,
+      "end": 5760,
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "long": true,
+      "parent": null,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "Phrase 2 starts where phrase 1 comes back note for note, so it reads as the consequent; a repeat sign stands after phrase 2."
+      }
+     },
+     {
+      "number": 2,
+      "level": "sentence",
+      "name": "sentence",
+      "firstBar": 9,
+      "lastBar": 23,
+      "onset": 5760,
+      "end": 16560,
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "long": true,
+      "parent": null,
+      "start": {
+       "at": 5760,
+       "evidence": [],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "Phrase 4 starts where phrase 3 comes back note for note, so it reads as the consequent; phrase 4 ends on a half close, so it runs on; a repeat sign stands after phrase 5."
+      }
+     },
+     {
+      "number": 3,
+      "level": "sentence",
+      "name": "sentence",
+      "firstBar": 24,
+      "lastBar": 77,
+      "onset": 16560,
+      "end": 55440,
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "long": true,
+      "parent": null,
+      "start": {
+       "at": 16560,
+       "evidence": [],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "Phrase 6 ends on a half close, so it runs on; phrase 7 reads no close, so it runs on; phrase 8 reads no close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 ends on a half close, so it runs on; phrase 11 reads no close, so it runs on; phrase 12 ends on a half close, so it runs on; phrase 13 ends on a half close, so it runs on; phrase 14 ends on a half close, so it runs on; phrase 15 ends on the tonic, a full close."
+      }
+     },
+     {
+      "number": 4,
+      "level": "sentence",
+      "name": "sentence",
+      "firstBar": 78,
+      "lastBar": 105,
+      "onset": 55440,
+      "end": 75600,
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "long": true,
+      "parent": null,
+      "start": {
+       "at": 55440,
+       "evidence": [],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "Phrase 17 starts where phrase 16 comes back note for note, so it reads as the consequent; phrase 17 ends on a half close, so it runs on; phrase 18 ends on a half close, so it runs on; phrase 19 reads no close, so it runs on; phrase 20 ends on a half close, so it runs on; phrase 21 ends with the piece."
+      }
+     }
+    ],
+    "selection": null
+   }
+  },
+  {
+   "call": "select",
+   "request": {
+    "bars": {
+     "first": 5,
+     "last": 8
+    }
+   },
+   "answer": {
+    "selection": {
+     "onset": 3120,
+     "end": 5760,
+     "firstBar": 5,
+     "lastBar": 8,
+     "firstBeat": 1,
+     "lastBeat": 2,
+     "barCount": 4,
+     "filter": {},
+     "noteIds": [
+      "n_0030",
+      "n_0031",
+      "n_0032",
+      "n_0033",
+      "n_0034",
+      "n_0035",
+      "n_0036",
+      "n_0037",
+      "n_0038",
+      "n_0039",
+      "n_0040",
+      "n_0041",
+      "n_0042",
+      "n_0043",
+      "n_0044",
+      "n_0045",
+      "n_0046",
+      "n_0047",
+      "n_0048",
+      "n_0049",
+      "n_0050",
+      "n_0051",
+      "n_0052",
+      "n_0053"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  },
+  {
+   "call": "phrases.level",
+   "request": {
+    "level": "short"
+   },
+   "answer": {
+    "level": "short",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 0,
+      "lastBar": 1,
+      "onset": 0,
+      "end": 960,
+      "selectable": {
+       "onset": 0,
+       "end": 960
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece"
+      }
+     },
+     {
+      "number": 2,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 2,
+      "lastBar": 4,
+      "onset": 960,
+      "end": 2880,
+      "selectable": {
+       "onset": 960,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 960,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 3,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 4,
+      "lastBar": 5,
+      "onset": 2880,
+      "end": 3840,
+      "selectable": {
+       "onset": 2880,
+       "end": 3840
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 4,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 6,
+      "lastBar": 8,
+      "onset": 3840,
+      "end": 5760,
+      "selectable": {
+       "onset": 3840,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 3840,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 5,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 9,
+      "lastBar": 11,
+      "onset": 5760,
+      "end": 7920,
+      "selectable": {
+       "onset": 5760,
+       "end": 7920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 6,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 12,
+      "lastBar": 15,
+      "onset": 7920,
+      "end": 10560,
+      "selectable": {
+       "onset": 7920,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 7920,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 7,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 15,
+      "lastBar": 16,
+      "onset": 10560,
+      "end": 11520,
+      "selectable": {
+       "onset": 10560,
+       "end": 11520
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 8,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 17,
+      "lastBar": 19,
+      "onset": 11520,
+      "end": 13440,
+      "selectable": {
+       "onset": 11520,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 11520,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 9,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 19,
+      "lastBar": 20,
+      "onset": 13440,
+      "end": 14400,
+      "selectable": {
+       "onset": 13440,
+       "end": 14400
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 21,
+      "lastBar": 23,
+      "onset": 14400,
+      "end": 16560,
+      "selectable": {
+       "onset": 14400,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 14400,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 11,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 24,
+      "lastBar": 27,
+      "onset": 16560,
+      "end": 19440,
+      "selectable": {
+       "onset": 16560,
+       "end": 19440
+      },
+      "long": false,
+      "parent": 6,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 12,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 28,
+      "lastBar": 31,
+      "onset": 19440,
+      "end": 22320,
+      "selectable": {
+       "onset": 19440,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 6,
+      "start": {
+       "at": 19440,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 13,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 7,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 14,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 8,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 39,
+      "lastBar": 40,
+      "onset": 27840,
+      "end": 28800,
+      "selectable": {
+       "onset": 27840,
+       "end": 28800
+      },
+      "long": false,
+      "parent": 9,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 41,
+      "lastBar": 43,
+      "onset": 28800,
+      "end": 30720,
+      "selectable": {
+       "onset": 28800,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 9,
+      "start": {
+       "at": 28800,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 17,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 10,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 47,
+      "lastBar": 49,
+      "onset": 33120,
+      "end": 35280,
+      "selectable": {
+       "onset": 33120,
+       "end": 35280
+      },
+      "long": false,
+      "parent": 11,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 19,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 50,
+      "lastBar": 53,
+      "onset": 35280,
+      "end": 37920,
+      "selectable": {
+       "onset": 35280,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 11,
+      "start": {
+       "at": 35280,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 20,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 53,
+      "lastBar": 54,
+      "onset": 37920,
+      "end": 38880,
+      "selectable": {
+       "onset": 37920,
+       "end": 38880
+      },
+      "long": false,
+      "parent": 12,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 21,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 55,
+      "lastBar": 57,
+      "onset": 38880,
+      "end": 40800,
+      "selectable": {
+       "onset": 38880,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 12,
+      "start": {
+       "at": 38880,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 22,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 13,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 23,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 61,
+      "lastBar": 63,
+      "onset": 43200,
+      "end": 45360,
+      "selectable": {
+       "onset": 43200,
+       "end": 45360
+      },
+      "long": false,
+      "parent": 14,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 24,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 64,
+      "lastBar": 66,
+      "onset": 45360,
+      "end": 47520,
+      "selectable": {
+       "onset": 45360,
+       "end": 47520
+      },
+      "long": false,
+      "parent": 14,
+      "start": {
+       "at": 45360,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 25,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 67,
+      "lastBar": 68,
+      "onset": 47520,
+      "end": 48960,
+      "selectable": {
+       "onset": 47520,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 14,
+      "start": {
+       "at": 47520,
+       "evidence": [
+        "return"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where the phrase's opening figure comes back"
+      }
+     },
+     {
+      "number": 26,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 69,
+      "lastBar": 72,
+      "onset": 48960,
+      "end": 51840,
+      "selectable": {
+       "onset": 48960,
+       "end": 51840
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 27,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 73,
+      "lastBar": 74,
+      "onset": 51840,
+      "end": 53280,
+      "selectable": {
+       "onset": 51840,
+       "end": 53280
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 51840,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 28,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 75,
+      "lastBar": 77,
+      "onset": 53280,
+      "end": 55440,
+      "selectable": {
+       "onset": 53280,
+       "end": 55440
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 53280,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 29,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 78,
+      "lastBar": 78,
+      "onset": 55440,
+      "end": 56160,
+      "selectable": {
+       "onset": 55440,
+       "end": 56160
+      },
+      "long": false,
+      "parent": 16,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
+      }
+     },
+     {
+      "number": 30,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 79,
+      "lastBar": 80,
+      "onset": 56160,
+      "end": 57600,
+      "selectable": {
+       "onset": 56160,
+       "end": 57600
+      },
+      "long": false,
+      "parent": 16,
+      "start": {
+       "at": 56160,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after half a beat or more of rest"
+      }
+     },
+     {
+      "number": 31,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 81,
+      "lastBar": 83,
+      "onset": 57600,
+      "end": 59760,
+      "selectable": {
+       "onset": 57600,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 16,
+      "start": {
+       "at": 57600,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 32,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 17,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 33,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 18,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 34,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 91,
+      "lastBar": 93,
+      "onset": 64800,
+      "end": 66960,
+      "selectable": {
+       "onset": 64800,
+       "end": 66960
+      },
+      "long": false,
+      "parent": 19,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 35,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 94,
+      "lastBar": 97,
+      "onset": 66960,
+      "end": 69600,
+      "selectable": {
+       "onset": 66960,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 19,
+      "start": {
+       "at": 66960,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 36,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 97,
+      "lastBar": 98,
+      "onset": 69600,
+      "end": 70560,
+      "selectable": {
+       "onset": 69600,
+       "end": 70560
+      },
+      "long": false,
+      "parent": 20,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 37,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 99,
+      "lastBar": 101,
+      "onset": 70560,
+      "end": 72480,
+      "selectable": {
+       "onset": 70560,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 20,
+      "start": {
+       "at": 70560,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 38,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 101,
+      "lastBar": 102,
+      "onset": 72480,
+      "end": 73440,
+      "selectable": {
+       "onset": 72480,
+       "end": 73440
+      },
+      "long": false,
+      "parent": 21,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 39,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 103,
+      "lastBar": 105,
+      "onset": 73440,
+      "end": 75600,
+      "selectable": {
+       "onset": 73440,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 21,
+      "start": {
+       "at": 73440,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     }
+    ],
+    "selection": {
+     "onset": 2880,
+     "end": 3840,
+     "firstBar": 4,
+     "lastBar": 5,
+     "firstBeat": 3,
+     "lastBeat": 3,
+     "barCount": 2,
+     "filter": {},
+     "noteIds": [
+      "n_0028",
+      "n_0029",
+      "n_0030",
+      "n_0031",
+      "n_0032",
+      "n_0033",
+      "n_0034",
+      "n_0035"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  },
+  {
+   "call": "phrases.level",
+   "request": {
+    "level": "phrase",
+    "remember": false
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece"
+      }
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
+      }
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     }
+    ],
+    "selection": {
+     "onset": 2880,
+     "end": 5760,
+     "firstBar": 4,
+     "lastBar": 8,
+     "firstBeat": 3,
+     "lastBeat": 2,
+     "barCount": 5,
+     "filter": {},
+     "noteIds": [
+      "n_0028",
+      "n_0029",
+      "n_0030",
+      "n_0031",
+      "n_0032",
+      "n_0033",
+      "n_0034",
+      "n_0035",
+      "n_0036",
+      "n_0037",
+      "n_0038",
+      "n_0039",
+      "n_0040",
+      "n_0041",
+      "n_0042",
+      "n_0043",
+      "n_0044",
+      "n_0045",
+      "n_0046",
+      "n_0047",
+      "n_0048",
+      "n_0049",
+      "n_0050",
+      "n_0051",
+      "n_0052",
+      "n_0053"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  },
+  {
+   "call": "phrases",
+   "request": null,
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece"
+      }
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
+      }
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "joinWithNext": 1
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 38
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 20
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": [
+       2880
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 8,
+      "onset": 0,
+      "end": 5760,
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "long": true,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece"
+      }
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "reset": true
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece"
+      }
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign"
+      }
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
+      }
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
