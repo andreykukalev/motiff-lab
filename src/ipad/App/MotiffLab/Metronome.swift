@@ -25,7 +25,7 @@ enum MetronomeTempo {
     static let beatChoices = [2, 3, 4, 6]
     /// The piece tempo while nothing states one: music-core's `PlaybackTempo.PieceDefaultPerMinute` (version 0.5.5).
     static let pieceDefault = 80
-    /// How long the button is held before a slide sets the tempo: the web app's long press (`Scripts/input/long-press.ts`).
+    /// How long the button is held before a slide sets the tempo.
     static let holdSeconds = 0.55
 
     static func clamped(_ bpm: Int) -> Int {

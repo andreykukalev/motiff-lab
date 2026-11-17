@@ -4,7 +4,7 @@
 // CompressionStream where there is one, and stored as they are where not. Kept free of the DOM so
 // Node can test it.
 
-import { num } from "./svg-to-pdf.js";
+import { num } from "./svg-parse.js";
 
 /** A4 in points: 210 × 297 mm. */
 export const A4_WIDTH = (210 / 25.4) * 72;

@@ -52,7 +52,7 @@ struct RollZoom: Equatable, Sendable {
     }
 }
 
-/// The roll drawer's height (#511 section 7.1), as the web app's drawer has it (Scripts/layout/drawer-resize.ts): its handle
+/// The roll drawer's height (#511 section 7.1): its handle
 /// drags it taller, up to most of the screen (the iPad's bar stays above it), or shorter, down to a fifth; dragged nearly
 /// away it closes. The height is a share of the screen's, kept on the device for each orientation, as the player left it;
 /// 40% in landscape and 30% in portrait until then. A new height changes neither the roll's zoom nor its view.

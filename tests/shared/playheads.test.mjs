@@ -4,7 +4,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { playsOrPauses } from "../../src/shared/wwwroot/js/layout/mode-keys.js";
 import { edgeOf, playheadsOf, trackOf } from "../../src/shared/wwwroot/js/score/playheads.js";
 import { viewOf } from "../../src/shared/wwwroot/js/playback/playback-model.js";
 
@@ -39,16 +38,6 @@ test("the track runs under the lowest ink of its line, across its bar, filled up
     assert.equal(trackOf({ x: 160, top: 60, bottom: 140, bar }, 100, 10).top, 150, "never over the staves");
     assert.equal(trackOf({ x: 90, top: 60, bottom: 140, bar }, 180, 10).filled, 0);
     assert.equal(trackOf({ x: 400, top: 60, bottom: 140, bar }, 180, 10).filled, 194);
-});
-
-const space = (extra = {}) => ({ key: " ", code: "Space", altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, defaultPrevented: false, target: { closest: () => null }, ...extra });
-
-test("Space plays or pauses outside a field or a dialog, and not when the roll took it first", () => {
-    assert.equal(playsOrPauses(space()), true);
-    assert.equal(playsOrPauses(space({ defaultPrevented: true })), false);
-    assert.equal(playsOrPauses(space({ ctrlKey: true })), false);
-    assert.equal(playsOrPauses(space({ target: { closest: () => ({}) } })), false);
-    assert.equal(playsOrPauses(space({ key: "a" })), false);
 });
 
 /** The few parts of the DOM the playheads' marks use. */

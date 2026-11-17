@@ -1,6 +1,6 @@
 # The web app archive: what is frozen, what stays live, how to bring it back
 
-Status: current, 2026-11-16. Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
+Status: current, 2026-11-16 (the web-only shared modules archived, v0.7 step A6). Decision: [0032](architecture/adr/0032-ipad-first-web-archived.md). One living document: update it
 when a shared module moves or the web is reactivated.
 
 The web app (Blazor WebAssembly PWA, the Music Studio of [0025](architecture/adr/0025-two-studios.md)) is archived in
@@ -26,7 +26,7 @@ maintained by iPad work. The rest is in `archive/web`, frozen.
 
 | Live, in `src/shared` (maintained) | Why |
 | --- | --- |
-| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll run them (`src/ipad/App/Web`) |
+| `Scripts/score`, `Scripts/roll`, `Scripts/layout`, `Scripts/storage`, `Scripts/playback` → `wwwroot/js/…` | The iPad's score page and roll load them (`src/ipad/App/Web`), all but `score/score-page.ts`, the A4 layout the node tests engrave with (`Engraver.swift` keeps the same values) |
 | `MotiffLab.Shared.csproj`, `tsconfig.json`, `package.json`, `eslint.config.mjs` | `dotnet build src/shared` compiles that TypeScript for the iPad (`ipad.yml`, `src/ipad/build-version.sh`) |
 | `wwwroot/i18n` | The interface words |
 | `wwwroot/audio/piano` | The piano samples the iPad plays |
@@ -38,9 +38,10 @@ maintained by iPad work. The rest is in `archive/web`, frozen.
 | --- | --- |
 | `src/MotiffLab.Web`: `Pages`, `Layout`, `App.razor`, `_Imports.razor`, `Program.cs` and the feature folders (`Account`, `Analytics`, `Compare`, `Design`, `Dna`, `Explore`, `Import`, `Insights`, `Library`, `Localization`, `Observations`, `Pdf`, `Playback` except the example piece, `Projects`, `Reference`, `Roll`, `Score`, `Settings`, `Sources`, `Understand`, `Versions`, `Workspace`) | The Blazor app: pages, components, `PlaybackLab`, services (`ProjectStore`, `CloudSync`, `ScanService`, …) |
 | `src/MotiffLab.Web/Scripts`: `account`, `import`, `metronome`, `pdf`, `phrases`, `reference`, and the web-only `score/score-view.ts`, `storage/originals.ts`, `storage/project-store.ts`, `storage/recording-store.ts`, `storage/test-library.ts`, `playback/playback.ts`, `layout/test-site.ts` | Web-only browser layer; they import the shared modules by relative paths that no longer resolve |
+| `src/MotiffLab.Web/Scripts`, moved from `src/shared/Scripts` in v0.7 (step A6, `docs/REFACTORING_AUDIT.md` W0.6, Andrei's decision 1): `layout/bar-fade.ts`, `drawer-resize.ts`, `fragment.ts`, `hold-repeat.ts`, `long-press.ts`, `mode-keys.ts`; `playback/playback-owner.ts`, `playback-processor.ts`; `score/pdf-document.ts`, `pencil-history.ts`, `pencil-layer.ts`, `svg-to-pdf.ts` (its PDF half: the SVG parser stayed as `src/shared/Scripts/score/svg-parse.ts`); `storage/conversation-store.ts`, `heard-parts.ts`, `idb.ts`, `import-store.ts`, `pencil-store.ts` | Loaded by no iPad page and imported by no module a page loads: the web's AudioWorklet engine (`PlaybackEngine.swift` is the one that runs), its pen layer and pen store, its playback owner (`Player.swift` holds the model), its PDF export, its chrome (drawer, long press, hold to repeat, keyboard modes, bar fade, links) and its IndexedDB stores. Same folders as in `src/shared/Scripts`, so their relative imports of the live modules resolve again once they move back |
 | `src/MotiffLab.Web/wwwroot`: `css/app.css`, the mirrors `css/tokens.css`, `css/fonts`, `img/icons.svg`, `index.html`, `manifest.webmanifest`, `service-worker*.js`, `staticwebapp.config.json`, `appsettings.json`, the rest of `img`, the app icons, `lib/pdfjs` | The site's shell, styles, offline worker and hosting configuration. The mirrors of `design/kit` are no longer checked against the kit; `node tools/icons/build.mjs` still writes `icons.svg` |
 | `tests/e2e` | 58 Playwright spec files on the published app |
-| `tests/web` | Node tests of web-only code, and the web halves of `design`, `i18n`, `stylesheets` and `pencil-marks` |
+| `tests/web` | Node tests of web-only code, and the web halves of `design`, `i18n`, `stylesheets` and `pencil-marks`; from v0.7 (A6) also the tests of the modules above: `conversation-store`, `drawer-resize`, `hold-repeat`, `long-press`, `pencil-read-only`, `playback-owner`, `playback-processor`, `playback-scrub`, `scrub-rule` whole, and the web halves of four live tests as files of their own: `mode-keys` (from `score-modes`, `playheads`, `selection-gesture`), `pdf-export` (from `score-pdf`), `scrub-notes-heard` (from `scrub-notes`). They still import `../../src/shared/wwwroot/js/…`: they run unchanged once back in `tests/shared` |
 | `tools/pdfjs`, `tools/perf` | Web-only tools |
 | `workflows/browser-tests.yml` | The browser tests' workflow (GitHub runs only `.github/workflows`) |
 | `infra/main.bicep`, `main.bicepparam`, `infra/azure/develop.ps1`, `test-site-signin.ps1` (still in `infra/`) | The Static Web App and the test site's setup |
@@ -86,7 +87,11 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    its own scripts into its `wwwroot/js`, and its publish copies `src/shared/wwwroot/{i18n,audio,lib/verovio}` and
    `src/shared/Playback/FurElise.musicxml` (or one shared folder is laid out so both read it in place). Copy the
    design kit's tokens, fonts and icons into its `wwwroot` again, and move the web halves of the node tests back into
-   `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`). The reactivation task's `allowed_paths` name
+   `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`). The 17 modules archived in v0.7 (A6, table above) go
+   back to `src/shared/Scripts/<folder>` and their 12 test files to `tests/shared`, where both run unchanged; web code that
+   took `parseSvg`, `parseTransform`, `viewBoxOf` or `num` from `svg-to-pdf.js` takes them from `svg-parse.js`. The
+   iPad's case file `tests/ipad/MotiffLabTests/Golden/scrub.json` has had no node reader since then: `scrub-rule` runs
+   the web's engine on it again. The reactivation task's `allowed_paths` name
    `archive/web/**`, which opens it to the agents (`.claude/hooks/archive-guard.mjs`); once nothing is left in
    `archive/`, remove it from `.ignore`.
 4. Bring the web to the current project file version and facade before any writer of a newer version ships to it
