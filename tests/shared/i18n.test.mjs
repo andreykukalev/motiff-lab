@@ -49,7 +49,9 @@ const NOT_TEXT = [
     [/^g\.note$/, "a selector in the score page's script"],
     [/^pdf\.screen$/, "a SwiftUI coordinate space"],
 ];
-const notText = (key) => CALLS.has(key) || SETTINGS.has(key) || NOT_TEXT.some(([pattern]) => pattern.test(key));
+/** An id listed as no text, unless the app also looks it up as a text (`lookedUp`), whatever else it coincides with. */
+const notText = (key) =>
+    !lookedUp.has(key) && (CALLS.has(key) || SETTINGS.has(key) || NOT_TEXT.some(([pattern]) => pattern.test(key)));
 
 /** What follows `open` (the index of "[", "(" or "{") up to its closing bracket; brackets in strings are skipped. */
 function bracketed(source, open) {
@@ -145,12 +147,20 @@ function listedFamilies() {
     return families;
 }
 
-/** Every key-shaped literal of the app, with a file that names it, and every start of a key it builds. */
+/**
+ * Every key-shaped literal of the app, with a file that names it, every start of a key it builds, and every literal it
+ * looks up as a text: inside `text[…]`, `UIText.current[…]`, `.format(…)` or `.count(…)`.
+ */
 const named = new Map();
 const built = new Set();
+const lookedUp = new Set();
 for (const file of swiftFiles) {
-    for (const match of swift(file).matchAll(KEY)) named.set(match[1], file);
-    for (const match of swift(file).matchAll(PREFIX)) built.add(match[1]);
+    const source = swift(file);
+    for (const match of source.matchAll(KEY)) named.set(match[1], file);
+    for (const match of source.matchAll(PREFIX)) built.add(match[1]);
+    for (const lookup of source.matchAll(/(?:\btext|\bUIText\.current)\[|\.(?:format|count)\(/g)) {
+        for (const match of bracketed(source, lookup.index + lookup[0].length - 1).matchAll(KEY)) lookedUp.add(match[1]);
+    }
 }
 
 test("every key-shaped literal of the iPad app is a text in English and in Russian, or an id listed as no text", () => {
