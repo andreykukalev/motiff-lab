@@ -21,7 +21,8 @@ const inBoth = (key) => (key in en && key in ru) || (key in ipadEn && key in ipa
 const isText = (key) => inBoth(key) || [`${key}.one`, `${key}.many`].every(inBoth);
 
 const swiftDir = new URL("../../src/ipad/App/MotiffLab/", import.meta.url);
-const swiftFiles = readdirSync(swiftDir).filter((file) => file.endsWith(".swift"));
+/** The app's Swift files, every feature folder below it, as paths relative to it (`Platform/UIText.swift`). */
+const swiftFiles = readdirSync(swiftDir, { recursive: true }).filter((file) => file.endsWith(".swift")).sort();
 /** A Swift file of the app with its comment lines removed. */
 const swift = (name) => readFileSync(new URL(name, swiftDir), "utf8").replace(/^\s*\/\/.*$/gm, "");
 const core = new URL("../../src/backend/MotiffLab.MusicCore/", import.meta.url);
@@ -123,13 +124,13 @@ function listedFamilies() {
         ["settings.rollColour.", "", choices("roll.colour")],
         ["roll.colour.", "", choices("roll.colour")],
         ["settings.theme.", "", choices("appearance.theme")],
-        ["settings.language.", "", swiftList("UIText.swift", "languages")],
-        ["roll.js.", "", swiftList("RollController.swift", "names")],
-        ["settings.preset.", "", swiftList("SettingsView.swift", "presets")],
-        ["settings.presetHint.", "", swiftList("SettingsView.swift", "presets")],
-        ["layers.", "", swiftList("ScoreController.swift", "layers")],
-        ["extra.", "", swiftList("ScoreController.swift", "extra")],
-        ["modePad.", "Hint", swiftList("InteractionMode.swift", "inBar")],
+        ["settings.language.", "", swiftList("Platform/UIText.swift", "languages")],
+        ["roll.js.", "", swiftList("Roll/RollController.swift", "names")],
+        ["settings.preset.", "", swiftList("Account/SettingsView.swift", "presets")],
+        ["settings.presetHint.", "", swiftList("Account/SettingsView.swift", "presets")],
+        ["layers.", "", swiftList("Workspace/ScoreController.swift", "layers")],
+        ["extra.", "", swiftList("Workspace/ScoreController.swift", "extra")],
+        ["modePad.", "Hint", swiftList("Ink/InteractionMode.swift", "inBar")],
     ];
     for (const file of swiftFiles) {
         const source = swift(file);

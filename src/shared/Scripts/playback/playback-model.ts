@@ -5,7 +5,7 @@
 // that while it is on, playback keeps the position inside the selection.
 //
 // This is the reference: pure functions over a state, written once. The iPad's Player runs a Swift port of it
-// (src/ipad/App/MotiffLab/PlaybackPosition.swift, PlaybackModel), and both run the one case file
+// (src/ipad/App/MotiffLab/Playback/PlaybackPosition.swift, PlaybackModel), and both run the one case file
 // tests/ipad/MotiffLabTests/Golden/playback-model.json (tests/shared/playback-model.test.mjs, PlaybackPositionTests.swift).
 // The rules are the design's transitions T1–T16: a playhead taken (T14) pauses playback, dragged (T15) it moves the
 // position, the blue one inside the selection, and the notes it passes sound (the engine's scrub, #495 UX-09), and let

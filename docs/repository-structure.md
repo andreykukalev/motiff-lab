@@ -13,7 +13,7 @@ motiff-lab/
 │   │   ├── MotiffLab.Api/        ASP.NET Core API (projects in Cosmos DB, the assistant relay)
 │   │   └── omr/                  the scan server (Python: homr, Basic Pitch), with its pytest tests inside
 │   ├── ipad/                     the native iPad app (SwiftUI, XcodeGen); src/ipad/README.md
-│   │   ├── App/                  the app: project.yml, MotiffLab/, Web/ (score page), Words/, Config/
+│   │   ├── App/                  the app: project.yml, MotiffLab/ (feature folders), Web/ (score page), Words/, Config/
 │   │   ├── Core/                 music-core as a NativeAOT framework and the facade's C functions
 │   │   ├── Verovio/              Verovio built from source
 │   │   └── build-version.sh      builds a version from its tag and installs it on the iPad (Andrei's Mac)
@@ -53,7 +53,7 @@ motiff-lab/
 | Analysis, notes, rules, a facade function | `src/backend/MotiffLab.MusicCore`, its tests in `tests/backend/Unit` |
 | An API endpoint | `src/backend/MotiffLab.Api`, its tests in `tests/backend/Integration` |
 | The scan server's code | `src/backend/omr`, its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
-| An iPad screen or controller | `src/ipad/App/MotiffLab`, its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |
+| An iPad screen or controller | its feature folder in `src/ipad/App/MotiffLab` (`docs/code-map/ipad.md`), its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |
 | Score, roll, layout, storage or playback behaviour the score page runs | `src/shared/Scripts`, its tests in `tests/shared` |
 | An interface text | `src/shared/wwwroot/i18n/{en,ru}.json`, or `src/ipad/App/Words` for what only the iPad says |
 | A repository tool | `tools/` |
