@@ -338,14 +338,18 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # A failed run keeps the logs of the steps that ran: the Swift tests, the walk's compile, the switch test and the walk.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ipad-test-log
           path: |
             src/ipad/App/test.log
+            src/ipad/App/walk-build.log
+            src/ipad/App/switch.log
             src/ipad/App/walk.log
           if-no-files-found: ignore
+          retention-days: 7
 
   # The required check (the develop ruleset, infra/github/protect.ps1): fixed name, and it reports in every pull
   # request run and in no other. A run on develop, a tag or by hand shows its result in `ipad` itself; a gate there

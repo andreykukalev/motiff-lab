@@ -22,7 +22,9 @@ What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»)
    or type does one thing; a file the change makes bigger is split when the change gives a natural seam.
 3. Side effects: shared state, events and timers the change touches; what else reads them; behaviour Andrei approved
    earlier still holds: look up the entries of the area in `docs/ux-baseline.md` against the pull request's «UX baseline»
-   line.
+   line. A pull request that changes or removes a journey of the walk (`tests/ipad/MotiffLabScreens/`) that an entry's
+   «Protected by» names must say so, and the reviewer checks that the entry is still protected: no label guards the
+   walk's files, so this check is the guard there.
 4. Reuse and size: nothing added that the code base already does (a helper, a type, a code path beside an existing
    one); the diff no larger than the task needs; no duplicate, dead code or abstraction with one user left after the
    developer's cleanup pass.

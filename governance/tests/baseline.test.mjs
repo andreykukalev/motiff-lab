@@ -1,7 +1,7 @@
 // The guard of the UX baseline (docs/ux-baseline.md, "Fields"): node --test "governance/tests/*.test.mjs".
 // Every entry has a valid id, status and «Protected by»; a test it names exists under the protected folders and names
-// the entry; every file under tests/ipad/Baseline/ and tests/contracts/page-scenarios/ names an entry of the list. The
-// folders may not exist yet.
+// the entry, or a journey of the walk it names exists and lists the entry; every file under tests/ipad/Baseline/ and
+// tests/contracts/page-scenarios/ names an entry of the list. The folders may not exist yet.
 
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -16,6 +16,10 @@ const STATUSES = ['approved', 'provisional', 'known defect'];
 const PROTECTED = ['tests/backend/Acceptance/', 'tests/ipad/Baseline/', 'tests/contracts/page-scenarios/'];
 /** The folders whose every file names an entry (a README and fixture folders aside). */
 const NAMING = ['tests/ipad/Baseline/', 'tests/contracts/page-scenarios/'];
+/** The walk of the screens: a journey there protects the entries its `protects:` lists; no label guards the folder. */
+const WALK = 'tests/ipad/MotiffLabScreens/';
+/** How the walk declares a journey (ScreensUITests.swift): its name, then the ids it protects. */
+const JOURNEY = /Journey\(name:\s*"([^"]+)",\s*protects:\s*\[([^\]]*)\]/g;
 const ID = /^[A-Z]{2,5}-\d{2}$/;
 const STEP = /^([A-D]\d+|baseline 0\.\d+)$/;
 
@@ -63,21 +67,33 @@ export function problems(markdown, files) {
 
 function protection(id, item, files) {
   if (item.startsWith('pending:')) {
-    return STEP.test(item.slice(8).trim()) ? [] : [`${id}: "${item}" names no step (A4, A5, B4, … or baseline 0.<n>)`];
+    const step = /^(.+?)(\s+\(.+\))?$/.exec(item.slice(8).trim())?.[1] ?? '';
+    return STEP.test(step) ? [] : [`${id}: "${item}" names no step (A4, A5, B4, … or baseline 0.<n>)`];
   }
   if (item.startsWith('device:')) return item.slice(7).trim() ? [] : [`${id}: "device:" without a checklist line`];
-  const file = /^`([^`]+)`(\s+\(.+\))?$/.exec(item)?.[1];
+  const [, file, journey] = /^`([^`]+)`(?:\s+journey\s+`([^`]+)`)?(\s+\(.+\))?$/.exec(item) ?? [];
   if (!file) return [`${id}: "${item}" is no test path, device: or pending:`];
-  if (!PROTECTED.some((folder) => file.startsWith(folder))) return [`${id}: ${file} is not under ${PROTECTED.join(', ')}`];
+  if (file.startsWith(WALK)) return walkProtection(id, file, journey, files);
+  if (journey) return [`${id}: ${file} is no walk file: a journey is named only in ${WALK}`];
+  if (!PROTECTED.some((folder) => file.startsWith(folder))) return [`${id}: ${file} is not under ${PROTECTED.join(', ')}, ${WALK}`];
   if (!files.has(file)) return [`${id}: ${file} does not exist`];
   return files.get(file).includes(id) ? [] : [`${id}: ${file} does not name ${id}`];
+}
+
+/** A journey of the walk: `<file>` journey `<name>`, declared in that file with the entry among its `protects:`. */
+function walkProtection(id, file, journey, files) {
+  if (!journey) return [`${id}: ${file} is the walk: name its journey (\`${file}\` journey \`<name>\`)`];
+  if (!files.has(file)) return [`${id}: ${file} does not exist`];
+  const declared = [...files.get(file).matchAll(JOURNEY)].find((match) => match[1] === journey);
+  if (!declared) return [`${id}: ${file} has no journey ${journey}`];
+  return declared[2].includes(`"${id}"`) ? [] : [`${id}: journey ${journey} in ${file} does not list ${id}`];
 }
 
 function exempt(file) {
   return path.posix.basename(file) === 'README.md' || file.split('/').some((part) => part.toLowerCase() === 'fixtures');
 }
 
-/** The files under the protected folders, by repository path; build output skipped. */
+/** The files under the protected folders and the walk, by repository path; build output skipped. */
 function protectedFiles() {
   const files = new Map();
   const walk = (folder) => {
@@ -91,7 +107,7 @@ function protectedFiles() {
       }
     }
   };
-  PROTECTED.forEach(walk);
+  [...PROTECTED, WALK].forEach(walk);
   return files;
 }
 
@@ -136,5 +152,34 @@ test('the guard refuses a bad id, status or protection, and a test that names no
     'PLAY-01: tests/backend/Unit/Loop.cs is not under', 'VIEW-01: "pending: later" names no step', 'VIEW-01: "device:" without',
     'VIEW-01: id used twice', 'tests/ipad/Baseline/Missing.swift does not exist', 'ROLL-01: nothing in «Protected by»',
     'tests/ipad/Baseline/SelectionTests.swift names SEL-09', 'tests/ipad/Baseline/PlaybackTests.swift names no entry',
+  ]) assert.ok(found.includes(expected), `expected "${expected}" in:\n${found}`);
+});
+
+const WALK_FILE = 'tests/ipad/MotiffLabScreens/ScreensUITests.swift';
+const walkFiles = () => new Map([[WALK_FILE, [
+  '        Journey(name: "open-and-play", protects: [], start: .fresh, end: .example, run: { try $0.openExampleAndPlay() }),',
+  '        Journey(name: "pdf-and-notes", protects: ["VIEW-01", "VIEW-04"], start: .notesAndPdf, run: { try $0.pdfAndNotes() }),',
+].join('\n')]]);
+
+test('the guard accepts a journey of the walk that lists its entry, and a pending step with the part it leaves', () => {
+  const markdown = table(
+    row('VIEW-01', 'approved', `\`${WALK_FILE}\` journey \`pdf-and-notes\` (PDF to Notes); pending: A4 (Notes back to the PDF)`),
+    row('VIEW-04', 'approved', `\`${WALK_FILE}\` journey \`pdf-and-notes\``),
+  );
+  assert.deepEqual(problems(markdown, walkFiles()), []);
+});
+
+test('the guard refuses a journey or a walk file that does not exist, a journey that does not list the entry, and a walk path without its journey', () => {
+  const found = problems(table(
+    row('VIEW-01', 'approved', `\`${WALK_FILE}\` journey \`notes-and-pdf\``),
+    row('VIEW-02', 'approved', '`tests/ipad/MotiffLabScreens/Missing.swift` journey `pdf-and-notes`'),
+    row('VIEW-03', 'approved', `\`${WALK_FILE}\` journey \`open-and-play\``),
+    row('VIEW-04', 'approved', `\`${WALK_FILE}\``),
+    row('PLAY-01', 'approved', '`tests/ipad/Baseline/PlaybackTests.swift` journey `pdf-and-notes`'),
+  ), walkFiles()).join('\n');
+  for (const expected of [
+    `VIEW-01: ${WALK_FILE} has no journey notes-and-pdf`, 'VIEW-02: tests/ipad/MotiffLabScreens/Missing.swift does not exist',
+    `VIEW-03: journey open-and-play in ${WALK_FILE} does not list VIEW-03`, `VIEW-04: ${WALK_FILE} is the walk: name its journey`,
+    'PLAY-01: tests/ipad/Baseline/PlaybackTests.swift is no walk file: a journey is named only in tests/ipad/MotiffLabScreens/',
   ]) assert.ok(found.includes(expected), `expected "${expected}" in:\n${found}`);
 });

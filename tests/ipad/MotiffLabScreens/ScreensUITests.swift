@@ -17,8 +17,9 @@ import XCTest
 final class ScreensUITests: XCTestCase {
     private struct Journey {
         let name: String
-        /// The entries of the UX baseline (docs/ux-baseline.md) it checks, by their ids. The walk is not yet an entry's
-        /// «Protected by»: that is a test under tests/ipad/Baseline, which this target does not compile.
+        /// The entries of the UX baseline (docs/ux-baseline.md) it checks, by their ids. An entry whose «Protected by» names
+        /// the journey (`ScreensUITests.swift` journey `<name>`) must be listed here: governance/tests/baseline.test.mjs
+        /// reads this declaration.
         let protects: [String]
         let start: Walk.Start
         /// Where it leaves the app when it passes, if not where it started.
