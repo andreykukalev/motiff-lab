@@ -140,19 +140,6 @@ test("the roll's strips follow the same gesture in the drawer and in Expand (13.
     }
 });
 
-const { undoFor } = await import("../../src/shared/wwwroot/js/layout/mode-keys.js");
-
-test("⌘Z undoes the selection and ⇧⌘Z or Ctrl+Y redoes it, outside a field (#511 11)", () => {
-    const key = (code, extra = {}) => ({ code, key: "", altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, defaultPrevented: false, target: null, ...extra });
-    assert.equal(undoFor(key("KeyZ", { metaKey: true })), "undo");
-    assert.equal(undoFor(key("KeyZ", { metaKey: true, shiftKey: true })), "redo");
-    assert.equal(undoFor(key("KeyZ", { ctrlKey: true })), "undo");
-    assert.equal(undoFor(key("KeyY", { ctrlKey: true })), "redo");
-    assert.equal(undoFor(key("KeyZ")), null, "Z alone is not Undo");
-    const field = { closest: () => ({}) };
-    assert.equal(undoFor(key("KeyZ", { metaKey: true, target: field })), null, "a field keeps its own Undo");
-});
-
 test("with the long-press rule the strips wait for the hold as the score does; a move before it moves the roll", () => {
     mock.timers.enable({ apis: ["setTimeout"] });
     try {

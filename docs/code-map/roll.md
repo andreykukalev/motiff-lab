@@ -26,6 +26,17 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
   lasso picks notes; a span let go is held (`placed`) until Swift's selection comes back; an edge wins over a playhead.
 - `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view, zoom, playhead, lanes.
 
+## Not reached by the iPad's roll (W0.6, measured 2026-11-16; written down, not cut)
+
+- Members (the Blazor host's API): `PianoRoll.loadKept`, `setNamesKept`, `setChecks`, `pointAt`, `setSelection`,
+  `setPhrases`, `setFilter`, `setVariation`, `clearVariation`, `setGhosts`, `setAudible`, `dispose`; `HAND_NONE`, `fitZoom`
+  and `fitRow` of `roll-model.ts`; `ticksIn`; `insideOf` of `roll-strips.ts` (`playback-model.ts` has its own);
+  `narrowedPicks`; `RollPlaceGesture.active`. Several have node tests only.
+- Branches: `roll.js` sets `setTouchReading(true)` and `setAxisZoom(true)` at load, so the `!touchReading` and
+  `!axisZoom` sides are the web's (`zoomBy`, `reportZoom`, `pointerUp`, `movedByFingers`, `onDocumentPointerUp`). The
+  `mode === null` (rules before the modes) and `!placeOn` sides run only before Swift's first `input`: `setRules`,
+  `heldModel`, `beginRulePress`, `modelChanged`, `pressBarNumbers`, `stripHost`, `drawRoll`, `drawPlace`.
+
 ## iPad
 
 - `Web/roll.js`: host calls → messages (`range`, `span`, `notes`, `moveBegan`, `moved`, `edit`, `seek`, …); `tuplets`; `input` carries
