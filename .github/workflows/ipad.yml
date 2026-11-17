@@ -282,6 +282,48 @@ jobs:
             | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" walk.log
 
+      # SwiftUI's runtime warning «Publishing changes from within view updates» is the walked app's console, which
+      # xcodebuild does not print (walk.log has the test runner's output only): read from the simulator's log for the
+      # app's process since the walk began (walk.log's creation) and counted per launch of the app (pid), with the first
+      # and last time and the count per 10 s, for a reviewer to see. A log that cannot be read says so; never fails the run.
+      - name: SwiftUI warnings during the walk
+        if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots }}
+        timeout-minutes: 5
+        continue-on-error: true
+        working-directory: src/ipad/App
+        run: |
+          [[ -f walk.log ]] || { echo "The walk did not start."; exit 0; }
+          start="$(stat -f %SB -t '%Y-%m-%d %H:%M:%S' walk.log)"
+          warning='Publishing changes from within view updates'
+          status=0
+          xcrun simctl spawn "$SIMULATOR" log show --start "$start" --predicate 'process == "MotiffLab"' --style compact \
+            > "$RUNNER_TEMP/app.log" || status=$?
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning::The app's log could not be read from the simulator (log show exit $status): the SwiftUI warnings are unknown."
+            exit 0
+          fi
+          count="$(grep -c "$warning" "$RUNNER_TEMP/app.log" || true)"
+          if [[ "$count" -eq 0 ]]; then
+            echo "No «$warning» in the app's log since $start."
+            exit 0
+          fi
+          echo "$count «$warning» in the app's log since $start, per launch of the app:"
+          grep "$warning" "$RUNNER_TEMP/app.log" | awk '
+            match($0, /\[[0-9]+:/) {
+              pid = substr($0, RSTART + 1, RLENGTH - 2); t = substr($2, 1, 7) "0"
+              if (!(pid in n)) { order[++k] = pid; first[pid] = $2 }
+              n[pid]++; last[pid] = $2
+              if (!((pid, t) in per)) times[pid, ++m[pid]] = t
+              per[pid, t]++
+            }
+            END {
+              for (i = 1; i <= k; i++) {
+                p = order[i]; line = ""
+                for (j = 1; j <= m[p]; j++) line = line " " times[p, j] "=" per[p, times[p, j]]
+                printf "pid %s: %d, %s to %s; per 10 s:%s\n", p, n[p], substr(first[p], 1, 8), substr(last[p], 1, 8), line
+              }
+            }'
+
       # The screens as a player sees them, for the redesign's mockups: the same walk in every appearance, only when
       # ticked (about half an hour; the Mac takes no other run meanwhile). A failing walk fails the run; the pictures it
       # took and its log are kept either way.
