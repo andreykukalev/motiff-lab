@@ -6,8 +6,15 @@ import XCTest
 /// apart from the playback pace (1 % steps from 25 % to 150 %), which changes only the speed heard; dotted quarters in 6/8.
 @MainActor
 final class TempoTests: XCTestCase {
+    /// The tempo of a playback answer's "tempos" and "tempo", typed as `PlaybackAnswer` types them.
+    private struct Tempos: Decodable {
+        let tempos: [PlaybackAnswer.TempoChange]
+        let tempo: PlaybackAnswer.StartTempo?
+    }
+
     private func reading(_ json: String) -> TempoReading? {
-        TempoReading.read(facadeObject(json) ?? [:])
+        guard let answer = try? JSONDecoder().decode(Tempos.self, from: Data(json.utf8)) else { return nil }
+        return TempoReading.read(answer.tempo, first: answer.tempos.first)
     }
 
     func testTheTempoChangesIn1PercentStepsWithin25To150AndTellsTheEngineOnlyWhenItChanged() {

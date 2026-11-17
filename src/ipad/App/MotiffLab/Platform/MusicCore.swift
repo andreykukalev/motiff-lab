@@ -86,11 +86,11 @@ func facadeObject(_ text: String) -> [String: Any]? {
     (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any]
 }
 
-/// A facade answer read loudly (step A7; the hot answers the score's screen reads, until B5's typed answers behind
-/// `PieceCore`): the facade's refusal {"error": code, "message": text} is never read as a success, and a field music-core
-/// always writes (its writer in src/backend/MotiffLab.MusicCore/Facade/Answer*.cs) that is missing or of another type is
-/// a broken contract, told to `broken` instead of read as a default. A field music-core leaves out by design is read from
-/// `fields` as it is.
+/// A facade answer read loudly (step A7; the hot answers the score's screen reads, until B5 types each of them, `decode`):
+/// the facade's refusal {"error": code, "message": text} is never read as a success, and a field music-core always writes
+/// (its writer in src/backend/MotiffLab.MusicCore/Facade/Answer*.cs) that is missing or of another type is a broken
+/// contract, told to `broken` instead of read as a default. A field music-core leaves out by design is read from `fields`
+/// as it is.
 struct FacadeAnswer {
     /// What the answer is to, for the problem's words: the call, then the path to the object in it ("playback.notes[]").
     let call: String
@@ -168,6 +168,50 @@ struct FacadeAnswer {
     /// answer to read.
     static func problem(_ text: String) -> String {
         facadeObject(text)?["message"] as? String ?? UIText.current["parts.pdf.failedNoWord"]
+    }
+
+    /// An answer decoded once into its typed answer (step B5, PieceAnswers.swift): nil for a refusal, not reported; nil,
+    /// told to `broken` with the field and where, for text that is no JSON object or lacks a field of the type's.
+    static func decode<T: Decodable>(_ type: T.Type, _ text: String, of call: String) -> T? {
+        do {
+            return try JSONDecoder().decode(Refusable<T>.self, from: Data(text.utf8)).value
+        } catch {
+            broken("music-core's answer to \(call) \(reason(error, call))")
+            return nil
+        }
+    }
+
+    /// The type's value, or nil when the answer is the facade's refusal: one reading of the text for both.
+    private struct Refusable<T: Decodable>: Decodable {
+        let value: T?
+
+        private struct Key: CodingKey {
+            let stringValue: String
+            var intValue: Int? { nil }
+            init(stringValue: String) { self.stringValue = stringValue }
+            init?(intValue: Int) { return nil }
+        }
+
+        init(from decoder: Decoder) throws {
+            let refused = try decoder.container(keyedBy: Key.self).contains(Key(stringValue: "error"))
+            value = refused ? nil : try T(from: decoder)
+        }
+    }
+
+    /// What a decoding error says of the answer, in `required`'s words: the field missing or of another type, and where.
+    private static func reason(_ error: Error, _ call: String) -> String {
+        func place(_ path: [CodingKey]) -> String {
+            call + path.map { $0.intValue.map { "[\($0)]" } ?? ".\($0.stringValue)" }.joined()
+        }
+        switch error as? DecodingError {
+        case .keyNotFound(let key, let context)?:
+            return "has no \"\(key.stringValue)\" at \(place(context.codingPath))"
+        case .typeMismatch(let type, let context)?, .valueNotFound(let type, let context)?:
+            guard let field = context.codingPath.last else { return "is not a JSON object" }
+            return "has no \"\(field.stringValue)\" of type \(type) at \(place(Array(context.codingPath.dropLast())))"
+        default:
+            return "is not a JSON object"
+        }
     }
 
     /// Where a broken contract goes: `loud` (a log line, and an assertion in Debug builds, so a test or a run through the

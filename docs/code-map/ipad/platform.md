@@ -5,11 +5,18 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `EngineKeeper`, `Engraver`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`, `OpenPiece`,
-`ProjectFiles`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`, `ViewStates`, `WebContentWatch` (`.swift`).
+`PieceAnswers`, `PieceCore`, `ProjectFiles`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`, `ViewStates`,
+`WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
   `facadeRequest` and the answer read by `facadeObject`. The hot answers' readers use `FacadeAnswer` (A7): a refusal is
   no success; a field music-core always writes, missing, is logged, asserts in Debug and shows `.problem`.
+  `FacadeAnswer.decode` (B5) reads an answer once into its typed answer, reporting through the same `broken`.
+- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b): `select` and `playback`, each answered as
+  `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls only here; the
+  others move here with their typed answers (B5).
+- `PieceAnswers.swift`: the typed answers, `SelectionAnswer` and `PlaybackAnswer`, mirroring `Answer.Selection` and
+  `Answer.Playback`; the features build `ScoreSelection` and `PlaybackScore` from them.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages.
 - `Design.swift` reads `design/kit/tokens.css`.
@@ -25,7 +32,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## The contract others may rely on
 
 - Every facade name sent must be in `tests/contracts/facade-calls.json` (`tests/shared/facade-calls-contract.test.mjs`
-  reads the Swift for them).
+  reads the Swift for them); a call `PieceCore` makes is made from no other file.
+- The typed answers decode `tests/contracts/facade-answers/*.json` (`FacadeAnswerFixturesTests`), which
+  `FacadeAnswersContractTests` keeps equal to the facade's answers on the example piece.
 - `PageCommand` and `PageEvent` are `tests/contracts/score-page.json`, checked by
   `tests/shared/score-page-contract.test.mjs` and `ScorePageContractTests`.
 - Every `language:` sent to music-core or the assistant is `text.language`.

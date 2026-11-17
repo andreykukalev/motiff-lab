@@ -95,19 +95,19 @@ struct ScoreSelection: Equatable, Sendable {
         self.picked = picked
     }
 
-    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}
-    /// (`Answer.Selection`), null in `phrases.level` with none; nil for a refusal, null, or an answer that cannot be read.
-    init?(answer: String) {
-        guard let shown = FacadeAnswer(answer, of: "select")?.entryOrNull("selection"), let selection = shown,
-              let onset = selection.number("onset"), let end = selection.number("end"),
-              let firstBar = selection.int("firstBar"), let lastBar = selection.int("lastBar"),
-              let firstBeat = selection.int("firstBeat"), let lastBeat = selection.int("lastBeat"),
-              let noteIds = selection.required("noteIds", [String].self), let filter = selection.entry("filter") else { return nil }
+    /// The selection music-core answers (`SelectionAnswer`, `Answer.Selection`), narrowed to the hand its filter names.
+    init(_ answer: SelectionAnswer.Selection) {
         self.init(
-            onset: onset, end: end, firstBar: firstBar, lastBar: lastBar, noteIds: noteIds, firstBeat: firstBeat, lastBeat: lastBeat,
-            // The filter names a hand only when the selection is narrowed to one (`Answer.Filter`).
-            hand: filter.fields["hand"] as? String
+            onset: answer.onset, end: answer.end, firstBar: answer.firstBar, lastBar: answer.lastBar, noteIds: answer.noteIds,
+            firstBeat: answer.firstBeat, lastBeat: answer.lastBeat, hand: answer.filter.hand
         )
+    }
+
+    /// The selection in a facade answer's text (`select`, `phrases.level`); nil for a refusal, null, or an answer that
+    /// cannot be read.
+    init?(answer: String) {
+        guard let selection = FacadeAnswer.decode(SelectionAnswer.self, answer, of: "select")?.selection else { return nil }
+        self.init(selection)
     }
 
     /// "Bar 5, beat 2 → bar 8, beat 3", for a selection by beats (#349); nil without the beats.

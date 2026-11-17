@@ -177,11 +177,11 @@ final class PlaybackPositionTests: XCTestCase {
 
     func testBarBeatIsTheBeatThePositionLiesInWrittenBarDotBeat() {
         let beats = BarBeats.read([
-            ["at": 0, "bar": 0, "beat": 3],
-            ["at": 240, "bar": 1, "beat": 1],
-            ["at": 480, "bar": 1, "beat": 2],
-            ["at": 720, "bar": 1, "beat": 3],
-            ["at": 960, "bar": 2, "beat": 1],
+            .init(at: 0, downbeat: false, bar: 0, beat: 3),
+            .init(at: 240, downbeat: true, bar: 1, beat: 1),
+            .init(at: 480, downbeat: false, bar: 1, beat: 2),
+            .init(at: 720, downbeat: false, bar: 1, beat: 3),
+            .init(at: 960, downbeat: true, bar: 2, beat: 1),
         ])
         XCTAssertEqual(beats.at(0)?.text, "0.3", "the pickup's beat as a selection counts it")
         XCTAssertEqual(beats.at(500)?.text, "1.2")
@@ -190,7 +190,7 @@ final class PlaybackPositionTests: XCTestCase {
         XCTAssertEqual(beats.span(240..<960)?.first, "1.1")
         XCTAssertEqual(beats.span(240..<960)?.last, "1.3", "the last beat that starts inside")
         XCTAssertNil(BarBeats().at(100))
-        XCTAssertTrue(BarBeats.read([["at": 0]]).marks.isEmpty, "an older answer without bar and beat")
+        XCTAssertTrue(BarBeats.read([.init(at: 0, downbeat: true, bar: nil, beat: nil)]).marks.isEmpty, "an older answer without bar and beat")
     }
 
     func testThePageIsToldTheHandTheSelectionIsNarrowedTo() {
