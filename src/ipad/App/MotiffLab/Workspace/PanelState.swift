@@ -89,6 +89,13 @@ struct PanelState: Equatable, Sendable {
     /// Insights, the roll's drawer, the Contents or Expand: what Check and Sources give way to.
     func otherPlaceOpen(focused: Bool) -> Bool { self[.insights] || self[.roll] || self[.contents] || focused }
 
+    /// Whether the roll's unsaved note edits go as its drawer closes. They do, as with Cancel: edits are kept only by Save.
+    /// Not when Expand takes the roll, for the editor goes into the roll on the card with its draft (#479 item 23).
+    var rollEditsGoWithDrawer: Bool { !rollBeforeFocus }
+
+    /// Whether they go as the roll leaves Expand's card: when it is put away, not when it goes back to the drawer.
+    var rollEditsGoWithCard: Bool { !self[.roll] && !rollBeforeFocus }
+
     /// The panels with `intent` asked: what the action writes, before any rule follows it.
     func asked(_ intent: Intent) -> PanelState {
         var next = self
