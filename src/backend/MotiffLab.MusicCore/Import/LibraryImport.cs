@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Import;
 
 /// <summary>
-/// The import plan of a folder (version 0.5, «Импорт папки», behind <c>experimental.libraryImport</c>): from the files the
+/// The import plan of a folder (version 0.5, «Импорт папки», once behind <c>experimental.libraryImport</c>): from the files the
 /// app found in the folder the player chose and the originals the library has, what happens to each file and what its
 /// piece is suggested to be. Pure and deterministic: the same files, library and options give the same plan, so the web
 /// and the iPad (through the facade's library.plan) plan alike. The plan only reads: nothing in it changes, renames,

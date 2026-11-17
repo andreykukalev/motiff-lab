@@ -44,7 +44,8 @@ One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor o
 
 ## Rules not to break
 
-- With `experimental.placeSelection` off (and always on the web, which passes no `place`), Select is as in 0.6.1.
+- With the host's place selection off (`setPlaceSelection`; always on the web, which passes no `place`), Select is as
+  in 0.6.1. The switch `experimental.placeSelection` that once chose it is gone from the catalogue (v0.7).
 - The roll never changes a selection by itself: it sends picks and spans; Swift's ScoreController owns the selection.
 - Moving picked notes is the note editor's draft (`corrections.*`); nothing new is saved in the project file.
 - In Navigate the stylus moves the roll; in Edit notes a tap on empty space adds a note; a finger beside a stylus moves it.
