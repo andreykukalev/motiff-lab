@@ -151,11 +151,6 @@ struct FacadeAnswer {
         return items.count == entries.count ? items : nil
     }
 
-    /// A list of objects music-core writes only sometimes (a strict piece's corrections have no "moved"): none without it.
-    func list<T>(ifAny key: String, _ item: (FacadeAnswer) -> T?) -> [T]? {
-        fields[key] == nil ? [] : list(key, item)
-    }
-
     /// Fields music-core always writes that the app passes on unread (the roll's payload, read by roll.js); false, each
     /// missing one reported, when any is missing or null.
     func has(_ keys: String...) -> Bool {

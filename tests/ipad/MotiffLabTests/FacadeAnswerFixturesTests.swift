@@ -95,6 +95,77 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertFalse(read[8].views.contains { $0.kind == "performance" }, "no performance view without its sound")
     }
 
+    func testTheCorrectionsDecode() throws {
+        let answers = try Self.answers("corrections")
+        XCTAssertEqual(answers.count, 18, "each call's answer but the version's two, which only build the state")
+        let read = try answers.map { try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, $0.text, of: "corrections"), "\(reported)") }
+        XCTAssertEqual(reported, [])
+        let bars = read.map(NoteCorrections.init)
+        XCTAssertTrue(read.allSatisfy { EditsLayerState($0.edits) == EditsLayerState(count: $0.edits.count) }, "opened strictly: no layer, on")
+
+        let none = bars[0]
+        XCTAssertEqual(none.bar, 2)
+        XCTAssertEqual(none.count, 0)
+        XCTAssertEqual(none.notes.count, 7)
+        XCTAssertTrue(none.removed.isEmpty)
+        XCTAssertNil(none.notes[0].place.offset, "on the beat")
+        XCTAssertEqual(none.notes[2].place.offset, "1 sixteenth")
+        XCTAssertEqual(none.notes[2].place.text(UIText(language: "en")), UIText(language: "en").format("notes.atOffset", "2", "1", "1 sixteenth"))
+        XCTAssertTrue(none.notes[1].canShorter)
+        XCTAssertFalse(read[0].canUndo)
+
+        XCTAssertEqual(bars[1].notes.first { $0.id == "n_0010" }?.edited, true)
+        XCTAssertEqual(bars[1].count, 1)
+        XCTAssertEqual(bars[2].removed.map(\.id), ["n_0013"])
+        XCTAssertNotNil(bars[2].removed.first?.place.offset)
+        XCTAssertEqual(bars[3].count, 1, "the removal undone")
+        XCTAssertEqual(bars[4].count, 0, "put back as imported")
+
+        // The note editor's draft: begun, a note added (the only answer with "added") and set, Cancel, then Save.
+        XCTAssertEqual(answers[5].request?["bar"] as? Int, 2)
+        XCTAssertFalse(read[5].canUndo || read[5].changed)
+        XCTAssertEqual(read.compactMap(\.added), ["a1"])
+        XCTAssertEqual(read[6].added, "a1")
+        XCTAssertTrue(read[6].canUndo && read[6].changed)
+        XCTAssertEqual(read[11].edits.count, 0, "Cancel leaves no edit")
+        XCTAssertFalse(read[11].changed)
+        XCTAssertEqual(read[14].edits.count, 1, "Save keeps the note taken out")
+
+        // The assistant's draft accepted, then undone whole.
+        XCTAssertEqual(bars[15].count, 2)
+        XCTAssertEqual(bars[16].count, 1)
+
+        // A bar taken from a version: its notes taken are not corrected here.
+        let taken = try XCTUnwrap(bars.last).notes.filter(\.taken)
+        XCTAssertEqual(taken.count, 3)
+        XCTAssertTrue(taken.allSatisfy { !$0.canEarlier && !$0.canShorter && $0.id.hasPrefix("perf-") })
+    }
+
+    func testTheCorrectionsLayerDecodes() throws {
+        let answers = try Self.answers("corrections.layer")
+        XCTAssertEqual(answers.count, 6)
+        let read = try answers.map { try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, $0.text, of: "corrections"), "\(reported)") }
+        XCTAssertEqual(reported, [])
+        let layers = read.map { EditsLayerState($0.edits) }
+
+        let laid = layers[0]
+        XCTAssertTrue(laid.on)
+        XCTAssertEqual(laid.count, 6)
+        XCTAssertEqual(laid.moved, [EditsLayerState.Moved(noteId: "n_9998", to: "n_0014", bar: 2)])
+        XCTAssertEqual(laid.unfit.map(\.reason), ["missing", "changed", "idTaken"])
+        XCTAssertEqual(laid.unfitNotes.map(\.id), ["n_9999", "n_0012", "n_0015"])
+        XCTAssertEqual(NoteCorrections(read[0]).notes.filter(\.edited).map(\.id), ["n_0010", "n_0014"])
+        XCTAssertEqual(NoteCorrections(read[0]).removed.map(\.id), ["n_0013"])
+
+        XCTAssertEqual(layers[1].unfitNotes.map(\.id), ["n_0012", "n_0015"], "the correction dropped leaves the log")
+        XCTAssertEqual(layers[1].count, 5)
+        XCTAssertFalse(layers[2].on)
+        XCTAssertEqual(layers[2].count, 5, "the corrections are kept while off")
+        XCTAssertTrue(NoteCorrections(read[3]).notes.allSatisfy { !$0.edited }, "off: the notes as recognised")
+        XCTAssertTrue(layers[4].on)
+        XCTAssertTrue(layers[5].moved.isEmpty, "the correction laid on a near note put back")
+    }
+
     /// Each answer a file keeps, with its request, as the facade's text; a call that only builds the state keeps none.
     private static func answers(_ name: String) throws -> [(request: [String: Any]?, text: String)] {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

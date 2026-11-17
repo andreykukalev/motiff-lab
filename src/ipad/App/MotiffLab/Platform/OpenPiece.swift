@@ -47,7 +47,7 @@ struct OpenPiece: Identifiable, Sendable {
             if opened["document"] is [String: Any] {
                 return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", isDocument: true, own: own))
             }
-            let edits = EditsLayerState.opened(opened)
+            let edits = EditsLayerState.opened(answer)
             switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
             case .success(let engraving):
                 ProbeCounts.shared.mark("engraved")
