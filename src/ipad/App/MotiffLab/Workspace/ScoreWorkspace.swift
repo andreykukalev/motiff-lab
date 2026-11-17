@@ -8,8 +8,8 @@ import SwiftUI
 ///
 /// `wire()` hands the controllers their callbacks, each one a method here. The callbacks hold the workspace weakly and the
 /// workspace holds the controllers, so nothing is kept alive in a ring. The reactions of the view (`.onChange`) call their
-/// methods (ScoreWorkspaceReactions.swift) where their bodies were: `docs/code-map/ipad/workspace.md`, "The order the
-/// view must keep".
+/// methods (ScoreWorkspaceReactions.swift, ScoreWorkspaceFollowing.swift) where their bodies were:
+/// `docs/code-map/ipad/workspace.md`, "The order the view must keep".
 @MainActor
 final class ScoreWorkspace: ObservableObject {
     let piece: OpenPiece
