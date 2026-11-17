@@ -74,14 +74,9 @@ struct ScoreScreenContent: View {
     /// Whether Piece DNA was opened from More, so it shows "‹ More".
     @State private var dnaFromMore = false
     @ObservedObject private var originals: OriginalsController
-    /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
-    @State private var resumeId: String?
     @ObservedObject private var sources: SourcesController
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
-    /// The piece is being handed to its other view (PDF | Notes): a second press on the switch meanwhile does nothing
-    /// (#582 item 2), as the first is already saving, closing and opening the piece.
-    @State var handingOver = false
 
     init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, workspace: ScoreWorkspace) {
         self.piece = piece
@@ -154,13 +149,9 @@ struct ScoreScreenContent: View {
         }
     }
 
-    /// ‹ More: the place opened from More goes, and More opens again once it has (after a sheet's dismissal, so the popover can show).
+    /// ‹ More (ScoreWorkspace.backToMore): the place opened from More goes, and More opens again once it has.
     private func backToMore(_ panel: PanelState.Panel?) {
-        change(.backToMore(panel))
-        Task {
-            try? await Task.sleep(for: .milliseconds(350))
-            change(.open(.more))
-        }
+        workspace.backToMore(panel)
     }
 
     /// What an action asks of the panels (ScoreWorkspace.change): only what it writes. The rules follow in the reactions.
@@ -329,7 +320,7 @@ struct ScoreScreenContent: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, panels: panels, change: change, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
@@ -405,31 +396,10 @@ struct ScoreScreenContent: View {
     private func wired(_ content: some View) -> some View {
         content
             .toolbar(.hidden, for: .navigationBar)
-            .task { await wire() }
+            .task { await workspace.appeared() }
             // A new interface language saves the piece and opens it again where it is; not a view shown over the piece.
-            .handsOver(piece: viewing == nil ? piece.id : nil) { await handOverForLanguage() }
-            .onDisappear {
-                // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
-                // spec section 11: each visit with the sources on stayed in memory).
-                sources.reopen = nil
-                let now = resumeNow()
-                let view = notesViewNow()
-                // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.
-                let handed = ClosedPieces.take(piece.id)
-                if !handed { Metronome.shared.stop() }
-                player.shutdown()
-                guard !handed else { return }
-                // A variation only tried is not kept with the piece: it is left before the project file is written.
-                let file = piece.file
-                let id = piece.id
-                let tried = insights
-                Task {
-                    await keepNotesView(view)
-                    await keepResume(now)
-                    await tried.leave()
-                    if let file { try? await ProjectFiles.save(piece: id, to: file) }
-                }
-            }
+            .handsOver(piece: viewing == nil ? piece.id : nil) { await workspace.handOverForLanguage() }
+            .onDisappear { workspace.disappeared() }
             .overlay {
                 // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8), over everything else.
                 if let call = score.pencilPalette {
@@ -437,27 +407,7 @@ struct ScoreScreenContent: View {
                 }
             }
             .animation(.easeOut(duration: 0.16), value: score.pencilPalette)
-            .onChange(of: scenePhase) { _, phase in
-                // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
-                if phase == .background { save() }
-                // The iPad's setting «Only draw with Apple Pencil» may have changed meanwhile.
-                if phase == .active {
-                    score.applyInput()
-                    roll.applyInput()
-                }
-            }
-    }
-
-    /// The controllers get their callbacks (ScoreWorkspace.wire), then the piece's bookmarks, conversations and sound are
-    /// read and the player is back where the piece was left.
-    private func wire() async {
-        workspace.wire()
-        await contents.load(piece: piece.id)
-        assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
-        await player.load(piece: piece.id, key: piece.own?.id); ProbeCounts.shared.mark("sound")
-        workspace.applyModel()
-        await resume()
-        await returnToNotesView()
+            .onChange(of: scenePhase) { _, phase in workspace.scenePhaseChanged(phase) }
     }
 
     /// The drawers and sheets: what covers the page, and one of them at a time.
@@ -509,11 +459,7 @@ struct ScoreScreenContent: View {
             .fullScreenCover(item: $originals.linkedPdf, onDismiss: { originals.closeLinkedPdf() }) { pdf in
                 PdfScreen(piece: pdf, linked: true).environmentObject(account)
             }
-            .task(id: piece.id) {
-                let shown = score
-                originals.changed = { [weak shown] in shown?.refreshSources() }
-                await originals.load(piece)
-            }
+            .task(id: piece.id) { await workspace.loadOriginals() }
             .overlay(alignment: .center) {
                 // Opening the linked PDF from the bar: iOS may first download it from iCloud Drive or Google Drive.
                 if originals.loading != nil && !panels[.versions] {
@@ -552,24 +498,6 @@ struct ScoreScreenContent: View {
             .onChange(of: player.loop) { _, loop in workspace.loopChanged(loop) }
             .onChange(of: score.noteEditor) { _, editor in workspace.noteEditorChanged(editor) }
             .onChange(of: score.playRange) { old, new in workspace.whatPlaysChanged(from: old, to: new) }
-    }
-
-    /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
-    /// else the PDF linked where it lies in Files, over the score (version 0.3).
-    private var toPdf: (() -> Void)? {
-        if switchView != nil, piece.other != nil || score.sources.document != nil {
-            // The switch of all views goes with the piece to its PDF (SourcesHandover).
-            return { ProbeCounts.shared.begin(); if sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf() } }
-        }
-        guard originals.canOpenLinkedPdf else { return nil }
-        return {
-            if player.state == .playing { player.toggle() }
-            Task {
-                await originals.openLinkedPdf(title: piece.title)
-                // Changed, gone or not downloaded: Sources says why, under the PDF.
-                if originals.linkedPdf == nil { change(.open(.versions)) }
-            }
-        }
     }
 }
 
@@ -625,7 +553,7 @@ extension ScoreScreenContent {
     func sourcing(_ content: some View) -> some View {
         content
             .fullScreenCover(item: $shownView) { view in shownViewScreen(view) }
-            .task(id: sourcesOn) { await loadSources() }
+            .task(id: sourcesOn) { await workspace.loadSources(reopen: reopen, pick: pickView) }
             .onChange(of: panels[.versions]) { _, open in workspace.sourcesOpened(open) }
     }
 
@@ -639,65 +567,10 @@ extension ScoreScreenContent {
         return { view in pickView(view) }
     }
 
-    /// The sources as the screen opens then what the screen before handed over: the toast
-    /// of what was done, or a view picked on the PDF's switch.
-    func loadSources() async {
-        guard sourcesOn else { return }
-        sources.reopen = { await reopenHere() }
-        await sources.load(piece: piece.id, file: piece.file)
-        SourcesHandover.drop(piece.file)
-        if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
-        if let id = SourcesHandover.view(for: piece.file), let view = sources.layers.views.first(where: { $0.id == id }) {
-            pickView(view)
-        }
-    }
-
-    /// A view picked in the switch, its menu or the sheet's «Открыть».
+    /// A view picked in the switch, its menu or the sheet's «Открыть» (ScoreWorkspace.pickView), with what only the screen
+    /// has: its way to the piece's other view, its texts and the cover a view is shown on.
     func pickView(_ view: SourceLayers.ViewEntry) {
-        switch view.kind {
-        case "performance":
-            if player.state == .playing { player.toggle() }
-            sources.performance = view.id
-        case "original":
-            sources.performance = nil
-            if view.id == PdfScreen.documentView, let toPdf {
-                toPdf()
-            } else {
-                Task { await showOriginal(view.id) }
-            }
-        default:
-            sources.performance = nil
-            guard view.id != sources.layers.working else { return }
-            if sources.layers.notes(view.id)?.role == "version", score.versions.entries.contains(where: { $0.id == view.id }) {
-                change(.open(.versions))
-                score.openVersionPage(view.id)
-            } else {
-                Task { await showNotes(view.id) }
-            }
-        }
-    }
-
-    /// Another PDF or photos kept in the piece, shown as they are; why not, in the sheet.
-    private func showOriginal(_ id: String) async {
-        guard let original = sources.layers.original(id) else { return }
-        if player.state == .playing { player.toggle() }
-        guard let opened = await sources.openOriginal(original, title: original.shown) else {
-            change(.open(.versions))
-            return
-        }
-        shownView = ShownView(piece: opened, pdf: true)
-    }
-
-    /// Other Notes shown on their own, at the place in the music in view here; why not, in the sheet.
-    private func showNotes(_ id: String) async {
-        guard let notes = sources.layers.notes(id) else { return }
-        if player.state == .playing { player.toggle() }
-        let at = await score.tickInView()
-        guard let opened = await sources.openNotes(notes, title: sources.layers.title(of: notes, text), at: at) else {
-            change(.open(.versions))
-            return
-        }
-        shownView = ShownView(piece: opened, pdf: false)
+        workspace.pickView(view, switchView: switchView, text: text) { shownView = $0 }
     }
 
     /// The screen of a view shown over the piece; its piece is closed in music-core once the screen has gone.
@@ -719,17 +592,6 @@ extension ScoreScreenContent {
                 _ = await MusicCore.run { MusicCore.close(piece: id) }
             }
         }
-    }
-
-    /// The piece opened again in this screen's place from its project file, as «Сделать рабочими» or the toast's Undo has
-    /// just left it: the "Notes" view is kept for it and nothing more is written to the file.
-    private func reopenHere() async {
-        guard let reopen else { return }
-        let at = await score.tickInView() ?? 0
-        let view = notesViewNow()
-        player.shutdown()
-        await keepNotesView(view)
-        await reopen(.tick(at))
     }
 }
 
@@ -800,54 +662,6 @@ extension ScoreScreenContent {
     private var rollSpan: String? {
         guard let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
         return text.format("pill.span", span.first, span.last)
-    }
-}
-
-/// At the instrument, on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
-/// beats (#349).
-extension ScoreScreenContent {
-    /// Back where the player stopped (#327): the project's latest resume point, the web app's too, with its passage, focus,
-    /// tempo, loop and hands. Nothing starts playing.
-    private func resume() async {
-        // From the PDF in PDF | Notes the notes open at the page the player came from instead.
-        guard piece.landing == nil else { return }
-        let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume") }
-        guard let place = ResumePlace(answer: answer) else { return }
-        resumeId = place.id
-        player.tempoPercent = place.tempoPercent
-        if player.handsHeld.canSeparate { player.hands = place.hands }
-        await score.arrive(at: place)
-        if place.loop, let range = score.playRange?.range ?? place.passage {
-            player.setLoop(range, play: false)
-        }
-    }
-
-    /// Where the player is now, taken before the player stops.
-    func resumeNow() -> ResumePlace.Now? {
-        ResumePlace.Now(
-            passage: score.selection.map { $0.onset..<$0.end },
-            tick: player.tick,
-            focused: score.focused,
-            tempoPercent: player.tempoPercent,
-            hands: player.hands,
-            loop: player.loop != nil
-        )
-    }
-
-    /// Keeps where the player is as the project's resume point (`resume.save`), before the project file is written.
-    func keepResume(_ now: ResumePlace.Now?) async {
-        guard let now else { return }
-        let id = piece.id
-        var at = now.tick
-        if now.passage == nil, let inView = await score.tickInView() { at = inView }
-        let request = ResumePlace.saveRequest(
-            id: resumeId, passage: now.passage, at: at, focused: now.focused, tempoPercent: now.tempoPercent, hands: now.hands, loop: now.loop, now: Date()
-        )
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume.save", request) }
-        if let saved = facadeObject(answer)?["saved"] as? [String: Any], let point = ResumePlace(point: saved) {
-            resumeId = point.id
-        }
     }
 }
 

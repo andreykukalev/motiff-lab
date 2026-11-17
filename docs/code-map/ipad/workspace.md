@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 ## Files
 
 `PanelState`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceFollowing`,
-`ScoreWorkspaceReactions`, `TopBar` (`.swift`).
+`ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
   Settings, Reference and More is open, the places More opened, the drawer and the Contents kept for after Expand, what
@@ -16,19 +16,19 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
-  the controllers their callbacks, each a named method here (`blankTapped`, `notesChanged`, `variationReady`,
-  `rollPicked`, `penChanged`, `spacePressed`, …); `change` and `apply` write `panels`. Tests: `ScoreWorkspaceTests`.
-- `ScoreWorkspaceReactions.swift`: the methods the view's `.onChange` reactions on the panels and Expand call, in the
-  view's order (`contentsChanged`, `focusChanged`, `rollDrawerChanged`, …), and what they share:
-  `syncPlayheads`, `showRollPosition`, `rollPlace`.
-- `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, `loopChanged`,
-  `whatPlaysChanged`, …) and what the player takes from the score: `playRangeChanged`, `applyModel`.
-  Only `scenePhase`'s body is still in the view.
-- `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` is what it shows: `body`
-  (GeometryReader, ignores the keyboard), `layers` (the web view and everything floating over it: selection menu at
-  `score.menuPlace`, toasts, roll drawer, sheets, Contents, pill; the score narrowed for the assistant's side panel),
-  the `.onChange` modifiers (`watching`, `checking`, `sourcing`, `following`); `ScoreBar` (top bar, More, Ask about
-  the piece), `SelectionMenu` (the menu over the selection; its More holds Highlight and Ask), `FocusBar`.
+  the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
+  `backToMore` write `panels`. Tests: `ScoreWorkspaceTests`.
+- `ScoreWorkspaceReactions.swift`: the methods of the view's `.onChange` reactions on the panels and Expand, in the
+  view's order (`contentsChanged`, `focusChanged`, …), with `syncPlayheads`, `showRollPosition`, `rollPlace`.
+- `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, …), and
+  `playRangeChanged`, `applyModel`.
+- `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
+  `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
+- `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView`, `toPdf`.
+- `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web
+  view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
+  `following`); `ScoreBar`, `SelectionMenu`, `FocusBar`.
+- `ScoreScreenViews.swift`: where the page is scrolled to (`viewPlace`, `showPlace`).
 - `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
 
 ## The contract others may rely on
@@ -38,8 +38,8 @@ intents through `ScoreWorkspace.change` (sheets' and popovers' `isPresented` thr
 
 `ScoreWorkspace`: `ScoreScreen` holds it as a `@StateObject`: made once, as the screen first appears, gone with it.
 `ScoreScreenContent` observes each controller itself (`@ObservedObject`), never through the workspace. The callbacks
-hold the workspace weakly (`editsKept` only the piece, so the file is written as the screen goes). A reaction's method
-takes what only the view knows (appearance, geometry) as a parameter, read at the call.
+hold the workspace weakly (`editsKept` only the piece, so the file is written as the screen goes). A method takes what
+only the view has (appearance, geometry, `switchView`, `reopen`, texts, the cover for a view) as a parameter.
 
 ### The order the view must keep
 
@@ -62,20 +62,19 @@ them, and the order inside each:
 Two orders in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()`;
 `ScoreController.openDraftFromFocus` leaves Expand before `openDraft(at:)` asks for Sources, both in one update, so
 Sources opening over a drawer or Contents kept for after Expand rests on SwiftUI running the `focused` reaction before
-the `versions` one. A reaction may
-act twice in a frame at most (SwiftUI drops a third), which is why the rules are not one reaction. A rule or reaction
-moved, merged or reordered changes what a player sees for a frame or more: change `panel-states.txt` first.
+the `versions` one (the declared order; in the other, the drawer comes back and Sources does not open). A reaction
+may act twice in a frame at most (SwiftUI drops a third), which is why the rules are not one reaction. A rule or
+reaction moved, merged or reordered changes what a player sees for a frame or more: change `panel-states.txt` first.
 
 ## The state it owns
 
 `ScoreController`: the page's selection, menu place, marks, corrections, merge and focus; `mode` (never nil since
 v0.6.5). `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and whether
-Sources is there (`panels.sourcesOn`). `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA,
-a view shown over the piece, the resume point's id). The rest: not recorded yet.
+Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`. `ScoreScreenContent`: what only the view shows (the
+drawer's height, Piece DNA, a view shown over the piece). The rest: not recorded yet.
 
 ## Baseline entries that protect it
 
 UX baseline: `VIEW-01` to `VIEW-06` (the piece's screen, its views, its panels; VIEW-05 and VIEW-06 tested in
 `tests/ipad/Baseline/PanelBaselineTests.swift`). Quality ratchet: `ScoreController.swift` file_length and
-`class ScoreController` type_body_length; `ScoreScreen.swift` file_length and `layers` function_body_length; the jscpd
-pair with `Roll/RollController.swift`.
+`class ScoreController` type_body_length; `ScoreScreen.swift` file_length and `layers` function_body_length.

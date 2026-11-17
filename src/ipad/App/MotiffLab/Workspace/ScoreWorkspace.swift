@@ -9,7 +9,9 @@ import SwiftUI
 /// `wire()` hands the controllers their callbacks, each one a method here. The callbacks hold the workspace weakly and the
 /// workspace holds the controllers, so nothing is kept alive in a ring. The reactions of the view (`.onChange`) call their
 /// methods (ScoreWorkspaceReactions.swift, ScoreWorkspaceFollowing.swift) where their bodies were:
-/// `docs/code-map/ipad/workspace.md`, "The order the view must keep".
+/// `docs/code-map/ipad/workspace.md`, "The order the view must keep". The screen's life (it appears, the app leaves it,
+/// it goes, its piece is handed to another screen) is in ScoreWorkspaceLife.swift, the piece's sources and views in
+/// ScoreWorkspaceSources.swift.
 @MainActor
 final class ScoreWorkspace: ObservableObject {
     let piece: OpenPiece
@@ -27,6 +29,11 @@ final class ScoreWorkspace: ObservableObject {
     let sources: SourcesController
     /// Which panels are open, and what they give back (PanelState): written only by `change` and `apply`.
     @Published private(set) var panels: PanelState
+    /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
+    var resumeId: String?
+    /// The piece is being handed to its other view (PDF | Notes): a second press on the switch meanwhile does nothing
+    /// (#582 item 2), as the first is already saving, closing and opening the piece.
+    var handingOver = false
 
     /// `viewing` is the tag of a view shown over the piece (ScoreScreen.viewing): it has no Sources.
     init(piece: OpenPiece, viewing: String? = nil) {
@@ -46,6 +53,15 @@ final class ScoreWorkspace: ObservableObject {
     /// One rule (PanelState.following), run by the reaction that observes its value.
     func apply(_ rule: PanelState.Rule) {
         set(panels.following(rule))
+    }
+
+    /// ‹ More: the place opened from More goes, and More opens again once it has (after a sheet's dismissal, so the popover can show).
+    func backToMore(_ panel: PanelState.Panel?) {
+        change(.backToMore(panel))
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            change(.open(.more))
+        }
     }
 
     /// The panels as `next`, written only when they change.
