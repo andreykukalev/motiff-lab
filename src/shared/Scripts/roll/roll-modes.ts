@@ -1,4 +1,4 @@
-// The modes and the two playheads of version 0.5 on the Piano Roll (the experiment Two playheads and modes, Settings ·
+// The modes and the two playheads of version 0.5 on the Piano Roll (once the experiment Two playheads and modes, Settings ·
 // Experimental; product spec interaction-modes, «Правила выделения по режимам», and two-playheads). One group in the bar
 // for the score and the roll. On the roll: Navigate moves the roll under the mouse, and a long press puts the black playhead
 // where it is held (#543 3.1); Select starts a new selection by beats with a drag from outside it (Andrei's exception to

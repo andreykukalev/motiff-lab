@@ -1,7 +1,6 @@
 {
   "home.open": "Open",
   "home.fromFile": "Open a file",
-  "home.importProjectHint": "A project exported from Motiff Lab (.json)",
 
   "bars.one": "bar {0}",
   "bars.range": "bars {0}–{1}",
@@ -24,7 +23,6 @@
   "scanCheck.show": "Show",
 
   "score.pdf": "Download PDF",
-  "score.pdfHint": "Save the score as a PDF of A4 pages, ready to print",
 
   "roll.js.track": "Track {0}",
   "roll.js.trackVoice": "{0}, voice {1}",
@@ -40,7 +38,6 @@
   "roll.js.legendHighlight": "Blue box and underline: the places of the fact chosen on Understand",
   "roll.js.legendInferred": "Dashed outline: inferred, not in the file (the note or its hand)",
 
-  "settings.languageHint": "The interface in English or Russian. Musical facts and explanations stay in English for now.",
 
   "bar.phrases": "Phrases",
   "bar.roll": "Piano roll",
@@ -74,7 +71,6 @@
   "library.fieldComposer": "Composer",
   "library.done": "Done",
   "library.openFile": "Open a file",
-  "library.openFileHint": "MIDI, MusicXML or PDF, read on this device",
   "layers.check": "Check flags",
   "check.title": "Check",
   "check.toReview.one": "{0} bar to review",
@@ -113,9 +109,6 @@
   "pdf.unreadable": "This PDF could not be read. Try saving it again from the app it came from.",
   "sources.title": "Sources",
   "sources.rolePlaying": "Performance",
-  "performance.dismiss": "Not a difference",
-  "performance.take": "Take into the score",
-  "performance.restore": "Restore these notes",
   "metronome.label": "Metronome",
   "pdf.readNotes": "Recognise notes",
   "pdf.readNone": "The scan server read no notes from this PDF.",
@@ -136,30 +129,15 @@
   "extra.yours": "Your marks",
   "merge.direct": "Apply at once, without a draft",
   "merge.openDraft": "Open in the draft",
-  "assembly.journal": "Journal",
-  "assembly.undo": "Undo",
-  "assembly.redo": "Redo",
-  "assembly.apply": "Make it the notes",
-  "assembly.carry": "Carry",
-  "assembly.journalHint": "Every change to the notes, in order. Any of them can be returned on its own; what leans on it is shown first.",
-  "assembly.restart": "Start again from the notes before",
-  "assembly.accept": "Accept what matched ({0})",
-  "assembly.acceptHint": "Carry, bar for bar, the bars that match your notes but are not identical; the rest is left to you",
   "originals.nowhere": "Not on any device",
   "originals.relink": "Link the original",
-  "originals.relinkHint": "Pick the same file on this device: it is checked by its fingerprint and kept here, with no copy of the piece.",
   "originals.otherFile": "This is a different file. To keep it as another original, add it with Add a source.",
   "originals.linkFiles": "A link to the file in Files",
   "originals.changed": "The original has changed",
-  "originals.changedHint": "The file in Files is no longer the one that was linked: its fingerprint does not match. The notes are as they were.",
   "originals.offline": "The file did not load: Files cannot reach iCloud Drive or Google Drive now. Try again when there is a connection.",
   "originals.unreadable": "The file could not be read.",
   "edits.off": "Corrections are off: the notes are as they were recognised. Turn them on to correct notes.",
 
-  "recognition.send.one": "Send {0} page",
-  "recognition.send.few": "Send {0} pages",
-  "recognition.send.many": "Send {0} pages",
-  "recognition.reading": "reading",
 
   "folderImport.awayTitle": "The PDF is not on this iPad",
   "folderImport.changedLine": "The file at this place is another one now. The piece's notes, marks and changes stay as they are.",
@@ -172,6 +150,5 @@
   "folderImport.offlineTitle": "A connection is needed to open it",
   "folderImport.recheck": "Check the folder",
   "rollMode.label": "Piano roll mode",
-  "sources.sheet.addAnotherPdf": "Add another PDF",
   "padAssistant.accepted": "The draft is accepted. The correction is in My corrections."
 }

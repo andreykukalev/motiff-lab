@@ -29,7 +29,7 @@ public enum IdeaKind
 }
 
 /// <summary>
-/// The ideas of Piece DNA chosen by what they are in the music (#582 item 15, behind «Экспериментальное»: «Идеи по смыслу»):
+/// The ideas of Piece DNA chosen by what they are in the music (#582 item 15, once behind «Экспериментальное»: «Идеи по смыслу»):
 /// the theme (the first phrase, with the next when they begin alike and the first closes half and the second fully), the
 /// contrast (the first phrase of the first section with a letter of its own), a sequence (a bar heard three times or more
 /// in a row, each statement moved from the one before), the motif heard most often outside them, and the phrase with the

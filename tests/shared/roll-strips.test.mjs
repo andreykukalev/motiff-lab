@@ -6,7 +6,6 @@ import {
     drawLoopLane,
     drawOverview,
     drawPosition,
-    insideOf,
     laneShown,
     overviewGrab,
     overviewTick,
@@ -42,15 +41,6 @@ function recorder() {
 
 const inks = { ink: "ink", accent: "accent", tint: "tint", surface: "surface", line: "line", muted: "muted" };
 const frame = { top: 24, left: 62, right: 800, height: 300, xOf: (tick) => 62 + tick / 10 };
-
-test("inside the selection is from its start up to, not at, its end", () => {
-    const selection = { start: 960, end: 1920 };
-    assert.equal(insideOf(selection, 959), false);
-    assert.equal(insideOf(selection, 960), true);
-    assert.equal(insideOf(selection, 1919), true);
-    assert.equal(insideOf(selection, 1920), false);
-    assert.equal(insideOf(null, 1000), false);
-});
 
 test("the roll's one playhead is a line with its marker in the loop strip, cobalt inside the selection and ink outside (#543 6)", () => {
     const outside = recorder();

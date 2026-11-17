@@ -156,7 +156,7 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 #focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }
 #focus .ossia-frame .overline { position: absolute; left: var(--s-3); top: -8px; max-width: calc(100% - 2 * var(--s-3)); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--paper); color: var(--plum); font: var(--t-overline); letter-spacing: 0.06em; text-transform: uppercase; }
 
-/* The playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts; #479 items 19 and 25), as
+/* The playheads of version 0.5 (once the experiment Two playheads and modes; Scripts/score/playheads.ts; #479 items 19 and 25), as
    the web app draws them. One playback position: outside the selection a short track under the system that plays, as wide as
    its bar, filled up to the place, with a dot, solid while playing and hollow when it stands, in the notation's dark ink;
    inside the selection the selection's cobalt line with a knob. No bar fades. */

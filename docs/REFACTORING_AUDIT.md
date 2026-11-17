@@ -140,7 +140,7 @@ The first edition's node 3, `PlaybackLab`, is archived (section 0.2).
 | Path | What it is | Size | Built and tested by |
 | --- | --- | --- | --- |
 | `src/backend/MotiffLab.MusicCore` | The domain: 19 namespaces (table in 2.4) | 296 files, 60,070 lines | `build-test`; `tests/backend/Unit/MotiffLab.MusicCore.Tests` (2,130 tests), `tests/backend/Acceptance/MotiffLab.Acceptance.Tests` (24) |
-| `src/ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by `iPad core` (cached on `develop`) and the `iPad` workflow |
+| `src/ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by the `iPad` workflow (cached on `develop`) |
 | `src/backend/MotiffLab.Api` | ASP.NET Core API: projects in Cosmos DB, profile, plan, the assistant relay | 16 files, 1,799 lines | `build-test`; `tests/backend/Integration/MotiffLab.Api.Tests` (79); deployed by `API` |
 | `src/backend/omr` | The scan server (Python: homr, Basic Pitch), its pytest tests inside | 1,810 lines with tests | `pytest` in `build-test` when it changes; `Scan server` workflow |
 | `src/ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS: `tests/ipad/MotiffLabTests` (451 tests) on every push to a pull request that touches its inputs (`ipad-gate`, required on `develop`), on `develop`, on tags and by hand; `tests/ipad/MotiffLabScreens` (6 UI tests) compiled on a pull request, run on tags and by hand (since #642) |

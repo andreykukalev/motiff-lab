@@ -82,7 +82,7 @@ const host = {
             case "OnRollNoteRemove":
                 post({ edit: { kind: "remove", id: args[0] } });
                 break;
-            // Selection by where you touch (#601, experimental.placeSelection): notes a box, a lasso or a tap picked, with how
+            // Selection by where you touch (#601, once the experiment experimental.placeSelection): notes a box, a lasso or a tap picked, with how
             // they change the selection ("create", "replace", "add" or "edit"); the first step of a drag of picked notes (the
             // draft opens); and where they were let go.
             case "OnRollNotes": {

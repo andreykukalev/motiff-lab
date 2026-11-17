@@ -530,7 +530,7 @@ export class PianoRoll {
     /** The selection gesture on the strips (#511 2, 6.3). */
     private readonly strip = new RollStripGesture(this.stripHost());
     /**
-     * Selection by where you touch (#601, the iPad's experiment experimental.placeSelection, roll-place-gesture.ts): on,
+     * Selection by where you touch (#601, once the iPad's experiment experimental.placeSelection, roll-place-gesture.ts): on,
      * whether a stylus is used (a finger then moves the roll), the box or the lasso, and whether the selection was chosen
      * by notes. Off on the web, which passes nothing.
      */
@@ -1122,7 +1122,7 @@ export class PianoRoll {
     }
 
     /**
-     * Selection by where you touch (#601, experimental.placeSelection), as the iPad tells it: on or off, and whether a stylus
+     * Selection by where you touch (#601, once the experiment experimental.placeSelection), as the iPad tells it: on or off, and whether a stylus
      * is used, so a finger moves the roll beside it; without one, one finger selects. Off, Select is as in version 0.6.1.
      */
     setPlaceSelection(on: boolean, stylus: boolean): void {

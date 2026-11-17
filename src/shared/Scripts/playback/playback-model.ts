@@ -92,6 +92,7 @@ export interface Decision {
     steps: Step[];
 }
 
+/** Whether a tick lies inside the selection, [start, end). */
 export function insideOf(selection: Span | null, tick: number): boolean {
     return selection !== null && tick >= selection.start && tick < selection.end;
 }

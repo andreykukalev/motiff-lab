@@ -51,7 +51,7 @@ motiff-lab/
 
 | Adding | Goes in |
 | --- | --- |
-| Analysis, notes, rules, a facade function | `src/backend/MotiffLab.MusicCore`, its tests in `tests/backend/Unit` |
+| Analysis, notes, rules, a facade function | `src/backend/MotiffLab.MusicCore` (`docs/code-map/core.md`), its tests in `tests/backend/Unit` |
 | An API endpoint | `src/backend/MotiffLab.Api`, its tests in `tests/backend/Integration` |
 | The scan server's code | `src/backend/omr`, its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
 | An iPad screen or controller | its feature folder in `src/ipad/App/MotiffLab` (`docs/code-map/ipad.md`), its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |

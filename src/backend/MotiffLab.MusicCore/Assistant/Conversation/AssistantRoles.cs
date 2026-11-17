@@ -12,7 +12,7 @@ public enum AssistantRole
     /// The assistant that acts (#582 item 17.3; 0028 sections 1-3; the AI companion study, section 2.4): it reads like the
     /// mentor and, when the player asks for a change, chooses one catalogue operation with in-range parameters (a repair by
     /// Check reason, a variation, a note edit or a joined tie); music-core makes every note as a draft, and only the player
-    /// accepts it. Served with the experiment «Помощник правит ноты».
+    /// accepts it. Served once with the experiment «Помощник правит ноты».
     /// </summary>
     Proposer,
 }
