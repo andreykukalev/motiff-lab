@@ -156,8 +156,9 @@ final class FacadeAnswerTests: XCTestCase {
         XCTAssertNotNil(PlaybackScore.read(MusicCore.call(piece: piece, "performance.merge.playback", #"{"view": "result"}"#)))
         XCTAssertEqual(reported, [])
 
+        // A bar's "choice" is pinned on the fixture's draft (FacadeAnswerFixturesTests): this one, of the piece's own
+        // notes, has no bar.
         expectBroken("taking") { mergeAnswer(renamed(answer, "taking")) }
-        expectBroken("choice") { mergeAnswer(renamed(answer, "choice")) }
         expectBroken("merge") { mergeAnswer(renamed(answer, "merge")) }
 
         let none = try XCTUnwrap(mergeAnswer(MusicCore.call(piece: piece, "performance.merge.cancel")))

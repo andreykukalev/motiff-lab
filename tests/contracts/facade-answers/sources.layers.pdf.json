@@ -1,6 +1,6 @@
 {
  "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
- "fixture": "FurElise.musicxml",
+ "fixture": "Nocturne.pdf",
  "answers": [
   {
    "call": "sources.layers",

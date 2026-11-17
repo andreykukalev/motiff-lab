@@ -144,11 +144,14 @@ public class FacadeAnswersContractTests
     /// </summary>
     private static readonly HashSet<string> s_steps = ["performance.add", "performance.take", "performance.merge.playback"];
 
-    /// <summary>The files whose calls start from a project file and not from the example opened anew: how it is built.</summary>
-    private static readonly Dictionary<string, Func<byte[], byte[]>> s_projects = new()
+    /// <summary>
+    /// The files whose calls start from a project file and not from the example opened anew: the file the project is made
+    /// from (the file's "fixture"), and how it is built.
+    /// </summary>
+    private static readonly Dictionary<string, (string Fixture, Func<byte[], byte[]> Build)> s_projects = new()
     {
-        ["corrections.layer"] = WithStaleCorrections,
-        ["sources.layers.pdf"] = _ => PdfWithABookmark(),
+        ["corrections.layer"] = (Piece, WithStaleCorrections),
+        ["sources.layers.pdf"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
     };
 
     private static readonly JsonSerializerOptions s_written = new()
@@ -178,13 +181,14 @@ public class FacadeAnswersContractTests
         Assert.True(written == kept, $"tests/contracts/facade-answers/{name}.json differs from the facade's answers ({UpdateVariable}=1 writes it again)");
     }
 
-    /// <summary>The file: a note, the piece, and each call with its request and the facade's answer, opened in English.</summary>
+    /// <summary>The file: a note, the file the piece is made from, and each call with its request and the facade's answer, opened in English.</summary>
     private static string Written(string name)
     {
         var facade = new MusicCoreFacade();
         byte[] data = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", Piece));
-        int piece = s_projects.TryGetValue(name, out Func<byte[], byte[]>? project)
-            ? Opened(facade, "p_answers.motiff.json", project(data), """{"language":"en","edits":"on"}""")
+        bool fromProject = s_projects.TryGetValue(name, out (string Fixture, Func<byte[], byte[]> Build) project);
+        int piece = fromProject
+            ? Opened(facade, "p_answers.motiff.json", project.Build(data), """{"language":"en","edits":"on"}""")
             : Opened(facade, Piece, data, """{"language":"en","id":"p_answers"}""");
 
         var answers = new JsonArray();
@@ -204,7 +208,7 @@ public class FacadeAnswersContractTests
         {
             ["note"] = "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs ("
                 + UpdateVariable + "=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
-            ["fixture"] = Piece,
+            ["fixture"] = fromProject ? project.Fixture : Piece,
             ["answers"] = answers,
         };
         return file.ToJsonString(s_written) + "\n";

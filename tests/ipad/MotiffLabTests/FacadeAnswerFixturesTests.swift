@@ -167,7 +167,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
     }
 
     func testTheSourceLayersOfAPdfDecode() throws {
-        let (_, text) = try XCTUnwrap(Self.answers("sources.layers.pdf").first)
+        let (_, text) = try XCTUnwrap(Self.answers("sources.layers.pdf", of: "Nocturne.pdf").first)
         let layers = try XCTUnwrap(SourceLayers(answer: text), "\(reported)")
         XCTAssertEqual(reported, [])
         XCTAssertNil(layers.working, "a piece that is only its PDF has no working notes")
@@ -219,6 +219,12 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(chosen.choice(at: 5), "version")
         XCTAssertEqual(chosen.taking, 1)
         XCTAssertTrue(chosen.canUndo && chosen.changed)
+        // A bar's "choice" is always written, a string or null: a draft whose bar has none is broken, and reported.
+        let unchosen = answers[1].text.replacingOccurrences(of: "\"choice\":", with: "\"choiceRenamed\":")
+        XCTAssertNotEqual(unchosen, answers[1].text, "the draft's bar writes \"choice\"")
+        XCTAssertNil(FacadeAnswer.decode(MergeAnswer.self, unchosen, of: "performance.merge"))
+        XCTAssertTrue(reported.contains { $0.contains("\"choice\"") }, "\"choice\" renamed is reported: \(reported)")
+        reported = []
         XCTAssertTrue(drafts[2].merge?.canRedo == true, "undone")
         XCTAssertNil(try XCTUnwrap(drafts[4].merge.map(MergeInfo.init)).choice(at: 5), "undecided: null")
         XCTAssertEqual(drafts[4].merge?.decided, 0)
@@ -243,11 +249,12 @@ final class FacadeAnswerFixturesTests: XCTestCase {
     }
 
     /// Each answer a file keeps, with its request, as the facade's text; a call that only builds the state keeps none.
-    private static func answers(_ name: String) throws -> [(request: [String: Any]?, text: String)] {
+    /// `fixture`: the file the piece is made from, as the file names it.
+    private static func answers(_ name: String, of fixture: String = "FurElise.musicxml") throws -> [(request: [String: Any]?, text: String)] {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("contracts/facade-answers/\(name).json")
         let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any], url.path)
-        XCTAssertEqual(file["fixture"] as? String, "FurElise.musicxml")
+        XCTAssertEqual(file["fixture"] as? String, fixture)
         let entries = try XCTUnwrap(file["answers"] as? [[String: Any]])
         return try entries.compactMap { entry -> (request: [String: Any]?, text: String)? in
             guard let answer = entry["answer"] as? [String: Any] else { return nil }
