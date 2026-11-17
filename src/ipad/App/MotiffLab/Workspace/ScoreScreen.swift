@@ -178,7 +178,7 @@ struct ScoreScreenContent: View {
         if panels[.versions] && sourcesOn {
             sourcesSheet
         } else if panels[.check] {
-            CheckDrawer(score: score, text: text, close: { change(.close(.check)) }, back: panels.fromMore ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
+            CheckDrawer(score: score, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
         } else {
             InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { change(.close(.insights)) }
         }
@@ -530,7 +530,7 @@ struct ScoreScreenContent: View {
             }
             .sheet(isPresented: panel(.settings)) {
                 SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
-                              back: panels.fromMore ? (label: text["bar.more"], action: { backToMore(.settings) }) : nil)
+                              back: panels.fromMore.contains(.settings) ? (label: text["bar.more"], action: { backToMore(.settings) }) : nil)
             }
             .onChange(of: settings.values) { _, _ in workspace.settingsChanged() }
             .onChange(of: panels.placeFromMoreOpen) { _, open in workspace.placeFromMoreChanged(open) }
@@ -648,7 +648,7 @@ extension ScoreScreenContent {
         SourcesSheet(
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
-            back: panels.fromMore ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
+            back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
             open: pickView,
             versionPage: SourcesSheet.versionPage(score),
             versionStatus: score.versionStatus
