@@ -47,7 +47,7 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 - `Platform/RollPage.swift` (B7): the one place that builds a call (`RollCommand`, `RollPage`) and decodes a message
   (`RollEvent`, `RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`); `drag` goes on to Playback's
   `PlayheadGesture`. `RollController.swift`: the web view, `received` → callbacks; `RollPlace.swift`, `RollTools.swift`,
-  `RollDrawer.swift`: [`ipad/roll.md`](ipad/roll.md); wiring in `Workspace/ScoreWorkspace.swift`.
+  `RollDrawer.swift`: [`ipad/roll.md`](ipad/roll.md); wiring in `ScoreWorkspace.wire()`.
 
 ## Rules not to break
 
