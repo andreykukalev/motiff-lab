@@ -21,6 +21,9 @@
 // Nothing call-shaped is dropped: anything else in the name's place (a name built from parts, a `var` or a reassigned
 // name, a collection, a helper or MusicCore.call passed as a function value, an unattributable site without literals)
 // is unread, and an unread place must be listed in `unresolved` below with the names it stands for, or the test fails.
+// A new helper with a common name (`send`, `run`) makes every site of that name whose type the reader cannot tell a
+// possible helper site, so unrelated `send(…)` calls without literals turn up as unread places: give the helper a name
+// of its own, or call it through its type or a value of a declared concrete type, rather than listing those places.
 // Only what is not a call of a function is passed over: an enum's case or a pattern (`case .change(…)`), an implicit
 // member (`.change(…)`, which only a static function could be), and a closure or variable the caller declares itself.
 // The piece argument is followed too: a literal 0 is a call on piece 0, anything else a call on an open piece.
@@ -183,12 +186,12 @@ function argumentsAt(code, open) {
     return { parts, end };
 }
 
-/** The types (class, struct, enum, actor, protocol, extension) with the span of their bodies. */
+/** The types (class, struct, enum, actor, protocol, extension) with their kind and the span of their bodies. */
 function typesIn(code) {
     const types = [];
-    for (const match of code.matchAll(/\b(?:class|struct|enum|actor|protocol|extension)\s+([A-Za-z_][\w.]*)[^{};=]*\{/g)) {
+    for (const match of code.matchAll(/\b(class|struct|enum|actor|protocol|extension)\s+([A-Za-z_][\w.]*)[^{};=]*\{/g)) {
         const open = match.index + match[0].length - 1;
-        types.push({ name: match[1].split(".").pop(), from: open, to: closing(code, open) });
+        types.push({ kind: match[1], name: match[2].split(".").pop(), from: open, to: closing(code, open) });
     }
     return types;
 }
@@ -484,18 +487,28 @@ function qualifierAt(code, at, identifier) {
 
 /**
  * The functions a call of `name` in `file`, qualified by `qualifier` ("?" for an expression) inside `caller`, may reach,
- * and whether the reader is sure: through a type's name, that type's; unqualified or through `self`, a closure or
- * variable of the caller's when it has one (none), else the caller's type's, else the file's, else a global; as an
- * implicit member, the static ones; through an instance whose declaration names its type, that type's instance
- * functions. Otherwise every instance function of that name it could reach, sure only when there is one.
+ * and whether the reader is sure: through a type's name, that type's static ones (none for an enum's case, `Step.call(…)`);
+ * unqualified or through `self`, a closure or variable of the caller's when it has one (none), else the caller's type's,
+ * else the file's, else a global; as an implicit member, the static ones; through an instance whose declaration names its
+ * type, that type's instance functions. A type counts only when it is a class, struct, enum or actor in the sources, the
+ * caller's or a value's only when it also declares the function with a body; a file's function counts only with a body.
+ * Otherwise every function of that name it could reach, sure only when there is one (or, through a type's name, none
+ * static).
  */
 function attribution(functions, name, file, lexed, qualifier, caller, files) {
     const named = functions.filter((f) => f.name === name && (!f.isPrivate || f.file === file));
     const sure = (found) => ({ functions: found, sure: true });
-    if (qualifier && /^[A-Z]/.test(qualifier) && qualifier !== "Self") return sure(named.filter((f) => f.type === qualifier));
+    // Sure of a type only when it is a class, struct, enum or actor in the sources that declares the function itself, with
+    // a body: a protocol, a generic parameter, a typealias or a type from elsewhere may stand for a type that has a helper.
+    const declaring = (type) => (concreteTypes(files).has(type) ? named.filter((f) => f.type === type && f.bodyFrom >= 0) : []);
+    if (qualifier && /^[A-Z]/.test(qualifier) && qualifier !== "Self") {
+        if (concreteTypes(files).has(qualifier)) return sure(declaring(qualifier).filter((f) => f.isStatic));
+        const statics = named.filter((f) => f.isStatic);
+        return { functions: statics, sure: statics.length === 0 };
+    }
     if (!qualifier || qualifier === "self" || qualifier === "Self") {
         if (!qualifier && caller && (caller.params.some((p) => p.name === name) || declaredIn(lexed, caller, name))) return sure([]);
-        for (const found of [named.filter((f) => caller?.type && f.type === caller.type), named.filter((f) => f.file === file), named.filter((f) => f.type === null)]) {
+        for (const found of [caller?.type ? declaring(caller.type) : [], named.filter((f) => f.file === file && f.bodyFrom >= 0), named.filter((f) => f.type === null)]) {
             if (found.length > 0) return sure(found);
         }
         return { functions: named, sure: named.length <= 1 };
@@ -503,8 +516,19 @@ function attribution(functions, name, file, lexed, qualifier, caller, files) {
     if (qualifier === ".") return sure(named.filter((f) => f.isStatic));
     const members = named.filter((f) => !f.isStatic);
     const type = qualifier === "?" ? null : declaredType(qualifier, lexed, files);
-    if (type) return sure(members.filter((f) => f.type === type));
+    const found = type ? declaring(type).filter((f) => !f.isStatic) : [];
+    if (found.length > 0) return sure(found);
     return { functions: members, sure: members.length <= 1 };
+}
+
+const concrete = new WeakMap();
+
+/** The names of the classes, structs, enums and actors the sources declare (not protocols, extensions or aliases). */
+function concreteTypes(files) {
+    if (!concrete.has(files)) {
+        concrete.set(files, new Set(files.flatMap((f) => typesIn(f.lexed.code).filter((t) => t.kind !== "protocol" && t.kind !== "extension").map((t) => t.name))));
+    }
+    return concrete.get(files);
 }
 
 /**
@@ -512,8 +536,8 @@ function attribution(functions, name, file, lexed, qualifier, caller, files) {
  * file's own declaration, else the one type every other file declares it with; null when it cannot be told.
  */
 function declaredType(name, lexed, files) {
-    const pattern = new RegExp(`(?<![\\w.])${name}\\s*:\\s*([A-Z]\\w*)|\\b(?:let|var)\\s+${name}\\s*=\\s*([A-Z]\\w*)\\s*\\(`, "g");
-    const typesIn = (code) => [...new Set([...code.matchAll(pattern)].map((m) => m[1] ?? m[2]))];
+    const pattern = new RegExp(`(?<![\\w.])${name}\\s*:\\s*([A-Z][\\w.]*)|\\b(?:let|var)\\s+${name}\\s*=\\s*([A-Z][\\w.]*)\\s*\\(`, "g");
+    const typesIn = (code) => [...new Set([...code.matchAll(pattern)].map((m) => (m[1] ?? m[2]).split(".").pop()))];
     const own = typesIn(lexed.code);
     if (own.length > 0) return own.length === 1 ? own[0] : null;
     const everywhere = [...new Set(files.flatMap((f) => typesIn(f.lexed.code)))];
@@ -599,6 +623,28 @@ test("the reader follows literals, choices, locals, helpers, labels, defaults an
                 func others(metronome: Metronome) async { metronome.change(bpm: 90); let edit = Edit.change(id: "x"); if case let .change(id) = edit {} }
                 func loop(_ names: [String]) { for (i, change) in names.enumerated() { print(i, change) } }
             }`,
+        // A value typed as a protocol, a generic parameter or an alias, a type's name that is an alias, and a protocol's
+        // own extension may all reach the helper: read as unsure. A nested type is its own type, not the outer one; an
+        // enum's case through a concrete type's name is no call.
+        "/x/Features/Kinds.swift": `
+            protocol InkHost { func change(_ call: String, _ fields: [String: Any]) async }
+            extension PdfController: InkHost {}
+            extension InkHost { func wipe() async { await change("g.own", [:]); await self.change("g.self", [:]) } }
+            typealias Sheet = PdfController
+            typealias Plan = Core
+            enum Step { case lay(call: String) }
+            struct Outer {
+                func send(_ x: Int) {}
+                struct Inner { func send(_ name: String) { _ = MusicCore.call(piece: 0, name) } }
+            }
+            struct Kinds<Holder: PdfController> {
+                let host: InkHost
+                let holder: Holder
+                let sheet: Sheet
+                let inner: Outer.Inner
+                func all() async { await host.change("g.proto", [:]); await holder.change("g.generic", [:]); await sheet.change("g.alias", [:]) }
+                func more() { Plan.lay(piece: id, call: "g.static", request: "{}"); inner.send("g.nested"); _ = Step.lay(call: "g.case") }
+            }`,
         // The facade's own function, spelled without "MusicCore." inside its type.
         "/x/Core/MusicCoreExtras.swift": `
             extension MusicCore {
@@ -609,7 +655,8 @@ test("the reader follows literals, choices, locals, helpers, labels, defaults an
     });
     assert.deepEqual(found.map((s) => `${s.name}@${s.piece}`).sort(), [
         "a.off@open", "a.on@open", "b.local@open", "c.open@open", "c.zero@piece0", "e.typed@open", "e.untyped@open",
-        "f.plain@piece0", "f.self@piece0", "merge.notation@open", "notation@open", "version@piece0",
+        "f.plain@piece0", "f.self@piece0", "g.alias@open", "g.generic@open", "g.nested@piece0", "g.own@open", "g.proto@open", "g.self@open",
+        "g.static@open", "merge.notation@open", "notation@open", "version@piece0",
     ]);
     assert.deepEqual(missed.map((m) => m.place).sort(), [
         "A.swift › again › call",
