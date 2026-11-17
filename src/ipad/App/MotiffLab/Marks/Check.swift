@@ -213,33 +213,17 @@ struct NoteCorrections: Equatable, Sendable {
     var removed: [Removed]
     var count: Int
 
-    /// Every corrections answer (`CorrectionsAnswer` in OpenPiece.Corrections.cs); nil for a refusal or an answer that
-    /// cannot be read.
-    init?(answer: String) {
-        guard let object = FacadeAnswer(answer, of: "corrections"), let bar = object.int("bar"), let notes = object.list("notes", Self.readEntry),
-              let removed = object.list("removed", Self.readRemoved), let count = object.int("count") else { return nil }
-        self.bar = bar
-        self.notes = notes
-        self.removed = removed
-        self.count = count
-    }
-
-    private static func readPlace(_ entry: FacadeAnswer) -> Place? {
-        guard let bar = entry.int("atBar"), let beat = entry.int("beat"), let offset = entry.nullable("offset", String.self) else { return nil }
-        return Place(bar: bar, beat: beat, offset: offset)
-    }
-
-    private static func readEntry(_ entry: FacadeAnswer) -> Entry? {
-        guard let id = entry.required("id", String.self), let pitch = entry.int("pitch"), let name = entry.required("name", String.self),
-              let place = readPlace(entry), let length = entry.required("length", String.self), let velocity = entry.int("velocity"),
-              let edited = entry.required("edited", Bool.self), let taken = entry.required("taken", Bool.self),
-              let canEarlier = entry.required("canEarlier", Bool.self), let canShorter = entry.required("canShorter", Bool.self) else { return nil }
-        return Entry(id: id, pitch: pitch, name: name, place: place, length: length, velocity: velocity, edited: edited, taken: taken, canEarlier: canEarlier, canShorter: canShorter)
-    }
-
-    private static func readRemoved(_ entry: FacadeAnswer) -> Removed? {
-        guard let id = entry.required("id", String.self), let name = entry.required("name", String.self), let place = readPlace(entry) else { return nil }
-        return Removed(id: id, name: name, place: place)
+    /// The bar of any corrections answer (`CorrectionsAnswer`, `PieceCore.corrections`).
+    init(_ answer: CorrectionsAnswer) {
+        bar = answer.bar
+        notes = answer.notes.map {
+            Entry(
+                id: $0.id, pitch: $0.pitch, name: $0.name, place: Place(bar: $0.atBar, beat: $0.beat, offset: $0.offset), length: $0.length,
+                velocity: $0.velocity, edited: $0.edited, taken: $0.taken, canEarlier: $0.canEarlier, canShorter: $0.canShorter
+            )
+        }
+        removed = answer.removed.map { Removed(id: $0.id, name: $0.name, place: Place(bar: $0.atBar, beat: $0.beat, offset: $0.offset)) }
+        count = answer.edits.count
     }
 }
 

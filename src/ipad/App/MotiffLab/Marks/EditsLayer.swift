@@ -40,40 +40,20 @@ struct EditsLayerState: Equatable, Sendable {
         self.count = count
     }
 
-    /// The fields of a corrections answer, or of the open answer's "edits"; nil when they cannot be read. "layer", "moved"
-    /// and "unfit" come only with a layer (`LayerFields` in OpenPiece.EditsLayer.cs).
-    init?(fields: [String: Any]) {
-        let read = FacadeAnswer(call: "corrections", fields: fields)
-        guard let count = read.int("count"), let moved = read.list(ifAny: "moved", Self.readMoved),
-              let unfit = read.list(ifAny: "unfit", Self.readUnfit) else { return nil }
-        self.count = count
-        on = (fields["layer"] as? String) != "off"
-        self.moved = moved
-        self.unfit = unfit
+    /// The layer of a corrections answer (`PieceCore.corrections`) or of the open answer's "edits" (`EditsLayerAnswer`):
+    /// with no "layer", "moved" or "unfit" (a piece opened strictly), on with none.
+    init(_ answer: EditsLayerAnswer) {
+        count = answer.count
+        on = answer.layer != "off"
+        moved = (answer.moved ?? []).map { Moved(noteId: $0.noteId, to: $0.to, bar: $0.bar) }
+        unfit = (answer.unfit ?? []).map { Unfit(noteId: $0.noteId, bar: $0.bar, reason: $0.reason, text: $0.text) }
     }
 
-    private static func readMoved(_ entry: FacadeAnswer) -> Moved? {
-        guard let noteId = entry.required("noteId", String.self), let to = entry.required("to", String.self), let bar = entry.int("bar") else { return nil }
-        return Moved(noteId: noteId, to: to, bar: bar)
-    }
-
-    private static func readUnfit(_ entry: FacadeAnswer) -> Unfit? {
-        guard let noteId = entry.required("noteId", String.self), let bar = entry.int("bar"), let reason = entry.required("reason", String.self),
-              let text = entry.required("text", String.self) else { return nil }
-        return Unfit(noteId: noteId, bar: bar, reason: reason, text: text)
-    }
-
-    /// A corrections answer (`corrections`, `.layer`, `.drop`, a correction, the note editor's calls); nil for a refusal.
-    init?(answer: String) {
-        guard let read = FacadeAnswer(answer, of: "corrections") else { return nil }
-        self.init(fields: read.fields)
-    }
-
-    /// The state a piece opened with: the open answer's "edits", else (opened strictly) every correction laid, as many as
-    /// its project says it has.
-    static func opened(_ answer: [String: Any]) -> EditsLayerState {
-        if let edits = answer["edits"] as? [String: Any], let state = EditsLayerState(fields: edits) { return state }
-        return EditsLayerState(count: ((answer["project"] as? [String: Any])?["corrections"] as? NSNumber)?.intValue ?? 0)
+    /// The state a piece opened with, from the open answer's text: its "edits", else (opened strictly, or "edits" that
+    /// cannot be read) every correction laid, as many as its project says it has.
+    static func opened(_ answer: String) -> EditsLayerState {
+        if let edits = FacadeAnswer.decode(OpenedEdits.self, answer, of: "open")?.edits { return EditsLayerState(edits) }
+        return EditsLayerState(count: ((facadeObject(answer)?["project"] as? [String: Any])?["corrections"] as? NSNumber)?.intValue ?? 0)
     }
 
     /// `corrections.layer`: on lays the corrections one by one, off leaves them out; with the bar Check lists, if any.
