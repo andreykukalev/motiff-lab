@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { swiftCode } from '../../tools/quality/dependencies.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DOCUMENT = 'docs/ux-baseline.md';
@@ -18,8 +19,8 @@ const PROTECTED = ['tests/backend/Acceptance/', 'tests/ipad/Baseline/', 'tests/c
 const NAMING = ['tests/ipad/Baseline/', 'tests/contracts/page-scenarios/'];
 /** The walk of the screens: a journey there protects the entries its `protects:` lists; no label guards the folder. */
 const WALK = 'tests/ipad/MotiffLabScreens/';
-/** How the walk declares a journey (ScreensUITests.swift): its name, then the ids it protects. */
-const JOURNEY = /Journey\(name:\s*"([^"]+)",\s*protects:\s*\[([^\]]*)\]/g;
+/** How the walk declares a journey (ScreensUITests.swift): its name, the ids it protects, and up to its `run:` (last). */
+const JOURNEY = /\bJourney\(\s*name:\s*"([^"]+)",\s*protects:\s*\[([^\]]*)\]([^]*?)\brun:/g;
 const ID = /^[A-Z]{2,5}-\d{2}$/;
 const STEP = /^([A-D]\d+|baseline 0\.\d+)$/;
 
@@ -80,12 +81,19 @@ function protection(id, item, files) {
   return files.get(file).includes(id) ? [] : [`${id}: ${file} does not name ${id}`];
 }
 
-/** A journey of the walk: `<file>` journey `<name>`, declared in that file with the entry among its `protects:`. */
+/**
+ * A journey of the walk: `<file>` journey `<name>`, declared in that file's code (not in a comment) with the entry among
+ * its `protects:`, and walked in the asserting walk (not `picturesOnly`).
+ */
 function walkProtection(id, file, journey, files) {
   if (!journey) return [`${id}: ${file} is the walk: name its journey (\`${file}\` journey \`<name>\`)`];
   if (!files.has(file)) return [`${id}: ${file} does not exist`];
-  const declared = [...files.get(file).matchAll(JOURNEY)].find((match) => match[1] === journey);
+  // Comments blanked, strings kept: a declaration or an id in a comment is no journey and protects nothing.
+  const declared = [...swiftCode(files.get(file), { strings: false }).matchAll(JOURNEY)].find((match) => match[1] === journey);
   if (!declared) return [`${id}: ${file} has no journey ${journey}`];
+  if (/\bpicturesOnly:\s*true\b/.test(declared[3])) {
+    return [`${id}: journey ${journey} in ${file} is walked only for the pictures (picturesOnly), not in the asserting walk`];
+  }
   return declared[2].includes(`"${id}"`) ? [] : [`${id}: journey ${journey} in ${file} does not list ${id}`];
 }
 
@@ -156,9 +164,10 @@ test('the guard refuses a bad id, status or protection, and a test that names no
 });
 
 const WALK_FILE = 'tests/ipad/MotiffLabScreens/ScreensUITests.swift';
-const walkFiles = () => new Map([[WALK_FILE, [
+const walkFiles = (...more) => new Map([[WALK_FILE, [
   '        Journey(name: "open-and-play", protects: [], start: .fresh, end: .example, run: { try $0.openExampleAndPlay() }),',
   '        Journey(name: "pdf-and-notes", protects: ["VIEW-01", "VIEW-04"], start: .notesAndPdf, run: { try $0.pdfAndNotes() }),',
+  ...more,
 ].join('\n')]]);
 
 test('the guard accepts a journey of the walk that lists its entry, and a pending step with the part it leaves', () => {
@@ -182,4 +191,28 @@ test('the guard refuses a journey or a walk file that does not exist, a journey 
     `VIEW-03: journey open-and-play in ${WALK_FILE} does not list VIEW-03`, `VIEW-04: ${WALK_FILE} is the walk: name its journey`,
     'PLAY-01: tests/ipad/Baseline/PlaybackTests.swift is no walk file: a journey is named only in tests/ipad/MotiffLabScreens/',
   ]) assert.ok(found.includes(expected), `expected "${expected}" in:\n${found}`);
+});
+
+test('the guard refuses a journey that is commented out or walked only for the pictures, and an id in a comment', () => {
+  const found = problems(table(
+    row('SEL-01', 'approved', `\`${WALK_FILE}\` journey \`select-by-drag\``),
+    row('SEL-02', 'approved', `\`${WALK_FILE}\` journey \`select-loop-change\``),
+    row('SEL-03', 'approved', `\`${WALK_FILE}\` journey \`other-places\``),
+    row('SEL-04', 'approved', `\`${WALK_FILE}\` journey \`roll-and-expand\``),
+    row('VIEW-03', 'approved', `\`${WALK_FILE}\` journey \`a-//-b\``),
+  ), walkFiles(
+    '        // Journey(name: "select-by-drag", protects: ["SEL-01"], start: .example, run: { try $0.selectByDragAndOver() }),',
+    '        /* Journey(name: "select-loop-change", protects: ["SEL-02"], start: .example,',
+    '                   run: { try $0.selectLoopAndChange() }), */',
+    '        Journey(name: "other-places", protects: ["SEL-03"], start: .example, end: .library, picturesOnly: true,',
+    '                run: { try $0.otherPlaces() }),',
+    '        Journey(name: "roll-and-expand", protects: [/* "SEL-04" */], start: .example, run: { try $0.rollAndExpand() }),',
+    '        Journey(name: "a-//-b", protects: ["VIEW-03"], start: .example, run: { try $0.insightsAndTry() }),',
+  )).join('\n');
+  for (const expected of [
+    `SEL-01: ${WALK_FILE} has no journey select-by-drag`, `SEL-02: ${WALK_FILE} has no journey select-loop-change`,
+    `SEL-03: journey other-places in ${WALK_FILE} is walked only for the pictures (picturesOnly), not in the asserting walk`,
+    `SEL-04: journey roll-and-expand in ${WALK_FILE} does not list SEL-04`,
+  ]) assert.ok(found.includes(expected), `expected "${expected}" in:\n${found}`);
+  assert.ok(!found.includes('VIEW-03'), `a comment sign in a string starts no comment:\n${found}`);
 });

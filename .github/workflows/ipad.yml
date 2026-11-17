@@ -3,7 +3,7 @@
 # When it runs (architecture blueprint A1, version 0.7):
 # - Every pull request starts it. The job `changes` (Linux, seconds) decides whether the pull request touches what the
 #   app is built from (its list); only then does the job `ipad` build the app and run the Swift tests in the simulator,
-#   on every push. The job `ipad-gate` reports on every pull request, so the develop ruleset can require it
+#   on every push. The job `gate` (check `ipad-gate`) reports on every pull request, so the develop ruleset can require it
 #   (infra/github/protect.ps1): it passes when nothing of the app changed, and otherwise only when `ipad` passed.
 # - Every push to develop (a merge) that touches the same inputs: the same tests on develop, and the build for a real
 #   iPad. The core's framework built there is the cache that pull requests to develop read.
@@ -393,17 +393,20 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The required check (the develop ruleset, infra/github/protect.ps1): fixed name, and it reports in every pull
-  # request run and in no other. A run on develop, a tag or by hand shows its result in `ipad` itself; a gate there
-  # would report for the same commit as a pull request's head, and a green run by hand on the branch (the head alone,
-  # not the merge commit) could cover the pull request's red one. Nothing needs this job. GitHub counts a skipped
-  # required check as passed, so it is never skipped on a pull request: always(), not !cancelled(), which would skip
-  # it in a cancelled run. It passes only
-  # when `changes` succeeded and either said no input changed or `ipad` succeeded; a failed, timed-out or cancelled
-  # `ipad` (a newer push cancels the run) fails it. A pull request from a fork runs on GitHub's machines like any other;
-  # until Andrei approves an outside contributor's run, nothing reports and the pull request waits.
-  ipad-gate:
-    name: ipad-gate
+  # The required check (the develop ruleset, infra/github/protect.ps1): fixed name on a pull request, and it reports in
+  # every pull request run and in no other. A run on develop, a tag or by hand shows its result in `ipad` itself; a gate
+  # there would report for the same commit as a pull request's head, and a green run by hand on the branch (the head
+  # alone, not the merge commit) could cover the pull request's red one. Outside a pull request the job is skipped, and
+  # a skipped job still leaves a check run on the commit, which GitHub would count as a passed ipad-gate on a pull
+  # request's head (a run by hand on its branch): there it is named «ipad-gate (pull requests only)», which no ruleset
+  # requires (and its job id is `gate`, so no fallback to the id gives the required name). Nothing needs this job.
+  # GitHub counts a skipped required check as passed, so it is never skipped on a pull request: always(), not
+  # !cancelled(), which would skip it in a cancelled run. It passes only when `changes` succeeded and either said no
+  # input changed or `ipad` succeeded; a failed, timed-out or cancelled `ipad` (a newer push cancels the run) fails it.
+  # A pull request from a fork runs on GitHub's machines like any other; until Andrei approves an outside contributor's
+  # run, nothing reports and the pull request waits.
+  gate:
+    name: ${{ github.event_name == 'pull_request' && 'ipad-gate' || 'ipad-gate (pull requests only)' }}
     needs: [changes, ipad]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
