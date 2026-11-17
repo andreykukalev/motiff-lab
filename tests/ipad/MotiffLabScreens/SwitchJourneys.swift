@@ -106,17 +106,22 @@ extension Walk {
         try need(app.otherElements["PopoverDismissRegion"], "the PDF's More")
         shot("43-pdf-more")
         dismissPopover()
-        // A known issue, not a pass: in the simulator the metronome's pill has never shown after its press (probably its
-        // sound does not start there, and Metronome.start stops it again). Expected to fail until it is seen on an iPad
-        // (PR #644); if the pill shows, XCTest reports the expected failure as missing and this note goes.
+        // A known issue, not a pass: strict (the day the pill shows, the walk fails saying the expected failure did not
+        // come) and narrow (only the pill's own assertion is expected to fail).
         try press(button("Метроном"), "the metronome in the PDF's bar")
         let pill = button("Убрать метроном")
-        XCTExpectFailure("the metronome's pill does not show in the simulator (PR #644)") {
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = true
+        options.issueMatcher = { $0.compactDescription.contains("the metronome's pill is not there") }
+        XCTExpectFailure("the simulator does not start the metronome's sound, so Metronome.start stops it; to be checked on an iPad",
+                         options: options) {
             XCTAssertTrue(pill.waitForExistence(timeout: 3), "the metronome's pill is not there")
         }
         if pill.exists {
             shot("42-pdf-metronome", settle: 1)
             try press(pill, "Close the metronome")
+        } else {
+            print("SCREEN-QUESTION metronome \(tag): no pill after the PDF's Метроном in the simulator; to be checked on an iPad")
         }
     }
 }
