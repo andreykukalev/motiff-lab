@@ -43,7 +43,7 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
   `RollInput.page` plus `place`/`stylus` (`RollPlaceInput`), `shape` the box or the lasso.
 - `RollController.swift`: the web view, `received` → callbacks (`picked`, `notesPicked`, `notesMoveBegan`, `notesMoved`).
 - `RollPlace.swift`: `RollPickShape` (UserDefaults `roll.pickShape`), `RollPlaceInput`, `RollNotesPick`, `RollPickSwitch`.
-- `RollTools.swift` (mode switch, zoom, edit tools), `RollDrawer.swift` (the head), wiring in `ScoreScreen.wire()`.
+- `RollTools.swift` (mode switch, zoom, edit tools), `RollDrawer.swift` (the head), wiring in `ScoreWorkspace.wire()`.
 
 ## Rules not to break
 

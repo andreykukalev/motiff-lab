@@ -4,10 +4,11 @@ using MotiffLab.MusicCore.Import.Scan;
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 
 /// <summary>
-/// Scores read by copisteria, the second engine on the scan server (v0.5.8, behind the experiment «Выбор движка
-/// распознавания»): its MusicXML goes through the same repair, join and check as homr's. Unlike homr, it reads the printed
-/// time signature, so a real change of meter it writes comes through as it wrote it. The fixtures are its readings of
-/// Mutopia's engravings of public-domain music (Für Elise page 1; Mussorgsky's Promenade, two pages in 5/4 and 6/4).
+/// Scores read by copisteria, the second engine on the scan server (v0.5.8, once behind the experiment «Выбор движка
+/// распознавания», since v0.6.5 the setting scan.engine): its MusicXML goes through the same repair, join and check as
+/// homr's. Unlike homr, it reads the printed time signature, so a real change of meter it writes comes through as it
+/// wrote it. The fixtures are its readings of Mutopia's engravings of public-domain music (Für Elise page 1;
+/// Mussorgsky's Promenade, two pages in 5/4 and 6/4).
 /// </summary>
 public class CopisteriaScanTests
 {

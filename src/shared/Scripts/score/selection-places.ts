@@ -1,5 +1,5 @@
-// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C and F; the experiment
-// `experimental.placeSelection`, which only the iPad passes as a host option): what a press does is decided once, by where
+// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C and F; once the experiment
+// `experimental.placeSelection`; only the iPad uses it): what a press does is decided once, by where
 // it lands, never by how long it is held. From an edge (within EDGE_REACH of it, over the whole height of the band) it
 // moves that edge; from inside it extends the selection, which never shrinks (v0.6.1 item 9); from outside, on the music,
 // it draws a new selection, the old one shown as a ghost until it is let go, and so it does from the page's margin (v0.6.3);

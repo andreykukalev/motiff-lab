@@ -10,8 +10,8 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// The pieces of a long score or recording (version 0.5, contract 12, calls added; the experiment Several pieces in a
-/// score or recording, which the app decides on): pieces.find proposes where they begin (<see cref="SectionFinder.FindPieces"/>)
+/// The pieces of a long score or recording (version 0.5, contract 12, calls added; once the experiment Several pieces in a
+/// score or recording): pieces.find proposes where they begin (<see cref="SectionFinder.FindPieces"/>)
 /// over the notes as they are, without reading the file again, and pieces.save keeps the pieces the player confirmed as
 /// the pieces layer (<see cref="PieceLayer"/>).
 /// </summary>

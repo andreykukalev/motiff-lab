@@ -543,8 +543,8 @@ struct PlaybackScore: Sendable {
         tempo = TempoReading.read(answer.tempo, first: answer.tempos.first)
     }
 
-    /// Every answer `Answer.Playback` writes, in its text (`performance.merge.playback`, the reference's sounds); nil for a
-    /// refusal or an answer that cannot be read.
+    /// Every answer `Answer.Playback` writes, in its text (the reference's sounds); nil for a refusal or an answer that
+    /// cannot be read.
     static func read(_ text: String) -> PlaybackScore? {
         FacadeAnswer.decode(PlaybackAnswer.self, text, of: "playback").map(PlaybackScore.init)
     }

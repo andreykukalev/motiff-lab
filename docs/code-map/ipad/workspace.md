@@ -4,7 +4,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `TopBar` (`.swift`).
+`PanelState`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceReactions`, `TopBar`
+(`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
   Settings, Reference and More is open, the way back to More, the drawer and the Contents kept for after Expand, what
@@ -16,8 +17,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `notesChanged`, `variationReady`,
-  `rollPicked`, `penChanged`, `spacePressed`, …); `change` and `apply` write `panels`; the view's reactions call their
-  methods (`rollDrawerChanged`, `focusRollChanged` so far). Tested by `ScoreWorkspaceTests.swift`.
+  `rollPicked`, `penChanged`, `spacePressed`, …); `change` and `apply` write `panels`. Tested by
+  `ScoreWorkspaceTests.swift`.
+- `ScoreWorkspaceReactions.swift`: the methods the view's `.onChange` reactions call, in the view's order
+  (`contentsChanged`, `focusChanged`, `rollDrawerChanged`, `insightsChanged`, `checkDrawerChanged`, …), and what they
+  share: `syncPlayheads`, `showRollPosition`, `rollPlace`. `following`'s and `scenePhase`'s bodies are still in the view.
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` is what it shows: `body`
   (GeometryReader, ignores the keyboard), `layers` (the web view and everything floating over it: selection menu at
   `score.menuPlace`, toasts, roll drawer, sheets, Contents, pill; the score narrowed for the assistant's side panel),
@@ -34,16 +38,16 @@ intents through `ScoreWorkspace.change` (sheets' and popovers' `isPresented` thr
 first appears, and go with the screen. `ScoreScreenContent` observes each controller itself (`@ObservedObject`), so it
 is drawn again exactly when the screen was while it owned them; a controller is never observed through the workspace.
 The callbacks hold the workspace weakly (`editsKept` holds only the piece, so the file is written even as the screen
-goes). The plan (B3): the remaining reactions' bodies become its methods; a body takes what only the view knows
-(appearance, geometry) as a parameter.
+goes). A reaction's method takes what only the view knows (appearance, geometry) as a parameter, read at the call.
 
 ### The order the view must keep
 
 A change settles render by render: each rule runs in the `.onChange` reaction that observes its value, and the side
 effects beside it (the roll, Insights, the page's inset, the assistant) fire in the render and at the place they always
-did. The reactions, in the order `ScoreScreenContent` declares them, and the order inside each:
+did. The modifiers stay in the view, one line each. Those on the panels, in the order `ScoreScreenContent` declares
+them, and the order inside each:
 
-1. `watching`: `panels[.contents]` (`.contents`, then `contents.cancel()`); `score.focused` (`expandChanged`:
+1. `watching`: `panels[.contents]` (`.contents`, then `contents.cancel()`); `score.focused` (`focusChanged`:
    `.expand(true)` first going in, `.expand(false)` last coming out, after the player's hold);
    `score.focused && score.focusRoll` (`focusRollChanged`: `.rollOnCard`, then the roll); `panels[.roll]`
    (`rollDrawerChanged`: `.roll`, then `roll.show` or `cancelNoteEdit`); `panels[.insights]` (`.insights`, then load or

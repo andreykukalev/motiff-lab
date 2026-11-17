@@ -86,7 +86,8 @@ func facadeObject(_ text: String) -> [String: Any]? {
     (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any]
 }
 
-/// A facade answer read loudly (step A7; the hot answers the score's screen reads, until B5 types each of them, `decode`):
+/// A facade answer read loudly (step A7; now only the roll's payload, which track R types, B7; every other hot answer is
+/// typed and read by `decode`, step B5):
 /// the facade's refusal {"error": code, "message": text} is never read as a success, and a field music-core always writes
 /// (its writer in src/backend/MotiffLab.MusicCore/Facade/Answer*.cs) that is missing or of another type is a broken
 /// contract, told to `broken` instead of read as a default. A field music-core leaves out by design is read from `fields`
@@ -120,35 +121,9 @@ struct FacadeAnswer {
         return value
     }
 
-    /// A field music-core always writes, null when it has no value: .some(nil) for null; nil, reported, when it is missing
-    /// or of another type.
-    func nullable<T>(_ key: String, _ type: T.Type = T.self) -> T?? {
-        if fields[key] is NSNull { return .some(nil) }
-        guard let value = required(key, type) else { return nil }
-        return .some(value)
-    }
-
-    func number(_ key: String) -> Double? { required(key, NSNumber.self)?.doubleValue }
-
-    func int(_ key: String) -> Int? { required(key, NSNumber.self)?.intValue }
-
     /// An object music-core always writes.
     func entry(_ key: String) -> FacadeAnswer? {
         required(key, [String: Any].self).map { FacadeAnswer(call: "\(call).\(key)", fields: $0) }
-    }
-
-    /// An object music-core always writes, null when there is none: .some(nil) for null.
-    func entryOrNull(_ key: String) -> FacadeAnswer?? {
-        guard let value = nullable(key, [String: Any].self) else { return nil }
-        return .some(value.map { FacadeAnswer(call: "\(call).\(key)", fields: $0) })
-    }
-
-    /// A list of objects music-core always writes, each read by `item`, in its order; nil when the list or one of its
-    /// objects cannot be read (`item`'s own reads report which field).
-    func list<T>(_ key: String, _ item: (FacadeAnswer) -> T?) -> [T]? {
-        guard let entries = required(key, [[String: Any]].self) else { return nil }
-        let items = entries.compactMap { item(FacadeAnswer(call: "\(call).\(key)[]", fields: $0)) }
-        return items.count == entries.count ? items : nil
     }
 
     /// Fields music-core always writes that the app passes on unread (the roll's payload, read by roll.js); false, each

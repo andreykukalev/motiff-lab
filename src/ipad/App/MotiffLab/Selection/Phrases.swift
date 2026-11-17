@@ -14,22 +14,26 @@ struct PhraseLevelsShown: Equatable, Sendable {
 
     static let ids = ["short", "phrase", "sentence"]
 
-    /// The phrases in a facade answer (`phrases`, `phrases.level`).
-    init?(answer: String) {
-        guard let object = facadeObject(answer), let level = object["level"] as? String,
-              let units = object["units"] as? [[String: Any]] else { return nil }
-        self.level = level
+    /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
+    init(_ answer: PhrasesAnswer) {
+        level = answer.level
         var counts: [String: Int] = [:]
-        for entry in object["levels"] as? [[String: Any]] ?? [] {
-            if let id = entry["id"] as? String { counts[id] = (entry["count"] as? NSNumber)?.intValue ?? 0 }
+        for entry in answer.levels ?? [] {
+            if let id = entry.id { counts[id] = entry.count ?? 0 }
         }
         self.counts = counts
-        let edits = object["edits"] as? [String: Any] ?? [:]
-        self.edited = Set(Self.ids.filter { id in
-            let level = edits[id] as? [String: Any] ?? [:]
-            return ["added", "removed"].contains { !((level[$0] as? [Any]) ?? []).isEmpty }
+        edited = Set(Self.ids.filter { id in
+            let level = answer.edits?[id]
+            return !(level?.added ?? []).isEmpty || !(level?.removed ?? []).isEmpty
         })
-        self.units = units.compactMap(PhraseUnit.init(answer:))
+        units = answer.units.compactMap(PhraseUnit.init)
+    }
+
+    /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
+    /// for a refusal or an answer that cannot be read.
+    init?(answer: String) {
+        guard let answer = FacadeAnswer.decode(PhrasesAnswer.self, answer, of: "phrases") else { return nil }
+        self.init(answer)
     }
 
     /// The unit with this number, from 1.
@@ -51,19 +55,18 @@ struct PhraseUnit: Equatable, Sendable {
     /// "imported", "inferred", "userEdited", …: the provenance of its start.
     var provenance: String
 
-    init?(answer: [String: Any]) {
-        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
-        guard let unit = number(answer["number"]), let onset = number(answer["onset"]), let end = number(answer["end"]) else { return nil }
-        self.number = Int(unit)
-        name = answer["name"] as? String ?? ""
-        firstBar = Int(number(answer["firstBar"]) ?? 0)
-        lastBar = Int(number(answer["lastBar"]) ?? 0)
+    /// A unit music-core answers; nil without its number, onset or end.
+    init?(_ unit: PhrasesAnswer.Unit) {
+        guard let number = unit.number, let onset = unit.onset, let end = unit.end else { return nil }
+        self.number = number
+        name = unit.name ?? ""
+        firstBar = unit.firstBar ?? 0
+        lastBar = unit.lastBar ?? 0
         self.onset = onset
         self.end = end
-        let selectable = answer["selectable"] as? [String: Any]
-        selectableOnset = number(selectable?["onset"]) ?? onset
-        selectableEnd = number(selectable?["end"]) ?? end
-        provenance = (answer["start"] as? [String: Any])?["provenance"] as? String ?? "inferred"
+        selectableOnset = unit.selectable?.onset ?? onset
+        selectableEnd = unit.selectable?.end ?? end
+        provenance = unit.start?.provenance ?? "inferred"
     }
 }
 
@@ -101,13 +104,6 @@ struct ScoreSelection: Equatable, Sendable {
             onset: answer.onset, end: answer.end, firstBar: answer.firstBar, lastBar: answer.lastBar, noteIds: answer.noteIds,
             firstBeat: answer.firstBeat, lastBeat: answer.lastBeat, hand: answer.filter.hand
         )
-    }
-
-    /// The selection in a facade answer's text (`select`, `phrases.level`); nil for a refusal, null, or an answer that
-    /// cannot be read.
-    init?(answer: String) {
-        guard let selection = FacadeAnswer.decode(SelectionAnswer.self, answer, of: "select")?.selection else { return nil }
-        self.init(selection)
     }
 
     /// "Bar 5, beat 2 → bar 8, beat 3", for a selection by beats (#349); nil without the beats.

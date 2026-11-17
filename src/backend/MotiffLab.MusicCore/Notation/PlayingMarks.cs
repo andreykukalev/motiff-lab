@@ -106,7 +106,7 @@ internal sealed class PlayingMarks
     }
 
     /// <summary>
-    /// «Для чтения» (version 0.5, <c>experimental.readingMarks</c>): only what a player reading the score needs of how it
+    /// «Для чтения» (version 0.5, once behind <c>experimental.readingMarks</c>): only what a player reading the score needs of how it
     /// was played, picked from what <see cref="Of"/> works out. The first dynamic, then a dynamic only where the level moves
     /// two steps or more (p to mf, not mp to mf) and holds for the next bar too; "rit." and "accel." where the bars, three at
     /// a time, grow a fifth longer or shorter than usual, and "a tempo" once back; and a fermata over a chord held through a

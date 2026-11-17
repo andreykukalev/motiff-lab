@@ -6,6 +6,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 
 `Phrases`, `PlaceSelection`, `SelectionHistory`, `SelectionTools` (`.swift`).
 
+- `Phrases.swift`: `PhraseLevelsShown` and `PhraseUnit` from `PhrasesAnswer` (`phrases.level` through
+  `PieceCore.phraseLevel`, with its selection; the text of `phrases` and `phrases.edit` by `init?(answer:)`), and
+  `ScoreSelection`, built from `SelectionAnswer.Selection` only.
 - `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`. The page's rule is `Scripts/score/selection-places.ts` (`../score.md`).
 - `SelectionHistory.swift`: the selection's history, the same rules as music-core's `Motifs/SelectionHistory.cs`.

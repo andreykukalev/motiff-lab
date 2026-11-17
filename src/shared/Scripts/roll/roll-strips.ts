@@ -48,11 +48,6 @@ export interface LaneFrame {
     xOf(tick: number): number;
 }
 
-/** Whether a tick lies inside the selection, [start, end). */
-export function insideOf(selection: TickSpan | null, tick: number): boolean {
-    return selection !== null && tick >= selection.start && tick < selection.end;
-}
-
 /**
  * Whether the loop strip is there, drawn and taking presses (#543, the tail of 0.5.6): with the lanes, and not in practice
  * view (#533 11), where it is hidden. Hidden, it takes no press at all: neither its handles, nor a tap that moves the

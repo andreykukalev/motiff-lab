@@ -171,7 +171,7 @@ struct RecognitionTop: View {
         }
         if let stopped = batch.stopped { return text["recognition.stopped." + stopped] }
         if batch.paused { return text.format("recognition.pausedAt", String(batch.done), String(batch.items.count)) }
-        // The web app's words win where both name a key, and its «recognition.reading» is the line's one word.
+        // Each key is in one file: the line while reading is Import's own «recognition.running», the pieces done of all.
         return text.format("recognition.running", String(batch.done), String(batch.items.count))
     }
 

@@ -1,4 +1,4 @@
-// The playheads of version 0.5 on the score (the experiment Two playheads and modes, Settings · Experimental; product spec
+// The playheads of version 0.5 on the score (once the experiment Two playheads and modes, Settings · Experimental; product spec
 // two-playheads, as the mockup v0.5.2 settled it, #479 item 19). The place in the piece is variant A: a short track under
 // the system that plays, only as wide as the bar, filled up to the place, with a dot on it, in the notation's dark ink;
 // the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The

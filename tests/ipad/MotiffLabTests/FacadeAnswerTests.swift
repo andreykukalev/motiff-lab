@@ -38,20 +38,19 @@ final class FacadeAnswerTests: XCTestCase {
     }
 
     func testAFieldMusicCoreAlwaysWritesIsReportedWhenMissingOrOfAnotherType() throws {
-        let answer = try XCTUnwrap(FacadeAnswer(#"{"count": 2, "name": "x", "group": null, "moved": [{"bar": 3}]}"#, of: "test"))
-        XCTAssertEqual(answer.int("count"), 2)
+        let answer = try XCTUnwrap(FacadeAnswer(#"{"count": 2, "name": "x", "group": null, "names": {"notes": 3}}"#, of: "test"))
+        XCTAssertEqual(answer.required("count", NSNumber.self)?.intValue, 2)
         XCTAssertEqual(answer.required("name", String.self), "x")
-        XCTAssertEqual(answer.nullable("group", String.self), .some(nil), "null is a value music-core writes")
-        XCTAssertEqual(answer.list("moved") { $0.int("bar") }, [3])
+        XCTAssertEqual(answer.entry("names")?.required("notes", NSNumber.self)?.intValue, 3)
+        XCTAssertTrue(answer.has("count", "name"))
         XCTAssertEqual(reported, [])
 
         XCTAssertNil(answer.required("name", Bool.self))
-        XCTAssertNil(answer.int("total"))
-        XCTAssertNil(answer.nullable("kind", String.self))
-        XCTAssertNil(answer.list("moved") { $0.required("noteId", String.self) }, "one object that cannot be read fails the list")
+        XCTAssertNil(answer.required("total", NSNumber.self))
+        XCTAssertNil(answer.entry("names")?.required("keyTicks", [Int].self))
         XCTAssertFalse(answer.has("count", "group"), "null is missing for a payload passed on")
-        XCTAssertEqual(reported.count, 5, "\(reported)")
-        XCTAssertTrue(reported.contains { $0.contains("test.moved[]") && $0.contains("\"noteId\"") }, "the problem names where: \(reported)")
+        XCTAssertEqual(reported.count, 4, "\(reported)")
+        XCTAssertTrue(reported.contains { $0.contains("test.names") && $0.contains("\"keyTicks\"") }, "the problem names where: \(reported)")
     }
 
     // MARK: - The hot answers
@@ -152,19 +151,29 @@ final class FacadeAnswerTests: XCTestCase {
         let id = try XCTUnwrap(shelf.shownId)
 
         let answer = MusicCore.call(piece: piece, "performance.merge.open", facadeRequest(["id": id, "start": "all"]))
-        let merge = try XCTUnwrap(MergeInfo(object: try XCTUnwrap(facadeObject(answer))))
+        let merge = try XCTUnwrap(mergeAnswer(answer)?.merge.map(MergeInfo.init))
         XCTAssertEqual(merge.id, id)
         XCTAssertNotNil(PlaybackScore.read(MusicCore.call(piece: piece, "performance.merge.playback", #"{"view": "result"}"#)))
         XCTAssertEqual(reported, [])
 
-        expectBroken("taking") { MergeInfo(object: facadeObject(renamed(answer, "taking")) ?? [:]) }
-        expectBroken("merge") { MergeInfo(object: facadeObject(renamed(answer, "merge")) ?? [:]) }
+        // A bar's "choice" is pinned on the fixture's draft (FacadeAnswerFixturesTests): this one, of the piece's own
+        // notes, has no bar.
+        expectBroken("taking") { mergeAnswer(renamed(answer, "taking")) }
+        expectBroken("merge") { mergeAnswer(renamed(answer, "merge")) }
 
-        XCTAssertNil(MergeInfo(object: try XCTUnwrap(facadeObject(MusicCore.call(piece: piece, "performance.merge.cancel")))))
+        let none = try XCTUnwrap(mergeAnswer(MusicCore.call(piece: piece, "performance.merge.cancel")))
+        XCTAssertNil(none.merge)
         XCTAssertEqual(reported, [], "none open is music-core's answer, not a broken one")
+        XCTAssertNil(mergeAnswer(MusicCore.call(piece: piece, "performance.merge.undo")), "with none open, a refusal")
+        XCTAssertEqual(reported, [])
     }
 
     // MARK: - Helpers
+
+    /// A merge draft's answer read as `PieceCore.merge` reads it.
+    private func mergeAnswer(_ answer: String) -> MergeAnswer? {
+        FacadeAnswer.decode(MergeAnswer.self, answer, of: "performance.merge")
+    }
 
     /// A corrections answer read as `PieceCore.corrections` reads it.
     private func correctionsAnswer(_ answer: String) -> CorrectionsAnswer? {
@@ -183,5 +192,14 @@ final class FacadeAnswerTests: XCTestCase {
         XCTAssertNil(read(), "\"\(key)\" renamed is not read", file: file, line: line)
         XCTAssertTrue(reported.contains { $0.contains("\"\(key)\"") }, "\"\(key)\" renamed is reported: \(reported)", file: file, line: line)
         reported = []
+    }
+}
+
+extension ScoreSelection {
+    /// The selection in a `select` answer's text, read as `PieceCore.select` reads it, for the tests that call the facade
+    /// directly; nil for a refusal, null, or an answer that cannot be read.
+    init?(answer: String) {
+        guard let selection = FacadeAnswer.decode(SelectionAnswer.self, answer, of: "select")?.selection else { return nil }
+        self.init(selection)
     }
 }

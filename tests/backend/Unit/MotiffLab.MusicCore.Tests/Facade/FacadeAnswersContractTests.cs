@@ -26,6 +26,9 @@ public class FacadeAnswersContractTests
 
     private const string Piece = "FurElise.musicxml";
 
+    /// <summary>The small PDF the requests send as "&lt;pdf&gt;".</summary>
+    private const string Pdf = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n";
+
     /// <summary>The calls and requests each file keeps, in its order.</summary>
     private static readonly Dictionary<string, (string Call, string? Request)[]> s_files = new()
     {
@@ -97,13 +100,59 @@ public class FacadeAnswersContractTests
             ("corrections.layer", """{"on":true,"bar":2}"""),
             ("corrections.revert", """{"bar":2,"id":"n_0014"}"""),
         ],
+        // A version merged through a draft, as MusicCoreFacadeTests merges one: the example played with three notes more in
+        // bar 5, its draft opened keeping mine, bar 5 taken from the version, undone, redone, undecided, reset and taken
+        // again; the result heard, applied (the version as compared then) and the merge undone; the draft opened again
+        // with the choices applied, and cancelled (none open).
+        ["performance.merge"] =
+        [
+            ("performance.add", """{"name":"Live","midi":"<played>","now":"2026-11-15T13:00:00Z"}"""),
+            ("performance.merge.open", """{"id":"perf_1","start":"mine"}"""),
+            ("performance.merge.choose", """{"bars":[5],"choice":"version"}"""),
+            ("performance.merge.undo", "{}"),
+            ("performance.merge.redo", "{}"),
+            ("performance.merge.undecide", """{"bars":[5]}"""),
+            ("performance.merge.reset", "{}"),
+            ("performance.merge.choose", """{"bars":[5],"choice":"version"}"""),
+            ("performance.merge.playback", """{"view":"result"}"""),
+            ("performance.merge.apply", """{"at":"2026-11-15T14:00:00Z"}"""),
+            ("performance.merge.undoApplied", """{"id":"perf_1"}"""),
+            ("performance.merge.open", """{"id":"perf_1","start":"saved"}"""),
+            ("performance.merge.cancel", "{}"),
+        ],
+        // Another level shown with nothing selected (the selection null), a passage selected and the level changed under
+        // it (the selection moved to the units there), the device's level shown without becoming the piece's; then the
+        // phrases with the player's own boundary (a phrase joined with the next) and with it reset.
+        ["phrases.level"] =
+        [
+            ("phrases.level", """{"level":"sentence"}"""),
+            ("select", """{"bars":{"first":5,"last":8}}"""),
+            ("phrases.level", """{"level":"short"}"""),
+            ("phrases.level", """{"level":"phrase","remember":false}"""),
+            ("phrases", null),
+            ("phrases.edit", """{"joinWithNext":1}"""),
+            ("phrases.edit", """{"reset":true}"""),
+        ],
+        // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
+        ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
     };
 
-    /// <summary>Calls that only build a file's state: the file keeps their request, not their answer (another answer's).</summary>
-    private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
+    /// <summary>
+    /// Calls whose answer the file does not keep, only their request: those that only build a file's state (another
+    /// answer's), and `performance.merge.playback`, the playback score that playback.json pins (`Answer.Playback`, the
+    /// whole piece's notes).
+    /// </summary>
+    private static readonly HashSet<string> s_steps = ["performance.add", "performance.take", "performance.merge.playback"];
 
-    /// <summary>The files whose calls start from a project file and not from the example opened anew: how it is built.</summary>
-    private static readonly Dictionary<string, Func<byte[], byte[]>> s_projects = new() { ["corrections.layer"] = WithStaleCorrections };
+    /// <summary>
+    /// The files whose calls start from a project file and not from the example opened anew: the file the project is made
+    /// from (the file's "fixture"), and how it is built.
+    /// </summary>
+    private static readonly Dictionary<string, (string Fixture, Func<byte[], byte[]> Build)> s_projects = new()
+    {
+        ["corrections.layer"] = (Piece, WithStaleCorrections),
+        ["sources.layers.pdf"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
+    };
 
     private static readonly JsonSerializerOptions s_written = new()
     {
@@ -132,13 +181,14 @@ public class FacadeAnswersContractTests
         Assert.True(written == kept, $"tests/contracts/facade-answers/{name}.json differs from the facade's answers ({UpdateVariable}=1 writes it again)");
     }
 
-    /// <summary>The file: a note, the piece, and each call with its request and the facade's answer, opened in English.</summary>
+    /// <summary>The file: a note, the file the piece is made from, and each call with its request and the facade's answer, opened in English.</summary>
     private static string Written(string name)
     {
         var facade = new MusicCoreFacade();
         byte[] data = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", Piece));
-        int piece = s_projects.TryGetValue(name, out Func<byte[], byte[]>? project)
-            ? Opened(facade, "p_answers.motiff.json", project(data), """{"language":"en","edits":"on"}""")
+        bool fromProject = s_projects.TryGetValue(name, out (string Fixture, Func<byte[], byte[]> Build) project);
+        int piece = fromProject
+            ? Opened(facade, "p_answers.motiff.json", project.Build(data), """{"language":"en","edits":"on"}""")
             : Opened(facade, Piece, data, """{"language":"en","id":"p_answers"}""");
 
         var answers = new JsonArray();
@@ -158,7 +208,7 @@ public class FacadeAnswersContractTests
         {
             ["note"] = "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs ("
                 + UpdateVariable + "=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
-            ["fixture"] = Piece,
+            ["fixture"] = fromProject ? project.Fixture : Piece,
             ["answers"] = answers,
         };
         return file.ToJsonString(s_written) + "\n";
@@ -197,13 +247,22 @@ public class FacadeAnswersContractTests
         return ProjectFile.Write(project with { Edits = new NoteEditLog([.. project.Edits.Edits, .. stale]) });
     }
 
+    /// <summary>The project file of a piece made from a PDF alone, as MusicCoreFacadeTests opens one, with a bookmark on its first page.</summary>
+    private static byte[] PdfWithABookmark()
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Opened(facade, "Nocturne.pdf", Encoding.ASCII.GetBytes(Pdf), """{"language":"en","id":"p_answers","now":"2026-11-15T09:00:00Z"}""");
+        Assert.DoesNotContain("error", facade.Call(piece, "document.bookmark.add", """{"page":1,"name":"Start","now":"2026-11-15T09:01:00Z"}"""), StringComparison.Ordinal);
+        return Encoding.UTF8.GetBytes(facade.Call(piece, "project.save", """{"now":"2026-11-15T09:02:00Z"}"""));
+    }
+
     /// <summary>
     /// The request as it is sent: the file keeps "&lt;pdf&gt;", "&lt;otherPdf&gt;" and "&lt;scan&gt;" in place of the bytes
     /// (base64) of two small PDFs and of the notes the scan server read from the example's first page, and "&lt;played&gt;"
     /// in place of a MIDI file of the example played with three notes more in bar 5.
     /// </summary>
     private static string? WithBytes(string? request) => request?
-        .Replace("<pdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n")), StringComparison.Ordinal)
+        .Replace("<pdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes(Pdf)), StringComparison.Ordinal)
         .Replace("<otherPdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes("%PDF-1.4\nanother edition\n%%EOF\n")), StringComparison.Ordinal)
         .Replace("<scan>", Convert.ToBase64String(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"))), StringComparison.Ordinal)
         .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal);

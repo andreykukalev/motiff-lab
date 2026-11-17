@@ -45,6 +45,17 @@ struct VersionEntry: Identifiable, Equatable, Sendable {
     }
 }
 
+extension VersionEntry {
+    /// A version as music-core writes its head (`VersionHead`); nil without its id.
+    init?(_ head: VersionHead) {
+        guard let id = head.id else { return nil }
+        self.init(
+            id: id, name: head.name ?? "", takenBars: head.takenBars ?? 0, source: head.source ?? "midi",
+            mergedAt: VersionEntry.date(head.mergedAt), mergeKept: head.mergeKept ?? false
+        )
+    }
+}
+
 /// The merge draft open now, as music-core answers `performance.merge` (testing items 32 and 34, contract 7): nothing in
 /// the piece changes until Apply, and every step can be undone, redone or reset.
 struct MergeInfo: Equatable, Sendable {
@@ -73,31 +84,18 @@ struct MergeInfo: Equatable, Sendable {
     var changed: Bool
     var bars: [Bar]
 
-    /// The draft in a `performance.merge` answer (`Answer.Merge`); nil when it answers none open ("merge": null), and when
-    /// it cannot be read.
-    init?(object: [String: Any]) {
-        guard let open = FacadeAnswer(call: "performance.merge", fields: object).entryOrNull("merge"), let merge = open,
-              let id = merge.required("id", String.self), let name = merge.required("name", String.self),
-              let decided = merge.int("decided"), let total = merge.int("total"), let sure = merge.int("sure"), let taking = merge.int("taking"),
-              let canUndo = merge.required("canUndo", Bool.self), let canRedo = merge.required("canRedo", Bool.self),
-              let changed = merge.required("changed", Bool.self), let bars = merge.list("bars", Self.readBar) else { return nil }
-        self.id = id
-        self.name = name
-        self.decided = decided
-        self.total = total
-        self.sure = sure
-        self.taking = taking
-        self.canUndo = canUndo
-        self.canRedo = canRedo
-        self.changed = changed
-        self.bars = bars
-    }
-
-    private static func readBar(_ bar: FacadeAnswer) -> Bar? {
-        guard let number = bar.int("bar"), let kind = bar.required("kind", String.self), let group = bar.required("group", String.self),
-              let marker = bar.required("marker", String.self), let confidence = bar.int("confidence"),
-              let sure = bar.required("sure", Bool.self), let choice = bar.nullable("choice", String.self) else { return nil }
-        return Bar(bar: number, kind: kind, group: group, marker: marker, confidence: confidence, sure: sure, choice: choice)
+    /// The draft music-core answers (`MergeAnswer`, `Answer.Merge`).
+    init(_ draft: MergeAnswer.Draft) {
+        id = draft.id
+        name = draft.name
+        decided = draft.decided
+        total = draft.total
+        sure = draft.sure
+        taking = draft.taking
+        canUndo = draft.canUndo
+        canRedo = draft.canRedo
+        changed = draft.changed
+        bars = draft.bars.map { Bar(bar: $0.bar, kind: $0.kind, group: $0.group, marker: $0.marker, confidence: $0.confidence, sure: $0.sure, choice: $0.choice) }
     }
 
     func choice(at bar: Int) -> String? {
@@ -162,10 +160,11 @@ struct VersionShelf: Equatable, Sendable {
     /// The bars that differ, sure or not, whatever was decided about them: what a merge draft goes through.
     var differingAll: [VersionBar] { bars.filter(\.differs) }
 
-    /// Reads `performances`; the version shown stays shown while it is there.
+    /// Reads `performances` (or what removing one answers, `PerformancesAnswer`); the version shown stays shown while it is
+    /// there.
     mutating func read(list answer: String) {
-        guard let object = facadeObject(answer), object["error"] == nil else { return }
-        entries = (object["performances"] as? [[String: Any]] ?? []).compactMap(Self.entry)
+        guard let list = FacadeAnswer.decode(PerformancesAnswer.self, answer, of: "performances") else { return }
+        entries = (list.performances ?? []).compactMap { VersionEntry($0) }
         if let shownId, !entries.contains(where: { $0.id == shownId }) {
             self.shownId = nil
             bars = []
@@ -174,38 +173,31 @@ struct VersionShelf: Equatable, Sendable {
         }
     }
 
-    /// Reads `performance` (or what a change to one answers): that version is now the one shown. False for an error.
+    /// Reads `performance` (or what a change to one answers) in its text, for the calls not yet made through `PieceCore`.
     mutating func read(performance answer: String) -> Bool {
-        guard let object = facadeObject(answer), object["error"] == nil, let performance = object["performance"] as? [String: Any],
-              let entry = Self.entry(performance) else { return false }
-        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        read(performance: FacadeAnswer.decode(PerformanceAnswer.self, answer, of: "performance"))
+    }
+
+    /// Reads a version compared (`PerformanceAnswer`): that version is now the one shown. False for a refusal or an answer
+    /// that cannot be read.
+    mutating func read(performance answer: PerformanceAnswer?) -> Bool {
+        guard let performance = answer?.performance, let entry = VersionEntry(performance.head) else { return false }
         if let index = entries.firstIndex(where: { $0.id == entry.id }) { entries[index] = entry } else { entries.append(entry) }
         shownId = entry.id
-        matched = Int(number(performance["matched"]) ?? 0)
-        printed = Int(number(performance["printed"]) ?? 0)
-        bars = (performance["bars"] as? [[String: Any]] ?? []).compactMap { bar in
-            guard let number = number(bar["bar"]) else { return nil }
-            let span = (bar["span"] as? [String: Any]).flatMap { span in
-                (span["onset"] as? NSNumber).flatMap { onset in (span["end"] as? NSNumber).map { onset.doubleValue..<max($0.doubleValue, onset.doubleValue + 1) } }
-            }
+        matched = performance.matched ?? 0
+        printed = performance.printed ?? 0
+        bars = (performance.bars ?? []).compactMap { bar in
+            guard let number = bar.bar else { return nil }
+            let span = bar.span.flatMap { span in span.onset.flatMap { onset in span.end.map { onset..<max($0, onset + 1) } } }
             return VersionBar(
-                bar: Int(number), span: span, aligned: bar["aligned"] as? Bool ?? false, kind: bar["kind"] as? String ?? "none",
-                marker: bar["marker"] as? String ?? "", confidence: (bar["confidence"] as? NSNumber)?.intValue ?? 0,
-                dismissed: bar["dismissed"] as? Bool ?? false, taken: bar["taken"] as? Bool ?? false,
-                notHeard: bar["notHeard"] as? [String] ?? [], played: (bar["played"] as? [Any])?.count ?? 0,
-                artefacts: (bar["artefacts"] as? [Any])?.count ?? 0
+                bar: number, span: span, aligned: bar.aligned ?? false, kind: bar.kind ?? "none",
+                marker: bar.marker ?? "", confidence: bar.confidence ?? 0,
+                dismissed: bar.dismissed ?? false, taken: bar.taken ?? false,
+                notHeard: bar.notHeard ?? [], played: bar.played?.count ?? 0,
+                artefacts: bar.artefacts?.count ?? 0
             )
         }
         return true
-    }
-
-    private static func entry(_ object: [String: Any]) -> VersionEntry? {
-        guard let id = object["id"] as? String else { return nil }
-        return VersionEntry(
-            id: id, name: object["name"] as? String ?? "", takenBars: (object["takenBars"] as? NSNumber)?.intValue ?? 0,
-            source: object["source"] as? String ?? "midi",
-            mergedAt: VersionEntry.date(object["mergedAt"] as? String), mergeKept: object["mergeKept"] as? Bool ?? false
-        )
     }
 }
 
