@@ -40,17 +40,17 @@ extension Walk {
         shot("45-switch-notes", settle: 1)
     }
 
-    /// The bar's start, the switch, Sources and More in that order on one line (VIEW-04).
+    /// The bar's start, the switch, Sources and More in that order on one line (VIEW-04), each measured once it stands still.
     private func barPlaces(_ view: String) throws -> BarPlaces {
-        let title = try need(self.title, "the title in the bar \(view)")
+        let title = self.title
         let row: [(String, CGRect)] = try [
-            ("Back", need(button("Библиотека"), "Back in the bar \(view)").frame),
-            ("Contents", need(button("Оглавление"), "the Contents in the bar \(view)").frame),
-            ("the title", title.frame),
-            ("PDF", need(pdfSwitch, "PDF in the switch \(view)").frame),
-            ("Notes", need(notesSwitch, "Notes in the switch \(view)").frame),
-            ("Sources", need(button("Источники"), "Sources in the bar \(view)").frame),
-            ("More", need(more, "More in the bar \(view)").frame),
+            ("Back", settled(button("Библиотека"), "Back in the bar \(view)")),
+            ("Contents", settled(button("Оглавление"), "the Contents in the bar \(view)")),
+            ("the title", settled(title, "the title in the bar \(view)")),
+            ("PDF", settled(pdfSwitch, "PDF in the switch \(view)")),
+            ("Notes", settled(notesSwitch, "Notes in the switch \(view)")),
+            ("Sources", settled(button("Источники"), "Sources in the bar \(view)")),
+            ("More", settled(more, "More in the bar \(view)")),
         ]
         let line = row.map { "\($0.0) \(Int($0.1.minX))" }.joined(separator: ", ")
         guard row.allSatisfy({ abs($0.1.midY - row[0].1.midY) < 8 }) else { throw miss("the bar is not one line \(view) (VIEW-04): \(line)") }
@@ -98,14 +98,14 @@ extension Walk {
         try need(button("Метроном"), "the metronome in the PDF's bar")
         shot("40-pdf-piece", settle: 2)
         try press(button("Перо"), "the Pen on the PDF")
-        try need(button("Убрать карандаш"), "the PDF's pen palette")
+        try settled(button("Убрать карандаш"), "the PDF's pen palette")
         stroke(from: CGVector(dx: 0.3, dy: 0.4), to: CGVector(dx: 0.5, dy: 0.42))
         shot("41-pdf-pen")
         try press(button("Убрать карандаш"), "Put the pen away on the PDF")
         try press(more, "More on the PDF")
         try need(app.otherElements["PopoverDismissRegion"], "the PDF's More")
         shot("43-pdf-more")
-        dismissPopover()
+        try dismissPopover()
         // A known issue, not a pass: strict (the day the pill shows, the walk fails saying the expected failure did not
         // come) and narrow (only the pill's own assertion is expected to fail).
         try press(button("Метроном"), "the metronome in the PDF's bar")

@@ -63,8 +63,8 @@ extension Walk {
 
     /// ROLL-01, PLAY-03: the roll's drawer keeps its zoom when the selection changes and through Expand; Expand from the
     /// drawer shows the passage as a roll, Play there plays it round and round, and Collapse gives the drawer back; Expand
-    /// from the notes plays inside the passage. PLAY-01 (the card's playhead dragged by its dot) is not walked: the dot is
-    /// drawn in the page, and the probe does not say where.
+    /// from the selection menu opens in the roll again (a question), and in the notes it plays inside the passage. PLAY-01
+    /// (the card's playhead dragged by its dot) is not walked: the dot is drawn in the page, and the probe does not say where.
     func rollAndExpand() throws {
         try choosePhrase()
         try press(button("Фортепианный ролл"), "the piano roll in the bar")
@@ -92,6 +92,12 @@ extension Walk {
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
         try press(button("Фокус"), "Expand in the selection menu")
+        // A question (2026-11-17): Expand opened from the selection menu shows the view Expand was in last, here the roll
+        // chosen from the drawer, not always the notes. Asserted as the app does it now until Andrei answers; then the
+        // journey takes the notes in Expand's bar.
+        try until("Expand from the selection menu in the view it was in last, the roll", timeout: 8) { $0.on("focus") && $0["as"] == "roll" }
+        print("SCREEN-QUESTION expand-view \(tag): Expand from the selection menu opens in the view used last (the roll), not always in the notes; to be put to Andrei")
+        try press(button("Ноты"), "Notes in Expand's bar")
         try until("Expand from the notes", timeout: 8) { $0.on("focus") && $0["as"] == "notes" }
         try need(button("К странице"), "Back to the page in Expand's bar")
         shot("21-focus", settle: 1.5)
@@ -190,22 +196,39 @@ extension Walk {
     /// simulator has no stylus: one finger writes here («Только Apple Pencil» off), so the entry's finger rule (a finger
     /// scrolls) needs the device.
     func penAndEraser() throws {
+        try placePlayheadAside()
         try press(button("Перо"), "the Pen in the bar's modes")
         let before = try until("the Pen on") { $0.on("pen") }
-        try press(button("Карандаш"), "the pencil in the pen's palette")
+        try choose(button("Карандаш"), "the pencil in the pen's palette")
         let from = CGVector(dx: 0.30, dy: 0.42)
         let to = CGVector(dx: 0.36, dy: 0.62)
         stroke(from: from, to: to)
-        let written = try until("a stroke written with the Pen") { ($0.int("ink") ?? 0) > (before.int("ink") ?? 0) }
+        let written = try until("a stroke written with the Pen (the black playhead at \(before.tick) before it)") {
+            ($0.int("ink") ?? 0) > (before.int("ink") ?? 0)
+        }
         guard written["scroll"] == before["scroll"] else {
             throw WalkMiss(what: "the Pen's stroke scrolled the page from \(before["scroll"] ?? "?") (INK-01)", probe: written.line)
         }
         shot("28-pen-palette")
-        try press(button("Ластик"), "the eraser in the pen's palette")
+        try choose(button("Ластик"), "the eraser in the pen's palette")
         stroke(from: from, to: to)
         try until("the stroke erased") { ($0.int("ink") ?? 0) < (written.int("ink") ?? 0) }
         try press(button("Убрать карандаш"), "Put the pen away")
         try until("the Pen off") { !$0.on("pen") }
+    }
+
+    /// The black playhead put on a beat across the page from where the Pen's strokes start, by a tap in Navigate (a tap on a
+    /// beat moves it there). With the Pen a finger that presses within reach of the playhead's handle (InputRules.handleReach)
+    /// drags the playhead and writes nothing, and the journeys before leave it wherever their playing stopped: in run 4
+    /// Insights' variation stopped it in the selection the stroke starts beside, and the stroke wrote no ink.
+    private func placePlayheadAside() throws {
+        if probe()?["mode"] != "navigate" {
+            try press(button("Навигация"), "Navigate in the bar's modes")
+            try until("Navigate chosen") { $0["mode"] == "navigate" }
+        }
+        let before = probe()?.tick
+        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: Self.selectRow)).tap()
+        try until("the black playhead on the beat tapped in Navigate") { !$0.playing && $0.tick != before }
     }
 
     /// The assistant's panel opened from More on the whole piece, and closed.
@@ -225,7 +248,7 @@ extension Walk {
         try press(button("Фразы"), "Phrases")
         try need(app.otherElements["PopoverDismissRegion"], "the Phrases popover")
         shot("12-phrases-levels")
-        dismissPopover()
+        try dismissPopover()
 
         try choosePhrase()
         try press(button("Закладка"), "Bookmark in the selection menu")

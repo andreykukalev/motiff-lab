@@ -189,16 +189,44 @@ final class Walk {
         return element
     }
 
-    /// The control is there and takes a press, which it gets.
+    /// The control is there and takes a press, which it gets where it stands.
     func press(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 4) throws {
-        try need(element, what, timeout: timeout)
-        let start = Date()
-        while !element.isHittable {
-            guard Date().timeIntervalSince(start) < 2 else { throw miss("\(what) is there but cannot be pressed") }
-            pause(0.25)
-        }
+        try settled(element, what, timeout: timeout)
         element.tap()
         pause(0.5)
+    }
+
+    /// The control is there, takes a press, and stands still: its middle in the same place, within a few points, at two
+    /// looks a quarter of a second apart, so a control on a sheet, a palette, a drawer or a popover still moving in is not
+    /// pressed or measured on its way (a label that changes, as the pill's place while it plays, may shift it a little).
+    /// Its frame then.
+    @discardableResult
+    func settled(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 4) throws -> CGRect {
+        try need(element, what, timeout: timeout)
+        let start = Date()
+        var last: CGPoint?
+        repeat {
+            if element.exists && element.isHittable {
+                let frame = element.frame
+                let middle = CGPoint(x: frame.midX, y: frame.midY)
+                if let before = last, abs(before.x - middle.x) <= 4, abs(before.y - middle.y) <= 4 { return frame }
+                last = middle
+            } else {
+                last = nil
+            }
+            pause(0.25)
+        } while Date().timeIntervalSince(start) < 3
+        throw miss("\(what) is there but cannot be pressed where it stands")
+    }
+
+    /// A control that shows itself chosen (a tool in the pen's palette) pressed, and chosen once it is.
+    func choose(_ element: XCUIElement, _ what: String) throws {
+        try press(element, what)
+        let start = Date()
+        while !element.isSelected {
+            guard Date().timeIntervalSince(start) < 3 else { throw miss("\(what) is not shown chosen after its press") }
+            pause(0.25)
+        }
     }
 
     /// The control has gone within `timeout`, or the journey stops here.
@@ -210,11 +238,11 @@ final class Walk {
         }
     }
 
-    /// A popover closes on a tap outside it.
-    func dismissPopover() {
+    /// A popover closes on a tap outside it, and has gone before the next step.
+    func dismissPopover() throws {
         let region = app.otherElements["PopoverDismissRegion"]
         if region.exists { region.tap() } else { app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.98)).tap() }
-        pause(0.8)
+        try gone(region, "the popover after a tap outside it")
     }
 
     /// A stroke of one finger across the window, between two places given as shares of its width and height.
