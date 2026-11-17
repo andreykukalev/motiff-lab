@@ -29,7 +29,8 @@ motiff-lab/
 │   │   └── Acceptance/           MotiffLab.Acceptance.Tests (protected scenarios: Andrei merges)
 │   ├── ipad/                     MotiffLabTests (unit) and MotiffLabScreens (UI), built by src/ipad/App/project.yml
 │   ├── shared/                   node tests of src/shared (after dotnet build)
-│   └── contracts/                fixtures both sides of a contract read (the score page's, the facade's call names)
+│   ├── pages/                    the page scenarios' replayer and their Chromium runner (Playwright), the fixtures' maker
+│   └── contracts/                fixtures both sides of a contract read (the score page's, the facade's call names); page-scenarios/
 ├── archive/                      code that is kept but not built, tested or deployed
 │   ├── Directory.Build.props     empty: stops the root MSBuild rules reaching archived projects
 │   └── web/                      the archived web app (0032); docs/web-archive.md
@@ -55,6 +56,7 @@ motiff-lab/
 | The scan server's code | `src/backend/omr`, its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
 | An iPad screen or controller | its feature folder in `src/ipad/App/MotiffLab` (`docs/code-map/ipad.md`), its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |
 | Score, roll, layout, storage or playback behaviour the score page runs | `src/shared/Scripts`, its tests in `tests/shared` |
+| What a player does on the score or roll page, pressed as on the iPad | A scenario in `tests/contracts/page-scenarios` (its README), replayed by `tests/pages` in Chromium and by `tests/ipad` in WebKit |
 | An interface text | `src/shared/wwwroot/i18n/{en,ru}.json`, or `src/ipad/App/Words` for what only the iPad says |
 | A repository tool | `tools/` |
 | Anything in `archive/` | Nothing: archived code is frozen. Bringing it back moves it out of `archive/` again |
@@ -76,6 +78,10 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
   committed), `src/ipad/Core` and the backend tests. The solution does not list anything in `archive/`.
 - `src/ipad/App/project.yml` reads `../../shared/…` (compiled scripts, words, piano, example piece), `../../../design/kit`,
   `../../../tests/ipad` and `../../../tests/contracts`; `src/ipad/Core` references `../../backend/MotiffLab.MusicCore`.
+  The page scenarios' replay (`PageScenarioTests.swift`) reads its files from the repository beside it, not the bundle.
+- CI runs the page scenarios after the build: `tests/pages/run.mjs` with `playwright-core` from `tests/pages/package.json`
+  and the runner's Chrome; the same run makes the fixtures again (`tests/pages/fixture.mjs --check`) and fails on a stale
+  one.
 - CI (`ci.yml`) treats a change under `archive/` like documentation: no build, no tests. The quality check
   (`tools/quality`) and jscpd skip `archive/**`; `governance/risk-paths.yml` puts it at low risk.
 - The `iPad` workflow runs `dotnet build src/shared` before XcodeGen; `src/ipad/build-version.sh` does the same, and for a
