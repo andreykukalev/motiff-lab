@@ -63,69 +63,10 @@ public class SettingsTests
     }
 
     [Fact]
-    public void The_version_0_5_experiments_are_off_on_the_device_and_one_switch_replaces_the_two_for_pieces()
+    public void The_experiment_switches_are_gone_from_the_catalogue()
     {
-        foreach (string id in new[] { "experimental.pieces", "experimental.editsLayer", "experimental.liveTempo", "experimental.harmony", "experimental.readingMarks", "experimental.meters", "experimental.libraryImport" })
-        {
-            Setting setting = SettingsCatalogue.Get(id);
-            Assert.Equal(SettingSection.Experimental, setting.Section);
-            Assert.Equal(SettingScope.Device, setting.Scope);
-            Assert.False(SettingsState.Default.IsOn(id), id);
-        }
-
-        Assert.Null(SettingsCatalogue.Find("experimental.autoBookmarks"));
-        Assert.Null(SettingsCatalogue.Find("experimental.pieceParts"));
-    }
-
-    [Theory]
-    [InlineData("experimental.assistantRepairs")]
-    [InlineData("experimental.assistant")]
-    [InlineData("experimental.assistantVariants")]
-    [InlineData("experimental.musicalIdeas")]
-    [InlineData("experimental.assistantActions")]
-    [InlineData("experimental.assistantContext")]
-    public void The_assistant_experiments_are_off_on_the_device(string id)
-    {
-        Setting setting = SettingsCatalogue.Get(id);
-        Assert.Equal(SettingSection.Experimental, setting.Section);
-        Assert.Equal(SettingScope.Device, setting.Scope);
-        Assert.False(SettingsState.Default.IsOn(setting.Id));
-    }
-
-    [Fact]
-    public void The_place_selection_experiment_is_off_on_the_device()
-    {
-        Setting setting = SettingsCatalogue.Get("experimental.placeSelection");
-        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
-        Assert.False(SettingsState.Default.IsOn(setting.Id));
-    }
-
-    [Fact]
-    public void The_dictation_experiment_is_on_on_the_device()
-    {
-        Setting setting = SettingsCatalogue.Get("experimental.dictation");
-        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
-        Assert.True(SettingsState.Default.IsOn(setting.Id));
-    }
-
-    [Fact]
-    public void The_new_sources_experiment_is_off_on_the_device()
-    {
-        Setting setting = SettingsCatalogue.Get("experimental.sources");
-        Assert.Equal((SettingSection.Experimental, SettingScope.Device), (setting.Section, setting.Scope));
-        Assert.False(SettingsState.Default.IsOn(setting.Id));
-    }
-
-    [Fact]
-    public void The_playheads_experiment_is_off_on_the_device_and_has_no_fade_any_more()
-    {
-        Setting setting = SettingsCatalogue.Get("experimental.playheads");
-        Assert.Equal(SettingSection.Experimental, setting.Section);
-        Assert.Equal(SettingScope.Device, setting.Scope);
-        Assert.False(SettingsState.Default.IsOn("experimental.playheads"));
-
-        // The fade of the other bars went in v0.5.2 (#479 item 19); a device that kept the switch reads past it.
-        Assert.Null(SettingsCatalogue.Find("experimental.playheadsFade"));
+        // The iPad has had no experiment switch since v0.6.5 (W1.11); the earlier ones went with their versions.
+        Assert.All([.. s_experimentSwitches, "experimental.autoBookmarks", "experimental.pieceParts", "experimental.playheadsFade"], id => Assert.Null(SettingsCatalogue.Find(id)));
     }
 
     [Fact]
