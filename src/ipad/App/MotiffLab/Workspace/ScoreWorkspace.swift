@@ -8,7 +8,8 @@ import SwiftUI
 ///
 /// `wire()` hands the controllers their callbacks, each one a method here. The callbacks hold the workspace weakly and the
 /// workspace holds the controllers, so nothing is kept alive in a ring. The reactions of the view (`.onChange`) call their
-/// methods where their bodies were: `docs/code-map/ipad/workspace.md`, "The order the view must keep".
+/// methods (ScoreWorkspaceReactions.swift) where their bodies were: `docs/code-map/ipad/workspace.md`, "The order the
+/// view must keep".
 @MainActor
 final class ScoreWorkspace: ObservableObject {
     let piece: OpenPiece
@@ -184,38 +185,6 @@ final class ScoreWorkspace: ObservableObject {
 
     func notesMoved(_ edits: [RollNoteEdit]) {
         edits.forEach { score.editNote($0) }
-    }
-
-    /// The roll's drawer opened or closed (the reaction on `panels[.roll]`); `dark` is the screen's appearance.
-    func rollDrawerChanged(_ open: Bool, dark: Bool) {
-        apply(.roll(open))
-        if open {
-            roll.show(piece, dark: dark)
-            roll.showSelection(score.selection, loop: player.loop)
-        } else if panels.rollEditsGoWithDrawer {
-            // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
-            // Expand takes the editor into the roll in focus, with its draft (#479 item 23).
-            score.cancelNoteEdit()
-        }
-    }
-
-    /// The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5), bound to the passage
-    /// Expand was opened on (#521 19): only it, laid across the card; the drawer gives it up and gets it back (PanelState).
-    /// Back, or Notes chosen, lets the passage go: its zoom and view are as before Expand (#521 17). The reaction on
-    /// `score.focused && score.focusRoll`; `dark` is the screen's appearance.
-    func focusRollChanged(_ shown: Bool, dark: Bool) {
-        apply(.rollOnCard(shown))
-        if shown {
-            roll.show(piece, dark: dark)
-            roll.showSelection(score.selection, loop: player.loop)
-            roll.bind(score.selection.map { $0.onset..<max($0.end, $0.onset + 1) })
-            return
-        }
-        roll.bind(nil)
-        if panels.rollEditsGoWithCard {
-            // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
-            score.cancelNoteEdit()
-        }
     }
 }
 
