@@ -219,8 +219,9 @@ extension Walk {
 
     /// The black playhead put on a beat across the page from where the Pen's strokes start, by a tap in Navigate (a tap on a
     /// beat moves it there). With the Pen a finger that presses within reach of the playhead's handle (InputRules.handleReach)
-    /// drags the playhead and writes nothing, and the journeys before leave it wherever their playing stopped: in run 4
-    /// Insights' variation stopped it in the selection the stroke starts beside, and the stroke wrote no ink.
+    /// drags the playhead and writes nothing, and the journeys before leave it wherever their playing stopped (run 4: the
+    /// stroke wrote nothing, most likely begun at the handle, which Insights' variation had left in the selection beside the
+    /// stroke's start). A tap that selected instead (the page not yet in Navigate) is a miss, not a pass.
     private func placePlayheadAside() throws {
         if probe()?["mode"] != "navigate" {
             try press(button("Навигация"), "Navigate in the bar's modes")
@@ -228,7 +229,9 @@ extension Walk {
         }
         let before = probe()?.tick
         app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.80, dy: Self.selectRow)).tap()
-        try until("the black playhead on the beat tapped in Navigate") { !$0.playing && $0.tick != before }
+        try until("the black playhead on the beat tapped in Navigate, nothing selected") {
+            !$0.playing && $0.tick != before && $0["sel"] == "none"
+        }
     }
 
     /// The assistant's panel opened from More on the whole piece, and closed.
