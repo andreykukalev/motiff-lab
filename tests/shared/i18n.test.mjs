@@ -1,26 +1,46 @@
 // Every interface text the iPad app names is in English and in Russian (0018: both languages ship): a key missing in
 // both shows as the key itself, one missing only in Russian falls back to English (UIText). Every key-shaped literal of
-// the app counts, so a new way of passing a key around is covered too; the ids that are no texts are listed. The
-// archived web app's keys: archive/web/tests/web/i18n-web.test.mjs.
+// the app counts, so a new way of passing a key around is covered too; the ids that are no texts are listed. The texts
+// are in one shared pair of files and one pair per feature folder (blueprint v0.7, 5.5), each key in exactly one: a
+// folder's pair holds what only that folder's Swift names. The archived web app's keys:
+// archive/web/tests/web/i18n-web.test.mjs.
 //   node --test tests/shared
 
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-const root = new URL("../../src/shared/", import.meta.url);
-const en = JSON.parse(readFileSync(new URL("wwwroot/i18n/en.json", root), "utf8"));
-const ru = JSON.parse(readFileSync(new URL("wwwroot/i18n/ru.json", root), "utf8"));
-// What only the iPad says (src/ipad/App/Words), read by the iPad app beside the web app's files.
-const ipadWords = new URL("../../src/ipad/App/Words/", import.meta.url);
-const ipadEn = JSON.parse(readFileSync(new URL("en.json", ipadWords), "utf8"));
-const ipadRu = JSON.parse(readFileSync(new URL("ru.json", ipadWords), "utf8"));
+const swiftDir = new URL("../../src/ipad/App/MotiffLab/", import.meta.url);
+const read = (url) => JSON.parse(readFileSync(url, "utf8"));
+/**
+ * The text files as UIText reads them, the shared pair first, then each folder's (`Roll/Words/Roll.en.json`) by name;
+ * `folder` is null for the shared pair. Every `*.en.json` or `*.ru.json` below the app's Swift counts, since UIText
+ * reads every one at the app's top.
+ */
+const wordFiles = readdirSync(swiftDir, { recursive: true }).filter((file) => /\.(?:en|ru)\.json$/.test(file)).sort();
+const shared = new URL("../../src/shared/wwwroot/i18n/", import.meta.url);
+const pairs = [
+    { name: "src/shared/wwwroot/i18n/{en,ru}.json", folder: null, url: (language) => new URL(`${language}.json`, shared) },
+    ...[...new Set(wordFiles.map((file) => file.replace(/\.(?:en|ru)\.json$/, "")))].map((stem) => ({
+        name: `${stem}.{en,ru}.json`,
+        folder: stem.split("/")[0],
+        stem,
+        url: (language) => new URL(`${stem}.${language}.json`, swiftDir),
+    })),
+].map((pair) => ({ ...pair, en: read(pair.url("en")), ru: read(pair.url("ru")) }));
+/** The files that define each key, in either language. */
+const files = new Map();
+for (const pair of pairs) {
+    for (const key of Object.keys({ ...pair.en, ...pair.ru })) files.set(key, [...(files.get(key) ?? []), pair.name]);
+}
+/** All texts of a language, merged as UIText merges them (each key is in one file). */
+const en = Object.assign({}, ...pairs.map((pair) => pair.en));
+const ru = Object.assign({}, ...pairs.map((pair) => pair.ru));
 
-const inBoth = (key) => (key in en && key in ru) || (key in ipadEn && key in ipadRu);
+const inBoth = (key) => key in en && key in ru;
 /** A text, or the base of a counted one (`text.count`, `SourceLayers.counted`) with its plural forms. */
 const isText = (key) => inBoth(key) || [`${key}.one`, `${key}.many`].every(inBoth);
 
-const swiftDir = new URL("../../src/ipad/App/MotiffLab/", import.meta.url);
 /** The app's Swift files, every feature folder below it, as paths relative to it (`Platform/UIText.swift`). */
 const swiftFiles = readdirSync(swiftDir, { recursive: true }).filter((file) => file.endsWith(".swift")).sort();
 /** A Swift file of the app with its comment lines removed. */
@@ -167,7 +187,7 @@ for (const file of swiftFiles) {
 test("every key-shaped literal of the iPad app is a text in English and in Russian, or an id listed as no text", () => {
     assert.ok(named.size > 1000, `only ${named.size} literals found: the pattern no longer matches`);
     const missing = [...named].filter(([key]) => !isText(key) && !notText(key)).map(([key, file]) => `${key} (${file})`);
-    assert.deepEqual(missing, [], "add these texts to wwwroot/i18n/{en,ru}.json (or src/ipad/App/Words), or list the id in NOT_TEXT");
+    assert.deepEqual(missing, [], "add these texts to <Folder>/Words/<Folder>.{en,ru}.json or wwwroot/i18n, or list the id in NOT_TEXT");
     // Every exception still names something, so the list does not keep ids the app no longer has.
     const names = [...named.keys(), ...built];
     const unused = NOT_TEXT.filter(([pattern]) => !names.some((key) => pattern.test(key) && !isText(key)));
@@ -177,8 +197,7 @@ test("every key-shaped literal of the iPad app is a text in English and in Russi
 test("every key the iPad app builds still has its family, and every listed member its text", () => {
     const prefixes = [...built].filter((prefix) => !notText(prefix));
     assert.ok(prefixes.length > 30, `only ${prefixes.length} built keys found: the pattern no longer matches`);
-    const keys = [...Object.keys(en), ...Object.keys(ipadEn)];
-    const gone = prefixes.filter((prefix) => !keys.some((key) => key.startsWith(prefix) && inBoth(key)));
+    const gone = prefixes.filter((prefix) => !Object.keys(en).some((key) => key.startsWith(prefix) && inBoth(key)));
     assert.deepEqual(gone, [], "the app builds keys with these starts, but no text starts with them in both languages");
     const families = listedFamilies();
     assert.ok(families.length > 20, `only ${families.length} listed families found: the patterns no longer match`);
@@ -187,14 +206,68 @@ test("every key the iPad app builds still has its family, and every listed membe
     assert.deepEqual([...new Set(missing)], [], "a family's member has no text in both languages");
 });
 
-test("the iPad's own words are in English and in Russian, Russian with its three plural forms", () => {
-    assert.deepEqual(Object.keys(ipadEn).sort(), Object.keys(ipadRu).filter((key) => !/\.few$/.test(key)).sort());
-    const counted = Object.keys(ipadEn).filter((key) => key.endsWith(".many")).map((key) => key.slice(0, -5));
-    assert.deepEqual(counted.filter((base) => !(`${base}.few` in ipadRu)), []);
+test("every pair of text files holds strings, the same keys in English and in Russian, Russian with three plural forms", () => {
+    for (const pair of pairs) {
+        // UIText reads a file as [String: String]: one value of another type and the whole file is dropped.
+        for (const language of ["en", "ru"]) {
+            const notString = Object.entries(pair[language]).filter(([, text]) => typeof text !== "string");
+            assert.deepEqual(notString.map(([key]) => key), [], `${pair.name} (${language}): texts that are no strings`);
+        }
+        // English never asks for the form "few", so a text of it there is spare, not a key of its own.
+        const keys = (texts) => Object.keys(texts).filter((key) => !key.endsWith(".few")).sort();
+        const english = keys(pair.en);
+        assert.deepEqual(english, keys(pair.ru), pair.name);
+        const counted = english.filter((key) => key.endsWith(".many")).map((key) => key.slice(0, -5));
+        const missing = counted.filter((base) => ["one", "few", "many"].some((form) => !(`${base}.${form}` in pair.ru)));
+        assert.deepEqual(missing, [], pair.name);
+    }
 });
 
-test("Russian has the three plural forms wherever English has a counted text", () => {
-    const counted = Object.keys(en).filter((key) => key.endsWith(".many")).map((key) => key.slice(0, -5));
-    const missing = counted.filter((base) => ["one", "few", "many"].some((form) => !(`${base}.${form}` in ru)));
-    assert.deepEqual(missing, []);
+test("a folder's texts are its Words/<Folder>.en.json and .ru.json, read by UIText from the app's top", () => {
+    const misplaced = pairs.filter((pair) => pair.folder && pair.stem !== `${pair.folder}/Words/${pair.folder}`);
+    // The app's top holds them under their names alone, so the folder's name keeps them apart.
+    assert.deepEqual(misplaced.map((pair) => pair.name), [], "name a folder's texts <Folder>/Words/<Folder>.{en,ru}.json");
+});
+
+test("a key lives in exactly one file", () => {
+    const twice = [...files].filter(([, names]) => names.length > 1).map(([key, names]) => `${key}: ${names.join(", ")}`);
+    assert.deepEqual(twice, [], "keep each of these keys in one file");
+});
+
+/**
+ * Which feature folders' Swift name a key: as a literal, as the base of its sub-keys (`library.ideas` for
+ * `library.ideas.one`), or by a start it builds (`"edit.\($0)"`, `"recognition.stopped." + reason`) or keeps
+ * (`static let key = "folderImport.filter."`). Only literals count: a key reached through a value of another folder, an
+ * answer of music-core or saved data counts for the folder that names it, or for none; an id that is also a text
+ * (`layers.ink`) counts wherever it is named.
+ */
+const users = new Map();
+for (const file of swiftFiles) {
+    const folder = file.split("/")[0];
+    const source = swift(file);
+    const literals = new Set([...source.matchAll(KEY)].map((match) => match[1]));
+    const starts = [...source.matchAll(PREFIX), ...source.matchAll(/"([a-zA-Z]\w*(?:\.\w+)*\.)"/g)]
+        .map((match) => match[1])
+        .filter((start) => !notText(start));
+    for (const key of files.keys()) {
+        const names = literals.has(key) || [...literals].some((literal) => key.startsWith(`${literal}.`))
+            || starts.some((start) => key.startsWith(start));
+        if (names) users.set(key, new Set([...(users.get(key) ?? []), folder]));
+    }
+}
+/** What the pages say, which stays in the shared files though one folder passes it: the roll's labels (RollController). */
+const PAGES = [/^roll\.js\./, /^roll\.ipad\.rollAria$/];
+
+test("a folder's pair holds the keys only that folder names, the shared pair all the others", () => {
+    const wrong = [];
+    for (const pair of pairs) {
+        for (const key of Object.keys({ ...pair.en, ...pair.ru })) {
+            const by = [...(users.get(key) ?? [])].sort();
+            const owner = by.length === 1 && !PAGES.some((pattern) => pattern.test(key)) ? by[0] : null;
+            if (owner === pair.folder) continue;
+            const home = owner ? `${owner}/Words/${owner}.{en,ru}.json` : pairs[0].name;
+            wrong.push(`${key}: in ${pair.name}, named by ${by.join(", ") || "no folder"}, belongs in ${home}`);
+        }
+    }
+    assert.deepEqual(wrong, [], "move these keys, with their texts unchanged, to the file named");
 });
