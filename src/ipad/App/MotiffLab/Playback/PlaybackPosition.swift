@@ -314,7 +314,7 @@ struct BarBeats: Equatable, Sendable {
     }
 }
 
-/// What the score's page is told of the selection for its playheads (`motiff.playheads`, ScoreScreen.syncPlayheads): the span
+/// What the score's page is told of the selection for its playheads (`motiff.playheads`, ScoreWorkspace.syncPlayheads): the span
 /// the blue playhead keeps to and, narrowed to a hand (v0.6.2), that hand, whose staff alone the band and the blue playhead
 /// cover (v0.6.3, #608 item 3).
 enum PlayheadsShown {

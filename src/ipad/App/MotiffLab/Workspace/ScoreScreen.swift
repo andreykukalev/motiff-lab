@@ -455,7 +455,7 @@ struct ScoreScreenContent: View {
         await contents.load(piece: piece.id)
         assistant.load(piece: piece.own?.id ?? piece.file?.lastPathComponent ?? piece.title, score: score)
         await player.load(piece: piece.id, key: piece.own?.id); ProbeCounts.shared.mark("sound")
-        applyModel()
+        workspace.applyModel()
         await resume()
         await returnToNotesView()
     }
@@ -542,62 +542,16 @@ struct ScoreScreenContent: View {
     /// What follows the selection, the player and the fact chosen.
     private func following(_ content: some View) -> some View {
         content
-            .onChange(of: score.focusVersion) { _, version in
-                // In focus with no way tried, the other version is there to hear in the variation's place (0022, section 5).
-                guard insights.trial == nil else { return }
-                if let version, version.sounds {
-                    player.setVariation(version.notes, version: true)
-                } else if player.secondIsVersion {
-                    player.setVariation(nil)
-                }
-            }
-            .onChange(of: insights.chosen) { _, chosen in
-                let places = chosen?.places ?? []
-                score.highlight(places, scroll: player.state != .playing)
-                roll.highlight(places)
-            }
-            .onChange(of: colorScheme) { _, scheme in
-                if workspace.rollShown { roll.show(piece, dark: scheme == .dark) }
-            }
-            .onChange(of: workspace.rollPlace) { _, place in
-                // The one holder of the roll's web view follows the place shown, so Expand and Back move it once (#495 BUG-01).
-                roll.place = place
-            }
-            .onChange(of: player.tick) { _, tick in
-                score.playhead(tick, playing: player.state == .playing)
-                if workspace.rollShown { workspace.showRollPosition() }
-            }
-            .onChange(of: player.state) { old, state in
-                // A new Play follows the music again, even after the player scrolled away by hand.
-                score.playhead(player.tick, playing: state == .playing, follow: old != .playing && state == .playing)
-                if workspace.rollShown { workspace.showRollPosition() }
-            }
-            .onChange(of: score.selection) { _, selection in
-                roll.showSelection(selection, loop: player.loop)
-                // A bookmark being made belongs to the selection it was started on, and so does a note.
-                if let draft = contents.draft, draft.id == nil { contents.cancel() }
-                if let note = score.noteDraft, note.onset != selection?.onset || note.end != selection?.end { score.noteDraft = nil }
-                // The stream follows the selection while it is open; a variation tried belongs to the passage it was
-                // tried on, so it is left either way.
-                if panels[.insights] {
-                    Task { await insights.load(piece: piece.id, selection: selection) }
-                } else if insights.trial != nil {
-                    Task { await insights.leave() }
-                }
-            }
-            .onChange(of: player.loop) { _, loop in
-                roll.showSelection(score.selection, loop: loop)
-                // Цикл turned on or off: the blue playhead waits at the selection's start or stands at its end (v0.5.2).
-                workspace.syncPlayheads()
-            }
-            .onChange(of: score.noteEditor) { _, editor in
-                // The note editor on the roll (testing item 15): a press on its notes edits them while it is open.
-                roll.showEditor(editor)
-            }
-            .onChange(of: score.playRange) { old, new in
-                playRangeChanged(from: old, to: new)
-                workspace.syncPlayheads()
-            }
+            .onChange(of: score.focusVersion) { _, version in workspace.focusVersionChanged(version) }
+            .onChange(of: insights.chosen) { _, chosen in workspace.factChosen(chosen) }
+            .onChange(of: colorScheme) { _, scheme in workspace.appearanceChanged(scheme) }
+            .onChange(of: workspace.rollPlace) { _, place in workspace.rollPlaceChanged(place) }
+            .onChange(of: player.tick) { _, tick in workspace.playerMoved(tick) }
+            .onChange(of: player.state) { old, state in workspace.playerStateChanged(from: old, to: state) }
+            .onChange(of: score.selection) { _, selection in workspace.selectionChanged(selection) }
+            .onChange(of: player.loop) { _, loop in workspace.loopChanged(loop) }
+            .onChange(of: score.noteEditor) { _, editor in workspace.noteEditorChanged(editor) }
+            .onChange(of: score.playRange) { old, new in workspace.whatPlaysChanged(from: old, to: new) }
     }
 
     /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
@@ -852,25 +806,6 @@ extension ScoreScreenContent {
 /// At the instrument, on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
 /// beats (#349).
 extension ScoreScreenContent {
-    /// What plays for the selection changed. A loop follows it, as on the web; a new selection stops the old loop. Under the
-    /// playback model (v0.5.2) the player takes the selection, and Цикл decides (T9–T11).
-    private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
-        // Expand loops its passage (#533 2): what plays for it plays on round it.
-        if score.focused {
-            if let new, player.state != .stopped { player.keepWithin(new.range) }
-            return
-        }
-        player.apply(.select(new?.range))
-    }
-
-    /// Once the sound has loaded: the piece's beat lines for the one selection on the sixteenth grid (v0.6.4), and the
-    /// playback model as the page and the roll draw it.
-    private func applyModel() {
-        score.setBeatLines(player.beatLines)
-        workspace.syncPlayheads()
-        if score.holdsSelection { player.hold(selection: score.playRange?.range) }
-    }
-
     /// Back where the player stopped (#327): the project's latest resume point, the web app's too, with its passage, focus,
     /// tempo, loop and hands. Nothing starts playing.
     private func resume() async {
