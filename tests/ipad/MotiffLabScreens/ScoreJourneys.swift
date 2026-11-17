@@ -68,18 +68,20 @@ extension Walk {
     func rollAndExpand() throws {
         try choosePhrase()
         try press(button("Фортепианный ролл"), "the piano roll in the bar")
-        let open = try until("the roll drawer open and drawn", timeout: 15) { $0["roll"] == "drawer" && $0["zoom"] != "none" }
+        try until("the roll drawer open and drawn", timeout: 15) { $0["roll"] == "drawer" && $0["zoom"] != "none" }
         try need(button(beginning: "Потяните"), "the roll drawer's handle")
+        let open = try settledZoom("the roll drawer's zoom")
         shot("15-piano-roll", settle: 1)
         try choosePhrase()
-        try holds(for: 1.5, "the roll's zoom changed with the selection (ROLL-01)") { $0["zoom"] == open["zoom"] }
+        try holds(for: 1.5, "the roll's zoom changed with the selection from \(open) (ROLL-01)") { $0["zoom"] == open }
 
         try expandFromDrawer()
         try until("Expand from the drawer shows the passage as a roll", timeout: 8) { $0.on("focus") && $0["as"] == "roll" && $0["roll"] == "focus" }
         try playRoundThePassage()
         try press(button("Свернуть"), "Collapse in Expand's bar")
-        let back = try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
-        guard back["zoom"] == open["zoom"] else { throw WalkMiss(what: "Expand changed the roll's zoom from \(open["zoom"] ?? "?") (ROLL-01)", probe: back.line) }
+        try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
+        let back = try settledZoom("the roll drawer's zoom after Collapse")
+        guard back == open else { throw miss("Expand changed the roll's zoom from \(open) to \(back) (ROLL-01)") }
         try press(button("Фортепианный ролл"), "the piano roll in the bar again")
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
@@ -93,6 +95,22 @@ extension Walk {
         try press(button("К странице"), "Back to the page")
         try until("back on the page") { !$0.on("focus") }
         try clearSelection()
+    }
+
+    /// The roll's zoom once it has stayed the same for 1.5 s: the roll reports the bars and octaves in view, which change
+    /// while its drawer opens.
+    private func settledZoom(_ what: String) throws -> String {
+        var last = "none"
+        var since = Date()
+        let probe = try until("\(what) settled", timeout: 10) { probe in
+            let zoom = probe["zoom"] ?? "none"
+            if zoom != last {
+                last = zoom
+                since = Date()
+            }
+            return zoom != "none" && Date().timeIntervalSince(since) >= 1.5
+        }
+        return probe["zoom"] ?? "none"
     }
 
     /// Expand in the roll drawer's head, or in its More where the head is narrow.

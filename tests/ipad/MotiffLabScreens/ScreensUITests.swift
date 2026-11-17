@@ -11,8 +11,8 @@ import XCTest
 /// button fails its journey and costs that journey's pictures, never the other journeys' checks.
 ///
 /// Landscape and light always; portrait and the dark appearance as well when the pictures are asked for (SCREENS_DIR, which
-/// the workflow passes as TEST_RUNNER_SCREENS_DIR), so the journeys alone take a few minutes. The pictures go to that
-/// folder and are attached to the test result as well.
+/// the workflow passes as TEST_RUNNER_SCREENS_DIR), so the journeys alone take a few minutes; the other places of the
+/// score (`picturesOnly`) are visited only then. The pictures go to that folder and are attached to the test result.
 @MainActor
 final class ScreensUITests: XCTestCase {
     private struct Journey {
@@ -23,6 +23,8 @@ final class ScreensUITests: XCTestCase {
         let start: Walk.Start
         /// Where it leaves the app when it passes, if not where it started.
         var end: Walk.Start?
+        /// Walked only for the pictures (SCREENS_DIR): the places it visits are the mockups', not a journey to assert.
+        var picturesOnly = false
         let run: @MainActor (Walk) throws -> Void
     }
 
@@ -34,7 +36,8 @@ final class ScreensUITests: XCTestCase {
         Journey(name: "insights-and-try", protects: [], start: .example, run: { try $0.insightsAndTry() }),
         Journey(name: "pen-and-eraser", protects: ["INK-01"], start: .example, run: { try $0.penAndEraser() }),
         Journey(name: "assistant-panel", protects: [], start: .example, run: { try $0.assistantPanel() }),
-        Journey(name: "other-places", protects: [], start: .example, end: .library, run: { try $0.otherPlaces() }),
+        Journey(name: "other-places", protects: [], start: .example, end: .library, picturesOnly: true,
+                run: { try $0.otherPlaces() }),
         Journey(name: "pdf-and-notes", protects: ["VIEW-01", "VIEW-04"], start: .notesAndPdf, run: { try $0.pdfAndNotes() }),
         Journey(name: "sources-and-a-view", protects: [], start: .notesAndPdf, run: { try $0.sourcesAndAView() }),
         Journey(name: "pdf-piece", protects: [], start: .pdf, run: { try $0.pdfPiece() }),
@@ -71,7 +74,8 @@ final class ScreensUITests: XCTestCase {
         let walk = Walk(tag: tag, dark: dark, test: self)
         let began = Date()
         var failed: [String] = []
-        for journey in Self.journeys {
+        let journeys = Self.journeys.filter { walk.pictures || !$0.picturesOnly }
+        for journey in journeys {
             let start = Date()
             do {
                 try walk.arrive(at: journey.start)
@@ -87,7 +91,7 @@ final class ScreensUITests: XCTestCase {
                 XCTFail("journey \(journey.name)\(ids), \(tag): \(error)")
             }
         }
-        print("SCREEN-WALK \(tag): \(Self.journeys.count) journeys, \(failed.count) failed \(failed), in \(seconds(since: began)) s")
+        print("SCREEN-WALK \(tag): \(journeys.count) journeys, \(failed.count) failed \(failed), in \(seconds(since: began)) s")
         walk.app.terminate()
         XCUIDevice.shared.orientation = .portrait
     }

@@ -56,7 +56,9 @@ reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run b
   play, select-loop-change, drag, roll and Expand, Insights and Try, pen and eraser, the assistant's panel, other places),
   `SwitchJourneys.swift` (PDF | Notes, Sources, a PDF piece). A selection is made as a player makes one, by a drag in
   Select (`Walk.choosePhrase`); the Debug phrase chooser `ml-screens-phrase` is not used (no selection followed its tap in
-  the first run). The screenshots for the mockups are taken on the way, only when SCREENS_DIR asks for them.
+  the first run). The screenshots for the mockups are taken on the way, only when SCREENS_DIR asks for them, and the
+  other places of the score (`picturesOnly`) are visited only then. The PDF metronome's pill is an expected failure
+  (`XCTExpectFailure`): it has never shown in the simulator.
 - The probe (`ScreensHook.swift`, Debug only, under `-ml-screens`): `ScreensProbe.line()` on the hidden element
   `ml-screens-probe`; on the score's screen `workspace()` adds the selection and Play's range in ticks, Expand, the mode, the
   Pen and its ink, the scroll, the roll's place and zoom, the transport and its tick, Цикл, the sound, a variation, the
