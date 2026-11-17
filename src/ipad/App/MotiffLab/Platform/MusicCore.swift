@@ -167,7 +167,12 @@ struct FacadeAnswer {
     /// Why an answer was not read, for the screen's problem line: music-core's words for a refusal, else that it gave no
     /// answer to read.
     static func problem(_ text: String) -> String {
-        facadeObject(text)?["message"] as? String ?? UIText.current["parts.pdf.failedNoWord"]
+        message(text) ?? UIText.current["parts.pdf.failedNoWord"]
+    }
+
+    /// music-core's words in an answer ("message", a refusal's); nil without them.
+    static func message(_ text: String) -> String? {
+        facadeObject(text)?["message"] as? String
     }
 
     /// An answer decoded once into its typed answer (step B5, PieceAnswers.swift): nil for a refusal, not reported; nil,

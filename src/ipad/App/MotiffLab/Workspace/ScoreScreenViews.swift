@@ -17,7 +17,7 @@ extension ScoreScreen {
         state.selection = score.selection.map { SelectionSpanKept($0) }
         state.position = player.tick
         state.loop = player.cycle && score.selection != nil
-        state.rollOpen = rollOpen
+        state.rollOpen = panels[.roll]
         return state
     }
 
@@ -56,7 +56,7 @@ extension ScoreScreen {
         player.hold(selection: score.playRange?.range)
         if player.cycle != kept.loop { player.apply(.cycle) }
         player.go(to: kept.position, play: false)
-        rollOpen = kept.rollOpen
+        change(kept.rollOpen ? .open(.roll) : .close(.roll))
         await score.showPlace(kept.place, zoom: kept.zoom, left: kept.left)
     }
 

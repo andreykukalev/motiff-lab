@@ -12,11 +12,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `facadeRequest` and the answer read by `facadeObject`. The hot answers' readers use `FacadeAnswer` (A7): a refusal is
   no success; a field music-core always writes, missing, is logged, asserts in Debug and shows `.problem`.
   `FacadeAnswer.decode` (B5) reads an answer once into its typed answer, reporting through the same `broken`.
-- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b): `select` and `playback`, each answered as
-  `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls only here; the
-  others move here with their typed answers (B5).
-- `PieceAnswers.swift`: the typed answers, `SelectionAnswer` and `PlaybackAnswer`, mirroring `Answer.Selection` and
-  `Answer.Playback`; the features build `ScoreSelection` and `PlaybackScore` from them.
+- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b): `select`, `playback` and `sourceLayers`,
+  each answered as `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls
+  only here; the others move here with their typed answers (B5).
+- `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PlaybackAnswer` and `SourceLayersAnswer`, mirroring
+  `Answer.Selection`, `Answer.Playback` and `Answer.SourceLayers`; the features build `ScoreSelection`, `PlaybackScore`
+  and `SourceLayers` from them. They name no feature type.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages.
 - `Design.swift` reads `design/kit/tokens.css`.

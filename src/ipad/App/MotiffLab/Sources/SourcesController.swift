@@ -106,7 +106,7 @@ final class SourcesController: ObservableObject {
     /// Reads the sources again; false when music-core did not answer them.
     @discardableResult
     func refresh() async -> Bool {
-        guard let read = SourceLayers(answer: await call("sources.layers")) else { return false }
+        guard let read = await PieceCore(piece: piece).sourceLayers(request()).value.map(SourceLayers.init) else { return false }
         layers = read
         if let performance, !layers.views.contains(where: { $0.id == performance && $0.kind == "performance" && !$0.hidden }) {
             self.performance = nil
@@ -322,12 +322,17 @@ final class SourcesController: ObservableObject {
     }
 
     private func call(_ name: String, _ fields: [String: Any] = [:]) async -> String {
+        let body = request(fields)
+        let piece = self.piece
+        return await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+    }
+
+    /// A request of the sheet's calls: its fields, with this iPad and the originals whose sound it keeps.
+    private func request(_ fields: [String: Any] = [:]) -> String {
         var request = fields
         request["device"] = "ipad"
         request["here"] = here
-        let body = facadeRequest(request)
-        let piece = self.piece
-        return await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+        return facadeRequest(request)
     }
 
     private func save() async {
