@@ -150,7 +150,8 @@ Soft mode: all agents act under Andrei's GitHub identity, so the guards catch mi
 
 | Guard | Where | What it does |
 | --- | --- | --- |
-| Rulesets `main` and `develop` | GitHub (`infra/github/protect.ps1`, run by Andrei) | Pull requests only, `build-test` must pass, no force push, no deletion |
+| Rulesets `main` and `develop` | GitHub (`infra/github/protect.ps1`, run by Andrei) | Pull requests only, `build-test` must pass (on `develop` also `ipad-gate`), no force push, no deletion |
+| `ipad-gate` | `iPad` workflow (`.github/workflows/ipad.yml`), required on `develop` | Reports on every pull request: passes when nothing the iPad app is built from changed, otherwise only when the Swift tests in the simulator and the walk's compile passed; a red or cancelled iPad run blocks the merge |
 | Environment `production` | GitHub | Deploys of the API and the scan server from `main` wait for Andrei; `develop`'s go to `rg-motifflab-dev` (test data only) by themselves |
 | Deny rules and hooks | `.claude/settings.json`, `.claude/hooks/` | On Andrei's computer only (a claude.ai cloud thread does not load them): refuse merges, workflow runs, settings, Azure, force push, pushes to other branches |
 | `env-scope` | CI | Marks a pull request that changes the agents' rules (decision 6) |

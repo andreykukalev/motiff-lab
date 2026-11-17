@@ -108,10 +108,11 @@ jobs:
           if [[ -n "$base" ]] && changed="$(git diff --name-only --no-renames "$base" HEAD)"; then
             run=false
             # What the app is built from: src/ipad/App/project.yml reads src/shared, design/kit, tests/ipad and
-            # tests/contracts; src/ipad/Core builds music-core.
+            # tests/contracts; src/ipad/Core builds music-core; the Swift tests replay tests/contracts/page-scenarios
+            # with tests/pages (PageScenarioTests.swift).
             while IFS= read -r f; do
               case "$f" in
-                src/ipad/*|tests/ipad/*|src/shared/*|src/backend/MotiffLab.MusicCore/*|design/kit/*|tests/contracts/*|global.json|Directory.Build.props|.github/workflows/ipad.yml)
+                src/ipad/*|tests/ipad/*|src/shared/*|src/backend/MotiffLab.MusicCore/*|design/kit/*|tests/contracts/*|tests/pages/*|global.json|Directory.Build.props|.github/workflows/ipad.yml)
                   echo "An input of the app: $f"
                   run=true ;;
               esac
@@ -252,9 +253,11 @@ jobs:
           grep -q "\*\* TEST BUILD SUCCEEDED \*\*" walk-build.log
 
       # PDF | Notes switched again and again (v0.6.4, #614 section 11): each switch timed on the app's clock and the memory
-      # logged; by hand and nightly, as it takes about half an hour.
+      # logged; by hand and nightly, as it takes about half an hour (25 and 27 minutes on GitHub's macOS, runs
+      # 43778911858 and 43767801585). A stuck switch stops at the step's limit instead of holding the only Mac.
       - name: Switch PDF | Notes repeatedly
         if: inputs.switch_test
+        timeout-minutes: 40
         working-directory: src/ipad/App
         run: |
           set -o pipefail
@@ -267,7 +270,7 @@ jobs:
       # the walk asserts in one appearance, a few minutes. On every tag (version.yml starts the tag's run by hand, so the
       # ref decides, not the event), nightly and when ticked; not when the pictures are asked for, which walk as well.
       # The switch test runs only when asked (above, and by its own variable). A stuck walk stops at the step's limit
-      # instead of holding the only Mac for the job's hour.
+      # instead of holding the only Mac for the job's hour; a failed run keeps walk.log in the ipad-test-log artifact.
       - name: Walk the screens
         if: (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots
         timeout-minutes: 10
@@ -339,7 +342,9 @@ jobs:
         if: failure()
         with:
           name: ipad-test-log
-          path: src/ipad/App/test.log
+          path: |
+            src/ipad/App/test.log
+            src/ipad/App/walk.log
           if-no-files-found: ignore
 
   # The required check (the develop ruleset, infra/github/protect.ps1): fixed name, and it reports in every pull
