@@ -1,4 +1,4 @@
-// Tests for the modes of version 0.5 (the experiment Two playheads and modes), run in Node on the compiled
+// Tests for the modes of version 0.5 (once the experiment Two playheads and modes), run in Node on the compiled
 // modules:   dotnet build src/shared && node --test tests/shared
 
 import assert from "node:assert/strict";

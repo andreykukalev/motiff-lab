@@ -1,16 +1,16 @@
 # Code map: music-core (`src/backend/MotiffLab.MusicCore`, `src/ipad/Core`)
 
 Notes, time, analysis, variations and the project file: pure, deterministic, no UI, I/O, cloud or AI. The iPad reads it
-only through the facade; the API (`src/backend/MotiffLab.Api`) references the project.
+only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 
-## Folders (one namespace each, `MotiffLab.MusicCore.<Folder>`)
+## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
 
 - `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`.
 - `Events`: `Note`, `Pitch`, `Hand`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`).
 - `Import`: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`), PDFs (`Vector`), folders.
-- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths' cards.
+- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions of a piece compared and merged.
+- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged.
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals, parts, sync (`ProjectSync`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.

@@ -965,7 +965,7 @@ public class MusicCoreFacadeTests
     [Fact]
     public void PieceDnaAsksForTheIdeasByWhatTheyAreInTheMusic()
     {
-        // #582 item 15, the experiment «Идеи по смыслу»: "ideas": "musical" gives the theme first, with why it was chosen.
+        // #582 item 15, once the experiment «Идеи по смыслу»: "ideas": "musical" gives the theme first, with why it was chosen.
         (MusicCoreFacade facade, _) = Open();
 
         JsonElement theme = Call(facade, "dna", """{"ideas": "musical"}""").GetProperty("ideas").GetProperty("items")[0];

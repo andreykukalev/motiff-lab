@@ -1,4 +1,4 @@
-// Tests for the modes of version 0.5 on the Piano Roll (the experiment Two playheads and modes), run in Node on the
+// Tests for the modes of version 0.5 on the Piano Roll (once the experiment Two playheads and modes), run in Node on the
 // compiled modules:   dotnet build src/shared && node --test tests/shared
 
 import assert from "node:assert/strict";

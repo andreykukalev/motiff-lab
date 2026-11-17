@@ -67,14 +67,14 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
 
     /// <summary>
     /// For a recording heard, whether each part's bars and tempo are worked out afresh from its own stretch of the sound
-    /// (version 0.5, <see cref="HeardCut"/>; the experiment Several pieces in a score or recording), rather than carried
+    /// (version 0.5, <see cref="HeardCut"/>; once the experiment Several pieces in a score or recording), rather than carried
     /// over from the collection's bars (<see cref="RecordingCut"/>, as in 0.4).
     /// </summary>
     public bool FreshBars { get; init; }
 
     /// <summary>
     /// With <see cref="FreshBars"/>: each part's beat found again in every section of its stretch (<see cref="Import.Transcription.GridSearch.Live"/>,
-    /// version 0.5, the experiment «Темп живого исполнения»), as a recording heard with the experiment on is; else found once.
+    /// version 0.5, once the experiment «Темп живого исполнения»), as for a recording heard with live tempo; else found once.
     /// </summary>
     public bool LiveTempo { get; init; }
 }

@@ -679,7 +679,7 @@ const press = new ScorePress(document.body, {
 }, grabs.drag);
 
 /**
- * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select" or "pen";
+ * The mode the bar chose (version 0.5, once the experiment Two playheads and modes): "navigate", "select" or "pen";
  * none keeps the score as before.
  */
 function mode({ name }) {
