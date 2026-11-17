@@ -45,4 +45,63 @@ struct PieceCore: Sendable {
         let text = await MusicCore.run { MusicCore.call(piece: piece, "sources.layers", request) }
         return Answer(text, of: "sources.layers")
     }
+
+    /// The corrections calls (OpenPiece.Corrections.cs and OpenPiece.EditsLayer.cs), every one answered with a bar's notes
+    /// as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without one).
+    enum Correction: Sendable {
+        /// `corrections`: the bar's notes to correct.
+        case bar
+        /// Fix notes in Check: a note stepped, taken out, put back as imported; the last correction undone (in the note
+        /// editor, its last edit).
+        case change, remove, revert, undo
+        /// The assistant's draft accepted, and undone whole.
+        case acceptDraft, undoDraft
+        /// «Мои правки»: the layer on or off; the corrections that no longer fit taken out.
+        case layer, drop
+        /// The roll's note editor: the draft begun, a note set or added, every correction taken out, Cancel and Save.
+        case begin, set, add, reset, discard, save
+    }
+
+    /// `corrections` and `corrections.*`: the bar's notes, or a correction made and the bar's notes as they are then.
+    func corrections(_ call: Correction, _ request: String) async -> Answer<CorrectionsAnswer> {
+        switch call {
+        case .bar:
+            return await correctionsCall("corrections", request)
+        case .change:
+            return await correctionsCall("corrections.change", request)
+        case .remove:
+            return await correctionsCall("corrections.remove", request)
+        case .revert:
+            return await correctionsCall("corrections.revert", request)
+        case .undo:
+            return await correctionsCall("corrections.undo", request)
+        case .acceptDraft:
+            return await correctionsCall("corrections.acceptDraft", request)
+        case .undoDraft:
+            return await correctionsCall("corrections.undoDraft", request)
+        case .layer:
+            return await correctionsCall("corrections.layer", request)
+        case .drop:
+            return await correctionsCall("corrections.drop", request)
+        case .begin:
+            return await correctionsCall("corrections.begin", request)
+        case .set:
+            return await correctionsCall("corrections.set", request)
+        case .add:
+            return await correctionsCall("corrections.add", request)
+        case .reset:
+            return await correctionsCall("corrections.reset", request)
+        case .discard:
+            return await correctionsCall("corrections.discard", request)
+        case .save:
+            return await correctionsCall("corrections.save", request)
+        }
+    }
+
+    // Each name written where the call is made, one per case (the facade call scan reads them here).
+    private func correctionsCall(_ name: String, _ request: String) async -> Answer<CorrectionsAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        return Answer(text, of: name)
+    }
 }

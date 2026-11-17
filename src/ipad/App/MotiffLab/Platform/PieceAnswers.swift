@@ -214,6 +214,119 @@ struct SourceLayersAnswer: Decodable, Sendable {
     }
 }
 
+/// A bar's notes to correct (`CorrectionsAnswer` in OpenPiece.Corrections.cs), the answer of every corrections call: the
+/// bar's notes as they sound, the imported notes taken out anywhere, the note editor's draft, and the count of corrections
+/// with the layer's fields (`edits`, read from the same object). "added" only `corrections.add` writes.
+struct CorrectionsAnswer: Decodable, Sendable {
+    struct Note: Decodable, Sendable {
+        let id: String
+        let pitch: Int
+        let name: String
+        let atBar: Int
+        let beat: Int
+        /// The rest of the beat in words, null on the beat.
+        let offset: String?
+        let length: String
+        let velocity: Int
+        let edited: Bool
+        let taken: Bool
+        let canEarlier: Bool
+        let canShorter: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case id, pitch, name, atBar, beat, offset, length, velocity, edited, taken, canEarlier, canShorter
+        }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            pitch = try fields.decode(Int.self, forKey: .pitch)
+            name = try fields.decode(String.self, forKey: .name)
+            atBar = try fields.decode(Int.self, forKey: .atBar)
+            beat = try fields.decode(Int.self, forKey: .beat)
+            offset = try fields.decodeNullable(String.self, forKey: .offset)
+            length = try fields.decode(String.self, forKey: .length)
+            velocity = try fields.decode(Int.self, forKey: .velocity)
+            edited = try fields.decode(Bool.self, forKey: .edited)
+            taken = try fields.decode(Bool.self, forKey: .taken)
+            canEarlier = try fields.decode(Bool.self, forKey: .canEarlier)
+            canShorter = try fields.decode(Bool.self, forKey: .canShorter)
+        }
+    }
+
+    /// An imported note taken out; "offset" as a note's.
+    struct Removed: Decodable, Sendable {
+        let id: String
+        let name: String
+        let atBar: Int
+        let beat: Int
+        let offset: String?
+
+        private enum CodingKeys: String, CodingKey { case id, name, atBar, beat, offset }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            name = try fields.decode(String.self, forKey: .name)
+            atBar = try fields.decode(Int.self, forKey: .atBar)
+            beat = try fields.decode(Int.self, forKey: .beat)
+            offset = try fields.decodeNullable(String.self, forKey: .offset)
+        }
+    }
+
+    /// The id of the note `corrections.add` added; none in the other answers.
+    let added: String?
+    let bar: Int
+    let notes: [Note]
+    let removed: [Removed]
+    let canUndo: Bool
+    let changed: Bool
+    let edits: EditsLayerAnswer
+
+    private enum CodingKeys: String, CodingKey { case added, bar, notes, removed, canUndo, changed }
+
+    init(from decoder: Decoder) throws {
+        let fields = try decoder.container(keyedBy: CodingKeys.self)
+        added = try fields.decodeIfPresent(String.self, forKey: .added)
+        bar = try fields.decode(Int.self, forKey: .bar)
+        notes = try fields.decode([Note].self, forKey: .notes)
+        removed = try fields.decode([Removed].self, forKey: .removed)
+        canUndo = try fields.decode(Bool.self, forKey: .canUndo)
+        changed = try fields.decode(Bool.self, forKey: .changed)
+        edits = try EditsLayerAnswer(from: decoder)
+    }
+}
+
+/// «Мои правки» as music-core answers it: "count", the corrections in the edit log, and with a layer (`LayerFields` in
+/// OpenPiece.EditsLayer.cs) "layer" ("on" or "off"), "moved" and "unfit"; a piece opened strictly writes none of these
+/// three. In every corrections answer, and as the open answer's "edits" (`OpenedEdits`).
+struct EditsLayerAnswer: Decodable, Sendable {
+    /// A correction laid on a near note of its pitch, not on the one it names.
+    struct Moved: Decodable, Sendable {
+        let noteId: String
+        let to: String
+        let bar: Int
+    }
+
+    /// A correction that no longer fits the notes, with music-core's reason and words.
+    struct Unfit: Decodable, Sendable {
+        let noteId: String
+        let bar: Int
+        let reason: String
+        let text: String
+    }
+
+    let count: Int
+    let layer: String?
+    let moved: [Moved]?
+    let unfit: [Unfit]?
+}
+
+/// The open answer's "edits" (`MusicCore.open`, OpenPiece.cs), written only for a piece opened with a layer.
+struct OpenedEdits: Decodable, Sendable {
+    let edits: EditsLayerAnswer?
+}
+
 extension KeyedDecodingContainer {
     /// A field music-core always writes, null when it has no value: nil for null; a missing key throws, as for any field
     /// it always writes.

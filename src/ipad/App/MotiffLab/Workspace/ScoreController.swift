@@ -973,23 +973,23 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             return
         }
         showCheckBar(bar)
-        correct("corrections", ["bar": bar])
+        correct(.bar, ["bar": bar])
     }
 
     /// A note of the bar a step higher or lower (semitones), earlier or later, shorter or longer (sixteenths), softer or
     /// louder: a correction in the piece's edit log, and the score engraved again.
     func correctNote(_ id: String, pitch: Int = 0, onset: Int = 0, length: Int = 0, velocity: Int = 0) {
-        correct("corrections.change", ["id": id, "pitch": pitch, "onset": onset, "length": length, "velocity": velocity], notes: true)
+        correct(.change, ["id": id, "pitch": pitch, "onset": onset, "length": length, "velocity": velocity], notes: true)
     }
 
     /// Takes the note out of the piece.
-    func removeNote(_ id: String) { correct("corrections.remove", ["id": id], notes: true) }
+    func removeNote(_ id: String) { correct(.remove, ["id": id], notes: true) }
 
     /// Puts the note back as it was imported.
-    func revertNote(_ id: String) { correct("corrections.revert", ["id": id], notes: true) }
+    func revertNote(_ id: String) { correct(.revert, ["id": id], notes: true) }
 
     /// Takes back the last correction.
-    func undoCorrection() { correct("corrections.undo", [:], notes: true) }
+    func undoCorrection() { correct(.undo, [:], notes: true) }
 
     /// Accepts a draft of the assistant (#582 item 17.3): music-core makes it again from its call over the notes as they
     /// are now and adds its edits as corrections (`corrections.acceptDraft`), each undone like any other, and the score is
@@ -997,10 +997,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func acceptAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
         guard let piece, let body = draft.acceptRequest?.text else { return "" }
-        let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.acceptDraft", body) }
-        guard NoteCorrections(answer: answer) != nil else { return FacadeAnswer.problem(answer) }
-        readEdits(answer)
+        let answer = await PieceCore(piece: piece.id).corrections(.acceptDraft, body)
+        guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
+        readEdits(read)
         await notesDidChange()
         showNotice("padAssistant.accepted")
         return nil
@@ -1011,29 +1010,28 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
-        let id = piece.id
         let bar = draft.firstBar ?? 1
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "corrections.undoDraft", "{\"bar\": \(bar)}") }
-        guard NoteCorrections(answer: answer) != nil else { return FacadeAnswer.problem(answer) }
-        readEdits(answer)
+        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, "{\"bar\": \(bar)}")
+        guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
+        readEdits(read)
         await notesDidChange()
         showNotice("padAssistant.undone")
         return nil
     }
 
-    private func correct(_ call: String, _ fields: [String: Any], notes: Bool = false) {
+    private func correct(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false) {
         guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }
         var request = fields
         request["bar"] = bar
         let body = facadeRequest(request)
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
-            guard let read = NoteCorrections(answer: answer) else {
-                problem = FacadeAnswer.problem(answer)
+            let answer = await PieceCore(piece: piece.id).corrections(call, body)
+            guard let read = answer.value else {
+                problem = FacadeAnswer.problem(answer.text)
                 return
             }
-            corrections = read
-            readEdits(answer)
+            corrections = NoteCorrections(read)
+            readEdits(read)
             if notes { await notesDidChange() }
         }
     }
@@ -1049,33 +1047,33 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func switchEdits(on: Bool) {
         let bar = on ? corrections?.bar : nil
         if !on { corrections = nil }
-        editsCall("corrections.layer", EditsLayerState.layerRequest(on: on, bar: bar))
+        editsCall(.layer, EditsLayerState.layerRequest(on: on, bar: bar))
     }
 
     /// «Убрать» on a note whose corrections no longer fit: they leave the piece's edit log (`corrections.drop`).
     func dropUnfitEdits(_ noteIds: [String]) {
-        editsCall("corrections.drop", EditsLayerState.dropRequest(noteIds, bar: corrections?.bar))
+        editsCall(.drop, EditsLayerState.dropRequest(noteIds, bar: corrections?.bar))
     }
 
-    private func editsCall(_ call: String, _ fields: [String: Any]) {
+    private func editsCall(_ call: PieceCore.Correction, _ fields: [String: Any]) {
         guard let piece else { return }
         let body = facadeRequest(fields)
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
-            guard let read = EditsLayerState(answer: answer) else {
-                problem = FacadeAnswer.problem(answer)
+            let answer = await PieceCore(piece: piece.id).corrections(call, body)
+            guard let read = answer.value else {
+                problem = FacadeAnswer.problem(answer.text)
                 return
             }
-            editsLayer = read
-            if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            editsLayer = EditsLayerState(read.edits)
+            if corrections != nil, read.bar == corrections?.bar { corrections = NoteCorrections(read) }
             await notesDidChange()
             editsKept?()
         }
     }
 
     /// Every corrections answer says how many corrections there are and, with a layer, which no longer fit.
-    private func readEdits(_ answer: String) {
-        if let read = EditsLayerState(answer: answer) { editsLayer = read }
+    private func readEdits(_ answer: CorrectionsAnswer) {
+        editsLayer = EditsLayerState(answer.edits)
     }
 
     // MARK: - Note editor on the roll
@@ -1088,7 +1086,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             return
         }
         noteEditor = NoteEditorState()
-        noteEditCall("corrections.begin", [:])
+        noteEditCall(.begin, [:])
     }
 
     /// Move, Add or Remove: what a press on the roll's notes does.
@@ -1102,57 +1100,56 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         switch edit {
         case let .change(id, onset, pitch, length):
             noteEditor?.picked = id
-            noteEditCall("corrections.set", ["id": id, "onset": onset, "pitch": pitch, "length": length], notes: true)
+            noteEditCall(.set, ["id": id, "onset": onset, "pitch": pitch, "length": length], notes: true)
         case let .add(onset, pitch, length):
-            noteEditCall("corrections.add", ["onset": onset, "pitch": pitch, "length": length], notes: true)
+            noteEditCall(.add, ["onset": onset, "pitch": pitch, "length": length], notes: true)
         case let .remove(id):
             noteEditor?.picked = nil
-            noteEditCall("corrections.remove", ["id": id], notes: true)
+            noteEditCall(.remove, ["id": id], notes: true)
         }
     }
 
     /// Takes back the last edit, the reset too.
-    func undoNoteEdit() { noteEditCall("corrections.undo", [:], notes: true) }
+    func undoNoteEdit() { noteEditCall(.undo, [:], notes: true) }
 
     /// Every correction taken out: the notes as imported, until Save.
-    func resetNotes() { noteEditCall("corrections.reset", [:], notes: true) }
+    func resetNotes() { noteEditCall(.reset, [:], notes: true) }
 
     /// Closes the editor with the notes as they were when it opened.
     func cancelNoteEdit() {
         guard noteEditor != nil else { return }
         let changed = noteEditor?.changed ?? false
         noteEditor = nil
-        noteEditCall("corrections.discard", [:], notes: changed)
+        noteEditCall(.discard, [:], notes: changed)
     }
 
     /// Keeps the edits with the piece and writes the project file.
     func saveNoteEdit() {
         guard noteEditor != nil else { return }
         noteEditor = nil
-        noteEditCall("corrections.save", [:]) { [weak self] in self?.editsKept?() }
+        noteEditCall(.save, [:]) { [weak self] in self?.editsKept?() }
     }
 
-    private func noteEditCall(_ call: String, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
+    private func noteEditCall(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
         guard let piece else { return }
         var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
         request["bar"] = selection?.firstBar ?? 1
         let body = facadeRequest(request)
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
-            guard let read = FacadeAnswer(answer, of: call), let canUndo = read.required("canUndo", Bool.self),
-                  let changed = read.required("changed", Bool.self), let count = read.int("count") else {
-                problem = FacadeAnswer.problem(answer)
+            let answer = await PieceCore(piece: piece.id).corrections(call, body)
+            guard let read = answer.value else {
+                problem = FacadeAnswer.problem(answer.text)
                 return
             }
             if noteEditor != nil {
-                noteEditor?.canUndo = canUndo
-                noteEditor?.changed = changed
-                noteEditor?.canReset = count > 0
-                if let added = read.fields["added"] as? String { noteEditor?.picked = added }
+                noteEditor?.canUndo = read.canUndo
+                noteEditor?.changed = read.changed
+                noteEditor?.canReset = read.edits.count > 0
+                if let added = read.added { noteEditor?.picked = added }
             }
-            if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
-            readEdits(answer)
+            if corrections != nil, read.bar == corrections?.bar { corrections = NoteCorrections(read) }
+            readEdits(read)
             if notes { await notesDidChange() }
             then?()
         }

@@ -7,7 +7,7 @@ import WebKit
 /// selection, also a bar with no notes, where the score was scrolled to and its zoom, where the music stood and whether
 /// Цикл looped it, and the roll's drawer with its zoom and view (ViewStates.swift). Playback stops as the PDF opens, which
 /// has its own metronome; nothing starts playing on the way back.
-extension ScoreScreen {
+extension ScoreScreenContent {
     /// The piece's id, by which its views are kept on the device.
     private var viewKey: String? { piece.own?.id }
 

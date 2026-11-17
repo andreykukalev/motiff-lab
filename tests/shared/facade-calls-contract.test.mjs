@@ -582,7 +582,9 @@ test("every name the reader cannot follow is listed with the names it stands for
 
 test("a call the port makes is made from no other file", () => {
     const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
-    assert.ok(["select", "playback", "sources.layers"].every((name) => ported.has(name)), `the port's calls read: ${[...ported].join(", ")}`);
+    const corrections = ["", ".change", ".remove", ".revert", ".undo", ".acceptDraft", ".undoDraft", ".layer", ".drop", ".begin", ".set", ".add", ".reset", ".discard", ".save"]
+        .map((call) => `corrections${call}`);
+    assert.ok(["select", "playback", "sources.layers", ...corrections].every((name) => ported.has(name)), `the port's calls read: ${[...ported].join(", ")}`);
     const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
         .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
     assert.deepEqual(elsewhere, [], "make these calls through PieceCore");

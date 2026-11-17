@@ -42,7 +42,6 @@ final class FacadeAnswerTests: XCTestCase {
         XCTAssertEqual(answer.int("count"), 2)
         XCTAssertEqual(answer.required("name", String.self), "x")
         XCTAssertEqual(answer.nullable("group", String.self), .some(nil), "null is a value music-core writes")
-        XCTAssertEqual(answer.list(ifAny: "unfit") { $0.int("bar") }, [], "a list left out by design is empty")
         XCTAssertEqual(answer.list("moved") { $0.int("bar") }, [3])
         XCTAssertEqual(reported, [])
 
@@ -121,27 +120,26 @@ final class FacadeAnswerTests: XCTestCase {
 
     func testTheCorrections() throws {
         let answer = MusicCore.call(piece: piece, "corrections", #"{"bar": 2}"#)
-        let corrections = try XCTUnwrap(NoteCorrections(answer: answer))
+        let read = try XCTUnwrap(correctionsAnswer(answer))
+        let corrections = NoteCorrections(read)
         XCTAssertEqual(corrections.bar, 2)
         XCTAssertFalse(corrections.notes.isEmpty)
-        XCTAssertNotNil(EditsLayerState(answer: answer), "a piece opened strictly answers no layer")
+        XCTAssertEqual(EditsLayerState(read.edits), EditsLayerState(count: 0), "a piece opened strictly answers no layer")
         XCTAssertEqual(reported, [])
 
-        expectBroken("canShorter") { NoteCorrections(answer: renamed(answer, "canShorter")) }
-        expectBroken("atBar") { NoteCorrections(answer: renamed(answer, "atBar")) }
-        expectBroken("count") { EditsLayerState(answer: renamed(answer, "count")) }
+        expectBroken("canShorter") { correctionsAnswer(renamed(answer, "canShorter")) }
+        expectBroken("atBar") { correctionsAnswer(renamed(answer, "atBar")) }
+        expectBroken("count") { correctionsAnswer(renamed(answer, "count")) }
         // The note editor reads these of every corrections answer (ScoreController.noteEditCall).
-        expectBroken("canUndo") { FacadeAnswer(renamed(answer, "canUndo"), of: "corrections.begin")?.required("canUndo", Bool.self) }
+        expectBroken("canUndo") { correctionsAnswer(renamed(answer, "canUndo")) }
 
         // With the layer, its corrections that moved or no longer fit come too.
         let off = MusicCore.call(piece: piece, "corrections.layer", #"{"on": false, "bar": 2}"#)
-        XCTAssertEqual(EditsLayerState(answer: off)?.on, false)
-        XCTAssertNotNil(NoteCorrections(answer: off))
+        XCTAssertEqual(correctionsAnswer(off).map { EditsLayerState($0.edits) }?.on, false)
         XCTAssertEqual(reported, [])
 
         let refused = MusicCore.call(piece: piece, "corrections", #"{"bar": 9999}"#)
-        XCTAssertNil(NoteCorrections(answer: refused))
-        XCTAssertNil(EditsLayerState(answer: refused))
+        XCTAssertNil(correctionsAnswer(refused))
         XCTAssertEqual(FacadeAnswer.problem(refused), facadeObject(refused)?["message"] as? String)
         XCTAssertEqual(reported, [], "a refusal is not read as an empty bar")
     }
@@ -167,6 +165,11 @@ final class FacadeAnswerTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// A corrections answer read as `PieceCore.corrections` reads it.
+    private func correctionsAnswer(_ answer: String) -> CorrectionsAnswer? {
+        FacadeAnswer.decode(CorrectionsAnswer.self, answer, of: "corrections")
+    }
 
     /// The answer with one of its field names changed wherever it is written, as a rename in the C# writer would send it.
     private func renamed(_ answer: String, _ key: String, file: StaticString = #filePath, line: UInt = #line) -> String {
