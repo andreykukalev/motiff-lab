@@ -1,0 +1,302 @@
+{
+  "id": "score-click-playhead",
+  "protects": [
+    "PLAY-05"
+  ],
+  "says": "The click WebKit sends after a stylus touch never moves the playhead in Select, after a drag or a tap, nor after a playhead's handle is dragged; in Navigate a tap places it once.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 3,
+          "x": 0.3,
+          "y": 0.4
+        },
+        {
+          "bar": 4,
+          "x": 0.6,
+          "y": 0.6
+        }
+      ],
+      "click": true,
+      "note": "a stylus drag in Select, and the click after it"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 1080,
+                "end": 2160,
+                "how": "create"
+              }
+            }
+          ]
+        },
+        "note": "the span alone: no place for the playhead"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 1080,
+        "end": 2160,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "the app selects what the page chose (music-core select) and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 1080,
+          "end": 2160
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 6,
+          "x": 0.5,
+          "y": 0.5
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on bar 6 in Select, and its click"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 3120,
+                "end": 3840,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "bar 6 chosen, no place for the playhead"
+      }
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "none",
+          "tap": true,
+          "handles": false,
+          "hold": true
+        },
+        "pen": {
+          "select": "none",
+          "tap": true,
+          "handles": false,
+          "hold": true
+        },
+        "places": true
+      },
+      "note": "Navigate"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "navigate"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 5,
+          "x": 0.5,
+          "y": 0.5
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on bar 5 in Navigate, and its click"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "place": {
+                "start": 2640,
+                "end": 2880
+              }
+            }
+          ]
+        },
+        "note": "once, on the beat under the tap; the selection unchanged"
+      },
+      "question": "Recorded as the page does it; for Andrei. In Navigate a stylus tap in the middle of bar 5 places the playhead at the start of the beat under it (2640 to 2880), not at the sixteenth or the note tapped. No entry says where a tap places it. Is the beat's start right?"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 2400,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the black playhead at bar 5"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "grip": "black",
+          "dx": 40
+        }
+      ],
+      "click": true,
+      "note": "its handle dragged right, and the click after it"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "black"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "black",
+                  "tick": 2640
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "black"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "chosen",
+              "picked",
+              "cleared",
+              "place",
+              "bar",
+              "blank"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "the handle dragged on the sixteenth grid; its click places nothing and selects nothing"
+      }
+    }
+  ]
+}
