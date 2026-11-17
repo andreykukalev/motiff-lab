@@ -1,7 +1,6 @@
 {
   "home.open": "Открыть",
   "home.fromFile": "Открыть файл",
-  "home.importProjectHint": "Проект, экспортированный из Motiff Lab (.json)",
 
   "bars.one": "такт {0}",
   "bars.range": "такты {0}–{1}",
@@ -24,7 +23,6 @@
   "scanCheck.show": "Показать",
 
   "score.pdf": "Скачать PDF",
-  "score.pdfHint": "Сохранить ноты в PDF на страницах A4, готовым к печати",
 
   "roll.js.track": "Дорожка {0}",
   "roll.js.trackVoice": "{0}, голос {1}",
@@ -40,7 +38,6 @@
   "roll.js.legendHighlight": "Синяя рамка и подчёркивание: места факта, выбранного в «Понять»",
   "roll.js.legendInferred": "Пунктирный контур: выведено, в файле этого нет (нота или её рука)",
 
-  "settings.languageHint": "Интерфейс на английском или русском. Музыкальные факты и объяснения пока остаются на английском.",
 
   "bar.phrases": "Фразы",
   "bar.roll": "Фортепианный ролл",
@@ -74,7 +71,6 @@
   "library.fieldComposer": "Композитор",
   "library.done": "Готово",
   "library.openFile": "Открыть файл",
-  "library.openFileHint": "MIDI, MusicXML или PDF, читается на этом устройстве",
   "layers.check": "Флажки проверки",
   "check.title": "Проверка",
   "check.toReview.one": "{0} такт на проверку",
@@ -115,9 +111,6 @@
   "pdf.unreadable": "Этот PDF не удалось прочитать. Попробуйте заново сохранить его из программы, где он сделан.",
   "sources.title": "Источники",
   "sources.rolePlaying": "Исполнение",
-  "performance.dismiss": "Не отличие",
-  "performance.take": "Взять в ноты",
-  "performance.restore": "Вернуть как было",
   "metronome.label": "Метроном",
   "pdf.readNotes": "Распознать ноты",
   "pdf.readNone": "Сервер распознавания не нашёл нот в этом PDF.",
@@ -138,30 +131,15 @@
   "extra.yours": "Ваши пометки",
   "merge.direct": "Применять сразу, без черновика",
   "merge.openDraft": "Открыть в черновике",
-  "assembly.journal": "Журнал",
-  "assembly.undo": "Отменить",
-  "assembly.redo": "Повторить",
-  "assembly.apply": "Сделать нотами",
-  "assembly.carry": "Перенести",
-  "assembly.journalHint": "Каждое изменение нот по порядку. Любое можно вернуть отдельно; что от него зависит, показано заранее.",
-  "assembly.restart": "Начать заново с прежних нот",
-  "assembly.accept": "Принять совпавшее ({0})",
-  "assembly.acceptHint": "Перенести такт в такт те такты, что совпадают с вашими нотами, но не одинаковы; остальное решаете вы",
   "originals.nowhere": "Нет ни на одном устройстве",
   "originals.relink": "Привязать оригинал",
-  "originals.relinkHint": "Выберите тот же файл на этом устройстве: он сверяется по отпечатку и хранится здесь, без копии пьесы.",
   "originals.otherFile": "Это другой файл. Чтобы добавить его как ещё один оригинал, используйте «Добавить источник».",
   "originals.linkFiles": "Ссылка на файл в «Файлах»",
   "originals.changed": "Оригинал изменился",
-  "originals.changedHint": "Файл в «Файлах» уже не тот, что был привязан: отпечаток не совпадает. Ноты не тронуты.",
   "originals.offline": "Файл не загрузился: «Файлы» сейчас не достают до iCloud Drive или Google Drive. Попробуйте ещё раз, когда будет связь.",
   "originals.unreadable": "Файл не прочитался.",
   "edits.off": "Правки выключены: ноты такие, как их распознали. Включите правки, чтобы исправлять ноты.",
 
-  "recognition.send.one": "Отправить {0} страницу",
-  "recognition.send.few": "Отправить {0} страницы",
-  "recognition.send.many": "Отправить {0} страниц",
-  "recognition.reading": "распознаётся",
 
   "folderImport.awayTitle": "PDF не на этом iPad",
   "folderImport.changedLine": "На этом месте теперь другой файл. Ноты, пометки и правки пьесы остаются как были.",
@@ -174,6 +152,5 @@
   "folderImport.offlineTitle": "Нужна сеть, чтобы открыть",
   "folderImport.recheck": "Проверить папку",
   "rollMode.label": "Режим пиано-ролла",
-  "sources.sheet.addAnotherPdf": "Добавить ещё PDF",
   "padAssistant.accepted": "Черновик принят. Правка в «Моих правках»."
 }

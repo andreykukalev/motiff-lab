@@ -72,7 +72,8 @@ final class SwitchUITests: XCTestCase {
         }
         let sorted = times.sorted()
         let line = probe() ?? ""
-        print("SCREEN-SWITCH-SUMMARY \(tag): \(times.count) switches, median \(ms(sorted[sorted.count / 2])) ms, slowest \(ms(sorted.last ?? 0)) ms, over \(Int(limit)) s: \(slow) (the app's own times); \(line)")    }
+        print("SCREEN-SWITCH-SUMMARY \(tag): \(times.count) switches, median \(ms(sorted[sorted.count / 2])) ms, slowest \(ms(sorted.last ?? 0)) ms, over \(Int(limit)) s: \(slow) (the app's own times); \(line)")
+    }
 
     // MARK: - Helpers
 

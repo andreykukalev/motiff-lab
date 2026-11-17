@@ -1,4 +1,4 @@
-// Tests for selection by where you touch on the roll (#601, experimental.placeSelection): the box and the lasso, the span
+// Tests for selection by where you touch on the roll (#601, once the experiment experimental.placeSelection): the box and the lasso, the span
 // of picked notes, narrowing at an edge, moves of picked notes, and the press read by its place (roll-place-gesture.ts).
 // Run in Node on the compiled modules:   dotnet build src/shared && node --test tests/shared
 

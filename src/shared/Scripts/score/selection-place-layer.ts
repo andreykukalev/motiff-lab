@@ -1,5 +1,5 @@
-// Selection by the place of the touch on the score (v0.6.2, #601, the selection study's section D; the experiment
-// `experimental.placeSelection`, which only the iPad passes, in Select). The rule is selection-places.ts; this layer
+// Selection by the place of the touch on the score (v0.6.2, #601, the selection study's section D; once the experiment
+// `experimental.placeSelection`; only the iPad turns it on, in Select). The rule is selection-places.ts; this layer
 // takes the presses while the host says the rule is on, shows what a gesture would do and hands the result to the owner:
 // an edge's grip moves its edge, with pale target ticks where it can stop; a move from inside extends the selection, the
 // addition dashed; a move from outside draws a new passage (by beats, or bars), narrowed to a hand when the stroke stays

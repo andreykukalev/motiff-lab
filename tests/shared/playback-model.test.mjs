@@ -6,10 +6,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { engineLoop, next, viewOf } from "../../src/shared/wwwroot/js/playback/playback-model.js";
+import { engineLoop, insideOf, next, viewOf } from "../../src/shared/wwwroot/js/playback/playback-model.js";
 
 const root = new URL("../../", import.meta.url);
 const { cases } = JSON.parse(readFileSync(new URL("tests/ipad/MotiffLabTests/Golden/playback-model.json", root), "utf8"));
+
+test("inside the selection is from its start up to, not at, its end", () => {
+    const selection = { start: 960, end: 1920 };
+    assert.equal(insideOf(selection, 959), false);
+    assert.equal(insideOf(selection, 960), true);
+    assert.equal(insideOf(selection, 1919), true);
+    assert.equal(insideOf(selection, 1920), false);
+    assert.equal(insideOf(null, 1000), false);
+});
 
 const RULES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14", "T15", "T16"];
 

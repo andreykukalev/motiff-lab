@@ -507,7 +507,7 @@ const selection = new SelectionLayer(document.body, {
             post({ chosen: { start: first, end, how, gesture } });
         }
     },
-    // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
+    // Selection by beats (#349, once in Settings · Experimental): the beat lines music-core gives, which the drag and the handles
     // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar. Under the place rule (v0.6.4)
     // a band is cut where the passage starts and ends inside a bar even before Swift has the beats: the barlines stand in.
     beats: () => state.beats ?? (state.input?.places === true ? barStarts() : null),
@@ -518,7 +518,7 @@ const selection = new SelectionLayer(document.body, {
     cleared: (gesture) => post({ cleared: { gesture } }),
     cancelled: (gesture) => post({ gestureCancelled: gesture }),
     hint: () => post({ holdHint: true }),
-    // The modes of version 0.5 (Settings · Experimental): only Select starts a selection with a drag, never from inside it,
+    // The modes of version 0.5 (once in Settings · Experimental): only Select starts a selection with a drag, never from inside it,
     // and there a finger drags at once, as two fingers scroll.
     mode: () => state.mode,
     fingerDrags: () => state.mode === "select",
@@ -529,7 +529,7 @@ const selection = new SelectionLayer(document.body, {
     places: () => placesOn(),
 });
 
-/** Whether the place rule takes the presses (v0.6.2, Settings · Experimental, `input.places`): in Select, not in focus. */
+/** Whether the place rule takes the presses (v0.6.2, once in Settings · Experimental; `input.places`): in Select, not in focus. */
 function placesOn() {
     return state.input?.places === true && state.mode === "select" && !state.focus;
 }

@@ -22,7 +22,17 @@ const { A4_LAYOUT, NOTE_SPACING } = await import(`${shared}wwwroot/js/score/scor
 const { default: createVerovioModule } = await import(`${shared}wwwroot/lib/verovio/verovio-module.mjs`);
 const { VerovioToolkit } = await import(`${shared}wwwroot/lib/verovio/verovio.mjs`);
 
-const asked = execFileSync("dotnet", ["run", `${repo}tests/pages/fixture.cs`, "--", `${shared}Playback/FurElise.musicxml`, "Für Elise"], { encoding: "utf8", maxBuffer: 1 << 26 });
+const asked = (() => {
+    try {
+        return execFileSync("dotnet", ["run", `${repo}tests/pages/fixture.cs`, "--", `${shared}Playback/FurElise.musicxml`, "Für Elise"], { encoding: "utf8", maxBuffer: 1 << 26 });
+    } catch (error) {
+        if (error.code !== "ENOENT") {
+            throw error;
+        }
+        console.log("fixture.mjs needs the dotnet command of the .NET SDK global.json names on PATH, to run fixture.cs: install it (https://dot.net), or put its folder on PATH with DOTNET_ROOT, as `export PATH=$HOME/.dotnet:$PATH DOTNET_ROOT=$HOME/.dotnet`.");
+        return process.exit(1);
+    }
+})();
 const { mei, beats, roll } = JSON.parse(asked);
 const toolkit = new VerovioToolkit(await createVerovioModule());
 // The seed gives the elements music-core names no id (the page's own, a system's) the same ids each time.
