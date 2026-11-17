@@ -253,7 +253,7 @@ function braceDepths(code) {
  * The types one Swift file declares: `shared`, its folder's (top-level, not private, and those an extension adds, as
  * `Outer.Inner`); `local`, every name it declares at any depth, which hides another folder's type of that name.
  */
-export function swiftDeclarations(code) {
+function swiftDeclarations(code) {
   const depths = braceDepths(code);
   const shared = [];
   const local = new Set();
