@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
-import { keysOf, offered, parameterKeys, postedObjects, posted, returnedKeys } from "./page-contract.mjs";
+import { fieldPaths, keysOf, offered, postedObjects, posted, readPaths, returnedKeys } from "./page-contract.mjs";
 
 const root = new URL("../../", import.meta.url);
 const contract = JSON.parse(readFileSync(new URL("tests/contracts/roll-page.json", root), "utf8"));
@@ -23,13 +23,22 @@ test("the page offers exactly the functions the app's RollCommand names", () => 
     assert.deepEqual(sorted(offered(page, "roll")), sorted(contract.commands));
 });
 
-test("every function has an example argument, with exactly the fields the page reads where it reads fields", () => {
+/** Whether the dotted path lies below `above` ("" is the argument itself). */
+const below = (path, above) => (above === "" ? path !== "" : path.startsWith(`${above}.`));
+
+test("every function has an example argument, with exactly the fields the page reads, at every depth", () => {
     assert.deepEqual(sorted(Object.keys(contract.arguments)), sorted(contract.commands));
     for (const name of contract.commands) {
-        const fields = parameterKeys(page, name);
-        if (fields !== null) {
-            assert.ok(isObject(contract.arguments[name]), `${name} reads the fields of an object`);
-            assert.deepEqual(sorted(Object.keys(contract.arguments[name])), sorted(fields), `the fields ${name} reads`);
+        const reads = readPaths(page, name);
+        const fields = fieldPaths(contract.arguments[name]);
+        for (const read of reads.filter((path) => path !== "")) {
+            assert.ok(fields.includes(read), `${name} reads ${read}, which its example lacks`);
+        }
+        // A field is read, or lies under one the page reads and passes on whole (the labels, the frame, the tuplets).
+        const whole = reads.filter((read) => !reads.some((other) => below(other, read)));
+        for (const field of fields) {
+            const read = reads.includes(field) || reads.some((path) => below(path, field)) || whole.some((path) => below(field, path));
+            assert.ok(read, `${name}'s example has ${field}, which the page does not read`);
         }
     }
 });
@@ -98,8 +107,14 @@ test("the readers see fields through shorthand keys, calls and nested objects, a
         { kind: "moved", fields: ["notes", "gesture"] },
         { kind: "edit", fields: ["kind", "length"] },
     ]);
-    const functions = "function edit({ on, tool, picked }) {} function lanes(on) {} function load(x) { if (x) { f({ a }); } return { colourBy: c, modes }; }";
-    assert.deepEqual(parameterKeys(functions, "edit"), ["on", "tool", "picked"]);
-    assert.equal(parameterKeys(functions, "lanes"), null);
+    const functions = "function edit({ on, tool, picked }) { view.set(on, picked?.id); } function lanes(on) { view.setLanes(on); }"
+        + " function load(x) { if (x) { f({ a }); } return { colourBy: c, modes }; }"
+        + " function lit({ places, span }) { const chosen = places ?? []; view.set(chosen.flatMap((place) => [place.onset, place.ids.at(0)]), span.end); }";
+    assert.deepEqual(readPaths(functions, "edit"), ["on", "picked", "picked.id", "tool"]);
+    assert.deepEqual(readPaths(functions, "lanes"), [""]);
+    assert.deepEqual(readPaths(functions, "lit"), ["places", "places.[]", "places.[].ids", "places.[].onset", "span", "span.end"]);
+    assert.equal(readPaths(functions, "missing"), null);
+    assert.deepEqual(fieldPaths({ places: [{ onset: 0, ids: ["n1"] }], span: { end: 1 }, on: true }),
+        ["places", "places.[]", "places.[].onset", "places.[].ids", "span", "span.end", "on"]);
     assert.deepEqual(returnedKeys(functions, "load"), ["colourBy", "modes"]);
 });
