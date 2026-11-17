@@ -80,7 +80,8 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
   `../../../tests/ipad` and `../../../tests/contracts`; `src/ipad/Core` references `../../backend/MotiffLab.MusicCore`.
   The page scenarios' replay (`PageScenarioTests.swift`) reads its files from the repository beside it, not the bundle.
 - CI runs the page scenarios after the build: `tests/pages/run.mjs` with `playwright-core` from `tests/pages/package.json`
-  and the runner's Chrome.
+  and the runner's Chrome; the same run makes the fixtures again (`tests/pages/fixture.mjs --check`) and fails on a stale
+  one.
 - CI (`ci.yml`) treats a change under `archive/` like documentation: no build, no tests. The quality check
   (`tools/quality`) and jscpd skip `archive/**`; `governance/risk-paths.yml` puts it at low risk.
 - The `iPad` workflow runs `dotnet build src/shared` before XcodeGen; `src/ipad/build-version.sh` does the same, and for a

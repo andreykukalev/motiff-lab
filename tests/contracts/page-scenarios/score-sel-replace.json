@@ -156,7 +156,7 @@
     },
     {
       "pointer": "touch",
-      "hold": 600,
+      "hold": 900,
       "path": [
         {
           "bar": 9,
@@ -169,7 +169,7 @@
           "y": 0.5
         }
       ],
-      "note": "a finger held on bar 9, then moved on to bar 10"
+      "note": "a finger held on bar 9, then moved on to bar 10; held 900 ms on the page's clock, twice the page's hold (HOLD_MS, 450 ms)"
     },
     {
       "expect": {

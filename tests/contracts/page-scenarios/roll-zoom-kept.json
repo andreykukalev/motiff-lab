@@ -102,7 +102,8 @@
       "note": "a selection from the score"
     },
     {
-      "wait": 50
+      "wait": 640,
+      "note": "twice the roll's glide (the kit's slow time, 320 ms): a view moved by the selection would have glided all the way"
     },
     {
       "expect": {
@@ -144,7 +145,8 @@
       "note": "the app selects the span (music-core select) and shows it on the roll"
     },
     {
-      "wait": 50
+      "wait": 640,
+      "note": "twice the roll's glide (the kit's slow time, 320 ms): a view moved by the selection shown would have glided all the way"
     },
     {
       "expect": {
@@ -183,7 +185,8 @@
       "note": "the selection cleared"
     },
     {
-      "wait": 50
+      "wait": 640,
+      "note": "twice the roll's glide (the kit's slow time, 320 ms): a view moved by the selection cleared would have glided all the way"
     },
     {
       "expect": {
@@ -209,7 +212,8 @@
       "note": "playing"
     },
     {
-      "wait": 300
+      "wait": 640,
+      "note": "twice the roll's glide (320 ms): a zoom changed by playing would have glided all the way"
     },
     {
       "expect": {

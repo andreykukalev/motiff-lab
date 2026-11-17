@@ -10,7 +10,14 @@
     const STEPS_PER_SEGMENT = 8;
     const DEFAULT_TOLERANCE = 1;
 
-    const run = { scenario: null, fixture: null, posts: [], read: 0, seen: null, page: "score", pointer: FIRST_POINTER };
+    const run = { scenario: null, fixture: null, posts: [], read: 0, seen: null, page: "score", pointer: FIRST_POINTER, felt: [], hold: null };
+
+    // ---- The page's clock for a press ------------------------------------------------------------------------------
+    // Every pointer event as the page takes it (the window's capture comes before the page's own handlers), on the page's
+    // clock: the time a press lasted is the time the page's hold timer saw, also under load, whoever made the events.
+    for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) {
+        window.addEventListener(type, (event) => run.felt.push({ type, x: event.clientX, y: event.clientY, at: performance.now() }), { capture: true, passive: true });
+    }
 
     /**
      * Swift's message handlers: what the page posts is kept, for the expectations, in the order it came. A WKWebView may
@@ -84,20 +91,34 @@
         return Array.from({ length: steps }, (_, index) => ({ x: from.x + ((to.x - from.x) * (index + 1)) / steps, y: from.y + ((to.y - from.y) * (index + 1)) / steps }));
     }
 
-    /** A press, its moves and its lifting, made here (WKWebView, or Chromium's synthetic run); `click` sends WebKit's click after it. */
-    async function press(step, points) {
+    /**
+     * How a pointer step presses, for both runners: down at its first point, then the moves (a stylus or a finger moves on
+     * in small steps), up at the last. With no `hold`, the first `atOnce` moves go with the press, back to back, until the
+     * pointer has left the page's hold (HOLD_SLOP): no frame comes between, so no slow frame turns the press into a hold;
+     * a tap (one point) is pressed and lifted back to back. The other moves go a frame apart. With a `hold`, the pointer
+     * waits that long on the page's clock first, so the page's own hold timer, started at the press, runs out before it.
+     */
+    function stroke(step) {
+        const [down, ...corners] = points(step);
+        const moves = corners.flatMap((corner, index) => between(index === 0 ? down : corners[index - 1], corner, STEPS_PER_SEGMENT));
+        const leaves = moves.findIndex((move) => Math.hypot(move.x - down.x, move.y - down.y) > run.hold.slop);
+        return { down, moves, atOnce: step.hold ? 0 : leaves < 0 ? moves.length : leaves + 1, up: moves.at(-1) ?? down };
+    }
+
+    /** A press, its moves and its lifting as `stroke` says, made here (WKWebView, or Chromium's synthetic run); `click` sends WebKit's click after it. */
+    async function press(step) {
         const kind = step.pointer;
         const id = run.pointer++;
-        const [first] = points;
-        const pressed = send("pointerdown", kind, id, first, 1);
-        await (step.hold ? sleep(step.hold) : frame());
-        let last = first;
-        for (const point of points.slice(1)) {
-            for (const each of between(last, point, STEPS_PER_SEGMENT)) {
-                send("pointermove", kind, id, each, 1);
+        const { down, moves, atOnce, up: last } = stroke(step);
+        const pressed = send("pointerdown", kind, id, down, 1);
+        if (step.hold) {
+            await sleep(step.hold);
+        }
+        for (const [index, move] of moves.entries()) {
+            send("pointermove", kind, id, move, 1);
+            if (index + 1 >= atOnce) {
                 await frame();
             }
-            last = point;
         }
         const target = captured.get(id);
         send("pointerup", kind, id, last, 0);
@@ -111,6 +132,30 @@
             under.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: last.x, clientY: last.y, detail: 1 }));
         }
         await frame();
+    }
+
+    /**
+     * Whether the step's last press was what the step says on the page's clock (run.felt): a press with no `hold` left the
+     * page's hold (HOLD_MS and HOLD_SLOP of selection-gesture.ts, read from the page's own module) before it ran out, and a
+     * press with a `hold` waited it out. Null when it was; otherwise the timing fault, which says the machine was too slow
+     * for the scenario rather than that the page changed.
+     */
+    function timing(index) {
+        const step = run.scenario.steps[index];
+        const down = run.felt.findLastIndex((event) => event.type === "pointerdown");
+        if (down < 0) {
+            return `timing fault: ${label(index)} pressed, but the page felt no pointerdown.`;
+        }
+        const start = run.felt[down];
+        const left = run.felt.slice(down + 1).find((event) => event.type !== "pointermove" || Math.hypot(event.x - start.x, event.y - start.y) > run.hold.slop);
+        const lasted = Math.round((left?.at ?? performance.now()) - start.at);
+        if (!step.hold && lasted >= run.hold.ms) {
+            return `timing fault: ${label(index)} is a press with no hold, but the page felt it held still for ${lasted} ms, past its hold (${run.hold.ms} ms): the machine was too slow for the scenario, so the page took a hold and its rules were not tested. Run it again on a less loaded machine.`;
+        }
+        if (step.hold && lasted < run.hold.ms) {
+            return `timing fault: ${label(index)} holds for ${step.hold} ms, but the page felt it held still for ${lasted} ms, short of its hold (${run.hold.ms} ms).`;
+        }
+        return null;
     }
 
     // ---- Where a step presses ----------------------------------------------------------------------------------------
@@ -139,19 +184,23 @@
 
     /**
      * The roll's notes canvas and the x of a tick on it, from its zoom and the left edge of its view (`roll.frame()`) and
-     * where it draws its playhead's control: the room left of the notes (the gutter) is read while the playhead stands in
-     * view, as it does when a roll opens, and kept for the scenario.
+     * where it draws its playhead's control: the room left of the notes (the gutter) is read once, the first time the
+     * playhead stands in view (as it does when a roll opens), and kept for the scenario. Read later it could be wrong: the
+     * control's value is the player's tick, but it is drawn where the line is, which shows a place let go until the player
+     * reports it (playhead-drag.ts, PlayheadDrag.heard).
      */
     function rollAxis() {
         const notes = document.querySelector("#roll canvas.roll-notes").getBoundingClientRect();
-        const head = document.querySelector("#roll .roll-playhead");
-        const box = head.getBoundingClientRect();
         const view = window.roll.frame();
         const perTick = view.zoom / 480;
-        const at = box.left + box.width / 2 - notes.left;
-        // Out of view the control is held at the view's edge: then it says nothing of where ticks are.
-        if (Number(head.value) >= view.scroll && at < notes.width - 1) {
-            run.gutter = at - (Number(head.value) - view.scroll) * perTick;
+        if (run.gutter === undefined) {
+            const head = document.querySelector("#roll .roll-playhead");
+            const box = head.getBoundingClientRect();
+            const at = box.left + box.width / 2 - notes.left;
+            // Out of view the control is held at the view's edge: then it says nothing of where ticks are.
+            if (Number(head.value) >= view.scroll && at < notes.width - 1) {
+                run.gutter = at - (Number(head.value) - view.scroll) * perTick;
+            }
         }
         if (run.gutter === undefined) {
             throw new Error("The roll's playhead was never in view, so a tick has no place on it yet.");
@@ -340,7 +389,7 @@
         }
     }
 
-    /** Reads the roll's gutter whenever its playhead is in view, for the points of a later step. */
+    /** Reads the roll's gutter once its playhead is in view, for the points of a later step. */
     function noteGutter() {
         try {
             rollAxis();
@@ -353,7 +402,11 @@
 
     window.pageScenario = {
         /** Starts a scenario on this page: the messages are read from now on. */
-        begin(scenario, fixture) {
+        async begin(scenario, fixture) {
+            // The page's own hold, from the module its pages import (Scripts/score/selection-gesture.ts).
+            const { HOLD_MS, HOLD_SLOP } = await import(new URL("../score/selection-gesture.js", document.baseURI).href);
+            run.hold = { ms: HOLD_MS, slop: HOLD_SLOP };
+            run.felt = [];
             run.scenario = scenario;
             run.fixture = fixture;
             run.page = scenario.page;
@@ -365,15 +418,21 @@
         },
         /** What the last expectation saw: everything posted since the one before, and the marks it named (run.mjs --show). */
         seen: () => run.seen,
-        /** Where a pointer step presses, in window pixels, for a runner that presses with the browser's own input. */
-        points: (index) => points(run.scenario.steps[index]),
+        /** How a pointer step presses (`stroke`), in window pixels, for a runner that presses with the browser's own input. */
+        stroke: (index) => stroke(run.scenario.steps[index]),
+        /** After a pointer step pressed with the browser's own input: its timing fault, or null (timing). */
+        timing,
         /** Carries out one step; for an expectation, the differences found. */
         async step(index) {
             const step = run.scenario.steps[index];
             if ("call" in step) {
                 await call(step);
             } else if ("pointer" in step) {
-                await press(step, points(step));
+                await press(step);
+                const fault = timing(index);
+                if (fault !== null) {
+                    throw new Error(fault);
+                }
             } else if ("wait" in step) {
                 await sleep(step.wait);
             } else if ("expect" in step) {
@@ -387,7 +446,7 @@
         async play(scenario, fixture) {
             const differences = [];
             try {
-                const count = this.begin(scenario, fixture);
+                const count = await this.begin(scenario, fixture);
                 for (let index = 0; index < count; index++) {
                     differences.push(...(await this.step(index)));
                 }

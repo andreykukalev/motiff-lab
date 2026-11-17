@@ -20,7 +20,8 @@ node tests/pages/run.mjs [--show] [id …] # every scenario, or those named
 
 `--show` prints what each expectation saw: every message posted since the expectation before, and the marks it names.
 Use it to write a scenario from what the page does. `PAGES_CHANNEL=chrome` uses the installed Chrome (as CI does), and
-`PAGES_PARALLEL` sets how many pages run at once (4 by default).
+`PAGES_PARALLEL` sets how many pages run at once (4 by default, 2 in CI). Beside the scenarios, every run checks that the
+fixtures are fresh (see "The fixtures").
 
 ## A scenario
 
@@ -55,9 +56,22 @@ A step is one of four kinds:
 | Step | What it does |
 |---|---|
 | `{"call": "select", "with": {…}}` | An app command: `window.motiff.<call>(with)` or `window.roll.<call>(with)`. Without `with`, the command is called with no argument. A string `"$fixture.<path>"` anywhere in `with` is replaced by that value of the fixture. |
-| `{"pointer": "pen", "path": [p, …], "hold": 600, "click": true}` | A press: `pen`, `touch` or `mouse`, down at the first point, through the others, up at the last. `hold` waits that many ms before moving (a long press). `click` follows the lifting with the click WebKit sends after a stylus touch. |
-| `{"wait": 100}` | Waits that many ms (a timer of the page, such as a long press or the playhead's frame). |
+| `{"pointer": "pen", "path": [p, …], "hold": 900, "click": true}` | A press: `pen`, `touch` or `mouse`, down at the first point, through the others a frame apart, up at the last. A press with one point and no `hold` is a tap: down and up back to back. `hold` waits that many ms on the page's clock before moving (a long press). `click` follows the lifting with the click WebKit sends after a stylus touch. |
+| `{"wait": 100}` | Waits that many ms. |
 | `{"expect": {…}}` | Compares what the page posted since the previous `expect`, and what it draws now. |
+
+**Time.** A scenario never races a timer of the page. Where the page gives a condition, a step waits for that: the
+replayer waits a frame after every call and every press, and a step sends the app's answer as a `call` (the position the
+player reports after a drag, the selection after a span) instead of waiting for a timeout. Where a real duration is the
+rule (a long press, a view that must stay put), the `hold` or `wait` is at least twice the page's timer, and its `note`
+says which timer: a hold is 900 ms against the pages' hold (`HOLD_MS` of `selection-gesture.ts`, 450 ms), a wait to see
+that the roll's view stays is 640 ms against its glide (the kit's slow time, 320 ms).
+
+Both runners time every press on the page's own clock (`performance.now()` when the page takes each pointer event). A
+press with no `hold` that the page felt held still for its `HOLD_MS` or more (or a hold it felt shorter) is reported as a
+timing fault, `stopped: timing fault: step n …`, instead of the differences it would cause: the machine was too slow
+for the scenario, and the page's rules were not tested. Two taps on the same place need a `wait` of twice the double
+tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
 
 **Points.**
 
@@ -112,13 +126,18 @@ A step is one of four kinds:
   `NOTE_SPACING` of `score-page.ts`), its timemap, and the piece's beat lines;
 - `fur-elise-roll.json`: music-core's roll payload.
 
-They are made by music-core and Verovio. Remake them after a change to either, and review what moved:
+They are made by music-core and Verovio. Remake them after a change to either, or to the engraving options, and review
+what moved:
 
 ```bash
 dotnet build src/shared && node tests/pages/fixture.mjs
 ```
 
-`tests/pages/fixture.cs` asks music-core's facade as the app does. The output is the same on every run.
+`tests/pages/fixture.cs` asks music-core's facade as the app does. The output is the same on every run, so every run of
+`run.mjs` makes them again beside the scenarios (`fixture.mjs --check`, a few seconds) and fails when a committed fixture
+is not what the code makes now, naming the first difference. A change to `A4_LAYOUT` or `NOTE_SPACING` (VIEW-03's
+margins), to music-core's notation or roll, or to Verovio thus fails the check until the fixtures are remade, and then the
+scenarios see it.
 
 ## What only Chromium checks
 
@@ -143,8 +162,10 @@ These entries, or parts of them, are checked elsewhere or not at all:
 
 - **SEL-04 on the roll.** The roll draws its selection's handles on its canvas, so they are no element to read. The roll
   scenarios check what it posts (`span`, `drag`), not the handles.
-- **VIEW-03's engraving options.** The scenario checks the paper and the margins the page draws. The options Swift gives
-  Verovio (`Engraver.swift`) are tied to `score-page.ts` by `tests/shared/score-pdf.test.mjs`.
+- **VIEW-03's engraving options in Swift.** The scenario checks the paper and the margins the page draws, on a fixture
+  engraved with `score-page.ts`'s options and kept fresh by the check above. The options Swift gives Verovio
+  (`Engraver.swift`) are tied to `score-page.ts` by `tests/shared/score-pdf.test.mjs`; the iPad's Verovio is built
+  from the same version's source, not the JS module the fixture uses.
 - **PLAY-02's sound.** What is heard as the playhead is dragged is the app's player, not the page. The scenario checks
   that the page posts the drag's grab, its moves and its release while playing.
 - **Anything the app's Swift decides.** How the app answers a message (the selection it sends back, the menu, saving)
