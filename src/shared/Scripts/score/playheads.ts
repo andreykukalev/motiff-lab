@@ -4,7 +4,7 @@
 // the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The
 // selection's playhead is a cobalt line with a knob inside the selection's band: cobalt is the selection's colour only.
 // Both apps draw both playheads of the playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, viewOf and
-// playheadsOf), from the model the player holds (playback-owner.ts on the web): the black track at the position, always,
+// playheadsOf), from the model the player holds: the black track at the position, always,
 // and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
 // In both apps the black dot and the cobalt knob are handles the pen, a finger or the mouse drags (#495 UX-08,
 // playhead-grab.ts). The line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line
