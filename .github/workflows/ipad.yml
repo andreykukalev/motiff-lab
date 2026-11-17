@@ -263,7 +263,7 @@ jobs:
           set -o pipefail
           TEST_RUNNER_SWITCH_TEST=1 xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
             -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
-            -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
+            -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST|Publishing changes from within view updates" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
       # The journeys of the walk (tests/ipad/MotiffLabScreens/ScreensUITests.swift) without pictures: without SCREENS_DIR
@@ -279,7 +279,7 @@ jobs:
           set -o pipefail
           xcodebuild test -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO -skip-testing:MotiffLabScreens/SwitchUITests \
-            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST" || true
+            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST|Publishing changes from within view updates" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" walk.log
 
       # The screens as a player sees them, for the redesign's mockups: the same walk in every appearance, only when
