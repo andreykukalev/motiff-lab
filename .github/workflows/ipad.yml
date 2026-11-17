@@ -263,7 +263,7 @@ jobs:
           set -o pipefail
           TEST_RUNNER_SWITCH_TEST=1 xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
             -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
-            -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST|Publishing changes from within view updates" || true
+            -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
       # The journeys of the walk (tests/ipad/MotiffLabScreens/ScreensUITests.swift) without pictures: without SCREENS_DIR
@@ -279,8 +279,23 @@ jobs:
           set -o pipefail
           xcodebuild test -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO -skip-testing:MotiffLabScreens/SwitchUITests \
-            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST|Publishing changes from within view updates" || true
+            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" walk.log
+
+      # SwiftUI's runtime warning «Publishing changes from within view updates» is the walked app's console, which
+      # xcodebuild does not print (walk.log has the test runner's output only): read from the simulator's log for the
+      # app's process since the walk began (walk.log's creation) and printed for a reviewer to see. It never fails the run.
+      - name: SwiftUI warnings during the walk
+        if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots }}
+        timeout-minutes: 5
+        continue-on-error: true
+        working-directory: src/ipad/App
+        run: |
+          [[ -f walk.log ]] || { echo "The walk did not start."; exit 0; }
+          start="$(stat -f %SB -t '%Y-%m-%d %H:%M:%S' walk.log)"
+          xcrun simctl spawn "$SIMULATOR" log show --start "$start" --predicate 'process == "MotiffLab"' --style compact \
+            | grep "Publishing changes from within view updates" \
+            || echo "No «Publishing changes from within view updates» in the app's log since $start."
 
       # The screens as a player sees them, for the redesign's mockups: the same walk in every appearance, only when
       # ticked (about half an hour; the Mac takes no other run meanwhile). A failing walk fails the run; the pictures it
