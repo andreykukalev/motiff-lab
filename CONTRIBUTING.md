@@ -32,8 +32,7 @@ dotnet format whitespace --folder --verify-no-changes
 
 The iPad app is built and tested on a Mac (`src/ipad/README.md`), or by the `iPad` workflow: on every push to a pull
 request that touches what the app is built from, it runs the Swift tests in the simulator and compiles the walk, and
-its job `ipad-gate` is required on `develop`; by hand (the lead only) with the inputs `walk`, `screenshots` and
-`switch_test`.
+its job `ipad-gate` is required on `develop`; by hand with the inputs `walk`, `screenshots` and `switch_test`.
 
 ## Pull requests
 

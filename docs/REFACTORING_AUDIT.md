@@ -572,7 +572,7 @@ Run for this edition on a clean clone of `a2d767b` (Linux, .NET 10, Node 22):
 | Guards | `governance/tests` | **29 passed** | `build-test` |
 | Scan server | `src/backend/omr/tests` (pytest) | not run here | `build-test` when it changes |
 | iPad unit tests | `tests/ipad/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: on every push to a pull request that touches its inputs (`ipad-gate`, required on `develop`), on tags, by hand (since #642) |
-| iPad UI tests | `tests/ipad/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
+| iPad UI tests | `tests/ipad/MotiffLabScreens` (6) | as above; the switch test only when asked | `iPad` workflow: compiled (scheme `Screens`, not run) on every push to a pull request that touches its inputs; the walk runs on tags, by hand with `walk` and nightly once the schedule is on `main`; the switch test by hand with `switch_test` and nightly (since #642) |
 | Browser tests | archived with the web (0032) | not run | none |
 
 Coverage of music-core (coverlet, the unit tests alone, measured for the first edition on `0d2bc52`; the code has not
