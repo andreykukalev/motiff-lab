@@ -56,7 +56,7 @@ enum ScreensProbe {
     static var latest = "library"
     static weak var score: ScoreController? { didSet { latest = "score" } }
     static weak var pdf: PdfController? { didSet { latest = "pdf" } }
-    /// The score's screen's player, roll and assistant, as the screen wires them (ScoreScreen.wire).
+    /// The score's screen's player, roll and assistant, as the screen wires them (ScoreWorkspace.wire).
     static weak var player: Player?
     static weak var roll: RollController?
     static weak var assistant: AssistantController?
