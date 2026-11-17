@@ -22,7 +22,6 @@ import {
     type PlaceRule,
     type Tap,
     doubleTap,
-    drawnRange,
     headAt,
     movedEdge,
     placeAt,
@@ -301,7 +300,7 @@ export class PlaceLayer {
             case "draw":
                 return rectPassage({ x: drag.x, y: drag.y }, at, this.rectSystems(geometry, lines), MUSIC_REACH);
             case "bar":
-                return this.heldBar(drag, drawnRange(drag.pressTick, tick, lines));
+                return this.heldBar(drag);
             default:
                 return null;
         }
@@ -324,15 +323,13 @@ export class PlaceLayer {
         });
     }
 
-    /** A finger held on a bar selects that bar; a move after the hold takes it on to the line past the pointer. */
-    private heldBar(drag: PlaceDrag, drawn: TickRange | undefined): PlacedRange | null {
+    /** A finger held on a bar selects that bar; a move after the hold draws from the press as the stylus does (placeMoved). */
+    private heldBar(drag: PlaceDrag): PlacedRange | null {
         const bar = drag.bar;
         if (bar === undefined || !Number.isFinite(bar.end)) {
             return null;
         }
-        const start = Math.min(bar.tick, drawn?.start ?? bar.tick);
-        const end = Math.max(bar.end, drawn?.end ?? bar.end);
-        return { start, end, hand: null };
+        return { start: bar.tick, end: bar.end, hand: null };
     }
 
     /** The old selection dashed while a new one is drawn, the addition dashed while extending, the targets while an edge moves. */

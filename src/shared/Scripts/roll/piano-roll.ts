@@ -2470,12 +2470,12 @@ export class PianoRoll {
 
     /**
      * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
-     * down its line, a touch target wide: the drag moves it on the sixteenth grid, not what lies under it.
+     * down its line a touch target wide (not the stylus in Select, which draws a frame there): the drag moves it on the grid.
      */
     private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
         const { black, blue } = this.headsNear(x);
         const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
-        return this.grabHead(laneHeadAt(x, y, heads), event.pointerId, x);
+        return this.grabHead(laneHeadAt(x, y, heads, event.pointerType !== "pen" || !this.placeSelects("pen")), event.pointerId, x);
     }
 
     /**

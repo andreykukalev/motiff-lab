@@ -97,6 +97,16 @@ test("on the roll the marker in the loop strip takes the playhead whatever its c
     assert.equal(laneHeadAt(210, 10, outside), null, "the bar numbers above the strip are not the playhead's");
 });
 
+test("on the roll the stylus in Select takes the playhead by its marker in the strip alone, not down its line (Andrei, 2026-11-17)", () => {
+    const inside = { black: 400, blue: 400, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(410, 30, inside, false), "blue", "the marker in the strip, blue");
+    assert.equal(laneHeadAt(410, 200, inside, false), null, "down its line it is not taken: there the stylus draws a frame");
+    const outside = { black: 200, blue: null, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(210, 30, outside, false), "black", "the marker in the strip, black");
+    assert.equal(laneHeadAt(210, 52, outside, false), null, "from the strip's bottom down, the line");
+    assert.equal(laneHeadAt(210, 200, outside, true), "black", "a finger and the other modes still take it down its line");
+});
+
 test("playing, a press finds the playhead where it was drawn a moment ago, a touch target behind it at most (#533 4)", () => {
     // The line ran from 100 to 160 across the last moments; it is at 170 now.
     const drawn = [{ at: 0, x: 60 }, { at: 700, x: 100 }, { at: 800, x: 130 }, { at: 900, x: 160 }];

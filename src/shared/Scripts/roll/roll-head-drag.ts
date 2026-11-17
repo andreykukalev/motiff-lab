@@ -21,14 +21,15 @@ export interface LaneHeads {
 
 /**
  * The playhead a press takes (#543 6): by its marker in the loop strip, the blue one while it is blue and else the black
- * one, whatever its colour; down its line under the strip the black one; null for neither.
+ * one, whatever its colour; down its line under the strip the black one, unless `line` is false (the stylus in Select,
+ * which draws a selection frame there as anywhere: Andrei, 2026-11-17); null for neither.
  */
-export function laneHeadAt(x: number, y: number, heads: LaneHeads): Handle | null {
+export function laneHeadAt(x: number, y: number, heads: LaneHeads, line = true): Handle | null {
     const inStrip = y >= heads.stripTop && y < heads.stripBottom;
     if (inStrip && heads.blue !== null && Math.abs(x - heads.blue) <= heads.reach) {
         return "blue";
     }
-    if ((inStrip || y >= heads.stripBottom) && Math.abs(x - heads.black) <= heads.reach) {
+    if ((inStrip || (line && y >= heads.stripBottom)) && Math.abs(x - heads.black) <= heads.reach) {
         return "black";
     }
     return null;

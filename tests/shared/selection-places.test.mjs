@@ -96,7 +96,7 @@ test("taps: outside selects what is under it, the margin clears, inside and on a
     assert.equal(placeEnded(placePress("edge-end", "now")), "none");
 });
 
-test("a finger beside the stylus scrolls; held on a bar it selects that bar, and the way back extends or moves the edge", () => {
+test("a finger beside the stylus scrolls; held on a bar it selects that bar, moved on draws, and the way back extends or moves the edge", () => {
     const scrolls = placePress("outside", "longPress");
     assert.equal(placeMoved(scrolls, 7), "none", "within the hold's slop");
     assert.equal(placeMoved(scrolls, 9), "pass");
@@ -105,8 +105,12 @@ test("a finger beside the stylus scrolls; held on a bar it selects that bar, and
 
     const bar = placePress("outside", "longPress");
     assert.equal(placeHeld(bar), "bar");
-    assert.equal(placeMoved(bar, 50), "none", "the bar held is taken on by the move, as before");
-    assert.equal(placeEnded(bar), "bar");
+    assert.equal(placeEnded(bar), "bar", "held still, the bar");
+    assert.equal(placeMoved(bar, 7), "none", "within the hold's slop the bar held stays");
+    // Andrei, 2026-11-17: moved on after the hold, it draws from where it pressed, as the stylus does, not from the bar's start.
+    assert.equal(placeMoved(bar, 50), "draw");
+    assert.equal(placeMoved(bar, 80), "none", "once only");
+    assert.equal(placeEnded(bar), "draw");
 
     const inside = placePress("inside", "longPress");
     assert.equal(placeHeld(inside), "extend");

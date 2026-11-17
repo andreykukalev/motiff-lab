@@ -208,8 +208,16 @@
         return { notes, x: (tick) => notes.left + run.gutter + (tick - view.scroll) * perTick };
     }
 
-    /** A point on the roll: a tick across it and `y` down its notes, from 0 to 1; window pixels. */
+    /**
+     * A point on the roll: a tick across it and `y` down its notes, from 0 to 1; or the playhead's handle in the strip
+     * (`grip`), the centre of its control, which the roll keeps over the handle (roll-playhead.ts PlayheadControl.place);
+     * window pixels.
+     */
     function rollPoint(point) {
+        if ("grip" in point) {
+            const box = document.querySelector("#roll .roll-playhead").getBoundingClientRect();
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        }
         const axis = rollAxis();
         return { x: axis.x(point.tick), y: axis.notes.top + axis.notes.height * point.y };
     }

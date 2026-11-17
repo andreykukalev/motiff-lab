@@ -1,0 +1,287 @@
+{
+  "id": "roll-sel-on-playhead",
+  "protects": [
+    "SEL-02",
+    "SEL-03",
+    "PLAY-02"
+  ],
+  "says": "In Select a stylus pressed on the roll's playhead line draws a selection frame there as anywhere else, standing and playing; the stylus takes the playhead only by its handle in the strip, standing and playing, as on the score.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "viewport": {
+    "width": 1024,
+    "height": 420
+  },
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 1920,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "standing at 1920"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 1930,
+          "y": 0.7
+        },
+        {
+          "tick": 2600,
+          "y": 0.5
+        }
+      ],
+      "note": "the stylus pressed on the standing playhead's line, drawn right: in Select it draws a frame there as anywhere (Andrei, 2026-11-17)"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag",
+              "seek"
+            ],
+            "messages": []
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": [
+              {
+                "span": {
+                  "start": 1920,
+                  "end": 2640,
+                  "how": "create"
+                }
+              }
+            ]
+          }
+        ],
+        "note": "a span from the sixteenth under the press; the playhead not taken"
+      }
+    },
+    {
+      "call": "selection",
+      "with": {
+        "loop": null
+      },
+      "note": "the app leaves the roll unselected, so no edge lies over the playhead"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "tick": 2640,
+          "y": 0.7
+        }
+      ],
+      "note": "the stylus on the standing playhead's handle in the strip, dragged right"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "black"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "black",
+                  "tick": 2640
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "black"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "the handle still takes it: on to 2640 on the grid, let go; no frame"
+      }
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 3600,
+        "playing": true,
+        "label": "",
+        "looping": false
+      },
+      "note": "playing, at 3600"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 3610,
+          "y": 0.7
+        },
+        {
+          "tick": 4300,
+          "y": 0.5
+        }
+      ],
+      "note": "the stylus pressed on the playing playhead's line, drawn right (Andrei, 2026-11-17)"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag",
+              "seek"
+            ],
+            "messages": []
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": [
+              {
+                "span": {
+                  "start": 3600,
+                  "end": 4320,
+                  "how": "create"
+                }
+              }
+            ]
+          }
+        ],
+        "note": "a frame while it plays too; the playhead not taken"
+      }
+    },
+    {
+      "call": "selection",
+      "with": {
+        "loop": null
+      },
+      "note": "the app leaves the roll unselected"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "tick": 4320,
+          "y": 0.7
+        }
+      ],
+      "note": "the stylus on the playing playhead's handle in the strip, dragged right"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "black"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "black",
+                  "tick": 4320
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "black"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "taken by its handle while it plays: on to 4320 on the grid, let go"
+      }
+    }
+  ]
+}

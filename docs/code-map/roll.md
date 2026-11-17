@@ -4,7 +4,7 @@
 
 One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor on the web and by `src/ipad/App/Web/roll.js`
 (`window.roll`, messages to Swift) on the iPad. Tests: `tests/shared/roll-*.test.mjs` (node, on the compiled modules).
-What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/roll-*.json` (SEL-01, SEL-03,
+What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/roll-*.json` (SEL-01, SEL-02, SEL-03,
 PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's WKWebView
 (`PageScenarioTests.swift`). The roll's selection handles are drawn on its canvas, so the scenarios check what it posts.
 
@@ -52,3 +52,5 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 - The roll never changes a selection by itself: it sends picks and spans; Swift's ScoreController owns the selection.
 - Moving picked notes is the note editor's draft (`corrections.*`); nothing new is saved in the project file.
 - In Navigate the stylus moves the roll; in Edit notes a tap on empty space adds a note; a finger beside a stylus moves it.
+- With the lanes the stylus in Select takes the playhead by its handle in the strip alone and draws a frame down its line
+  (`laneHeadAt`'s `line`, Andrei 2026-11-17, `roll-sel-on-playhead`); a finger and Navigate take it down the line too.
