@@ -153,20 +153,6 @@ extension ScoreController {
     }
 }
 
-extension RollController {
-    /// The roll's zoom and view now (Web/roll.js `frame`), for the "Notes" view; nil before the roll first drew.
-    func frame() async -> [String: Double]? {
-        let answer = try? await webView.callAsyncJavaScript("return roll.frame()", contentWorld: .page)
-        guard let object = answer as? [String: Any] else { return nil }
-        var frame: [String: Double] = [:]
-        for key in ["zoom", "rowScale", "scroll", "pitchTop"] {
-            guard let value = (object[key] as? NSNumber)?.doubleValue, value.isFinite else { return nil }
-            frame[key] = value
-        }
-        return frame
-    }
-}
-
 extension PdfController {
     /// Keeps where the pages are on the device (#511 section 10), with the page under the bar; nothing before they are laid out.
     func keepView() {

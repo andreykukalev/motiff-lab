@@ -3,39 +3,8 @@ import SwiftUI
 /// The piano roll as a place to edit notes (#479 item 23, the approved mockup v0.5.2): its own mode switch, the zoom on each
 /// axis, and the selection made on it. The roll is the web app's (RollController); what is drawn over it lives here.
 
-/// The roll's zoom as it reports it (`roll-zoom.ts`): the bars and the octaves in view, which steps are left, and whether
-/// Zoom Out shows (#521 2.2: after Fit laid a selection across the roll, until Zoom Out or the selection goes).
-struct RollZoom: Equatable, Sendable {
-    var bars: Int
-    var octaves: Int
-    var timeIn = true
-    var timeOut = true
-    var pitchIn = true
-    var pitchOut = true
-    var zoomOut = false
-
-    init(bars: Int, octaves: Int, timeIn: Bool = true, timeOut: Bool = true, pitchIn: Bool = true, pitchOut: Bool = true, zoomOut: Bool = false) {
-        self.bars = bars
-        self.octaves = octaves
-        self.timeIn = timeIn
-        self.timeOut = timeOut
-        self.pitchIn = pitchIn
-        self.pitchOut = pitchOut
-        self.zoomOut = zoomOut
-    }
-
-    /// From the roll's message: `{ bars, octaves, timeIn, timeOut, pitchIn, pitchOut, zoomOut }`.
-    init?(_ message: [String: Any]) {
-        guard let bars = (message["bars"] as? NSNumber)?.intValue, let octaves = (message["octaves"] as? NSNumber)?.intValue else { return nil }
-        self.bars = bars
-        self.octaves = octaves
-        timeIn = message["timeIn"] as? Bool ?? true
-        timeOut = message["timeOut"] as? Bool ?? true
-        pitchIn = message["pitchIn"] as? Bool ?? true
-        pitchOut = message["pitchOut"] as? Bool ?? true
-        zoomOut = message["zoomOut"] as? Bool ?? false
-    }
-
+/// The zoom's words (RollZoom, the roll's report, is the roll page's: Platform/RollPage.swift).
+extension RollZoom {
     /// The time zoom's value in words, as Andrei chose over a percentage: "9 bars", «9 тактов».
     static func barsText(_ bars: Int, _ text: UIText) -> String {
         text.count("rollZoom.bars", bars)
@@ -126,17 +95,13 @@ enum RollPick: Equatable, Sendable {
     case bars(first: Int, last: Int, extend: Bool)
     case beats(Range<Double>)
 
-    /// The roll's `range` message: `{ first, last, extend, click, from, to }`, the ticks from where the drag began to where it
-    /// ended, either way round.
-    init?(_ message: [String: Any], byBeats: Bool) {
-        func number(_ key: String) -> Double? { (message[key] as? NSNumber)?.doubleValue }
-        guard let first = number("first"), let last = number("last") else { return nil }
-        let click = message["click"] as? Bool ?? false
-        if byBeats, !click, let from = number("from"), let to = number("to") {
+    /// From the roll's `range` message (RollRange): the ticks from where the drag began to where it ended, either way round.
+    init(_ range: RollRange, byBeats: Bool) {
+        if byBeats, !range.click, let from = range.from, let to = range.to {
             let start = min(from, to)
             self = .beats(start..<max(max(from, to), start + 1))
         } else {
-            self = .bars(first: Int(first), last: Int(last), extend: message["extend"] as? Bool ?? false)
+            self = .bars(first: Int(range.first), last: Int(range.last), extend: range.extend)
         }
     }
 }

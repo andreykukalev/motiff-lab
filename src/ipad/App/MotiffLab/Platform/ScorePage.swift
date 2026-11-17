@@ -63,9 +63,15 @@ final class WebScorePage: ScorePage {
     }
 
     nonisolated static func script(_ command: PageCommand, _ argument: Any?) -> (String, [String: Any]) {
-        guard let argument else { return ("return motiff.\(command.rawValue)()", [:]) }
-        return ("return motiff.\(command.rawValue)(argument)", ["argument": argument])
+        pageScript("motiff", command.rawValue, argument)
     }
+}
+
+/// A call of a page's function (`object.function`) as a function's body for `callAsyncJavaScript`, with its one argument,
+/// if any, passed as `argument`: the score's port and the roll's (`RollPage`) build their calls so.
+func pageScript(_ object: String, _ function: String, _ argument: Any?) -> (String, [String: Any]) {
+    guard let argument else { return ("return \(object).\(function)()", [:]) }
+    return ("return \(object).\(function)(argument)", ["argument": argument])
 }
 
 /// What the page posts, each kind decoded in one place. A message carries one kind, `performanceBar` with its place.

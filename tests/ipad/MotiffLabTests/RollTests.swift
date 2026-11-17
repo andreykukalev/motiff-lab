@@ -134,15 +134,15 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(fitted, RollZoom(bars: 4, octaves: 2, zoomOut: true), "after Fit of a selection (#521 2.2)")
     }
 
-    func testADragOnTheRollSelectsByBeatsWhereTheScoreDoesAndATapSelectsItsBar() {
-        let drag: [String: Any] = ["first": 9, "last": 12, "extend": false, "click": false, "from": 6720, "to": 5760]
+    func testADragOnTheRollSelectsByBeatsWhereTheScoreDoesAndATapSelectsItsBar() throws {
+        let drag = try XCTUnwrap(RollRange(["first": 9, "last": 12, "extend": false, "click": false, "from": 6720, "to": 5760]))
         XCTAssertEqual(RollPick(drag, byBeats: true), .beats(5760..<6720), "the ticks either way round, for the one selection by beats")
         XCTAssertEqual(RollPick(drag, byBeats: false), .bars(first: 9, last: 12, extend: false), "by bars where the score selects bars")
-        let tap: [String: Any] = ["first": 9, "last": 9, "extend": false, "click": true, "from": 5760, "to": 5760]
+        let tap = try XCTUnwrap(RollRange(["first": 9, "last": 9, "extend": false, "click": true, "from": 5760, "to": 5760]))
         XCTAssertEqual(RollPick(tap, byBeats: true), .bars(first: 9, last: 9, extend: false), "a tap on a bar number selects that bar")
-        let still: [String: Any] = ["first": 9, "last": 9, "click": false, "from": 5760, "to": 5760]
+        let still = try XCTUnwrap(RollRange(["first": 9, "last": 9, "click": false, "from": 5760, "to": 5760]))
         XCTAssertEqual(RollPick(still, byBeats: true), .beats(5760..<5761), "never an empty stretch")
-        XCTAssertNil(RollPick(["from": 0, "to": 10], byBeats: true))
+        XCTAssertNil(RollRange(["from": 0, "to": 10]), "no bars, no pick")
     }
 
     /// #495 BUG-01: the roll's one web view is in one place, the drawer while it is open, else the card in focus as a roll.
