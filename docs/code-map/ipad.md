@@ -65,7 +65,7 @@ reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run b
   `ml-screens-probe`; on the score's screen `workspace()` adds the selection and Play's range in ticks, Expand, the mode, the
   Pen and its ink, the scroll, the roll's place and zoom, the transport and its tick, Цикл, the sound, a variation, the
   assistant's panel (`ScoreScreen.wire` hands the player, roll and assistant over). Identifiers the walk uses besides the
-  labels: `insights.tryWay`, `roll.more`.
+  labels: `ml-screens-try-way` (Insights' Try way chips), `ml-screens-roll-more` (the roll drawer's More).
 
 ## The assistant
 

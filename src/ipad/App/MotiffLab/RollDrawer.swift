@@ -218,7 +218,7 @@ struct RollDrawer: View {
         .menuStyle(.button)
         .buttonStyle(RollHeadStyle(round: true))
         .accessibilityLabel(text["bar.more"])
-        .accessibilityIdentifier("roll.more")
+        .accessibilityIdentifier("ml-screens-roll-more")
     }
 
     /// "bars 9–16", the span as bar.beat under the one playback position, or nil with nothing selected.

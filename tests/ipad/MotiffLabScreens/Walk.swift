@@ -171,9 +171,9 @@ final class Walk {
         app.buttons.matching(identifier: id).firstMatch
     }
 
-    /// More in the bar, on the score and on a PDF (the roll drawer's own More is `roll.more`).
+    /// More in the bar, on the score and on a PDF (the roll drawer's own More is `ml-screens-roll-more`).
     var more: XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND identifier != 'roll.more'")).firstMatch
+        app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND identifier != 'ml-screens-roll-more'")).firstMatch
     }
 
     /// The piece's title in the bar, which opens the Contents.

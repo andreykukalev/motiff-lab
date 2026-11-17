@@ -149,7 +149,7 @@ extension Walk {
         if expand.exists && expand.isHittable {
             try press(expand, "Expand in the roll drawer")
         } else {
-            try press(button(id: "roll.more"), "the roll drawer's More")
+            try press(button(id: "ml-screens-roll-more"), "the roll drawer's More")
             try press(button("Развернуть"), "Expand in the roll drawer's More")
         }
     }
@@ -177,7 +177,7 @@ extension Walk {
         try need(tryIt, "Try on a fact of the phrase", timeout: 20)
         shot("16-insights", settle: 1)
         try press(tryIt, "Try")
-        let way = button(id: "insights.tryWay")
+        let way = button(id: "ml-screens-try-way")
         try need(way, "a way to try")
         shot("18-insights-try")
         try press(way, "a way to try")
