@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `EngineKeeper`, `Engraver`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`, `OpenPiece`,
-`PieceAnswers`, `PieceCore`, `ProjectFiles`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`, `ViewStates`,
+`PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`, `ViewStates`,
 `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
@@ -23,7 +23,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `MergeAnswer`, `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
   features build their own types from them. They name no feature type.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
-  `PageEvent` decodes its messages.
+  `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
+- `RollPage.swift`: the one port to the roll page (0031 step 12, B7): `RollCommand` names `window.roll`'s functions,
+  `RollPage` calls each by a typed method and reads its answer (`RollShown`, the colouring, the frame), `RollEvent`
+  decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`). A
+  message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
+  what the page sends and the app leaves out stays quiet, as before. `RollEvent.broken` is a hook of its own beside
+  `FacadeAnswer.broken`: a test that silences one does not silence the other.
 - `Design.swift` reads `design/kit/tokens.css`.
 - `UIText.swift`: the words, the shared `src/shared/wwwroot/i18n/<language>.json` (in the app as `i18n/`), then every
   folder's `<Folder>/Words/<Folder>.<language>.json` (at the app's top) by name, merged; a key defined twice asserts in
@@ -45,6 +51,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `FacadeAnswersContractTests` keeps equal to the facade's answers on the example piece.
 - `PageCommand` and `PageEvent` are `tests/contracts/score-page.json`, checked by
   `tests/shared/score-page-contract.test.mjs` and `ScorePageContractTests`.
+- `RollCommand`, `RollEvent` and the examples of each call, answer and message are `tests/contracts/roll-page.json`,
+  checked by `tests/shared/roll-page-contract.test.mjs` and `RollPageContractTests`; no other file builds a roll call.
 - Every `language:` sent to music-core or the assistant is `text.language`.
 
 ## The state it owns

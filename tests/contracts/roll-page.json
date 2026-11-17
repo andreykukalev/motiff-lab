@@ -1,0 +1,116 @@
+{
+  "note": "The roll page's contract (decision record 0031, step 12; the v0.7 blueprint's B7): the functions of window.roll in src/ipad/App/Web/roll.js, the app's RollCommand; the keys of the messages the page posts, the app's RollEvent.Kind (its first message, the string \"ready\", is no event); an example of each function's argument and answer and of each message, with exactly the fields roll.js reads (at any depth) or posts, except what roll.js passes on whole to piano-roll.ts unread (labels, frame, tuplets, the arrays of music-core's payload), whose keys are not checked further; and the callbacks of PianoRoll's host (piano-roll.ts) that roll.js passes on to Swift or drops. Checked by tests/shared/roll-page-contract.test.mjs and tests/ipad/MotiffLabTests/RollPageContractTests.swift.",
+  "commands": [
+    "load",
+    "nextColour",
+    "colour",
+    "theme",
+    "position",
+    "selection",
+    "noteNames",
+    "highlight",
+    "edit",
+    "lanes",
+    "practice",
+    "input",
+    "shape",
+    "zoom",
+    "frame",
+    "passage",
+    "tuplets"
+  ],
+  "events": [
+    "range",
+    "zoom",
+    "clear",
+    "gestureCancelled",
+    "holdHint",
+    "space",
+    "seek",
+    "drag",
+    "edit",
+    "span",
+    "notes",
+    "moveBegan",
+    "moved"
+  ],
+  "arguments": {
+    "load": {
+      "roll": {
+        "ids": ["n_0001", "n_0002"],
+        "notes": [0, 240, 76, 0, 0, 0, 1, 240, 240, 75, 0, 0, 0, 1],
+        "bars": [0, 720, 0, 1],
+        "end": 720,
+        "names": { "notes": ["E5", "D#5"], "keyTicks": [76, 75], "rows": [76, 75], "short": ["E", "D#"], "shortRows": [76, 75], "octaves": [5] }
+      },
+      "labels": { "rightHand": "Right hand", "leftHand": "Left hand" },
+      "noteNames": true,
+      "dark": false,
+      "colourBy": "hand",
+      "keep": false,
+      "frame": { "zoom": 1.5, "rowScale": 1, "scroll": 960, "pitchTop": 84 }
+    },
+    "nextColour": null,
+    "colour": "track",
+    "theme": true,
+    "position": { "tick": 960, "playing": true, "label": "2.1", "looping": false },
+    "selection": {
+      "selected": { "start": 0, "end": 1440, "ids": ["n_0001", "n_0002"], "picked": ["n_0002"] },
+      "loop": { "start": 0, "end": 1440 }
+    },
+    "noteNames": false,
+    "highlight": { "places": [{ "onset": 0, "end": 720, "noteIds": ["n_0001"] }] },
+    "edit": { "on": true, "tool": "move", "picked": "n_0001" },
+    "lanes": true,
+    "practice": false,
+    "input": { "touch": false, "pen": false, "scrollFingers": 1, "penSelects": true, "mode": "select", "place": true, "stylus": true },
+    "shape": "lasso",
+    "zoom": { "axis": "time", "direction": 1 },
+    "frame": null,
+    "passage": { "start": 720, "end": 2160 },
+    "tuplets": [{ "start": 0, "end": 480 }]
+  },
+  "answers": {
+    "load": { "colourBy": "hand", "modes": ["hand", "track"] },
+    "nextColour": "track",
+    "colour": "track",
+    "frame": { "zoom": 1.5, "rowScale": 1, "scroll": 960, "pitchTop": 84 }
+  },
+  "messages": [
+    { "range": { "first": 9, "last": 12, "extend": false, "click": false, "from": 6720, "to": 5760, "how": "create", "gesture": "g-1" } },
+    { "zoom": { "bars": 9, "octaves": 3, "timeIn": true, "timeOut": false, "pitchIn": true, "pitchOut": true, "zoomOut": false } },
+    { "clear": { "gesture": "g-2" } },
+    { "gestureCancelled": "g-3" },
+    { "holdHint": true },
+    { "space": true },
+    { "seek": { "tick": 1920, "play": true } },
+    { "drag": { "phase": "move", "handle": "black", "tick": 2400 } },
+    { "edit": { "kind": "change", "id": "n_0001", "onset": 120, "pitch": 77, "length": 240 } },
+    { "edit": { "kind": "add", "onset": 480, "pitch": 72, "length": 240 } },
+    { "edit": { "kind": "remove", "id": "n_0002" } },
+    { "span": { "start": 600, "end": 840, "how": "replace", "gesture": "g-4" } },
+    { "notes": { "ids": ["n_0001", "n_0002"], "change": "add", "gesture": "g-5" } },
+    { "moveBegan": true },
+    { "moved": { "notes": [{ "id": "n_0001", "onset": 600, "pitch": 73, "length": 480 }], "gesture": "g-6" } }
+  ],
+  "hostCallbacks": {
+    "passedOn": [
+      "OnRollRange",
+      "OnRollZoom",
+      "OnRollClear",
+      "OnRollGestureCancelled",
+      "OnRollHoldHint",
+      "OnRollSpace",
+      "OnRollSeek",
+      "OnRollDrag",
+      "OnRollNoteChange",
+      "OnRollNoteAdd",
+      "OnRollNoteRemove",
+      "OnRollNotes",
+      "OnRollSpan",
+      "OnRollNotesMoveBegan",
+      "OnRollNotesMoved"
+    ],
+    "dropped": ["OnRollCheckPicked", "OnRollNotesPicked", "OnRollPlace", "OnRollSelection"]
+  }
+}

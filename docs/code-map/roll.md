@@ -30,8 +30,8 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 
 - Members (the Blazor host's API): `PianoRoll.loadKept`, `setNamesKept`, `setChecks`, `pointAt`, `setSelection`,
   `setPhrases`, `setFilter`, `setVariation`, `clearVariation`, `setGhosts`, `setAudible`, `dispose`; `HAND_NONE`, `fitZoom`
-  and `fitRow` of `roll-model.ts`; `ticksIn`; `insideOf` of `roll-strips.ts` (`playback-model.ts` has its own);
-  `narrowedPicks`; `RollPlaceGesture.active`. Several have node tests only.
+  and `fitRow` of `roll-model.ts`; `ticksIn`; `narrowedPicks`; `RollPlaceGesture.active` (the copy of `insideOf` in
+  `roll-strips.ts` goes with #670). Several have node tests only.
 - Branches: `roll.js` sets `setTouchReading(true)` and `setAxisZoom(true)` at load, so the `!touchReading` and
   `!axisZoom` sides are the web's (`zoomBy`, `reportZoom`, `pointerUp`, `movedByFingers`, `onDocumentPointerUp`). The
   `mode === null` (rules before the modes) and `!placeOn` sides run only before Swift's first `input`: `setRules`,
@@ -39,11 +39,15 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 
 ## iPad
 
-- `Web/roll.js`: host calls → messages (`range`, `span`, `notes`, `moveBegan`, `moved`, `edit`, `seek`, …); `tuplets`; `input` carries
-  `RollInput.page` plus `place`/`stylus` (`RollPlaceInput`), `shape` the box or the lasso.
-- `RollController.swift`: the web view, `received` → callbacks (`picked`, `notesPicked`, `notesMoveBegan`, `notesMoved`).
-- `RollPlace.swift`: `RollPickShape` (UserDefaults `roll.pickShape`), `RollPlaceInput`, `RollNotesPick`, `RollPickSwitch`.
-- `RollTools.swift` (mode switch, zoom, edit tools), `RollDrawer.swift` (the head), wiring in `ScoreWorkspace.wire()`.
+- `Web/roll.js`: `window.roll`, the 17 host calls (`load`, `selection`, `input`, `edit`, `zoom`, `frame`, …), and the 13
+  messages (`range`, `span`, `notes`, `moveBegan`, `moved`, `edit`, `seek`, `drag`, `zoom`, …) it posts from PianoRoll's
+  host callbacks (15 passed on; `OnRollCheckPicked`, `OnRollNotesPicked`, `OnRollPlace`, `OnRollSelection` dropped, the
+  web's). The contract: `tests/contracts/roll-page.json` (names, each argument's and message's fields, the answers),
+  checked against roll.js by `tests/shared/roll-page-contract.test.mjs` and against Swift by `RollPageContractTests`.
+- `Platform/RollPage.swift` (B7): the one place that builds a call (`RollCommand`, `RollPage`) and decodes a message
+  (`RollEvent`, `RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`); `drag` goes on to Playback's
+  `PlayheadGesture`. `RollController.swift`: the web view, `received` → callbacks; `RollPlace.swift`, `RollTools.swift`,
+  `RollDrawer.swift`: [`ipad/roll.md`](ipad/roll.md); wiring in `ScoreWorkspace.wire()`.
 
 ## Rules not to break
 
