@@ -84,9 +84,9 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
 ## iPad builds
 
 - The `iPad` workflow starts on every pull request; its first job decides whether the pull request touches what the
-  app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core, `design/kit`, `tests/contracts`, `global.json`,
-  `Directory.Build.props`), and only then are the app built, the Swift tests run in the simulator and the walk's
-  UI tests compiled (not run), on every push.
+  app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core, `design/kit`, `tests/contracts`, `tests/pages`,
+  `global.json`, `Directory.Build.props`), and only then are the app built, the Swift tests run in the simulator and the
+  walk's UI tests compiled (not run), on every push.
   Its job `ipad-gate` reports on every pull request and is a required check on `develop` (`infra/github/protect.ps1`).
   The same tests run on `develop` after a merge that touches those inputs, on every version tag and by hand. The walk
   of the screens' journeys (`tests/ipad/MotiffLabScreens`, asserting, one appearance, a few minutes) runs on tags,

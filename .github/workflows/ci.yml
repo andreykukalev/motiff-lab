@@ -32,7 +32,7 @@ permissions:
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
 # run never shares a group with main. A run for adding or removing a label (agent, role:*, risk:*,
-# browser-tests, ipad-tests, protected-scenarios-ok) only reports the result of the build before it and checks
+# browser-tests, protected-scenarios-ok) only reports the result of the build before it and checks
 # the approval of the protected scenarios again (see the job), so it gets a group of its own per run: it
 # never cancels the build in progress, and no other label run cancels it.
 concurrency:

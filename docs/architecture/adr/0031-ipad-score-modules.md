@@ -97,7 +97,9 @@ the views that read it (`@Observable` tracks each property), and a panel's depen
 
 One pull request a step, in this order; each keeps the behaviour, keeps `MotiffLabTests` green (expectations change
 only in type names), runs the iPad workflow (label `ipad-tests`) before the merge, removes the baseline entries of what
-it moved, updates the code map and gets the pull request reviewer.
+it moved, updates the code map and gets the pull request reviewer. *Amended in version 0.7* (#642, 2026-11-16): the label
+is retired; the iPad workflow runs the Swift tests on every push to such a pull request, and its `ipad-gate` is required
+on `develop`.
 
 1. a) The one JSON encoding of a facade request; the five copies go. b) `PieceCore`.
 2. `ScorePage`: `PageCommand` and `PageEvent` in Swift, the root routes events; fixtures and tests on both sides.

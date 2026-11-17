@@ -143,7 +143,7 @@ The first edition's node 3, `PlaybackLab`, is archived (section 0.2).
 | `src/ipad/Core` | NativeAOT wrapper: `Exports.cs`, five C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` over `MusicCoreFacade` | 242 lines | compiled by `build-test`; published as an xcframework by `iPad core` (cached on `develop`) and the `iPad` workflow |
 | `src/backend/MotiffLab.Api` | ASP.NET Core API: projects in Cosmos DB, profile, plan, the assistant relay | 16 files, 1,799 lines | `build-test`; `tests/backend/Integration/MotiffLab.Api.Tests` (79); deployed by `API` |
 | `src/backend/omr` | The scan server (Python: homr, Basic Pitch), its pytest tests inside | 1,810 lines with tests | `pytest` in `build-test` when it changes; `Scan server` workflow |
-| `src/ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS: compile-only on a pull request that touches its inputs; with label `ipad-tests`, on tags and by hand, `tests/ipad/MotiffLabTests` (451 tests) and `tests/ipad/MotiffLabScreens` (6 UI tests) |
+| `src/ipad/App/MotiffLab` | The iPad app: one XcodeGen target, 127 Swift files in one folder | 38,530 lines | `iPad` workflow on macOS: `tests/ipad/MotiffLabTests` (451 tests) on every push to a pull request that touches its inputs (`ipad-gate`, required on `develop`), on `develop`, on tags and by hand; `tests/ipad/MotiffLabScreens` (6 UI tests) compiled on a pull request, run on tags and by hand (since #642) |
 | `src/ipad/App/Web` | The pages inside the app's two web views: `score.js`, `roll.js`, their HTML and CSS | 2,188 lines | nothing compiles or lints them; the `dependencies` check follows their imports; `score-page-contract.test.mjs` checks `score.js`'s names |
 | `src/shared` (`MotiffLab.Shared.csproj`) | `Scripts/score` (25 files), `roll` (12), `playback` (6), `layout` (9), `storage` (6), compiled to `wwwroot/js`; `wwwroot/i18n`, `audio/piano`, `lib/verovio`; `Playback/FurElise.musicxml` | 58 TypeScript files, 16,948 lines | `tsc` in `build-test`; ESLint and jscpd in the quality check; `tests/shared` (46 files, 521 node tests) |
 | `tests/contracts` | Fixtures both sides of a contract read: `score-page.json` | 1 file | node and XCTest |
@@ -571,7 +571,7 @@ Run for this edition on a clean clone of `a2d767b` (Linux, .NET 10, Node 22):
 | Shared node tests | `tests/shared/*.test.mjs` (46 files) | **521 passed** (593 in the first edition: the web halves moved to the archive with 0033) | `build-test` |
 | Guards | `governance/tests` | **29 passed** | `build-test` |
 | Scan server | `src/backend/omr/tests` (pytest) | not run here | `build-test` when it changes |
-| iPad unit tests | `tests/ipad/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: compile-only on a pull request that touches its inputs; the tests with label `ipad-tests`, on tags, by hand |
+| iPad unit tests | `tests/ipad/MotiffLabTests` (XCTest, 451 tests) | cannot run on Linux; last runs green (v0.6.5 tag and #631 on 2026-11-16) | `iPad` workflow: on every push to a pull request that touches its inputs (`ipad-gate`, required on `develop`), on tags, by hand (since #642) |
 | iPad UI tests | `tests/ipad/MotiffLabScreens` (6) | as above; the switch test only when asked | as above |
 | Browser tests | archived with the web (0032) | not run | none |
 
@@ -620,7 +620,7 @@ Rules for every step:
   wire format; `dotnet build` and every suite of `build-test` stay green; `node tools/quality/quality.mjs` passes and the
   baseline entries of what moved are removed, never raised.
 - A step that touches Swift, music-core, `src/shared` or `tests/contracts` gets the `iPad` workflow's compile on its pull
-  request by itself (#636); a step that touches Swift also runs the tests with the label `ipad-tests` before it merges. A
+  request by itself (#636), and since #642 its Swift tests, which `ipad-gate` requires before it merges. A
   step that touches `Scripts/score`, `Scripts/roll` or `src/ipad/App/Web` runs C5 once it exists.
 - A step moves code or adds a seam, never both with a behaviour fix. A defect found on the way is written down and fixed
   in its own pull request.
