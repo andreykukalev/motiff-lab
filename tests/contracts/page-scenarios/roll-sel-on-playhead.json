@@ -5,7 +5,7 @@
     "SEL-03",
     "PLAY-02"
   ],
-  "says": "In Select a stylus pressed on the roll's playhead line draws a selection frame there as anywhere else, standing and playing; the stylus takes the playhead only by its handle in the strip, standing and playing, as on the score.",
+  "says": "In Select a stylus pressed on the roll's playhead line draws a selection frame there as anywhere else, standing and playing; the stylus takes the playhead only by its handle in the strip, standing and playing, as on the score. With «Только Apple Pencil» off there is no stylus mode: the Pencil takes the playhead down its line, as a finger does, standing and playing.",
   "page": "roll",
   "fixture": "fur-elise-roll.json",
   "viewport": {
@@ -168,6 +168,16 @@
     {
       "call": "position",
       "with": {
+        "tick": 2640,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "the app's answer to the release: the player stands at 2640, and the line stops showing the place let go (PlayheadDrag.heard), on that report and not on its 800 ms timer"
+    },
+    {
+      "call": "position",
+      "with": {
         "tick": 3600,
         "playing": true,
         "label": "",
@@ -281,6 +291,175 @@
           }
         ],
         "note": "taken by its handle while it plays: on to 4320 on the grid, let go"
+      }
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 4320,
+        "playing": true,
+        "label": "",
+        "looping": false
+      },
+      "note": "the app's answer to the release: the player plays on from 4320"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": false
+      },
+      "note": "«Только Apple Pencil» off (INK-01): no stylus mode, the Pencil goes as a finger"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 1920,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "standing at 1920"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 1930,
+          "y": 0.7
+        },
+        {
+          "tick": 2640,
+          "y": 0.5
+        }
+      ],
+      "note": "the Pencil pressed on the standing playhead's line in Select, drawn right"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "black"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "black",
+                  "tick": 2640
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "black"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "without the stylus mode the Pencil takes the playhead down its line, as a finger does: on to 2640, let go; no frame"
+      }
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 2640,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "the app's answer to the release: the player stands at 2640"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 3600,
+        "playing": true,
+        "label": "",
+        "looping": false
+      },
+      "note": "playing, at 3600"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 3610,
+          "y": 0.7
+        },
+        {
+          "tick": 4320,
+          "y": 0.5
+        }
+      ],
+      "note": "the Pencil pressed on the playing playhead's line in Select, drawn right"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "black"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "black",
+                  "tick": 4320
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "black"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "taken down its line while it plays too, as a finger does: on to 4320, let go; no frame"
       }
     }
   ]

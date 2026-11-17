@@ -53,4 +53,5 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 - Moving picked notes is the note editor's draft (`corrections.*`); nothing new is saved in the project file.
 - In Navigate the stylus moves the roll; in Edit notes a tap on empty space adds a note; a finger beside a stylus moves it.
 - With the lanes the stylus in Select takes the playhead by its handle in the strip alone and draws a frame down its line
-  (`laneHeadAt`'s `line`, Andrei 2026-11-17, `roll-sel-on-playhead`); a finger and Navigate take it down the line too.
+  (`lineTakesHead`, `laneHeadAt`'s `line`, Andrei 2026-11-17, `roll-sel-on-playhead`); a finger, Navigate and the Pencil
+  without the stylus mode (`placeStylus` false, «Только Apple Pencil» off) take it down the line too.

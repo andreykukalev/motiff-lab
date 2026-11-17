@@ -47,7 +47,7 @@ import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, l
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { HoldToPlace } from "../playback/hold-place.js";
-import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
 import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
 import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
@@ -2470,12 +2470,12 @@ export class PianoRoll {
 
     /**
      * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
-     * down its line a touch target wide (not the stylus in Select, which draws a frame there): the drag moves it on the grid.
+     * down its line a touch target wide (lineTakesHead: not the stylus mode's stylus in Select): the drag moves it on the grid.
      */
     private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
         const { black, blue } = this.headsNear(x);
         const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
-        return this.grabHead(laneHeadAt(x, y, heads, event.pointerType !== "pen" || !this.placeSelects("pen")), event.pointerId, x);
+        return this.grabHead(laneHeadAt(x, y, heads, lineTakesHead(event.pointerType, this.placeStylus, this.placeSelects("pen"))), event.pointerId, x);
     }
 
     /**

@@ -21,8 +21,8 @@ export interface LaneHeads {
 
 /**
  * The playhead a press takes (#543 6): by its marker in the loop strip, the blue one while it is blue and else the black
- * one, whatever its colour; down its line under the strip the black one, unless `line` is false (the stylus in Select,
- * which draws a selection frame there as anywhere: Andrei, 2026-11-17); null for neither.
+ * one, whatever its colour; down its line under the strip the black one, unless `line` is false (lineTakesHead: the
+ * stylus in Select, which draws a selection frame there as anywhere: Andrei, 2026-11-17); null for neither.
  */
 export function laneHeadAt(x: number, y: number, heads: LaneHeads, line = true): Handle | null {
     const inStrip = y >= heads.stripTop && y < heads.stripBottom;
@@ -33,6 +33,16 @@ export function laneHeadAt(x: number, y: number, heads: LaneHeads, line = true):
         return "black";
     }
     return null;
+}
+
+/**
+ * Whether a press of this pointer type takes the roll's playhead down its line (laneHeadAt's `line`): every pointer but
+ * the stylus in the stylus mode (`stylus`, the iPad's «Только Apple Pencil» on, INK-01) while Select reads it by its place
+ * (`selects`), which draws a selection frame there (Andrei, 2026-11-17, answer 5). With the setting off there is no stylus
+ * mode: the Pencil goes as a finger and takes the line too.
+ */
+export function lineTakesHead(pointerType: string, stylus: boolean, selects: boolean): boolean {
+    return pointerType !== "pen" || !stylus || !selects;
 }
 
 /**
