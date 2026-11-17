@@ -29,7 +29,7 @@ motiff-lab/
 │   │   └── Acceptance/           MotiffLab.Acceptance.Tests (protected scenarios: Andrei merges)
 │   ├── ipad/                     MotiffLabTests (unit) and MotiffLabScreens (UI), built by src/ipad/App/project.yml
 │   ├── shared/                   node tests of src/shared (after dotnet build)
-│   └── contracts/                fixtures both sides of a contract read (the score page's)
+│   └── contracts/                fixtures both sides of a contract read (the score page's, the facade's call names)
 ├── archive/                      code that is kept but not built, tested or deployed
 │   ├── Directory.Build.props     empty: stops the root MSBuild rules reaching archived projects
 │   └── web/                      the archived web app (0032); docs/web-archive.md
