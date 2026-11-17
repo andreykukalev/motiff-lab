@@ -58,17 +58,16 @@ struct TempoReading: Equatable, Sendable {
     var playedBeats: Int?
     var pieceBeats: Int?
 
-    static func read(_ object: [String: Any]) -> TempoReading? {
-        guard let tempo = object["tempo"] as? [String: Any], let source = tempo["source"] as? String,
-              let piece = tempo["piece"] as? [String: Any], let pieceSource = piece["source"] as? String,
-              let piecePerMinute = (piece["perMinute"] as? NSNumber)?.intValue else { return nil }
-        let first = (object["tempos"] as? [[String: Any]])?.first
-        let exact = ((first?["microsecondsPerQuarter"] as? NSNumber)?.doubleValue).map { 60_000_000 / $0 }
-        guard let perMinute = exact ?? (tempo["perMinute"] as? NSNumber)?.doubleValue else { return nil }
+    /// The playback answer's "tempo", exact from its first tempo's microseconds a quarter; nil without its source or the
+    /// piece's.
+    static func read(_ tempo: PlaybackAnswer.StartTempo?, first: PlaybackAnswer.TempoChange?) -> TempoReading? {
+        guard let tempo, let source = tempo.source, let piece = tempo.piece, let pieceSource = piece.source,
+              let piecePerMinute = piece.perMinute else { return nil }
+        let exact = first.map { 60_000_000 / $0.microsecondsPerQuarter }
+        guard let perMinute = exact ?? tempo.perMinute else { return nil }
         return TempoReading(perMinute: perMinute, source: source, piecePerMinute: piecePerMinute, pieceSource: pieceSource,
-                            player: (tempo["player"] as? NSNumber)?.intValue, beat: tempo["beat"] as? String ?? "quarter",
-                            playedBeats: (tempo["beatsPerMinute"] as? NSNumber)?.intValue,
-                            pieceBeats: (piece["beatsPerMinute"] as? NSNumber)?.intValue)
+                            player: tempo.player, beat: tempo.beat ?? "quarter", playedBeats: tempo.beatsPerMinute,
+                            pieceBeats: piece.beatsPerMinute)
     }
 
     var dotted: Bool { beat == "dottedQuarter" }
