@@ -215,6 +215,23 @@ final class PanelStateTests: XCTestCase {
         XCTAssertEqual(both.following(.insights(false)), both, "a rule follows the value the render showed")
     }
 
+    /// The roll's unsaved note edits go when the roll is put away, not when it changes places between its drawer and
+    /// Expand's card (ScoreWorkspace.rollDrawerChanged, focusRollChanged).
+    func testTheRollsEditsGoUnlessTheRollChangesPlaces() {
+        let drawer = PanelState().asked(.open(.roll)).following(.roll(true))
+        XCTAssertTrue(drawer.asked(.close(.roll)).rollEditsGoWithDrawer, "the drawer's ✕")
+        XCTAssertTrue(drawer.asked(.open(.insights)).following(.insights(true)).rollEditsGoWithDrawer, "another place opened")
+        XCTAssertFalse(drawer.asked(.expandFromDrawer).rollEditsGoWithDrawer, "Expand on the drawer takes the editor to the card")
+        XCTAssertFalse(drawer.following(.expand(true)).following(.rollOnCard(true)).rollEditsGoWithDrawer, "Expand with the card as a roll")
+
+        let card = drawer.asked(.expandFromDrawer)
+        XCTAssertFalse(card.rollEditsGoWithCard, "Notes chosen on the card: the drawer comes back with Collapse")
+        XCTAssertFalse(card.following(.expand(false)).rollEditsGoWithCard, "Collapse: the roll is back in its drawer")
+        let cardOnly = PanelState().following(.expand(true)).following(.rollOnCard(true))
+        XCTAssertTrue(cardOnly.rollEditsGoWithCard, "a roll shown only on the card is put away")
+        XCTAssertTrue(cardOnly.following(.expand(false)).rollEditsGoWithCard, "and so it is with Back to page")
+    }
+
     /// Insights, Check or Sources: the sheet on the right.
     func testTheSheetOnTheRight() {
         for (panel, name) in Self.names {
