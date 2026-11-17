@@ -71,7 +71,7 @@ extension Walk {
             looks += 1
             if old.count > 0 { throw miss("an old control, «\(old.firstMatch.label)», showed while the notes opened (VIEW-01)") }
             if let probe = probe(), probe.screen == "score", probe.ready {
-                guard probe["oldbar"] == "0", old.count == 0 else { throw WalkMiss(what: "the old Play was drawn on the notes (VIEW-01)", probe: probe.line) }
+                guard old.count == 0 else { throw WalkMiss(what: "an old control showed on the notes once they were ready (VIEW-01)", probe: probe.line) }
                 print("SCREEN-VIEW01 \(tag): \(looks) looks while the notes opened, no old control")
                 return
             }

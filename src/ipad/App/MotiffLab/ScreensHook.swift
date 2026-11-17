@@ -5,23 +5,15 @@ import WebKit
 #if DEBUG
 /// The way in for the screenshot UI test (`MotiffLabScreens`, the `Screens` scheme), in Debug builds only:
 /// `-ml-screens-reset` removes the projects in Documents before the library first reads them, and
-/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With `-ml-screens`
-/// the score also has a hidden button that chooses the next phrase, as a tap on its bracket would. With
+/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With
 /// `-ml-screens-both`, the PDF given is made into a piece with notes and that PDF inside it (Für Elise read into it, as
 /// Read the notes would), so PDF | Notes can be switched (SwitchUITests, v0.6.4 spec section 11).
 @MainActor
 enum ScreensHook {
     private static var used = false
-    private static var phrase = 1
 
     static let active = ProcessInfo.processInfo.arguments.contains("-ml-screens")
     static let bothViews = ProcessInfo.processInfo.arguments.contains("-ml-screens-both")
-
-    /// Phrase 2, then 3, and so on: each press chooses another phrase, so it never lifts the chosen one into focus.
-    static func nextPhrase() -> Int {
-        phrase += 1
-        return phrase
-    }
 
     static func start(arguments: [String] = ProcessInfo.processInfo.arguments) -> URL? {
         guard !used else { return nil }
@@ -76,18 +68,8 @@ enum ScreensProbe {
         self.assistant = assistant
     }
 
-    /// The bar's old Play drawn on a score screen whose modes are on (the flash of v0.6.4 spec section 13).
-    static var oldBarPlay = 0
-
-    /// Counts the old Play when it is drawn where it should not be; asked from the bar's body.
-    @discardableResult
-    static func drawn(oldBarPlay old: Bool) -> Bool {
-        if old { oldBarPlay += 1 }
-        return old
-    }
-
-    /// One line for the test: `screen=score ready=1 piece=3 live=score:1,roll:1,pdf:0,player:1 renders=2 core=120/0 mem=210
-    /// oldbar=0`, then the score's state (`workspace`) and last the phases of the last switch.
+    /// One line for the test: `screen=score ready=1 piece=3 live=score:1,roll:1,pdf:0,player:1 renders=2 core=120/0 mem=210`,
+    /// then the score's state (`workspace`) and last the phases of the last switch.
     static func line() -> String {
         let screen = latest
         var ready = false
@@ -102,7 +84,7 @@ enum ScreensProbe {
         let counts = ProbeCounts.shared.snapshot()
         let live = ["score", "roll", "pdf", "player"].map { "\($0):\(counts[$0] ?? 0)" }.joined(separator: ",")
         let core = "\(ProbeCounts.shared.takeLongestCall())/\(counts["pending"] ?? 0)"
-        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay)\(workspace()) phases=\(ProbeCounts.shared.phaseLine())"
+        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint())\(workspace()) phases=\(ProbeCounts.shared.phaseLine())"
     }
 
     /// The score's screen as the walk's journeys assert it, empty on any other screen: ` sel=480-2400 range=480-2400

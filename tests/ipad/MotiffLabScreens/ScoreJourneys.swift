@@ -18,12 +18,13 @@ extension Walk {
         try stop()
     }
 
-    /// PLAY-04: a selection, its loop, and a new selection while it plays. Цикл turns on as a selection appears (T9),
-    /// follows a new selection while it plays (the playing goes to its start), and stays as it was when the selection
-    /// changes with it off (T10).
+    /// PLAY-04: a selection, its loop, and a new selection while it plays. Цикл is on from the launch and kept with no
+    /// selection (Player.cycle), so the first selection finds it on; it follows a new selection while it plays (the playing
+    /// goes to its start), stays as it was when the selection changes with it off (T10) and when the selection goes (T11),
+    /// and a selection made where there was none turns it on again (T9).
     func selectLoopAndChange() throws {
         try choosePhrase()
-        try until("Цикл on as the selection appeared (PLAY-04)") { $0.on("cycle") }
+        try until("Цикл on with the first selection, as it is from the launch") { $0.on("cycle") }
         try need(button("Фокус"), "the selection menu")
         try need(button(beginning: "Цикл "), "the pill's Цикл with the selection's span")
         shot("13-selection-menu")
@@ -43,6 +44,10 @@ extension Walk {
         try choosePhrase()
         try holds(for: 1.5, "Цикл turned on again by a new selection while it was off (PLAY-04)") { !$0.on("cycle") }
         try stop()
+        try clearSelection()
+        try until("Цикл kept off with the selection gone (PLAY-04)") { !$0.on("cycle") }
+        try choosePhrase()
+        try until("Цикл on as a selection appeared where there was none (PLAY-04)") { $0.on("cycle") }
         try clearSelection()
     }
 
@@ -192,10 +197,11 @@ extension Walk {
         try clearSelection()
     }
 
-    /// INK-01: with the Pen a stroke writes and does not scroll the page; the eraser drawn over it takes it away. The
-    /// simulator has no stylus: one finger writes here («Только Apple Pencil» off), so the entry's finger rule (a finger
-    /// scrolls) needs the device.
+    /// INK-01, the half the simulator sees: with the Pen a stroke writes and the page stands; the eraser drawn over it takes
+    /// it away. The simulator has no stylus and runs with «Только Apple Pencil» off, where every pointer acts as a finger and
+    /// a finger writes with the Pen (InputRules); the entry's «a finger scrolls» holds only with the setting on, on the device.
     func penAndEraser() throws {
+        print("SCREEN-QUESTION INK-01 \(tag): with «Только Apple Pencil» off a finger writes with the Pen; INK-01's «a finger scrolls» holds only with the setting on and needs the device")
         try placePlayheadAside()
         try press(button("Перо"), "the Pen in the bar's modes")
         let before = try until("the Pen on") { $0.on("pen") }

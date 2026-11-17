@@ -49,23 +49,11 @@ reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run b
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
   the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
 
-## The UI walk (what protects the journeys)
+## The UI walk
 
-- `tests/ipad/MotiffLabScreens/ScreensUITests` (the `Screens` scheme): the journeys of the blueprint's layer T4 in a table,
-  each naming the baseline ids it protects; a journey stops at its first miss (`WalkMiss`), the app is launched again for
-  the next, and every miss fails the test. `Walk.swift` drives the app and reads the probe; `ScoreJourneys.swift` (open and
-  play, select-loop-change, drag, roll and Expand, Insights and Try, pen and eraser, the assistant's panel, other places),
-  `SwitchJourneys.swift` (PDF | Notes, Sources, a PDF piece). A selection is made as a player makes one, by a drag in
-  Select (`Walk.choosePhrase`); the Debug phrase chooser `ml-screens-phrase` is not used (no selection followed its tap in
-  the first run). The screenshots for the mockups are taken on the way, only when SCREENS_DIR asks for them, and the
-  other places of the score (`picturesOnly`) are visited only then. What the app does now and Andrei is asked about is
-  walked as it is and printed as `SCREEN-QUESTION` each run: the roll's zoom control (bars within one, ROLL-01) and the
-  PDF metronome's pill (a strict, narrow `XCTExpectFailure`: it has never shown in the simulator).
-- The probe (`ScreensHook.swift`, Debug only, under `-ml-screens`): `ScreensProbe.line()` on the hidden element
-  `ml-screens-probe`; on the score's screen `workspace()` adds the selection and Play's range in ticks, Expand, the mode, the
-  Pen and its ink, the scroll, the roll's place and zoom, the transport and its tick, Цикл, the sound, a variation, the
-  assistant's panel (`ScoreScreen.wire` hands the player, roll and assistant over). Identifiers the walk uses besides the
-  labels: `ml-screens-try-way` (Insights' Try way chips), `ml-screens-roll-more` (the roll drawer's More).
+- `tests/ipad/MotiffLabScreens` (the `Screens` scheme): `ScreensUITests` runs the journeys, each naming the UX baseline
+  ids it protects; `Walk.swift` drives the app and reads the probe; the journeys are in `ScoreJourneys.swift` and
+  `SwitchJourneys.swift`. The probe: `ScreensProbe.line()` (`ScreensHook.swift`, Debug only, under `-ml-screens`).
 
 ## The assistant
 
