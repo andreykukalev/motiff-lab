@@ -27,6 +27,10 @@
 // Only what is not a call of a function is passed over: an enum's case or a pattern (`case .change(…)`), an implicit
 // member (`.change(…)`, which only a static function could be), and a closure or variable the caller declares itself.
 // The piece argument is followed too: a literal 0 is a call on piece 0, anything else a call on an open piece.
+//
+// The port (step B5, decision record 0031 step 1b, #654): a call the port PieceCore makes, by name in its file, is made by
+// no other file; the features reach it through the port. The calls move there one typed answer at a time, and the shapes
+// of #654 that this reader cannot see stay a risk for the calls not yet moved.
 
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -43,6 +47,9 @@ const contract = JSON.parse(readFileSync(join(root, "tests", "contracts", "facad
  * names they stand for and why. Each listed name must be written as a literal in that same function, so a rename there
  * fails too, and is checked against the contract like any name read.
  */
+/** The port's files: the calls named in them are made from no other file. */
+const portFiles = ["PieceCore.swift"];
+
 const unresolved = new Map([
     // The Pen's Undo and Redo hand InkStep.undo and .redo (InkGeometry.swift) the two names, which pass them back to the
     // closure as `call`.
@@ -296,7 +303,7 @@ function swiftFiles(dir) {
 }
 
 /**
- * Every call name the sources send, with where and on which piece ("piece0" for a literal 0, "open" otherwise), and the
+ * Every call name the sources send, with where, from which file and on which piece ("piece0" for a literal 0, "open" otherwise), and the
  * places the reader could not follow with the string literals of the function around each. `sources` maps a file's
  * path to its text; a place is named by the file's name, so moving files between folders changes no place.
  */
@@ -348,7 +355,7 @@ function sentNames(sources) {
         const names = literalsOf(lexed, arg.at, arg.end) ?? localLiterals(lexed, fn, arg.text);
         if (names) {
             const where = `${placeOf(file, fn)} (${through})`;
-            for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where });
+            for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where, file });
             return;
         }
         const param = parameterOf(fn, arg.text);
@@ -416,7 +423,7 @@ function sentNames(sources) {
             if (param.defaultText !== null) {
                 const lexed = files.find((f) => f.file === fn.file).lexed;
                 const names = literalsOf(lexed, param.defaultAt, param.defaultAt + param.defaultText.length);
-                if (names) for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where: `${placeOf(fn.file, fn)} (default of ${param.name})` });
+                if (names) for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where: `${placeOf(fn.file, fn)} (default of ${param.name})`, file: fn.file });
                 else unreadAt(fn.file, lexed, fn.bodyFrom + 1, `default ${param.defaultText}`);
             }
             for (const { file, lexed } of files) {
@@ -571,6 +578,13 @@ test("every name the reader cannot follow is listed with the names it stands for
         .filter((u) => unresolved.has(u.place))
         .flatMap((u) => unresolved.get(u.place).names.filter((name) => !u.literals.includes(name)).map((name) => `${name} is no longer written in ${u.place}`));
     assert.deepEqual(stale, []);
+});
+
+test("a call the port makes is made from no other file", () => {
+    const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
+    assert.ok(ported.has("select") && ported.has("playback"), `the port's calls read: ${[...ported].join(", ")}`);
+    const elsewhere = sent.filter((s) => ported.has(s.name) && !portFiles.includes(basename(s.file))).map((s) => `${s.name}  ← ${s.where}`);
+    assert.deepEqual(elsewhere, [], "make these calls through PieceCore");
 });
 
 test("the reader still sees the Swift's calls", () => {

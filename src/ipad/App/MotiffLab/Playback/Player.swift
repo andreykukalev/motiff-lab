@@ -88,15 +88,15 @@ final class Player: ObservableObject {
             keeper = EngineKeeper(audio) { [weak self] in self?.send(.pause) }
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
-            let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
+            let answer = await PieceCore(piece: piece).playback()
             let samples = try await piano.value
             guard !shutDown else {
                 keeper = nil
                 audio.stop()
                 return
             }
-            guard let score = PlaybackScore.read(answer) else {
-                throw PlayerError(message: facadeObject(answer)?["message"] as? String ?? "music-core gave no playback score.")
+            guard let score = answer.value.map(PlaybackScore.init) else {
+                throw PlayerError(message: answer.message ?? "music-core gave no playback score.")
             }
             renderer.send(.samples(samples))
             renderer.send(.timeline(score.timeline))
@@ -347,9 +347,8 @@ final class Player: ObservableObject {
     /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
     /// (0022): the timeline and the notes are sent anew, and whatever plays or loops carries on.
     func reload(piece: Int32) async {
-        let request = Self.handsRequest(hands)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
-        guard let score = PlaybackScore.read(answer) else { return }
+        let answer = await PieceCore(piece: piece).playback(Self.handsRequest(hands))
+        guard let score = answer.value.map(PlaybackScore.init) else { return }
         tempo.reading = score.tempo
         barNumbers = score.barNumbers
         beatLines = score.timeline.beats.map(\.at)
@@ -364,10 +363,9 @@ final class Player: ObservableObject {
     private func applyHands() async {
         guard let piece else { return }
         let chosen = hands
-        let request = Self.handsRequest(chosen)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
+        let answer = await PieceCore(piece: piece).playback(Self.handsRequest(chosen))
         // Another choice came while music-core answered: the newer one sends its own notes.
-        guard chosen == hands, let score = PlaybackScore.read(answer) else { return }
+        guard chosen == hands, let score = answer.value.map(PlaybackScore.init) else { return }
         send(.source(id: Self.pieceSource, notes: score.notes))
     }
 
@@ -530,42 +528,24 @@ struct PlaybackScore: Sendable {
     /// The tempo at the start and where it comes from (v0.5.4, #511 section 17); nil from a music-core before it.
     var tempo: TempoReading?
 
-    /// Every answer `Answer.Playback` writes (`playback`, `performance.merge.playback`, the reference's sounds); nil for a
-    /// refusal or an answer that cannot be read. "hands" only `playback` writes.
+    /// The score as music-core answers it (`PlaybackAnswer`); "hands" only `playback` writes.
+    init(_ answer: PlaybackAnswer) {
+        notes = answer.notes.map { PlaybackNote(onset: $0.onset, duration: $0.duration, pitch: $0.pitch, velocity: $0.velocity, track: $0.track) }
+        timeline = PlaybackTimeline(
+            tempos: answer.tempos.map { .init(at: $0.at, microsecondsPerQuarter: $0.microsecondsPerQuarter) },
+            beats: answer.beats.map { .init(at: $0.at, downbeat: $0.downbeat) },
+            bars: answer.bars.map { .init(start: $0.onset, beatTicks: $0.beatTicks, beatsPerBar: $0.beatsPerBar) },
+            end: answer.end
+        )
+        barNumbers = answer.bars.map { (start: $0.onset, number: $0.number) }
+        hands = HandsHeld(answer.hands)
+        barBeats = BarBeats.read(answer.beats)
+        tempo = TempoReading.read(answer.tempo, first: answer.tempos.first)
+    }
+
+    /// Every answer `Answer.Playback` writes, in its text (`performance.merge.playback`, the reference's sounds); nil for a
+    /// refusal or an answer that cannot be read.
     static func read(_ text: String) -> PlaybackScore? {
-        guard let answer = FacadeAnswer(text, of: "playback"), let end = answer.number("end"),
-              let notes = answer.list("notes", readNote), let tempos = answer.list("tempos", readTempo), let beats = answer.list("beats", readBeat),
-              let bars = answer.list("bars", readBar), let numbers = answer.list("bars", readBarNumber),
-              let beatFields = answer.required("beats", [[String: Any]].self) else { return nil }
-        let timeline = PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end)
-        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: answer.fields), barBeats: BarBeats.read(beatFields),
-                             tempo: TempoReading.read(answer.fields))
-    }
-
-    private static func readNote(_ note: FacadeAnswer) -> PlaybackNote? {
-        guard let onset = note.number("onset"), let duration = note.number("duration"), let pitch = note.number("pitch"),
-              let velocity = note.number("velocity"), let track = note.number("track") else { return nil }
-        return PlaybackNote(onset: onset, duration: duration, pitch: Int(pitch), velocity: Int(velocity), track: Int(track))
-    }
-
-    private static func readTempo(_ tempo: FacadeAnswer) -> PlaybackTimeline.Tempo? {
-        guard let at = tempo.number("at"), let uspq = tempo.number("microsecondsPerQuarter") else { return nil }
-        return .init(at: at, microsecondsPerQuarter: uspq)
-    }
-
-    private static func readBeat(_ beat: FacadeAnswer) -> PlaybackTimeline.Beat? {
-        guard let at = beat.number("at"), let downbeat = beat.required("downbeat", Bool.self) else { return nil }
-        return .init(at: at, downbeat: downbeat)
-    }
-
-    private static func readBar(_ bar: FacadeAnswer) -> PlaybackTimeline.Bar? {
-        guard let start = bar.number("onset"), let beatTicks = bar.number("beatTicks"), let beatsPerBar = bar.number("beatsPerBar") else { return nil }
-        return .init(start: start, beatTicks: beatTicks, beatsPerBar: beatsPerBar)
-    }
-
-    /// Where each bar starts and the number it is printed with.
-    private static func readBarNumber(_ bar: FacadeAnswer) -> (start: Double, number: Int)? {
-        guard let start = bar.number("onset"), let printed = bar.number("number") else { return nil }
-        return (start, Int(printed))
+        FacadeAnswer.decode(PlaybackAnswer.self, text, of: "playback").map(PlaybackScore.init)
     }
 }

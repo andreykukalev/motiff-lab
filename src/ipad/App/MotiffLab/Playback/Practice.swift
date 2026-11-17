@@ -33,9 +33,8 @@ struct HandsHeld: Equatable, Sendable {
     }
 
     /// The hands in a `playback` answer; none when it names none.
-    init(answer object: [String: Any]?) {
-        let hands = object?["hands"] as? [String: Any]
-        self.init(right: hands?["right"] as? Bool ?? false, left: hands?["left"] as? Bool ?? false, inferred: hands?["inferred"] as? Bool ?? false)
+    init(_ hands: PlaybackAnswer.Hands?) {
+        self.init(right: hands?.right ?? false, left: hands?.left ?? false, inferred: hands?.inferred ?? false)
     }
 }
 

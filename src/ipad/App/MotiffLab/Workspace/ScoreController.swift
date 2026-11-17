@@ -636,9 +636,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// a new selection in place of the one there was (a replace with «Вернуть»).
     func select(request: String, gesture: String? = nil, step: Bool = true, picked: Bool = false, replaces: Bool = false) async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
-        guard var chosen = ScoreSelection(answer: answer) else {
-            let message = FacadeAnswer.problem(answer)
+        let answer = await PieceCore(piece: piece.id).select(request)
+        guard var chosen = answer.value?.selection.map(ScoreSelection.init) else {
+            let message = FacadeAnswer.problem(answer.text)
             if !softlyRefused(message) { problem = message }
             return
         }
@@ -1420,8 +1420,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func versionNotes(_ piece: Int32, _ id: String) async -> [PlaybackNote]? {
         if versionPlayback?.id != id {
             let request = facadeRequest(["of": "version", "id": id])
-            let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
-            versionPlayback = (id, PlaybackScore.read(answer)?.notes ?? [])
+            let answer = await PieceCore(piece: piece).playback(request)
+            versionPlayback = (id, answer.value.map(PlaybackScore.init)?.notes ?? [])
         }
         return versionPlayback?.id == id ? versionPlayback?.notes : nil
     }
