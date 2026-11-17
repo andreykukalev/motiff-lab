@@ -300,17 +300,6 @@ struct ScoreScreen: View {
             }
             .ignoresSafeArea(edges: .bottom)
             .background(Color.ds("desk").ignoresSafeArea())
-            #if DEBUG
-            .overlay(alignment: .bottomLeading) {
-                // The screenshot walk chooses a phrase here by its number (ScreensHook).
-                if ScreensHook.active {
-                    Button { score.selectPhrase(ScreensHook.nextPhrase()) } label: {
-                        Color.clear.frame(width: 8, height: 8).contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("ml-screens-phrase")
-                }
-            }
-            #endif
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
@@ -436,6 +425,9 @@ struct ScoreScreen: View {
     }
 
     private func wire() async {
+        #if DEBUG
+        ScreensProbe.wired(player: player, roll: roll, assistant: assistant)
+        #endif
         let heard = player
         let shown = score
         // A tap on the page plays nothing (#338): the music starts only with Play or Loop. With the sheet open, a tap that

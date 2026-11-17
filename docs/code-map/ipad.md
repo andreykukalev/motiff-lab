@@ -49,6 +49,12 @@ reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run b
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
   the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
 
+## The UI walk
+
+- `tests/ipad/MotiffLabScreens` (the `Screens` scheme): `ScreensUITests` runs the journeys, each naming the UX baseline
+  ids it protects; `Walk.swift` drives the app and reads the probe; the journeys are in `ScoreJourneys.swift` and
+  `SwitchJourneys.swift`. The probe: `ScreensProbe.line()` (`ScreensHook.swift`, Debug only, under `-ml-screens`).
+
 ## The assistant
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`

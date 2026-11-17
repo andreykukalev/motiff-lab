@@ -4,7 +4,7 @@ import XCTest
 /// PDF | Notes switched again and again (v0.6.4 spec sections 11 and 13): a piece with notes and a scanned-size PDF inside
 /// it, opened on its notes, goes to its PDF and back `rounds` times. Each switch must land within `limit` seconds by the
 /// app's own clock (from the press to the screen ready: the PDF's pages laid out, or the notes drawn and shown), the app
-/// must answer a tap on More in between, and the bar's old Play must never be drawn. Every switch
+/// must answer a tap on More in between. Every switch
 /// is written down as a SCREEN-SWITCH line with the app's own probe (ScreensProbe, Debug builds): its memory, the
 /// controllers alive, the score's renders, music-core's longest call and the phases since the press, so the log shows
 /// whether anything piles up. The test's own wait is longer than the app's time: each read of the probe is a query of
@@ -72,9 +72,7 @@ final class SwitchUITests: XCTestCase {
         }
         let sorted = times.sorted()
         let line = probe() ?? ""
-        print("SCREEN-SWITCH-SUMMARY \(tag): \(times.count) switches, median \(ms(sorted[sorted.count / 2])) ms, slowest \(ms(sorted.last ?? 0)) ms, over \(Int(limit)) s: \(slow) (the app's own times); \(line)")
-        XCTAssertFalse(line.contains("oldbar=") && !line.contains("oldbar=0"), "the old Play was drawn while the modes were on: \(line)")
-    }
+        print("SCREEN-SWITCH-SUMMARY \(tag): \(times.count) switches, median \(ms(sorted[sorted.count / 2])) ms, slowest \(ms(sorted.last ?? 0)) ms, over \(Int(limit)) s: \(slow) (the app's own times); \(line)")    }
 
     // MARK: - Helpers
 

@@ -604,16 +604,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// A unit chosen by its number (the screenshot walk, ScreensHook): it is selected; chosen again, it lifts into focus.
-    func selectPhrase(_ number: Int) {
-        guard let unit = phrases?.unit(number) else { return }
-        if let selection, selection.onset == unit.selectableOnset, selection.end == unit.selectableEnd {
-            enterFocus()
-            return
-        }
-        Task { await select(unit.selectableOnset, unit.selectableEnd) }
-    }
-
     /// Selects a passage through music-core, which keeps it within what a selection may hold; with `gesture`, as part of
     /// that gesture's step of the history.
     func select(_ start: Double, _ end: Double, gesture: String? = nil, step: Bool = true) async {

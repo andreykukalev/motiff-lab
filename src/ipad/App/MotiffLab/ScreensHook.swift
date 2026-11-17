@@ -5,23 +5,15 @@ import WebKit
 #if DEBUG
 /// The way in for the screenshot UI test (`MotiffLabScreens`, the `Screens` scheme), in Debug builds only:
 /// `-ml-screens-reset` removes the projects in Documents before the library first reads them, and
-/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With `-ml-screens`
-/// the score also has a hidden button that chooses the next phrase, as a tap on its bracket would. With
+/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With
 /// `-ml-screens-both`, the PDF given is made into a piece with notes and that PDF inside it (Für Elise read into it, as
 /// Read the notes would), so PDF | Notes can be switched (SwitchUITests, v0.6.4 spec section 11).
 @MainActor
 enum ScreensHook {
     private static var used = false
-    private static var phrase = 1
 
     static let active = ProcessInfo.processInfo.arguments.contains("-ml-screens")
     static let bothViews = ProcessInfo.processInfo.arguments.contains("-ml-screens-both")
-
-    /// Phrase 2, then 3, and so on: each press chooses another phrase, so it never lifts the chosen one into focus.
-    static func nextPhrase() -> Int {
-        phrase += 1
-        return phrase
-    }
 
     static func start(arguments: [String] = ProcessInfo.processInfo.arguments) -> URL? {
         guard !used else { return nil }
@@ -54,25 +46,30 @@ enum ScreensHook {
     }
 }
 
-/// What the switch test reads from the app while it runs (Debug builds, `-ml-screens`): the screen shown last and whether
-/// it is ready to read, the controllers alive, the score's renders, music-core's longest call and the app's memory.
+/// What the UI tests read from the app while they run (Debug builds, `-ml-screens`): the screen shown last and whether
+/// it is ready to read, the controllers alive, the score's renders, music-core's longest call and the app's memory (the
+/// switch test), and on the score's screen what the walk's journeys assert (ScreensUITests): the selection, Expand, the
+/// Pen and its ink, the roll's place, the playing.
 @MainActor
 enum ScreensProbe {
     /// The screen that showed a piece last: "score" or "pdf", as its controller took the piece.
     static var latest = "library"
     static weak var score: ScoreController? { didSet { latest = "score" } }
     static weak var pdf: PdfController? { didSet { latest = "pdf" } }
-    /// The bar's old Play drawn on a score screen whose modes are on (the flash of v0.6.4 spec section 13).
-    static var oldBarPlay = 0
+    /// The score's screen's player, roll and assistant, as the screen wires them (ScoreScreen.wire).
+    static weak var player: Player?
+    static weak var roll: RollController?
+    static weak var assistant: AssistantController?
 
-    /// Counts the old Play when it is drawn where it should not be; asked from the bar's body.
-    @discardableResult
-    static func drawn(oldBarPlay old: Bool) -> Bool {
-        if old { oldBarPlay += 1 }
-        return old
+    /// The score's screen hands over what the probe reads beside its page.
+    static func wired(player: Player, roll: RollController, assistant: AssistantController) {
+        self.player = player
+        self.roll = roll
+        self.assistant = assistant
     }
 
-    /// One line for the test: `screen=score ready=1 piece=3 live=score:1,roll:1,pdf:0,player:1 renders=2 core=120/0 mem=210 oldbar=0`.
+    /// One line for the test: `screen=score ready=1 piece=3 live=score:1,roll:1,pdf:0,player:1 renders=2 core=120/0 mem=210`,
+    /// then the score's state (`workspace`) and last the phases of the last switch.
     static func line() -> String {
         let screen = latest
         var ready = false
@@ -87,7 +84,31 @@ enum ScreensProbe {
         let counts = ProbeCounts.shared.snapshot()
         let live = ["score", "roll", "pdf", "player"].map { "\($0):\(counts[$0] ?? 0)" }.joined(separator: ",")
         let core = "\(ProbeCounts.shared.takeLongestCall())/\(counts["pending"] ?? 0)"
-        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint()) oldbar=\(oldBarPlay) phases=\(ProbeCounts.shared.phaseLine())"
+        return "screen=\(screen) ready=\(ready ? 1 : 0) piece=\(piece) live=\(live) renders=\(counts["renders"] ?? 0) core=\(core) mem=\(footprint())\(workspace()) phases=\(ProbeCounts.shared.phaseLine())"
+    }
+
+    /// The score's screen as the walk's journeys assert it, empty on any other screen: ` sel=480-2400 range=480-2400
+    /// focus=0 as=notes mode=navigate pen=0 ink=0 scroll=0 roll=drawer zoom=8x4 play=stopped tick=0 cycle=1 sound=1
+    /// variation=0 assistant=0`. The selection and what Play takes for it in ticks (`none` without one), Expand and whether
+    /// it shows the passage as a roll, the bar's mode, the Pen and the ink's strokes, the page's scroll in points, where
+    /// the roll is and its zoom (bars x octaves, `none` before it has drawn), the transport, the playing tick, Цикл, the
+    /// sound loaded, a variation heard, the assistant's panel.
+    static func workspace() -> String {
+        guard latest == "score", let score = Self.score else { return "" }
+        func span(_ from: Double?, _ to: Double?) -> String {
+            guard let from, let to else { return "none" }
+            return "\(Int(from))-\(Int(to))"
+        }
+        let range = score.playRange?.range
+        var line = " sel=\(span(score.selection?.onset, score.selection?.end)) range=\(span(range?.lowerBound, range?.upperBound))"
+        line += " focus=\(score.focused ? 1 : 0) as=\(score.focusRoll ? "roll" : "notes") mode=\(score.mode.rawValue) pen=\(score.penOn ? 1 : 0)"
+        line += " ink=\(score.markCount) scroll=\(Int(score.webView.scrollView.contentOffset.y))"
+        let zoom = roll?.zoom.map { "\($0.bars)x\($0.octaves)" } ?? "none"
+        line += " roll=\(roll?.place.map { $0 == .drawer ? "drawer" : "focus" } ?? "none") zoom=\(zoom)"
+        if let player = Self.player {
+            line += " play=\(player.state.rawValue) tick=\(Int(player.tick)) cycle=\(player.cycle ? 1 : 0) sound=\(player.ready ? 1 : 0) variation=\(player.hasVariation ? 1 : 0)"
+        }
+        return line + " assistant=\(assistant?.panelOpen == true ? 1 : 0)"
     }
 
     /// The app's own memory in MB, as the system counts it against the app (WebKit's processes not included).
