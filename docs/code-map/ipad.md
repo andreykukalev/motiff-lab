@@ -6,7 +6,8 @@ new file needs no project edit. `Account.json` and the asset catalogues (`AppIco
 `tools/icons/build.mjs`) stay at its top. A folder's own interface texts are `<Folder>/Words/<Folder>.{en,ru}.json`;
 what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
 are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`).
-Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
+Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI), with the UX baseline's cases
+in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label).
 
 Each folder has one map with four headings: its files; the contract others may rely on; the state it owns; the baseline
 entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids, and the quality ratchet,

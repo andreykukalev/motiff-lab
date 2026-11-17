@@ -8,7 +8,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 `ScoreWorkspaceReactions`, `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
-  Settings, Reference and More is open, the way back to More, the drawer and the Contents kept for after Expand, what
+  Settings, Reference and More is open, the places More opened, the drawer and the Contents kept for after Expand, what
   Sources keeps under it. `asked(_:)` is what an action writes (an `Intent`), `following(_:)` one rule of the screen (a
   `Rule`: what the change of one value does to the other panels). Tested by
   `tests/ipad/MotiffLabTests/PanelStateTests.swift` against `Golden/panel-states.txt`, the table of start states and
@@ -75,6 +75,7 @@ a view shown over the piece, the resume point's id). The rest: not recorded yet.
 
 ## Baseline entries that protect it
 
-UX baseline: `VIEW-01` to `VIEW-04` (the piece's screen and its views). Quality ratchet: `ScoreController.swift`
-file_length and `class ScoreController` type_body_length; `ScoreScreen.swift` file_length and `layers`
-function_body_length; the jscpd pair with `Roll/RollController.swift`.
+UX baseline: `VIEW-01` to `VIEW-06` (the piece's screen, its views, its panels; VIEW-05 and VIEW-06 tested in
+`tests/ipad/Baseline/PanelBaselineTests.swift`). Quality ratchet: `ScoreController.swift` file_length and
+`class ScoreController` type_body_length; `ScoreScreen.swift` file_length and `layers` function_body_length; the jscpd
+pair with `Roll/RollController.swift`.

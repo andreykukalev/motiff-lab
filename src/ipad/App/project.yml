@@ -120,6 +120,8 @@ targets:
     sources:
       # The tests live with the repository's other tests (tests/ipad).
       - path: ../../../tests/ipad/MotiffLabTests
+      # The cases of the UX baseline (docs/ux-baseline.md), in the folder only Andrei's label changes.
+      - path: ../../../tests/ipad/Baseline
       # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
       - path: ../../../design/kit/elise.musicxml
         buildPhase: resources
