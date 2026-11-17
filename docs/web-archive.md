@@ -93,7 +93,11 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    took `parseSvg`, `parseTransform`, `viewBoxOf` or `num` from `svg-to-pdf.js` takes them from `svg-parse.js`. The
    iPad's case file `tests/ipad/MotiffLabTests/Golden/scrub.json` has had no node reader since then: `scrub-rule` runs
    the web's engine on it again. The words archived then (`archive/web/src/MotiffLab.Web/wwwroot/i18n/{en,ru}.json`) are
-   merged back into `src/shared/wwwroot/i18n/{en,ru}.json` before the web's `i18n` test runs (no key is in both). The
+   merged back into `src/shared/wwwroot/i18n/{en,ru}.json` before the web's `i18n` test runs (no key is in both). Since
+   v0.7 (B6) a key only one iPad feature folder names is in that folder's
+   `src/ipad/App/MotiffLab/<Folder>/Words/<Folder>.{en,ru}.json`, and the iPad's former own words (`src/ipad/App/Words`) are in those files or, for the 13 that several folders or none
+   name, in `src/shared/wwwroot/i18n`: the web reads those files too, or they go back into its words, checked against the
+   archived ones for a key in two. The
    reactivation task's `allowed_paths` name
    `archive/web/**`, which opens it to the agents (`.claude/hooks/archive-guard.mjs`); once nothing is left in
    `archive/`, remove it from `.ignore`.

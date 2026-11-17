@@ -3,9 +3,10 @@
 SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`). The app's Swift is in feature folders under
 `src/ipad/App/MotiffLab` (blueprint v0.7, section 5.2; step B1). `project.yml` compiles every file below that folder, so a
 new file needs no project edit. `Account.json` and the asset catalogues (`AppIcon.xcassets`, `Icons.xcassets`, written by
-`tools/icons/build.mjs`) stay at its top. The score and the roll are the shared TS modules in a WKWebView (`Web/score.js`,
-`src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`). Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad`
-workflow on macOS, not CI).
+`tools/icons/build.mjs`) stay at its top. A folder's own interface texts are `<Folder>/Words/<Folder>.{en,ru}.json`;
+what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
+are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`).
+Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
 
 Each folder has one map with four headings: its files; the contract others may rely on; the state it owns; the baseline
 entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids, and the quality ratchet,

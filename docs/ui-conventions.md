@@ -83,7 +83,7 @@ Rules for the web UI (`archive/web/src/MotiffLab.Web`) as it is on main after th
 
 ## Localization
 
-- Interface strings live in `wwwroot/i18n/en.json` and `ru.json`, read through `UiText` (`Text["key"]`, `Text.Format`, `Text.Count` with `.one`, `.few`, `.many`). Add every new string to both files; `tests/shared/i18n.test.mjs` checks that every key used exists in both.
+- Interface strings live in pairs of files, `en` and `ru`: a string only one iPad feature folder names in that folder's `Words/<Folder>.en.json` and `.ru.json` (`src/ipad/App/MotiffLab/Roll/Words/Roll.en.json`), one the pages or several folders name in `src/shared/wwwroot/i18n/en.json` and `ru.json`; each key in one file only. They are read through `UiText` (the iPad's `UIText`: `text["key"]`, `text.format`, `text.count` with `.one`, `.few`, `.many`). Add every new string to both files of its pair; `tests/shared/i18n.test.mjs` checks that every key used exists in both and lives in the pair its users call for.
 - Musical text (facts, briefs, bases, place labels) comes from music-core in the language the page passes (`Words.For(Text.Language)`); the UI never translates or rewrites it. Terms shared across screens live under `term.*` (0013 section 7).
 
 ## General
