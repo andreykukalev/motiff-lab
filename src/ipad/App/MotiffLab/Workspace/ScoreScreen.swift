@@ -81,9 +81,8 @@ struct ScoreScreen: View {
         // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
         .ignoresSafeArea(.keyboard)
         .environmentObject(assistant)
-        // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet. A sheet
-        // given back as the assistant puts Sources away (PanelState) puts the assistant away again.
-        .onChange(of: assistant.panelOpen) { _, open in if open, Self.apply(.assistantOpened, to: $panels, score: score).sheetOpen { assistant.close() } }
+        // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
+        .onChange(of: assistant.panelOpen) { _, open in if open { change(.assistantOpened) } }
         .onChange(of: panels.sheetOpen) { _, open in if open { assistant.close() } }
     }
 
@@ -126,22 +125,19 @@ struct ScoreScreen: View {
         }
     }
 
-    /// Expand as the score shows it, for the panels (PanelState.Expand).
-    static func expand(_ score: ScoreController) -> PanelState.Expand {
-        PanelState.Expand(focused: score.focused, roll: score.focused && score.focusRoll)
-    }
-
-    /// The panels after `intent` (PanelState), written only when they change; the controllers' callbacks hold the binding
-    /// alone, not the screen.
-    @discardableResult
-    static func apply(_ intent: PanelState.Intent, to panels: Binding<PanelState>, score: ScoreController) -> PanelState {
-        let next = panels.wrappedValue.after(intent, expand: expand(score))
+    /// The panels as `next`, written only when they change; the controllers' callbacks hold the binding alone, not the screen.
+    static func set(_ next: PanelState, to panels: Binding<PanelState>) {
         if next != panels.wrappedValue { panels.wrappedValue = next }
-        return next
     }
 
+    /// What an action asks of the panels (PanelState.asked): only what it writes. The rules follow in the reactions.
     func change(_ intent: PanelState.Intent) {
-        Self.apply(intent, to: $panels, score: score)
+        Self.set(panels.asked(intent), to: $panels)
+    }
+
+    /// One rule (PanelState.following), run by the reaction that observes its value (docs/code-map/ipad/workspace.md).
+    func apply(_ rule: PanelState.Rule) {
+        Self.set(panels.following(rule), to: $panels)
     }
 
     /// A panel for a sheet's or popover's `isPresented` or a toggle, as this body reads it: what is set goes through `change`.
@@ -196,9 +192,8 @@ struct ScoreScreen: View {
             return
         }
         if score.penOn { score.penOn = false }
-        // Expand first, so that the drawer going and Expand coming are one change of the panels, as they were one render.
-        score.expandRoll()
         change(.expandFromDrawer)
+        score.expandRoll()
     }
 
     /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
@@ -435,7 +430,7 @@ struct ScoreScreen: View {
         // selects nothing puts it away; the selection stays as it is (0018 section 6).
         let panelState = $panels
         score.blankTapped = { [weak shown] in
-            if panelState.wrappedValue[.insights], let shown { Self.apply(.close(.insights), to: panelState, score: shown) }
+            Self.set(panelState.wrappedValue.asked(.close(.insights)), to: panelState)
             // In practice view the tap shows Play/Pause and Leave for a few seconds too (#533 11).
             shown?.practise(.tap)
         }
@@ -447,10 +442,10 @@ struct ScoreScreen: View {
             shown.practise(.tap)
         }
         // A flag tapped on the score opens Check on its bar.
-        score.checkPicked = { [weak shown] _ in if let shown { Self.apply(.open(.check), to: panelState, score: shown) } }
+        score.checkPicked = { _ in Self.set(panelState.wrappedValue.asked(.open(.check)), to: panelState) }
         // Open in the draft, from a marker's popover or focus, opens Sources on the version's page; a merge applied or
         // undone changes what plays. The draft's views are heard on their own, or the notes and the version in turn.
-        score.versionPicked = { [weak shown] _ in if let shown { Self.apply(.open(.versions), to: panelState, score: shown) } }
+        score.versionPicked = { _ in Self.set(panelState.wrappedValue.asked(.open(.versions)), to: panelState) }
         score.hearNotes = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
         score.hearInTurn = { [weak heard] notes, range in
             guard let heard else { return }
@@ -524,21 +519,18 @@ struct ScoreScreen: View {
                 score.clearLeft(side ? Self.contentsWidth + CGFloat.ds("s-3") : 0)
             }
             .onChange(of: panels[.contents]) { _, open in
+                apply(.contents(open))
                 // A bookmark being changed in the drawer goes with it; one being made over the selection stays.
                 if !open, contents.draft?.id != nil { contents.cancel() }
             }
-            // Expand and its roll (#521 17, 19), then the panels follow them (PanelState): one reaction, so the order is
-            // the one the two had.
-            .onChange(of: Self.expand(score)) { old, new in
-                if old.focused != new.focused { expandChanged(new.focused) }
-                if old.roll != new.roll { expandRollShown(new.roll) }
-                change(.follow)
-            }
+            .onChange(of: score.focused) { _, focused in expandChanged(focused) }
             // Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too.
             .onChange(of: score.practicing, initial: true) { _, on in score.sendPractice(); roll.practice(on) }
             // The selection controls (#582 item 10): the page's handles go with the menu.
             .onChange(of: score.selectionControlsShown) { _, shown in score.sendSelectionControls(shown) }
+            .onChange(of: score.focused && score.focusRoll) { _, shown in expandRollShown(shown) }
             .onChange(of: panels[.roll]) { _, open in
+                apply(.roll(open))
                 if open {
                     roll.show(piece, dark: colorScheme == .dark)
                     roll.showSelection(score.selection, loop: player.loop)
@@ -553,6 +545,7 @@ struct ScoreScreen: View {
                 Task { await insights.reread() }
             }
             .onChange(of: panels[.insights]) { _, open in
+                apply(.insights(open))
                 if open {
                     Task { await insights.load(piece: piece.id, selection: score.selection) }
                 } else {
@@ -622,7 +615,10 @@ struct ScoreScreen: View {
                 score.settingsChanged()
                 roll.settingsChanged()
             }
-            .onChange(of: panels[.check]) { _, open in score.checkDrawerOpen = open }
+            .onChange(of: panels.placeFromMoreOpen) { _, open in apply(.placeFromMore(open)) }
+            .onChange(of: panels[.check]) { _, open in score.checkDrawerOpen = open; apply(.check(open)) }
+            .onChange(of: panels[.versions]) { _, open in apply(.versions(open, focused: score.focused)) }
+            .onChange(of: panels.otherPlaceOpen(focused: score.focused)) { _, open in apply(.otherPlace(open)) }
     }
 
     /// What follows the selection, the player and the fact chosen.
@@ -1847,7 +1843,9 @@ extension ScoreScreen {
     /// so does the loop. Opened while the music plays, it plays on within the passage. Out of it the playback model takes the
     /// selection and the loop back (v0.5.2).
     private func expandChanged(_ focused: Bool) {
-        if !focused, player.loop != nil {
+        if focused {
+            apply(.expand(true))
+        } else if player.loop != nil {
             // Expand's passage looped: the loop it left goes, so the one before comes back as it was.
             player.setLoop(nil)
         }
@@ -1857,6 +1855,8 @@ extension ScoreScreen {
             if player.state != .stopped, let passage = score.playRange?.range { player.keepWithin(passage) }
         } else {
             player.hold(selection: score.playRange?.range)
+            // Collapse opens the roll drawer again, as Expand found it; Back to page the Contents.
+            apply(.expand(false))
         }
     }
 
@@ -1864,6 +1864,7 @@ extension ScoreScreen {
     /// Expand was opened on (#521 19): only it, laid across the card; the drawer gives it up and gets it back (PanelState).
     /// Back, or Notes chosen, lets the passage go: its zoom and view are as before Expand (#521 17).
     private func expandRollShown(_ shown: Bool) {
+        apply(.rollOnCard(shown))
         if shown {
             roll.show(piece, dark: colorScheme == .dark)
             roll.showSelection(score.selection, loop: player.loop)
@@ -1871,9 +1872,8 @@ extension ScoreScreen {
             return
         }
         roll.bind(nil)
-        // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do. The panels may follow
-        // Expand only after this, so it asks what they will be.
-        if panels.after(.follow, expand: Self.expand(score)).rollLeftFocusForGood {
+        if !panels[.roll] && !panels.rollBeforeFocus {
+            // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
             score.cancelNoteEdit()
         }
     }

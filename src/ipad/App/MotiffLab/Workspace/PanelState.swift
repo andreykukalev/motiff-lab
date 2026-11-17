@@ -5,16 +5,18 @@ import Foundation
 /// to give back: that a place was opened from More (its "‹ More", testing item 20), the roll's drawer and the Contents as
 /// Expand found them (#521 17), and what was open under Sources (#582 item 4).
 ///
-/// `after(_:expand:)` is the one way to change it. It applies what was asked and then the screen's rules, which until
-/// v0.7 were `.onChange` reactions of `ScoreScreen` on one flag each: a rule runs when what it watches has changed since
-/// the last round, in the order the reactions were declared, and its changes are seen in the next round, as SwiftUI ran
-/// them render by render. So every case keeps the answer it had, the odd ones too (`PanelStateTests` lists them).
+/// It changes in two ways, both pure. `asked` is what an action writes: the panel it opens, closes or toggles, and nothing
+/// more. `following` is one rule of the screen: what the change of one value does to the other panels. Until v0.7 each
+/// rule was the body of an `.onChange` reaction of `ScoreScreen`; the reaction still observes the value and runs the rule
+/// where those lines were, so a change settles render by render as before, and every other reaction (the roll, Insights,
+/// the page's inset, the assistant) fires in the render and at the place it did. `PanelStateTests` runs the rules as the
+/// renders do, over the table of every case.
 struct PanelState: Equatable, Sendable {
     enum Panel: CaseIterable, Sendable {
         case roll, insights, contents, check, versions, settings, reference, more
     }
 
-    /// What is asked of the panels.
+    /// What an action asks of the panels.
     enum Intent: Equatable, Sendable {
         case open(Panel)
         case close(Panel)
@@ -27,14 +29,28 @@ struct PanelState: Equatable, Sendable {
         case expandFromDrawer
         /// The assistant's panel opened: one thing at a time on the right.
         case assistantOpened
-        /// Nothing asked: only Expand changed.
-        case follow
     }
 
-    /// Expand as the score shows it: the passage in focus, and shown as a roll on its card.
-    struct Expand: Equatable, Sendable {
-        var focused = false
-        var roll = false
+    /// A rule of the screen, named by the value whose change it follows, with the value as the render showed it.
+    enum Rule: Equatable, Sendable {
+        /// The Contents opened or closed.
+        case contents(Bool)
+        /// Expand entered or left (`ScoreController.focused`).
+        case expand(Bool)
+        /// The passage shown as a roll on Expand's card, or no longer.
+        case rollOnCard(Bool)
+        /// The roll's drawer opened or closed.
+        case roll(Bool)
+        /// Insights opened or closed.
+        case insights(Bool)
+        /// `placeFromMoreOpen` changed.
+        case placeFromMore(Bool)
+        /// Check opened or closed.
+        case check(Bool)
+        /// Sources opened or closed; `focused` is Expand as it is now.
+        case versions(Bool, focused: Bool)
+        /// `otherPlaceOpen` changed.
+        case otherPlace(Bool)
     }
 
     /// What was open as Sources opened over it, given back as Sources closes (#582 item 4).
@@ -46,7 +62,7 @@ struct PanelState: Equatable, Sendable {
 
     /// Whether Sources is there: never on a view shown over the piece (0030), where nothing is kept under it.
     let sourcesOn: Bool
-    private(set) var opened: Set<Panel> = []
+    private var opened: Set<Panel> = []
     /// Whether Check, Sources or Settings was opened from More, so it shows "‹ More".
     private(set) var fromMore = false
     /// The roll's drawer, open as the passage went into Expand as a roll: Collapse opens it again.
@@ -55,11 +71,6 @@ struct PanelState: Equatable, Sendable {
     private(set) var contentsBeforeFocus = false
     /// What was open under Sources; nil while Sources is closed.
     private(set) var beforeSources: Shelved?
-    /// Whether the roll last left Expand's card for no place (its drawer neither open nor coming back): its unsaved note
-    /// edits go then, as they go with the drawer.
-    private(set) var rollLeftFocusForGood = false
-    /// Expand as these rules last followed it, so that a change of it is followed once.
-    private(set) var expand = Expand()
 
     init(sourcesOn: Bool = true) {
         self.sourcesOn = sourcesOn
@@ -72,19 +83,57 @@ struct PanelState: Equatable, Sendable {
     /// Insights, Check or Sources: the sheet on the right, where the assistant's panel would be.
     var sheetOpen: Bool { self[.insights] || self[.check] || self[.versions] }
 
-    /// The panels after `intent`, with Expand as the score shows it now.
-    func after(_ intent: Intent, expand now: Expand) -> PanelState {
+    /// Check, Sources or Settings, the places More opens: the way back to More is kept while one of them is open.
+    var placeFromMoreOpen: Bool { self[.check] || self[.versions] || self[.settings] }
+
+    /// Insights, the roll's drawer, the Contents or Expand: what Check and Sources give way to.
+    func otherPlaceOpen(focused: Bool) -> Bool { self[.insights] || self[.roll] || self[.contents] || focused }
+
+    /// The panels with `intent` asked: what the action writes, before any rule follows it.
+    func asked(_ intent: Intent) -> PanelState {
         var next = self
-        next.apply(intent)
-        var seen = Watched(self, expand)
-        // The rules settle within four rounds; eight is the bound of a loop that must end.
-        for _ in 0..<8 {
-            let watched = Watched(next, now)
-            guard watched != seen else { break }
-            next.react(was: seen, now: watched, focused: now.focused)
-            seen = watched
+        switch intent {
+        case .open(let panel): next.set(panel, true)
+        case .close(let panel): next.set(panel, false)
+        case .toggle(let panel): next.set(panel, !self[panel])
+        case .openFromMore(let panel):
+            next.set(.more, false)
+            next.set(panel, true)
+            next.fromMore = true
+        case .backToMore(let panel):
+            if let panel { next.set(panel, false) }
+            next.fromMore = false
+        case .expandFromDrawer:
+            next.rollBeforeFocus = true
+            next.set(.roll, false)
+        case .assistantOpened:
+            next.close(.insights, .check, .versions, when: true)
         }
-        next.expand = now
+        return next
+    }
+
+    /// The panels after one rule.
+    func following(_ rule: Rule) -> PanelState {
+        var next = self
+        switch rule {
+        // Opening the roll, Insights, the Contents or Check puts the others of them away.
+        case .contents(let open): next.close(.roll, .insights, when: open)
+        case .expand(let focused): next.expandChanged(focused)
+        // The phrase shown as a roll on Expand's card takes the drawer's roll, which comes back with Collapse.
+        case .rollOnCard(let shown):
+            if shown, self[.roll] {
+                next.rollBeforeFocus = true
+                next.set(.roll, false)
+            }
+        case .roll(let open): next.close(.contents, .insights, when: open)
+        case .insights(let open): next.close(.roll, .contents, when: open)
+        // The way back to More belongs to the place opened from it, and goes with it.
+        case .placeFromMore(let open): if !open { next.fromMore = false }
+        case .check(let open): next.close(.insights, .roll, .contents, .versions, when: open)
+        case let .versions(open, focused): next.versionsChanged(open, focused: focused)
+        // Check and Sources go when another place opens, or Expand.
+        case .otherPlace(let open): next.close(.check, .versions, when: open)
+        }
         return next
     }
 
@@ -92,68 +141,14 @@ struct PanelState: Equatable, Sendable {
         if on { opened.insert(panel) } else { opened.remove(panel) }
     }
 
-    private mutating func apply(_ intent: Intent) {
-        switch intent {
-        case .open(let panel): set(panel, true)
-        case .close(let panel): set(panel, false)
-        case .toggle(let panel): set(panel, !self[panel])
-        case .openFromMore(let panel):
-            set(.more, false)
-            set(panel, true)
-            fromMore = true
-        case .backToMore(let panel):
-            if let panel { set(panel, false) }
-            fromMore = false
-        case .expandFromDrawer:
-            rollBeforeFocus = true
-            set(.roll, false)
-        case .assistantOpened:
-            close(.insights, .check, .versions)
-        case .follow:
-            break
-        }
-    }
-
-    /// What the rules watch, each the value one reaction of the screen observed.
-    private struct Watched: Equatable {
-        let contents, focused, rollShown, roll, insights, fromMoreKept, check, versions, other: Bool
-
-        init(_ state: PanelState, _ expand: Expand) {
-            contents = state[.contents]
-            focused = expand.focused
-            rollShown = expand.roll
-            roll = state[.roll]
-            insights = state[.insights]
-            fromMoreKept = state[.check] || state[.versions] || state[.settings]
-            check = state[.check]
-            versions = state[.versions]
-            other = state[.insights] || state[.roll] || state[.contents] || expand.focused
-        }
-    }
-
-    /// One round: each rule whose value changed since the last round, in their order.
-    private mutating func react(was: Watched, now: Watched, focused: Bool) {
-        // Opening the roll, Insights, the Contents or Check puts the others of them away.
-        if now.contents != was.contents, now.contents { close(.roll, .insights) }
-        if now.focused != was.focused { focusChanged(now.focused) }
-        if now.rollShown != was.rollShown { rollFocusChanged(now.rollShown) }
-        if now.roll != was.roll, now.roll { close(.contents, .insights) }
-        if now.insights != was.insights, now.insights { close(.roll, .contents) }
-        // The way back to More belongs to the place opened from it, and goes with it.
-        if now.fromMoreKept != was.fromMoreKept, !now.fromMoreKept { fromMore = false }
-        if now.check != was.check, now.check { close(.insights, .roll, .contents, .versions) }
-        if now.versions != was.versions { versionsChanged(now.versions, focused: focused) }
-        // Check and Sources go when another place opens, or Expand.
-        if now.other != was.other, now.other { close(.check, .versions) }
-    }
-
-    private mutating func close(_ panels: Panel...) {
-        for panel in panels { set(panel, false) }
+    /// A place opened puts `panels` away; closed, it changes nothing.
+    private mutating func close(_ panels: Panel..., when open: Bool) {
+        if open { opened.subtract(panels) }
     }
 
     /// Expand covers the page (#521 17, 19): the Contents goes, and comes back with the way back as it was, and so does the
     /// roll's drawer.
-    private mutating func focusChanged(_ focused: Bool) {
+    private mutating func expandChanged(_ focused: Bool) {
         if focused {
             contentsBeforeFocus = self[.contents]
             set(.contents, false)
@@ -169,27 +164,15 @@ struct PanelState: Equatable, Sendable {
         }
     }
 
-    /// The phrase shown as a roll on Expand's card takes the drawer's roll, which comes back with Collapse.
-    private mutating func rollFocusChanged(_ shown: Bool) {
-        guard shown else {
-            rollLeftFocusForGood = !self[.roll] && !rollBeforeFocus
-            return
-        }
-        if self[.roll] {
-            rollBeforeFocus = true
-            set(.roll, false)
-        }
-    }
-
     /// Sources opened puts the other places away, keeping what was open under it; closed by its ✕ or the bar's button, not
     /// by another place opening, it gives the view back as it was (#582 item 4).
     private mutating func versionsChanged(_ open: Bool, focused: Bool) {
         if open {
             if sourcesOn { beforeSources = Shelved(roll: self[.roll], insights: self[.insights], contents: self[.contents]) }
-            close(.insights, .roll, .contents, .check)
+            close(.insights, .roll, .contents, .check, when: true)
         } else if let before = beforeSources {
             beforeSources = nil
-            if !(self[.insights] || self[.roll] || self[.contents] || self[.check] || focused) {
+            if !(otherPlaceOpen(focused: focused) || self[.check]) {
                 set(.roll, before.roll)
                 set(.insights, before.insights)
                 set(.contents, before.contents)
