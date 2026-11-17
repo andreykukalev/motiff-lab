@@ -66,7 +66,13 @@ final class PanelStateTests: XCTestCase {
             var text = PanelStateTests.names.filter { panels[$0.panel] }.map { $0.name }.joined(separator: "+")
             if text.isEmpty { text = "nothing" }
             var kept: [String] = []
-            if panels.fromMore { kept.append("fromMore") }
+            if !panels.fromMore.isEmpty {
+                // "fromMore" while every place open shows "‹ More"; else the places opened from More (answer 10).
+                let places: [PanelState.Panel] = [.check, .versions, .settings]
+                let all = places.filter { panels[$0] }.allSatisfy { panels.fromMore.contains($0) }
+                let from = PanelStateTests.names.filter { panels.fromMore.contains($0.panel) }.map { $0.name }.joined(separator: "+")
+                kept.append(all ? "fromMore" : "fromMore=" + from)
+            }
             if panels.rollBeforeFocus { kept.append("rollBeforeFocus") }
             if panels.contentsBeforeFocus { kept.append("contentsBeforeFocus") }
             if let under = panels.beforeSources {

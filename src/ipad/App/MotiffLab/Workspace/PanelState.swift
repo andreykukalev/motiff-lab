@@ -2,8 +2,8 @@ import Foundation
 
 /// Which of the score screen's panels are open (the architecture blueprint of v0.7, section 5.3 step 1): the roll's drawer,
 /// Insights, the Contents, Check, Sources (Other versions), Settings, the Reference and More, and what the screen remembers
-/// to give back: that a place was opened from More (its "‹ More", testing item 20), the roll's drawer and the Contents as
-/// Expand found them (#521 17), and what was open under Sources (#582 item 4).
+/// to give back: which places were opened from More (each its "‹ More", testing item 20), the roll's drawer and the
+/// Contents as Expand found them (#521 17), and what was open under Sources (#582 item 4).
 ///
 /// It changes in two ways, both pure. `asked` is what an action writes: the panel it opens, closes or toggles, and nothing
 /// more. `following` is one rule of the screen: what the change of one value does to the other panels. Until v0.7 each
@@ -23,11 +23,11 @@ struct PanelState: Equatable, Sendable {
         case toggle(Panel)
         /// Check, Sources or Settings from More: More goes, and the place shows "‹ More".
         case openFromMore(Panel)
-        /// "‹ More": the place opened from More goes (nil for Piece DNA, which is none of these), and its way back with it.
+        /// "‹ More": the place opened from More goes (nil for Piece DNA, which is none of these), and the way back with it.
         case backToMore(Panel?)
         /// Expand on the roll's drawer (#521 19.1): the drawer goes, to come back with Collapse.
         case expandFromDrawer
-        /// The assistant's panel opened: one thing at a time on the right.
+        /// The assistant's panel opened: one thing at a time on the right, so the sheet goes and Insights does not come back.
         case assistantOpened
     }
 
@@ -63,8 +63,9 @@ struct PanelState: Equatable, Sendable {
     /// Whether Sources is there: never on a view shown over the piece (0030), where nothing is kept under it.
     let sourcesOn: Bool
     private var opened: Set<Panel> = []
-    /// Whether Check, Sources or Settings was opened from More, so it shows "‹ More".
-    private(set) var fromMore = false
+    /// Check, Sources or Settings, each one opened from More, so it shows "‹ More": only the place opened from More
+    /// (Andrei's answer 10, 2026-11-17), never one opened otherwise beside it.
+    private(set) var fromMore: Set<Panel> = []
     /// The roll's drawer, open as the passage went into Expand as a roll: Collapse opens it again.
     private(set) var rollBeforeFocus = false
     /// The Contents, open as Expand opened: Back to page opens it again.
@@ -106,15 +107,18 @@ struct PanelState: Equatable, Sendable {
         case .openFromMore(let panel):
             next.set(.more, false)
             next.set(panel, true)
-            next.fromMore = true
+            next.fromMore.insert(panel)
         case .backToMore(let panel):
             if let panel { next.set(panel, false) }
-            next.fromMore = false
+            next.fromMore = []
         case .expandFromDrawer:
             next.rollBeforeFocus = true
             next.set(.roll, false)
         case .assistantOpened:
             next.close(.insights, .check, .versions, when: true)
+            // Sources closed under the assistant's panel would give Insights back, and Insights would close the panel
+            // again (Andrei's answer 9, 2026-11-17): the panel stays, and what else was under Sources comes back.
+            next.beforeSources?.insights = false
         }
         return next
     }
@@ -135,7 +139,7 @@ struct PanelState: Equatable, Sendable {
         case .roll(let open): next.close(.contents, .insights, when: open)
         case .insights(let open): next.close(.roll, .contents, when: open)
         // The way back to More belongs to the place opened from it, and goes with it.
-        case .placeFromMore(let open): if !open { next.fromMore = false }
+        case .placeFromMore(let open): if !open { next.fromMore = [] }
         case .check(let open): next.close(.insights, .roll, .contents, .versions, when: open)
         case let .versions(open, focused): next.versionsChanged(open, focused: focused)
         // Check and Sources go when another place opens, or Expand.
@@ -144,7 +148,9 @@ struct PanelState: Equatable, Sendable {
         return next
     }
 
+    /// A place opened anew has no way back to More until More opens it (`openFromMore` adds it after).
     private mutating func set(_ panel: Panel, _ on: Bool) {
+        if on, !self[panel] { fromMore.remove(panel) }
         if on { opened.insert(panel) } else { opened.remove(panel) }
     }
 
