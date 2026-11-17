@@ -29,6 +29,8 @@ targets:
     type: application
     platform: iOS
     sources:
+      # The app's Swift in its feature folders (docs/code-map/ipad.md): every file below MotiffLab is taken, so a new file
+      # or folder needs no edit here.
       - path: MotiffLab
       # The example piece, the interface's words and the design tokens are shared files (src/shared, design/kit): Für Elise
       # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).

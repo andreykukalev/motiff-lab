@@ -33,9 +33,9 @@ test("Clear selection and the pen's tools have icons of their own on the iPad", 
     const icons = readIcons();
     for (const name of ["deselect", "pencil", "marker", "eraser"]) assert.ok(name in icons, name);
     assert.equal(new Set(["pencil", "marker", "eraser", "pen", "highlight"].map((name) => icons[name])).size, 5, "each tool its own drawing");
-    const tools = read("src/ipad/App/MotiffLab/PenState.swift").toString();
+    const tools = read("src/ipad/App/MotiffLab/Ink/PenState.swift").toString();
     assert.match(tools, /case \.pencil: "pencil"\s*case \.marker: "marker"\s*case \.eraser: "eraser"/);
-    const selection = read("src/ipad/App/MotiffLab/SelectionTools.swift").toString();
+    const selection = read("src/ipad/App/MotiffLab/Selection/SelectionTools.swift").toString();
     assert.match(selection, /case \.clearSelection: "deselect"/);
 });
 
