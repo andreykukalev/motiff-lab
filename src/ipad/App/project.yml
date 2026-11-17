@@ -31,6 +31,7 @@ targets:
     sources:
       # The app's Swift in its feature folders (docs/code-map/ipad.md): every file below MotiffLab is taken, so a new file
       # or folder needs no edit here.
+      # Each folder's own words (<Folder>/Words/<Folder>.en.json, .ru.json) are resources at the app's top (UIText).
       - path: MotiffLab
       # The example piece, the interface's words and the design tokens are shared files (src/shared, design/kit): Für Elise
       # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).
@@ -43,10 +44,6 @@ targets:
         type: folder
         buildPhase: resources
       - path: ../../shared/wwwroot/i18n
-        type: folder
-        buildPhase: resources
-      # What only the iPad says (version 0.5, «Импорт папки»), in English and Russian beside the web app's words.
-      - path: Words
         type: folder
         buildPhase: resources
       # The score page and the shared score modules (src/shared/Scripts/score, compiled to wwwroot/js/score by
