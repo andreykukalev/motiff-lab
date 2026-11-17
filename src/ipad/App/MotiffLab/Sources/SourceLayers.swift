@@ -80,49 +80,30 @@ struct SourceLayers: Equatable, Sendable {
 
     init() {}
 
-    /// The answer of `sources.layers`, or of one of the sheet's operations (`Answer.SourceLayers`, every field written, null
-    /// when it has no value); nil for a refusal or an answer that cannot be read.
+    /// The sources music-core answers (`SourceLayersAnswer`), their times read as dates.
+    init(_ answer: SourceLayersAnswer) {
+        working = answer.working
+        originals = answer.originals.map {
+            Original(
+                id: $0.id, kind: $0.kind, shown: $0.shown, fileName: $0.fileName, state: $0.state, removedAt: VersionEntry.date($0.removedAt),
+                kept: $0.kept, pages: $0.pages, durationMs: $0.durationMs, hidden: $0.hidden, notes: $0.notes, pageMarks: $0.pageMarks
+            )
+        }
+        notes = answer.notes.map {
+            Notes(
+                id: $0.id, role: $0.role, name: $0.name, op: $0.op, engine: $0.engine, at: VersionEntry.date($0.at), original: $0.original,
+                state: $0.state, edits: $0.edits, taken: $0.taken, hidden: $0.hidden
+            )
+        }
+        views = answer.views.map { ViewEntry(id: $0.id, kind: $0.kind, group: $0.group, working: $0.working, hidden: $0.hidden, op: $0.op) }
+        hiddenCount = answer.hidden
+    }
+
+    /// The sources in the answer's text of one of the sheet's operations; nil for a refusal or an answer that cannot be
+    /// read.
     init?(answer: String) {
-        guard let object = FacadeAnswer(answer, of: "sources.layers"), let working = object.nullable("working", String.self),
-              let originals = object.list("originals", Self.readOriginal), let notes = object.list("notes", Self.readNotes),
-              let views = object.list("views", Self.readView), let hiddenCount = object.int("hidden") else { return nil }
-        self.working = working
-        self.originals = originals
-        self.notes = notes
-        self.views = views
-        self.hiddenCount = hiddenCount
-    }
-
-    private static func readOriginal(_ entry: FacadeAnswer) -> Original? {
-        guard let id = entry.required("id", String.self), let kind = entry.required("kind", String.self),
-              let shown = entry.required("shown", String.self), let fileName = entry.required("fileName", String.self),
-              let state = entry.required("state", String.self), let removedAt = entry.nullable("removedAt", String.self),
-              let kept = entry.required("kept", String.self), let pages = entry.nullable("pages", NSNumber.self),
-              let durationMs = entry.nullable("durationMs", NSNumber.self), let hidden = entry.required("hidden", Bool.self),
-              let notes = entry.required("notes", [String].self), let pageMarks = entry.int("pageMarks") else { return nil }
-        return Original(
-            id: id, kind: kind, shown: shown, fileName: fileName, state: state, removedAt: VersionEntry.date(removedAt), kept: kept,
-            pages: pages?.intValue, durationMs: durationMs?.intValue, hidden: hidden, notes: notes, pageMarks: pageMarks
-        )
-    }
-
-    private static func readNotes(_ entry: FacadeAnswer) -> Notes? {
-        guard let id = entry.required("id", String.self), let role = entry.required("role", String.self),
-              let name = entry.nullable("name", String.self), let op = entry.required("op", String.self),
-              let engine = entry.nullable("engine", String.self), let at = entry.nullable("at", String.self),
-              let original = entry.nullable("original", String.self), let state = entry.nullable("state", String.self),
-              let edits = entry.int("edits"), let taken = entry.int("taken"), let hidden = entry.required("hidden", Bool.self) else { return nil }
-        return Notes(
-            id: id, role: role, name: name, op: op, engine: engine, at: VersionEntry.date(at), original: original, state: state,
-            edits: edits, taken: taken, hidden: hidden
-        )
-    }
-
-    private static func readView(_ entry: FacadeAnswer) -> ViewEntry? {
-        guard let id = entry.required("id", String.self), let kind = entry.required("kind", String.self),
-              let group = entry.nullable("group", String.self), let working = entry.required("working", Bool.self),
-              let hidden = entry.required("hidden", Bool.self), let op = entry.required("op", String.self) else { return nil }
-        return ViewEntry(id: id, kind: kind, group: group, working: working, hidden: hidden, op: op)
+        guard let read = FacadeAnswer.decode(SourceLayersAnswer.self, answer, of: "sources.layers") else { return nil }
+        self.init(read)
     }
 
     /// The views the switch shows: every one the player did not hide.
