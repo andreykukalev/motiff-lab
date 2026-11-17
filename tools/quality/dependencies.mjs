@@ -153,6 +153,8 @@ function resolveImport(from, spec) {
 //   that folder's; a name declared in two other folders counts for both (a possible false edge).
 // - Regex literals (`/…/`, none in the app) would be read as code. A name used only through type inference (a value
 //   passed along without its type written) is no mention: the edge then runs through the file that names the type.
+// - Only types are indexed: a free function, a global constant or a member an extension adds to a type of its own or of
+//   SwiftUI (a view helper) is no type, so a call of one from another folder is missed (`barsText`, 2026-11-17).
 
 const SWIFT_TYPE = /\b(struct|class|enum|protocol|actor|typealias|extension)\s+([A-Z]\w*(?:\.[A-Z]\w*)*)/g;
 const SWIFT_NAME = /(?<![\w.])([A-Za-z_]\w*)(?:\s*\.\s*([A-Z]\w*))?/g;
@@ -355,7 +357,8 @@ export function ipadFolderViolations(files, read, uses = IPAD_FOLDER_USES) {
           const where = owners.filter((o) => o.folder === folder).map((o) => o.file).join(', ');
           out.push(violation('ipad-folder', f.file, `${folder}: ${name}`, line, `${f.file} names ${name}, a type of `
             + `${folder}/ (${where}); ${f.folder}/ may use ${allowedText(f.folder, uses)}. Move the type down to `
-            + 'Platform, read it through a protocol the folder may use, or let Workspace do it.'));
+            + 'Platform, read it through a protocol the folder may use, or let Workspace do it; if the task cannot, '
+            + 'node tools/quality/quality.mjs --only dependencies --update-baseline --why "<reason> (#issue)".'));
         }
       }
     }

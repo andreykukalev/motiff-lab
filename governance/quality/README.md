@@ -64,8 +64,10 @@ A finding `src/ipad/App/MotiffLab/Marks/Check.swift:12 | dependencies ipad-folde
 that the file names `ScoreController`, a type of `Workspace/`, first on line 12. Move the type down to `Platform`, read it through a protocol
 the folder may use, or let `Workspace` do it. The edges the app had when the check came are baseline entries, one per
 file and type. A new one that the task cannot avoid: `node tools/quality/quality.mjs --only dependencies --update-baseline
---why "<reason> (#issue)"`; a gone one: the same without `--why`. What the scan cannot see is written above `swiftCode`
-in `dependencies.mjs`.
+--why "<reason> (#issue)"`; a gone one: the same without `--why`. A conflict in `baseline.json`: keep both sides'
+entries, then run the command without `--why`, which keeps their reasons and drops what no longer matches. What the
+scan cannot see is written above `swiftCode` in `dependencies.mjs`; above all, it indexes only types, so a free
+function, a global constant or a member an extension adds to a type used from another folder is missed.
 
 The CA rules report only in a quality build (`-p:QualityMetrics=true`, `Directory.Build.props`), and there as warnings
 that never fail the build, although warnings are otherwise errors: the ratchet decides. An everyday `dotnet build`

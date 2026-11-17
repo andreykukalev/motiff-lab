@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import {
   IPAD_FOLDER_USES, bundledFolders, coreViolations, ipadFolderViolations, ipadPageViolations, runtimeImports, swiftCode,
 } from './dependencies.mjs';
-import { compare } from './ratchet.mjs';
+import { compare, updateBaseline } from './ratchet.mjs';
 
 const reader = (files) => (file) => files[file];
 const rules = (list) => list.map((v) => `${v.rule} ${v.symbol}`);
@@ -126,4 +126,14 @@ test("governance/quality/README.md shows the folders' table as IPAD_FOLDER_USES 
   const want = Object.entries(IPAD_FOLDER_USES).map(([folder, uses]) =>
     [folder, uses === '*' ? 'every folder' : uses.length ? uses.map((u) => `\`${u}\``).join(', ') : 'nothing']);
   assert.deepEqual(rows, want);
+});
+
+test("a baseline merged from two branches keeps both sides' reasons when it is updated", () => {
+  const files = app({ ...declarations, 'Ink/Pen.swift': 'let a: MarkStore\n', 'Roll/Drawer.swift': 'let b: MarkStore\n' });
+  const current = ipadFolderViolations(Object.keys(files), reader(files));
+  const ours = { ...current[0], why: 'ours (#1)' };
+  const theirs = { ...current[1], why: 'theirs (#2)' };
+  const gone = { ...current[0], file: 'src/ipad/App/MotiffLab/Ink/Old.swift', why: 'gone (#3)' };
+  const next = updateBaseline([ours, theirs, gone], current, ['dependencies']);
+  assert.deepEqual(next.map((e) => `${e.file.slice(23)} ${e.why}`), ['Ink/Pen.swift ours (#1)', 'Roll/Drawer.swift theirs (#2)']);
 });
