@@ -206,8 +206,13 @@ test("every key the iPad app builds still has its family, and every listed membe
     assert.deepEqual([...new Set(missing)], [], "a family's member has no text in both languages");
 });
 
-test("every pair of text files has the same keys in English and in Russian, Russian with its three plural forms", () => {
+test("every pair of text files holds strings, the same keys in English and in Russian, Russian with three plural forms", () => {
     for (const pair of pairs) {
+        // UIText reads a file as [String: String]: one value of another type and the whole file is dropped.
+        for (const language of ["en", "ru"]) {
+            const notString = Object.entries(pair[language]).filter(([, text]) => typeof text !== "string");
+            assert.deepEqual(notString.map(([key]) => key), [], `${pair.name} (${language}): texts that are no strings`);
+        }
         // English never asks for the form "few", so a text of it there is spare, not a key of its own.
         const keys = (texts) => Object.keys(texts).filter((key) => !key.endsWith(".few")).sort();
         const english = keys(pair.en);

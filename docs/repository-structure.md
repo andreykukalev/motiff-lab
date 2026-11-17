@@ -13,7 +13,7 @@ motiff-lab/
 │   │   ├── MotiffLab.Api/        ASP.NET Core API (projects in Cosmos DB, the assistant relay)
 │   │   └── omr/                  the scan server (Python: homr, Basic Pitch), with its pytest tests inside
 │   ├── ipad/                     the native iPad app (SwiftUI, XcodeGen); src/ipad/README.md
-│   │   ├── App/                  the app: project.yml, MotiffLab/ (feature folders), Web/ (score page), Words/, Config/
+│   │   ├── App/                  the app: project.yml, MotiffLab/ (feature folders, each with its Words/), Web/ (score page), Config/
 │   │   ├── Core/                 music-core as a NativeAOT framework and the facade's C functions
 │   │   ├── Verovio/              Verovio built from source
 │   │   └── build-version.sh      builds a version from its tag and installs it on the iPad (Andrei's Mac)
