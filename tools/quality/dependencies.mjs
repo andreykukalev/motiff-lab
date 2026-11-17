@@ -162,9 +162,10 @@ const SWIFT_NAME = /(?<![\w.])([A-Za-z_]\w*)(?:\s*\.\s*([A-Z]\w*))?/g;
 /**
  * The Swift source with its comments and string literals blanked: each of their characters becomes a space and the
  * line breaks stay, so positions and line numbers still match the source. The code of an interpolation is kept.
- * Handles nested block comments, `"…"`, `"""…"""` and raw strings (`#"…"#`, `\#(…)`).
+ * Handles nested block comments, `"…"`, `"""…"""` and raw strings (`#"…"#`, `\#(…)`). With `strings: false` only the
+ * comments are blanked and the string literals kept (governance/tests/baseline.test.mjs reads the walk's journeys so).
  */
-export function swiftCode(text) {
+export function swiftCode(text, { strings = true } = {}) {
   const chars = text.split('');
   const blank = (from, to) => {
     for (let k = from; k < to; k++) {
@@ -188,6 +189,7 @@ export function swiftCode(text) {
     blank(i, k);
     return k;
   };
+  const blankString = strings ? blank : () => {};
   const string = (i) => {
     const hashes = /^#*/.exec(text.slice(i, i + 16))[0].length;
     const multi = text.startsWith('"""', i + hashes);
@@ -197,14 +199,14 @@ export function swiftCode(text) {
     let k = i + hashes + (multi ? 3 : 1);
     while (k < text.length) {
       if (text.startsWith(`${escape}(`, k)) {
-        blank(from, k + escape.length + 1);
+        blankString(from, k + escape.length + 1);
         k = code(k + escape.length + 1, true);
         from = k;
         k += 1;
       } else if (text.startsWith(escape, k)) {
         k += escape.length + 1;
       } else if (text.startsWith(close, k)) {
-        blank(from, k + close.length);
+        blankString(from, k + close.length);
         return k + close.length;
       } else if (!multi && text[k] === '\n') {
         break;
@@ -212,7 +214,7 @@ export function swiftCode(text) {
         k += 1;
       }
     }
-    blank(from, k);
+    blankString(from, k);
     return k;
   };
   // Code up to the end of the text, or, in an interpolation, up to the parenthesis that closes it.

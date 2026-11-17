@@ -93,6 +93,7 @@ test('names in comments and string literals are no use; an interpolation is code
   });
   assert.deepEqual(folderEdges(files), ['Ink/Pen.swift Selection: SelectionSpan']);
   assert.equal(swiftCode('a /* b */ "c\\(d)" e').length, 'a /* b */ "c\\(d)" e'.length);
+  assert.equal(swiftCode('a // b "c"\nd "e // f" /* g */ h', { strings: false }), 'a         \nd "e // f"         h');
 });
 
 test("a private type, a file's own nested type and a member after a dot are no other folder's type", () => {
