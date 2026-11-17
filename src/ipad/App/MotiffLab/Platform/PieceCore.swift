@@ -20,9 +20,7 @@ struct PieceCore: Sendable {
         }
 
         /// music-core's words in its answer ("message", a refusal's), nil without them.
-        var message: String? {
-            facadeObject(text)?["message"] as? String
-        }
+        var message: String? { FacadeAnswer.message(text) }
     }
 
     /// `select`: the passage a request names (bars, a span, notes picked, narrowed by a filter).
@@ -38,5 +36,13 @@ struct PieceCore: Sendable {
         let piece = piece
         let text = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
         return Answer(text, of: "playback")
+    }
+
+    /// `sources.layers`: the piece's sources by the layers of decision record 0030 as the request's "device" sees them,
+    /// with "here", the originals whose bytes the app keeps on this device.
+    func sourceLayers(_ request: String) async -> Answer<SourceLayersAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "sources.layers", request) }
+        return Answer(text, of: "sources.layers")
     }
 }

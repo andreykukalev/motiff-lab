@@ -99,6 +99,121 @@ struct PlaybackAnswer: Decodable, Sendable {
     let hands: Hands?
 }
 
+/// The piece's sources by the layers of decision record 0030 (`Answer.SourceLayers`): `sources.layers`, and the answer of
+/// each of the Sources sheet's operations, which adds the "id" of what it made. music-core writes every field; the ones
+/// with no value it writes null (`decodeNullable`).
+struct SourceLayersAnswer: Decodable, Sendable {
+    struct Original: Decodable, Sendable {
+        let id: String
+        let kind: String
+        let shown: String
+        let fileName: String
+        let state: String
+        /// ISO 8601, null unless the original was removed.
+        let removedAt: String?
+        let kept: String
+        let pages: Int?
+        let durationMs: Int?
+        let hidden: Bool
+        let notes: [String]
+        let pageMarks: Int
+
+        private enum CodingKeys: String, CodingKey {
+            case id, kind, shown, fileName, state, removedAt, kept, pages, durationMs, hidden, notes, pageMarks
+        }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            kind = try fields.decode(String.self, forKey: .kind)
+            shown = try fields.decode(String.self, forKey: .shown)
+            fileName = try fields.decode(String.self, forKey: .fileName)
+            state = try fields.decode(String.self, forKey: .state)
+            removedAt = try fields.decodeNullable(String.self, forKey: .removedAt)
+            kept = try fields.decode(String.self, forKey: .kept)
+            pages = try fields.decodeNullable(Int.self, forKey: .pages)
+            durationMs = try fields.decodeNullable(Int.self, forKey: .durationMs)
+            hidden = try fields.decode(Bool.self, forKey: .hidden)
+            notes = try fields.decode([String].self, forKey: .notes)
+            pageMarks = try fields.decode(Int.self, forKey: .pageMarks)
+        }
+    }
+
+    struct Notes: Decodable, Sendable {
+        let id: String
+        let role: String
+        let name: String?
+        let op: String
+        let engine: String?
+        /// ISO 8601, the provenance's time; null without one.
+        let at: String?
+        /// Null for Notes of no original (a version).
+        let original: String?
+        let state: String?
+        let edits: Int
+        let taken: Int
+        let hidden: Bool
+
+        private enum CodingKeys: String, CodingKey { case id, role, name, op, engine, at, original, state, edits, taken, hidden }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            role = try fields.decode(String.self, forKey: .role)
+            name = try fields.decodeNullable(String.self, forKey: .name)
+            op = try fields.decode(String.self, forKey: .op)
+            engine = try fields.decodeNullable(String.self, forKey: .engine)
+            at = try fields.decodeNullable(String.self, forKey: .at)
+            original = try fields.decodeNullable(String.self, forKey: .original)
+            state = try fields.decodeNullable(String.self, forKey: .state)
+            edits = try fields.decode(Int.self, forKey: .edits)
+            taken = try fields.decode(Int.self, forKey: .taken)
+            hidden = try fields.decode(Bool.self, forKey: .hidden)
+        }
+    }
+
+    struct View: Decodable, Sendable {
+        let id: String
+        let kind: String
+        /// Null for Notes of no original here.
+        let group: String?
+        let working: Bool
+        let hidden: Bool
+        let op: String
+
+        private enum CodingKeys: String, CodingKey { case id, kind, group, working, hidden, op }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            kind = try fields.decode(String.self, forKey: .kind)
+            group = try fields.decodeNullable(String.self, forKey: .group)
+            working = try fields.decode(Bool.self, forKey: .working)
+            hidden = try fields.decode(Bool.self, forKey: .hidden)
+            op = try fields.decode(String.self, forKey: .op)
+        }
+    }
+
+    /// The working notes' id, null for a piece that is only its PDF.
+    let working: String?
+    let originals: [Original]
+    let notes: [Notes]
+    let views: [View]
+    /// How many views are hidden from the switch.
+    let hidden: Int
+
+    private enum CodingKeys: String, CodingKey { case working, originals, notes, views, hidden }
+
+    init(from decoder: Decoder) throws {
+        let fields = try decoder.container(keyedBy: CodingKeys.self)
+        working = try fields.decodeNullable(String.self, forKey: .working)
+        originals = try fields.decode([Original].self, forKey: .originals)
+        notes = try fields.decode([Notes].self, forKey: .notes)
+        views = try fields.decode([View].self, forKey: .views)
+        hidden = try fields.decode(Int.self, forKey: .hidden)
+    }
+}
+
 extension KeyedDecodingContainer {
     /// A field music-core always writes, null when it has no value: nil for null; a missing key throws, as for any field
     /// it always writes.

@@ -42,14 +42,14 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const swiftRoot = join(root, "src", "ipad", "App", "MotiffLab");
 const contract = JSON.parse(readFileSync(join(root, "tests", "contracts", "facade-calls.json"), "utf8"));
 
+/** The port's files: the calls named in them are made from no other file. */
+const portFiles = ["PieceCore.swift"];
+
 /**
  * The places where the Swift passes a call name the reader cannot follow, as "file › function › expression", with the
  * names they stand for and why. Each listed name must be written as a literal in that same function, so a rename there
  * fails too, and is checked against the contract like any name read.
  */
-/** The port's files: the calls named in them are made from no other file. */
-const portFiles = ["PieceCore.swift"];
-
 const unresolved = new Map([
     // The Pen's Undo and Redo hand InkStep.undo and .redo (InkGeometry.swift) the two names, which pass them back to the
     // closure as `call`.
@@ -582,8 +582,9 @@ test("every name the reader cannot follow is listed with the names it stands for
 
 test("a call the port makes is made from no other file", () => {
     const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
-    assert.ok(ported.has("select") && ported.has("playback"), `the port's calls read: ${[...ported].join(", ")}`);
-    const elsewhere = sent.filter((s) => ported.has(s.name) && !portFiles.includes(basename(s.file))).map((s) => `${s.name}  ← ${s.where}`);
+    assert.ok(["select", "playback", "sources.layers"].every((name) => ported.has(name)), `the port's calls read: ${[...ported].join(", ")}`);
+    const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
+        .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
     assert.deepEqual(elsewhere, [], "make these calls through PieceCore");
 });
 
