@@ -92,7 +92,7 @@ final class RollController: NSObject, ObservableObject {
     private var shownSelection: RollShownSelection?
     /// The tuplet blocks the score's page read (v0.6.4), which the roll's selection grid never splits.
     private var shownTuplets: [[String: Double]] = []
-    private var shownHighlight: [(onset: Double, end: Double, noteIds: [String])] = []
+    private var shownHighlight: [RollLitPlace] = []
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
     /// Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one.
@@ -267,7 +267,7 @@ final class RollController: NSObject, ObservableObject {
 
     /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
     func highlight(_ places: [Fact.Place]) {
-        shownHighlight = places.map { (onset: $0.onset, end: $0.end, noteIds: $0.noteIds) }
+        shownHighlight = places.map { RollLitPlace(onset: $0.onset, end: $0.end, noteIds: $0.noteIds) }
         guard loaded else { return }
         let shown = shownHighlight
         Task { await page.highlight(shown) }

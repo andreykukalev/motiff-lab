@@ -71,7 +71,7 @@ final class RollPageContractTests: XCTestCase {
         await page.position(960, playing: true, label: "2.1", looping: false)
         await page.selection(RollShownSelection(selected: .init(start: 0, end: 1440, ids: ["n_0001", "n_0002"], picked: ["n_0002"]), loop: 0..<1440))
         await page.noteNames(false)
-        await page.highlight([(onset: 0, end: 720, noteIds: ["n_0001"])])
+        await page.highlight([RollLitPlace(onset: 0, end: 720, noteIds: ["n_0001"])])
         await page.edit(RollEditorShown(on: true, tool: "move", picked: "n_0001"))
         await page.lanes(true)
         await page.practice(false)

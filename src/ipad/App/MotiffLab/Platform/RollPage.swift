@@ -4,8 +4,9 @@ import WebKit
 // step 12; the v0.7 blueprint's B7), as `ScorePage` is the score's: the functions the page offers (`window.roll`), what
 // they answer, and the messages it posts. The lists and an example of each are the contract, kept in
 // `tests/contracts/roll-page.json` and checked against `roll.js` by `tests/shared/roll-page-contract.test.mjs` and
-// against this file by `RollPageContractTests`, so a function, an argument's field or a message renamed on one side fails
-// both suites, not the roll on the iPad.
+// against this file by `RollPageContractTests`, so a function, an argument's field (at any depth roll.js reads it) or a
+// message renamed on one side fails both suites, not the roll on the iPad. What roll.js passes on whole to piano-roll.ts
+// unread (the labels, the frame, the tuplets, the arrays of music-core's payload) is checked there by key no further.
 
 /// The functions of `window.roll`; the only place that names them.
 enum RollCommand: String, CaseIterable {
@@ -102,8 +103,8 @@ final class RollPage {
         await send(.noteNames, on)
     }
 
-    /// The places of a fact lit on the roll, each its onset, end and notes; none clears them.
-    func highlight(_ places: [(onset: Double, end: Double, noteIds: [String])]) async {
+    /// The places of a fact lit on the roll; none clears them.
+    func highlight(_ places: [RollLitPlace]) async {
         await send(.highlight, ["places": places.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }])
     }
 
@@ -183,6 +184,13 @@ struct RollShownSelection: Equatable {
         }
         return data
     }
+}
+
+/// A place of a fact lit on the roll (`highlight`): its onset, end and notes.
+struct RollLitPlace: Equatable {
+    var onset: Double
+    var end: Double
+    var noteIds: [String]
 }
 
 /// What `edit` shows: the note editor on or off, its tool, and the note picked (sent only while it is on).

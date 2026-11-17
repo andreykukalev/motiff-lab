@@ -26,7 +26,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `RollPage` calls each by a typed method and reads its answer (`RollShown`, the colouring, the frame), `RollEvent`
   decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`). A
   message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
-  what the page sends and the app leaves out stays quiet, as before.
+  what the page sends and the app leaves out stays quiet, as before. `RollEvent.broken` is a hook of its own beside
+  `FacadeAnswer.broken`: a test that silences one does not silence the other.
 - `Design.swift` reads `design/kit/tokens.css`.
 - `UIText.swift`: the words, the shared `src/shared/wwwroot/i18n/<language>.json` (in the app as `i18n/`), then every
   folder's `<Folder>/Words/<Folder>.<language>.json` (at the app's top) by name, merged; a key defined twice asserts in
