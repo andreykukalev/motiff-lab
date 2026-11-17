@@ -9,6 +9,8 @@
     const FIRST_POINTER = 1000;
     const STEPS_PER_SEGMENT = 8;
     const DEFAULT_TOLERANCE = 1;
+    /** How far, in pixels, the roll's playhead control may stand from the reported tick's x: its left is rounded. */
+    const GRIP_SLACK = 2;
 
     const run = { scenario: null, fixture: null, posts: [], read: 0, seen: null, page: "score", pointer: FIRST_POINTER, felt: [], hold: null };
 
@@ -208,10 +210,33 @@
         return { notes, x: (tick) => notes.left + run.gutter + (tick - view.scroll) * perTick };
     }
 
-    /** A point on the roll: a tick across it and `y` down its notes, from 0 to 1; window pixels. */
+    /**
+     * A point on the roll: a tick across it and `y` down its notes, from 0 to 1; or the playhead's handle in the strip
+     * (`grip`), the centre of its control, which the roll keeps over the handle (roll-playhead.ts PlayheadControl.place);
+     * window pixels.
+     */
     function rollPoint(point) {
+        if ("grip" in point) {
+            return gripPoint();
+        }
         const axis = rollAxis();
         return { x: axis.x(point.tick), y: axis.notes.top + axis.notes.height * point.y };
+    }
+
+    /**
+     * The centre of the roll's playhead control, only where it stands at the tick the app last reported (`position`). After
+     * a drag the roll shows the place let go until the player reports it or 800 ms pass (playhead-drag.ts PlayheadDrag.heard):
+     * a grip read there races that timer, as the browser's own input presses a moment after the point is read. So a scenario
+     * sends the app's answer to a drag, and a grip read before it stops the scenario instead.
+     */
+    function gripPoint() {
+        const box = document.querySelector("#roll .roll-playhead").getBoundingClientRect();
+        const centre = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        const reported = run.reported === undefined ? undefined : rollAxis().x(run.reported);
+        if (reported === undefined || Math.abs(centre.x - reported) > GRIP_SLACK) {
+            throw new Error(`The roll's playhead control is not where the app last reported it (${run.reported ?? "no position yet"}): send the app's answer to the drag before pressing its grip.`);
+        }
+        return centre;
     }
 
     function points(step) {
@@ -385,6 +410,9 @@
         run.returned = await ("with" in step ? page[step.call](filled(step.with)) : page[step.call]());
         await frame();
         if (run.page === "roll") {
+            if (step.call === "position") {
+                run.reported = filled(step.with).tick;
+            }
             noteGutter();
         }
     }
@@ -413,6 +441,7 @@
             run.posts = [];
             run.read = 0;
             run.gutter = undefined;
+            run.reported = undefined;
             standIn();
             return scenario.steps.length;
         },

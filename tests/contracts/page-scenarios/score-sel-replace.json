@@ -1,9 +1,10 @@
 {
   "id": "score-sel-replace",
   "protects": [
+    "SEL-02",
     "SEL-03"
   ],
-  "says": "With a selection on the score, a new one is started anywhere outside it, by the stylus at once and by a finger after a long press, and replaces it.",
+  "says": "With a selection on the score, a new one is started anywhere outside it, by the stylus at once and by a finger after a long press, from the sixteenth under it as the stylus does, and replaces it; a finger's stroke within one staff selects that hand, as the stylus's does.",
   "page": "score",
   "fixture": "fur-elise-score.json",
   "steps": [
@@ -182,7 +183,7 @@
           "messages": [
             {
               "chosen": {
-                "start": 5280,
+                "start": 5400,
                 "end": 6120,
                 "hand": null,
                 "how": "replace"
@@ -190,9 +191,67 @@
             }
           ]
         },
-        "note": "bar 9 (from 5280) held, then on to the middle of bar 10"
+        "note": "from the sixteenth under the held finger (5400), as the stylus pressed there starts, not from bar 9's start (5280), then on to the middle of bar 10 (SEL-02, Andrei, 2026-11-17)"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 5400,
+        "end": 6120,
+        "startLabel": "Start",
+        "endLabel": "End"
       },
-      "question": "Recorded as the page does it; for Andrei. After a held finger the new selection starts at the start of the held bar (5280); the stylus pressed at the same point starts at its sixteenth (5400). SEL-02 describes the stylus's frame «from where it pressed» and says nothing of the finger. Should the finger after its hold start where it pressed, as the stylus does?"
+      "note": "the app selects what the page chose and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 5400,
+          "end": 6120
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "touch",
+      "hold": 900,
+      "path": [
+        {
+          "bar": 11,
+          "x": 0.3,
+          "y": 0.15
+        },
+        {
+          "bar": 12,
+          "x": 0.5,
+          "y": 0.2
+        }
+      ],
+      "note": "a finger held on bar 11 in the upper staff, then moved on to bar 12 within it; held 900 ms on the page's clock, twice the page's hold (HOLD_MS, 450 ms)"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 6600,
+                "end": 7560,
+                "hand": "right",
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "a finger stroke that stays in the upper staff selects that hand only, from the sixteenth under the held finger to the middle of bar 12, as the stylus's does (SEL-02, Andrei, 2026-11-17 11:49 UTC: the finger follows the stylus fully)"
+      }
     }
   ]
 }

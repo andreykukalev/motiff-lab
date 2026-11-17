@@ -82,7 +82,11 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
   - `{"grip": "black" | "blue"}` is the centre of a drawn playhead handle.
   - Each point may add `dx` and `dy` in pixels.
 - On the roll: `{"tick": 1920, "y": 0.7}` is a tick across the notes, and a fraction of the notes' height down. The x of a
-  tick comes from `roll.frame()` (zoom and scroll) and where the roll draws its playhead's control.
+  tick comes from `roll.frame()` (zoom and scroll) and where the roll draws its playhead's control. `{"grip": "black"}`
+  is the centre of the playhead's handle in the strip under the bar numbers, where its control sits. It is read only
+  where the control stands at the tick the app last reported (`position`): after a drag the roll shows the place let go
+  until that report or its 800 ms timer, so a scenario sends the app's answer to a drag before it presses the grip, and a
+  grip pressed earlier stops the scenario.
 
 **Expectations.**
 

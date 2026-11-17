@@ -68,8 +68,9 @@ extension Walk {
 
     /// ROLL-01, PLAY-03: the roll's drawer keeps its zoom when the selection changes and through Expand; Expand from the
     /// drawer shows the passage as a roll, Play there plays it round and round, and Collapse gives the drawer back; Expand
-    /// from the selection menu opens in the roll again (a question), and in the notes it plays inside the passage. PLAY-01
-    /// (the card's playhead dragged by its dot) is not walked: the dot is drawn in the page, and the probe does not say where.
+    /// from the selection menu opens in the view used last, the roll (Andrei, 2026-11-17), and in the notes it plays inside
+    /// the passage. PLAY-01 (the card's playhead dragged by its dot) is not walked: the dot is drawn in the page, and the
+    /// probe does not say where.
     func rollAndExpand() throws {
         try choosePhrase()
         try press(button("Фортепианный ролл"), "the piano roll in the bar")
@@ -78,12 +79,9 @@ extension Walk {
         let open = try settledZoom("the roll drawer's zoom")
         shot("15-piano-roll", settle: 1)
         try choosePhrase()
-        var seen = open
         try holds(for: 1.5, "the roll's zoom changed with the selection from \(open) (ROLL-01)") { probe in
-            seen = probe["zoom"] ?? "none"
-            return zoomKept(open, seen)
+            zoomKept(open, probe["zoom"] ?? "none")
         }
-        askIfMoved(open, seen, "after a new selection")
 
         try expandFromDrawer()
         try until("Expand from the drawer shows the passage as a roll", timeout: 8) { $0.on("focus") && $0["as"] == "roll" && $0["roll"] == "focus" }
@@ -92,16 +90,13 @@ extension Walk {
         try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
         let back = try settledZoom("the roll drawer's zoom after Collapse")
         guard zoomKept(open, back) else { throw miss("Expand changed the roll's zoom from \(open) to \(back) (ROLL-01)") }
-        askIfMoved(open, back, "after Expand and Collapse")
         try press(button("Фортепианный ролл"), "the piano roll in the bar again")
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
         try press(button("Фокус"), "Expand in the selection menu")
-        // A question (2026-11-17): Expand opened from the selection menu shows the view Expand was in last, here the roll
-        // chosen from the drawer, not always the notes. Asserted as the app does it now until Andrei answers; then the
-        // journey takes the notes in Expand's bar.
+        // Expand opened from the selection menu shows the view Expand was in last, here the roll chosen from the drawer, not
+        // always the notes (PLAY-03, Andrei, 2026-11-17).
         try until("Expand from the selection menu in the view it was in last, the roll", timeout: 8) { $0.on("focus") && $0["as"] == "roll" }
-        print("SCREEN-QUESTION expand-view \(tag): Expand from the selection menu opens in the view used last (the roll), not always in the notes; to be put to Andrei")
         try press(button("Ноты"), "Notes in Expand's bar")
         try until("Expand from the notes", timeout: 8) { $0.on("focus") && $0["as"] == "notes" }
         try need(button("К странице"), "Back to the page in Expand's bar")
@@ -130,22 +125,16 @@ extension Walk {
         return probe["zoom"] ?? "none"
     }
 
-    /// ROLL-01 as the walk can see it, and a question (2026-11-17). The probe reads the zoom control's rounded numbers,
-    /// bars and octaves in view (`barsInView` in Scripts/roll/roll-zoom.ts), not the scale. Today the bars go 19 → 18 when
-    /// the roll scrolls to a new selection at the start of a piece with a short first bar. Whether a changing number with
-    /// the scale kept is a zoom change is a question for Andrei; until he answers, the octaves must stay and the bars may
-    /// move by one. The exact scale is pinned on the page by the page scenario `roll-zoom-kept` (PR #646).
+    /// ROLL-01 as the walk can see it. The probe reads the zoom control's rounded numbers, bars and octaves in view
+    /// (`barsInView` in Scripts/roll/roll-zoom.ts), not the scale: the bars go 19 → 18 when the roll scrolls to a new
+    /// selection at the start of a piece with a short first bar. The zoom is the note width, and the number shown may
+    /// differ by one (Andrei, 2026-11-17): the octaves must stay and the bars may move by one. The exact scale is pinned on
+    /// the page by the page scenario `roll-zoom-kept`.
     private func zoomKept(_ open: String, _ now: String) -> Bool {
         let was = open.split(separator: "x").compactMap { Int($0) }
         let shown = now.split(separator: "x").compactMap { Int($0) }
         guard was.count == 2, shown.count == 2 else { return false }
         return was[1] == shown[1] && abs(was[0] - shown[0]) <= 1
-    }
-
-    /// The question in the walk's log each run while the numbers differ.
-    private func askIfMoved(_ open: String, _ now: String, _ when: String) {
-        guard now != open else { return }
-        print("SCREEN-QUESTION ROLL-01 \(tag) \(when): the roll's zoom control said \(open), now \(now) (bars x octaves in view)")
     }
 
     /// Expand in the roll drawer's head, or in its More where the head is narrow.
@@ -199,9 +188,8 @@ extension Walk {
 
     /// INK-01, the half the simulator sees: with the Pen a stroke writes and the page stands; the eraser drawn over it takes
     /// it away. The simulator has no stylus and runs with «Только Apple Pencil» off, where every pointer acts as a finger and
-    /// a finger writes with the Pen (InputRules); the entry's «a finger scrolls» holds only with the setting on, on the device.
+    /// a finger writes with the Pen (InputRules), as INK-01 says; «a finger scrolls» holds with the setting on, on the device.
     func penAndEraser() throws {
-        print("SCREEN-QUESTION INK-01 \(tag): with «Только Apple Pencil» off a finger writes with the Pen; INK-01's «a finger scrolls» holds only with the setting on and needs the device")
         try placePlayheadAside()
         try press(button("Перо"), "the Pen in the bar's modes")
         let before = try until("the Pen on") { $0.on("pen") }

@@ -4,7 +4,7 @@
 
 The web and the iPad run the same TS modules; the iPad's page (`score.js`) builds the layers with its host options and
 posts what the player did to Swift. Node tests: `tests/shared/selection-*.test.mjs` (after `tsc`).
-What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/score-*.json` (SEL-01, SEL-03,
+What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/score-*.json` (SEL-01, SEL-02, SEL-03,
 SEL-04, PLAY-05, VIEW-03), replayed on `score.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's
 WKWebView (`PageScenarioTests.swift`); a change to what the page posts or draws there fails them, and a change to the
 engraving options (`score-page.ts`) fails the run's fixture check until the fixtures are remade.
@@ -60,5 +60,7 @@ parser half of the archived `svg-to-pdf.ts` (`docs/web-archive.md`).
 
 - The iPad always passes `places` (PlaceSelection.on, v0.6.3); the web passes none and keeps v0.6.1's ways.
 - v0.6.4: no bars/beats choice; Swift selects the span exactly as drawn (`SelectionSpan.request`, no snap); taps unchanged.
+- A finger's long press on a bar selects the bar; moved on, it draws the stylus's frame from the press (`placeMoved`: `bar`
+  → `draw`, Andrei 2026-11-17), never from the bar's start.
 - music-core's `select` with `"picked": true` (the iPad only) takes one note or more; a pick a motif of single notes
   cannot hold (1, or over 32) is saved as no selection is (`Motif.Holds`), so no project file changes shape.

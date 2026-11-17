@@ -3,7 +3,7 @@
   "protects": [
     "PLAY-02"
   ],
-  "says": "While the piece plays, the roll's playhead is taken at once by the stylus in Select and by a finger in Navigate, dragged on the sixteenth grid and let go: nothing holds the touch first.",
+  "says": "While the piece plays, the roll's playhead is taken at once by the stylus in Select by its handle in the strip and by a finger in Navigate down its line, dragged on the sixteenth grid and let go: nothing holds the touch first.",
   "page": "roll",
   "fixture": "fur-elise-roll.json",
   "viewport": {
@@ -74,15 +74,14 @@
       "pointer": "pen",
       "path": [
         {
-          "tick": 1920,
-          "y": 0.7
+          "grip": "black"
         },
         {
           "tick": 3000,
           "y": 0.7
         }
       ],
-      "note": "the stylus on the playhead's line, dragged right"
+      "note": "the stylus on the playhead's handle in the strip, dragged right: in Select the stylus takes it by its handle alone (Andrei, 2026-11-17)"
     },
     {
       "expect": {
@@ -116,8 +115,7 @@
           ]
         },
         "note": "taken at the press, on to 3000 on the grid, let go; nothing else in between"
-      },
-      "question": "Recorded as the page does it; for Andrei. In Select a stylus pressed anywhere down the roll's black playhead line (a touch target wide, and while it plays also where the line was drawn in the last 320 ms) takes the playhead and drags it: it never starts a selection frame there. SEL-03 says a new selection can always be started, standing or playing; INK-01 says that with Select the stylus selects; PLAY-02 lets the stylus take the playhead but does not say by its line. Should the stylus in Select take the roll's playhead only by its handle in the strip, as on the score?"
+      }
     },
     {
       "call": "position",
