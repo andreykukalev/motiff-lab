@@ -1,9 +1,10 @@
 import Foundation
 
-/// The interface's words, from the web app's own string files (src/shared/wwwroot/i18n/*.json, copied into the
-/// app as i18n/), so both apps say the same thing (0018 section 14), and the iPad's own few (src/ipad/App/Words/*.json), in the
-/// language the player picked in Settings, else the iPad's. Musical text never comes from here: music-core writes it in the
-/// language the app asks for, this one.
+/// The interface's words, from the shared string files (src/shared/wwwroot/i18n/*.json, copied into the app as i18n/: what
+/// the pages and more than one feature folder say, so both apps say the same thing, 0018 section 14) and each feature
+/// folder's own (src/ipad/App/MotiffLab/<Folder>/Words/<Folder>.en.json, .ru.json, at the app's top), in the language the
+/// player picked in Settings, else the iPad's. Musical text never comes from here: music-core writes it in the language
+/// the app asks for, this one.
 struct UIText: Sendable {
     let language: String
     private let words: [String: String]
@@ -66,15 +67,31 @@ struct UIText: Sendable {
         return "many"
     }
 
-    /// The web app's words, with the iPad's own (src/ipad/App/Words, copied into the app as Words/) for what only the iPad says;
-    /// the web's text stands where both name a key.
+    /// The words of one language: the shared file, then the folders' files by name, merged; a key is in one file only
+    /// (tests/shared/i18n.test.mjs), and one in two asserts in Debug builds, the first file's text standing.
     private static func load(_ language: String, _ bundle: Bundle) -> [String: String] {
-        read(language, "i18n", bundle).merging(read(language, "Words", bundle)) { web, _ in web }
+        let folders = (bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
+            .filter { $0.lastPathComponent.hasSuffix(".\(language).json") }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let shared = bundle.url(forResource: language, withExtension: "json", subdirectory: "i18n")
+        let files = (shared.map { [$0] } ?? []) + folders
+        var words: [String: String] = [:]
+        var fileOf: [String: String] = [:]
+        for url in files {
+            for (key, text) in read(url) {
+                if let first = fileOf[key] {
+                    assertionFailure("the text \(key) is in \(first) and in \(url.lastPathComponent)")
+                    continue
+                }
+                words[key] = text
+                fileOf[key] = url.lastPathComponent
+            }
+        }
+        return words
     }
 
-    private static func read(_ language: String, _ folder: String, _ bundle: Bundle) -> [String: String] {
-        guard let url = bundle.url(forResource: language, withExtension: "json", subdirectory: folder),
-              let data = try? Data(contentsOf: url),
+    private static func read(_ url: URL) -> [String: String] {
+        guard let data = try? Data(contentsOf: url),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: String]
         else { return [:] }
         return object
