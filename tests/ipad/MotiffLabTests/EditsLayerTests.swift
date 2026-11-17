@@ -44,7 +44,7 @@ final class EditsLayerTests: XCTestCase {
 
     func testAnAnswerWithTheLayerOnListsWhatNoLongerFitsOneRowPerNote() throws {
         let answer = #"""
-        {"bar": 1, "notes": [], "removed": [], "count": 5, "layer": "on", "editsOff": false, "applied": 2,
+        {"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 5, "layer": "on", "editsOff": false, "applied": 2,
          "moved": [{"noteId": "n_0003", "to": "n_0004", "bar": 2}],
          "unfit": [{"noteId": "n_0010", "bar": 4, "reason": "missing", "text": "The note is not there"},
                    {"noteId": "n_0010", "bar": 4, "reason": "changed", "text": "The note is different now"},
@@ -68,12 +68,12 @@ final class EditsLayerTests: XCTestCase {
     }
 
     func testOffSaysTheNotesAreAsRecognisedAndAStrictPieceIsOnWithNothingUnfit() throws {
-        let off = try XCTUnwrap(layer(#"{"bar": 1, "count": 0, "layer": "off", "moved": [], "unfit": [], "hidden": []}"#))
+        let off = try XCTUnwrap(layer(#"{"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 0, "layer": "off", "moved": [], "unfit": [], "hidden": []}"#))
         XCTAssertFalse(off.on)
         XCTAssertTrue(off.shows, "off, the switch stays to turn them on again")
         XCTAssertEqual(off.stateLine(UIText(language: "ru")), UIText(language: "ru")["edits.off"])
 
-        let strict = try XCTUnwrap(layer(#"{"bar": 1, "notes": [], "removed": [], "count": 2}"#))
+        let strict = try XCTUnwrap(layer(#"{"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 2}"#))
         XCTAssertEqual(strict, EditsLayerState(count: 2))
         XCTAssertTrue(strict.on)
         XCTAssertFalse(EditsLayerState(count: 0).shows, "no corrections, no switch")
@@ -116,9 +116,10 @@ final class EditsLayerTests: XCTestCase {
         XCTAssertEqual(on.count, 1)
     }
 
-    /// A corrections answer read as `PieceCore.corrections` reads it, into the layer's state; nil for a refusal.
+    /// A corrections answer read as `PieceCore.corrections` reads it (`CorrectionsAnswer`), then its layer's state; nil for
+    /// a refusal.
     private func layer(_ answer: String) -> EditsLayerState? {
-        FacadeAnswer.decode(EditsLayerAnswer.self, answer, of: "corrections").map { EditsLayerState($0) }
+        FacadeAnswer.decode(CorrectionsAnswer.self, answer, of: "corrections").map { EditsLayerState($0.edits) }
     }
 
     private func open(_ fileName: String, _ data: Data, _ request: String) throws -> [String: Any] {

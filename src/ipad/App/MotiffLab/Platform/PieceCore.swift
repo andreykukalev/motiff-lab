@@ -104,4 +104,71 @@ struct PieceCore: Sendable {
         let text = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
         return Answer(text, of: name)
     }
+
+    /// `phrases.level`: another level shown, and the selection moved to the unit that is, encloses or starts it there.
+    func phraseLevel(_ request: String) async -> Answer<PhraseLevelAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "phrases.level", request) }
+        return Answer(text, of: "phrases.level")
+    }
+
+    /// The merge draft's calls (OpenPiece.Merge.cs), every one answered with the draft as `MergeAnswer`.
+    enum Merge: Sendable {
+        /// The draft opened for a version, with the choices the request's "start" names.
+        case open
+        /// Bars chosen from either side, or undecided again.
+        case choose, undecide
+        /// The draft's last step taken back, done again, or every step taken back.
+        case undo, redo, reset
+        /// The draft gone with nothing changed: none open.
+        case cancel
+    }
+
+    /// `performance.merge.open` and the draft's changes: the draft as it is then.
+    func merge(_ call: Merge, _ request: String) async -> Answer<MergeAnswer> {
+        switch call {
+        case .open:
+            return await mergeDraftCall("performance.merge.open", request)
+        case .choose:
+            return await mergeDraftCall("performance.merge.choose", request)
+        case .undecide:
+            return await mergeDraftCall("performance.merge.undecide", request)
+        case .undo:
+            return await mergeDraftCall("performance.merge.undo", request)
+        case .redo:
+            return await mergeDraftCall("performance.merge.redo", request)
+        case .reset:
+            return await mergeDraftCall("performance.merge.reset", request)
+        case .cancel:
+            return await mergeDraftCall("performance.merge.cancel", request)
+        }
+    }
+
+    // As `correctionsCall`: one literal per case.
+    private func mergeDraftCall(_ name: String, _ request: String) async -> Answer<MergeAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        return Answer(text, of: name)
+    }
+
+    /// `performance.merge.playback`: one of the draft's views to hear (the request's "view"), the whole piece with its notes.
+    func mergePlayback(_ request: String) async -> Answer<PlaybackAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "performance.merge.playback", request) }
+        return Answer(text, of: "performance.merge.playback")
+    }
+
+    /// `performance.merge.apply`: the draft's bars taken into the score; the version as it is compared then.
+    func mergeApply(_ request: String) async -> Answer<PerformanceAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "performance.merge.apply", request) }
+        return Answer(text, of: "performance.merge.apply")
+    }
+
+    /// `performance.merge.undoApplied`: the player's notes back in every bar the merge took; the version compared then.
+    func mergeUndoApplied(_ request: String) async -> Answer<PerformanceAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "performance.merge.undoApplied", request) }
+        return Answer(text, of: "performance.merge.undoApplied")
+    }
 }

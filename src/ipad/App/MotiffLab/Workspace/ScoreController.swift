@@ -583,9 +583,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = "{\"level\": \"\(level)\"}"
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
-            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
-            if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+            let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
+            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { phrases = shown }
+            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selection = moved }
             await showSelection()
             await updatePlayRange()
         }
@@ -891,9 +891,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
         guard level != shownLevel else { return }
         let request = "{\"level\": \"\(level)\", \"remember\": false}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
-        if let levels = PhraseLevelsShown(answer: answer) { phrases = levels }
-        if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+        let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
+        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { phrases = levels }
+        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selection = moved }
         await showSelection()
         await updatePlayRange()
     }
@@ -957,7 +957,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 check = shelf
                 await drawChecks()
             } else {
-                problem = facadeObject(answer)?["message"] as? String
+                problem = FacadeAnswer.message(answer)
             }
         }
     }
@@ -1187,7 +1187,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
         guard versions.read(performance: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
+            versionStatus = FacadeAnswer.message(answer)
             return
         }
         versionStatus = versions.matched == 0
@@ -1213,7 +1213,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
         guard versions.read(performance: answer) else {
-            return facadeObject(answer)?["message"] as? String ?? text["transcribe.failed"]
+            return FacadeAnswer.message(answer) ?? text["transcribe.failed"]
         }
         let status = versions.matched == 0
             ? text["performance.noMatch"]
@@ -1258,7 +1258,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.remove", request) }
             guard let object = facadeObject(answer), object["error"] == nil else {
-                versionStatus = facadeObject(answer)?["message"] as? String
+                versionStatus = FacadeAnswer.message(answer)
                 return
             }
             versions.read(list: answer)
@@ -1284,7 +1284,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
             guard versions.read(performance: answer) else {
-                versionStatus = facadeObject(answer)?["message"] as? String
+                versionStatus = FacadeAnswer.message(answer)
                 return
             }
             versionStatus = status
@@ -1309,7 +1309,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func readVersion(_ piece: Int32, _ id: String) async {
         let request = facadeRequest(["id": id])
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
-        if !versions.read(performance: answer) { versionStatus = facadeObject(answer)?["message"] as? String }
+        if !versions.read(performance: answer) { versionStatus = FacadeAnswer.message(answer) }
         await drawVersions()
     }
 
@@ -1321,7 +1321,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = perMinute.map { "{\"perMinute\": \($0)}" } ?? "{}"
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "tempo.set", request) }
         if let failure = facadeObject(answer), failure["error"] != nil {
-            problem = failure["message"] as? String
+            problem = FacadeAnswer.message(answer)
             return
         }
         notesChanged?()
@@ -1440,7 +1440,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func startMerge(_ start: String, direct: Bool = true) {
         guard let piece, let id = versions.shownId else { return }
         Task {
-            guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": start]) else { return }
+            guard await mergeCall(piece.id, .open, ["id": id, "start": start]) else { return }
             if direct && DeviceSettings.shared["merge.direct"] == "on" {
                 await applyDraft(piece)
                 return
@@ -1461,7 +1461,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         versionPicked?(bar)
         Task {
             if merge?.id != id {
-                guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
+                guard await mergeCall(piece.id, .open, ["id": id, "start": "saved"]) else { return }
                 mergeShow = "result"
             }
             goToMergeBar(bar)
@@ -1480,7 +1480,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// change of its phrase.
     func chooseMerge(_ choice: String, bar: Int? = nil) {
         guard let piece, let at = bar ?? mergeAt else { return }
-        changeDraft(piece, "performance.merge.choose", ["bars": draftBars(at), "choice": choice])
+        changeDraft(piece, .choose, ["bars": draftBars(at), "choice": choice])
     }
 
     /// Take the group: every change of the kind at once, mine or the version.
@@ -1488,36 +1488,36 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece, let merge else { return }
         let bars = merge.bars.filter { $0.group == group }.map(\.bar)
         guard !bars.isEmpty else { return }
-        changeDraft(piece, "performance.merge.choose", ["bars": bars, "choice": choice])
+        changeDraft(piece, .choose, ["bars": bars, "choice": choice])
     }
 
     /// Reset the bar: undecided again.
     func undecideMerge(_ bar: Int) {
         guard let piece else { return }
-        changeDraft(piece, "performance.merge.undecide", ["bars": [bar]])
+        changeDraft(piece, .undecide, ["bars": [bar]])
     }
 
     func undoDraft() {
         guard let piece else { return }
-        changeDraft(piece, "performance.merge.undo")
+        changeDraft(piece, .undo)
     }
 
     func redoDraft() {
         guard let piece else { return }
-        changeDraft(piece, "performance.merge.redo")
+        changeDraft(piece, .redo)
     }
 
     /// Reset the draft: back to how it opened, which Undo can itself take back.
     func resetDraft() {
         guard let piece else { return }
-        changeDraft(piece, "performance.merge.reset")
+        changeDraft(piece, .reset)
     }
 
     /// Cancel: the draft goes and nothing has changed.
     func cancelDraft() {
         guard let piece else { return }
         Task {
-            _ = await mergeCall(piece.id, "performance.merge.cancel")
+            _ = await mergeCall(piece.id, .cancel)
             endDraft()
             await mergeChanged()
         }
@@ -1544,12 +1544,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 guard let id = versions.shownId else { return }
                 await unapply(piece, id, toast: text["merge.applyUndone"], undo: nil)
             case .reapply:
-                guard let id = versions.shownId, await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
+                guard let id = versions.shownId, await mergeCall(piece.id, .open, ["id": id, "start": "saved"]) else { return }
                 await applyDraft(piece, toast: text["merge.redone"])
             case .putBack:
                 let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.putBack") }
                 guard versions.read(performance: answer) else {
-                    versionStatus = facadeObject(answer)?["message"] as? String
+                    versionStatus = FacadeAnswer.message(answer)
                     return
                 }
                 versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
@@ -1595,8 +1595,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         mergeHearing = view
         Task {
             let request = facadeRequest(["view": view == "alternate" ? "version" : view])
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.playback", request) }
-            guard let notes = PlaybackScore.read(answer)?.notes else { return }
+            let answer = await PieceCore(piece: piece.id).mergePlayback(request)
+            guard let notes = answer.value.map(PlaybackScore.init)?.notes else { return }
             if view == "alternate" { hearInTurn?(notes, span) } else { hearNotes?(notes, span) }
         }
     }
@@ -1654,24 +1654,22 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return bars.isEmpty ? [bar] : bars
     }
 
-    private func changeDraft(_ piece: OpenPiece, _ call: String, _ fields: [String: Any] = [:]) {
+    private func changeDraft(_ piece: OpenPiece, _ call: PieceCore.Merge, _ fields: [String: Any] = [:]) {
         Task {
             if await mergeCall(piece.id, call, fields) { await mergeChanged() }
         }
     }
 
     /// One `performance.merge` call; the draft as it answers. False, with why, for an error.
-    @discardableResult private func mergeCall(_ piece: Int32, _ call: String, _ fields: [String: Any] = [:]) async -> Bool {
+    @discardableResult private func mergeCall(_ piece: Int32, _ call: PieceCore.Merge, _ fields: [String: Any] = [:]) async -> Bool {
         let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
-        let read = FacadeAnswer(answer, of: call)
-        let draft = read.flatMap { MergeInfo(object: $0.fields) }
+        let answer = await PieceCore(piece: piece).merge(call, request)
         // A refusal, or a draft that cannot be read: "merge" is null only with none open.
-        guard let read, draft != nil || read.fields["merge"] is NSNull else {
-            versionStatus = FacadeAnswer.problem(answer)
+        guard let read = answer.value else {
+            versionStatus = FacadeAnswer.problem(answer.text)
             return false
         }
-        merge = draft
+        merge = read.merge.map(MergeInfo.init)
         if let merge, let mergeAt, !merge.bars.contains(where: { $0.bar == mergeAt }) { self.mergeAt = merge.bars.first?.bar }
         return true
     }
@@ -1699,9 +1697,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func applyDraft(_ piece: OpenPiece, toast: String? = nil) async {
         let at = ISO8601DateFormatter().string(from: Date())
         let request = facadeRequest(["at": at])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.apply", request) }
-        guard versions.read(performance: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
+        let answer = await PieceCore(piece: piece.id).mergeApply(request)
+        guard versions.read(performance: answer.value) else {
+            versionStatus = answer.message
             return
         }
         endDraft()
@@ -1712,9 +1710,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func unapply(_ piece: OpenPiece, _ id: String, toast: String, undo: MergeToast.Undo?) async {
         let request = facadeRequest(["id": id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.undoApplied", request) }
-        guard versions.read(performance: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
+        let answer = await PieceCore(piece: piece.id).mergeUndoApplied(request)
+        guard versions.read(performance: answer.value) else {
+            versionStatus = answer.message
             return
         }
         mergeToast = MergeToast(text: toast, undo: undo)
@@ -2039,7 +2037,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func draw(_ answer: String) async {
         guard let object = facadeObject(answer) else { return }
         if object["error"] != nil {
-            problem = object["message"] as? String
+            problem = FacadeAnswer.message(answer)
             return
         }
         let ink = object["ink"] as? [Any] ?? []

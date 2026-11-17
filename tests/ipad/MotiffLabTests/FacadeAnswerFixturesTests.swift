@@ -166,12 +166,95 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertTrue(layers[5].moved.isEmpty, "the correction laid on a near note put back")
     }
 
+    func testTheSourceLayersOfAPdfDecode() throws {
+        let (_, text) = try XCTUnwrap(Self.answers("sources.layers.pdf", of: "Nocturne.pdf").first)
+        let layers = try XCTUnwrap(SourceLayers(answer: text), "\(reported)")
+        XCTAssertEqual(reported, [])
+        XCTAssertNil(layers.working, "a piece that is only its PDF has no working notes")
+        XCTAssertEqual(layers.original("src_pdf")?.pageMarks, 1, "its bookmark")
+    }
+
+    func testThePhraseLevelsDecode() throws {
+        let answers = try Self.answers("phrases.level")
+        XCTAssertEqual(answers.count, 7)
+        let levels = try [0, 2, 3].map { try XCTUnwrap(FacadeAnswer.decode(PhraseLevelAnswer.self, answers[$0].text, of: "phrases.level"), "\(reported)") }
+        let phrases = try [4, 5, 6].map { try XCTUnwrap(PhraseLevelsShown(answer: answers[$0].text), "\(reported)") }
+        XCTAssertNotNil(ScoreSelection(answer: answers[1].text))
+        XCTAssertEqual(reported, [])
+
+        let sentences = PhraseLevelsShown(levels[0].phrases)
+        XCTAssertEqual(sentences.level, "sentence")
+        XCTAssertEqual(sentences.counts, ["short": 39, "phrase": 21, "sentence": 4])
+        XCTAssertEqual(sentences.units.count, 4)
+        let first = try XCTUnwrap(sentences.unit(1))
+        XCTAssertEqual(first.provenance, "inferred")
+        XCTAssertLessThan(first.selectableOnset, first.selectableEnd)
+        XCTAssertNil(levels[0].selection.selection, "nothing selected: null")
+
+        let moved = try XCTUnwrap(levels[1].selection.selection.map(ScoreSelection.init), "the selection moved to the short units there")
+        XCTAssertEqual(PhraseLevelsShown(levels[1].phrases).units.count, 39)
+        XCTAssertEqual([moved.firstBar, moved.lastBar], [4, 5])
+        XCTAssertEqual(levels[2].selection.selection.map { [$0.firstBar, $0.lastBar] }, [4, 8])
+
+        XCTAssertEqual(phrases[0].edited, [])
+        XCTAssertEqual(phrases[1].edited, ["phrase"], "a phrase joined with the next is the player's own")
+        XCTAssertEqual(phrases[1].counts["phrase"], 20)
+        XCTAssertEqual(phrases[2].edited, [], "reset")
+    }
+
+    func testTheMergeDraftDecodes() throws {
+        let answers = try Self.answers("performance.merge")
+        XCTAssertEqual(answers.count, 11, "each call's answer but the version added and the result heard")
+        let drafts = try [0, 1, 2, 3, 4, 5, 6, 9, 10].map { try XCTUnwrap(FacadeAnswer.decode(MergeAnswer.self, answers[$0].text, of: "performance.merge"), "\(reported)") }
+        let applied = try [7, 8].map { try XCTUnwrap(FacadeAnswer.decode(PerformanceAnswer.self, answers[$0].text, of: "performance.merge.apply"), "\(reported)") }
+        XCTAssertEqual(reported, [])
+
+        let opened = try XCTUnwrap(drafts[0].merge.map(MergeInfo.init))
+        XCTAssertEqual(opened.id, "perf_1")
+        XCTAssertEqual(opened.bars.map(\.bar), [5])
+        XCTAssertEqual(opened.choice(at: 5), "mine")
+        XCTAssertEqual(opened.bars.first?.group, "addedNotes")
+        XCTAssertFalse(opened.canUndo)
+        let chosen = try XCTUnwrap(drafts[1].merge.map(MergeInfo.init))
+        XCTAssertEqual(chosen.choice(at: 5), "version")
+        XCTAssertEqual(chosen.taking, 1)
+        XCTAssertTrue(chosen.canUndo && chosen.changed)
+        // A bar's "choice" is always written, a string or null: a draft whose bar has none is broken, and reported.
+        let unchosen = answers[1].text.replacingOccurrences(of: "\"choice\":", with: "\"choiceRenamed\":")
+        XCTAssertNotEqual(unchosen, answers[1].text, "the draft's bar writes \"choice\"")
+        XCTAssertNil(FacadeAnswer.decode(MergeAnswer.self, unchosen, of: "performance.merge"))
+        XCTAssertTrue(reported.contains { $0.contains("\"choice\"") }, "\"choice\" renamed is reported: \(reported)")
+        reported = []
+        XCTAssertTrue(drafts[2].merge?.canRedo == true, "undone")
+        XCTAssertNil(try XCTUnwrap(drafts[4].merge.map(MergeInfo.init)).choice(at: 5), "undecided: null")
+        XCTAssertEqual(drafts[4].merge?.decided, 0)
+        XCTAssertEqual(drafts[7].merge.map(MergeInfo.init)?.choice(at: 5), "version", "opened again as applied")
+        XCTAssertNil(drafts[8].merge, "cancelled: none open")
+
+        var shelf = VersionShelf()
+        XCTAssertTrue(shelf.read(performance: applied[0]))
+        XCTAssertEqual(shelf.shownId, "perf_1")
+        XCTAssertEqual(shelf.shown?.takenBars, 1)
+        XCTAssertNotNil(shelf.shown?.mergedAt)
+        XCTAssertEqual(shelf.shown?.mergeKept, true)
+        XCTAssertEqual(shelf.matched, shelf.printed)
+        let bar5 = try XCTUnwrap(shelf.bars.first { $0.bar == 5 })
+        XCTAssertTrue(bar5.taken && bar5.differs)
+        XCTAssertEqual(bar5.played, 3)
+        XCTAssertNotNil(bar5.span)
+        XCTAssertTrue(shelf.read(performance: applied[1]))
+        XCTAssertNil(shelf.shown?.mergedAt, "the merge undone: null")
+        XCTAssertEqual(shelf.shown?.takenBars, 0)
+        XCTAssertEqual(shelf.entries.count, 1)
+    }
+
     /// Each answer a file keeps, with its request, as the facade's text; a call that only builds the state keeps none.
-    private static func answers(_ name: String) throws -> [(request: [String: Any]?, text: String)] {
+    /// `fixture`: the file the piece is made from, as the file names it.
+    private static func answers(_ name: String, of fixture: String = "FurElise.musicxml") throws -> [(request: [String: Any]?, text: String)] {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("contracts/facade-answers/\(name).json")
         let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any], url.path)
-        XCTAssertEqual(file["fixture"] as? String, "FurElise.musicxml")
+        XCTAssertEqual(file["fixture"] as? String, fixture)
         let entries = try XCTUnwrap(file["answers"] as? [[String: Any]])
         return try entries.compactMap { entry -> (request: [String: Any]?, text: String)? in
             guard let answer = entry["answer"] as? [String: Any] else { return nil }
