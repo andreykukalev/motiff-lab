@@ -24,7 +24,7 @@ public enum SettingSection
 
     /// <summary>
     /// Experiments (governance, "Experiments"): each new idea behind its own switch, off until the player turns it on. Holds
-    /// no switch since the 23 of version 0.6 went (W1.11); the scan engine's choice is kept here, as it was.
+    /// no switch since the 23 of versions 0.4 to 0.6.4 went in 0.7 (W1.11); the scan engine's choice stays here.
     /// </summary>
     Experimental,
 }

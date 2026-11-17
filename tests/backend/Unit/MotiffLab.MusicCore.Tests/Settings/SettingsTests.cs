@@ -20,6 +20,10 @@ public class SettingsTests
         Assert.False(state.IsOn("guidance.hints"));
         Assert.Equal("phrases", state["phrases.granularity"]);
 
+        // A switch no preset governs starts at its own default: on where the catalogue says so, else off.
+        Assert.True(state.IsOn("playback.follow"));
+        Assert.False(state.IsOn("score.noteNames"));
+
         SettingsState changed = state.With("guidance.hints", Setting.On);
         Assert.Equal(Preset.Custom, changed.Preset);
         Assert.Equal(Preset.Practising, changed.With("guidance.hints", Setting.Off).Preset);
@@ -88,7 +92,7 @@ public class SettingsTests
         Assert.Throws<KeyNotFoundException>(() => project.OverrideSetting("layers.magic", Setting.On));
     }
 
-    /// <summary>The 23 experiment switches of version 0.6 (W1.11): a device's store may still name them.</summary>
+    /// <summary>The 23 experiment switches of versions 0.4 to 0.6.4, removed in 0.7 (W1.11): a device's store may still name them.</summary>
     private static readonly string[] s_experimentSwitches =
     [
         "experimental.pieces", "experimental.editsLayer", "experimental.liveTempo", "experimental.readingMarks", "experimental.reference",
