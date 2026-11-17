@@ -31,7 +31,9 @@ import {
   updateBaseline,
   valueIn,
 } from './ratchet.mjs';
-import { CORE, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreViolations, ipadPageViolations } from './dependencies.mjs';
+import {
+  CORE, IPAD_FOLDERS, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreViolations, ipadFolderViolations, ipadPageViolations,
+} from './dependencies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SHARED = join(ROOT, 'src', 'shared');
@@ -399,6 +401,7 @@ function dependenciesCheck() {
   return [
     ...coreViolations(gitFiles(`${CORE}/*.cs`, `${CORE}/*.csproj`), read),
     ...ipadPageViolations(pages, read, exists, bundledFolders(read(IPAD_PROJECT))),
+    ...ipadFolderViolations(gitFiles(`${IPAD_FOLDERS}/*.swift`), read),
   ];
 }
 
