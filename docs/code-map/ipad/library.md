@@ -15,6 +15,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Library`.
   the screen).
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe`
   (`Platform/ScreensHook.swift`) gives each switch's phases.
+- `MotiffLabTests/SwitchReleaseTests` goes notes → PDF → notes five times through both screens' real objects (the
+  workspace, its controllers, web views and pages; the PDF's controllers) and checks that each visited screen is let go.
 
 ## The contract others may rely on
 
