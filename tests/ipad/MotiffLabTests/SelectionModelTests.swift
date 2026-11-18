@@ -71,30 +71,73 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertFalse(SelectionModel().phrasesHidden)
     }
 
-    func testSelectingAndAnotherLevelGoThroughMusicCore() async throws {
+    /// A model on the kit's piece open in music-core, closed when the test ends, with a history of its own.
+    private func inMusicCore() throws -> (SelectionModel, Int32) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let answer = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: nil)))
         let piece = Int32(answer["piece"] as? Int ?? 0)
-        defer { MusicCore.close(piece: piece) }
+        XCTAssertGreaterThan(piece, 0)
+        addTeardownBlock { MusicCore.close(piece: piece) }
         var open = OpenPiece(id: piece, title: example.title, pages: [], timemap: "")
         open.file = FileManager.default.temporaryDirectory.appendingPathComponent("selection-\(UUID().uuidString).motiff.json")
         let model = SelectionModel()
         model.open(open)
+        return (model, piece)
+    }
 
-        let quiet = await model.select(in: piece, request: #"{"bars": {"first": 1, "last": 2}}"#, gesture: nil, step: false, picked: false, replaces: false)
+    private func select(_ model: SelectionModel, in piece: Int32, _ request: String, step: Bool) async -> String? {
+        await model.select(in: piece, request: request, gesture: nil, step: step, picked: false, replaces: false)
+    }
+
+    func testASelectionThroughMusicCoreIsAStepUnlessSaidOtherwiseAndARefusalChangesNothing() async throws {
+        let (model, piece) = try inMusicCore()
+        let quiet = await select(model, in: piece, #"{"bars": {"first": 1, "last": 2}}"#, step: false)
         XCTAssertNil(quiet)
         XCTAssertEqual(model.selection?.firstBar, 1)
         XCTAssertFalse(model.steps.canUndo, "a selection the player did not make now is no step")
-        let made = await model.select(in: piece, request: #"{"bars": {"first": 3, "last": 4}}"#, gesture: nil, step: true, picked: false, replaces: false)
+        let made = await select(model, in: piece, #"{"bars": {"first": 3, "last": 4}}"#, step: true)
         XCTAssertNil(made)
-        XCTAssertEqual(model.selection?.firstBar, 3)
+        let selected = try XCTUnwrap(model.selection)
+        XCTAssertEqual(selected.firstBar, 3)
         XCTAssertTrue(model.steps.canUndo)
 
+        let backwards = #"{"span": {"onset": 100, "end": 50}}"#
+        let refused = await select(model, in: piece, backwards, step: true)
+        XCTAssertEqual(refused, FacadeAnswer.problem(MusicCore.call(piece: piece, "select", backwards)), "music-core's refusal as the player reads it")
+        XCTAssertNotNil(refused)
+        XCTAssertEqual(model.selection, selected, "a refusal leaves the selection as it was")
+        XCTAssertEqual(model.undo()?.after, SelectionSpan(selected), "and makes no step")
+    }
+
+    func testAnotherLevelMovesTheSelectionToItsUnit() async throws {
+        let (model, piece) = try inMusicCore()
         await model.loadPhrases(of: piece)
         XCTAssertEqual(model.phrases?.level, "phrase")
+        _ = await select(model, in: piece, #"{"bars": {"first": 3, "last": 4}}"#, step: false)
+        let before = try XCTUnwrap(model.selection)
+
         await model.showLevel("sentence", in: piece, remember: false)
         XCTAssertEqual(model.phrases?.level, "sentence")
-        XCTAssertNotNil(model.selection, "the selection moves to the new level")
+        let moved = try XCTUnwrap(model.selection)
+        XCTAssertNotEqual(moved, before, "bars 3–4 are not a sentence: the selection moved")
+        let holding = try XCTUnwrap(model.phrases?.units.first { $0.onset <= before.onset && before.onset < $0.end })
+        XCTAssertEqual(moved.onset, holding.selectableOnset, "the selection is the sentence that holds it now")
+        XCTAssertEqual(moved.end, holding.selectableEnd)
+    }
+
+    func testResetLevelHasTheUnitsFoundInTheFileAgain() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let found = try XCTUnwrap(model.phrases)
+        XCTAssertTrue(found.edited.isEmpty)
+        _ = MusicCore.call(piece: piece, "phrases.edit", #"{"level": "phrase", "joinWithNext": 1}"#)
+        await model.loadPhrases(of: piece)
+        XCTAssertEqual(model.phrases?.units.count, found.units.count - 1, "two phrases joined by the player")
+        XCTAssertEqual(model.phrases?.edited.contains("phrase"), true)
+
+        await model.resetLevel("phrase", in: piece)
+        XCTAssertEqual(model.phrases?.units.count, found.units.count)
+        XCTAssertEqual(model.phrases?.edited.isEmpty, true, "the player's own boundaries are forgotten")
     }
 
     func testARevertedGestureLeavesNoStep() throws {

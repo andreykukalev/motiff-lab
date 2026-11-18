@@ -47,8 +47,6 @@
   "performance.add": "Добавить версию",
   "performance.markerLabel": "Такт {0} в версии «{1}»: {2}",
   "performance.defaultName": "Версия",
-  "performance.noMatch": "Версия не совпадает с этими нотами: ни одна нота не нашла пары. Это та же пьеса?",
-  "performance.added": "Совмещено: в версии найдено {0} из {1} нот, тактов отличается: {2}.",
   "performance.remove": "Удалить версию",
   "focus.version": "Как в «{0}»",
   "merge.applied.one": "Слияние применено: {0} такт из версии",
