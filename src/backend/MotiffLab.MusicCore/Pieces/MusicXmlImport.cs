@@ -186,7 +186,7 @@ public sealed record MusicXmlTempoChange(Tick At, int MeasureIndex, decimal Quar
     public int MicrosecondsPerQuarter => (int)Math.Round(60_000_000m / QuarterNotesPerMinute, MidpointRounding.AwayFromZero);
 
     /// <summary>Notated when the score states it, assumed for the default (version 0.5.4).</summary>
-    public Playback.TempoSource Source => IsAssumed ? Playback.TempoSource.Assumed : Playback.TempoSource.Notated;
+    public TempoSource Source => IsAssumed ? TempoSource.Assumed : TempoSource.Notated;
 }
 
 /// <param name="Denominator">Note value of the beat as a power of two, 1–128.</param>

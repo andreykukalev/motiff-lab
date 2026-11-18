@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Events;
 
 namespace MotiffLab.MusicCore.Tests.Notation;
 

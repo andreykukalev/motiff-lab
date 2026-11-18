@@ -1,7 +1,6 @@
-using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Notation;
+namespace MotiffLab.MusicCore.Events;
 
 /// <summary>
 /// How notes moved to another key are written (version 0.5, #351): each as the original note is spelled in its own key,

@@ -1,6 +1,4 @@
-using MotiffLab.MusicCore.Time;
-
-namespace MotiffLab.MusicCore.Playback;
+namespace MotiffLab.MusicCore.Time;
 
 /// <summary>
 /// The note a tempo is counted in (version 0.5.4, #511 section 17): a quarter note, or a dotted quarter in 6/8, 9/8,

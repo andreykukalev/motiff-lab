@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Events;
 
 namespace MotiffLab.MusicCore.Facade;
 

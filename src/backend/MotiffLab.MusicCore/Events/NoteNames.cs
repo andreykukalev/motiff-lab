@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Notation;
+namespace MotiffLab.MusicCore.Events;
 
 /// <summary>How note names are written: letters with the scientific octave, or the Russian syllables with the octave as Russian music schools write it.</summary>
 public enum NoteNaming
