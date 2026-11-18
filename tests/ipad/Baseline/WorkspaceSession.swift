@@ -169,27 +169,27 @@ final class WorkspaceSession {
         reactions = [
             Reaction({ player.hearingAlone }, { _, alone in workspace.hearingAloneChanged(alone) }),
             Reaction({ workspace.panels[.contents] }, { _, open in workspace.contentsChanged(open) }),
-            Reaction({ score.focused }, { _, focused in workspace.focusChanged(focused) }),
+            Reaction({ score.focusModel.focused }, { _, focused in workspace.focusChanged(focused) }),
             Reaction({ score.practicing }, { _, on in workspace.practicingChanged(on) }),
             Reaction({ score.selectionControlsShown }, { _, shown in workspace.selectionControlsChanged(shown) }),
-            Reaction({ score.focused && score.focusRoll }, { _, shown in rollShown(shown); workspace.focusRollChanged(shown, dark: false) }),
+            Reaction({ score.focusModel.focused && score.focusModel.asRoll }, { _, shown in rollShown(shown); workspace.focusRollChanged(shown, dark: false) }),
             Reaction({ workspace.panels[.roll] }, { _, open in rollShown(open); workspace.rollDrawerChanged(open, dark: false) }),
             Reaction({ score.check }, { _, _ in workspace.checkChanged() }),
             Reaction({ workspace.panels[.insights] }, { _, open in workspace.insightsChanged(open) }),
             Reaction({ workspace.panels.placeFromMoreOpen }, { _, open in workspace.placeFromMoreChanged(open) }),
             Reaction({ workspace.panels[.check] }, { _, open in workspace.checkDrawerChanged(open) }),
             Reaction({ workspace.panels[.versions] }, { _, open in workspace.sourcesChanged(open) }),
-            Reaction({ workspace.panels.otherPlaceOpen(focused: score.focused) }, { _, open in workspace.otherPlaceChanged(open) }),
+            Reaction({ workspace.panels.otherPlaceOpen(focused: score.focusModel.focused) }, { _, open in workspace.otherPlaceChanged(open) }),
             Reaction({ workspace.panels[.versions] }, { _, open in workspace.sourcesOpened(open) }),
-            Reaction({ score.focusVersion }, { _, version in workspace.focusVersionChanged(version) }),
+            Reaction({ score.focusModel.version }, { _, version in workspace.focusVersionChanged(version) }),
             Reaction({ workspace.insights.chosen }, { _, chosen in workspace.factChosen(chosen) }),
             Reaction({ workspace.rollPlace }, { _, place in workspace.rollPlaceChanged(place) }),
             Reaction({ player.tick }, { _, tick in workspace.playerMoved(tick) }),
             Reaction({ player.state }, { old, state in workspace.playerStateChanged(from: old, to: state) }),
-            Reaction({ score.selection }, { _, selection in workspace.selectionChanged(selection) }),
+            Reaction({ score.selectionModel.selection }, { _, selection in workspace.selectionChanged(selection) }),
             Reaction({ player.loop }, { _, loop in workspace.loopChanged(loop) }),
             Reaction({ score.noteEditor }, { _, editor in workspace.noteEditorChanged(editor) }),
-            Reaction({ score.playRange }, { old, new in workspace.whatPlaysChanged(from: old, to: new) }),
+            Reaction({ score.focusModel.playRange }, { old, new in workspace.whatPlaysChanged(from: old, to: new) }),
             Reaction({ workspace.assistant.panelOpen }, { _, open in workspace.assistantPanelChanged(open) }),
             Reaction({ workspace.panels.sheetOpen }, { _, open in workspace.sheetChanged(open) }),
         ]
@@ -204,13 +204,13 @@ final class WorkspaceSession {
         let score = workspace.score
         let player = workspace.player
         workspace.$panels.sink { [weak self] in self?.changed("panels", PanelStateTests.words($0)) }.store(in: &watched)
-        score.$focused.sink { [weak self] in self?.changed("Expand", $0 ? "open" : "closed") }.store(in: &watched)
+        score.focusModel.$focused.sink { [weak self] in self?.changed("Expand", $0 ? "open" : "closed") }.store(in: &watched)
         workspace.assistant.$panelOpen.sink { [weak self] in self?.changed("assistant's panel", $0 ? "open" : "closed") }.store(in: &watched)
         player.$selection.sink { [weak self] in self?.changed("player selection", Self.span($0)) }.store(in: &watched)
         player.$cycle.sink { [weak self] in self?.changed("player cycle", $0 ? "on" : "off") }.store(in: &watched)
         player.$loop.sink { [weak self] in self?.changed("player loops", Self.span($0)) }.store(in: &watched)
         player.$ready.dropFirst().sink { [weak self] ready in if !ready { self?.say("player shut down") } }.store(in: &watched)
-        score.$sources.dropFirst().sink { [weak self] _ in self?.say("score reads its sources") }.store(in: &watched)
+        score.sourcesModel.$info.dropFirst().sink { [weak self] _ in self?.say("score reads its sources") }.store(in: &watched)
         Metronome.shared.$running.dropFirst().sink { [weak self] running in self?.say(running ? "metronome started" : "metronome stopped") }
             .store(in: &watched)
     }

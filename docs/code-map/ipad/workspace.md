@@ -49,14 +49,14 @@ effects beside it (the roll, Insights, the page's inset, the assistant) fire in 
 did. The modifiers stay in the view. Those on the panels, in the order `ScoreScreenContent` declares
 them, and the order inside each:
 
-1. `watching`: `panels[.contents]` (`.contents`, then `contents.cancel()`); `score.focused` (`focusChanged`:
+1. `watching`: `panels[.contents]` (`.contents`, then `contents.cancel()`); `focusModel.focused` (`focusChanged`:
    `.expand(true)` first going in, `.expand(false)` last coming out, after the player's hold);
-   `score.focused && score.focusRoll` (`focusRollChanged`: `.rollOnCard`, then the roll); `panels[.roll]`
+   `focused && asRoll` (`focusRollChanged`: `.rollOnCard`, then the roll); `panels[.roll]`
    (`rollDrawerChanged`: `.roll`, then `roll.show` or `cancelNoteEdit`); `panels[.insights]` (`.insights`, then load or
    `clearChoice`).
 2. `checking`: `placeFromMoreOpen` (`.placeFromMore`); `panels[.check]` (`score.checkDrawerOpen`, then `.check`);
    `panels[.versions]` (`.versions`, with Expand as it is now); `otherPlaceOpen(focused:)` (`.otherPlace`).
-3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`); `score.playRange`
+3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`); `playRange`
    (the player first, then `syncPlayheads`). 5. `body`: `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen`
    (`assistant.close()`).
 
@@ -69,7 +69,7 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: the page's marks, corrections, `focused`, `sources`; `mode` (never nil since v0.6.5);
+`ScoreController`: the page's marks, corrections; `mode` (never nil since v0.6.5);
 the models. `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and
 whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).

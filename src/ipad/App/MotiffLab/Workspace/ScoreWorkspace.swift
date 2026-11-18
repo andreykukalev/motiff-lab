@@ -277,7 +277,7 @@ extension ScoreWorkspace {
     }
 
     func spacePressed() {
-        if score.focused, let passage = score.focusModel.playRange?.range {
+        if score.focusModel.focused, let passage = score.focusModel.playRange?.range {
             player.playPassage(passage)
         } else {
             player.apply(.press)
@@ -288,7 +288,7 @@ extension ScoreWorkspace {
     /// it. Under the playback model (v0.5.2) it goes anywhere, as a tap on a beat does (T12): the loop strip and the whole piece
     /// move it too, and Цикл turns off when it leaves the selection (the loop strip only moves it inside, T13).
     func rollPlayheadMoved(to tick: Double, play: Bool) {
-        if score.focused, let passage = score.focusModel.playRange?.range {
+        if score.focusModel.focused, let passage = score.focusModel.playRange?.range {
             // In Expand within the passage, playing it round from there (#533 2).
             player.move(to: tick, play: play, within: passage)
         } else {
@@ -309,7 +309,7 @@ extension ScoreWorkspace {
     }
 
     func rollPlayheadGestured(_ gesture: PlayheadGesture) {
-        if score.focused, let passage = score.focusModel.playRange?.range {
+        if score.focusModel.focused, let passage = score.focusModel.playRange?.range {
             player.handle(gesture, within: passage)
         } else {
             player.handle(gesture)

@@ -107,10 +107,10 @@ extension ScoreController {
         return RingModes(
             chosen: chosen,
             choose: { [weak self] tool in self?.chooseMode(tool) },
-            controls: ExpandRules.ringControls(focused: focused, otherwise: StylusRules.ringControls(chosen)),
+            controls: ExpandRules.ringControls(focused: focusModel.focused, otherwise: StylusRules.ringControls(chosen)),
             canUndo: ink ? canUndo : selectionModel.steps.canUndo,
             canRedo: ink ? canRedo : selectionModel.steps.canRedo,
-            canClear: selectionModel.selection != nil && !focused,
+            canClear: selectionModel.selection != nil && !focusModel.focused,
             undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
             redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
             clear: { [weak self] in self?.clearSelection() }
@@ -119,7 +119,7 @@ extension ScoreController {
 
     /// The history Undo and Redo act on now (#521 9): the tool's in force; none in Navigate, nor in Expand (#521 19.3).
     var undoOwner: StylusRules.UndoOwner {
-        ExpandRules.undoOwner(focused: focused, otherwise: StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false))
+        ExpandRules.undoOwner(focused: focusModel.focused, otherwise: StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false))
     }
 
     /// ⌘Z: Undo of the tool in force; nothing in Navigate.
@@ -290,6 +290,8 @@ extension View {
 struct SelectionToastView: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
+    /// Whether Expand is open, from the screen that observes it (Selection may not name FocusModel): no toast then.
+    let focused: Bool
     let text: UIText
     let merging: Bool
 
@@ -299,7 +301,7 @@ struct SelectionToastView: View {
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
-            } else if selectionModel.toast != nil && selectionModel.steps.canUndo && !score.focused {
+            } else if selectionModel.toast != nil && selectionModel.steps.canUndo && !focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
                     Text(text[selectionModel.toastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }

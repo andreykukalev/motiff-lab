@@ -91,7 +91,7 @@ extension ScoreWorkspace {
     /// playback model (v0.5.2) the player takes the selection, and Цикл decides (T9–T11).
     func playRangeChanged(from old: FocusModel.PlayRange?, to new: FocusModel.PlayRange?) {
         // Expand loops its passage (#533 2): what plays for it plays on round it.
-        if score.focused {
+        if score.focusModel.focused {
             if let new, player.state != .stopped { player.keepWithin(new.range) }
             return
         }

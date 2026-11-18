@@ -35,7 +35,7 @@ struct PanelState: Equatable, Sendable {
     enum Rule: Equatable, Sendable {
         /// The Contents opened or closed.
         case contents(Bool)
-        /// Expand entered or left (`ScoreController.focused`).
+        /// Expand entered or left (`FocusModel.focused`).
         case expand(Bool)
         /// The passage shown as a roll on Expand's card, or no longer.
         case rollOnCard(Bool)

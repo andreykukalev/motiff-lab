@@ -140,16 +140,16 @@ struct PracticeView: Equatable {
 
 extension ScoreController {
     /// Practice view in force: not in Expand, which has its own bar and pill.
-    var practicing: Bool { practice.on && !focused }
+    var practicing: Bool { practice.on && !focusModel.focused }
 
     /// What the page shows now.
-    var practiceShown: PracticeView.Shown { practice.shown(at: Date(), focused: focused) }
+    var practiceShown: PracticeView.Shown { practice.shown(at: Date(), focused: focusModel.focused) }
 
-    var practiceChrome: PracticeView.Chrome { practice.chrome(at: Date(), focused: focused) }
+    var practiceChrome: PracticeView.Chrome { practice.chrome(at: Date(), focused: focusModel.focused) }
 
     /// The selection controls visible (#582 item 10): the selection menu and its hints. The state track A's selection popup
     /// and gestures read; set only by its switch and the menu's Hide, never by the playback controls.
-    var selectionControlsShown: Bool { practice.selectionShown(focused: focused) }
+    var selectionControlsShown: Bool { practice.selectionShown(focused: focusModel.focused) }
 
     /// The playback controls visible (#582 item 10): the pill, the blue playhead, the loop strip, the hint back to playing.
     var playbackControlsShown: Bool { !practicing }
@@ -242,6 +242,8 @@ struct PracticeControls: View {
 /// says which groups are hidden. With a keyboard, Escape in practice view shows the playback controls again, as Leave does.
 struct PracticeButton: View {
     @ObservedObject var score: ScoreController
+    /// Practice view is off in Expand (`ScoreController.practicing`).
+    @ObservedObject var focusModel: FocusModel
     let text: UIText
     @State private var listOpen = false
 

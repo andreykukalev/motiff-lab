@@ -92,7 +92,7 @@ extension ScoreWorkspace {
         ResumePlace.Now(
             passage: score.selectionModel.selection.map { $0.onset..<$0.end },
             tick: player.tick,
-            focused: score.focused,
+            focused: score.focusModel.focused,
             tempoPercent: player.tempoPercent,
             hands: player.hands,
             loop: player.loop != nil
@@ -181,7 +181,7 @@ extension ScoreWorkspace {
         guard let switchView, !handingOver else { return }
         handingOver = true
         defer { handingOver = false }
-        let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
+        let pages = piece.other?.pages ?? PageMap(starts: score.sourcesModel.info.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
         await keepForHandOver()
         await switchView(.page(pages.page(of: tick)))
