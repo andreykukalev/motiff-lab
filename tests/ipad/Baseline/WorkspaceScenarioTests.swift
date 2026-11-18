@@ -66,7 +66,7 @@ final class WorkspaceScenarioTests: XCTestCase {
     /// whatever Цикл says; and through selecting, Цикл, a tap, the notes drawn again and Expand the roll is sent one
     /// zoom, the player's own, and after its first load only loads that keep the zoom and the view. PLAY-02, the
     /// workspace's part, nothing playing: a playhead taken on the score's page or the roll's reaches the player, and in
-    /// Expand it is held inside the passage.
+    /// Expand it is held inside the passage. PLAY-06: a tap on the score outside the selection leaves Цикл on.
     func testPLAY03PLAY04ROLL01ASessionOnTheNotesAndTheRoll() async throws {
         let session = await WorkspaceSession(piece: try await kit())
         let workspace = session.workspace
@@ -89,6 +89,8 @@ final class WorkspaceScenarioTests: XCTestCase {
         await session.step("the player zooms the roll in") { workspace.roll.zoomStep(.time, 1) }
         await session.step("the roll picks bars 7–8") { workspace.roll.picked?(.bars(first: 7, last: 8, extend: false), nil) }
         await session.step("a beat outside the selection is tapped on the score") { score.placeTapped?(240..<480) }
+        XCTAssertEqual(workspace.player.loop, 4560..<6000, "PLAY-06: a tap outside the selection leaves Цикл on, the selection looping")
+        await session.step("Цикл is turned off") { workspace.player.apply(.cycle) }
         await session.step("the piece's notes change") {
             let loads = session.rollLoads
             score.notesChanged?()
@@ -328,6 +330,8 @@ final class WorkspaceScenarioTests: XCTestCase {
             session.say("the file's resume point: \(point.map { "\(Int($0.lowerBound))–\(Int($0.upperBound))" } ?? "none")")
             await self.appear(session)
         }
+        XCTAssertTrue(workspace.player.cycle, "PLAY-06: back from the PDF, Цикл as it was, though the position kept is outside the selection")
+        XCTAssertEqual(workspace.player.loop, 3120..<4560, "PLAY-06: the selection loops again")
         await session.step("the selection is cleared") { workspace.score.clearSelection(step: false) }
         await session.step("the interface's language changes") {
             let reopen = await workspace.handOverForLanguage()
