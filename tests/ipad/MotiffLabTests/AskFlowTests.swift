@@ -107,6 +107,18 @@ final class AskFlowTests: XCTestCase {
         XCTAssertNil(flow.apply(.send))
     }
 
+    /// Andrei, 2026-11-18: the field starts at one line, a fingertip's height, grows with the question and stops at
+    /// `AskField.lines` lines, beyond which it scrolls inside.
+    @MainActor func testTheFieldGrowsWithTheQuestionUpToItsLines() {
+        let line: CGFloat = 20
+        let insets = AskField.inset * 2
+        let most = line * CGFloat(AskField.lines) + insets
+        XCTAssertEqual(AskField.height(fitted: 0, line: line), CGFloat.ds("h-touch"), "empty: one fingertip's line")
+        XCTAssertEqual(AskField.height(fitted: line + insets, line: line), max(CGFloat.ds("h-touch"), line + insets))
+        XCTAssertEqual(AskField.height(fitted: line * 3 + insets, line: line), line * 3 + insets, "three lines: three lines tall")
+        XCTAssertEqual(AskField.height(fitted: line * 12 + insets, line: line), most, "a long question scrolls inside")
+    }
+
     func testTheKeyboardsOverlapIsWhatItCoversFromBelow() {
         let sheet = CGRect(x: 600, y: 80, width: 380, height: 640)
         XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: nil), 0)

@@ -70,9 +70,18 @@ final class AssistantController: ObservableObject {
         panelOpen = true
     }
 
-    /// The scope chips: the whole piece, or the selection.
+    /// What the next question looks at: the whole piece, or the selection.
     func choose(wholePiece: Bool, selection: ScoreSelection?) {
         scope = .choose(wholePiece: wholePiece, selection: selection)
+    }
+
+    /// The player's press on a scope chip: as `choose`, and the selected bars picked are brought into view on the score
+    /// (its `reveal`), so the player sees them at once (Andrei, 2026-11-18); the whole piece moves nothing, and nor does
+    /// opening the panel (`open`).
+    func pickShowingBars(wholePiece: Bool, selection: ScoreSelection?) async {
+        choose(wholePiece: wholePiece, selection: selection)
+        guard !wholePiece, let selection else { return }
+        await score?.reveal(selection.onset)
     }
 
     /// What the API says the player may do now (`/assistant/status`), so the panel says why before anything is typed:

@@ -147,11 +147,11 @@ struct AssistantPanel: View {
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 if let label {
-                    Button(label) { assistant.choose(wholePiece: false, selection: selection) }
+                    Button(label) { Task { await assistant.pickShowingBars(wholePiece: false, selection: selection) } }
                         .buttonStyle(DSChipStyle(on: !whole))
                         .accessibilityAddTraits(!whole ? .isSelected : [])
                 }
-                Button(text["ask.wholePiece"]) { assistant.choose(wholePiece: true, selection: selection) }
+                Button(text["ask.wholePiece"]) { Task { await assistant.pickShowingBars(wholePiece: true, selection: selection) } }
                     .buttonStyle(DSChipStyle(on: whole))
                     .accessibilityAddTraits(whole ? .isSelected : [])
             }
