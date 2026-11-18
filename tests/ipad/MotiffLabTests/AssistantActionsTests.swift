@@ -115,7 +115,7 @@ final class AssistantActionsTests: XCTestCase {
         XCTAssertNil(assistant.here)
     }
 
-    /// «Продолжить в ассистенте» (Andrei, 2026-11-18 14:10 UTC): the question and answer at the selection start a new
+    /// «Продолжить в чате» (Andrei, 2026-11-18 14:10 UTC): the question and answer at the selection start a new
     /// conversation in the full assistant, whose panel opens on the selected bars; without the press nothing is kept.
     func testContinueInTheAssistantStartsAConversationWithTheQuestionAndAnswer() async {
         let (assistant, folder) = controller()

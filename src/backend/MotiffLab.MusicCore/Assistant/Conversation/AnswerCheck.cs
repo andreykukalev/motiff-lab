@@ -80,7 +80,7 @@ public static partial class AnswerCheck
     {
         var text = new StringBuilder(words.T(
             "The assistant's answer could not be checked against the engine's facts, so here is what the engine found:",
-            "Ответ помощника не удалось сверить с фактами движка, поэтому вот что нашёл движок:"));
+            "Ответ ассистента не удалось сверить с фактами движка, поэтому вот что нашёл движок:"));
         foreach ((string id, string line) in Facts(context).Take(TemplateFacts))
         {
             text.Append('\n').Append("· ").Append(line).Append(" [[").Append(id).Append("]]");

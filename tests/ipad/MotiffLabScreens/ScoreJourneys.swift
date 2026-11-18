@@ -166,7 +166,7 @@ extension Walk {
     func insightsAndTry() throws {
         try choosePhrase()
         try press(button("Инсайты"), "Insights")
-        try need(button(beginning: "Спросить помощника"), "the Insights sheet")
+        try need(button(beginning: "Спросить ассистента"), "the Insights sheet")
         let tryIt = button("Попробовать")
         try need(tryIt, "Try on a fact of the phrase", timeout: 20)
         shot("16-insights", settle: 1)
@@ -182,7 +182,7 @@ extension Walk {
         try until("the variation left", timeout: 8) { !$0.on("variation") }
         if probe()?.playing == true { try stop() }
         try press(button("Инсайты"), "Insights again")
-        try gone(button(beginning: "Спросить помощника"), "the Insights sheet")
+        try gone(button(beginning: "Спросить ассистента"), "the Insights sheet")
         try clearSelection()
     }
 
