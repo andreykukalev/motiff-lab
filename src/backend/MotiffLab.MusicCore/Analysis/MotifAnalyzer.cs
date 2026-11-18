@@ -706,7 +706,7 @@ public static partial class MotifAnalyzer
     private static long OffsetInBar(MeterMap meter, Tick position)
     {
         Bar bar = meter.BarAt(position);
-        return position.Value - bar.Span.Onset.Value + bar.LeadIn;
+        return position.Value - bar.Origin;
     }
 
     /// <summary>"a quarter", or "a length that is no single note value"; "четверть".</summary>

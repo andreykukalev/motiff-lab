@@ -6,9 +6,6 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
-/// <summary>A note with the written notes tied to it: exact onset and end, and how many were merged.</summary>
-internal sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, int Written);
-
 /// <summary>The sounding notes of a score: each chain of tied notes merged into one, on the canonical timeline, then as shared-model notes.</summary>
 internal static class ScoreNotes
 {
@@ -78,7 +75,7 @@ internal static class ScoreNotes
     /// continues the open tie of the same pitch that ends where it starts, else the one in the same
     /// voice and staff; with neither, the note stays on its own and is reported.
     /// </summary>
-    public static List<TiedNote> MergeTies(PartReader part, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
+    private static List<TiedNote> MergeTies(PartReader part, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
     {
         var merged = new List<TiedNote>();
         var open = new List<int>(); // indexes into merged of notes whose tie continues
@@ -154,4 +151,7 @@ internal static class ScoreNotes
     /// <summary>Time order, then part, pitch, measure and document order.</summary>
     private static int InScoreOrder(MusicXmlNote a, MusicXmlNote b) =>
         (a.Span.Onset, a.Track, a.Pitch, a.MeasureIndex, a.NoteIndex).CompareTo((b.Span.Onset, b.Track, b.Pitch, b.MeasureIndex, b.NoteIndex));
+
+    /// <summary>A note with the written notes tied to it: exact onset and end, and how many were merged.</summary>
+    private sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, int Written);
 }

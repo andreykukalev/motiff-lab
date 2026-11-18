@@ -128,7 +128,7 @@ public sealed class MeterMap
     public MetricPosition ToPosition(Tick position)
     {
         Bar bar = BarAt(position);
-        long offset = position.Value - bar.Span.Onset.Value + bar.LeadIn;
+        long offset = position.Value - bar.Origin;
         long beatTicks = bar.Signature.BeatTicks;
         return new MetricPosition(bar.Number, (int)(offset / beatTicks) + 1, offset % beatTicks);
     }

@@ -160,8 +160,7 @@ public sealed class NoteAddressBook
     public long InBar(Tick tick)
     {
         Bar bar = _meter.BarAt(tick);
-        long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
-        return tick.Value - origin;
+        return tick.Value - bar.Origin;
     }
 
     /// <summary>Ticks as a reduced fraction of a whole note: "1/16", "3/8", "1", "0".</summary>

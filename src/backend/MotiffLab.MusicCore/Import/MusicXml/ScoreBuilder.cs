@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <summary>
 /// Puts the parts read together (<see cref="MusicXmlImporter"/>): measures aligned across parts by index, each as long
 /// as its longest part; the notes (<see cref="ScoreNotes"/>), what is written beside them (<see cref="ScoreMarks"/>),
-/// the tempos, bars and keys (<see cref="ScoreTimeline"/>), and the report.
+/// the tempos, bars and keys (<see cref="MusicXmlTimeline"/>), and the report.
 /// </summary>
 internal static class ScoreBuilder
 {
@@ -36,10 +36,10 @@ internal static class ScoreBuilder
         List<MusicXmlSlur> slurs = ScoreMarks.Slurs(parts, At, issues);
         List<MusicXmlRepeat> repeats = ScoreMarks.Repeats(parts, starts);
 
-        List<MusicXmlTempoChange> tempos = ScoreTimeline.Tempos(parts, At, issues);
+        List<MusicXmlTempoChange> tempos = MusicXmlTimeline.Tempos(parts, At, issues);
         Tick[] boundaries = Boundaries(starts);
-        (List<MusicXmlTimeSignature> timeSignatures, MeterMap meter) = ScoreTimeline.Meter(times, At, issues, boundaries);
-        List<MusicXmlKeySignature> keys = ScoreTimeline.Keys(parts, At, issues);
+        (List<MusicXmlTimeSignature> timeSignatures, MeterMap meter) = MusicXmlTimeline.Meter(times, At, issues, boundaries);
+        List<MusicXmlKeySignature> keys = MusicXmlTimeline.Keys(parts, At, issues);
 
         List<MusicXmlMeasure> measures = Measures(parts, starts, measureCount);
         Tick end = End(boundaries[^1], sourceNotes);

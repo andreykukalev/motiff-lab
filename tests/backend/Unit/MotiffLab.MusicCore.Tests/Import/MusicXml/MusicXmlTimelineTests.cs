@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Tests.Import.MusicXml;
 
 /// <summary>The timeline rules on their own: values placed per tick, a pickup and bars aligned to the measures.</summary>
-public class ScoreTimelineTests
+public class MusicXmlTimelineTests
 {
     private static readonly TimeSignature s_threeFour = new(3, 4);
 
@@ -35,7 +35,7 @@ public class ScoreTimelineTests
         var issues = new ImportIssueCollector();
         List<Timed<TimeSignature>> times = [At(0, 0, s_threeFour), new(0, 1, 0, new QuarterFraction(1, 2), TimeSignature.CommonTime)];
 
-        var (signatures, meter) = ScoreTimeline.Meter(times, at, issues, boundaries);
+        var (signatures, meter) = MusicXmlTimeline.Meter(times, at, issues, boundaries);
 
         Assert.Equal(480, meter.PickupDuration);
         Assert.Equal([s_threeFour], signatures.Select(time => new TimeSignature(time.Numerator, time.Denominator)));
@@ -48,7 +48,7 @@ public class ScoreTimelineTests
         var (at, boundaries) = Measures(0, 3, 5, 8, 11);
         var issues = new ImportIssueCollector();
 
-        var (_, meter) = ScoreTimeline.Meter([At(0, 0, s_threeFour)], at, issues, boundaries);
+        var (_, meter) = MusicXmlTimeline.Meter([At(0, 0, s_threeFour)], at, issues, boundaries);
 
         Assert.Equal(0, meter.PickupDuration);
         Assert.Equal([0L, 2400L], meter.Changes.Select(change => change.Position.Value));
@@ -61,8 +61,8 @@ public class ScoreTimelineTests
         var (at, boundaries) = Measures(0, 4, 8);
         var issues = new ImportIssueCollector();
 
-        var (signatures, _) = ScoreTimeline.Meter([], at, issues, boundaries);
-        var tempos = ScoreTimeline.Tempos([], at, issues);
+        var (signatures, _) = MusicXmlTimeline.Meter([], at, issues, boundaries);
+        var tempos = MusicXmlTimeline.Tempos([], at, issues);
 
         Assert.True(signatures.Single() is { Numerator: 4, Denominator: 4, IsAssumed: true });
         Assert.True(tempos.Single().IsAssumed);
