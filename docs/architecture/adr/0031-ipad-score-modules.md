@@ -165,3 +165,22 @@ What stays in `ScoreController`, and the step that removes each:
 - **`practice`** (the protected baseline writes `score.practice`) and **`ossia`** (its change engraves the card again,
   which needs the page and music-core): with the root's page calls, in **S7** and step 9 (the composition root).
 - The forwarders `focusRoll`, `playRange` and `focusVersion` join S1's, under the same S7 removal.
+
+## Note, 2026-11-18 (step S4, `SourcesModel`)
+
+`SourcesModel` (`Sources/SourcesModel.swift`) owns the other versions (`versions`), what the last thing done with one
+came to (`status`), the version whose page Sources shows (`page`) and the score as last engraved (`engraved`: the draft's
+view, even bars, the notes it colours). It reads a version and the list through music-core itself (`readVersion`,
+`readList`) and has the words on a version just added (`addedStatus`); the root writes the rest through `read`, `say`,
+`showPage` and `keepEngraved`, and forwards `versions`, `versionStatus` and `versionPage` read-only under S1's relay.
+`MergeModel` follows in its own pull request, after rule tests for the draft (the blueprint's S4 row).
+
+What stays in `ScoreController`, and the step that removes each:
+
+- **`sources`** (`SourcesInfo`): the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$sources`,
+  as it does `score.$focused`. It moves in **S7**, with the harness change Andrei merges.
+- **The version's notes to hear** (`versionPlayback`, `versionNotes`): they are `PlaybackNote`s, a Playback type, and
+  the folder table (`governance/quality/README.md`) lets Sources use only Platform and Selection. Where they go is a
+  question for Andrei: the edge Sources → Playback, or the notes kept by `FocusModel`, which may read Sources.
+- **Drawing the versions on the page and engraving** (`drawVersions`, `engraveScore`, `applyMergeView`): the page's,
+  with the root's page calls in step 9.

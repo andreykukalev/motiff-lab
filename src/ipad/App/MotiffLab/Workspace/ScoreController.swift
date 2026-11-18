@@ -76,9 +76,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     let selectionModel: SelectionModel
     /// Expand, the card's roll and options, the version in focus and the play range (Playback/FocusModel.swift).
     let focusModel: FocusModel
-    /// A change of the selection or the focus model is a change of the controller, for the views and reactions that observe it.
+    /// The other versions, the version's words and page, and the score as last engraved (Sources/SourcesModel.swift).
+    let sourcesModel = SourcesModel(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
+    /// A change of the selection, focus or sources model is a change of the controller, for the views and reactions that
+    /// observe it.
     private var selectionChanges: AnyCancellable?
     private var focusChanges: AnyCancellable?
+    private var sourcesChanges: AnyCancellable?
     /// The passage selected, the phrases at the level shown and whether they are hidden, as the screen and the other
     /// features read them (SelectionModel's).
     var selection: ScoreSelection? { selectionModel.selection }
@@ -88,6 +92,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var focusRoll: Bool { focusModel.asRoll }
     var playRange: FocusModel.PlayRange? { focusModel.playRange }
     var focusVersion: FocusModel.Version? { focusModel.version }
+    /// The other versions, what the last thing done with one came to, and the version whose page Sources shows, as the
+    /// screen and the other features read them (SourcesModel's).
+    var versions: VersionShelf { sourcesModel.versions }
+    var versionStatus: String? { sourcesModel.status }
+    var versionPage: String? { sourcesModel.page }
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -151,15 +160,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var editsLayer: EditsLayerState?
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
-    /// The other versions of the piece and the one shown, compared bar by bar (0022).
-    @Published private(set) var versions = VersionShelf()
-    /// What the last thing done with a version came to: "Bar 12 is now as in Cover", or why it could not be done.
-    @Published private(set) var versionStatus: String?
     /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
+    /// Kept here, not in SourcesModel, while the protected UX baseline observes `score.$sources` (ADR 0031, the note of S4).
     @Published private(set) var sources = SourcesInfo()
-    /// The version whose page Sources shows (testing item 32): its overview, the merge draft and what was merged; nil for
-    /// the list of sources.
-    @Published var versionPage: String?
     /// The merge draft open now, as music-core answers `performance.merge` (testing items 32 and 34); nil with none.
     @Published private(set) var merge: MergeInfo?
     /// The change the draft shows, by its bar.
@@ -199,13 +202,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
 
-    /// The draft's view the page is engraved with ("version" or "result"); nil for the player's notes.
-    private var engravedView: String?
-    /// On a view engraved, the ids of the notes from the version (plum) and of the player's own (amber).
-    private var mergeAdded: [String] = []
-    private var mergeOwn: [String] = []
-    /// Even bars (Settings · Notes, testing item 35), as the page was engraved: a change engraves it again.
-    private var engravedEven = DeviceSettings.shared.isOn("score.evenBars")
     /// The version's notes as music-core gives them to play (`playback` of `version`), for the version they are of.
     private var versionPlayback: (id: String, notes: [PlaybackNote])?
 
@@ -333,6 +329,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         super.init()
         selectionChanges = selectionModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         focusChanges = focusModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        sourcesChanges = sourcesModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -383,17 +380,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             selectionModel.open(piece)
             rendered = false
-            versions = VersionShelf()
-            versionStatus = nil
+            sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
             sources = SourcesInfo()
-            versionPage = nil
             merge = nil
             mergeAt = nil
             mergeToast = nil
             markerPick = nil
             comparing = false
-            engravedView = nil
-            engravedEven = DeviceSettings.shared.isOn("score.evenBars")
             versionPlayback = nil
         }
         self.dark = dark
@@ -1140,7 +1133,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Shows another version: its bars compared with these notes, and markers above the bars it has otherwise.
     func showVersion(_ id: String) {
         guard let piece else { return }
-        versionStatus = nil
+        sourcesModel.say(nil)
         Task { await readVersion(piece.id, id) }
     }
 
@@ -1151,20 +1144,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let name = (fileName as NSString).deletingPathExtension
         let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
-        guard versions.read(performance: answer) else {
-            versionStatus = FacadeAnswer.message(answer)
+        guard sourcesModel.read(performance: answer) else {
+            sourcesModel.say(FacadeAnswer.message(answer))
             return
         }
-        versionStatus = versions.matched == 0
-            ? text["performance.noMatch"]
-            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+        sourcesModel.say(sourcesModel.addedStatus(in: text))
         await versionAdded(piece)
     }
 
     /// A version just added: Sources shows its page (testing item 32), and the list, the markers and Check follow.
     private func versionAdded(_ piece: OpenPiece) async {
-        versionPage = versions.shownId
-        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+        sourcesModel.showPage(versions.shownId)
+        await sourcesModel.readList(of: piece.id)
         await drawVersions()
         await loadCheck(piece)
     }
@@ -1177,13 +1168,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         fields["name"] = heard.name.isEmpty ? text["performance.defaultName"] : heard.name
         let request = facadeRequest(fields)
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
-        guard versions.read(performance: answer) else {
+        guard sourcesModel.read(performance: answer) else {
             return FacadeAnswer.message(answer) ?? text["transcribe.failed"]
         }
-        let status = versions.matched == 0
-            ? text["performance.noMatch"]
-            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
-        versionStatus = status
+        sourcesModel.say(sourcesModel.addedStatus(in: text))
         await versionAdded(piece)
         return nil
     }
@@ -1223,13 +1211,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.remove", request) }
             guard let object = facadeObject(answer), object["error"] == nil else {
-                versionStatus = FacadeAnswer.message(answer)
+                sourcesModel.say(FacadeAnswer.message(answer))
                 return
             }
-            versions.read(list: answer)
-            versionPage = nil
+            sourcesModel.read(list: answer)
+            sourcesModel.showPage(nil)
             if merge?.id == shown.id { endDraft() }
-            versionStatus = nil
+            sourcesModel.say(nil)
             mergeToast = MergeToast(text: text.format("merge.removed", shown.name), undo: .putBack)
             if let next = versions.entries.first {
                 await readVersion(piece.id, next.id)
@@ -1248,11 +1236,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let body = facadeRequest(request)
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
-            guard versions.read(performance: answer) else {
-                versionStatus = FacadeAnswer.message(answer)
+            guard sourcesModel.read(performance: answer) else {
+                sourcesModel.say(FacadeAnswer.message(answer))
                 return
             }
-            versionStatus = status
+            sourcesModel.say(status)
             if notes {
                 await notesDidChange()
             } else {
@@ -1263,7 +1251,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The versions kept with the piece, and the one shown compared bar by bar.
     private func loadVersions(_ piece: OpenPiece) async {
-        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+        await sourcesModel.readList(of: piece.id)
         if let id = versions.shownId ?? versions.entries.first?.id {
             await readVersion(piece.id, id)
         } else {
@@ -1272,9 +1260,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func readVersion(_ piece: Int32, _ id: String) async {
-        let request = facadeRequest(["id": id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
-        if !versions.read(performance: answer) { versionStatus = FacadeAnswer.message(answer) }
+        await sourcesModel.readVersion(id, in: piece)
         await drawVersions()
     }
 
@@ -1317,10 +1303,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
-            engravedView = view
-            engravedEven = even
-            mergeAdded = engraving.version
-            mergeOwn = engraving.own
+            sourcesModel.keepEngraved(SourcesModel.Engraved(view: view, even: even, added: engraving.version, own: engraving.own))
             await render()
             if focused { await engraveCard() }
         case .failure(let error):
@@ -1336,7 +1319,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The page engraved again when the view it should show changed.
     private func applyMergeView() async {
         // Even bars turned on or off engraves the score again too.
-        guard wantedView != engravedView || engravedEven != DeviceSettings.shared.isOn("score.evenBars") else { return }
+        let engraved = sourcesModel.engraved
+        guard wantedView != engraved.view || engraved.even != DeviceSettings.shared.isOn("score.evenBars") else { return }
         await engraveScore()
     }
 
@@ -1351,10 +1335,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
         }
-        let viewed = engravedView != nil
+        let engraved = sourcesModel.engraved
+        let viewed = engraved.view != nil
         let data: [String: Any] = [
             "markers": markers, "unheard": viewed ? [] : differing.flatMap(\.notHeard),
-            "added": viewed ? mergeAdded : [], "artefacts": [String](), "own": viewed ? mergeOwn : [],
+            "added": viewed ? engraved.added : [], "artefacts": [String](), "own": viewed ? engraved.own : [],
             "taken": extraShown("taken") && !viewed ? versions.taken.compactMap { $0.span?.lowerBound } : [],
         ]
         await scorePage.send(.performance, data)
@@ -1392,12 +1377,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// A version's page in Sources: its overview, the draft and what was merged.
     func openVersionPage(_ id: String) {
-        versionPage = id
+        sourcesModel.showPage(id)
         if versions.shownId != id { showVersion(id) }
     }
 
     func closeVersionPage() {
-        versionPage = nil
+        sourcesModel.showPage(nil)
     }
 
     /// Keep my notes, Take the sure ones or Take the version wherever it differs: the draft opens with those choices,
@@ -1422,7 +1407,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func openDraft(at bar: Int) {
         guard let piece, let id = versions.shownId else { return }
         markerPick = nil
-        versionPage = id
+        sourcesModel.showPage(id)
         versionPicked?(bar)
         Task {
             if merge?.id != id {
@@ -1513,11 +1498,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 await applyDraft(piece, toast: text["merge.redone"])
             case .putBack:
                 let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.putBack") }
-                guard versions.read(performance: answer) else {
-                    versionStatus = FacadeAnswer.message(answer)
+                guard sourcesModel.read(performance: answer) else {
+                    sourcesModel.say(FacadeAnswer.message(answer))
                     return
                 }
-                versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+                await sourcesModel.readList(of: piece.id)
                 mergeToast = MergeToast(text: text.format("merge.putBack", versions.shown?.name ?? ""), undo: nil)
                 await notesDidChange()
                 await loadCheck(piece)
@@ -1631,7 +1616,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let answer = await PieceCore(piece: piece).merge(call, request)
         // A refusal, or a draft that cannot be read: "merge" is null only with none open.
         guard let read = answer.value else {
-            versionStatus = FacadeAnswer.problem(answer.text)
+            sourcesModel.say(FacadeAnswer.problem(answer.text))
             return false
         }
         merge = read.merge.map(MergeInfo.init)
@@ -1663,12 +1648,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let at = ISO8601DateFormatter().string(from: Date())
         let request = facadeRequest(["at": at])
         let answer = await PieceCore(piece: piece.id).mergeApply(request)
-        guard versions.read(performance: answer.value) else {
-            versionStatus = answer.message
+        guard sourcesModel.read(performance: answer.value) else {
+            sourcesModel.say(answer.message)
             return
         }
         endDraft()
-        versionStatus = nil
+        sourcesModel.say(nil)
         mergeToast = MergeToast(text: toast ?? text.count("merge.applied", versions.shown?.takenBars ?? 0), undo: toast == nil ? .unapply : nil)
         await notesDidChange()
     }
@@ -1676,8 +1661,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func unapply(_ piece: OpenPiece, _ id: String, toast: String, undo: MergeToast.Undo?) async {
         let request = facadeRequest(["id": id])
         let answer = await PieceCore(piece: piece.id).mergeUndoApplied(request)
-        guard versions.read(performance: answer.value) else {
-            versionStatus = answer.message
+        guard sourcesModel.read(performance: answer.value) else {
+            sourcesModel.say(answer.message)
             return
         }
         mergeToast = MergeToast(text: toast, undo: undo)
@@ -2222,7 +2207,7 @@ struct NoteEditorState: Equatable, Sendable {
     var picked: String?
 }
 
-// MARK: - The selection's Undo and Redo (#511 section 11): the steps are SelectionModel's, the selecting the root's
+// MARK: - The selection's Undo and Redo (#511 section 11): the steps and the selecting are SelectionModel's, what follows the root's
 
 extension ScoreController {
     /// Undo of the selection (the Selection row, the Pencil's ring, ⌘Z, «Вернуть»): the selection before the last step,
