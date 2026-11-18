@@ -187,7 +187,7 @@ struct AssistantExchange: Codable, Equatable, Sendable, Identifiable {
     var fallback = false
     /// Why there is no answer, as a UI text key ("mentor.signIn"); nil once answered.
     var note: String?
-    /// Moved here from the assistant at the selection («Добавить в контекст»), not asked here.
+    /// Moved here from the assistant at the selection («Продолжить в чате»), not asked here.
     var added = false
     /// The drafts the question's tool calls made (#582 item 17.3), to accept or cancel; nil when none.
     var drafts: [AssistantDraftOffer]?
