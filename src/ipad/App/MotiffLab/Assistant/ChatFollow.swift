@@ -40,7 +40,11 @@ struct ChatFollow: Equatable {
             return .end
         }
         guard following else { return .none }
-        if isNew, let newest, newAnswer == .start { return .start(newest) }
+        if isNew, let newest, newAnswer == .start {
+            // Shown from its start, a long answer's end is below: the player reads down, the chat follows no more.
+            following = rows <= height + 1
+            return .start(newest)
+        }
         return .end
     }
 }
@@ -64,15 +68,17 @@ struct FollowingScroll<Rows: View>: View {
     var body: some View {
         ScrollViewReader { reader in
             ScrollView {
-                rows()
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
-                        switch follow.measured(rows: frame.height, end: frame.maxY, height: height, newest: newest, asked: asked) {
-                        case .none: break
-                        case .end: reader.scrollTo(Self.end, anchor: .bottom)
-                        case let .start(id): reader.scrollTo(id, anchor: .top)
+                VStack(spacing: 0) {
+                    rows()
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                            switch follow.measured(rows: frame.height, end: frame.maxY, height: height, newest: newest, asked: asked) {
+                            case .none: break
+                            case .end: reader.scrollTo(Self.end, anchor: .bottom)
+                            case let .start(id): reader.scrollTo(id, anchor: .top)
+                            }
                         }
-                    }
-                Color.clear.frame(height: 0).id(Self.end)
+                    Color.clear.frame(height: 0).id(Self.end)
+                }
             }
             .coordinateSpace(.named(Self.space))
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }

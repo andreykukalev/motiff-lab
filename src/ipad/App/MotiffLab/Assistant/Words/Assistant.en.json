@@ -45,6 +45,8 @@
   "padAssistant.noConversations": "No conversations about this piece yet.",
   "padAssistant.addToContext": "Add to context",
   "padAssistant.addToContextHint": "Moves this question and its answer into the assistant's open conversation, for the next question there.",
+  "padAssistant.continue": "Continue in the assistant",
+  "padAssistant.continueHint": "Opens the assistant's panel with a new conversation that starts from this question and its answer, to go on asking there.",
   "padAssistant.cancelled": "Cancelled. The notes are as they were.",
   "padAssistant.editRemove": "Remove {0}",
   "padAssistant.editAdd": "Add {0} in bar {1}",

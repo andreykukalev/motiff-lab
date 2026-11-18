@@ -45,6 +45,8 @@
   "padAssistant.noConversations": "Разговоров об этой пьесе ещё нет.",
   "padAssistant.addToContext": "Добавить в контекст",
   "padAssistant.addToContextHint": "Переносит этот вопрос и ответ в открытый разговор с помощником, чтобы следующий вопрос там их учитывал.",
+  "padAssistant.continue": "Продолжить в ассистенте",
+  "padAssistant.continueHint": "Открывает панель помощника с новым разговором, который начинается с этого вопроса и ответа, чтобы спрашивать дальше там.",
   "padAssistant.cancelled": "Отменено. Ноты остались как были.",
   "padAssistant.editRemove": "Убрать {0}",
   "padAssistant.editAdd": "Добавить {0} в такте {1}",
