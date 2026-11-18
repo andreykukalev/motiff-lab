@@ -3,8 +3,8 @@ import XCTest
 @testable import MotiffLab
 
 /// The assistant at the selection and its drafts on the iPad (#582 items 17.2, 17.3 and 17.4): the drafts a question's
-/// tool calls made, kept with the call that makes them again on Accept; the player's decision on each; «Добавить в
-/// контекст»; and the small chat lifted above the keyboard.
+/// tool calls made, kept with the call that makes them again on Accept; the player's decision on each; «Продолжить в
+/// чате»; an Ask opening the full assistant empty; and the small chat lifted above the keyboard.
 @MainActor
 final class AssistantActionsTests: XCTestCase {
     private let draftsResult = JSONValue.parse(#"""
@@ -66,22 +66,53 @@ final class AssistantActionsTests: XCTestCase {
         XCTAssertTrue(AssistantDraftOffer.words(added, UIText(language: "en")).contains("G4"))
     }
 
-    func testAddToContextJoinsTheOpenConversationAsAskedThere() {
+    /// «Продолжить в чате» carries the question and answer as asked and answered in the new conversation (the one way on
+    /// since v0.9: «Добавить в контекст», which joined them to the open one, is gone, Andrei's v0.8 finding 10).
+    func testContinueInTheChatStartsAConversationAsAskedThere() {
         let (assistant, folder) = controller()
         defer { try? FileManager.default.removeItem(at: folder) }
         var exchange = AssistantExchange(id: "e1", question: "What is in bar 3?", scope: "This selection · bar 3")
         exchange.answer = [AnswerPiece(text: "Four notes")]
-        assistant.add(exchange, answer: "Four notes [[key]]", role: "mentor")
+        assistant.start(exchange, answer: "Four notes [[key]]", role: "mentor")
         let chat = assistant.current
         XCTAssertEqual(chat?.history.map(\.kind), [.question, .answer], "the next question there has it")
         XCTAssertEqual(chat?.exchanges.first?.added, true)
-        assistant.add(exchange, answer: "Again", role: "mentor")
-        XCTAssertEqual(assistant.current?.history.count, 4)
-        XCTAssertEqual(assistant.chats.count, 1, "into the conversation open, not a new one")
+        assistant.start(exchange, answer: "Again", role: "mentor")
+        XCTAssertEqual(assistant.current?.history.count, 2)
+        XCTAssertEqual(assistant.chats.count, 2, "each a new conversation, never into the one open")
         var drafted = exchange
         drafted.drafts = AssistantDraftOffer.offers(in: answered())
-        assistant.add(drafted, answer: "A draft", role: "proposer")
+        assistant.start(drafted, answer: "A draft", role: "proposer")
         XCTAssertNil(assistant.current?.exchanges.last?.drafts, "as on the web, the question and answer move, not the drafts")
+    }
+
+    /// Andrei's v0.8 finding 4: an Ask opens the assistant empty, ready for a question, not on the conversation open before;
+    /// nothing is made until the first question goes, which starts a conversation; the earlier one stays in the list.
+    func testAnAskOpensTheAssistantEmptyAndTheFirstQuestionStartsAConversation() async {
+        let (assistant, folder) = controller()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bar3 = ScoreSelection(onset: 3840, end: 5760, firstBar: 3, lastBar: 3)
+        assistant.start(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "mentor")
+        let earlier = assistant.currentId
+        assistant.close()
+        XCTAssertEqual(assistant.currentId, earlier, "closing the panel keeps its conversation")
+        assistant.listShown = true
+        assistant.open(wholePiece: false, selection: bar3)
+        XCTAssertTrue(assistant.panelOpen)
+        XCTAssertFalse(assistant.listShown)
+        XCTAssertNil(assistant.current, "empty, ready for a question")
+        assistant.close()
+        assistant.open(wholePiece: true, selection: nil)
+        XCTAssertNil(assistant.current)
+        XCTAssertEqual(assistant.chats.count, 1, "no conversation without a question")
+        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 1)
+        let signedOut = AssistantRelay(session: .shared, request: { _ in nil })
+        await assistant.ask("Why?", about: AssistantAsk(
+            piece: 0, selection: nil, wholePiece: true, scope: "The whole piece", language: "en", role: "mentor", relay: signedOut
+        ))
+        XCTAssertNotEqual(assistant.currentId, earlier, "the first question starts a new conversation")
+        XCTAssertEqual(assistant.current?.exchanges.map(\.question), ["Why?"])
+        XCTAssertEqual(assistant.chats.count, 2, "the earlier one stays in the list")
     }
 
     func testTheConversationsAreKeptOnTheIPadWithNoSwitch() {
@@ -90,7 +121,7 @@ final class AssistantActionsTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
         let assistant = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
         assistant.load(piece: "p1")
-        assistant.add(AssistantExchange(id: "e1", question: "Why?", scope: "Bar 3"), answer: "Because", role: "mentor")
+        assistant.start(AssistantExchange(id: "e1", question: "Why?", scope: "Bar 3"), answer: "Because", role: "mentor")
         XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 1, "kept on the iPad by piece (version 0.6.3: no switch)")
         let again = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
         again.load(piece: "p1")
@@ -108,8 +139,8 @@ final class AssistantActionsTests: XCTestCase {
         XCTAssertNil(assistant.here?.exchange, "it opens empty, with no conversation before it")
         assistant.follow(bar4)
         XCTAssertEqual(assistant.here?.selection, bar4)
-        assistant.addHere()
-        XCTAssertNotNil(assistant.here, "nothing to add before an answer")
+        assistant.continueHere()
+        XCTAssertNotNil(assistant.here, "nothing to carry before an answer")
         XCTAssertTrue(assistant.chats.isEmpty)
         assistant.closeHere()
         XCTAssertNil(assistant.here)
@@ -121,7 +152,7 @@ final class AssistantActionsTests: XCTestCase {
         let (assistant, folder) = controller()
         defer { try? FileManager.default.removeItem(at: folder) }
         let bar3 = ScoreSelection(onset: 3840, end: 5760, firstBar: 3, lastBar: 3)
-        assistant.add(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "proposer")
+        assistant.start(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "proposer")
         let earlier = assistant.currentId
         assistant.openHere(on: bar3, role: "proposer")
         assistant.continueHere()
@@ -148,7 +179,7 @@ final class AssistantActionsTests: XCTestCase {
         let draft = try XCTUnwrap(AssistantDraftOffer.offers(in: answered()).first)
         var exchange = AssistantExchange(id: "e1", question: "Take out the repeated note", scope: "Bars 3–4")
         exchange.drafts = [draft]
-        // A question asked in the panel keeps its drafts there (Add to context does not carry them).
+        // A question asked in the panel keeps its drafts there (Продолжить в чате does not carry them).
         var chat = answered()
         chat.exchanges = [exchange]
         AssistantStore(folder: folder).keep([chat], of: "p1")

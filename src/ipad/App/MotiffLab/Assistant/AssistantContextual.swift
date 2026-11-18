@@ -4,10 +4,10 @@ import SwiftUI
 /// turns the menu into a small chat where the menu was, which the page places beside the selection rather than over it.
 /// It looks at the selected bars, takes one question at a time with no conversation before it (the field, Send and the
 /// keyboard's own dictation), and shows the answer with the facts it cites and any draft the assistant made, to accept or
-/// cancel. «Добавить в контекст» moves the question and answer into the full assistant's open conversation; «Продолжить в
-/// чате» starts a new one there with them and opens the panel. Nothing else of it is kept.
+/// cancel. «Продолжить в чате» starts a new conversation of the full assistant with the question and answer and opens the
+/// panel (the one way on since v0.9: Andrei's v0.8 finding 10 took «Добавить в контекст» out). Nothing else of it is kept.
 ///
-/// It closes by itself once its work is done: after «Добавить в контекст», once every draft is cancelled, and when the
+/// It closes by itself once its work is done: after «Продолжить в чате», once every draft is cancelled, and when the
 /// selection goes or changes while its field is not in use (an accepted draft stays, with Undo, until then); a selection
 /// changed while the player types only moves what it looks at (AskFlow, a press outside never closes a chat being typed
 /// in). Close closes it, and forgets the question, the answer and any draft, as on the web.
@@ -100,22 +100,13 @@ struct AssistantHereCard: View {
                 }
             }
             if exchange.note == nil {
-                // One under the other: the card is narrow, the Russian words long.
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                    Button(text["padAssistant.addToContext"]) {
-                        flow.apply(.close)
-                        assistant.addHere()
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                    .accessibilityHint(text["padAssistant.addToContextHint"])
-                    // The conversation goes on in the full assistant, starting from this question and answer.
-                    Button(text["padAssistant.continue"]) {
-                        flow.apply(.close)
-                        assistant.continueHere()
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                    .accessibilityHint(text["padAssistant.continueHint"])
+                // The conversation goes on in the full assistant, starting from this question and answer.
+                Button(text["padAssistant.continue"]) {
+                    flow.apply(.close)
+                    assistant.continueHere()
                 }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                .accessibilityHint(text["padAssistant.continueHint"])
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
