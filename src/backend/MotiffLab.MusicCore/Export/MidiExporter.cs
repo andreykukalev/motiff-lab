@@ -49,7 +49,7 @@ public static class MidiExporter
         }
 
         Bar first = meter.BarAt(from ?? Tick.Zero);
-        long origin = first.Span.Onset.Value - first.LeadIn;
+        long origin = first.Origin;
         if (notes.Any(note => note.Span.Onset.Value < origin))
         {
             throw new ArgumentException("A note starts before the bar the export starts at.", nameof(notes));

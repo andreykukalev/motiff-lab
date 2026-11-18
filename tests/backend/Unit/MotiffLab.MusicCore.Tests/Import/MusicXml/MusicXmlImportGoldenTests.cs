@@ -2,6 +2,7 @@ using System.Text;
 
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Tests.Golden;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Import.MusicXml;
@@ -42,20 +43,12 @@ public class MusicXmlImportGoldenTests
         AssertIs(fixture, Describe(import));
     }
 
-    /// <summary>That <paramref name="written"/> is the golden; with MOTIFF_UPDATE_SNAPSHOTS=1 it writes the golden instead.</summary>
-    private static void AssertIs(string fixture, string written, [System.Runtime.CompilerServices.CallerFilePath] string source = "")
-    {
-        // A compressed score reads as the same score uncompressed: one golden for both.
-        string name = Path.GetFileNameWithoutExtension(fixture) + ".txt";
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1" && !fixture.EndsWith(".mxl", StringComparison.Ordinal))
-        {
-            File.WriteAllText(Path.Combine(Path.GetDirectoryName(source)!, "Golden", name), written);
-            return;
-        }
-
-        string kept = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Golden", name)).ReplaceLineEndings("\n");
-        Assert.Equal(kept, written);
-    }
+    /// <summary>
+    /// That <paramref name="written"/> is the golden (<see cref="TextGoldens.AssertTextGolden"/>). A compressed score reads
+    /// as the same score uncompressed: one golden for both, written by the uncompressed one.
+    /// </summary>
+    private static void AssertIs(string fixture, string written) => TextGoldens.AssertTextGolden(
+        Path.Combine("Import", "MusicXml"), Path.GetFileNameWithoutExtension(fixture) + ".txt", written, writes: !fixture.EndsWith(".mxl", StringComparison.Ordinal));
 
     /// <summary>Everything the import holds, a section a kind and a line an item.</summary>
     private static string Describe(MusicXmlImport import)

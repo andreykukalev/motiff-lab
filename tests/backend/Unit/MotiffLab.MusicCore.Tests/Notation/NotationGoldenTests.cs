@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
+using MotiffLab.MusicCore.Tests.Golden;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Notation;
@@ -30,7 +31,10 @@ public class NotationGoldenTests
 
     private static KeyChange[] Keys(MusicXmlImport import) => [.. import.KeySignatures.Where(key => key.Track == 0).Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)))];
 
-    /// <summary>How many bars of the recording the recording cases write.</summary>
+    /// <summary>
+    /// How many bars of the recording the recording cases write: their notes start in the first 16 bars, and they write 17
+    /// measures, because the bars reach the last note's end, which is held past the 16th bar line.
+    /// </summary>
     private const int RecordingBars = 16;
 
     private static MusicXmlImport FurElise() => MusicXmlImporter.Import(Fixture("Experiments", "Fixtures", "fur-elise-original.musicxml"));
@@ -216,19 +220,8 @@ public class NotationGoldenTests
         AssertIs(golden, notation);
     }
 
-    /// <summary>That <paramref name="notation"/> is the golden; with MOTIFF_UPDATE_SNAPSHOTS=1 it writes the golden instead.</summary>
-    private static void AssertIs(string name, GeneratedNotation notation, [System.Runtime.CompilerServices.CallerFilePath] string source = "")
-    {
-        string written = Describe(notation);
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
-        {
-            File.WriteAllText(Path.Combine(Path.GetDirectoryName(source)!, "Golden", name + ".txt"), written);
-            return;
-        }
-
-        string kept = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Notation", "Golden", name + ".txt")).ReplaceLineEndings("\n");
-        Assert.Equal(kept, written);
-    }
+    /// <summary>That <paramref name="notation"/> is the golden (<see cref="TextGoldens.AssertTextGolden"/>).</summary>
+    private static void AssertIs(string name, GeneratedNotation notation) => TextGoldens.AssertTextGolden("Notation", name + ".txt", Describe(notation));
 
     /// <summary>The counts, staves and ossias of a notation, one to a line, then its MEI as written, a bar to a line.</summary>
     private static string Describe(GeneratedNotation notation)

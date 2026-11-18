@@ -180,7 +180,7 @@ internal static class NoteTools
         }
 
         Bar bar = piece.Meter.BarAt(note.Span.Onset);
-        long onset = Int(edit, "start") is int start ? Origin(bar) + (start * AssistantTools.ThirtySecond) : note.Span.Onset.Value;
+        long onset = Int(edit, "start") is int start ? bar.Origin + (start * AssistantTools.ThirtySecond) : note.Span.Onset.Value;
         long length = Int(edit, "length") is int thirtySeconds ? thirtySeconds * AssistantTools.ThirtySecond : note.Span.Duration;
         if (onset < bar.Span.Onset.Value || onset >= bar.Span.End.Value)
         {
@@ -211,7 +211,7 @@ internal static class NoteTools
         }
 
         Bar bar = piece.Meter.GetBar(barNumber);
-        long onset = Origin(bar) + (start * AssistantTools.ThirtySecond);
+        long onset = bar.Origin + (start * AssistantTools.ThirtySecond);
         if (onset < bar.Span.Onset.Value || onset >= bar.Span.End.Value)
         {
             return OutsideBar(bar, w);
@@ -232,12 +232,9 @@ internal static class NoteTools
         return null;
     }
 
-    /// <summary>Where a bar's 32nds are counted from: its start, or for a pickup the start it would have if complete.</summary>
-    private static long Origin(Bar bar) => bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
-
     private static string OutsideBar(Bar bar, Words w)
     {
-        long first = (bar.Span.Onset.Value - Origin(bar)) / AssistantTools.ThirtySecond, last = ((bar.Span.End.Value - Origin(bar)) / AssistantTools.ThirtySecond) - 1;
+        long first = (bar.Span.Onset.Value - bar.Origin) / AssistantTools.ThirtySecond, last = ((bar.Span.End.Value - bar.Origin) / AssistantTools.ThirtySecond) - 1;
         return w.T(
             $"In bar {bar.Number} a note starts at 32nd {first} to {last}.",
             $"В такте {bar.Number} нота начинается с {first}-й по {last}-ю тридцать вторую.");

@@ -19,7 +19,7 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`). The MusicXML reader (W1.9):
   `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`), and `ScoreBuilder` puts
   them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks` (grace notes, rests, slurs, repeats, bar
-  lines, texts) and `ScoreTimeline` (tempos, bars, keys, via `TimedValues`).
+  lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept

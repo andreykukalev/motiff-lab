@@ -30,7 +30,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <para>
 /// The parts: <see cref="PartReader"/> walks each part; <see cref="ScoreBuilder"/> puts them together, with
 /// <see cref="ScoreNotes"/> (ties merged, the shared notes), <see cref="ScoreMarks"/> (grace notes, rests, slurs, repeats,
-/// bar lines, texts) and <see cref="ScoreTimeline"/> (tempos, bars, keys).
+/// bar lines, texts) and <see cref="MusicXmlTimeline"/> (tempos, bars, keys).
 /// </para>
 /// </remarks>
 public static class MusicXmlImporter

@@ -190,7 +190,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         int off = onsets.Count(onset =>
         {
             Bar bar = meter.BarAt(onset);
-            long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
+            long origin = bar.Origin;
             long from = onset.Value - origin;
             return Distance(from, sixteenth) > OffGridTicks && Distance(from, tripletEighth) > OffGridTicks;
         });
