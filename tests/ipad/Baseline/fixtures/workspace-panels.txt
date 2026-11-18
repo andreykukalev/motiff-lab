@@ -1,0 +1,51 @@
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen opens, its sound not loaded
+
+## Insights opens
+  panels: insights
+
+## Sources opens over Insights
+  panels: insights+versions
+  panels: versions {beforeSources=insights}
+
+## More opens
+  panels: versions+more {beforeSources=insights}
+
+## «Спросить о пьесе» in More
+  panels: versions {beforeSources=insights}
+  assistant's panel: open
+  panels: nothing {beforeSources=nothing}
+  panels: nothing
+
+## the assistant's panel closes
+  assistant's panel: closed
+
+## More opens
+  panels: more
+
+## Check in More
+  panels: check {fromMore}
+
+## a version's marker on the score opens Sources
+  panels: check+versions {fromMore=check}
+  panels: versions {fromMore=check, beforeSources=nothing}
+
+## Sources closes
+  panels: nothing {fromMore, beforeSources=nothing}
+  panels: nothing {beforeSources=nothing}
+  panels: nothing
+
+## More opens
+  panels: more
+
+## Sources in More
+  panels: versions {fromMore}
+  panels: versions {fromMore, beforeSources=nothing}
+
+## a flag on the score opens Check
+  panels: check+versions {fromMore=versions, beforeSources=nothing}
+  panels: check {fromMore=versions, beforeSources=nothing}
+  panels: check {fromMore=versions}

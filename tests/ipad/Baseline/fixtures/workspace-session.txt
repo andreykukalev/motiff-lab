@@ -1,0 +1,116 @@
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen opens, its sound not loaded
+  page playheads: selection none, cycle on
+
+## bars 1–2 are selected where nothing was
+  player selection: 240–1680
+  player loops: 240–1680
+  page playheads: selection 240–1680, cycle on
+
+## Цикл is turned off
+  player cycle: off
+  player loops: none
+  page playheads: selection 240–1680, cycle off
+
+## the selection's end moves to bar 3
+  player selection: 240–2400
+  page playheads: selection 240–2400, cycle off
+
+## the selection is cleared
+  player selection: none
+  page playheads: selection none, cycle off
+
+## bars 5–6 are selected where nothing was
+  player selection: 3120–4560
+  player cycle: on
+  player loops: 3120–4560
+  page playheads: selection 3120–4560, cycle on
+
+## the roll's drawer opens
+  panels: roll
+  roll load: a first load, frame none
+  roll lanes: on
+  roll selection: 3120–4560, loops 3120–4560
+
+## the player zooms the roll in
+  roll zoom: time 1
+
+## the roll picks bars 7–8
+  player selection: 4560–6000
+  player loops: 4560–6000
+  roll selection: 4560–6000, loops 3120–4560
+  page playheads: selection 4560–6000, cycle on
+  roll position: 0 standing, looping yes
+  roll selection: 4560–6000, loops 4560–6000
+  roll position: 0 standing, looping yes
+
+## a beat outside the selection is tapped on the score
+  player cycle: off
+  player loops: none
+  roll selection: 4560–6000, loops none
+  page playheads: selection 4560–6000, cycle off
+  roll position: 0 standing, looping no
+
+## the piece's notes change
+  roll load: the zoom and the view kept, frame none
+  roll lanes: on
+  roll selection: 4560–6000, loops none
+
+## Expand on the roll's drawer
+  panels: nothing {rollBeforeFocus}
+  Expand: open
+  roll lanes: off
+  roll position: 0 standing, looping no
+  roll selection: 4560–6000, loops none
+  roll passage: 4560–6000
+
+## Space in Expand
+  player loops: 4560–6000
+  roll selection: 4560–6000, loops 4560–6000
+  roll position: 0 standing, looping no
+
+## Collapse
+  Expand: closed
+  player loops: none
+  panels: roll
+  roll lanes: on
+  roll passage: none
+  roll selection: 4560–6000, loops none
+  roll selection: 4560–6000, loops none
+  roll position: 0 standing, looping no
+
+## the roll's drawer closes
+  panels: nothing
+
+## Expand from the selection's menu
+  Expand: open
+  roll lanes: off
+  roll position: 0 standing, looping no
+  roll selection: 4560–6000, loops none
+  roll passage: 4560–6000
+
+## Expand's roll: the playhead is taken and dragged past the passage's end
+  playhead held: blue at 5999, standing
+
+## Expand's roll: the playhead is let go
+  playhead held: none
+
+## the score's page in Expand: its playhead is taken and dragged before the passage's start
+  playhead held: blue at 4560, standing
+
+## Back to page
+  Expand: closed
+  roll lanes: on
+  roll passage: none
+
+## the score: the playhead is taken and dragged
+  playhead held: black at 5040, standing
+
+## the score: the playhead is let go
+  playhead held: none
+
+## the roll's drawer: the playhead is taken, dragged and let go
+  playhead held: black at 4800, standing

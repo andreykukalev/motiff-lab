@@ -292,8 +292,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     let webView: WKWebView
-    /// The page in `webView`, the one way to its functions (`PageCommand`, decision record 0031).
-    let scorePage: ScorePage
+    /// The page in `webView`, the one way to its functions (`PageCommand`, 0031); a scenario test puts a recording one here.
+    var scorePage: ScorePage
     /// The pen, and who writes and who scrolls (#479 items 7 and 18).
     private let ink = InkInput()
     private(set) var piece: OpenPiece?

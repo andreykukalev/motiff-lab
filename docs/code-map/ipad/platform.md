@@ -35,7 +35,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   folder's `<Folder>/Words/<Folder>.<language>.json` (at the app's top) by name, merged; a key defined twice asserts in
   Debug. Which key goes where: `tests/shared/i18n.test.mjs` (B6). `UIText.current` is in the language picked in
   Settings · Appearance (`motiff.language`), else the iPad's.
-- `InterfaceLanguage.swift`: a new choice saves the open piece (its screen's `handOverForLanguage`), rebuilds the app
+- `InterfaceLanguage.swift`: a new choice saves the open piece (`ScoreWorkspace.handOverForLanguage`), rebuilds the app
   under `.id(language)` (`MotiffLabApp`), and the library opens the piece again where it was.
 - `TypingFocus.swift` (v0.6.4): the app's one keyboard rule, `Typing` (a tap outside any focused field hides the
   keyboard), `TypingShield` (over the score's and roll's web views).

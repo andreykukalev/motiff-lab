@@ -71,8 +71,8 @@ final class RollController: NSObject, ObservableObject {
     }
 
     let webView: WKWebView
-    /// The page in the web view (Platform/RollPage.swift): every call into it and every message from it go through here.
-    private let page: RollPage
+    /// The page in the web view (Platform/RollPage.swift), the one way in and out; a scenario test puts a recording one here.
+    var page: RollPage
     /// Where the roll is on screen, as the score screen has it (RollPlace.shown): the one place whose holder has the web view
     /// (#495 BUG-01). Not published, so setting it renders nothing again; the new place's holder takes the web view at once.
     var place: RollPlace? {

@@ -5,9 +5,10 @@ import XCTest
 @testable import MotiffLab
 
 /// The score's workspace (ScoreWorkspace, the v0.7 blueprint's section 5.3 step 2): the controllers it owns get their
-/// callbacks from it, the callbacks reach the panels and the roll through it, and nothing holds it once the screen lets
-/// it go. The view's reactions are its methods (ScoreWorkspaceReactions.swift, ScoreWorkspaceFollowing.swift): each runs
-/// the rule of the value it observes and what goes with it. What the rules decide is in PanelStateTests; in what order
+/// callbacks from it, and the callbacks reach the panels and the roll through it (that nothing holds it once the screen
+/// lets it go, and whole sessions on it: tests/ipad/Baseline/WorkspaceScenarioTests.swift). The view's reactions are its
+/// methods (ScoreWorkspaceReactions.swift, ScoreWorkspaceFollowing.swift): each runs the rule of the value it observes
+/// and what goes with it. What the rules decide is in PanelStateTests; in what order
 /// the view calls them, in docs/code-map/ipad/workspace.md. The screen's life and the piece's views are its methods too
 /// (ScoreWorkspaceLife.swift, ScoreWorkspaceSources.swift): what is kept as the screen goes, and what a view picked does.
 @MainActor
@@ -469,16 +470,5 @@ final class ScoreWorkspaceTests: XCTestCase {
         piece.other = OtherView(file: projectFile(), pages: PageMap(starts: [0]))
         XCTAssertNotNil(ScoreWorkspace(piece: piece).toPdf { _ in })
         XCTAssertNil(ScoreWorkspace(piece: piece).toPdf(nil), "no way to the other view, and no PDF linked in Files")
-    }
-
-    /// The callbacks hold the workspace weakly and the workspace holds the controllers: no ring keeps a screen alive.
-    func testNothingHoldsTheWorkspace() {
-        weak var held: ScoreWorkspace?
-        autoreleasepool {
-            let workspace = make()
-            workspace.wire()
-            held = workspace
-        }
-        XCTAssertNil(held)
     }
 }

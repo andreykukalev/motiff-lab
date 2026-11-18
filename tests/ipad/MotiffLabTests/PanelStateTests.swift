@@ -63,23 +63,7 @@ final class PanelStateTests: XCTestCase {
 
         /// The state as the table writes it.
         var description: String {
-            var text = PanelStateTests.names.filter { panels[$0.panel] }.map { $0.name }.joined(separator: "+")
-            if text.isEmpty { text = "nothing" }
-            var kept: [String] = []
-            if !panels.fromMore.isEmpty {
-                // "fromMore" while every place open shows "‹ More"; else the places opened from More (answer 10).
-                let places: [PanelState.Panel] = [.check, .versions, .settings]
-                let all = places.filter { panels[$0] }.allSatisfy { panels.fromMore.contains($0) }
-                let from = PanelStateTests.names.filter { panels.fromMore.contains($0.panel) }.map { $0.name }.joined(separator: "+")
-                kept.append(all ? "fromMore" : "fromMore=" + from)
-            }
-            if panels.rollBeforeFocus { kept.append("rollBeforeFocus") }
-            if panels.contentsBeforeFocus { kept.append("contentsBeforeFocus") }
-            if let under = panels.beforeSources {
-                let places = [(under.roll, "roll"), (under.insights, "insights"), (under.contents, "contents")].filter { $0.0 }.map { $0.1 }
-                kept.append("beforeSources=" + (places.isEmpty ? "nothing" : places.joined(separator: "+")))
-            }
-            if !kept.isEmpty { text += " {" + kept.joined(separator: ", ") + "}" }
+            var text = PanelStateTests.words(panels)
             if focused { text += focusRoll ? " [Expand roll]" : " [Expand]" }
             if assistant { text += " (assistant open)" }
             return text
@@ -141,6 +125,29 @@ final class PanelStateTests: XCTestCase {
             XCTFail("the panels did not settle after \(action)")
             return shown
         }
+    }
+
+    /// The panels as the table writes them: those open, joined by + (nothing for none), then {what is remembered}. The
+    /// workspace scenarios (tests/ipad/Baseline/WorkspaceSession.swift) write them so too.
+    static func words(_ panels: PanelState) -> String {
+        var text = names.filter { panels[$0.panel] }.map { $0.name }.joined(separator: "+")
+        if text.isEmpty { text = "nothing" }
+        var kept: [String] = []
+        if !panels.fromMore.isEmpty {
+            // "fromMore" while every place open shows "‹ More"; else the places opened from More (answer 10).
+            let places: [PanelState.Panel] = [.check, .versions, .settings]
+            let all = places.filter { panels[$0] }.allSatisfy { panels.fromMore.contains($0) }
+            let from = names.filter { panels.fromMore.contains($0.panel) }.map { $0.name }.joined(separator: "+")
+            kept.append(all ? "fromMore" : "fromMore=" + from)
+        }
+        if panels.rollBeforeFocus { kept.append("rollBeforeFocus") }
+        if panels.contentsBeforeFocus { kept.append("contentsBeforeFocus") }
+        if let under = panels.beforeSources {
+            let places = [(under.roll, "roll"), (under.insights, "insights"), (under.contents, "contents")].filter { $0.0 }.map { $0.1 }
+            kept.append("beforeSources=" + (places.isEmpty ? "nothing" : places.joined(separator: "+")))
+        }
+        if !kept.isEmpty { text += " {" + kept.joined(separator: ", ") + "}" }
+        return text
     }
 
     /// "open roll", "close roll", "fromMore check", "backToMore check", and Piece DNA's "backToMore dna".

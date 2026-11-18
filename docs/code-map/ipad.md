@@ -7,7 +7,12 @@ new file needs no project edit. `Account.json` and the asset catalogues (`AppIco
 what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
 are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`).
 Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI), with the UX baseline's cases
-in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label).
+in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label). There too, the workspace's scenarios
+(blueprint 5.3 step 3): `WorkspaceSession` takes a `ScoreWorkspace` over the real music-core and controllers through a
+session as the view would (each render runs the reactions of the values that changed, in the view's order) and writes
+what the controllers tell the two pages, the player's model and the panels; `WorkspaceScenarioTests` compares that
+with `fixtures/workspace-*.txt` (a transcript that differs is printed whole in the test's log). The pages are recording
+ones, put in `ScoreController.scorePage` and `RollController.page`, which are settable for that.
 
 Each folder has one map with four headings: its files; the contract others may rely on; the state it owns; the baseline
 entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids, and the quality ratchet,
