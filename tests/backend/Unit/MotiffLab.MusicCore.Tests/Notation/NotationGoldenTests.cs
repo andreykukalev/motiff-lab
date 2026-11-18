@@ -35,7 +35,7 @@ public class NotationGoldenTests
     /// How many bars of the recording the recording cases write: their notes start in the first 16 bars, and they write 17
     /// measures, because the bars reach the last note's end, which is held past the 16th bar line.
     /// </summary>
-    private const int RecordingBars = 16;
+    private const int RecordingBarCount = 16;
 
     private static MusicXmlImport FurElise() => MusicXmlImporter.Import(Fixture("Experiments", "Fixtures", "fur-elise-original.musicxml"));
 
@@ -67,7 +67,7 @@ public class NotationGoldenTests
     }
 
     /// <summary>
-    /// A recording's first <see cref="RecordingBars"/> bars in the three ways the facade writes one: for reading (notes held
+    /// A recording's first <see cref="RecordingBarCount"/> bars in the three ways the facade writes one: for reading (notes held
     /// to the next, cut at it, a grace note), for reading with its marks, and as played.
     /// </summary>
     [Theory]
@@ -79,7 +79,7 @@ public class NotationGoldenTests
         MidiImport import = Midi("Transcription", "transkun-fur-elise.mid");
         PlaybackScore played = PlaybackScore.FromMidi(import);
         KeyChange[] keys = Keys(import);
-        Tick end = import.Meter.GetBar(RecordingBars + 1).Span.Onset;
+        Tick end = import.Meter.GetBar(RecordingBarCount + 1).Span.Onset;
         Note[] notes = [.. import.Notes.Where(note => note.Span.Onset < end)];
 
         GeneratedNotation notation = golden switch

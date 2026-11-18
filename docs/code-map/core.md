@@ -21,7 +21,8 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks` (grace notes, rests, slurs, repeats, bar
   lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
-- `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
+- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; each step's opening sentence in `OperationTemplates`, a
+  file per family: `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
   (`SavedPerformance`, `PerformanceSource`).
 - The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
