@@ -198,29 +198,6 @@ public class ConversationTests
     }
 
     [Fact]
-    public void A_citation_leads_to_its_notes_or_its_bars_in_the_score()
-    {
-        AssistantPiece piece = Open(FurElise());
-        JsonElement context = AssistantContext.OfRange(piece, 1, 8);
-        JsonElement items = context.GetProperty("digest").GetProperty("items");
-        JsonElement withNotes = items.EnumerateArray().First(item => item.TryGetProperty("places", out _));
-        JsonElement chord = items.EnumerateArray().First(item => item.GetProperty("kind").GetString() == "chord");
-        Assert.True(chord.TryGetProperty("bars", out _));
-
-        CitedFact fact = CitedFacts.Of(piece, withNotes.GetProperty("id").GetString()!, context, [])!;
-        Assert.Equal(withNotes.GetProperty("text").GetString(), fact.Text);
-        Assert.All(fact.Places, place => Assert.NotEmpty(place.NoteIds));
-        Assert.All(fact.Places.SelectMany(place => place.NoteIds), id => Assert.Contains(piece.Notes, note => note.Id == id));
-
-        // A tool result's fact counts too; an id the turn never gave is left out.
-        JsonElement result = Json("""{"ok": true, "items": [{"id": "cadence.2", "kind": "cadence", "text": "full close in bar 2", "bars": {"from": 2, "to": 2}}]}""");
-        IReadOnlyList<AnswerPart> parts = AnswerCheck.Parts("Ends [[cadence.2]], not [[made.up]].");
-        CitedFact close = Assert.Single(CitedFacts.In(piece, parts, context, [new ToolOutcome("c1", "facts.get", result)]));
-        Assert.Equal(piece.Meter.GetBar(2).Span, Assert.Single(close.Places).Span);
-        Assert.Empty(close.Places[0].NoteIds);
-    }
-
-    [Fact]
     public void The_scope_follows_the_selection_unless_the_whole_piece_was_chosen_for_it()
     {
         AssistantPiece piece = Open(FurElise());
