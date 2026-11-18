@@ -103,6 +103,14 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertNil(version.at)
         XCTAssertEqual(layers.title(of: version, UIText.current), "Official", "Notes of no original take their name")
         XCTAssertEqual(layers.listedNotes.first?.id, "n_1", "the working notes first")
+        // Andrei's v0.8 finding 19: each original with the Notes made from it, the working notes' group first.
+        XCTAssertEqual(layers.groups.map(\.id), ["src_file", "src_pdf", "src_rec", "src_pdf_2"])
+        XCTAssertEqual(layers.groups.map { $0.notes.map(\.id) }, [["n_1"], ["n_2"], [], []], "the PDF and the notes read from it together")
+        XCTAssertEqual(layers.looseNotes.map(\.id), ["perf_1"], "Notes of no original after the groups")
+        let english = UIText(language: "en")
+        XCTAssertEqual(layers.title(of: readAgain, english), "Nocturne.pdf", "in a list, Notes take their original's name")
+        XCTAssertEqual(layers.title(of: readAgain, english, underOriginal: true), "Notes · Recognised from a PDF", "under it, what tells them from it")
+        XCTAssertEqual(layers.title(of: version, english, underOriginal: true), "Official", "a name of their own stays")
 
         XCTAssertNil(try XCTUnwrap(layers.views.first { $0.id == "perf_1" }).group, "Notes of no original are in no group")
         XCTAssertEqual(layers.views.first { $0.id == "n_2" }?.group, "src_pdf")

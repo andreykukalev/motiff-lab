@@ -198,8 +198,8 @@ struct DnaScreen: View {
     let close: () -> Void
     /// Leaves for the score with the passage selected, and Insights open on it when asked.
     let showInScore: (Range<Double>, Bool) -> Void
-    /// Add Structure bookmarks: answers what was added, in words.
-    let addBookmarks: () async -> String?
+    /// Add Structure bookmarks: answers how many were added (DnaBookmarks says it in words), nil when nothing could be.
+    let addBookmarks: () async -> Int?
     /// Ask about the piece: the map closes for the score, with the assistant beside it on the whole piece.
     let ask: () -> Void
 
@@ -219,6 +219,8 @@ struct DnaScreen: View {
 
     /// The lane names' column, as the web app's `--name`.
     private let nameWidth: CGFloat = 176
+    /// The widest the map's own words run: the summary, what an action did.
+    private let wordsWidth: CGFloat = 640
 
     var body: some View {
         ScrollView {
@@ -227,7 +229,7 @@ struct DnaScreen: View {
                     Text(map.summary)
                         .dsType(.title)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: 640, alignment: .leading)
+                        .frame(maxWidth: wordsWidth, alignment: .leading)
                 }
                 lanes
                 if !map.ideas.isEmpty {
@@ -261,13 +263,13 @@ struct DnaScreen: View {
             }
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(back.map { text.format("nav.backTo", $0.label) } ?? text["dna.back"])
-            Text(title).dsType(.title).lineLimit(1)
+            // The title as the score's bar shows it, in its face, size and place (Andrei, v0.8 finding 11).
+            Text(title).barTitle().padding(.horizontal, CGFloat.ds("s-2"))
             Text(text["dna.title"]).dsType(.label).foregroundStyle(Color.ds("ink-2"))
             Spacer()
             Text(counts).dsType(.label).foregroundStyle(Color.ds("ink-2")).lineLimit(1)
         }
-        .padding(.leading, CGFloat.ds("s-2"))
-        .padding(.trailing, CGFloat.ds("s-4"))
+        .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
         .padding(.horizontal, CGFloat.ds("s-4"))
@@ -808,18 +810,16 @@ struct DnaScreen: View {
         return name
     }
 
-    /// The harmony lane's own controls: the circle, and the rows to show, kept on the device.
+    /// The harmony lane's own controls: the rows to show, kept on the device. The circle is the key lane's alone (Andrei,
+    /// v0.8 finding 12: the three rows are the harmony's buttons).
     private var harmonyControls: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if !map.circles.isEmpty { circleButton }
-            FlowRow(spacing: 4) {
-                rowToggle("dna.chords", "dna.rowChords", fallback: true)
-                rowToggle("dna.degrees", "dna.rowDegrees", fallback: false)
-                rowToggle("dna.functions", "dna.rowFunctions", fallback: true)
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(text["dna.rows"])
+        FlowRow(spacing: 4) {
+            rowToggle("dna.chords", "dna.rowChords", fallback: true)
+            rowToggle("dna.degrees", "dna.rowDegrees", fallback: false)
+            rowToggle("dna.functions", "dna.rowFunctions", fallback: true)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["dna.rows"])
     }
 
     private func rowToggle(_ id: String, _ name: String, fallback: Bool) -> some View {
@@ -1070,56 +1070,56 @@ struct DnaScreen: View {
         }
     }
 
-    /// A card's Hear: it plays the passage once and reads Stop while it sounds; Stop, the passage's end, or another
-    /// passage or the map starting brings Hear back (#582 item 14).
+    /// A card's Hear: it plays the passage once and shows Stop while it sounds, until it ends, is stopped or another starts
+    /// (#582 item 14); by its icon alone, so it keeps its width, its words for VoiceOver (Andrei, v0.8 finding 13).
     private func hearButton(_ range: Range<Double>) -> some View {
         let sounding = DnaPlaying.card(range, heard: cardHeard, loop: player.loop, state: player.state)
         return Button {
             if sounding { stop() } else { hearOnce(range) }
         } label: {
-            HStack(spacing: 6) {
-                Icon(name: sounding ? "pause" : "play")
-                Text(text[sounding ? "dna.stop" : "dna.hear"])
-            }
+            Icon(name: sounding ? "pause" : "play")
         }
         .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+        .accessibilityLabel(text[sounding ? "dna.stop" : "dna.hear"])
+        .help(text[sounding ? "dna.stop" : "dna.hear"])
     }
 
     private var actions: some View {
         let mapStops = DnaPlaying.map(playing: playing, card: cardHeard, state: player.state)
-        return FlowRow(spacing: CGFloat.ds("s-3")) {
-            Button {
-                playMap()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: mapStops ? "pause" : "play")
-                    Text(mapStops ? text["dna.stop"] : text["dna.playMap"])
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            FlowRow(spacing: CGFloat.ds("s-3")) {
+                Button(action: playMap) {
+                    HStack(spacing: 6) {
+                        Icon(name: mapStops ? "pause" : "play")
+                        Text(mapStops ? text["dna.stop"] : text["dna.playMap"])
+                    }
                 }
-            }
-            .buttonStyle(DSButtonStyle(kind: .primary))
-            if !map.form.isEmpty {
+                .buttonStyle(DSButtonStyle(kind: .primary))
+                if !map.form.isEmpty {
+                    Button {
+                        Task { status = DnaBookmarks.said(added: await addBookmarks(), text) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Icon(name: "bookmark")
+                            Text(text["dna.addBookmarks"])
+                        }
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .secondary))
+                }
                 Button {
-                    Task { status = await addBookmarks() }
+                    stop()
+                    ask()
                 } label: {
                     HStack(spacing: 6) {
-                        Icon(name: "bookmark")
-                        Text(text["dna.addBookmarks"])
+                        Icon(name: "insight")
+                        Text(text["ask.aboutPiece"])
                     }
                 }
                 .buttonStyle(DSButtonStyle(kind: .secondary))
             }
-            Button {
-                stop()
-                ask()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "insight")
-                    Text(text["ask.aboutPiece"])
-                }
-            }
-            .buttonStyle(DSButtonStyle(kind: .secondary))
-            if let status {
-                Text(status).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            if let status { // what the last action did, under the buttons, where it wraps (a FlowRow never does)
+                Text(status).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: wordsWidth, alignment: .leading)
             }
         }
     }

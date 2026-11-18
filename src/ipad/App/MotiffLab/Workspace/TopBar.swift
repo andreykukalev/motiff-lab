@@ -111,10 +111,7 @@ struct BarLeading: View {
                 contentsOpen.toggle()
             } label: {
                 WidthCap(cap: titleCap) {
-                    Text(title)
-                        .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                        .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                        .lineLimit(1)
+                    Text(title).barTitle(on: contentsOpen)
                 }
                 .padding(.horizontal, CGFloat.ds("s-2"))
                 .frame(height: 40)
