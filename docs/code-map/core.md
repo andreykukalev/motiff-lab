@@ -21,6 +21,11 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
   (`SavedPerformance`, `PerformanceSource`).
+- The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
+  (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
+  `HeardRhythm` and `HeardOnsets` (notes heard in a recording), `ControlPlan` (the marks of the playing per bar,
+  `ControlEvents`; the marks come from `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and
+  `BarAccidentals` (a staff in a bar, `LayoutElements`), and `MeiWriter`.
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
   provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
   `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
@@ -39,7 +44,8 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 ## Tests
 
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
-  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`).
+  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `Notation/Golden/` for the MEI written
+  for real pieces (`NotationGoldenTests`); both written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again with `MOTIFF_UPDATE_SNAPSHOTS=1`).
