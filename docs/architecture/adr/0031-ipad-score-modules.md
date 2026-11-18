@@ -127,3 +127,41 @@ The web's `PlaybackLab` and `app.css` are not in this record (platform focus is 
 it has one implementation, and the features' tests call the facade itself. Its answers are typed (`Platform/PieceAnswers.swift`)
 and pinned by `tests/contracts/facade-answers`. A protocol, with a fake for a model's tests, comes with the first model
 (steps 3–9) that is tested without the framework. The decision above is unchanged.
+
+## Note, 2026-11-18 (step S1, `SelectionModel`)
+
+`SelectionModel` (`Selection/SelectionModel.swift`) owns the selection's state: the selection, its history, the toast,
+the hold hint, the menu's place, the phrases shown and whether they are hidden. Its state is set only through its own
+methods; `ScoreController` hands in what music-core and the page answer (`answered`, `show`, `placeMenu`).
+
+Two things stay in the root for now, and each has a step that removes it:
+
+- **Selecting** (`select`, `clearSelection`, `showLevel`, `resetLevel`): each runs, after music-core's answer, the page,
+  the play range and Expand in one order. It moves into `SelectionModel` in **S3**, once `FocusModel` owns Expand and
+  the play range and the root only connects the two.
+- **The relay and the forwarders**: `ScoreController` sends each `objectWillChange` of the model on as its own and
+  forwards `selection`, `phrases` and `phrasesHidden` read-only, so the views and reactions that observe the controller
+  update at the same moment as before and the tests (the protected `tests/ipad/Baseline` among them) read the same
+  names. This is against section 3's «views observe the model they show», for one step. They go in **S7** (blueprint
+  phase C: `ScoreScreen`'s view types into their files, this record's step 10), which moves each view onto the model it
+  shows; the readers in other features (Marks, Roll, Playback, Assistant) and the tests then read `selectionModel`.
+
+## Note, 2026-11-18 (step S3, `FocusModel`)
+
+`FocusModel` (`Playback/FocusModel.swift`) owns Expand's state but one: where it was opened from (`entry`), whether the
+card shows the roll (`asRoll`), the card's options, the version in focus and the play range, with the rules that need
+only the selection (the play range, the unit the card is, `canStepBack`/`canStepOn`, the card's position text). It reads
+`SelectionModel`. `SelectionModel` now selects and changes the level through music-core itself (`select`, `showLevel`,
+`resetLevel`, `loadPhrases`, and `hidePhrases` as the writer of `phrasesHidden`); `show` is gone. The root keeps the
+order after each answer: the page, then the play range, then the card.
+
+What stays in `ScoreController`, and the step that removes each:
+
+- **`focused`**: the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$focused`, a publisher a
+  forwarder cannot give. It moves into `FocusModel` with the relay and the forwarders in **S7**, whose change to the
+  baseline's harness Andrei merges.
+- **`clearSelection`**: it leaves Expand between the step recorded and the selection taken away, so it calls both models;
+  it is the root's connecting of the two, as `enterFocus`, `leaveFocus` and `step` are, which open the card on the page.
+- **`practice`** (the protected baseline writes `score.practice`) and **`ossia`** (its change engraves the card again,
+  which needs the page and music-core): with the root's page calls, in **S7** and step 9 (the composition root).
+- The forwarders `focusRoll`, `playRange` and `focusVersion` join S1's, under the same S7 removal.
