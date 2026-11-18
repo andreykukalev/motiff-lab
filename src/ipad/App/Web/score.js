@@ -48,7 +48,7 @@
 // to it (`returnToPlayhead`). Under the modes the two playheads of the playback model are drawn (`playheads`), and their
 // handles are dragged (#495 UX-08): the handle taken, its places and its letting go go to Swift (`drag`), and where the
 // handles are (`heads`), so a finger there is never the pen's. In Expand the card has the page's black playhead too, dragged
-// inside the passage (v0.6.4, spec 8: `drawCardHeads`).
+// inside the passage (v0.6.4, spec 8: `drawCardHeads`), and a tap on a bar of the card puts it on the beat tapped (`cardTapped`).
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -854,6 +854,9 @@ function barUnder(event) {
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("#focus")) {
+        if (target.closest(".card-score") !== null) {
+            cardTapped(event);
+        }
         return;
     }
     const flag = target?.closest(".check-flag");
@@ -1021,7 +1024,7 @@ const card = { timeline: null, offset: 0, width: 0, ossias: [], pages: [], geome
  * ticks count from its first bar, `card.offset` in the piece.
  */
 const cardHeads = new ScorePlayheadMarks(cardScore, {
-    at: (tick) => (card.timeline === null ? undefined : card.geometry?.playhead(tick, (id) => card.timeline.onsetOf(id))),
+    at: (tick) => cardPlayhead(tick),
     lineBottom: (bar) => card.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
     grab: (_handle, event) => cardGrabs.begin("blue", event),
 });
@@ -1032,12 +1035,41 @@ const cardGrabs = new ScoreGrab({
     selection: () => cardPassage(),
     // Nothing writes in Expand: the Pencil and a finger both take the dot.
     takes: () => state.focus && state.heads !== null,
-    point: (event) => {
-        const view = cardScore.getBoundingClientRect();
-        return { x: event.clientX - view.left + cardScore.scrollLeft, y: event.clientY - view.top + cardScore.scrollTop };
-    },
+    point: (event) => cardPoint(event),
     moved: () => drawCardHeads(),
 }, new PlayheadDrag((message) => post({ drag: "tick" in message ? { ...message, tick: message.tick + card.offset } : message })));
+
+/** The piece's beats in the card's ticks, for a tap on the card to find the beat under it as a tap on the page does (`scoreBeats`). */
+const cardBeats = new ScoreBeats({ beats: () => state.beats?.map((line) => line - card.offset) ?? null, tickX: (tick) => cardPlayhead(tick)?.x });
+
+/** Where a tick of the card sounds on it, across its bar and its system's staves. */
+function cardPlayhead(tick) {
+    return card.timeline === null ? undefined : card.geometry?.playhead(tick, (id) => card.timeline.onsetOf(id));
+}
+
+/** A pointer's place in the card's own pixels (it scrolls inside itself), as `layoutCard` places its bars. */
+function cardPoint(event) {
+    const view = cardScore.getBoundingClientRect();
+    return { x: event.clientX - view.left + cardScore.scrollLeft, y: event.clientY - view.top + cardScore.scrollTop };
+}
+
+/**
+ * A tap on a bar of the card in Expand (finding 2 of the 0.8 test, Andrei's answer 4 of 2026-11-18): the black playhead goes
+ * to the beat tapped by the page's own rule for a tap in Navigate (`tapUnderModes`, PLAY-05); Swift keeps it inside the
+ * passage and starts nothing, and playing it plays on from there (ScoreWorkspace.placeTapped). Nothing writes in Expand, so
+ * the Pencil and a finger tap alike, as both take the dot (`cardGrabs`); a tap on the dot or beside the bars does nothing.
+ */
+function cardTapped(event) {
+    const geometry = card.geometry;
+    if (geometry === null || state.heads === null || event.target.closest(".grip") !== null) {
+        return;
+    }
+    const point = cardPoint(event);
+    const beat = beatUnder(geometry, cardBeats, point.x, point.y);
+    if (beat !== undefined) {
+        post({ place: { start: beat.start + card.offset, end: beat.end + card.offset } });
+    }
+}
 
 /** Expand's passage in the card's ticks: the selection it was opened on, as Swift's playheads give it; null without one. */
 function cardPassage() {
