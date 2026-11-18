@@ -1,0 +1,100 @@
+version: 4.0
+end: 15360t
+pickup: 0
+report: MusicXML 4.0, 1 tracks, 30 notes, 8 measures
+## issues
+## parts
+MusicXmlPartInfo { Index = 0, Id = P1, Name = Melody, InstrumentName = Acoustic Grand Piano, Staves = 1, NoteCount = 30, HasHands = False }
+## bars
+Bar { Number = 1, Span = [0t, 1920t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 2, Span = [1920t, 3840t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 3, Span = [3840t, 5760t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 4, Span = [5760t, 7680t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 5, Span = [7680t, 9600t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 6, Span = [9600t, 11520t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 7, Span = [11520t, 13440t), Signature = 4/4, IsPickup = False, IsComplete = True }
+Bar { Number = 8, Span = [13440t, 15360t), Signature = 4/4, IsPickup = False, IsComplete = True }
+## measures
+MusicXmlMeasure { Index = 0, Number = 1, IsImplicit = False, Start = 0q, Span = [0t, 1920t) }
+MusicXmlMeasure { Index = 1, Number = 2, IsImplicit = False, Start = 4q, Span = [1920t, 3840t) }
+MusicXmlMeasure { Index = 2, Number = 3, IsImplicit = False, Start = 8q, Span = [3840t, 5760t) }
+MusicXmlMeasure { Index = 3, Number = 4, IsImplicit = False, Start = 12q, Span = [5760t, 7680t) }
+MusicXmlMeasure { Index = 4, Number = 5, IsImplicit = False, Start = 16q, Span = [7680t, 9600t) }
+MusicXmlMeasure { Index = 5, Number = 6, IsImplicit = False, Start = 20q, Span = [9600t, 11520t) }
+MusicXmlMeasure { Index = 6, Number = 7, IsImplicit = False, Start = 24q, Span = [11520t, 13440t) }
+MusicXmlMeasure { Index = 7, Number = 8, IsImplicit = False, Start = 28q, Span = [13440t, 15360t) }
+## time signatures
+MusicXmlTimeSignature { At = 0t, MeasureIndex = 0, Numerator = 4, Denominator = 4, IsAssumed = False }
+## key signatures
+MusicXmlKeySignature { At = 0t, Track = 0, MeasureIndex = 0, Fifths = 0, Mode = major }
+## tempos
+MusicXmlTempoChange { At = 0t, MeasureIndex = 0, QuarterNotesPerMinute = 100, IsAssumed = False, MicrosecondsPerQuarter = 600000, Source = Notated }
+## repeats
+## bar lines
+MusicXmlBarline { At = 15360t, MeasureIndex = 8, Style = light-heavy, IsRepeat = False, IsDouble = False, IsFinal = True }
+## texts
+## slurs
+## rests
+## grace notes
+## source notes
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 0, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 0q, Duration = 1q, Span = [0t, 480t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 0, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 1q, Duration = 1q, Span = [480t, 960t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 0, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 65, Velocity = 80, IsVelocityAssumed = False, Onset = 2q, Duration = 1q, Span = [960t, 1440t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 0, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 67, Velocity = 80, IsVelocityAssumed = False, Onset = 3q, Duration = 1q, Span = [1440t, 1920t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 1, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 67, Velocity = 80, IsVelocityAssumed = False, Onset = 4q, Duration = 1q, Span = [1920t, 2400t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 1, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 65, Velocity = 80, IsVelocityAssumed = False, Onset = 5q, Duration = 1q, Span = [2400t, 2880t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 1, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 6q, Duration = 1q, Span = [2880t, 3360t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 1, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 7q, Duration = 1q, Span = [3360t, 3840t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 2, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 8q, Duration = 1q, Span = [3840t, 4320t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 2, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 9q, Duration = 1q, Span = [4320t, 4800t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 2, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 10q, Duration = 1q, Span = [4800t, 5280t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 2, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 11q, Duration = 1q, Span = [5280t, 5760t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 3, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 12q, Duration = 3/2q, Span = [5760t, 6480t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 3, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 27/2q, Duration = 1/2q, Span = [6480t, 6720t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 3, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 14q, Duration = 2q, Span = [6720t, 7680t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 4, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 16q, Duration = 1q, Span = [7680t, 8160t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 4, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 17q, Duration = 1q, Span = [8160t, 8640t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 4, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 65, Velocity = 80, IsVelocityAssumed = False, Onset = 18q, Duration = 1q, Span = [8640t, 9120t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 4, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 67, Velocity = 80, IsVelocityAssumed = False, Onset = 19q, Duration = 1q, Span = [9120t, 9600t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 5, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 67, Velocity = 80, IsVelocityAssumed = False, Onset = 20q, Duration = 1q, Span = [9600t, 10080t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 5, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 65, Velocity = 80, IsVelocityAssumed = False, Onset = 21q, Duration = 1q, Span = [10080t, 10560t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 5, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 22q, Duration = 1q, Span = [10560t, 11040t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 5, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 23q, Duration = 1q, Span = [11040t, 11520t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 6, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 24q, Duration = 1q, Span = [11520t, 12000t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 6, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 25q, Duration = 1q, Span = [12000t, 12480t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 6, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 26q, Duration = 1q, Span = [12480t, 12960t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 6, NoteIndex = 3, Staff = 1, Voice = 1, Pitch = 64, Velocity = 80, IsVelocityAssumed = False, Onset = 27q, Duration = 1q, Span = [12960t, 13440t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 7, NoteIndex = 0, Staff = 1, Voice = 1, Pitch = 62, Velocity = 80, IsVelocityAssumed = False, Onset = 28q, Duration = 3/2q, Span = [13440t, 14160t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 7, NoteIndex = 1, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 59/2q, Duration = 1/2q, Span = [14160t, 14400t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+MusicXmlNote { Track = 0, PartId = P1, MeasureIndex = 7, NoteIndex = 2, Staff = 1, Voice = 1, Pitch = 60, Velocity = 80, IsVelocityAssumed = False, Onset = 30q, Duration = 2q, Span = [14400t, 15360t), IsExact = True, WrittenNotes = 1, Tuplet = , Accent =  }
+## notes
+Note { Id = n_0001, Pitch = E4, Span = [0t, 480t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 0, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0002, Pitch = E4, Span = [480t, 960t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 0, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0003, Pitch = F4, Span = [960t, 1440t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 0, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0004, Pitch = G4, Span = [1440t, 1920t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 0, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0005, Pitch = G4, Span = [1920t, 2400t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 1, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0006, Pitch = F4, Span = [2400t, 2880t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 1, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0007, Pitch = E4, Span = [2880t, 3360t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 1, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0008, Pitch = D4, Span = [3360t, 3840t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 1, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0009, Pitch = C4, Span = [3840t, 4320t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 2, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0010, Pitch = C4, Span = [4320t, 4800t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 2, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0011, Pitch = D4, Span = [4800t, 5280t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 2, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0012, Pitch = E4, Span = [5280t, 5760t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 2, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0013, Pitch = E4, Span = [5760t, 6480t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 3, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0014, Pitch = D4, Span = [6480t, 6720t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 3, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0015, Pitch = D4, Span = [6720t, 7680t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 3, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0016, Pitch = E4, Span = [7680t, 8160t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 4, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0017, Pitch = E4, Span = [8160t, 8640t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 4, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0018, Pitch = F4, Span = [8640t, 9120t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 4, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0019, Pitch = G4, Span = [9120t, 9600t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 4, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0020, Pitch = G4, Span = [9600t, 10080t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 5, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0021, Pitch = F4, Span = [10080t, 10560t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 5, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0022, Pitch = E4, Span = [10560t, 11040t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 5, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0023, Pitch = D4, Span = [11040t, 11520t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 5, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0024, Pitch = C4, Span = [11520t, 12000t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 6, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0025, Pitch = C4, Span = [12000t, 12480t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 6, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0026, Pitch = D4, Span = [12480t, 12960t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 6, NoteIndex = 2, Staff = 1, Voice = 1 } }
+Note { Id = n_0027, Pitch = E4, Span = [12960t, 13440t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 6, NoteIndex = 3, Staff = 1, Voice = 1 } }
+Note { Id = n_0028, Pitch = D4, Span = [13440t, 14160t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 7, NoteIndex = 0, Staff = 1, Voice = 1 } }
+Note { Id = n_0029, Pitch = C4, Span = [14160t, 14400t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 7, NoteIndex = 1, Staff = 1, Voice = 1 } }
+Note { Id = n_0030, Pitch = C4, Span = [14400t, 15360t), Velocity = 80, Track = 0, Voice = 1, Hand = , Attribution = Imported (1), Source = MusicXmlSourceLocation { PartId = P1, MeasureIndex = 7, NoteIndex = 2, Staff = 1, Voice = 1 } }

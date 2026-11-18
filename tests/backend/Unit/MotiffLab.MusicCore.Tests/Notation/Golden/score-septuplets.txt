@@ -1,0 +1,22 @@
+notes: 25
+approximated: 21
+shortened: 0
+lengthened: 0
+cut: 0
+graces: 0
+as heard: False
+accents: 0
+dynamics: 0
+tempo words: 0
+hairpins: 0
+fermatas: 0
+tempo marks: 1
+triplets: 0
+slurs: 0
+pedals: 0
+excerpt: 
+staff: NotationStaff { Number = 1, Track = 0, Clef = Treble, Hand = , IsSplitInferred = False }
+mei: <?xml version="1.0" encoding="UTF-8"?><mei meiversion="5.1" xmlns="http://www.music-encoding.org/ns/mei"><meiHead><fileDesc><titleStmt><title>septuplets.musicxml</title></titleStmt><pubStmt /></fileDesc></meiHead><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4" keysig="0"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2" /></staffGrp></scoreDef><section>
+<measure n="1"><staff n="1"><layer n="1"><beam><note xml:id="n_0001" dur="32" pname="c" oct="5" /><note xml:id="n_0002" dur="32" pname="d" oct="5" /><note xml:id="n_0003" dur="32" pname="e" oct="5" /><note xml:id="n_0004" dur="32" pname="f" oct="5" tie="i" /><note xml:id="n_0004-2" dur="32" pname="f" oct="5" tie="t" /><note xml:id="n_0005" dur="32" pname="g" oct="5" /><note xml:id="n_0006" dur="32" pname="a" oct="5" /><note xml:id="n_0007" dur="32" pname="b" oct="5" /></beam><note xml:id="n_0008" dur="4" pname="c" oct="6" /><beam><note xml:id="n_0009" dur="16" pname="b" oct="5" /><note xml:id="n_0010" dur="16" dots="1" pname="a" oct="5" /><note xml:id="n_0011" dur="32" pname="g" oct="5" tie="i" /><note xml:id="n_0011-2" dur="32" pname="g" oct="5" tie="t" /><note xml:id="n_0012" dur="32" pname="f" oct="5" tie="i" /></beam><beam><note xml:id="n_0012-2" dur="32" pname="f" oct="5" tie="t" /><note xml:id="n_0013" dur="32" pname="e" oct="5" tie="i" /><note xml:id="n_0013-2" dur="32" pname="e" oct="5" tie="t" /><note xml:id="n_0014" dur="16" dots="1" pname="d" oct="5" /><note xml:id="n_0015" dur="16" pname="c" oct="5" /></beam></layer></staff><tempo staff="1" place="above" tstamp="0" mm="72" mm.unit="4" midi.bpm="72"><rend fontsize="x-small" glyph.auth="smufl"></rend> = 72</tempo></measure>
+<measure n="2"><staff n="1"><layer n="1"><note xml:id="n_0016" dur="4" pname="c" oct="5" /><beam><note xml:id="n_0017" dur="32" pname="e" oct="5" /><note xml:id="n_0018" dur="32" pname="f" oct="5" /><note xml:id="n_0019" dur="32" pname="g" oct="5" /><note xml:id="n_0020" dur="32" pname="a" oct="5" tie="i" /><note xml:id="n_0020-2" dur="32" pname="a" oct="5" tie="t" /><note xml:id="n_0021" dur="32" pname="g" oct="5" /><note xml:id="n_0022" dur="32" pname="f" oct="5" /><note xml:id="n_0023" dur="32" pname="e" oct="5" /></beam><note xml:id="n_0024" dur="2" pname="d" oct="5" /></layer></staff></measure>
+<measure n="3"><staff n="1"><layer n="1"><note xml:id="n_0025" dur="1" pname="c" oct="5" /></layer></staff></measure></section></score></mdiv></body></music></mei>

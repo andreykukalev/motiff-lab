@@ -1,0 +1,24 @@
+notes: 27
+approximated: 0
+shortened: 0
+lengthened: 0
+cut: 0
+graces: 0
+as heard: False
+accents: 0
+dynamics: 0
+tempo words: 0
+hairpins: 0
+fermatas: 0
+tempo marks: 2
+triplets: 0
+slurs: 0
+pedals: 0
+excerpt: 
+staff: NotationStaff { Number = 1, Track = 1, Clef = Treble, Hand = , IsSplitInferred = False }
+staff: NotationStaff { Number = 2, Track = 2, Clef = Bass, Hand = , IsSplitInferred = False }
+mei: <?xml version="1.0" encoding="UTF-8"?><mei meiversion="5.1" xmlns="http://www.music-encoding.org/ns/mei"><meiHead><fileDesc><titleStmt><title>two-hands-type1.mid</title></titleStmt><pubStmt /></fileDesc></meiHead><music><body><mdiv><score><scoreDef meter.count="3" meter.unit="4" keysig="1s"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2" /><staffDef n="2" lines="5" clef.shape="F" clef.line="4" /></staffGrp></scoreDef><section>
+<measure n="1"><staff n="1"><layer n="1"><note xml:id="n_0001" dur="2" pname="g" oct="4" /><note xml:id="n_0005" dur="4" pname="b" oct="4" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n_0002" dur="4" pname="g" oct="2" /><chord xml:id="c_n_0003" dur="4"><note xml:id="n_0003" pname="b" oct="2" /><note xml:id="n_0004" pname="d" oct="3" /></chord><chord xml:id="c_n_0006" dur="4"><note xml:id="n_0006" pname="b" oct="2" /><note xml:id="n_0007" pname="d" oct="3" /></chord></layer></staff><tempo staff="1" place="above" tstamp="0" mm="90" mm.unit="4" midi.bpm="90"><rend fontsize="x-small" glyph.auth="smufl"></rend> = 90</tempo></measure>
+<measure n="2"><staff n="1"><layer n="1"><note xml:id="n_0008" dur="2" dots="1" pname="d" oct="5" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n_0009" dur="4" pname="g" oct="2" /><chord xml:id="c_n_0010" dur="4"><note xml:id="n_0010" pname="b" oct="2" /><note xml:id="n_0011" pname="d" oct="3" /></chord><chord xml:id="c_n_0012" dur="4"><note xml:id="n_0012" pname="b" oct="2" /><note xml:id="n_0013" pname="d" oct="3" /></chord></layer></staff></measure>
+<measure n="3"><staff n="1"><layer n="1"><note xml:id="n_0014" dur="4" pname="c" oct="5" /><note xml:id="n_0016" dur="4" pname="b" oct="4" /><note xml:id="n_0019" dur="4" pname="a" oct="4" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n_0015" dur="4" pname="d" oct="2" /><chord xml:id="c_n_0017" dur="4"><note xml:id="n_0017" pname="f" oct="2" accid.ges="s" /><note xml:id="n_0018" pname="a" oct="2" /></chord><chord xml:id="c_n_0020" dur="4"><note xml:id="n_0020" pname="f" oct="2" accid.ges="s" /><note xml:id="n_0021" pname="a" oct="2" /></chord></layer></staff><tempo staff="1" place="above" tstamp="1" mm="72" mm.unit="4" midi.bpm="72"><rend fontsize="x-small" glyph.auth="smufl"></rend> = 72</tempo></measure>
+<measure n="4"><staff n="1"><layer n="1"><note xml:id="n_0022" dur="2" dots="1" pname="g" oct="4" /></layer></staff><staff n="2"><layer n="1"><note xml:id="n_0023" dur="4" pname="g" oct="2" /><chord xml:id="c_n_0024" dur="4"><note xml:id="n_0024" pname="b" oct="2" /><note xml:id="n_0025" pname="d" oct="3" /></chord><chord xml:id="c_n_0026" dur="4"><note xml:id="n_0026" pname="b" oct="2" /><note xml:id="n_0027" pname="d" oct="3" /></chord></layer></staff></measure></section></score></mdiv></body></music></mei>

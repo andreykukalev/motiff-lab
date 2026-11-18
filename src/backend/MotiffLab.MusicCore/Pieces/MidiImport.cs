@@ -87,7 +87,7 @@ public sealed record MidiTempoChange(Tick At, long MidiTick, int MicrosecondsPer
     public bool IsInferred { get; init; }
 
     /// <summary>Notated for a tempo event of the file, inferred for one a transcription's bars worked out, else assumed.</summary>
-    public Playback.TempoSource Source => IsInferred ? Playback.TempoSource.Inferred : IsAssumed ? Playback.TempoSource.Assumed : Playback.TempoSource.Notated;
+    public TempoSource Source => IsInferred ? TempoSource.Inferred : IsAssumed ? TempoSource.Assumed : TempoSource.Notated;
 }
 
 /// <param name="Denominator">Note value of the beat as a power of two, 1–128.</param>

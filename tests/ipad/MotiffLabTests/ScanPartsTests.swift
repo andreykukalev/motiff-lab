@@ -105,4 +105,18 @@ final class ScanPartsTests: XCTestCase {
             XCTAssertNotEqual(russian[key], key)
         }
     }
+
+    func testTheScanServerOnThisIPadIsOnThisDeviceNotAComputer() {
+        // Andrei, 2026-11-18 12:55 UTC (answer 4, after answer 12): the iPad says «на этом устройстве» / "this device".
+        let english = UIText(language: "en"), russian = UIText(language: "ru")
+        XCTAssertEqual(
+            english.format("pdf.readLineHere", "http://localhost:8000"),
+            "Recognise notes sends this PDF, up to 100 pages, to the scan server set in Settings, http://localhost:8000 on this device, which deletes it once read. It stays here as it is."
+        )
+        XCTAssertEqual(
+            russian.format("pdf.readLineHere", "http://localhost:8000"),
+            "«Распознать ноты» отправит этот PDF, до 100 страниц, на сервер распознавания из Настроек, http://localhost:8000 на этом устройстве, который удалит его после чтения. Здесь он останется как есть."
+        )
+        XCTAssertEqual(english["settings.scanElsewhere"], "This address is another computer, so pages and recordings you send leave this device. Each send asks first.")
+    }
 }

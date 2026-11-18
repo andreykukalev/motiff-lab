@@ -4,7 +4,7 @@
   "selection.holdHint": "Задержите касание, чтобы начать новое выделение",
   "selection.byBeats": "По долям",
   "selection.options": "Настройки выделения",
-  "selection.noNotes": ": здесь не начинается ни одна нота, повторять нечего.",
+  "selection.noNotes": "Здесь нет нот: выделение осталось прежним",
   "selection.beatSpan": "Такт {0}, доля {1} → такт {2}, доля {3}",
   "selection.replacedToast": "Выделение заменено",
   "selection.tooLong": "Выделение — не больше 32 тактов: оно осталось прежним"

@@ -267,7 +267,7 @@ struct ScoreScreenContent: View {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
-                if selectionMenuOpen, let place = score.menuPlace {
+                if selectionMenuOpen, let place = score.selectionModel.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
@@ -906,8 +906,8 @@ struct Pill: View {
             .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
         }
         if score.selection != nil && !score.focused {
-            step("back", text["focus.previous"], enabled: score.canStepBack) { score.step(-1) }
-            step("fwd", text["focus.next"], enabled: score.canStepOn) { score.step(1) }
+            step("back", text["focus.previous"], enabled: score.focusModel.canStepBack) { score.step(-1) }
+            step("fwd", text["focus.next"], enabled: score.focusModel.canStepOn) { score.step(1) }
         }
     }
 
@@ -1025,13 +1025,15 @@ struct SelectionMenu: View {
                 item("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
             }
+            // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the
+            // assistant (Andrei, 2026-11-18).
+            item("memo", text["menu.note"], on: false) {
+                contents.cancel()
+                score.startNote()
+            }
             item("bookmark", text["menu.bookmark"], on: false) {
                 score.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
-            }
-            item("note", text["menu.note"], on: false) {
-                contents.cancel()
-                score.startNote()
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
@@ -1132,7 +1134,7 @@ struct FocusShowAs: View {
     private func option(_ roll: Bool, _ key: String) -> some View {
         let on = score.focusRoll == roll
         return Button {
-            score.focusRoll = roll
+            score.focusModel.showAsRoll(roll)
         } label: {
             SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
@@ -1153,7 +1155,7 @@ struct FocusBar: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             // The way back by the way in (#521 17): «К странице» from the score, «Свернуть» from the roll; Escape too.
-            let entry = score.expandEntry
+            let entry = score.focusModel.entry
             Button {
                 score.leaveFocus()
             } label: {
@@ -1169,7 +1171,7 @@ struct FocusBar: View {
             .keyboardShortcut(.cancelAction)
             .help(text[entry.backHintKey])
             .accessibilityHint(text[entry.backHintKey])
-            Text(score.focusPosition)
+            Text(score.focusModel.position(in: text))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink-2"))
                 .monospacedDigit()
@@ -1220,7 +1222,7 @@ struct PhrasesPanel: View {
             }
             PaletteRule()
             row(text["phrases.hide"], count: nil, on: score.phrasesHidden) {
-                score.phrasesHidden = true
+                score.selectionModel.hidePhrases(true)
             }
             .accessibilityHint(text["phrases.hideHint"])
             PaletteRule()

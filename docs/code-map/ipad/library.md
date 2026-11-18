@@ -15,7 +15,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Library`.
   only while the screen's `.task` is not cancelled, and `onDisappear` clears it.
 - `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe`
   (`Platform/ScreensHook.swift`) gives each switch's phases.
-- `MotiffLabTests/SwitchReleaseTests` switches in one window: through the screens' objects (the workspace, its
+- `Baseline/SwitchReleaseTests` switches in one window: through the screens' objects (the workspace, its
   controllers and web views, the Pencil watched; the PDF's controllers and pages' view, attached), each handed over by
   its switch; and the real `ScoreScreen` and `PdfScreen` hosted and swapped as `navigationDestination(item:)` does, once
   while the PDF still loads. It checks those objects are freed and the window's recognizers do not grow; not SwiftUI's

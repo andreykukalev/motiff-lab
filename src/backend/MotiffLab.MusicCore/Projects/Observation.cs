@@ -2,6 +2,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -113,7 +114,7 @@ public sealed record Observation(
 
     /// <summary>
     /// How the idea was made, in the shape of a Notes' provenance (version 16), so a later build's assistant variation
-    /// (<see cref="Projects.NotesProvenance.Assistant"/>) is kept with no change to the format; null for an idea made in the app.
+    /// (<see cref="NotesProvenance.Assistant"/>) is kept with no change to the format; null for an idea made in the app.
     /// </summary>
     public NotesProvenance? Provenance { get; init; }
 

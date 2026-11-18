@@ -4,7 +4,6 @@ using System.Xml.Linq;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Notation;
-using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
 using MotiffLab.MusicCore.Time;
 

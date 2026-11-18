@@ -1,7 +1,6 @@
 using System.Xml.Linq;
 
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 

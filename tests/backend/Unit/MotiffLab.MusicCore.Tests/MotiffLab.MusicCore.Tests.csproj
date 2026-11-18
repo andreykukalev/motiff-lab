@@ -30,6 +30,10 @@
     <None Include="Analysis\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <!-- Project files of earlier, current and later versions and what today's writer makes of them (Golden/README.md). -->
     <None Include="Golden\*.motiff.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The notation written for real pieces (Notation/NotationGoldenTests.cs). -->
+    <None Include="Notation\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- What the MusicXML importer reads from real scores (Import/MusicXml/MusicXmlImportGoldenTests.cs). -->
+    <None Include="Import\MusicXml\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- The phrases, form and Piece DNA golden the iPad tests assert under NativeAOT too, and the kit's piece it is made from. -->
     <None Include="..\..\..\ipad\MotiffLabTests\Golden\*.json" Link="Golden\Analysis\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\..\design\kit\elise.musicxml" Link="Golden\Analysis\elise.musicxml" CopyToOutputDirectory="PreserveNewest" />

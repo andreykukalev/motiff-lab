@@ -308,7 +308,6 @@ public static class PieceImporter
     };
 }
 
-
 /// <summary>Either the imported piece or why the file could not be imported; exactly one is set.</summary>
 public sealed record PieceImportResult(ImportedPiece? Piece, ImportRejection? Rejection);
 

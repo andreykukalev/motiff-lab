@@ -1,5 +1,7 @@
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects;
