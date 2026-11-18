@@ -28,6 +28,7 @@ final class RecordingSeekTests: XCTestCase {
         listening.seek(to: 9000)
         XCTAssertEqual(listening.heardAt, 2000, "never past the end")
         XCTAssertEqual(listening.elapsed, 2000)
+        XCTAssertFalse(listening.playing, "at the end the sound stops")
         listening.seek(to: -5)
         XCTAssertEqual(listening.heardAt, 0, "never before the start")
     }

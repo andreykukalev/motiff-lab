@@ -325,8 +325,11 @@ final class RecordingListening: ObservableObject {
     /// The player's finger is on the slider: the place shown is the finger's, and the sound moves there on release.
     private(set) var holding = false
     /// Where the sound is now, in milliseconds.
-    var heardAt: Int { Int(((player?.currentTime ?? 0) * 1000).rounded()) }
+    var heardAt: Int { atEnd ? length : Int(((player?.currentTime ?? 0) * 1000).rounded()) }
     private var player: AVAudioPlayer?
+    /// Moved to the end: AVAudioPlayer keeps no `currentTime` equal to its duration (it reads back 0), so the sound is
+    /// stopped there and the next play starts from the beginning.
+    private var atEnd = false
     private var timer: Timer?
 
     func load(_ url: URL) {
@@ -347,6 +350,7 @@ final class RecordingListening: ObservableObject {
             // Heard with the ring switch on silent too, as the score's own playback is (Player).
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)
+            atEnd = false
             player.play()
             playing = true
             timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
@@ -362,12 +366,16 @@ final class RecordingListening: ObservableObject {
         timer = nil
     }
 
-    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there. While the
-    /// finger holds the slider only the place shown moves, so the sound does not stutter; it follows on `release`.
+    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there, and at the
+    /// end it stops. While the finger holds the slider only the place shown moves, so the sound does not stutter; it
+    /// follows on `release`.
     func seek(to milliseconds: Int) {
         guard let player else { return }
         elapsed = min(max(0, milliseconds), length)
-        if !holding { player.currentTime = Double(elapsed) / 1000 }
+        guard !holding else { return }
+        atEnd = elapsed >= length
+        if atEnd { stop() }
+        player.currentTime = atEnd ? 0 : Double(elapsed) / 1000
     }
 
     /// The finger is on the slider.
