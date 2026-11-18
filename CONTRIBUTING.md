@@ -30,7 +30,9 @@ dotnet format whitespace --folder --verify-no-changes
 (cd src/backend/omr && python -m pytest -q)     # when the scan server changed
 ```
 
-The iPad app is built and tested on a Mac (`src/ipad/README.md`), or by the `iPad` workflow with the label `ipad-tests`.
+The iPad app is built and tested on a Mac (`src/ipad/README.md`), or by the `iPad` workflow: on every push to a pull
+request that touches what the app is built from, it runs the Swift tests in the simulator and compiles the walk, and
+its job `ipad-gate` is required on `develop`; by hand with the inputs `walk`, `screenshots` and `switch_test`.
 
 ## Pull requests
 

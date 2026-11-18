@@ -34,8 +34,40 @@ The thresholds are kept in one place, [`settings.json`](settings.json): function
 | `swiftlint` | SwiftLint in Docker on Linux, `src/ipad/App` and `tests/ipad` | `cyclomatic_complexity` (15), `function_body_length` (80), `file_length` (600), `type_body_length` (600), `nesting` (4) |
 | `jscpd` | jscpd, C#, Razor, TypeScript, Swift and Python (`.jscpd.json`) | duplicated blocks from 10 lines |
 | `suppressions` | `tools/quality/quality.mjs` (a scan of the tracked sources and build files) | each way to hide a violation from the checks above is a violation itself: `eslint-disable` and other ESLint directives (ignored anyway: `noInlineConfig`), `swiftlint:disable`, `jscpd:ignore`, `#pragma warning disable` (bare or naming CA1502/CA1505/CA1506), `SuppressMessage` for them, `dotnet_diagnostic.CA150x` or a Maintainability-wide severity in an `.editorconfig` or `.globalconfig`, `NoWarn` naming them, analyzers turned off |
-| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device) |
+| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device); each folder of the iPad app uses only the folders it may (below) |
 | `config` | `tools/quality/quality.mjs` | the generated configuration matches `settings.json` |
+
+The iPad app is one Swift module, so the compiler does not keep its folders (`src/ipad/App/MotiffLab/<Folder>`,
+blueprint v0.7, 5.2) apart: `dependencies` indexes the types each folder declares and reports a file that names a type
+of a folder it may not use. The table is `IPAD_FOLDER_USES` in `tools/quality/dependencies.mjs`, its test keeps this copy
+equal, and a folder always uses its own types:
+
+| Folder | May use |
+| --- | --- |
+| `Platform/` | nothing |
+| `Workspace/` | every folder |
+| `Selection/` | `Platform` |
+| `Playback/` | `Platform`, `Selection` |
+| `Roll/` | `Platform`, `Selection` |
+| `Ink/` | `Platform` |
+| `Marks/` | `Platform`, `Selection` |
+| `Sources/` | `Platform`, `Selection` |
+| `Pdf/` | `Platform` |
+| `Library/` | `Platform` |
+| `Import/` | `Platform` |
+| `Insights/` | `Platform`, `Selection` |
+| `Reference/` | `Platform` |
+| `Assistant/` | `Platform`, `Selection` |
+| `Account/` | `Platform` |
+
+A finding `src/ipad/App/MotiffLab/Marks/Check.swift:12 | dependencies ipad-folder | Workspace: ScoreController` says
+that the file names `ScoreController`, a type of `Workspace/`, first on line 12. Move the type down to `Platform`, read it through a protocol
+the folder may use, or let `Workspace` do it. The edges the app had when the check came are baseline entries, one per
+file and type. A new one that the task cannot avoid: `node tools/quality/quality.mjs --only dependencies --update-baseline
+--why "<reason> (#issue)"`; a gone one: the same without `--why`. A conflict in `baseline.json`: keep both sides'
+entries, then run the command without `--why`, which keeps their reasons and drops what no longer matches. What the
+scan cannot see is written above `swiftCode` in `dependencies.mjs`; above all, it indexes only types, so a free
+function, a global constant or a member an extension adds to a type used from another folder is missed.
 
 The CA rules report only in a quality build (`-p:QualityMetrics=true`, `Directory.Build.props`), and there as warnings
 that never fail the build, although warnings are otherwise errors: the ratchet decides. An everyday `dotnet build`

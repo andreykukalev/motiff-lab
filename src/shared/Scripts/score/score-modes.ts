@@ -1,4 +1,4 @@
-// The rules of version 0.5 on the score (the experiment Two playheads and modes, Settings · Experimental; product specs
+// The rules of version 0.5 on the score (once the experiment Two playheads and modes, Settings · Experimental; product specs
 // two-playheads and interaction-modes, «Правила выделения по режимам»): one group of modes in the bar, Navigate (H),
 // Select (S), Edit notes (E) and Pen (P), each with its own cursor. The selection goes by beats and changes only in Select,
 // by a drag or its handles, which show only there (v0.5.7, #543 2-4); a click never changes it but puts a playhead on the

@@ -1,0 +1,12 @@
+{
+  "name": "motifflab-page-scenarios",
+  "private": true,
+  "description": "The iPad pages' scenarios in Chromium (tests/contracts/page-scenarios/README.md).",
+  "type": "module",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

@@ -298,13 +298,13 @@ final class FacadeTests: XCTestCase {
 
         // A merge draft of it has nothing to decide, and its result engraves the whole piece (testing item 32); the version
         // above the phrase in focus, and the version to hear.
-        let opened = try object(MusicCore.call(piece: piece, "performance.merge.open", #"{"id": "\#(id)", "start": "all"}"#))
-        let merge = try XCTUnwrap(MergeInfo(object: opened))
+        let opened = MusicCore.call(piece: piece, "performance.merge.open", #"{"id": "\#(id)", "start": "all"}"#)
+        let merge = try XCTUnwrap(FacadeAnswer.decode(MergeAnswer.self, opened, of: "performance.merge.open")?.merge.map(MergeInfo.init))
         XCTAssertEqual(merge.total, 0)
         let result = try Engraver.engraveMerge(piece: piece, title: "Für Elise", view: "result").get()
         XCTAssertFalse(result.pages.isEmpty)
         XCTAssertTrue(result.version.isEmpty, "the piece's own score adds nothing")
-        XCTAssertNil(MergeInfo(object: try object(MusicCore.call(piece: piece, "performance.merge.cancel"))))
+        XCTAssertNil(try XCTUnwrap(FacadeAnswer.decode(MergeAnswer.self, MusicCore.call(piece: piece, "performance.merge.cancel"), of: "performance.merge.cancel")).merge)
         let card = try Engraver.engraveCard(piece: piece, firstBar: 4, lastBar: 8, options: #"{"scale": 42, "pageWidth": 2600, "adjustPageHeight": true, "breaks": "auto"}"#, version: id).get()
         XCTAssertEqual(card.ossias.count, 1)
         let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "version", "id": "\#(id)"}"#)))
@@ -623,21 +623,21 @@ final class FacadeTests: XCTestCase {
 
     func testANoteOfABarIsCorrectedAndPutBackAsImported() throws {
         // Fix notes in Check (S1-I7): a correction is a step in the piece's edit log; Revert puts the imported note back.
-        let bar = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections", #"{"bar": 1}"#)))
+        let bar = try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, MusicCore.call(piece: piece, "corrections", #"{"bar": 1}"#), of: "corrections").map(NoteCorrections.init))
         XCTAssertEqual(bar.bar, 1)
         XCTAssertEqual(bar.count, 0)
         let note = try XCTUnwrap(bar.notes.first)
         XCTAssertEqual(note.place.bar, 1)
         XCTAssertEqual(note.place.text(UIText(language: "en")).prefix(6), "bar 1,")
-        let higher = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.change", #"{"bar": 1, "id": "\#(note.id)", "pitch": 1}"#)))
+        let higher = try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, MusicCore.call(piece: piece, "corrections.change", #"{"bar": 1, "id": "\#(note.id)", "pitch": 1}"#), of: "corrections").map(NoteCorrections.init))
         let changed = try XCTUnwrap(higher.notes.first { $0.id == note.id })
         XCTAssertEqual(changed.pitch, note.pitch + 1)
         XCTAssertTrue(changed.edited)
         XCTAssertEqual(higher.count, 1)
-        let removed = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.remove", #"{"bar": 1, "id": "\#(note.id)"}"#)))
+        let removed = try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, MusicCore.call(piece: piece, "corrections.remove", #"{"bar": 1, "id": "\#(note.id)"}"#), of: "corrections").map(NoteCorrections.init))
         XCTAssertEqual(removed.removed.map(\.id), [note.id])
         XCTAssertFalse(removed.notes.contains { $0.id == note.id })
-        let back = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.revert", #"{"bar": 1, "id": "\#(note.id)"}"#)))
+        let back = try XCTUnwrap(FacadeAnswer.decode(CorrectionsAnswer.self, MusicCore.call(piece: piece, "corrections.revert", #"{"bar": 1, "id": "\#(note.id)"}"#), of: "corrections").map(NoteCorrections.init))
         XCTAssertEqual(back.count, 0)
         XCTAssertEqual(back.notes.first { $0.id == note.id }?.pitch, note.pitch)
         XCTAssertEqual(try call("corrections.undo", #"{"bar": 1}"#, expectError: true)["error"] as? String, "unavailable")

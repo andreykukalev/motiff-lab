@@ -98,10 +98,21 @@ context. The context is compacted automatically at about 400K tokens (the enviro
 
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
-- A pull request that touches what the iPad app is built from compiles the app and its Swift tests on macOS with each
-  push (no simulator, about 10 minutes). The Swift tests run on every version tag (`v*`), by hand, or by the label
-  `ipad-tests`: set it once, when the pull request is otherwise ready to merge, since with it every push runs them. The browser tests belong to the archived web and run only by hand. For `src/ipad/App`, fix the expectations in
-  `tests/ipad/MotiffLabTests` in the same commit.
+- A pull request that touches what the iPad app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core,
+  `design/kit`, `tests/contracts`, `tests/pages`, `global.json`, `Directory.Build.props`) runs the Swift tests in the
+  iPad simulator and compiles the walk of the screens (`tests/ipad/MotiffLabScreens`) on every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
+  every pull request (passed when the iPad run was not needed) and is required on `develop` with `build-test`: a red or
+  cancelled iPad run blocks the merge. The same tests run on `develop` after each merge that touches those inputs, on
+  every version tag (`v*`, with the asserting walk of the screens) and by hand; the walk and the switch tests also run
+  nightly on `develop` when it changed, once that schedule is on `main`. A failing walk fails its run. By hand, tick
+  Walk for the asserting walk (a few minutes); Screenshots, the pictures for the mockups, holds the only Mac for about
+  half an hour and every pull request's iPad run queues behind it, so start it only when the pictures are needed. For
+  `src/ipad/App`, fix the expectations in `tests/ipad/MotiffLabTests` in the same commit.
+- When Andrei's Mac is off, iPad runs wait for it in the queue, and so do the pull requests that need them: Andrei
+  deletes the repository variable `IPAD_RUNNER` (Settings → Secrets and variables → Actions → Variables), cancels the
+  waiting runs and starts them again (a re-run or a new push), and they run on GitHub's macOS (10–20 minutes);
+  `infra/github/mac-runner.sh` sets the variable again. Agents tell the lead; they never change it.
+- The browser tests belong to the archived web and run only by hand.
 
 ## Never
 

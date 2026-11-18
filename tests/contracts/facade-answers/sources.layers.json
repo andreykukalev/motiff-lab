@@ -1,0 +1,1127 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "sources.layers",
+   "request": {
+    "device": "ipad",
+    "here": []
+   },
+   "answer": {
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 0
+   }
+  },
+  {
+   "call": "sources.original.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "kind": "pdf",
+    "fileName": "Nocturne.pdf",
+    "kept": "file",
+    "data": "<pdf>",
+    "pages": 1,
+    "now": "2026-11-15T09:00:00Z"
+   },
+   "answer": {
+    "id": "src_pdf",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 0
+   }
+  },
+  {
+   "call": "sources.notes.recognise",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "original": "src_pdf",
+    "musicXml": "<scan>",
+    "engine": "homr 0.8.0",
+    "pages": 1,
+    "now": "2026-11-15T10:00:00Z"
+   },
+   "answer": {
+    "id": "n_2",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 0
+   }
+  },
+  {
+   "call": "sources.original.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "kind": "audio",
+    "fileName": "Live.m4a",
+    "kept": "device",
+    "durationMs": 161000,
+    "now": "2026-11-15T11:00:00Z"
+   },
+   "answer": {
+    "id": "src_rec",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "nowhere",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 0
+   }
+  },
+  {
+   "call": "sources.view.hide",
+   "request": {
+    "device": "ipad",
+    "here": [
+     "src_rec"
+    ],
+    "id": "n_2",
+    "hidden": true
+   },
+   "answer": {
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": true
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": true,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "src_rec",
+      "kind": "performance",
+      "group": "src_rec",
+      "working": false,
+      "hidden": false,
+      "op": "recording"
+     }
+    ],
+    "hidden": 1
+   }
+  },
+  {
+   "call": "sources.original.add",
+   "request": {
+    "device": "ipad",
+    "here": [
+     "src_rec"
+    ],
+    "kind": "pdf",
+    "fileName": "Henle.pdf",
+    "kept": "file",
+    "data": "<otherPdf>",
+    "pages": 1,
+    "now": "2026-11-15T12:00:00Z"
+   },
+   "answer": {
+    "id": "src_pdf_2",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_pdf_2",
+      "kind": "pdf",
+      "shown": "Henle.pdf",
+      "fileName": "Henle.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": true
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": true,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "src_rec",
+      "kind": "performance",
+      "group": "src_rec",
+      "working": false,
+      "hidden": false,
+      "op": "recording"
+     },
+     {
+      "id": "src_pdf_2",
+      "kind": "original",
+      "group": "src_pdf_2",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     }
+    ],
+    "hidden": 1
+   }
+  },
+  {
+   "call": "sources.original.remove",
+   "request": {
+    "device": "ipad",
+    "here": [
+     "src_rec"
+    ],
+    "id": "src_pdf_2",
+    "withNotes": false,
+    "now": "2026-11-15T12:30:00Z"
+   },
+   "answer": {
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_pdf_2",
+      "kind": "pdf",
+      "shown": "Henle.pdf",
+      "fileName": "Henle.pdf",
+      "name": null,
+      "state": "removed",
+      "removedAt": "2026-11-15T12:30:00.0000000+00:00",
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": true
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": true,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "src_rec",
+      "kind": "performance",
+      "group": "src_rec",
+      "working": false,
+      "hidden": false,
+      "op": "recording"
+     }
+    ],
+    "hidden": 1
+   }
+  },
+  {
+   "call": "performance.add",
+   "request": {
+    "name": "Official",
+    "file": "<scan>",
+    "fileName": "Official.musicxml",
+    "now": "2026-11-15T13:00:00Z"
+   },
+   "answer": null
+  },
+  {
+   "call": "sources.layers",
+   "request": {
+    "device": "ipad",
+    "here": [
+     "src_rec"
+    ]
+   },
+   "answer": {
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_pdf_2",
+      "kind": "pdf",
+      "shown": "Henle.pdf",
+      "fileName": "Henle.pdf",
+      "name": null,
+      "state": "removed",
+      "removedAt": "2026-11-15T12:30:00.0000000+00:00",
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": true
+     },
+     {
+      "id": "perf_1",
+      "role": "version",
+      "name": "Official",
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": null,
+      "state": null,
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": true,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "src_rec",
+      "kind": "performance",
+      "group": "src_rec",
+      "working": false,
+      "hidden": false,
+      "op": "recording"
+     },
+     {
+      "id": "perf_1",
+      "kind": "notes",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 1
+   }
+  },
+  {
+   "call": "sources.layers",
+   "request": {
+    "device": "ipad",
+    "here": []
+   },
+   "answer": {
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "nowhere",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": 161000,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_pdf_2",
+      "kind": "pdf",
+      "shown": "Henle.pdf",
+      "fileName": "Henle.pdf",
+      "name": null,
+      "state": "removed",
+      "removedAt": "2026-11-15T12:30:00.0000000+00:00",
+      "kept": "file",
+      "pages": 1,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "pdfRecognition",
+      "engine": "homr 0.8.0",
+      "at": "2026-11-15T10:00:00.0000000+00:00",
+      "original": "src_pdf",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": true
+     },
+     {
+      "id": "perf_1",
+      "role": "version",
+      "name": "Official",
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": null,
+      "state": null,
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": true,
+      "op": "pdfRecognition"
+     },
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "perf_1",
+      "kind": "notes",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "import"
+     }
+    ],
+    "hidden": 1
+   }
+  }
+ ]
+}

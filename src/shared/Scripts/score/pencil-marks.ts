@@ -2,7 +2,7 @@
 // as on paper. The score reflows with the window's width, so a mark is kept against the bar it was
 // written in, not against the page: where in the bar it starts (a share of the bar's width) and how far
 // from the bar's top staff line, with its shape in staff spaces. Laid out again, each mark goes back to
-// its bar at the same size as the staves. Pure functions only; the layer that draws them is pencil-layer.ts.
+// its bar at the same size as the staves. Pure functions only; the iPad's score page (score.js) draws them.
 //
 // Marks are the player's own writing. They are never read as music: nothing here turns them into notes,
 // facts or analysis.
@@ -363,7 +363,7 @@ export function densify(points: readonly InkPoint[], step: number): InkPoint[] {
  * farther from the path than the eraser's reach and the stroke's own half-thickness, as a real eraser leaves a line in
  * pieces. The line is first walked in short steps, so a cut can fall between two of its points; a piece keeps two
  * points or more. Null when the eraser missed the stroke; an empty list when it took all of it. The iPad's PDF pages
- * split their strokes the same way (InkSplit in src/ipad/App/MotiffLab/InkGeometry.swift).
+ * split their strokes the same way (InkSplit in src/ipad/App/MotiffLab/Ink/InkGeometry.swift).
  */
 export function eraseAlong(
     points: readonly InkPoint[],

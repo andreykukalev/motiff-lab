@@ -1,72 +1,52 @@
-# Code map: the iPad app (`src/ipad/App`)
+# Code map: the iPad app (`src/ipad/App`), index
 
-SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`), facade calls through `MusicCore.call(piece:, name, json)`,
-the request encoded once by `facadeRequest` and the answer read by `facadeObject` (`MusicCore.swift`).
-The score and the roll are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`). Strings:
-the shared `src/shared/wwwroot/i18n/*.json` plus the iPad's own `Words/*.json` (`UIText`). Tokens: `Design.swift`
-reads `design/kit/tokens.css`. Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI).
+SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`). The app's Swift is in feature folders under
+`src/ipad/App/MotiffLab` (blueprint v0.7, section 5.2; step B1). `project.yml` compiles every file below that folder, so a
+new file needs no project edit. `Account.json` and the asset catalogues (`AppIcon.xcassets`, `Icons.xcassets`, written by
+`tools/icons/build.mjs`) stay at its top. A folder's own interface texts are `<Folder>/Words/<Folder>.{en,ru}.json`;
+what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
+are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`).
+Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI), with the UX baseline's cases
+in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label). There too, the workspace's scenarios
+(blueprint 5.3 step 3): `WorkspaceSession` takes a `ScoreWorkspace` over the real music-core and controllers through a
+session as the view would (each render runs the reactions of the values that changed, in the view's order) and writes
+what the controllers tell the two pages, the player's model and the panels; `WorkspaceScenarioTests` compares that
+with `fixtures/workspace-*.txt` (a transcript that differs is printed whole in the test's log). The pages are recording
+ones, put in `ScoreController.scorePage` and `RollController.page`, which are settable for that.
 
-## The interface's language
+Each folder has one map with four headings: its files; the contract others may rely on; the state it owns; the baseline
+entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids, and the quality ratchet,
+`tools/quality/baseline.json`).
 
-- `UIText.swift`: the words; `UIText.current` in the language picked in Settings · Appearance (`motiff.language`), else the
-  iPad's. `InterfaceLanguage.swift`: a new choice saves the open piece (its screen's `handOverForLanguage`), rebuilds the app
-  under `.id(language)` (`MotiffLabApp`), and the library opens the piece again where it was. Every `language:` sent to
-  music-core or the assistant is `text.language`.
+| Folder | Map | Holds |
+| --- | --- | --- |
+| `Platform/` | [platform](ipad/platform.md) | music-core's port, the score page's port, design tokens, words, project files, the app |
+| `Workspace/` | [workspace](ipad/workspace.md) | the score's screen and its controller |
+| `Selection/` | [selection](ipad/selection.md) | the one selection, its tools and history, phrases |
+| `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill, metronome, tempo, practice, Expand |
+| `Roll/` | [roll](ipad/roll.md) | the piano roll in the drawer |
+| `Ink/` | [ink](ipad/ink.md) | the stylus, the pen, input rules, the modes |
+| `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
+| `Sources/` | [sources](ipad/sources.md) | sources, versions, merging, originals |
+| `Pdf/` | [pdf](ipad/pdf.md) | the PDF view, its notes, its parts |
+| `Library/` | [library](ipad/library.md) | the library screen and its shelf |
+| `Import/` | [import](ipad/import.md) | Add piece, folders, scans, photos, recordings, recognition |
+| `Insights/` | [insights](ipad/insights.md) | Insights, the piece's map (DNA), the circle of fifths |
+| `Reference/` | [reference](ipad/reference.md) | the reference sheet |
+| `Assistant/` | [assistant](ipad/assistant.md) | the assistant, its field and dictation |
+| `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings, About |
 
-## The score's screen
+Which folder may use which (blueprint 5.2): `Platform` uses nothing above it; a feature uses `Platform` and, where the
+blueprint's table says so, reads Selection; only `Workspace` knows several features. The `dependencies` check enforces
+it (`IPAD_FOLDER_USES` in `tools/quality/dependencies.mjs`, `governance/quality/README.md`). The edges the app had when
+the check came are `ipad-folder` entries of `tools/quality/baseline.json`, one per file and type named, which the
+folders' maps do not repeat: `grep '"ipad-folder","file":"src/ipad/App/MotiffLab/<Folder>/' tools/quality/baseline.json`.
 
-- `ScoreScreen.swift`: `ScoreScreen` (l. 14): `body` (GeometryReader, ignores the keyboard), `layers` (l. ~250: the web view and
-  everything floating over it: selection menu at `score.menuPlace`, toasts, roll drawer, sheets, Contents, pill), `wire()`
-  (l. ~437: the controllers' callbacks), `ScoreBar` (top bar, More, Ask about the piece), `SelectionMenu` (the menu over
-  the selection; its More holds Highlight and Ask), `FocusBar` (Expand's bar). `ScoreScreenViews.swift`, `TopBar.swift`.
-- `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
-- `ScorePage.swift`: the one port to the page (0031 step 2): `PageCommand` names `window.motiff`'s functions, `PageEvent`
-  decodes its messages; both lists are `tests/contracts/score-page.json`, checked by `tests/shared/score-page-contract.test.mjs`
-  and `ScorePageContractTests`.
-- `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState` (the open answer's "edits" and every corrections answer:
-  "count", "layer", "moved", "unfit"), `EditsLayerSection` in More (the switch, its line, the misfits with «Убрать»).
-  `OpenPiece.openRequest` opens a project file with "edits": "piece" (the file keeps "off"); `ScoreController.switchEdits`
-  / `dropUnfitEdits` (`corrections.layer` / `.drop`) engrave again and save at once (`editsKept`). While off, `editsOn` is
-  false: no Fix notes, no note editor, no draft Accept (music-core refuses them too).
-- `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two switches
-  under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).
-- `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes, `ScoreController.mode`
-  never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and Цикл only out of it (`holdsSelection`).
-  The card's black playhead: `score.js` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8).
-- `Insights.swift`: `InsightsController` (facts, Try ways, `trial`), `InsightsSheet` (the stream; Ask's foot).
-- `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures.
-- `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
-  `ScoreController.selectNotes`; the page's rule is `Scripts/score/selection-places.ts` (map: `docs/code-map/score.md`).
-- The roll in the drawer (`RollController`, `RollDrawer`, `RollTools`, `RollPlace`, `Web/roll.js`): `docs/code-map/roll.md`.
+## The UI walk
 
-## PDF | Notes (lifecycle, `docs/code-map/ui-review-2026-11.md`)
-
-- `LibraryView.switchView` → `openFile` → `show`: opens the other view, reads only that file's summary, closes the old
-  piece (`ClosedPieces`), swaps the navigation item. The screen's model is set in its `init` (`ScoreController()` in Navigate,
-  the handed `SourcesHandover.layers`), never after an await; `onDisappear` clears `sources.reopen` (it held the screen).
-- `MotiffLabScreens/SwitchUITests` (with `SWITCH_TEST`) switches it again and again; the Debug probe `ScreensProbe` gives
-  the screen ready, controllers alive, renders, memory and each switch's phases (`ProbeCounts.mark`).
-
-## The assistant
-
-- `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
-  (UITextField, Scribble declined so the Pencil opens the keyboard; focused only by a press), `AskInputRow` (the kit's
-  field `DSFieldLook` + microphone + Send), `KeyboardRoom`. `TypingFocus.swift` (v0.6.4): the app's one keyboard rule,
-  `Typing` (a tap outside any focused field hides the keyboard), `TypingShield` (over the score's and roll's web views).
-  `Dictation.swift` (always on since v0.6.5): `DictationFlow`, `Dictation` (SFSpeech on the device only).
-- Every Ask opens the real assistant, no switch (v0.6.3): selection menu → `AssistantHereCard`, others → the panel.
-- `AssistantStates.swift`: `AssistantScope` (core AskScope), `AssistantPhase` (no streaming), `AssistantRecovery`.
-- `AssistantController.swift`: panel state, `scope`, `phase`, `standing` (`check`: `/assistant/status`), the piece's
-  conversations, `ask` (status → `assistant.context` → turns), `forget` (Try again), `add` («Добавить в контекст»). `AssistantTurns.swift`: one question's
-  turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`, the turn format v1, cited facts.
-  `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`. `AssistantStore.swift`: conversations by piece in
-  Application Support (never the project file). `AssistantPanel.swift`, `AssistantSide.swift`: the side panel (the score
-  narrowed in `ScoreScreen.layers`), the consent, the list, `AssistantPendingView`, `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection
-  (`SelectionMenu` turns into it), `KeyboardLift`. `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts
-  a question's tools made, Accept by `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
-- `Recording.swift`: a recording heard opens as a new piece with `HeardRecording.transcription` ("tempo": "live", no
-  "starts", no "hint": there is no score yet); a version from a recording keeps `request` (`performance.add`).
-- `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features.
+- `tests/ipad/MotiffLabScreens` (the `Screens` scheme): `ScreensUITests` runs the journeys, each naming the UX baseline
+  ids it protects; `Walk.swift` drives the app and reads the probe; the journeys are in `ScoreJourneys.swift` and
+  `SwitchJourneys.swift`. The probe: `ScreensProbe.line()` (`Platform/ScreensHook.swift`, Debug only, under `-ml-screens`).
 
 ## Rules not to break
 

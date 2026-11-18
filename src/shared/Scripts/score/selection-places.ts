@@ -1,11 +1,12 @@
-// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C and F; the experiment
-// `experimental.placeSelection`, which only the iPad passes as a host option): what a press does is decided once, by where
+// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C and F; once the experiment
+// `experimental.placeSelection`; only the iPad uses it): what a press does is decided once, by where
 // it lands, never by how long it is held. From an edge (within EDGE_REACH of it, over the whole height of the band) it
 // moves that edge; from inside it extends the selection, which never shrinks (v0.6.1 item 9); from outside, on the music,
 // it draws a new selection, the old one shown as a ghost until it is let go, and so it does from the page's margin (v0.6.3);
 // a tap outside selects what is under it (a bar, a note), a tap on the page's margin takes the selection away, a double
 // tap inside zooms to it. A finger beside the
-// stylus scrolls; held still on a bar it selects that bar (the way back for a finger). One rule for the score and the
+// stylus scrolls; held still on a bar it selects that bar (the way back for a finger), and moved after the hold it draws
+// from where it pressed, as the stylus does (Andrei, 2026-11-17). One rule for the score and the
 // roll (Scripts/roll imports it). Pure; nothing here touches the DOM.
 
 import { DRAG_DISTANCE, HOLD_SLOP, type SelectionChange, type TickRange, editedRange } from "./selection-gesture.js";
@@ -107,10 +108,17 @@ function placeStep(place: Place, held: boolean): "edge" | "extend" | "draw" | "b
 /**
  * The pointer moved `distance` pixels from the press. Past DRAG_DISTANCE a pointer that selects at once does what its
  * place says (from the margin it draws, as from outside); a finger that holds scrolls once it moves past HOLD_SLOP before
- * the hold.
+ * the hold, and held on a bar, past HOLD_SLOP after it draws from where it pressed, as the stylus does (Andrei, 2026-11-17).
  */
 export function placeMoved(gesture: PlaceGesture, distance: number): PlaceStep {
-    if (gesture.phase !== "pressed" || distance < (gesture.rule === "now" ? DRAG_DISTANCE : HOLD_SLOP)) {
+    if (distance < (gesture.rule === "now" ? DRAG_DISTANCE : HOLD_SLOP)) {
+        return "none";
+    }
+    if (gesture.phase === "bar") {
+        gesture.phase = "draw";
+        return "draw";
+    }
+    if (gesture.phase !== "pressed") {
         return "none";
     }
     const step = gesture.rule === "now" ? placeStep(gesture.place, false) : "none";
@@ -120,8 +128,8 @@ export function placeMoved(gesture: PlaceGesture, distance: number): PlaceStep {
 
 /**
  * The press was held still for the long press: only a finger beside the stylus waits for it (the stylus never does). On a
- * bar outside it selects that bar, a move then takes it on; on an edge or inside it moves the edge or extends, as the
- * stylus does at once.
+ * bar outside it selects that bar, a move then draws from the press (placeMoved); on an edge or inside it moves the edge
+ * or extends, as the stylus does at once.
  */
 export function placeHeld(gesture: PlaceGesture): PlaceStep {
     if (gesture.phase !== "pressed" || gesture.rule !== "longPress") {

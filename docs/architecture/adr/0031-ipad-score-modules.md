@@ -97,7 +97,9 @@ the views that read it (`@Observable` tracks each property), and a panel's depen
 
 One pull request a step, in this order; each keeps the behaviour, keeps `MotiffLabTests` green (expectations change
 only in type names), runs the iPad workflow (label `ipad-tests`) before the merge, removes the baseline entries of what
-it moved, updates the code map and gets the pull request reviewer.
+it moved, updates the code map and gets the pull request reviewer. *Amended in version 0.7* (#642, 2026-11-16): the label
+is retired; the iPad workflow runs the Swift tests on every push to such a pull request, and its `ipad-gate` is required
+on `develop`.
 
 1. a) The one JSON encoding of a facade request; the five copies go. b) `PieceCore`.
 2. `ScorePage`: `PageCommand` and `PageEvent` in Swift, the root routes events; fixtures and tests on both sides.
@@ -118,3 +120,10 @@ The web's `PlaybackLab` and `app.css` are not in this record (platform focus is 
   between sections (kept by leaving `render()` in the root); no Swift compiler in a cloud thread, so each step waits for
   the macOS workflow.
 - Undo: each step is one revert. Renaming `ScoreController` to say what it now is, is left for the end.
+
+## Note, 2026-11-17 (step B5)
+
+`PieceCore` was built as a struct over `MusicCore.run` and `MusicCore.call` (`Platform/PieceCore.swift`), not as a protocol:
+it has one implementation, and the features' tests call the facade itself. Its answers are typed (`Platform/PieceAnswers.swift`)
+and pinned by `tests/contracts/facade-answers`. A protocol, with a fake for a model's tests, comes with the first model
+(steps 3–9) that is tested without the framework. The decision above is unchanged.

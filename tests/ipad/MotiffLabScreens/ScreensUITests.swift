@@ -1,289 +1,103 @@
 import UIKit
 import XCTest
 
-/// Screenshots of the app's screens for the redesign's mockups, in Russian, in landscape and portrait and in the dark
-/// appearance (the `Screens` scheme, run by the `iPad` workflow by hand or for a release tag). It walks the app as a
-/// player would: the empty library, Add piece, the example piece and what floats over its score, back to the library,
-/// then a PDF piece. A screen that cannot be reached is written down as SCREEN-MISS and the walk goes on, so one missing
-/// button costs one picture, not the run. The pictures go to the folder in SCREENS_DIR (the workflow passes it as
-/// TEST_RUNNER_SCREENS_DIR) and are attached to the test result as well.
+/// The UI walk (the `Screens` scheme, run by the `iPad` workflow by hand and for a version tag): the journeys of the
+/// architecture blueprint's layer T4, each asserting what a player does and sees through the controls and the app's Debug
+/// probe (ScreensProbe), with the screenshots for the redesign's mockups taken on the way. A control or a screen a journey
+/// expects and does not find fails the test, with the baseline entries (docs/ux-baseline.md) the journey checks.
+///
+/// A journey stops at its first miss: its later steps build on that one and would only fail after it, each waiting out its
+/// own timeout. The test goes on (`continueAfterFailure`) and the app is launched again for the next journey, so a missing
+/// button fails its journey and costs that journey's pictures, never the other journeys' checks.
+///
+/// Landscape and light always; portrait and the dark appearance as well when the pictures are asked for (SCREENS_DIR, which
+/// the workflow passes as TEST_RUNNER_SCREENS_DIR), so the journeys alone take a few minutes; the other places of the
+/// score (`picturesOnly`) are visited only then. The pictures go to that folder and are attached to the test result.
 @MainActor
 final class ScreensUITests: XCTestCase {
-    private var app: XCUIApplication!
-    private var tag = ""
-    /// The app's own theme for the walk, Daylight or Night, through its kept settings (DeviceSettings.storeKey).
-    private var theme = "daylight"
+    private struct Journey {
+        let name: String
+        /// The entries of the UX baseline (docs/ux-baseline.md) it checks, by their ids. An entry whose «Protected by» names
+        /// the journey (`ScreensUITests.swift` journey `<name>`) must be listed here: governance/tests/baseline.test.mjs
+        /// reads this declaration.
+        let protects: [String]
+        let start: Walk.Start
+        /// Where it leaves the app when it passes, if not where it started.
+        var end: Walk.Start?
+        /// Walked only for the pictures (SCREENS_DIR): the places it visits are the mockups', not a journey to assert.
+        var picturesOnly = false
+        let run: @MainActor (Walk) throws -> Void
+    }
+
+    private static let journeys: [Journey] = [
+        Journey(name: "open-and-play", protects: [], start: .fresh, end: .example, run: { try $0.openExampleAndPlay() }),
+        Journey(name: "select-loop-change", protects: ["PLAY-04"], start: .example, run: { try $0.selectLoopAndChange() }),
+        Journey(name: "select-by-drag", protects: ["SEL-03"], start: .example, run: { try $0.selectByDragAndOver() }),
+        Journey(name: "roll-and-expand", protects: ["ROLL-01", "PLAY-03"], start: .example, run: { try $0.rollAndExpand() }),
+        Journey(name: "insights-and-try", protects: [], start: .example, run: { try $0.insightsAndTry() }),
+        Journey(name: "pen-and-eraser", protects: ["INK-01"], start: .example, run: { try $0.penAndEraser() }),
+        Journey(name: "assistant-panel", protects: [], start: .example, run: { try $0.assistantPanel() }),
+        Journey(name: "other-places", protects: [], start: .example, end: .library, picturesOnly: true,
+                run: { try $0.otherPlaces() }),
+        Journey(name: "pdf-and-notes", protects: ["VIEW-01", "VIEW-04"], start: .notesAndPdf, run: { try $0.pdfAndNotes() }),
+        Journey(name: "sources-and-a-view", protects: [], start: .notesAndPdf, run: { try $0.sourcesAndAView() }),
+        Journey(name: "pdf-piece", protects: [], start: .pdf, run: { try $0.pdfPiece() }),
+    ]
 
     func testLandscape() { walk(.landscapeLeft, dark: false) }
 
-    func testPortrait() { walk(.portrait, dark: false) }
+    func testPortrait() throws {
+        try picturesAsked()
+        walk(.portrait, dark: false)
+    }
 
-    func testLandscapeDark() { walk(.landscapeLeft, dark: true) }
+    func testLandscapeDark() throws {
+        try picturesAsked()
+        walk(.landscapeLeft, dark: true)
+    }
 
-    func testPortraitDark() { walk(.portrait, dark: true) }
+    func testPortraitDark() throws {
+        try picturesAsked()
+        walk(.portrait, dark: true)
+    }
 
-    // MARK: - The walk
+    private func picturesAsked() throws {
+        guard let folder = ProcessInfo.processInfo.environment["SCREENS_DIR"], !folder.isEmpty else {
+            throw XCTSkip("portrait and the dark appearance are walked when the pictures are asked for (SCREENS_DIR)")
+        }
+    }
 
+    /// Every journey in one appearance, one after another; a journey that fails is written down and the walk goes on.
     private func walk(_ orientation: UIDeviceOrientation, dark: Bool) {
         continueAfterFailure = true
-        tag = (orientation.isLandscape ? "land" : "port") + (dark ? "-dark" : "")
-        theme = dark ? "night" : "daylight"
+        let tag = (orientation.isLandscape ? "land" : "port") + (dark ? "-dark" : "")
         XCUIDevice.shared.orientation = orientation
-        launch(["-ml-screens-reset"])
-
-        library()
-        score()
-        backToLibrary()
-        pdf()
-
-        app.terminate()
+        let walk = Walk(tag: tag, dark: dark, test: self)
+        let began = Date()
+        var failed: [String] = []
+        let journeys = Self.journeys.filter { walk.pictures || !$0.picturesOnly }
+        for journey in journeys {
+            let start = Date()
+            do {
+                try walk.arrive(at: journey.start)
+                try journey.run(walk)
+                walk.state = journey.end ?? journey.start
+                print("SCREEN-JOURNEY \(tag) \(journey.name): passed in \(seconds(since: start)) s")
+            } catch {
+                walk.state = nil
+                failed.append(journey.name)
+                let ids = journey.protects.isEmpty ? "" : " (\(journey.protects.joined(separator: ", ")))"
+                print("SCREEN-FAIL \(tag) \(journey.name)\(ids) after \(seconds(since: start)) s: \(error)")
+                walk.failed(journey.name)
+                XCTFail("journey \(journey.name)\(ids), \(tag): \(error)")
+            }
+        }
+        print("SCREEN-WALK \(tag): \(journeys.count) journeys, \(failed.count) failed \(failed), in \(seconds(since: began)) s")
+        walk.app.terminate()
         XCUIDevice.shared.orientation = .portrait
     }
 
-    private func library() {
-        guard wait(app.buttons["Добавить пьесу"].firstMatch, "library") else { return }
-        shot("02-library-empty")
-        app.buttons["Добавить пьесу"].firstMatch.tap()
-        let demo = button(beginning: "Попробовать демо")
-        guard wait(demo, "add piece") else { return }
-        shot("03-add-piece")
-        demo.tap()
-    }
-
-    private func score() {
-        guard wait(app.buttons["Фразы"], "score", timeout: 60) else { return }
-        if !wait(bracket(0), "phrase brackets in the web view", timeout: 15) {
-            // What the web view shows to accessibility, for the next time the walk is tuned.
-            print("SCREEN-TREE \(tag):\n\(app.webViews.firstMatch.debugDescription.prefix(6000))")
-        }
-        pause(2)
-        shot("10-score")
-
-        // The phrases popover: three levels and the brackets switch.
-        if tap(app.buttons["Фразы"], "phrases") {
-            shot("12-phrases-levels")
-            dismissPopover()
-        }
-
-        // A phrase chosen on its bracket, and the menu over it.
-        if choosePhrase(), wait(button(beginning: "Фокус"), "selection menu") {
-            shot("13-selection-menu")
-            if tap(app.buttons["Ещё для выделения"], "menu more") {
-                shot("14-selection-menu-more")
-                tap(app.buttons["Ещё для выделения"], "menu more again")
-            }
-        }
-
-        // The piano roll in its drawer.
-        if tap(app.buttons["Фортепианный ролл"].firstMatch, "roll") {
-            pause(2)
-            shot("15-piano-roll")
-            tap(app.buttons["Фортепианный ролл"].firstMatch, "roll again")
-        }
-
-        // Insights on the phrase, and a way tried from a fact.
-        if tap(app.buttons["Инсайты"].firstMatch, "insights") {
-            pause(2)
-            shot("16-insights")
-            let tryIt = app.buttons.matching(NSPredicate(format: "label == 'Попробовать'")).firstMatch
-            if tap(tryIt, "try") {
-                pause(2)
-                shot("18-insights-try")
-            }
-            tap(app.buttons["Инсайты"].firstMatch, "insights again")
-        }
-
-        // Focus on the phrase, with the variation tried as an ossia when there is one.
-        if tap(button(beginning: "Фокус"), "focus") {
-            pause(2)
-            shot("21-focus")
-            tap(button(beginning: "Назад к странице"), "back to the page")
-            pause(1)
-        }
-
-        // A bookmark over another phrase (a second tap on the chosen one would lift it into focus again).
-        leaveFocus()
-        if choosePhrase(), tap(button(beginning: "Закладка"), "bookmark") {
-            pause(1)
-            shot("22-bookmark-card")
-            tap(app.buttons["Готово"], "bookmark done")
-            pause(1)
-            shot("24-marks-on-page")
-        }
-
-        // The Contents: one sheet, its chips scrolling to the notes and the pages.
-        leaveFocus()
-        let title = app.buttons.matching(NSPredicate(format: "label ENDSWITH 'открыть оглавление'")).firstMatch
-        if tap(title, "contents") {
-            pause(1)
-            shot("25-contents")
-            if tap(app.buttons["Заметки"].firstMatch, "notes tab") { shot("26-contents-notes") }
-            if tap(app.buttons["Страницы"].firstMatch, "pages tab") {
-                pause(2)
-                shot("27-contents-pages")
-            }
-            tap(title, "contents again")
-        }
-
-        // The pen with its palette, and a stroke drawn with a finger.
-        if tap(app.buttons["Перо"], "pen") {
-            let window = app.windows.firstMatch
-            let from = window.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.45))
-            let to = window.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.47))
-            from.press(forDuration: 0.1, thenDragTo: to)
-            pause(1)
-            shot("28-pen-palette")
-            tap(app.buttons["Перо"], "pen again")
-        }
-
-        // More, then all the settings, then other versions.
-        if tap(app.buttons["Ещё"].firstMatch, "more") {
-            shot("30-more")
-            if tap(button(beginning: "Все настройки"), "all settings") {
-                pause(1)
-                shot("32-settings")
-                if tap(app.buttons["Оформление"].firstMatch, "appearance section") { shot("33-settings-appearance") }
-                if !tap(app.buttons["Закрыть настройки"], "close settings") { app.swipeDown() }
-                pause(1)
-            } else {
-                dismissPopover()
-            }
-        }
-        if tap(app.buttons["Ещё"].firstMatch, "more for versions"), tap(button(beginning: "Добавить версию"), "add version") {
-            pause(1)
-            shot("50-versions-drawer")
-            tap(app.buttons["Закрыть другие версии"], "close versions")
-        }
-    }
-
-    private func backToLibrary() {
-        leaveFocus()
-        guard tap(app.buttons["Библиотека"].firstMatch, "back to the library") else { return }
-        if wait(app.buttons["Добавить пьесу"].firstMatch, "library with a card") {
-            pause(2)
-            shot("04-library")
-        }
-    }
-
-    /// A PDF piece (0023): pages as they were added, the pen, the metronome and More.
-    private func pdf() {
-        guard let file = ScreensPdf.write() else { return miss("pdf file") }
-        app.terminate()
-        launch(["-ml-screens-open", file.path])
-        guard wait(app.buttons["Метроном"].firstMatch, "pdf piece", timeout: 30) else { return }
-        pause(2)
-        shot("40-pdf-piece")
-        if tap(app.buttons["Перо"], "pdf pen") {
-            let window = app.windows.firstMatch
-            window.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4))
-                .press(forDuration: 0.1, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42)))
-            pause(1)
-            shot("41-pdf-pen")
-            tap(app.buttons["Перо"], "pdf pen again")
-        }
-        if tap(app.buttons["Метроном"].firstMatch, "metronome") {
-            pause(1)
-            shot("42-pdf-metronome")
-            tap(app.buttons["Убрать метроном"], "close metronome")
-        }
-        if tap(app.buttons["Ещё"].firstMatch, "pdf more") {
-            shot("43-pdf-more")
-            dismissPopover()
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func launch(_ arguments: [String]) {
-        app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", "{\"appearance.theme\" = \"\(theme)\";}", "-ml-screens"] + arguments
-        app.launch()
-    }
-
-    /// Back to the page when a step left the phrase in focus, where the bar is the focus bar.
-    private func leaveFocus() {
-        let back = button(beginning: "Назад к странице")
-        if back.exists {
-            back.tap()
-            pause(1)
-        }
-    }
-
-    /// Another phrase chosen: by the app's hidden button (ScreensHook in Debug builds), which picks phrase 2, then 3, so
-    /// a second choice never lifts the first into focus.
-    private func choosePhrase() -> Bool {
-        let chooser = app.buttons["ml-screens-phrase"]
-        guard chooser.waitForExistence(timeout: 5) else {
-            miss("phrase chooser")
-            return false
-        }
-        chooser.tap()
-        pause(1.5)
-        return true
-    }
-
-    private func bracket(_ index: Int) -> XCUIElement {
-        app.webViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'фраз' OR label CONTAINS[c] 'предлож'")).element(boundBy: index)
-    }
-
-    private func button(beginning prefix: String) -> XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
-    }
-
-    @discardableResult
-    private func wait(_ element: XCUIElement, _ name: String, timeout: TimeInterval = 10) -> Bool {
-        if element.waitForExistence(timeout: timeout) { return true }
-        miss(name)
-        return false
-    }
-
-    @discardableResult
-    private func tap(_ element: XCUIElement, _ name: String) -> Bool {
-        guard element.waitForExistence(timeout: 8), element.isHittable else {
-            miss(name)
-            return false
-        }
-        element.tap()
-        pause(0.8)
-        return true
-    }
-
-    /// A popover closes on a tap outside it.
-    private func dismissPopover() {
-        let region = app.otherElements["PopoverDismissRegion"]
-        if region.exists { region.tap() } else { app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.98)).tap() }
-        pause(0.8)
-    }
-
-    private func pause(_ seconds: TimeInterval) {
-        Thread.sleep(forTimeInterval: seconds)
-    }
-
-    private func miss(_ name: String) {
-        print("SCREEN-MISS \(tag): \(name)")
-    }
-
-    private func shot(_ name: String) {
-        pause(0.6)
-        let screenshot = XCUIScreen.main.screenshot()
-        let png = upright(screenshot.image)
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "\(name)-\(tag)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
-        if let folder = ProcessInfo.processInfo.environment["SCREENS_DIR"], !folder.isEmpty {
-            let url = URL(fileURLWithPath: folder).appendingPathComponent("\(name)-\(tag).png")
-            do { try png.write(to: url) } catch { print("SCREEN-WRITE \(url.path): \(error)") }
-        }
-        print("SCREEN \(name)-\(tag)")
-    }
-
-    /// The screen comes in the device's portrait pixels; in landscape (left) it is turned so the picture reads upright.
-    private func upright(_ image: UIImage) -> Data {
-        guard tag.hasPrefix("land"), let cg = image.cgImage else { return image.pngData() ?? Data() }
-        let turned = UIImage(cgImage: cg, scale: 1, orientation: .left)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        return UIGraphicsImageRenderer(size: turned.size, format: format).pngData { _ in turned.draw(at: .zero) }
+    private func seconds(since date: Date) -> Int {
+        Int(Date().timeIntervalSince(date).rounded())
     }
 }

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DRAG_GRID, PlayheadDrag, barOf, snapTick } from "../../src/shared/wwwroot/js/playback/playhead-drag.js";
-import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "../../src/shared/wwwroot/js/roll/roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from "../../src/shared/wwwroot/js/roll/roll-head-drag.js";
 import { playheadKnobs } from "../../src/shared/wwwroot/js/roll/roll-modes.js";
 import { placeInBar, tickInBar } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 import { ScoreGrab, scoreDragTick } from "../../src/shared/wwwroot/js/score/playhead-grab.js";
@@ -95,6 +95,24 @@ test("on the roll the marker in the loop strip takes the playhead whatever its c
     assert.equal(laneHeadAt(410, 30, outside), null, "no blue one waits at the selection's edge to be taken");
     assert.equal(laneHeadAt(300, 200, outside), null, "away from it");
     assert.equal(laneHeadAt(210, 10, outside), null, "the bar numbers above the strip are not the playhead's");
+});
+
+test("on the roll the stylus in Select takes the playhead by its marker in the strip alone, not down its line (Andrei, 2026-11-17)", () => {
+    const inside = { black: 400, blue: 400, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(410, 30, inside, false), "blue", "the marker in the strip, blue");
+    assert.equal(laneHeadAt(410, 200, inside, false), null, "down its line it is not taken: there the stylus draws a frame");
+    const outside = { black: 200, blue: null, stripTop: 24, stripBottom: 52, reach: 22 };
+    assert.equal(laneHeadAt(210, 30, outside, false), "black", "the marker in the strip, black");
+    assert.equal(laneHeadAt(210, 52, outside, false), null, "from the strip's bottom down, the line");
+    assert.equal(laneHeadAt(210, 200, outside, true), "black", "a finger and the other modes still take it down its line");
+});
+
+test("only the stylus in the stylus mode, selecting by its place, leaves the roll's playhead line to the frame (Andrei, 2026-11-17, INK-01)", () => {
+    assert.equal(lineTakesHead("pen", true, true), false, "«Только Apple Pencil» on, Select: the stylus draws a frame on the line");
+    assert.equal(lineTakesHead("pen", false, true), true, "«Только Apple Pencil» off: no stylus mode, the Pencil takes the line as a finger");
+    assert.equal(lineTakesHead("pen", true, false), true, "the stylus in Navigate, or with the place rule off, takes the line");
+    assert.equal(lineTakesHead("touch", true, true), true, "a finger takes the line");
+    assert.equal(lineTakesHead("touch", false, true), true, "a finger takes the line without the stylus mode too");
 });
 
 test("playing, a press finds the playhead where it was drawn a moment ago, a touch target behind it at most (#533 4)", () => {

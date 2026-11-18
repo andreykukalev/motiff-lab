@@ -2,9 +2,8 @@ import XCTest
 
 @testable import MotiffLab
 
-/// A tempo changed while playing (version 0.5.4, #511 section 17), held to the web engine's own tests
-/// (tests/shared/playback-processor.test.mjs): the place heard stays, nothing restarts, the next note comes at the new rate,
-/// and the loop stays. The helpers are the engine tests' own.
+/// A tempo changed while playing (version 0.5.4, #511 section 17): the place heard stays, nothing restarts, the next
+/// note comes at the new rate, and the loop stays. The helpers are the engine tests' own.
 extension PlaybackEngineTests {
     /// The engine's last position report, after `takeReports` was emptied before the step.
     private func lastPosition(_ engine: PlaybackEngine) -> PositionReport? {

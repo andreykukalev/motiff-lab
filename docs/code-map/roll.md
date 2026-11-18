@@ -4,6 +4,9 @@
 
 One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor on the web and by `src/ipad/App/Web/roll.js`
 (`window.roll`, messages to Swift) on the iPad. Tests: `tests/shared/roll-*.test.mjs` (node, on the compiled modules).
+What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/roll-*.json` (SEL-01, SEL-02, SEL-03,
+PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's WKWebView
+(`PageScenarioTests.swift`). The roll's selection handles are drawn on its canvas, so the scenarios check what it posts.
 
 ## Modules
 
@@ -23,17 +26,36 @@ One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor o
   lasso picks notes; a span let go is held (`placed`) until Swift's selection comes back; an edge wins over a playhead.
 - `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view, zoom, playhead, lanes.
 
+## Not reached by the iPad's roll (W0.6, measured 2026-11-16; written down, not cut)
+
+- Members (the Blazor host's API): `PianoRoll.loadKept`, `setNamesKept`, `setChecks`, `pointAt`, `setSelection`,
+  `setPhrases`, `setFilter`, `setVariation`, `clearVariation`, `setGhosts`, `setAudible`, `dispose`; `HAND_NONE`, `fitZoom`
+  and `fitRow` of `roll-model.ts`; `ticksIn`; `narrowedPicks`; `RollPlaceGesture.active`. Several have node tests only.
+- Branches: `roll.js` sets `setTouchReading(true)` and `setAxisZoom(true)` at load, so the `!touchReading` and
+  `!axisZoom` sides are the web's (`zoomBy`, `reportZoom`, `pointerUp`, `movedByFingers`, `onDocumentPointerUp`). The
+  `mode === null` (rules before the modes) and `!placeOn` sides run only before Swift's first `input`: `setRules`,
+  `heldModel`, `beginRulePress`, `modelChanged`, `pressBarNumbers`, `stripHost`, `drawRoll`, `drawPlace`.
+
 ## iPad
 
-- `Web/roll.js`: host calls → messages (`range`, `span`, `notes`, `moveBegan`, `moved`, `edit`, `seek`, …); `tuplets`; `input` carries
-  `RollInput.page` plus `place`/`stylus` (`RollPlaceInput`), `shape` the box or the lasso.
-- `RollController.swift`: the web view, `received` → callbacks (`picked`, `notesPicked`, `notesMoveBegan`, `notesMoved`).
-- `RollPlace.swift`: `RollPickShape` (UserDefaults `roll.pickShape`), `RollPlaceInput`, `RollNotesPick`, `RollPickSwitch`.
-- `RollTools.swift` (mode switch, zoom, edit tools), `RollDrawer.swift` (the head), wiring in `ScoreScreen.wire()`.
+- `Web/roll.js`: `window.roll`, the 17 host calls (`load`, `selection`, `input`, `edit`, `zoom`, `frame`, …), and the 13
+  messages (`range`, `span`, `notes`, `moveBegan`, `moved`, `edit`, `seek`, `drag`, `zoom`, …) it posts from PianoRoll's
+  host callbacks (15 passed on; `OnRollCheckPicked`, `OnRollNotesPicked`, `OnRollPlace`, `OnRollSelection` dropped, the
+  web's). The contract: `tests/contracts/roll-page.json` (names, each argument's and message's fields, the answers),
+  checked against roll.js by `tests/shared/roll-page-contract.test.mjs` and against Swift by `RollPageContractTests`.
+- `Platform/RollPage.swift` (B7): the one place that builds a call (`RollCommand`, `RollPage`) and decodes a message
+  (`RollEvent`, `RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`); `drag` goes on to Playback's
+  `PlayheadGesture`. `load` takes music-core's `roll` answer typed (`RollAnswer`, read by `PieceCore.roll`; fixture
+  `tests/contracts/facade-answers/roll.json`) and passes every field of it on (`RollAnswer.argument`). `RollController.swift`: the web view, `received` → callbacks; `RollPlace.swift`, `RollTools.swift`,
+  `RollDrawer.swift`: [`ipad/roll.md`](ipad/roll.md); wiring in `ScoreWorkspace.wire()`.
 
 ## Rules not to break
 
-- With `experimental.placeSelection` off (and always on the web, which passes no `place`), Select is as in 0.6.1.
+- With the host's place selection off (`setPlaceSelection`; always on the web, which passes no `place`), Select is as
+  in 0.6.1. The switch `experimental.placeSelection` that once chose it is gone from the catalogue (v0.7).
 - The roll never changes a selection by itself: it sends picks and spans; Swift's ScoreController owns the selection.
 - Moving picked notes is the note editor's draft (`corrections.*`); nothing new is saved in the project file.
 - In Navigate the stylus moves the roll; in Edit notes a tap on empty space adds a note; a finger beside a stylus moves it.
+- With the lanes the stylus in Select takes the playhead by its handle in the strip alone and draws a frame down its line
+  (`lineTakesHead`, `laneHeadAt`'s `line`, Andrei 2026-11-17, `roll-sel-on-playhead`); a finger, Navigate and the Pencil
+  without the stylus mode (`placeStylus` false, «Только Apple Pencil» off) take it down the line too.

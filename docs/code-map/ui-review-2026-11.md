@@ -55,7 +55,7 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 | Every screen makes its own web view and loads the score page again | `ScoreController.init` (score), `RollController` (roll) | a WebContent process and the page's scripts per switch: ~1.5 s of the notes' time in the simulator | keep the score's web view between the screens of one piece |
 | The kept view waits 10 s for the render, then gives up | `ScoreController.whenRendered` (100 × 0.1 s), `returnToNotesView` | when the web page is slow (once in 96 switches, Evidence) the pages show from the top, blank until drawn, and the kept place is lost | land on the render's own end (`rendered`), not after a time guess |
 | The piano's samples decoded again for every screen | `Player.load` → `Piano.load` per `Player` | the files read and decoded at every switch to the notes | decode once per app (owner of `Player`) |
-| `docs/code-map/ipad.md` over its 3 KB | — | — | split the map by area when it next grows |
+| `docs/code-map/ipad.md` over its 3 KB | — | — | done: one map per feature folder, `docs/code-map/ipad/` (#659) |
 
 ## Lifecycle and ownership: PDF | Notes now
 

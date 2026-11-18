@@ -32,7 +32,7 @@ permissions:
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
 # run never shares a group with main. A run for adding or removing a label (agent, role:*, risk:*,
-# browser-tests, ipad-tests, protected-scenarios-ok) only reports the result of the build before it and checks
+# browser-tests, protected-scenarios-ok) only reports the result of the build before it and checks
 # the approval of the protected scenarios again (see the job), so it gets a group of its own per run: it
 # never cancels the build in progress, and no other label run cancels it.
 concurrency:
@@ -205,6 +205,18 @@ jobs:
       - name: Test TypeScript layer
         if: steps.changes.outputs.code == 'true'
         run: node --test "tests/shared/*.test.mjs"
+
+      # The iPad's pages in Chromium (tests/contracts/page-scenarios/README.md): every scenario, pressed twice, on the
+      # pages the build compiled, and the fixtures made again and compared. playwright-core alone, with the runner's own
+      # Chrome, two pages at a time (the runner's cores also make the fixtures): about 30 seconds.
+      - name: Test the iPad's pages
+        if: steps.changes.outputs.code == 'true'
+        env:
+          PAGES_CHANNEL: chrome
+          PAGES_PARALLEL: 2
+        run: |
+          npm ci --prefix tests/pages --no-audit --no-fund
+          node tests/pages/run.mjs
 
       # The agents' guards in .claude/hooks (governance/roles/common.md): a second.
       - name: Test agent guards

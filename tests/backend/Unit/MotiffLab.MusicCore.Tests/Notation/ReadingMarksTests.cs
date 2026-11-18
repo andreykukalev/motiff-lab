@@ -12,7 +12,7 @@ using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;
 
 namespace MotiffLab.MusicCore.Tests.Notation;
 
-/// <summary>«Для чтения» with the marks of the playing that matter (version 0.5, experimental.readingMarks): <see cref="PlayedMarks.Significant"/>.</summary>
+/// <summary>«Для чтения» with the marks of the playing that matter (version 0.5, once behind experimental.readingMarks): <see cref="PlayedMarks.Significant"/>.</summary>
 public class ReadingMarksTests
 {
     private static readonly XNamespace s_mei = "http://www.music-encoding.org/ns/mei";

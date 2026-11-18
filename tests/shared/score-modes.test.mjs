@@ -1,35 +1,10 @@
-// Tests for the modes of version 0.5 and their keys (the experiment Two playheads and modes), run in Node on the compiled
+// Tests for the modes of version 0.5 (once the experiment Two playheads and modes), run in Node on the compiled
 // modules:   dotnet build src/shared && node --test tests/shared
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { modeFor, removesSelection } from "../../src/shared/wwwroot/js/layout/mode-keys.js";
 import { inside, modeOf } from "../../src/shared/wwwroot/js/score/score-modes.js";
-
-const key = (code, extra = {}) => ({
-    code, key: extra.key ?? code, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, defaultPrevented: false, target: { closest: () => null }, ...extra,
-});
-
-test("H, S, E and P choose the modes by the key's place, so any layout works", () => {
-    assert.equal(modeFor(key("KeyH")), "navigate");
-    assert.equal(modeFor(key("KeyS", { key: "ы" })), "select");
-    assert.equal(modeFor(key("KeyE")), "edit");
-    assert.equal(modeFor(key("KeyP")), "pen");
-    assert.equal(modeFor(key("KeyB")), null);
-});
-
-test("a key typed into a field, held with a modifier or taken already chooses nothing", () => {
-    assert.equal(modeFor(key("KeyS", { ctrlKey: true })), null);
-    assert.equal(modeFor(key("KeyS", { shiftKey: true })), null);
-    assert.equal(modeFor(key("KeyS", { defaultPrevented: true })), null);
-    assert.equal(modeFor(key("KeyS", { target: { closest: () => ({}) } })), null);
-});
-
-test("Escape removes the selection, except in a field or a dialog", () => {
-    assert.equal(removesSelection(key("Escape", { key: "Escape" })), true);
-    assert.equal(removesSelection(key("Escape", { key: "Escape", target: { closest: () => ({}) } })), false);
-});
 
 test("the modes are named as the bar names them, and nothing else is a mode", () => {
     assert.equal(modeOf("select"), "select");

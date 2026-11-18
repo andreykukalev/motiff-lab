@@ -7,7 +7,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Tests.Analysis;
 
 /// <summary>
-/// The ideas of Piece DNA by what they are in the music (#582 item 15, the experiment «Идеи по смыслу»): on real pieces of
+/// The ideas of Piece DNA by what they are in the music (#582 item 15, once the experiment «Идеи по смыслу»): on real pieces of
 /// the test data, which cards come out and the line each says on why it was chosen, from what the engine measured.
 /// </summary>
 public class MusicalIdeasTests

@@ -47,7 +47,7 @@ import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, l
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { HoldToPlace } from "../playback/hold-place.js";
-import { knobHeadAt, laneDragTick, laneHeadAt, reachedFrom } from "./roll-head-drag.js";
+import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
 import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
 import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
@@ -127,7 +127,7 @@ interface PlayerHandle {
     /** Strikes and releases a key by hand, over playback or without it. */
     noteOn?(pitch: number, velocity?: number): void;
     noteOff?(pitch: number): void;
-    /** The playback model while the player holds it (#495 UX-10, playback-owner.ts), else null. */
+    /** The playback model while the player holds it (#495 UX-10), else null. */
     model?(): ModelState | null;
     /**
      * A playhead's handle taken, dragged and let go (#495 UX-08, T14–T16): the web's player hears it straight from the roll;
@@ -530,7 +530,7 @@ export class PianoRoll {
     /** The selection gesture on the strips (#511 2, 6.3). */
     private readonly strip = new RollStripGesture(this.stripHost());
     /**
-     * Selection by where you touch (#601, the iPad's experiment experimental.placeSelection, roll-place-gesture.ts): on,
+     * Selection by where you touch (#601, once the iPad's experiment experimental.placeSelection, roll-place-gesture.ts): on,
      * whether a stylus is used (a finger then moves the roll), the box or the lasso, and whether the selection was chosen
      * by notes. Off on the web, which passes nothing.
      */
@@ -1122,7 +1122,7 @@ export class PianoRoll {
     }
 
     /**
-     * Selection by where you touch (#601, experimental.placeSelection), as the iPad tells it: on or off, and whether a stylus
+     * Selection by where you touch (#601, once the experiment experimental.placeSelection), as the iPad tells it: on or off, and whether a stylus
      * is used, so a finger moves the roll beside it; without one, one finger selects. Off, Select is as in version 0.6.1.
      */
     setPlaceSelection(on: boolean, stylus: boolean): void {
@@ -2470,12 +2470,12 @@ export class PianoRoll {
 
     /**
      * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
-     * down its line, a touch target wide: the drag moves it on the sixteenth grid, not what lies under it.
+     * down its line a touch target wide (lineTakesHead: not the stylus mode's stylus in Select): the drag moves it on the grid.
      */
     private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
         const { black, blue } = this.headsNear(x);
         const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
-        return this.grabHead(laneHeadAt(x, y, heads), event.pointerId, x);
+        return this.grabHead(laneHeadAt(x, y, heads, lineTakesHead(event.pointerType, this.placeStylus, this.placeSelects("pen"))), event.pointerId, x);
     }
 
     /**

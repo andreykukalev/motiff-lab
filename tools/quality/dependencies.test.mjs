@@ -1,8 +1,12 @@
 // Tests of the dependency check (CLAUDE.md, "Writing code"): node --test "tools/quality/*.test.mjs"
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { bundledFolders, coreViolations, ipadPageViolations, runtimeImports } from './dependencies.mjs';
+import {
+  IPAD_FOLDER_USES, bundledFolders, coreViolations, ipadFolderViolations, ipadPageViolations, runtimeImports, swiftCode,
+} from './dependencies.mjs';
+import { compare, updateBaseline } from './ratchet.mjs';
 
 const reader = (files) => (file) => files[file];
 const rules = (list) => list.map((v) => `${v.rule} ${v.symbol}`);
@@ -49,4 +53,88 @@ test('the iPad page may reach only the bundled folders, through every module it 
     'ipad-unbundled src/shared/Scripts/playback/p.ts ../import/recording.js',
     'ipad-missing src/shared/Scripts/playback/p.ts ./q.js',
   ]);
+});
+
+const app = (files) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`src/ipad/App/MotiffLab/${path}`, text]));
+const folderEdges = (files) => ipadFolderViolations(Object.keys(files), reader(files)).map((v) => `${v.file.slice(23)} ${v.symbol}`);
+const declarations = {
+  'Platform/Core.swift': 'struct PieceCore {}\n',
+  'Selection/Place.swift': 'final class PlaceSelection {}\nenum SelectionSpan { case bar }\n',
+  'Marks/Marks.swift': '@MainActor final class MarkStore {}\n',
+};
+
+test('an iPad folder may use Platform and the folders the table allows; Workspace uses every folder', () => {
+  const files = app({
+    ...declarations,
+    'Playback/Player.swift': 'struct Player { let core: PieceCore; let place: PlaceSelection; var marks: [MarkStore] }\n',
+    'Platform/OpenPiece.swift': 'struct OpenPiece {\n  let span = SelectionSpan.bar\n}\n',
+    'Workspace/Screen.swift': 'struct Screen { let a: PlaceSelection; let b: MarkStore; let c: Player; let d: PieceCore }\n',
+  });
+  assert.deepEqual(folderEdges(files), ['Playback/Player.swift Marks: MarkStore', 'Platform/OpenPiece.swift Selection: SelectionSpan']);
+  const [, platform] = ipadFolderViolations(Object.keys(files), reader(files));
+  assert.equal(platform.line, 2);
+  assert.match(platform.message, /Platform\/ may use nothing above it/);
+});
+
+test('names in comments and string literals are no use; an interpolation is code', () => {
+  const files = app({
+    ...declarations,
+    'Ink/Pen.swift': [
+      '// MarkStore in a comment',
+      '/* a block /* nested MarkStore */ still a comment: PlaceSelection */',
+      'let a = "MarkStore \\"PlaceSelection\\""',
+      'let b = #"MarkStore "PlaceSelection" \\(MarkStore)"#',
+      'let c = """',
+      '  MarkStore "PlaceSelection"',
+      '  """',
+      'let d = "seen \\(SelectionSpan.bar) here"',
+      '',
+    ].join('\n'),
+  });
+  assert.deepEqual(folderEdges(files), ['Ink/Pen.swift Selection: SelectionSpan']);
+  assert.equal(swiftCode('a /* b */ "c\\(d)" e').length, 'a /* b */ "c\\(d)" e'.length);
+  assert.equal(swiftCode('a // b "c"\nd "e // f" /* g */ h', { strings: false }), 'a         \nd "e // f"         h');
+});
+
+test("a private type, a file's own nested type and a member after a dot are no other folder's type", () => {
+  const files = app({
+    ...declarations,
+    'Marks/Check.swift': 'private struct Hidden {}\nextension MarkStore { enum Kind { case a } }\n',
+    'Ink/Pen.swift': 'struct Pen {\n  struct Hidden {}\n  let h: Hidden\n  let k = tool.MarkStore\n  let e: MarkStore.Kind\n}\n',
+  });
+  assert.deepEqual(folderEdges(files), ['Ink/Pen.swift Marks: MarkStore.Kind']);
+});
+
+test('a file in a folder the table does not list is reported', () => {
+  const files = app({ 'Practice/Drill.swift': 'struct Drill {}\n' });
+  assert.deepEqual(ipadFolderViolations(Object.keys(files), reader(files)).map((v) => `${v.rule} ${v.symbol}`),
+    ['ipad-folder-unlisted Practice']);
+});
+
+test('a baselined folder edge passes, a new one fails, a gone one is to remove', () => {
+  const before = app({ ...declarations, 'Ink/Pen.swift': 'let a: MarkStore\n' });
+  const baseline = ipadFolderViolations(Object.keys(before), reader(before)).map((v) => ({ ...v, why: 'known' }));
+  assert.deepEqual(compare(baseline, baseline, ['dependencies']).added, []);
+  const after = app({ ...declarations, 'Ink/Pen.swift': 'let b: PlaceSelection\n' });
+  const { added, stale } = compare(ipadFolderViolations(Object.keys(after), reader(after)), baseline, ['dependencies']);
+  assert.deepEqual(added.map((v) => v.symbol), ['Selection: PlaceSelection']);
+  assert.deepEqual(stale.map((e) => e.symbol), ['Marks: MarkStore']);
+});
+
+test("governance/quality/README.md shows the folders' table as IPAD_FOLDER_USES has it", () => {
+  const readme = readFileSync(new URL('../../governance/quality/README.md', import.meta.url), 'utf8');
+  const rows = [...readme.matchAll(/^\| `(\w+)\/` \| (.+?) \|$/gm)].map((m) => [m[1], m[2]]);
+  const want = Object.entries(IPAD_FOLDER_USES).map(([folder, uses]) =>
+    [folder, uses === '*' ? 'every folder' : uses.length ? uses.map((u) => `\`${u}\``).join(', ') : 'nothing']);
+  assert.deepEqual(rows, want);
+});
+
+test("a baseline merged from two branches keeps both sides' reasons when it is updated", () => {
+  const files = app({ ...declarations, 'Ink/Pen.swift': 'let a: MarkStore\n', 'Roll/Drawer.swift': 'let b: MarkStore\n' });
+  const current = ipadFolderViolations(Object.keys(files), reader(files));
+  const ours = { ...current[0], why: 'ours (#1)' };
+  const theirs = { ...current[1], why: 'theirs (#2)' };
+  const gone = { ...current[0], file: 'src/ipad/App/MotiffLab/Ink/Old.swift', why: 'gone (#3)' };
+  const next = updateBaseline([ours, theirs, gone], current, ['dependencies']);
+  assert.deepEqual(next.map((e) => `${e.file.slice(23)} ${e.why}`), ['Ink/Pen.swift ours (#1)', 'Roll/Drawer.swift theirs (#2)']);
 });

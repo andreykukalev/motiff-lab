@@ -44,7 +44,7 @@ final class EditsLayerTests: XCTestCase {
 
     func testAnAnswerWithTheLayerOnListsWhatNoLongerFitsOneRowPerNote() throws {
         let answer = #"""
-        {"bar": 1, "notes": [], "removed": [], "count": 5, "layer": "on", "editsOff": false, "applied": 2,
+        {"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 5, "layer": "on", "editsOff": false, "applied": 2,
          "moved": [{"noteId": "n_0003", "to": "n_0004", "bar": 2}],
          "unfit": [{"noteId": "n_0010", "bar": 4, "reason": "missing", "text": "The note is not there"},
                    {"noteId": "n_0010", "bar": 4, "reason": "changed", "text": "The note is different now"},
@@ -52,7 +52,7 @@ final class EditsLayerTests: XCTestCase {
                    {"noteId": "n_0020", "bar": 7, "reason": "idTaken", "text": "A note with this id is already there"}],
          "hidden": []}
         """#
-        let state = try XCTUnwrap(EditsLayerState(answer: answer))
+        let state = try XCTUnwrap(layer(answer))
         XCTAssertTrue(state.on)
         XCTAssertEqual(state.count, 5)
         XCTAssertEqual(state.moved, [EditsLayerState.Moved(noteId: "n_0003", to: "n_0004", bar: 2)])
@@ -68,19 +68,19 @@ final class EditsLayerTests: XCTestCase {
     }
 
     func testOffSaysTheNotesAreAsRecognisedAndAStrictPieceIsOnWithNothingUnfit() throws {
-        let off = try XCTUnwrap(EditsLayerState(answer: #"{"bar": 1, "count": 0, "layer": "off", "moved": [], "unfit": [], "hidden": []}"#))
+        let off = try XCTUnwrap(layer(#"{"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 0, "layer": "off", "moved": [], "unfit": [], "hidden": []}"#))
         XCTAssertFalse(off.on)
         XCTAssertTrue(off.shows, "off, the switch stays to turn them on again")
         XCTAssertEqual(off.stateLine(UIText(language: "ru")), UIText(language: "ru")["edits.off"])
 
-        let strict = try XCTUnwrap(EditsLayerState(answer: #"{"bar": 1, "notes": [], "removed": [], "count": 2}"#))
+        let strict = try XCTUnwrap(layer(#"{"bar": 1, "notes": [], "removed": [], "canUndo": false, "changed": false, "count": 2}"#))
         XCTAssertEqual(strict, EditsLayerState(count: 2))
         XCTAssertTrue(strict.on)
         XCTAssertFalse(EditsLayerState(count: 0).shows, "no corrections, no switch")
 
-        XCTAssertNil(EditsLayerState(answer: #"{"error": "unavailable", "message": "Corrections are off."}"#))
-        XCTAssertEqual(EditsLayerState.opened(["project": ["corrections": 3]]), EditsLayerState(count: 3))
-        XCTAssertEqual(EditsLayerState.opened(["edits": ["count": 1, "layer": "off"] as [String: Any], "project": ["corrections": 1]]).on, false)
+        XCTAssertNil(layer(#"{"error": "unavailable", "message": "Corrections are off."}"#))
+        XCTAssertEqual(EditsLayerState.opened(#"{"project": {"corrections": 3}}"#), EditsLayerState(count: 3))
+        XCTAssertEqual(EditsLayerState.opened(#"{"edits": {"count": 1, "layer": "off"}, "project": {"corrections": 1}}"#).on, false)
     }
 
     // MARK: - Through music-core
@@ -92,17 +92,17 @@ final class EditsLayerTests: XCTestCase {
         let first = try piece(imported)
         let bar = try object(MusicCore.call(piece: first, "corrections", #"{"bar": 1}"#))
         let note = try XCTUnwrap((bar["notes"] as? [[String: Any]])?.first?["id"] as? String)
-        let removed = try XCTUnwrap(EditsLayerState(answer: MusicCore.call(piece: first, "corrections.remove", #"{"bar": 1, "id": "\#(note)"}"#)))
+        let removed = try XCTUnwrap(layer(MusicCore.call(piece: first, "corrections.remove", #"{"bar": 1, "id": "\#(note)"}"#)))
         XCTAssertEqual(removed, EditsLayerState(count: 1))
 
         let worked = MusicCore.call(piece: first, "project.save")
         let reopened = try open("elise.motiff.json", Data(worked.utf8), json(OpenPiece.openRequest(language: "en")))
         XCTAssertEqual((reopened["edits"] as? [String: Any])?["layer"] as? String, "on")
-        XCTAssertEqual(EditsLayerState.opened(reopened).count, 1)
-        XCTAssertTrue(EditsLayerState.opened(reopened).unfitNotes.isEmpty)
+        XCTAssertEqual(try EditsLayerState.opened(json(reopened)).count, 1)
+        XCTAssertTrue(try EditsLayerState.opened(json(reopened)).unfitNotes.isEmpty)
 
         let id = try piece(reopened)
-        let off = try XCTUnwrap(EditsLayerState(answer: MusicCore.call(piece: id, "corrections.layer", json(EditsLayerState.layerRequest(on: false, bar: nil)))))
+        let off = try XCTUnwrap(layer(MusicCore.call(piece: id, "corrections.layer", json(EditsLayerState.layerRequest(on: false, bar: nil)))))
         XCTAssertFalse(off.on)
         XCTAssertEqual(off.count, 1, "the corrections are kept while off")
         let refused = try object(MusicCore.call(piece: id, "corrections.remove", #"{"bar": 1, "id": "\#(note)"}"#))
@@ -110,10 +110,16 @@ final class EditsLayerTests: XCTestCase {
 
         let saved = MusicCore.call(piece: id, "project.save")
         let again = try open("elise.motiff.json", Data(saved.utf8), json(OpenPiece.openRequest(language: "en")))
-        XCTAssertFalse(EditsLayerState.opened(again).on, "the piece opens as its file says")
-        let on = try XCTUnwrap(EditsLayerState(answer: MusicCore.call(piece: piece(again), "corrections.layer", json(EditsLayerState.layerRequest(on: true, bar: 1)))))
+        XCTAssertFalse(try EditsLayerState.opened(json(again)).on, "the piece opens as its file says")
+        let on = try XCTUnwrap(layer(MusicCore.call(piece: piece(again), "corrections.layer", json(EditsLayerState.layerRequest(on: true, bar: 1)))))
         XCTAssertTrue(on.on)
         XCTAssertEqual(on.count, 1)
+    }
+
+    /// A corrections answer read as `PieceCore.corrections` reads it (`CorrectionsAnswer`), then its layer's state; nil for
+    /// a refusal.
+    private func layer(_ answer: String) -> EditsLayerState? {
+        FacadeAnswer.decode(CorrectionsAnswer.self, answer, of: "corrections").map { EditsLayerState($0.edits) }
     }
 
     private func open(_ fileName: String, _ data: Data, _ request: String) throws -> [String: Any] {

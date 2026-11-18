@@ -1,0 +1,45 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "Nocturne.pdf",
+ "answers": [
+  {
+   "call": "sources.layers",
+   "request": {
+    "device": "ipad",
+    "here": []
+   },
+   "answer": {
+    "working": null,
+    "originals": [
+     {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "shown": "Nocturne.pdf",
+      "fileName": "Nocturne.pdf",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [],
+      "pageMarks": 1
+     }
+    ],
+    "notes": [],
+    "views": [
+     {
+      "id": "src_pdf",
+      "kind": "original",
+      "group": "src_pdf",
+      "working": false,
+      "hidden": false,
+      "op": "pdf"
+     }
+    ],
+    "hidden": 0
+   }
+  }
+ ]
+}
