@@ -27,21 +27,6 @@ public partial class RussianExplanationTests
     [GeneratedRegex(@"\b[A-Za-z]{2,}\b")]
     private static partial Regex LatinWord();
 
-    private static IEnumerable<OperationParameters> ParameterSets(IVariationOperation operation) => operation switch
-    {
-        RhythmReshape => [
-            .. Enum.GetValues<RhythmReshapeKind>().Where(static kind => kind != RhythmReshapeKind.Displace).Select(static kind => new RhythmReshapeParameters(kind)),
-            new RhythmReshapeParameters(RhythmReshapeKind.Displace, 1),
-            new RhythmReshapeParameters(RhythmReshapeKind.Displace, 2),
-        ],
-        Articulation => Enum.GetValues<ArticulationKind>().Select(static kind => new ArticulationParameters(kind)),
-        MelodicSequence => [new MelodicSequenceParameters(1, 1), new MelodicSequenceParameters(-2, 3), new MelodicSequenceParameters(2, 1, Diatonic: false)],
-        AccompanimentPattern => Enum.GetValues<AccompanimentPatternKind>().Select(static kind => new AccompanimentPatternParameters(kind)),
-        IntervalReshape => [new IntervalReshapeParameters(1, null), new IntervalReshapeParameters(-1, new IntervalSet([0]))],
-        ChangeDirection => [new ChangeDirectionParameters(Diatonic: true, null), new ChangeDirectionParameters(Diatonic: false, null)],
-        _ => [],
-    };
-
     private static IEnumerable<MotifSelection> Selections(ImportedPiece piece)
     {
         int bars = piece.Meter.BarAt(piece.End.Offset(-1)).Number;
@@ -82,7 +67,7 @@ public partial class RussianExplanationTests
             VariationContext russian = english with { Words = Words.Russian };
             foreach (IVariationOperation operation in VariationOperations.All)
             {
-                foreach (OperationParameters parameters in ParameterSets(operation))
+                foreach (OperationParameters parameters in operation is RhythmReshape or Articulation or MelodicSequence or AccompanimentPattern or IntervalReshape or ChangeDirection ? ParameterSets.Every(operation) : [])
                 {
                     if (operation.UnavailableReason(notes, english, parameters) is not null)
                     {
