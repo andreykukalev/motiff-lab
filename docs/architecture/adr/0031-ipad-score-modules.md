@@ -190,3 +190,20 @@ What stays in `ScoreController`, and the step that removes each:
 `engraved` stays in `SourcesModel` in S4b, as section 3's table gives it: it records how the page was engraved (even
 bars, the view, the notes coloured), which is not the draft's. `MergeModel` owns the view the draft asks for
 (`mergeShow`), and the root keeps comparing the two (`wantedView`) until step 9.
+
+## Note, 2026-11-18 (step S4b, `MergeModel`)
+
+`MergeModel` (`Sources/MergeModel.swift`, reading `SelectionModel` and `SourcesModel`) owns the merge draft (`draft`),
+the change it shows (`at`), Bar | Phrase (`phrase`), the view the draft asks for (`view`), what was last heard
+(`hearing`), Compare versions (`comparing`), the toast (`toast`) and the marker tapped (`markerPick`), with the rules
+that need only those two models: the bars a choice goes for (`choiceBars`), the span heard (`hearSpan`), the change
+‹ › go to (`stepped`), the bars Compare versions shows (`seenBars`) and one `performance.merge` call (`call`, music-core's
+refusal back for the root to put in the version's words). `MergeDraftTests` pinned the draft's rules through
+`ScoreController`'s calls before the move and pass unchanged after it. `FocusModel` keeps the version's notes to hear
+(`versionNotes(of:in:)`, `forgetVersionNotes`), as the S4 note says.
+
+`ScoreController` forwards the draft's state read-only, but for `mergePhrase` and `comparing`, which the views bind
+(`$score.comparing`, Bar | Phrase): their forwarders also set, through `scope(phrase:)` and `compare(_:)`. All of them go
+in **S7** with S1's. Hearing the draft (`hearMerge`: its notes are Playback's), engraving its view and the card for
+Compare versions, and what follows a merge applied or undone (the notes, Check, the version's words) stay the root's,
+with its page calls, until step 9.

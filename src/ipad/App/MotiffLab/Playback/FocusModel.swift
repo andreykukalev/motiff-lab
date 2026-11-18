@@ -4,10 +4,11 @@ import Foundation
 /// card shows the phrase as a roll (testing item 12), the card's options as the page gives them, the version shown for the
 /// phrase in focus (0022 section 5), and the span Play and Loop take for the selection (#533 3). It owns this state and
 /// the rules of its own that need only the selection (SelectionModel, which it reads): the play range, the unit of the
-/// level shown the card is, and the card's words for where it is. Whether Expand is open (`focused`), opening and leaving
-/// it on the page, engraving the card and reading the version's notes are ScoreController's, the composition root, which
-/// hands in what they give (`open`, `close`, `takeCardOptions`, `showVersion`); its observers see each change of this
-/// model as a change of the controller. Until which step: ADR 0031, the note of 2026-11-18 (S3).
+/// level shown the card is, and the card's words for where it is; and since S4b the version's notes to hear, read for the
+/// version id the root hands in. Whether Expand is open (`focused`), opening and leaving it on the page, engraving the
+/// card and which version is in focus are ScoreController's, the composition root, which hands in what they give (`open`,
+/// `close`, `takeCardOptions`, `showVersion`); its observers see each change of this model as a change of the controller.
+/// Until which step: ADR 0031, the notes of 2026-11-18 (S3, S4b).
 @MainActor
 final class FocusModel: ObservableObject {
     /// The span play takes for a selection, and the selection it was taken for.
@@ -43,6 +44,8 @@ final class FocusModel: ObservableObject {
     @Published private(set) var version: Version?
     /// Verovio's options for the card at its width now, as the page gives them.
     private(set) var cardOptions: String?
+    /// The version's notes as music-core gives them to play (`playback` of `version`), for the version they are of.
+    private var versionPlayback: (id: String, notes: [PlaybackNote])?
 
     init(selection: SelectionModel) {
         self.selection = selection
@@ -71,6 +74,22 @@ final class FocusModel: ObservableObject {
     /// The version for the phrase in focus, or none.
     func showVersion(_ version: Version?) {
         self.version = version
+    }
+
+    /// The notes of the version (`id`) in the piece in the score's time, as music-core gives them to play, kept until the
+    /// notes change (`forgetVersionNotes`); nil when another version's were read meanwhile.
+    func versionNotes(of id: String, in piece: Int32) async -> [PlaybackNote]? {
+        if versionPlayback?.id != id {
+            let request = facadeRequest(["of": "version", "id": id])
+            let answer = await PieceCore(piece: piece).playback(request)
+            versionPlayback = (id, answer.value.map(PlaybackScore.init)?.notes ?? [])
+        }
+        return versionPlayback?.id == id ? versionPlayback?.notes : nil
+    }
+
+    /// The notes changed, or another piece is shown: a version's notes are read again when next heard.
+    func forgetVersionNotes() {
+        versionPlayback = nil
     }
 
     /// What play takes for the selection now: its span; none without a selection.
