@@ -198,8 +198,9 @@ the change it shows (`at`), Bar | Phrase (`phrase`), the view the draft asks for
 (`hearing`), Compare versions (`comparing`), the toast (`toast`) and the marker tapped (`markerPick`), with the rules
 that need only those two models: the bars a choice goes for (`choiceBars`), the span heard (`hearSpan`), the change
 ‹ › go to (`stepped`), the bars Compare versions shows (`seenBars`) and one `performance.merge` call (`call`, music-core's
-refusal back for the root to put in the version's words). `MergeDraftTests` pinned the draft's rules through
-`ScoreController`'s calls before the move and pass unchanged after it. `FocusModel` keeps the version's notes to hear
+refusal back for the root to put in the version's words). `MergeDraftTests` were written to pin the draft's
+rules through `ScoreController`'s calls before the move, but first ran after it (Swift builds only in the iPad
+workflow), and passed there unchanged. `FocusModel` keeps the version's notes to hear
 (`versionNotes(of:in:)`, `forgetVersionNotes`), as the S4 note says.
 
 `ScoreController` forwards the draft's state read-only, but for `mergePhrase` and `comparing`, which the views bind
@@ -207,3 +208,16 @@ refusal back for the root to put in the version's words). `MergeDraftTests` pinn
 in **S7** with S1's. Hearing the draft (`hearMerge`: its notes are Playback's), engraving its view and the card for
 Compare versions, and what follows a merge applied or undone (the notes, Check, the version's words) stay the root's,
 with its page calls, until step 9.
+
+## Note, 2026-11-18 (step S7a, the sources and merge views)
+
+S7 goes in three pull requests, the protected harness change in the smallest. In **S7a** the views that show the other
+versions or the merge draft observe `SourcesModel` and `MergeModel` themselves (`ScoreScreenContent`, `VersionPage`,
+`DraftBlock`, `BarStrip`, `MergeScope`, `MergeRow`, `MergeListen`, `MergeShowSwitch`, `MarkerPopover`,
+`CompareVersionsScreen`), Bar | Phrase and Compare versions bind to `scope(phrase:)` and `compare(_:)`, and the root's
+relay of the two models and its forwarders of their state are deleted. The keyboard's ⌘Z of the selection's toast is
+left out while a draft is open by the screen, which observes `MergeModel` (`SelectionToastView`'s `merging`), as
+Selection may not name a Sources type. `LayersList` (Marks) reads `pieceExtra`, which asks whether there are versions;
+it is drawn each time it opens, and nothing adds or removes a version while it is open. **S7b** does the same for
+`SelectionModel` and `FocusModel` but for what the protected baseline reads; **S7c** moves `focused` and `sources` out
+of the root, with the change of `tests/ipad/Baseline` that Andrei merges.

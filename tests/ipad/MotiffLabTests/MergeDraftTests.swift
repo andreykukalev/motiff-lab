@@ -55,7 +55,7 @@ final class MergeDraftTests: XCTestCase {
         XCTAssertTrue(drawn, "the score's page is drawn")
         let cover = try Self.cover()
         await score.addVersion(fileName: "cover.musicxml", data: cover)
-        XCTAssertFalse(score.versions.differing.isEmpty, "the cover has bars otherwise")
+        XCTAssertFalse(score.sourcesModel.versions.differing.isEmpty, "the cover has bars otherwise")
         return score
     }
 
@@ -80,8 +80,8 @@ final class MergeDraftTests: XCTestCase {
     /// Opens the draft with Keep my notes, not applied at once.
     private func draft(_ score: ScoreController, start: String = "mine") async throws -> MergeInfo {
         score.startMerge(start, direct: false)
-        await until("the draft opens") { score.merge != nil && score.mergeAt != nil }
-        return try XCTUnwrap(score.merge)
+        await until("the draft opens") { score.mergeModel.draft != nil && score.mergeModel.at != nil }
+        return try XCTUnwrap(score.mergeModel.draft)
     }
 
     func testTheDraftOpensOnItsFirstChangeAndStepsWithinItsEnds() async throws {
@@ -89,73 +89,73 @@ final class MergeDraftTests: XCTestCase {
         let merge = try await draft(score)
         let bars = merge.bars.map(\.bar)
         XCTAssertEqual(Array(bars.prefix(3)), [2, 3, 10])
-        XCTAssertEqual(score.mergeAt, bars.first, "on its first change")
-        XCTAssertEqual(score.mergeShow, "result")
+        XCTAssertEqual(score.mergeModel.at, bars.first, "on its first change")
+        XCTAssertEqual(score.mergeModel.view, "result")
         XCTAssertTrue(merge.bars.allSatisfy { $0.choice == "mine" }, "Keep my notes")
         score.stepMerge(1)
-        XCTAssertEqual(score.mergeAt, bars[1])
+        XCTAssertEqual(score.mergeModel.at, bars[1])
         score.stepMerge(bars.count + 3)
-        XCTAssertEqual(score.mergeAt, bars.last, "› stops at the last change")
+        XCTAssertEqual(score.mergeModel.at, bars.last, "› stops at the last change")
         score.stepMerge(-(bars.count + 3))
-        XCTAssertEqual(score.mergeAt, bars.first, "‹ stops at the first")
+        XCTAssertEqual(score.mergeModel.at, bars.first, "‹ stops at the first")
         await settled()
     }
 
     func testAChoiceGoesForTheBarShownOrWithPhraseForEveryChangeOfItsPhrase() async throws {
         let score = try await score()
         let merge = try await draft(score)
-        let at = try XCTUnwrap(score.mergeAt)
+        let at = try XCTUnwrap(score.mergeModel.at)
         let unit = try XCTUnwrap(score.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
         let inPhrase = merge.bars.map(\.bar).filter { unit.firstBar <= $0 && $0 <= unit.lastBar }
         XCTAssertEqual(inPhrase, [2, 3], "the first phrase has two changes")
 
         score.chooseMerge("version")
-        await until("the bar shown is taken from the version") { score.merge?.choice(at: at) == "version" }
-        XCTAssertEqual(inPhrase.filter { score.merge?.choice(at: $0) == "version" }, [at], "the bar shown only")
+        await until("the bar shown is taken from the version") { score.mergeModel.draft?.choice(at: at) == "version" }
+        XCTAssertEqual(inPhrase.filter { score.mergeModel.draft?.choice(at: $0) == "version" }, [at], "the bar shown only")
         score.undoDraft()
-        await until("Undo takes the choice back") { score.merge?.choice(at: at) == "mine" }
+        await until("Undo takes the choice back") { score.mergeModel.draft?.choice(at: at) == "mine" }
 
-        score.mergePhrase = true
+        score.mergeModel.scope(phrase: true)
         score.chooseMerge("version")
-        await until("with Phrase, the phrase's changes") { inPhrase.allSatisfy { score.merge?.choice(at: $0) == "version" } }
-        let outside = try XCTUnwrap(score.merge?.bars.filter { !inPhrase.contains($0.bar) })
+        await until("with Phrase, the phrase's changes") { inPhrase.allSatisfy { score.mergeModel.draft?.choice(at: $0) == "version" } }
+        let outside = try XCTUnwrap(score.mergeModel.draft?.bars.filter { !inPhrase.contains($0.bar) })
         XCTAssertFalse(outside.isEmpty)
         XCTAssertTrue(outside.allSatisfy { $0.choice == "mine" }, "and none of another phrase")
 
         let group = try XCTUnwrap(outside.first?.group)
         let kind = outside.filter { $0.group == group }.map(\.bar)
         score.chooseMergeGroup(group, "version")
-        await until("a group: every change of its kind") { kind.allSatisfy { score.merge?.choice(at: $0) == "version" } }
+        await until("a group: every change of its kind") { kind.allSatisfy { score.mergeModel.draft?.choice(at: $0) == "version" } }
         await settled()
     }
 
     func testCancelLeavesNothingAndApplyTakesTheBarsWithAToastWhoseUndoGivesThemBack() async throws {
         let score = try await score()
         _ = try await draft(score, start: "all")
-        score.comparing = true
+        score.mergeModel.compare(true)
         score.showMergeView("version")
-        XCTAssertEqual(score.mergeShow, "version")
+        XCTAssertEqual(score.mergeModel.view, "version")
         score.cancelDraft()
-        await until("Cancel ends the draft") { score.merge == nil }
-        XCTAssertNil(score.mergeAt)
-        XCTAssertFalse(score.comparing, "Compare versions goes with it")
-        XCTAssertEqual(score.mergeShow, "result")
-        XCTAssertNil(score.mergeHearing)
-        XCTAssertEqual(score.versions.shown?.takenBars, 0, "nothing in the piece changed")
+        await until("Cancel ends the draft") { score.mergeModel.draft == nil }
+        XCTAssertNil(score.mergeModel.at)
+        XCTAssertFalse(score.mergeModel.comparing, "Compare versions goes with it")
+        XCTAssertEqual(score.mergeModel.view, "result")
+        XCTAssertNil(score.mergeModel.hearing)
+        XCTAssertEqual(score.sourcesModel.versions.shown?.takenBars, 0, "nothing in the piece changed")
         await settled()
 
         let taking = try await draft(score, start: "all").taking
         XCTAssertGreaterThan(taking, 0)
         score.applyMerge()
-        await until("Apply says so") { score.mergeToast != nil }
-        XCTAssertNil(score.merge, "the draft is done")
-        XCTAssertEqual(score.mergeToast?.undo, .unapply)
-        XCTAssertEqual(score.versions.shown?.takenBars, taking, "its bars are in the score")
+        await until("Apply says so") { score.mergeModel.toast != nil }
+        XCTAssertNil(score.mergeModel.draft, "the draft is done")
+        XCTAssertEqual(score.mergeModel.toast?.undo, .unapply)
+        XCTAssertEqual(score.sourcesModel.versions.shown?.takenBars, taking, "its bars are in the score")
         await settled()
 
         score.undoToast()
-        await until("the toast's Undo gives the player's notes back") { score.versions.shown?.takenBars == 0 && score.mergeToast != nil }
-        XCTAssertNil(score.mergeToast?.undo, "and cannot itself be undone from the toast")
+        await until("the toast's Undo gives the player's notes back") { score.sourcesModel.versions.shown?.takenBars == 0 && score.mergeModel.toast != nil }
+        XCTAssertNil(score.mergeModel.toast?.undo, "and cannot itself be undone from the toast")
         await settled()
     }
 
@@ -166,15 +166,15 @@ final class MergeDraftTests: XCTestCase {
         score.hearNotes = { _, span in heard.append(span) }
         score.hearInTurn = { _, span in inTurn.append(span) }
         _ = try await draft(score)
-        let at = try XCTUnwrap(score.mergeAt)
-        let bar = try XCTUnwrap(score.versions.bars.first { $0.bar == at }?.span)
+        let at = try XCTUnwrap(score.mergeModel.at)
+        let bar = try XCTUnwrap(score.sourcesModel.versions.bars.first { $0.bar == at }?.span)
 
         score.hearMerge("version")
-        XCTAssertEqual(score.mergeHearing, "version")
+        XCTAssertEqual(score.mergeModel.hearing, "version")
         await until("the version is heard") { !heard.isEmpty }
         XCTAssertEqual(heard.last, bar, "over the change's bar")
 
-        score.mergePhrase = true
+        score.mergeModel.scope(phrase: true)
         score.hearMerge("alternate")
         await until("mine and the version in turn") { !inTurn.isEmpty }
         let unit = try XCTUnwrap(score.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
@@ -183,8 +183,8 @@ final class MergeDraftTests: XCTestCase {
         await until("the next change is heard the same way") { inTurn.count == 2 }
 
         score.cancelDraft()
-        await until("Cancel ends the draft") { score.merge == nil }
-        XCTAssertNil(score.mergeHearing, "and what was heard")
+        await until("Cancel ends the draft") { score.mergeModel.draft == nil }
+        XCTAssertNil(score.mergeModel.hearing, "and what was heard")
         await settled()
     }
 
@@ -192,13 +192,13 @@ final class MergeDraftTests: XCTestCase {
         let score = try await score()
         var picked: [Int] = []
         score.versionPicked = { picked.append($0) }
-        let bar = try XCTUnwrap(score.versions.differing.last?.bar)
+        let bar = try XCTUnwrap(score.sourcesModel.versions.differing.last?.bar)
         score.openDraft(at: bar)
-        XCTAssertEqual(score.versionPage, score.versions.shownId, "Sources shows the version's page")
+        XCTAssertEqual(score.sourcesModel.page, score.sourcesModel.versions.shownId, "Sources shows the version's page")
         XCTAssertEqual(picked, [bar])
-        await until("the draft opens on that bar") { score.merge != nil && score.mergeAt == bar }
-        XCTAssertEqual(score.mergeShow, "result")
-        XCTAssertTrue(score.merge?.bars.allSatisfy { $0.choice == nil } ?? false, "the choices as last applied: none yet")
+        await until("the draft opens on that bar") { score.mergeModel.draft != nil && score.mergeModel.at == bar }
+        XCTAssertEqual(score.mergeModel.view, "result")
+        XCTAssertTrue(score.mergeModel.draft?.bars.allSatisfy { $0.choice == nil } ?? false, "the choices as last applied: none yet")
         await settled()
     }
 }

@@ -47,7 +47,7 @@ extension ScoreWorkspace {
         default:
             sources.performance = nil
             guard view.id != sources.layers.working else { return }
-            if sources.layers.notes(view.id)?.role == "version", score.versions.entries.contains(where: { $0.id == view.id }) {
+            if sources.layers.notes(view.id)?.role == "version", score.sourcesModel.versions.entries.contains(where: { $0.id == view.id }) {
                 change(.open(.versions))
                 score.openVersionPage(view.id)
             } else {

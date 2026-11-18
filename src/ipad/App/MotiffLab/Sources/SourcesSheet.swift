@@ -51,8 +51,8 @@ struct SourcesSheet: View {
     private var layers: SourceLayers { sources.layers }
 
     /// The version whose page shows, once music-core has it shown.
-    static func versionPage(_ score: ScoreController) -> VersionEntry? {
-        guard let id = score.versionPage, let shown = score.versions.shown, shown.id == id else { return nil }
+    static func versionPage(_ sources: SourcesModel) -> VersionEntry? {
+        guard let id = sources.page, let shown = sources.versions.shown, shown.id == id else { return nil }
         return shown
     }
 
@@ -65,7 +65,7 @@ struct SourcesSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if let page = versionPage, let score {
-                        VersionPage(score: score, text: text, version: page, name: $versionName)
+                        VersionPage(score: score, sourcesModel: score.sourcesModel, mergeModel: score.mergeModel, text: text, version: page, name: $versionName)
                     } else {
                         list
                     }
