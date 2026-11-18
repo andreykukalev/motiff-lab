@@ -124,9 +124,12 @@ final class AskFlowTests: XCTestCase {
     func testTheChatAtTheSelectionShowsANewAnswerFromItsStart() {
         var follow = ChatFollow(newAnswer: .start)
         XCTAssertEqual(follow.measured(rows: 600, end: 600, height: 200, newest: "a1", asked: false), .start("a1"))
-        XCTAssertEqual(follow.measured(rows: 600, end: 600, height: 200, newest: "a1", asked: false), .none, "the start shown")
         XCTAssertFalse(follow.following, "the answer's end below: reading, not following")
+        // A card grows (a draft decided) with the scroll where it was, at the answer's start: no jump to the end.
         XCTAssertEqual(follow.measured(rows: 640, end: 640, height: 200, newest: "a1", asked: false), .none, "a draft decided while reading")
+        var short = ChatFollow(newAnswer: .start)
+        XCTAssertEqual(short.measured(rows: 150, end: 150, height: 200, newest: "a1", asked: false), .start("a1"))
+        XCTAssertTrue(short.following, "an answer that fits: its end is in view")
     }
 
     /// The panel follows new answers to their end, unless the player has scrolled up (the review of #696: no yank), and
