@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 ## Files
 
 `AskField`, `AssistantChat`, `AssistantContextual`, `AssistantController`, `AssistantDrafts`, `AssistantPanel`,
-`AssistantRelay`, `AssistantSide`, `AssistantStates`, `AssistantStore`, `AssistantTurns`, `Dictation` (`.swift`).
+`AssistantRelay`, `AssistantSide`, `AssistantStates`, `AssistantStore`, `AssistantTurns`, `ChatFollow`, `Dictation` (`.swift`).
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
   (UITextView: wraps, grows from one line to `AskField.lines` then scrolls, top-leading text and placeholder; Scribble
@@ -22,6 +22,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 - `AssistantPanel.swift`, `AssistantSide.swift`: the side panel, the consent, the list, `AssistantPendingView`,
   `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection (`SelectionMenu` turns into it),
   `KeyboardLift`.
+- `ChatFollow.swift`: `ChatFollow` (new text scrolls to the latest line unless the player scrolled up) and
+  `FollowingScroll`, the chat at the selection's answer; its card drags by its head only (`menuDragHandle`, Selection's
+  `MenuDrag`), so the answer scrolls by finger and Pencil.
 - `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts a question's tools made, Accept by
   `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
 

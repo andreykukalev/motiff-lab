@@ -201,25 +201,80 @@ struct SelectionOptionsRow: View {
 /// The selection menu moved aside (#582 item 7): pressed and dragged with a finger or the Pencil it follows, and let go it
 /// stays there (ScoreController.moveMenu; the page keeps the place inside the window, Scripts/score/menu-drag.ts) until the
 /// menu closes, when the next one opens over its band again. A tap still reaches the menu's buttons: the drag begins only
-/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts).
+/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts). A card
+/// in the menu with a handle (`menuDragHandle()`, the assistant's chat at the selection) is dragged only by it, so its
+/// answer scrolls (Andrei, 2026-11-18: the whole card's drag took the scroll's pan, by finger and by the Pencil).
 struct MenuDrag: ViewModifier {
     let score: ScoreController
     @State private var moved = CGSize.zero
+    /// Whether a handle in the menu takes the drag (MenuHandleKey).
+    @State private var handled = false
 
     /// How far a touch on the menu moves before it drags the menu, in points.
     static let distance: CGFloat = 6
 
     func body(content: Content) -> some View {
+        let moves = MenuDragMoves(changed: { moved = $0 }, ended: { translation in
+            score.moveMenu(by: translation)
+            moved = .zero
+        })
         content
+            .environment(\.menuDragMoves, moves)
+            .onPreferenceChange(MenuHandleKey.self) { handled = $0 }
             .offset(moved)
-            .highPriorityGesture(
-                DragGesture(minimumDistance: Self.distance, coordinateSpace: .global)
-                    .onChanged { value in moved = value.translation }
-                    .onEnded { value in
-                        score.moveMenu(by: value.translation)
-                        moved = .zero
-                    }
-            )
+            .highPriorityGesture(Self.drag(moves), including: handled ? .subviews : .all)
+    }
+
+    /// The drag that moves the menu, on the whole menu or on its handle.
+    static func drag(_ moves: MenuDragMoves) -> some Gesture {
+        DragGesture(minimumDistance: distance, coordinateSpace: .global)
+            .onChanged { value in moves.changed(value.translation) }
+            .onEnded { value in moves.ended(value.translation) }
+    }
+}
+
+/// Where a drag of the menu goes (MenuDrag): the menu follows it, and let go it stays there.
+struct MenuDragMoves {
+    var changed: (CGSize) -> Void = { _ in }
+    var ended: (CGSize) -> Void = { _ in }
+}
+
+private struct MenuDragMovesKey: EnvironmentKey {
+    static let defaultValue = MenuDragMoves()
+}
+
+/// Whether the menu shows a card with a handle, which alone drags it.
+struct MenuHandleKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
+extension EnvironmentValues {
+    var menuDragMoves: MenuDragMoves {
+        get { self[MenuDragMovesKey.self] }
+        set { self[MenuDragMovesKey.self] = newValue }
+    }
+}
+
+/// The part of a card in the menu that drags the menu (MenuDrag); the rest of the card keeps its own gestures (a scroll).
+private struct MenuDragHandle: ViewModifier {
+    @Environment(\.menuDragMoves) private var moves
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .highPriorityGesture(MenuDrag.drag(moves))
+            .preference(key: MenuHandleKey.self, value: true)
+    }
+}
+
+extension View {
+    /// Makes this the handle that alone drags the selection menu it is in (MenuDrag).
+    func menuDragHandle() -> some View {
+        modifier(MenuDragHandle())
     }
 }
 

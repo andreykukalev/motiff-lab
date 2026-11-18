@@ -119,6 +119,23 @@ final class AskFlowTests: XCTestCase {
         XCTAssertEqual(AskField.height(fitted: line * 12 + insets, line: line), most, "a long question scrolls inside")
     }
 
+    /// Andrei, 2026-11-18 (the chat at the selection): new text brings the latest line into view unless the player has
+    /// scrolled up; back at the end, the chat follows again.
+    func testTheChatFollowsItsEndUnlessThePlayerScrolledUp() {
+        var follow = ChatFollow<String>()
+        XCTAssertFalse(follow.measured("short", end: 80, height: 200), "an answer that fits needs no scroll")
+        XCTAssertTrue(follow.measured("long", end: 600, height: 200), "new text below the view: to its end")
+        XCTAssertTrue(follow.measured("long", end: 400, height: 200), "still on the way to the end: the text grew, not the player")
+        XCTAssertFalse(follow.measured("long", end: 200, height: 200), "at the end")
+        XCTAssertTrue(follow.following)
+        XCTAssertFalse(follow.measured("long", end: 450, height: 200), "the player scrolled up")
+        XCTAssertFalse(follow.following)
+        XCTAssertFalse(follow.measured("longer", end: 700, height: 200), "scrolled up: new text does not pull the chat down")
+        XCTAssertFalse(follow.measured("longer", end: 200, height: 200), "the player back at the end")
+        XCTAssertTrue(follow.following)
+        XCTAssertTrue(follow.measured("longest", end: 500, height: 200), "following again")
+    }
+
     func testTheKeyboardsOverlapIsWhatItCoversFromBelow() {
         let sheet = CGRect(x: 600, y: 80, width: 380, height: 640)
         XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: nil), 0)
