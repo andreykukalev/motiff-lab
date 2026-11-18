@@ -44,11 +44,11 @@ final class RollPage {
         _ = try? await call(command, argument)
     }
 
-    /// Shows a piece (`roll`, music-core's payload passed on as it is) and answers the colouring shown and whether another
-    /// one tells the notes apart; `frame` the zoom and view to start from, nil for none.
-    func load(roll: [String: Any], labels: [String: String], noteNames: Bool, dark: Bool, colourBy: String, keep: Bool, frame: [String: Double]?) async throws -> RollShown {
+    /// Shows a piece (`roll`, music-core's answer passed on with every field it writes) and answers the colouring shown and
+    /// whether another one tells the notes apart; `frame` the zoom and view to start from, nil for none.
+    func load(roll: RollAnswer, labels: [String: String], noteNames: Bool, dark: Bool, colourBy: String, keep: Bool, frame: [String: Double]?) async throws -> RollShown {
         let data: [String: Any] = [
-            "roll": roll, "labels": labels, "noteNames": noteNames, "dark": dark, "colourBy": colourBy, "keep": keep, "frame": frame.map { $0 as Any } ?? NSNull(),
+            "roll": roll.argument, "labels": labels, "noteNames": noteNames, "dark": dark, "colourBy": colourBy, "keep": keep, "frame": frame.map { $0 as Any } ?? NSNull(),
         ]
         return RollShown(try await call(.load, data))
     }
@@ -143,6 +143,17 @@ final class RollPage {
     /// The tuplet groups as blocks ({start, end} in ticks).
     func tuplets(_ spans: [[String: Double]]) async {
         await send(.tuplets, spans)
+    }
+}
+
+extension RollAnswer {
+    /// The answer as `load` passes it to the page: music-core's fields with their names, as `roll-model.ts` reads them.
+    var argument: [String: Any] {
+        let spelled: [String: Any] = [
+            "notes": names.notes, "keyTicks": names.keyTicks, "rows": names.rows, "short": names.short, "shortRows": names.shortRows,
+            "octaves": names.octaves,
+        ]
+        return ["ids": ids, "notes": notes, "bars": bars, "end": end, "names": spelled]
     }
 }
 

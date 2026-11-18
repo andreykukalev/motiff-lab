@@ -151,6 +151,30 @@ struct PlaybackAnswer: Decodable, Sendable {
     let hands: Hands?
 }
 
+/// The piano roll's data (`Answer.Roll`, `PianoRollData`): `roll`, the notes and bars packed as `Scripts/roll/roll-model.ts`
+/// reads them, and their names spelled for the keys. The app reads none of it: the roll page gets it whole
+/// (`RollPage.load`), every field music-core writes.
+struct RollAnswer: Decodable, Sendable {
+    /// `RollNames`: one name per note, per key signature (from its tick) one per row, the same without the octave, and
+    /// each octave's name in words.
+    struct Names: Decodable, Sendable {
+        let notes: [String]
+        let keyTicks: [Int]
+        let rows: [[String]]
+        let short: [String]
+        let shortRows: [[String]]
+        let octaves: [String]
+    }
+
+    let ids: [String]
+    /// Seven numbers a note: onset, duration, pitch, track, voice, hand and what is inferred.
+    let notes: [Int]
+    /// Four numbers a bar: onset, duration, beat length and number.
+    let bars: [Int]
+    let end: Int
+    let names: Names
+}
+
 /// The piece's sources by the layers of decision record 0030 (`Answer.SourceLayers`): `sources.layers`, and the answer of
 /// each of the Sources sheet's operations, which adds the "id" of what it made. music-core writes every field; the ones
 /// with no value it writes null (`decodeNullable`).

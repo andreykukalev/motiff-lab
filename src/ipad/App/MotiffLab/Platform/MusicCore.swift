@@ -86,54 +86,11 @@ func facadeObject(_ text: String) -> [String: Any]? {
     (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any]
 }
 
-/// A facade answer read loudly (step A7; now only the roll's payload, which track R types, B7; every other hot answer is
-/// typed and read by `decode`, step B5):
-/// the facade's refusal {"error": code, "message": text} is never read as a success, and a field music-core always writes
-/// (its writer in src/backend/MotiffLab.MusicCore/Facade/Answer*.cs) that is missing or of another type is a broken
-/// contract, told to `broken` instead of read as a default. A field music-core leaves out by design is read from `fields`
-/// as it is.
-struct FacadeAnswer {
-    /// What the answer is to, for the problem's words: the call, then the path to the object in it ("playback.notes[]").
-    let call: String
-    let fields: [String: Any]
-
-    /// The answer of `call`; nil for a refusal, and nil, reported, for text that is no JSON object.
-    init?(_ text: String, of call: String) {
-        guard let object = facadeObject(text) else {
-            FacadeAnswer.broken("music-core's answer to \(call) is not a JSON object")
-            return nil
-        }
-        guard object["error"] == nil else { return nil }
-        self.init(call: call, fields: object)
-    }
-
-    init(call: String, fields: [String: Any]) {
-        self.call = call
-        self.fields = fields
-    }
-
-    /// A field music-core always writes; nil, reported, when it is missing or of another type.
-    func required<T>(_ key: String, _ type: T.Type = T.self) -> T? {
-        guard let value = fields[key] as? T else {
-            Self.broken("music-core's answer to \(call) has no \"\(key)\" of type \(T.self)")
-            return nil
-        }
-        return value
-    }
-
-    /// An object music-core always writes.
-    func entry(_ key: String) -> FacadeAnswer? {
-        required(key, [String: Any].self).map { FacadeAnswer(call: "\(call).\(key)", fields: $0) }
-    }
-
-    /// Fields music-core always writes that the app passes on unread (the roll's payload, read by roll.js); false, each
-    /// missing one reported, when any is missing or null.
-    func has(_ keys: String...) -> Bool {
-        let missing = keys.filter { fields[$0] == nil || fields[$0] is NSNull }
-        missing.forEach { Self.broken("music-core's answer to \(call) has no \"\($0)\"") }
-        return missing.isEmpty
-    }
-
+/// music-core's answers read loudly (step A7, typed in B5 and B7): `decode` reads an answer once into its typed answer
+/// (PieceAnswers.swift); the facade's refusal {"error": code, "message": text} is never read as a success, and a field
+/// music-core always writes (its writer in src/backend/MotiffLab.MusicCore/Facade/Answer*.cs) that is missing or of another
+/// type is a broken contract, told to `broken` instead of read as a default.
+enum FacadeAnswer {
     /// Why an answer was not read, for the screen's problem line: music-core's words for a refusal, else that it gave no
     /// answer to read.
     static func problem(_ text: String) -> String {
@@ -173,7 +130,7 @@ struct FacadeAnswer {
         }
     }
 
-    /// What a decoding error says of the answer, in `required`'s words: the field missing or of another type, and where.
+    /// What a decoding error says of the answer: the field missing or of another type, and where.
     private static func reason(_ error: Error, _ call: String) -> String {
         func place(_ path: [CodingKey]) -> String {
             call + path.map { $0.intValue.map { "[\($0)]" } ?? ".\($0.stringValue)" }.joined()

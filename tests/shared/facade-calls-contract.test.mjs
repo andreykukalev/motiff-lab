@@ -585,7 +585,7 @@ test("a call the port makes is made from no other file", () => {
     const corrections = ["", ".change", ".remove", ".revert", ".undo", ".acceptDraft", ".undoDraft", ".layer", ".drop", ".begin", ".set", ".add", ".reset", ".discard", ".save"]
         .map((call) => `corrections${call}`);
     const merge = ["open", "choose", "undecide", "undo", "redo", "reset", "cancel", "playback", "apply", "undoApplied"].map((call) => `performance.merge.${call}`);
-    const required = ["select", "playback", "sources.layers", ...corrections, "phrases.level", ...merge];
+    const required = ["select", "playback", "roll", "sources.layers", ...corrections, "phrases.level", ...merge];
     assert.deepEqual(required.filter((name) => !ported.has(name)), [], `the port's calls read: ${[...ported].join(", ")}`);
     const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
         .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);

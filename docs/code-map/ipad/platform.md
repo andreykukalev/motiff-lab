@@ -11,15 +11,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
   `facadeRequest` and the answer read by `facadeObject`. `FacadeAnswer.decode` (B5) reads an answer once into its typed
   answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
-  `.problem` (`broken`). `FacadeAnswer(_:of:)` with `required`/`entry`/`has` (A7) is left only for the roll's payload
-  (track R). `FacadeAnswer.message` is the one reading of music-core's words.
+  `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
+  one reading of music-core's words.
 - `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b; a struct, the ADR's note): the hot features'
-  calls, `select`, `playback`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls), `phraseLevel`, `merge`
+  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls), `phraseLevel`, `merge`
   (`PieceCore.Merge`, the draft's 7 calls), `mergePlayback`, `mergeApply` and `mergeUndoApplied`, each answered as
   `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls only here; the other
   calls move with their features in phase C.
 - `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` and `PhraseLevelAnswer`, `PlaybackAnswer`,
-  `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
+  `RollAnswer` (passed to the roll page whole, `RollPage.load`), `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
   `MergeAnswer`, `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
   features build their own types from them. They name no feature type.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
