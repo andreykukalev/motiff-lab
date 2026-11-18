@@ -218,6 +218,21 @@ versions or the merge draft observe `SourcesModel` and `MergeModel` themselves (
 relay of the two models and its forwarders of their state are deleted. The keyboard's ⌘Z of the selection's toast is
 left out while a draft is open by the screen, which observes `MergeModel` (`SelectionToastView`'s `merging`), as
 Selection may not name a Sources type. `LayersList` (Marks) reads `pieceExtra`, which asks whether there are versions;
-it is drawn each time it opens, and nothing adds or removes a version while it is open. **S7b** does the same for
+it stays current because every change of the list of versions writes the root's published state in the same task
+(`drawVersions` through `sources` and the focus relay, `loadCheck`), not because it is drawn when it opens. **S7b** does the same for
 `SelectionModel` and `FocusModel` but for what the protected baseline reads; **S7c** moves `focused` and `sources` out
 of the root, with the change of `tests/ipad/Baseline` that Andrei merges.
+
+## Note, 2026-11-18 (step S7b, the selection and focus views)
+
+The views that show the selection, the phrases or Expand observe `SelectionModel` and `FocusModel` themselves
+(`ScoreScreenContent` and its reactions, `ScoreBar`, `Pill`, `SelectionMenu`, `FocusBar`, `FocusShowAs`, `PhrasesPanel`,
+`SelectionOptionsRow`, `SelectionToastView`, `RollDrawer`, `InsightsSheet`, `CheckDrawer`, `HighlightRow`,
+`ContentsList`, `PagesStrip`, `AssistantHereCard`); a host that only hands a model on holds it as a plain `let`
+(`ModeOptions`, `ContentsDrawer`). The root's relay of the two models and its forwarders `phrases` and `phrasesHidden`
+are deleted, and the root, the workspace and the other tests read the models. `selection`, `focusRoll`, `playRange` and
+`focusVersion` stay in `ScoreController` only for the protected harness (it polls them, so it needs no relay) and one
+line of `ScoreWorkspaceLife` that the open #690 changes beside; they go in **S7c**, with the harness's reading lines
+Andrei approved (2026-11-18 16:55Z). With the focus relay gone, and `sources` leaving the root in S7c, the publishes
+that kept `LayersList` current go: «has versions» now comes to it as a plain value from the screen, which observes
+`SourcesModel` (`ScoreBar`, `MorePanel`, `ModeOptions`, `PenPalette`), and `pieceExtra(hasVersions:)` takes it.

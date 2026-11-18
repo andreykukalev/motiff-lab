@@ -14,7 +14,7 @@ extension ScoreController {
     /// with «Выделение заменено · Вернуть» when `replaces` (the page's change "replace", placeChange), else an edit of the
     /// selection (an edge moved over picked notes narrows them). `gesture` names the page's gesture, as for a drawn passage.
     func selectNotes(_ ids: [String], add: Bool = false, gesture: String? = nil, replaces: Bool = false) {
-        let notes = Self.pickedNotes(ids, adding: add ? selection?.picked : nil)
+        let notes = Self.pickedNotes(ids, adding: add ? selectionModel.selection?.picked : nil)
         guard !notes.isEmpty else { return }
         Task { await select(request: SelectionSpan.picking(notes), gesture: gesture, picked: true, replaces: replaces) }
     }
@@ -29,7 +29,7 @@ extension ScoreController {
     /// it or none; an edit of the selection keeps its hand, a new one takes both (the roll has no staves), and a replace says
     /// «Выделение заменено · Вернуть».
     func selectRollSpan(_ span: RollSpan) {
-        selectSpan(span.start, span.end, hand: span.how == "edit" ? selection?.hand : nil, gesture: span.gesture, replaces: span.how == "replace")
+        selectSpan(span.start, span.end, hand: span.how == "edit" ? selectionModel.selection?.hand : nil, gesture: span.gesture, replaces: span.how == "replace")
     }
 
     /// Selects a passage exactly as the page drew it on the sixteenth grid (v0.6.4, selection-grid.ts; SelectionSpan.request),

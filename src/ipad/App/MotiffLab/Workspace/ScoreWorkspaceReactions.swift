@@ -51,9 +51,9 @@ extension ScoreWorkspace {
         syncPlayheads()
         if focused {
             // Expand plays on round its passage; the model out of it is left as it is (T18).
-            if player.state != .stopped, let passage = score.playRange?.range { player.keepWithin(passage) }
+            if player.state != .stopped, let passage = score.focusModel.playRange?.range { player.keepWithin(passage) }
         } else {
-            player.hold(selection: score.playRange?.range)
+            player.hold(selection: score.focusModel.playRange?.range)
             // Collapse opens the roll drawer again, as Expand found it; Back to page the Contents.
             apply(.expand(false))
         }
@@ -75,13 +75,13 @@ extension ScoreWorkspace {
     /// The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5), bound to the passage
     /// Expand was opened on (#521 19): only it, laid across the card; the drawer gives it up and gets it back (PanelState).
     /// Back, or Notes chosen, lets the passage go: its zoom and view are as before Expand (#521 17). The reaction on
-    /// `score.focused && score.focusRoll`; `dark` is the screen's appearance.
+    /// `score.focused && score.focusModel.asRoll`; `dark` is the screen's appearance.
     func focusRollChanged(_ shown: Bool, dark: Bool) {
         apply(.rollOnCard(shown))
         if shown {
             roll.show(piece, dark: dark)
-            roll.showSelection(score.selection, loop: player.loop)
-            roll.bind(score.selection.map { $0.onset..<max($0.end, $0.onset + 1) })
+            roll.showSelection(score.selectionModel.selection, loop: player.loop)
+            roll.bind(score.selectionModel.selection.map { $0.onset..<max($0.end, $0.onset + 1) })
             return
         }
         roll.bind(nil)
@@ -96,7 +96,7 @@ extension ScoreWorkspace {
         apply(.roll(open))
         if open {
             roll.show(piece, dark: dark)
-            roll.showSelection(score.selection, loop: player.loop)
+            roll.showSelection(score.selectionModel.selection, loop: player.loop)
         } else if panels.rollEditsGoWithDrawer {
             // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
             // Expand takes the editor into the roll in focus, with its draft (#479 item 23).
@@ -114,7 +114,7 @@ extension ScoreWorkspace {
     func insightsChanged(_ open: Bool) {
         apply(.insights(open))
         if open {
-            Task { await insights.load(piece: piece.id, selection: score.selection) }
+            Task { await insights.load(piece: piece.id, selection: score.selectionModel.selection) }
         } else {
             // The rings go with the sheet.
             insights.clearChoice()
@@ -176,7 +176,7 @@ extension ScoreWorkspace {
 /// the selection and the player share.
 extension ScoreWorkspace {
     /// Where the roll is on screen: in its drawer, or over the card in focus; the one place its web view is in (#495 BUG-01).
-    var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: panels[.roll], focused: score.focused, focusRoll: score.focusRoll) }
+    var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: panels[.roll], focused: score.focused, focusRoll: score.focusModel.asRoll) }
 
     /// Whether the roll is on screen.
     var rollShown: Bool { rollPlace != nil }
@@ -186,7 +186,7 @@ extension ScoreWorkspace {
     /// (v0.6.4, spec 8); the roll there keeps its own playhead, without lanes.
     func syncPlayheads() {
         // The hand the selection is narrowed to (v0.6.2): its band covers that staff, and the blue playhead with it (#608).
-        let selection: Any = score.playRange.map { PlayheadsShown.selection($0.range, hand: $0.selection.hand) as Any } ?? NSNull()
+        let selection: Any = score.focusModel.playRange.map { PlayheadsShown.selection($0.range, hand: $0.selection.hand) as Any } ?? NSNull()
         score.showPlayheads(["selection": selection, "loop": player.cycle])
         roll.lanes(score.holdsSelection)
         if rollShown { showRollPosition() }

@@ -174,7 +174,7 @@ final class ScoreWorkspace: ObservableObject {
     func variationReady(_ notes: [PlaybackNote], end: Double) {
         player.setVariation(notes)
         score.ossia = insights.trial?.way.label
-        if let range = score.playRange?.range {
+        if let range = score.focusModel.playRange?.range {
             player.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
         }
     }
@@ -184,7 +184,7 @@ final class ScoreWorkspace: ObservableObject {
         player.setVariation(nil)
         score.ossia = nil
         // In focus, another version takes the variation's place again.
-        if let version = score.focusVersion, version.sounds { player.setVariation(version.notes, version: true) }
+        if let version = score.focusModel.version, version.sounds { player.setVariation(version.notes, version: true) }
     }
 
     // MARK: - The roll's notes
@@ -276,7 +276,7 @@ extension ScoreWorkspace {
     }
 
     func spacePressed() {
-        if score.focused, let passage = score.playRange?.range {
+        if score.focused, let passage = score.focusModel.playRange?.range {
             player.playPassage(passage)
         } else {
             player.apply(.press)
@@ -287,7 +287,7 @@ extension ScoreWorkspace {
     /// it. Under the playback model (v0.5.2) it goes anywhere, as a tap on a beat does (T12): the loop strip and the whole piece
     /// move it too, and Цикл turns off when it leaves the selection (the loop strip only moves it inside, T13).
     func rollPlayheadMoved(to tick: Double, play: Bool) {
-        if score.focused, let passage = score.playRange?.range {
+        if score.focused, let passage = score.focusModel.playRange?.range {
             // In Expand within the passage, playing it round from there (#533 2).
             player.move(to: tick, play: play, within: passage)
         } else {
@@ -308,7 +308,7 @@ extension ScoreWorkspace {
     }
 
     func rollPlayheadGestured(_ gesture: PlayheadGesture) {
-        if score.focused, let passage = score.playRange?.range {
+        if score.focused, let passage = score.focusModel.playRange?.range {
             player.handle(gesture, within: passage)
         } else {
             player.handle(gesture)

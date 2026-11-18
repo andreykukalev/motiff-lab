@@ -28,6 +28,7 @@
   "transcribe.retrying": "The scan server is busy, asking again… {0} of {1} done",
   "transcribe.busyServer": "The scan server stayed busy and did not hear every part.",
   "transcribe.empty": "This file is empty.",
+  "transcribe.failed": "The scan server could not transcribe this recording.",
   "transcribe.notHeardTip": "Record closer to the piano, with less noise around it.",
   "transcribe.signIn": "Sign in on Settings to transcribe with Motiff Lab's scan server.",
   "transcribe.oldServer": "This scan server cannot transcribe yet. Build and start it again from the latest Motiff Lab (see Settings).",

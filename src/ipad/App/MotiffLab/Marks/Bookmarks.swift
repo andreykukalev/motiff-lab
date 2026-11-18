@@ -301,6 +301,8 @@ struct BookmarkCard: View {
 struct ContentsDrawer: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
+    /// Handed on to the pages and the structure, which show the selection and the phrases.
+    let selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
 
@@ -333,7 +335,7 @@ struct ContentsDrawer: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
                         part(contents.pages.isEmpty ? text["contents.tabPages"] : text.format("contents.category", text["contents.tabPages"], String(contents.pages.count))) {
-                            PagesStrip(contents: contents, score: score, text: text)
+                            PagesStrip(contents: contents, score: score, selectionModel: selectionModel, text: text)
                         }
                         .id(Part.pages)
                         if !contents.sections.isEmpty {
@@ -343,7 +345,7 @@ struct ContentsDrawer: View {
                             .id(Part.structure)
                         }
                         part(bookmarksTitle) {
-                            ContentsList(contents: contents, score: score, text: text, close: close)
+                            ContentsList(contents: contents, score: score, selectionModel: selectionModel, text: text, close: close)
                         }
                         .id(Part.bookmarks)
                         part(text["contents.notesHead"]) {
@@ -464,6 +466,7 @@ struct FlowRow: Layout {
 struct ContentsList: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
 
@@ -590,6 +593,7 @@ struct ContentsList: View {
 struct PagesStrip: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
 
     var body: some View {
@@ -656,67 +660,10 @@ struct PagesStrip: View {
     /// "p. 2 · phrases 3–5", the phrases named while the level is Phrases and they are shown (not «Не показывать»).
     private func caption(_ page: ScoreController.PageOutline) -> String {
         let number = text.format("contents.page", String(page.page))
-        guard !score.phrasesHidden, let phrases = score.phrases, phrases.level == "phrase" else { return number }
+        guard !selectionModel.phrasesHidden, let phrases = selectionModel.phrases, phrases.level == "phrase" else { return number }
         let starting = phrases.units.filter { page.start <= $0.onset && $0.onset < page.end }.map(\.number)
         guard let first = starting.first, let last = starting.last else { return number }
         let named = first == last ? text.format("contents.pagePhrase", String(first)) : text.format("contents.pagePhrases", String(first), String(last))
         return "\(number) · \(named)"
-    }
-}
-
-/// A choice of two or three (ds.css `.seg`): the chosen one on the accent's strong tint. Each option keeps the width of
-/// its word in the chosen weight, so the control does not change size when the choice moves (#479 item 11).
-struct SegmentedChoice<Value: Hashable>: View {
-    let options: [(Value, String)]
-    let chosen: Value
-    let label: String
-    let choose: (Value) -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(options.indices, id: \.self) { index in
-                let value = options[index].0
-                let name = options[index].1
-                let on = value == chosen
-                Button {
-                    choose(value)
-                } label: {
-                    // The word in the chosen weight holds the option's width either way.
-                    SteadyWord(text: name, on: on)
-                        .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
-                        .modifier(SegmentFill(on: on))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .modifier(SegmentedCapsule())
-        .accessibilityLabel(label)
-    }
-}
-
-/// An option of a segmented choice (ds.css `.seg button`): the chosen one on the accent's strong tint.
-struct SegmentFill: ViewModifier {
-    let on: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, CGFloat.ds("s-3"))
-            .frame(maxHeight: .infinity)
-            .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
-            .contentShape(Capsule())
-    }
-}
-
-/// The capsule a segmented choice sits in (ds.css `.seg`), at the width of its options.
-struct SegmentedCapsule: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(2)
-            .frame(height: CGFloat.ds("h-compact"))
-            .background(Color.ds("surface"), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.ds("hairline")))
-            .fixedSize()
-            .accessibilityElement(children: .contain)
     }
 }

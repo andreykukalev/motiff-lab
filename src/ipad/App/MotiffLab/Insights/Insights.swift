@@ -342,6 +342,7 @@ final class InsightsController: ObservableObject {
 struct InsightsSheet: View {
     @ObservedObject var insights: InsightsController
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     @ObservedObject var player: Player
     /// What loops while a variation is heard: the selection, to the variation's end.
     let range: Range<Double>?
@@ -373,9 +374,9 @@ struct InsightsSheet: View {
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true), noNotes: score.selection?.noteIds.isEmpty ?? false)
+                        InsightsStream(insights: insights, text: text, hasSelection: !(selectionModel.selection?.noteIds.isEmpty ?? true), noNotes: selectionModel.selection?.noteIds.isEmpty ?? false)
                         // The assistant is the stream's last voice: its foot leads to the assistant's panel (#582 item 17.1).
-                        Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: score.selection) }
+                        Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: selectionModel.selection) }
                             .dsType(.label)
                             .foregroundStyle(Color.ds("accent"))
                     }
@@ -396,7 +397,7 @@ struct InsightsSheet: View {
 
     /// The selection named, as the roll's drawer names it: "bars 9–16".
     private var heading: String {
-        guard let selection = score.selection else { return text["bar.insights"] }
+        guard let selection = selectionModel.selection else { return text["bar.insights"] }
         return selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))
             : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
