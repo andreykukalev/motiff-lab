@@ -17,6 +17,7 @@ import { type BandHand, MUSIC_REACH, bandBoxes, handRuns, onMusic, setBox } from
 import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "./selection-gesture.js";
 import { barlines, tickAt } from "./selection-handles.js";
 import {
+    type EdgeHandle,
     type PlaceEnd,
     type PlaceGesture,
     type PlaceRule,
@@ -175,9 +176,10 @@ export class PlaceLayer {
         }
         const first = boxes[0];
         const last = boxes[boxes.length - 1];
+        const [start, end] = edgeHandles(boxes);
         const hot = this.active() ? this.drag?.gesture.place : undefined;
-        this.root.append(this.edge("start", first.left, first.top, first.bottom, hot === "edge-start"));
-        this.root.append(this.edge("end", last.right, last.top, last.bottom, hot === "edge-end"));
+        this.root.append(this.edge("start", start, first.top, first.bottom, hot === "edge-start"));
+        this.root.append(this.edge("end", end, last.top, last.bottom, hot === "edge-end"));
     }
 
     dispose(): void {
@@ -191,13 +193,15 @@ export class PlaceLayer {
         this.end();
     }
 
-    private edge(which: "start" | "end", x: number, top: number, bottom: number, hot: boolean): HTMLElement {
+    /** An edge's line from `top` to `bottom`, its circle at `handle`: where `handleAt` takes a press on it. */
+    private edge(which: "start" | "end", handle: EdgeHandle, top: number, bottom: number, hot: boolean): HTMLElement {
         const edge = document.createElement("div");
         edge.className = `${EDGE_CLASS} ${which}${hot ? " hot" : ""}`;
         edge.setAttribute("aria-hidden", "true");
-        edge.style.left = `${x}px`;
+        edge.style.left = `${handle.x}px`;
         edge.style.top = `${top}px`;
         edge.style.height = `${Math.max(4, bottom - top)}px`;
+        edge.style.setProperty("--handle-y", `${handle.y - top}px`);
         return edge;
     }
 
