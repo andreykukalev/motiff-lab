@@ -13,6 +13,7 @@ using MotiffLab.Api.Assistant;
 using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.Api.Tests;

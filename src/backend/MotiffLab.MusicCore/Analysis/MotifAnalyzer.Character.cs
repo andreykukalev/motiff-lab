@@ -1,9 +1,8 @@
 using System.Globalization;
 
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
@@ -272,8 +271,8 @@ public static partial class MotifAnalyzer
                 $"Громкость (velocity): от {velocities[0]} до {velocities[^1]}, медиана {velocities[(velocities.Length - 1) / 2]}, по шкале MIDI от 1 до 127.");
         string basis = fromNotation
             ? w.T(
-                $"Read from the notes. A notation file holds no played loudness: velocities come from its dynamics marks, or the default of {MusicXmlImporter.DefaultVelocity} where it has none.",
-                $"Прочитано по нотам. В нотном файле нет сыгранной громкости: она берётся из динамических оттенков, а где их нет, принимается {MusicXmlImporter.DefaultVelocity}.")
+                $"Read from the notes. A notation file holds no played loudness: velocities come from its dynamics marks, or the default of {MusicXmlImport.DefaultVelocity} where it has none.",
+                $"Прочитано по нотам. В нотном файле нет сыгранной громкости: она берётся из динамических оттенков, а где их нет, принимается {MusicXmlImport.DefaultVelocity}.")
             : w.T("Read from the notes' MIDI velocities.", "Прочитано по MIDI-громкости нот.");
         int median = velocities[(velocities.Length - 1) / 2];
         FactPlace[] places = velocities[0] == velocities[^1]

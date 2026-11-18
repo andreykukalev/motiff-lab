@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Tests.Import.Midi;
 using MotiffLab.MusicCore.Time;
 

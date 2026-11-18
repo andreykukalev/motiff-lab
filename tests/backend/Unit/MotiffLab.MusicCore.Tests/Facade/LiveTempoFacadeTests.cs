@@ -1,8 +1,7 @@
 using System.Text;
 
 using MotiffLab.MusicCore.Facade;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
 using MotiffLab.MusicCore.Time;

@@ -1,9 +1,7 @@
-using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.Transcription;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// Bars and a tempo worked out from the onsets of a transcription (decision record 0016). The

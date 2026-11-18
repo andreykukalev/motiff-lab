@@ -1014,7 +1014,7 @@ public class MusicCoreFacadeTests
     {
         // Testing item 16 (Andrei, 2026-11-06): one piece, many sources, and the result is the player's own version.
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         TickSpan bar5 = piece.Meter.GetBar(5).Span;
         Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
         Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
@@ -1060,7 +1060,7 @@ public class MusicCoreFacadeTests
     public void A_performance_is_compared_taken_into_the_score_kept_and_restored()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         TickSpan bar5 = piece.Meter.GetBar(5).Span;
         Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
         Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
@@ -1124,7 +1124,7 @@ public class MusicCoreFacadeTests
     {
         // Testing items 32 and 34 (Andrei, 2026-11-07): every choice in a draft, nothing in the score until applied, all reversible.
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         TickSpan bar5 = piece.Meter.GetBar(5).Span;
         Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
         Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
@@ -1192,7 +1192,7 @@ public class MusicCoreFacadeTests
     [Fact]
     public void A_recording_heard_in_parts_opens_as_a_new_piece_from_the_recording()
     {
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
         var facade = new MusicCoreFacade();
 
@@ -1216,7 +1216,7 @@ public class MusicCoreFacadeTests
     public void A_recording_heard_in_parts_is_joined_into_one_version()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
 
         // The whole recording however long, heard in parts of about two minutes that overlap by five seconds.

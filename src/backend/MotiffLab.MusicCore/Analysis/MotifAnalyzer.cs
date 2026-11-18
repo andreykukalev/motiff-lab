@@ -116,8 +116,8 @@ public static partial class MotifAnalyzer
         IEnumerable<Note> notes,
         MeterMap meter,
         MotifSelection selection,
-        KeySignature? signature,
-        IEnumerable<AccentMark>? accents = null,
+        Pieces.KeySignature? signature,
+        IEnumerable<Pieces.AccentMark>? accents = null,
         IEnumerable<PhraseBoundary>? phrases = null,
         Words words = default)
     {
@@ -318,7 +318,7 @@ public static partial class MotifAnalyzer
     }
 
     /// <summary>The key the notes are in: stated by the file, or read from the pitches with the signature's help when it gives only the accidentals.</summary>
-    internal static KeyReading ReadKey(Note[] notes, KeySignature? signature)
+    internal static KeyReading ReadKey(Note[] notes, Pieces.KeySignature? signature)
     {
         var weights = new double[12];
         foreach (Note note in notes)
@@ -347,7 +347,7 @@ public static partial class MotifAnalyzer
         return new KeyReading(ranked[0].Key, thin || unclear ? FactCertainty.Uncertain : FactCertainty.Inferred, ranked[1].Key);
     }
 
-    private static MotifFact KeyFact(KeyReading key, KeySignature? signature, int noteCount, int pitchClasses, Words w)
+    private static MotifFact KeyFact(KeyReading key, Pieces.KeySignature? signature, int noteCount, int pitchClasses, Words w)
     {
         string name = key.Key.NameIn(w);
         string? runnerUp = key.RunnerUp?.NameIn(w);

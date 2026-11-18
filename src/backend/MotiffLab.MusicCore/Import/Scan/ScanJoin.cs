@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// have the same parts, so the measures of page 2 follow those of page 1 in each part, and measure numbers run on. Each
 /// page's first measure keeps its attributes (divisions, key, time, clefs), which MusicXML allows mid-part, so durations
 /// stay right even when pages use different divisions. The first measure of each page after the first starts with
-/// <c>&lt;print new-page="yes"/&gt;</c>, so the bars of each page are known (0023, <see cref="Projects.PageMap"/>).
+/// <c>&lt;print new-page="yes"/&gt;</c>, so the bars of each page are known (0023, <see cref="Pieces.PageMap"/>).
 /// </para>
 /// <para>Pure and deterministic: the same pages give the same bytes. Nothing is read from outside the text (no DTD, no entities).</para>
 /// </remarks>

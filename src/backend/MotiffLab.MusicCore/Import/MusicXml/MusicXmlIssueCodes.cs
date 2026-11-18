@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Pieces;
+
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
 /// <summary>Stable codes for MusicXML import issues, and their descriptions in English and Russian.</summary>
@@ -58,8 +60,8 @@ public static class MusicXmlIssueCodes
             "The part gives durations before saying how many divisions make a quarter note, so 1 per quarter is assumed.",
             "Партия задаёт длительности раньше, чем число долей в четверти, поэтому принята 1 доля на четверть."),
         VelocityDefault => words.T(
-            $"{Plural(count, "note has", "notes have")} no playback dynamics; a moderate velocity of {MusicXmlImporter.DefaultVelocity} is assumed.",
-            $"Нот без громкости для воспроизведения: {count}; принята умеренная громкость {MusicXmlImporter.DefaultVelocity}."),
+            $"{Plural(count, "note has", "notes have")} no playback dynamics; a moderate velocity of {MusicXmlImport.DefaultVelocity} is assumed.",
+            $"Нот без громкости для воспроизведения: {count}; принята умеренная громкость {MusicXmlImport.DefaultVelocity}."),
         MicrotoneRounded => words.T(
             $"{Plural(count, "note with a microtonal alteration was", "notes with microtonal alterations were")} rounded to the nearest semitone.",
             $"Нот с микротоновым изменением, округлённых до ближайшего полутона: {count}."),

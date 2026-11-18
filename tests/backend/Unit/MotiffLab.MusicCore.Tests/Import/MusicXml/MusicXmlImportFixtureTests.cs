@@ -1,6 +1,6 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Import.MusicXml;
@@ -99,7 +99,7 @@ public class MusicXmlImportFixtureTests
         Assert.Equal(new Tick(3840 + 1440), result.End);
 
         // No playback dynamics anywhere: every note has the default velocity, and the report says so.
-        Assert.All(result.Notes, note => Assert.Equal(MusicXmlImporter.DefaultVelocity, note.Velocity));
+        Assert.All(result.Notes, note => Assert.Equal(MusicXmlImport.DefaultVelocity, note.Velocity));
         ImportIssue issue = Assert.Single(result.Report.Issues);
         Assert.Equal((ImportIssueKind.Assumed, MusicXmlIssueCodes.VelocityDefault, 11), (issue.Kind, issue.Code, issue.Count));
         Assert.Equal(3, result.Report.MeasureCount);

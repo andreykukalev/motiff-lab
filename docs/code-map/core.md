@@ -6,12 +6,18 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 ## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
 
 - `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`.
-- `Events`: `Note`, `Pitch`, `Hand`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`).
-- `Import`: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`), PDFs (`Vector`), folders.
+- `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`).
+- `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
+  `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
+  `ImportReport`, `MidiIssueCodes`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars
+  of a recording (`BarGrid`, `GridSearch`; the beat search moves back to `Import.Transcription` with W1.9), `PageMap`,
+  `Transcribed`, the player's `PieceMetadata` (`TitleOf`) and `OriginalKind` (`OriginalKinds.FileKind`).
+- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`), PDFs (`Vector`), folders.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged.
-- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals, parts, sync (`ProjectSync`).
+- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals, parts, sync (`ProjectSync`),
+  what a library card shows (`PieceDetails`, `LibraryOriginals`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
@@ -31,6 +37,15 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 - The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again with `MOTIFF_UPDATE_SNAPSHOTS=1`).
+
+## Which namespace uses which
+
+`Pieces` uses only `Time`, `Events`, `Motifs` and the root (`Words`), and `Playback`'s tempo model (`PlaybackTempo`,
+`TempoSource`) until W1.2 moves it to `Time`; every rule and `Projects` may use it. `Import` uses no `Analysis` or
+`Projects`, and `Analysis` no `Import` (W1.1, 2026-11-18). Still mutual (`docs/REFACTORING_AUDIT.md` W1.2, W1.3):
+`Analysis`–`Notation` and `Notation`–`Playback` (pitch spelling), `Pieces`–`Playback` (tempo), `Analysis`, `Assembly`
+and `Performance` with `Projects` (saved records). A new mutual pair is a defect; the `dependencies` check does not
+read these edges yet (W1.3).
 
 ## Rules not to break
 

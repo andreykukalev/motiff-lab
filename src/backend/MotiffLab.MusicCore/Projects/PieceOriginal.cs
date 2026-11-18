@@ -1,19 +1,8 @@
 using System.Security.Cryptography;
 
+using MotiffLab.MusicCore.Pieces;
+
 namespace MotiffLab.MusicCore.Projects;
-
-/// <summary>What an original is (version 0.3, local-first originals).</summary>
-public enum OriginalKind
-{
-    Pdf,
-
-    /// <summary>Photos of pages.</summary>
-    Images,
-
-    Audio,
-    Midi,
-    MusicXml,
-}
 
 /// <summary>Where an original's bytes are kept.</summary>
 public enum OriginalKept
@@ -204,7 +193,7 @@ public static class PieceOriginals
             originals.Add(new PieceOriginal(PieceOriginal.DocumentId, OriginalKind.Pdf, project.DocumentFileName, OriginalKept.File, project.CreatedAt) { Bytes = document.Length });
         }
 
-        if (project.HasNotes && project.Scan is null && project.Transcription is null && project.ReadFrom is null && FileKind(project.FileName) is { } kind
+        if (project.HasNotes && project.Scan is null && project.Transcription is null && project.ReadFrom is null && OriginalKinds.FileKind(project.FileName) is { } kind
             && project.Sources.RemovedWith(PieceOriginal.SourceFileId) is null)
         {
             originals.Add(new PieceOriginal(PieceOriginal.SourceFileId, kind, project.FileName, OriginalKept.File, project.CreatedAt) { Bytes = project.Source.Length });
@@ -316,19 +305,6 @@ public static class PieceOriginals
         DurationMs = original.DurationMs,
         Held = original.Held,
     };
-
-    /// <summary>MIDI or MusicXML by the file's extension, as the importers take it; null for anything else.</summary>
-    public static OriginalKind? FileKind(string fileName)
-    {
-        ArgumentNullException.ThrowIfNull(fileName);
-        string extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return extension switch
-        {
-            ".mid" or ".midi" => OriginalKind.Midi,
-            ".musicxml" or ".mxl" or ".xml" => OriginalKind.MusicXml,
-            _ => null,
-        };
-    }
 
     private static string FreeId(string id, IReadOnlySet<string> taken)
     {

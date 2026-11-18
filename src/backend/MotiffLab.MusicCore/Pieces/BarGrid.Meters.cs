@@ -1,7 +1,6 @@
-using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.Transcription;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// A stretch of a recording's bars that reads better in another signature (version 0.5, «Смена размера в записи», a

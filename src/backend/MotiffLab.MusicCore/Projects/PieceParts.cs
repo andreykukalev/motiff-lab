@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -73,7 +73,7 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
     public bool FreshBars { get; init; }
 
     /// <summary>
-    /// With <see cref="FreshBars"/>: each part's beat found again in every section of its stretch (<see cref="Import.Transcription.GridSearch.Live"/>,
+    /// With <see cref="FreshBars"/>: each part's beat found again in every section of its stretch (<see cref="GridSearch.Live"/>,
     /// version 0.5, once the experiment «Темп живого исполнения»), as for a recording heard with live tempo; else found once.
     /// </summary>
     public bool LiveTempo { get; init; }

@@ -12,7 +12,7 @@ public readonly record struct PageRange(int First, int Last)
 /// pages it reads at a time (<c>maxPages</c> on <c>/health</c>; 4 on Motiff Lab's server, 0014), and the apps cut the PDF
 /// into consecutive parts of at most that many pages, send them one after another and join what each part reads with
 /// <see cref="ScanJoin.Join"/>, as the server joins its pages: the measures of part 2 follow those of part 1, and each
-/// part keeps its own page marks, so <see cref="Projects.PageMap"/> still finds where each page of the PDF starts.
+/// part keeps its own page marks, so <see cref="Pieces.PageMap"/> still finds where each page of the PDF starts.
 /// </summary>
 /// <remarks>Pure and deterministic. Nothing changes on the server: a part is an ordinary PDF of fewer pages.</remarks>
 public static class ScanParts

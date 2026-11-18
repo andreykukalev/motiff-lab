@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Events;
+
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>

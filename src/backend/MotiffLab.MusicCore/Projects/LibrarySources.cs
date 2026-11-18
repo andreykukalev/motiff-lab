@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Pieces;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>A kind of source a piece really has, in the order the library shows them.</summary>

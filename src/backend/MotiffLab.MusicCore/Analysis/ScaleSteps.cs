@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Events;
+
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>A pitch as a step of a key's scale, counted from the tonic of octave −1, plus a chromatic offset.</summary>

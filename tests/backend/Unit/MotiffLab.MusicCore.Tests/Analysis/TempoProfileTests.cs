@@ -1,6 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
 using MotiffLab.MusicCore.Time;

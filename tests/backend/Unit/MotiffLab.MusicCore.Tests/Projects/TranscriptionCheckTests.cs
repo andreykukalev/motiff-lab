@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 

@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Analysis;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>The accent a score writes on a note.</summary>
 public enum AccentKind

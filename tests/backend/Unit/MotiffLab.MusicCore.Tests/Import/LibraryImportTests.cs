@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Import;
@@ -241,7 +242,7 @@ public class LibraryImportTests
             Metadata = new PieceMetadata("Ballade No. 1", "Chopin", null, null),
         };
 
-        LibraryOriginal original = Assert.Single(LibraryOriginal.Of(project));
+        LibraryOriginal original = Assert.Single(LibraryOriginals.Of(project));
 
         Assert.Equal(("p_pdf", PieceOriginal.DocumentId, "Ballade No. 1", "Chopin"), (original.ProjectId, original.OriginalId, original.Title, original.Composer));
         Assert.Equal(PieceOriginal.Fingerprint("%PDF-1.4 x"u8), original.Sha256);

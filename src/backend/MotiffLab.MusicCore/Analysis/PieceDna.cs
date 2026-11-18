@@ -1,8 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
-
-using MotiffLab.MusicCore.Import.Transcription;
 
 namespace MotiffLab.MusicCore.Analysis;
 
@@ -560,7 +559,7 @@ public sealed record PieceDna(
         // The reading a transcription's key signature is worked out with (0016): the bass weighs more, long notes count up
         // to a whole note, so a piece's tonic and its harmony outweigh passing chromatic notes.
         var span = TickSpan.FromBounds(first, last);
-        if (Transcribed.KeyOf(notes) is not { } key)
+        if (MusicalKey.OfHeard(notes) is not { } key)
         {
             return [];
         }

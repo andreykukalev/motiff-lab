@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;

@@ -27,7 +27,7 @@ public class PdfMarksOnlineTests
     /// <summary>A piece read from its PDF on the iPad, with strokes on its pages, as the iPad keeps it.</summary>
     private static Project OnIpad(params InkStroke[] ink) =>
         Project.CreateDocument("p_pdfmarks", "book.pdf", s_pdf, s_now)
-            .Recognised(Fixture("fur-elise-original.musicxml"), "homr 0.7.0", new PageMap([Tick.Zero]))
+            .Recognised(Fixture("fur-elise-original.musicxml"), "homr 0.7.0", new Pieces.PageMap([Tick.Zero]))
             .MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Ipad, held: true, s_now) with
         { DocumentMarks = DocumentMarks.Empty.WithInk(ink) };
 
@@ -35,7 +35,7 @@ public class PdfMarksOnlineTests
 
     /// <summary>The same piece in the browser, its PDF linked again from the same file («Привязать оригинал»).</summary>
     private static Project LinkedInBrowser(Project online) =>
-        online.RelinkDocument(s_pdf, new PageMap([Tick.Zero]))!.MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Web, held: true, s_now);
+        online.RelinkDocument(s_pdf, new Pieces.PageMap([Tick.Zero]))!.MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Web, held: true, s_now);
 
     [Fact]
     public void The_online_copy_carries_the_page_marks_and_never_the_pdf()
@@ -111,7 +111,7 @@ public class PdfMarksOnlineTests
     public void A_browser_copy_that_wins_sends_the_marks_the_ipad_wrote_last()
     {
         Project before = OnIpad(Stroke("k1", 1));
-        Project browser = LinkedInBrowser(RoundTrip(before.ForOnline()!)) with { Metadata = new PieceMetadata("Recital", null, [], []) };
+        Project browser = LinkedInBrowser(RoundTrip(before.ForOnline()!)) with { Metadata = new Pieces.PieceMetadata("Recital", null, [], []) };
         Project after = before with { DocumentMarks = before.DocumentMarks.WithInk([Stroke("k2", 1)]) };
         Project online = RoundTrip(after.ForOnline()!);
 
@@ -122,7 +122,7 @@ public class PdfMarksOnlineTests
         Assert.Equal(after.DocumentMarks, resolved.Kept.ForOnline()!.DocumentMarks);
 
         // The iPad's copy that wins sends its own.
-        Project ipadNewer = after with { Metadata = new PieceMetadata("Exam", null, [], []) };
+        Project ipadNewer = after with { Metadata = new Pieces.PieceMetadata("Exam", null, [], []) };
         SyncResolution ipad = ProjectSync.Resolve(ipadNewer, s_now.AddHours(2), RoundTrip(before.ForOnline()!), s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad);
         Assert.Same(ipadNewer, ipad.Kept);
     }

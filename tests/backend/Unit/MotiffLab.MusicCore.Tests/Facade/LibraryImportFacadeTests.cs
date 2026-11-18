@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Facade;

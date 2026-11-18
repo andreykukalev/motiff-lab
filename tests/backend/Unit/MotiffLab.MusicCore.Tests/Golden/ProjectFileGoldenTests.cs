@@ -3,8 +3,8 @@ using System.Text;
 using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Golden;

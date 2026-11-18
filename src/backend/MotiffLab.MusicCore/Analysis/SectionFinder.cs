@@ -1,7 +1,5 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.MusicXml;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
@@ -224,7 +222,7 @@ public static class SectionFinder
         Note[] earlier = [.. sorted.Where(note => before.Contains(note.Span.Onset))];
         Note[] later = [.. sorted.Where(note => after.Contains(note.Span.Onset))];
         if (earlier.Length >= MinKeyNotes && later.Length >= MinKeyNotes
-            && Transcribed.KeyOf(earlier) is { } from && Transcribed.KeyOf(later) is { } to && from != to)
+            && MusicalKey.OfHeard(earlier) is { } from && MusicalKey.OfHeard(later) is { } to && from != to)
         {
             add(next, SectionCues.HeardKey(from, to));
         }

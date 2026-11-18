@@ -1,6 +1,6 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.MusicXml;
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import;
 
@@ -16,7 +16,7 @@ public sealed record FoundFile(string Path, long Bytes)
 
     public long Bytes { get; } = Bytes >= 0 ? Bytes : throw new ArgumentOutOfRangeException(nameof(Bytes));
 
-    /// <summary>The SHA-256 of its bytes as <see cref="PieceOriginal.Fingerprint"/> gives it; null until the app worked it out.</summary>
+    /// <summary>The SHA-256 of its bytes as <see cref="Projects.PieceOriginal.Fingerprint"/> gives it; null until the app worked it out.</summary>
     public string? Sha256
     {
         get;
@@ -45,7 +45,7 @@ public sealed record FoundFile(string Path, long Bytes)
     public string Folder => Path.LastIndexOf('/') is var slash and >= 0 ? Path[..slash] : string.Empty;
 
     /// <summary>What it is by its extension, as the app adds such a file: a PDF, MIDI or MusicXML; null for any other file.</summary>
-    public OriginalKind? Kind => System.IO.Path.GetExtension(Name).Equals(PdfDocument.Extension, StringComparison.OrdinalIgnoreCase) ? OriginalKind.Pdf : PieceOriginals.FileKind(Name);
+    public OriginalKind? Kind => System.IO.Path.GetExtension(Name).Equals(PdfDocument.Extension, StringComparison.OrdinalIgnoreCase) ? OriginalKind.Pdf : OriginalKinds.FileKind(Name);
 
     /// <summary>A path inside the chosen folder, composed, "/" between the folders, with no empty, "." or ".." folder.</summary>
     public static string PathOf(string path)
@@ -81,22 +81,6 @@ public sealed record LibraryOriginal(string ProjectId, string OriginalId, string
 
     /// <summary>The piece's composer as its card shows it; null when none.</summary>
     public string? Composer { get; init; }
-
-    /// <summary>The originals of a piece, each with the piece's title and composer.</summary>
-    public static IEnumerable<LibraryOriginal> Of(Project project)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-        PieceDetails details = project.Details;
-        return project.Originals.Select(original => new LibraryOriginal(project.Id, original.Id, original.Sha256)
-        {
-            Bytes = original.Bytes,
-            Pages = original.Pages,
-            FileName = original.FileName,
-            Folder = original.Folder,
-            Title = details.Title.Value,
-            Composer = details.Composer?.Value,
-        });
-    }
 }
 
 /// <summary>What the folders become in the library, the player's choice on «Что нашлось».</summary>

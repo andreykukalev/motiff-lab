@@ -148,7 +148,7 @@ public class ChordReferenceTests
     [Fact]
     public void A_key_cards_main_chords_name_their_root_and_type_for_their_own_card()
     {
-        KeyCard card = KeyReference.For(new MusicalKey(-3, KeyMode.Minor));
+        KeyCard card = KeyReference.For(new MusicalKey(-3, MusicCore.Events.KeyMode.Minor));
 
         Assert.Equal([ChordType.Minor, ChordType.Minor, ChordType.Major], card.Chords.Select(chord => chord.Type));
         Assert.Equal(["C", "F", "G"], card.Chords.Select(chord => chord.Root.Letter));

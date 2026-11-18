@@ -1,8 +1,7 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.Transcription;
+namespace MotiffLab.MusicCore.Pieces;
 
 public sealed partial record BarGrid
 {

@@ -379,9 +379,9 @@ public class NotationGeneratorTests
         Assert.All(notes, note => Assert.Contains(note.Id, written));
         Assert.Equal(notes.Count, result.NoteCount);
 
-        static (GeneratedNotation, IReadOnlyList<Note>, MeterMap) Midi(MidiImport import) => (NotationGenerator.FromMidi(import), import.Notes, import.Meter);
+        static (GeneratedNotation, IReadOnlyList<Note>, MeterMap) Midi(Pieces.MidiImport import) => (NotationGenerator.FromMidi(import), import.Notes, import.Meter);
 
-        static (GeneratedNotation, IReadOnlyList<Note>, MeterMap) MusicXml(MusicXmlImport import) => (NotationGenerator.FromMusicXml(import), import.Notes, import.Meter);
+        static (GeneratedNotation, IReadOnlyList<Note>, MeterMap) MusicXml(Pieces.MusicXmlImport import) => (NotationGenerator.FromMusicXml(import), import.Notes, import.Meter);
     }
 
     [Fact]

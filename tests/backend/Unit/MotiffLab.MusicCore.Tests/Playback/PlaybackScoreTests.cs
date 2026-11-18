@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 

@@ -1,7 +1,7 @@
 using System.Xml;
 using System.Xml.Linq;
 
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import.MusicXml;
 

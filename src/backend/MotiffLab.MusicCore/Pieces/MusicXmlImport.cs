@@ -1,8 +1,7 @@
-using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.MusicXml;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// Everything Stage 1 keeps from a partwise MusicXML score, on the canonical timeline, with the import report.
@@ -40,18 +39,21 @@ public sealed record MusicXmlImport(
     Tick End,
     ImportReport Report)
 {
+    /// <summary>Velocity for notes the score gives no playback dynamics: between mp and mf.</summary>
+    public const int DefaultVelocity = 80;
+
     /// <summary>The bar lines drawn other than single (double, final, heavy), one per position and style, in time order.</summary>
     public IReadOnlyList<MusicXmlBarline> Barlines { get; init; } = [];
 
     /// <summary>The words and rehearsal marks written over the music (tempo words, headings, letters), in time order.</summary>
     public IReadOnlyList<MusicXmlText> Texts { get; init; } = [];
 
-    /// <summary>The slurs and repeat signs as phrase evidence for <see cref="PhraseBoundaryFinder"/>.</summary>
+    /// <summary>The slurs and repeat signs as phrase evidence for <see cref="Analysis.PhraseBoundaryFinder"/>.</summary>
     public PhraseMarks PhraseMarks => new(
         [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
         [.. Repeats.Select(static repeat => repeat.At).Distinct()]);
 
-    /// <summary>The accents written on the notes, by shared-model note id, for <see cref="MotifAnalyzer"/> (S1-A1).</summary>
+    /// <summary>The accents written on the notes, by shared-model note id, for <see cref="Analysis.MotifAnalyzer"/> (S1-A1).</summary>
     public IReadOnlyList<AccentMark> AccentMarks =>
         [.. SourceNotes.Zip(Notes)
             .Where(static pair => pair.First.Accent is not null)

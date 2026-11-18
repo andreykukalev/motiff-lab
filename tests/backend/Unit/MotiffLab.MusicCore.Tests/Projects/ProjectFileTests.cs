@@ -25,7 +25,7 @@ public class ProjectFileTests
     internal static Project Worked()
     {
         byte[] source = Fixture("MusicXml", "importer-grand-staff.musicxml");
-        ImportedPiece piece = PieceImporter.Import("minuet.musicxml", source).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import("minuet.musicxml", source).Piece!;
         MotifSelection bars = MotifSelector.Select(piece.Notes, piece.Meter, MotifSelector.Bars(piece.Meter, 1, 2, piece.End), SelectionFilter.ForHand(Hand.Right));
         Motif first = Motif.Create("m_0001", 1, bars, MotifSelectionKind.Range, MotifMode.Discovery, piece.Notes) with { Name = "Opening turn" };
         MotifSelection picked = MotifSelector.SelectNotes(piece.Notes, piece.Meter, piece.Notes.Take(3).Select(note => note.Id));
@@ -174,7 +174,7 @@ public class ProjectFileTests
     {
         ProjectSummary summary = Worked().Summary;
         Assert.Equal(new ProjectSummary("p_test", "minuet.musicxml", 2, 2, s_opened), summary with { Details = null, Originals = [] });
-        Assert.Equal(new OriginalSummary(PieceOriginal.SourceFileId, OriginalKind.MusicXml, OriginalKept.File, InFile: true, []), Assert.Single(summary.Originals));
+        Assert.Equal(new OriginalSummary(PieceOriginal.SourceFileId, Pieces.OriginalKind.MusicXml, OriginalKept.File, InFile: true, []), Assert.Single(summary.Originals));
         Assert.Equal("Waltz sketch", summary.Details!.Title.Value);
         Assert.Equal(0, Project.Create("p", "a.mid", [1], s_created).Summary.MotifCount);
     }
@@ -253,7 +253,7 @@ public class ProjectFileTests
     private static Project Corrected()
     {
         Project project = Worked();
-        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
         Note first = piece.Notes.First(note => note.Id == project.Motifs[0].NoteIds[0]);
         NoteEditLog edits = NoteEditLog.Empty
             .Change(piece.Notes, first.Id, NoteValues.Of(first) with { Pitch = new Pitch(first.Pitch.MidiNumber + 1), Velocity = 100 });
@@ -264,7 +264,7 @@ public class ProjectFileTests
     public void An_added_note_is_saved_with_its_track_and_hand_and_comes_back_on_open()
     {
         Project project = Corrected();
-        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
         NoteEditLog edits = project.Edits.Add(piece.Notes, new NoteValues(new Pitch(81), new TickSpan(new Tick(960), 240), 64), 0, Hand.Right, out string id);
         // A saved motif is saved again over the notes as they are; this one has none.
         Project added = project with { Edits = edits, Motifs = [], Variations = [] };
@@ -301,7 +301,7 @@ public class ProjectFileTests
     public void A_removed_note_is_saved_without_values_after()
     {
         Project project = Worked() with { Motifs = [], Variations = [] };
-        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        Pieces.ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
         project = project with { Edits = NoteEditLog.Empty.Remove(piece.Notes, piece.Notes[2].Id) };
 
         string json = Encoding.UTF8.GetString(ProjectFile.Write(project));

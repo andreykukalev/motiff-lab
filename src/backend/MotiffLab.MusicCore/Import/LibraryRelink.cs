@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import;
 
@@ -151,9 +151,9 @@ public static class LibraryRelink
 
     private static RelinkCandidate? Scored(LibraryOriginal original, FoundFile file, bool samePlace)
     {
-        string named = NameText.Folded(PieceDetails.TitleOf(file.Name));
+        string named = NameText.Folded(PieceMetadata.TitleOf(file.Name));
         int name = Math.Max(
-            original.FileName is { } fileName ? Similarity(NameText.Folded(PieceDetails.TitleOf(fileName)), named) : 0,
+            original.FileName is { } fileName ? Similarity(NameText.Folded(PieceMetadata.TitleOf(fileName)), named) : 0,
             original.Title is { } title ? Similarity(NameText.Folded(title), named) : 0);
         bool samePages = original.Pages is { } pages && file.Pages == pages;
         if (!samePlace && name < AlikeName && !(samePages && name >= SomeName))
