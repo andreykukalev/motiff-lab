@@ -14,14 +14,6 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static class LiveTempoRequest
 {
-    /// <summary>The bars of the notes heard, found as <paramref name="request"/> asks, and the piece on them, marked transcribed.</summary>
-    /// <param name="imported">The engine's notes, imported from its MIDI.</param>
-    public static (BarGrid? Bars, ImportedPiece Piece) Heard(ImportedPiece imported, Request request)
-    {
-        BarGrid? bars = RecordingBars.Find(imported.Midi!, search: Of(request));
-        return (bars, Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported));
-    }
-
     public static GridSearch? Of(Request request)
     {
         string? tempo = request.Text("tempo");

@@ -8,6 +8,21 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 public static partial class RecordingBars
 {
     /// <summary>
+    /// The bars of the notes heard, found as <paramref name="search"/> asks (<see cref="Find"/>), and the piece on them
+    /// (<see cref="Apply"/>, or as the engine wrote it when the notes follow no beat), marked transcribed.
+    /// </summary>
+    /// <param name="heard">The piece imported from the engine's MIDI.</param>
+    /// <param name="search">How to follow a live performance (<see cref="FindLive"/>); null finds the beat once.</param>
+    /// <exception cref="ArgumentException">The piece was not imported from MIDI, which is what transcription writes.</exception>
+    public static (BarGrid? Bars, ImportedPiece Piece) Heard(ImportedPiece heard, GridSearch? search = null)
+    {
+        ArgumentNullException.ThrowIfNull(heard);
+        MidiImport midi = heard.Midi ?? throw new ArgumentException("A transcription is read as MIDI.", nameof(heard));
+        BarGrid? bars = Find(midi, search: search);
+        return (bars, Transcribed.Mark(bars is { } grid ? grid.Apply(heard) : heard));
+    }
+
+    /// <summary>
     /// The piece with its notes, bars, tempo and keys on the grid: the same notes with the same ids,
     /// placed against the beat that was found rather than the engine's 120 BPM.
     /// </summary>
