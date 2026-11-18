@@ -236,3 +236,14 @@ in **S7c**, with the harness's reading lines Andrei approved (2026-11-18 16:55Z)
 `sources` leaving the root in S7c, the publishes that kept `LayersList` current go: «has versions» now comes to it as a
 plain value from the screen, which observes `SourcesModel` (`ScoreBar`, `MorePanel`, `ModeOptions`, `PenPalette`), and
 `pieceExtra(hasVersions:)` takes it.
+
+## Note, 2026-11-18 (step S7c, `focused` and `sources` out of the root)
+
+Whether Expand is open (`focused`) is `FocusModel`'s, set by `open(from:)` and `close()` in the order the root kept
+(the way back closes it before the version goes); the piece's sources (`SourcesInfo`) are `SourcesModel`'s `info`, read
+through `read(sources:)` and emptied with the rest of the last piece in `open(evenBars:)`. The forwarders `selection`,
+`focusRoll`, `playRange` and `focusVersion` are deleted. The protected harness reads the models: its reading lines
+(`WorkspaceSession.swift` 172, 175, 182, 184, 189, 192, 207 and 213, `WorkspaceScenarioTests.swift` 202, which #690
+moved from 200) change as Andrei approved on 2026-11-18 at 16:55Z, and no assertion or kept transcript changes. A view
+in a folder that may not name `FocusModel` gets Expand as a plain value (`SelectionToastView`'s `focused`); the
+practice button and ✕ observe the model. `ScoreController` keeps no relay and no forwarder of a model.

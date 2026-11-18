@@ -59,7 +59,7 @@ extension ScoreWorkspace {
     /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
     /// else the PDF linked where it lies in Files, over the score (version 0.3).
     func toPdf(_ switchView: ((Landing) async -> Void)?) -> (() -> Void)? {
-        if switchView != nil, piece.other != nil || score.sources.document != nil {
+        if switchView != nil, piece.other != nil || score.sourcesModel.info.document != nil {
             // The switch of all views goes with the piece to its PDF (SourcesHandover).
             return { [self] in ProbeCounts.shared.begin(); if panels.sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf(switchView) } }
         }

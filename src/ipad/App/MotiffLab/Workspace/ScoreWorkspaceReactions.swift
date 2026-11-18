@@ -40,7 +40,7 @@ extension ScoreWorkspace {
 
     /// Expand covers the page (#521 17, 19): the drawers go, and come back with the way back as they were (PanelState), and
     /// so does the loop. Opened while the music plays, it plays on within the passage. Out of it the playback model takes the
-    /// selection and the loop back (v0.5.2). The reaction on `score.focused`.
+    /// selection and the loop back (v0.5.2). The reaction on `score.focusModel.focused`.
     func focusChanged(_ focused: Bool) {
         if focused {
             apply(.expand(true))
@@ -75,7 +75,7 @@ extension ScoreWorkspace {
     /// The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5), bound to the passage
     /// Expand was opened on (#521 19): only it, laid across the card; the drawer gives it up and gets it back (PanelState).
     /// Back, or Notes chosen, lets the passage go: its zoom and view are as before Expand (#521 17). The reaction on
-    /// `score.focused && score.focusModel.asRoll`; `dark` is the screen's appearance.
+    /// `score.focusModel.focused && score.focusModel.asRoll`; `dark` is the screen's appearance.
     func focusRollChanged(_ shown: Bool, dark: Bool) {
         apply(.rollOnCard(shown))
         if shown {
@@ -143,7 +143,7 @@ extension ScoreWorkspace {
 
     /// Sources opened or closed (the reaction on `panels[.versions]` among Check's), with Expand as it is now.
     func sourcesChanged(_ open: Bool) {
-        apply(.versions(open, focused: score.focused))
+        apply(.versions(open, focused: score.focusModel.focused))
     }
 
     /// Check and Sources go when another place opens, or Expand (the reaction on `panels.otherPlaceOpen(focused:)`).
@@ -176,7 +176,7 @@ extension ScoreWorkspace {
 /// the selection and the player share.
 extension ScoreWorkspace {
     /// Where the roll is on screen: in its drawer, or over the card in focus; the one place its web view is in (#495 BUG-01).
-    var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: panels[.roll], focused: score.focused, focusRoll: score.focusModel.asRoll) }
+    var rollPlace: RollPlace? { RollPlace.shown(drawerOpen: panels[.roll], focused: score.focusModel.focused, focusRoll: score.focusModel.asRoll) }
 
     /// Whether the roll is on screen.
     var rollShown: Bool { rollPlace != nil }

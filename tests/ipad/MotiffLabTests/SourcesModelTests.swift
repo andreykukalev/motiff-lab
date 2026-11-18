@@ -4,7 +4,8 @@ import XCTest
 
 /// SourcesModel (S4, ADR 0031 section 3) on the kit's piece open in music-core: a version added is the one shown and
 /// says how it lines up, the list and a version are read through music-core, a version that is not there leaves its
-/// words, and another piece starts with none of the last one's versions, words, page or engraved view.
+/// words, and another piece starts with none of the last one's versions, words, page, engraved view or sources; the
+/// piece's sources are kept as read.
 @MainActor
 final class SourcesModelTests: XCTestCase {
     private let text = UIText(language: "en")
@@ -63,5 +64,16 @@ final class SourcesModelTests: XCTestCase {
         XCTAssertNil(model.status)
         XCTAssertNil(model.page)
         XCTAssertEqual(model.engraved, SourcesModel.Engraved(view: nil, even: true), "the player's notes, as the device engraves them now")
+    }
+
+    func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {
+        let model = SourcesModel(evenBars: false)
+        model.read(sources: #"{"base": "scan", "baseName": "Elise.pdf", "summary": "Read from a scan", "document": {"fileName": "elise.pdf", "pages": 2, "starts": [0, 1920]}}"#)
+        XCTAssertEqual(model.info.base, "scan")
+        XCTAssertEqual(model.info.document, SourcesInfo.KeptDocument(fileName: "elise.pdf", pages: 2, starts: [0, 1920]))
+        model.read(sources: #"{"error": "notFound", "message": "no piece"}"#)
+        XCTAssertEqual(model.info.base, "scan", "a refusal leaves the sources as they were")
+        model.open(evenBars: false)
+        XCTAssertEqual(model.info, SourcesInfo(), "another piece starts with none of the last one's sources")
     }
 }

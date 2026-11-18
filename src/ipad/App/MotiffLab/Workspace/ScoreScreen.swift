@@ -230,7 +230,7 @@ struct ScoreScreenContent: View {
     /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
     @ViewBuilder private var transport: some View {
         // Scrolled away from the playing, a chip leads back to it (testing item 4).
-        if let away = score.playheadAway, player.state != .stopped, !score.focused, score.practiceChrome.transport, let bar = player.barNumber(at: away) {
+        if let away = score.playheadAway, player.state != .stopped, !focusModel.focused, score.practiceChrome.transport, let bar = player.barNumber(at: away) {
             Button {
                 score.returnToPlayhead()
             } label: {
@@ -261,7 +261,7 @@ struct ScoreScreenContent: View {
     /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed, and the selection
     /// controls shown (#582 item 10: `ScoreController.selectionControlsShown`, whatever the playback controls do).
     private var selectionMenuOpen: Bool {
-        selectionModel.selection != nil && !score.focused && !panels[.roll] && score.selectionControlsShown
+        selectionModel.selection != nil && !focusModel.focused && !panels[.roll] && score.selectionControlsShown
     }
 
     /// The score and everything that floats over it.
@@ -289,7 +289,7 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
-                if let pick = mergeModel.markerPick, !score.focused {
+                if let pick = mergeModel.markerPick, !focusModel.focused {
                     GeometryReader { area in
                         ZStack(alignment: .topLeading) {
                             Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
@@ -313,7 +313,7 @@ struct ScoreScreenContent: View {
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, selectionModel: selectionModel, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .fullScreenCover(isPresented: Binding(get: { mergeModel.comparing }, set: { mergeModel.compare($0) })) {
@@ -329,19 +329,19 @@ struct ScoreScreenContent: View {
             .background(Color.ds("desk").ignoresSafeArea())
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
-                    if score.focused {
+                    if focusModel.focused {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
-                    if sourcesOn && !score.focused { recordingCapsule }
-                    if !score.focused {
+                    if sourcesOn && !focusModel.focused { recordingCapsule }
+                    if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions)
                     }
-                    if mergeModel.draft != nil && !score.focused && !mergeModel.comparing {
+                    if mergeModel.draft != nil && !focusModel.focused && !mergeModel.comparing {
                         MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
                             .transition(.opacity)
                     }
@@ -349,7 +349,7 @@ struct ScoreScreenContent: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .padding(.top, CGFloat.ds("s-3"))
                 .animation(.easeOut(duration: 0.16), value: score.penOn)
-                .animation(.easeOut(duration: 0.16), value: score.focused)
+                .animation(.easeOut(duration: 0.16), value: focusModel.focused)
             }
             .overlay(alignment: .bottom) {
                 if panels[.roll] {
@@ -429,10 +429,10 @@ struct ScoreScreenContent: View {
             .onChange(of: covered) { _, height in workspace.coveredChanged(height) }
             .onChange(of: contentsSide) { _, side in workspace.contentsSideChanged(side) }
             .onChange(of: panels[.contents]) { _, open in workspace.contentsChanged(open) }
-            .onChange(of: score.focused) { _, focused in workspace.focusChanged(focused) }
+            .onChange(of: focusModel.focused) { _, focused in workspace.focusChanged(focused) }
             .onChange(of: score.practicing, initial: true) { _, on in workspace.practicingChanged(on) }
             .onChange(of: score.selectionControlsShown) { _, shown in workspace.selectionControlsChanged(shown) }
-            .onChange(of: score.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
+            .onChange(of: focusModel.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
             .onChange(of: panels[.roll]) { _, open in workspace.rollDrawerChanged(open, dark: colorScheme == .dark) }
             .onChange(of: score.check) { _, _ in workspace.checkChanged() }
             .onChange(of: panels[.insights]) { _, open in workspace.insightsChanged(open) }
@@ -494,7 +494,7 @@ struct ScoreScreenContent: View {
             .onChange(of: panels.placeFromMoreOpen) { _, open in workspace.placeFromMoreChanged(open) }
             .onChange(of: panels[.check]) { _, open in workspace.checkDrawerChanged(open) }
             .onChange(of: panels[.versions]) { _, open in workspace.sourcesChanged(open) }
-            .onChange(of: panels.otherPlaceOpen(focused: score.focused)) { _, open in workspace.otherPlaceChanged(open) }
+            .onChange(of: panels.otherPlaceOpen(focused: focusModel.focused)) { _, open in workspace.otherPlaceChanged(open) }
     }
 
     /// What follows the selection, the player and the fact chosen.
@@ -687,6 +687,8 @@ struct ScoreBar: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
+    /// Handed on to Practice, which is off in Expand.
+    let focusModel: FocusModel
     /// Whether the piece has other versions: the layers list offers their marks (ScoreController.pieceExtra).
     let hasVersions: Bool
     /// Which panels are open (PanelState), and the screen's way to change them.
@@ -759,7 +761,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.insights]))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(panels[.insights] ? .isSelected : [])
-        PracticeButton(score: score, text: text)
+        PracticeButton(score: score, focusModel: focusModel, text: text)
         PaletteDivider()
         playAndMore
     }
@@ -922,7 +924,7 @@ struct Pill: View {
             .accessibilityLabel(label)
             .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
         }
-        if selectionModel.selection != nil && !score.focused {
+        if selectionModel.selection != nil && !focusModel.focused {
             step("back", text["focus.previous"], enabled: focusModel.canStepBack) { score.step(-1) }
             step("fwd", text["focus.next"], enabled: focusModel.canStepOn) { score.step(1) }
         }
@@ -1063,7 +1065,7 @@ struct SelectionMenu: View {
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
             item("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
-            ClearSelectionButton(score: score, text: text, iconOnly: true)
+            ClearSelectionButton(score: score, focusModel: focusModel, text: text, iconOnly: true)
         }
     }
 
@@ -1082,6 +1084,8 @@ struct SelectionMenu: View {
 /// Clear selection (#338): the one way to let go of a selection, as a tap elsewhere on the page or the roll keeps it.
 struct ClearSelectionButton: View {
     @ObservedObject var score: ScoreController
+    /// Practice view is off in Expand (`ScoreController.practicing`).
+    @ObservedObject var focusModel: FocusModel
     let text: UIText
     /// At a fingertip's square, as the selection menu's other icons (#495 UX-11); the roll's head keeps its size.
     var iconOnly = false
