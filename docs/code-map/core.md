@@ -16,7 +16,10 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   `Transcribed`, the player's `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`),
   where Notes came from (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`, with `TranscriptionOrigin`), PDFs
-  (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
+  (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`). The MusicXML reader (W1.9):
+  `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`), and `ScoreBuilder` puts
+  them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks` (grace notes, rests, slurs, repeats, bar
+  lines, texts) and `ScoreTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
