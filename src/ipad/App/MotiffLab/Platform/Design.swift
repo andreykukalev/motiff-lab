@@ -374,6 +374,8 @@ struct SteadyLabel<Label: View>: View {
 /// either way (#582 item 3).
 struct DSItemStyle: ButtonStyle {
     var on = false
+    /// The tint's outline: a capsule in the pill and palettes, a row's rounded rectangle in a list (ControlShape).
+    var outline = ControlShape.capsule
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -381,9 +383,9 @@ struct DSItemStyle: ButtonStyle {
             .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
             .padding(.horizontal, CGFloat.ds("s-3"))
             .frame(minHeight: 36)
-            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Capsule())
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
             .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(Capsule())
+            .contentShape(outline.shape)
     }
 }
 

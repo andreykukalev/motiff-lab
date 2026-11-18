@@ -293,7 +293,8 @@ struct AssistantConsent: View {
 }
 
 /// The piece's conversations kept on this iPad, newest first: each by its first question and when it was last asked. The
-/// open one is a row's rounded rectangle on the accent's tint (`ChatRowStyle`), not a capsule (Andrei, v0.8 finding 9).
+/// open one is tinted in a row's rounded rectangle (`DSItemStyle`'s `.rounded` outline, `r-s`), not a capsule (Andrei,
+/// v0.8 finding 9).
 struct AssistantChatList: View {
     @ObservedObject var assistant: AssistantController
     let text: UIText
@@ -313,30 +314,13 @@ struct AssistantChatList: View {
                             Text(chat.updated.formatted(date: .abbreviated, time: .shortened))
                                 .dsType(.caption).foregroundStyle(Color.ds("ink-3"))
                         }
-                        .padding(.horizontal, CGFloat.ds("s-3"))
-                        .padding(.vertical, CGFloat.ds("s-2"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(ChatRowStyle(on: chat.id == assistant.currentId))
+                    .buttonStyle(DSItemStyle(on: chat.id == assistant.currentId, outline: .rounded))
                     .accessibilityAddTraits(chat.id == assistant.currentId ? .isSelected : [])
                 }
             }
             .padding(CGFloat.ds("s-3"))
         }
-    }
-}
-
-/// A conversation's row in the list: the pill item's colours (quiet ink, the accent while it is open) with the accent's
-/// tint in a row's rounded rectangle (ControlShape.rounded, `r-s`) rather than a capsule (Andrei, v0.8 finding 9).
-private struct ChatRowStyle: ButtonStyle {
-    var on = false
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
-            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: ControlShape.rounded.shape)
-            .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(ControlShape.rounded.shape)
     }
 }
