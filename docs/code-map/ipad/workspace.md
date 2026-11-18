@@ -18,7 +18,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
   `backToMore` write `panels`; `assistantPressed` is the pill's assistant (the panel on its last conversation, or
-  closed; an Ask opens it empty, `AssistantController.open`). Tests: `ScoreWorkspaceTests`; sessions:
+  closed: `AssistantController.show` and `close`; an Ask opens it empty, `open`). Tests: `ScoreWorkspaceTests`; sessions:
   `WorkspaceScenarioTests` (`../ipad.md`).
 - `ScoreWorkspaceReactions.swift`: the methods of the view's `.onChange` reactions on the panels and Expand, in the
   view's order (`contentsChanged`, `focusChanged`, …), with `syncPlayheads`, `showRollPosition`, `rollPlace`.

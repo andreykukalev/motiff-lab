@@ -738,7 +738,7 @@ struct ScoreBar: View {
     }
 
     /// In groups without captions, as the approved mockup v0.5.2 (#479 item 21): what the score shows (Phrases, the extra
-    /// information, the piano roll), then how the score is used (the modes), then the Circle and
+    /// information), then how the score is used (the modes), then the Circle and
     /// Insights, then Play and More. Compact where the bar is short (#582 item 2): the chosen mode by its icon alone.
     @ViewBuilder private func actions(compact: Bool) -> some View {
         viewButtons

@@ -185,7 +185,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         workspace.assistantPanelChanged(true)
         XCTAssertFalse(workspace.panels.sheetOpen)
         XCTAssertTrue(workspace.panels[.roll], "the roll's drawer is not on the right")
-        workspace.assistant.panelOpen = true
+        workspace.assistant.show()
         workspace.sheetChanged(false)
         XCTAssertTrue(workspace.assistant.panelOpen)
         workspace.sheetChanged(true)

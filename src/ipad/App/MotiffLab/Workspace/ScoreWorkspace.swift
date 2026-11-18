@@ -126,7 +126,7 @@ final class ScoreWorkspace: ObservableObject {
         if assistant.panelOpen {
             assistant.close()
         } else {
-            assistant.panelOpen = true
+            assistant.show()
         }
     }
 

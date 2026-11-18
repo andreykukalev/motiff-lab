@@ -83,3 +83,14 @@ test("the selection menu's Note has a note's icon, never the assistant's look", 
     assert.match(menu, /iconItem\("memo", text\["menu\.note"\][\s\S]*?iconItem\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
     assert.match(screen, /iconItem\("note", text\["pill\.assistant"\]/, "the bubble is the assistant's");
 });
+
+// Andrei's 0.8 test, finding 7 and answer 1: the piano roll's button is the pill's alone, not the top bar's or the
+// selection menu's.
+test("the piano roll's button is in the pill only", () => {
+    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
+    const between = (from, to) => screen.slice(screen.indexOf(from), screen.indexOf(to, screen.indexOf(from)));
+    assert.match(between("struct Pill", "struct SelectionMenu"), /iconItem\("roll", text\["bar\.roll"\]/);
+    const rollButton = /"roll"|bar\.roll|rollOpen|\(\.roll\)|\[\.roll\]/;
+    assert.doesNotMatch(between("struct SelectionMenu", "struct ClearSelectionButton"), rollButton);
+    assert.doesNotMatch(between("struct ScoreBar", "struct Pill"), rollButton);
+});

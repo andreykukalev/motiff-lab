@@ -93,7 +93,7 @@ extension Walk {
         try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
         let back = try settledZoom("the roll drawer's zoom after Collapse")
         guard zoomKept(open, back) else { throw miss("Expand changed the roll's zoom from \(open) to \(back) (ROLL-01)") }
-        try press(button("Фортепианный ролл"), "the piano roll in the pill again")
+        try press(button("Свернуть"), "Collapse on the roll's head")
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
         try press(button("Фокус"), "Expand in the selection menu")

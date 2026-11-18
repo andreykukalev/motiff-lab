@@ -102,6 +102,12 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
+    /// The panel opened again on the conversation it had when it was closed (the pill's «Ассистент», Andrei's 0.8 test,
+    /// finding 8, and his card of 2026-11-18 21:49 UTC); only an Ask opens it empty (`open`).
+    func show() {
+        panelOpen = true
+    }
+
     /// A new conversation, empty until its first question.
     func startNew() {
         currentId = nil
