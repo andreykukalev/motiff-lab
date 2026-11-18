@@ -15,7 +15,8 @@ final class AssistantController: ObservableObject {
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
 
-    @Published var panelOpen = false
+    /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
+    @Published private(set) var panelOpen = false
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
     /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
