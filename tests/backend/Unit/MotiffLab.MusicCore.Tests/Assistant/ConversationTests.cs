@@ -85,7 +85,7 @@ public class ConversationTests
 
         Assert.True(invented.FellBack);
         Assert.Equal("unknownFact", invented.Reason);
-        Assert.StartsWith("Ответ помощника не удалось сверить", invented.Text, StringComparison.Ordinal);
+        Assert.StartsWith("Ответ ассистента не удалось сверить", invented.Text, StringComparison.Ordinal);
         Assert.All(AnswerCheck.Cited(invented.Text), id => Assert.Contains(id, known));
         Assert.NotEmpty(AnswerCheck.Cited(invented.Text));
         Assert.Equal("noCitation", bare.Reason);

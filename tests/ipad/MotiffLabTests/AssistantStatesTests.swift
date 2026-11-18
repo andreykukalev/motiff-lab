@@ -110,7 +110,7 @@ final class AssistantStatesTests: XCTestCase {
                 XCTAssertNotEqual(text[key], key, "\(key) in \(language)")
             }
         }
-        XCTAssertTrue(UIText(language: "ru")["padAssistant.signIn"].hasPrefix("Войдите, чтобы говорить с помощником"))
+        XCTAssertTrue(UIText(language: "ru")["padAssistant.signIn"].hasPrefix("Войдите, чтобы говорить с ассистентом"))
     }
 
     func testSignedOutTheAssistantSaysSignInAndSendsNothing() async {

@@ -75,8 +75,8 @@ struct AssistantPanel: View {
 
     private var conversation: some View {
         let exchanges = assistant.current?.exchanges ?? []
-        // New answers followed to their end, unless the player has scrolled up (ChatFollow); the question on its way always.
-        return FollowingScroll(newAnswer: .end, newest: assistant.pending == nil ? exchanges.last?.id : "pending", asked: assistant.pending != nil) {
+        // A new answer from its start, unless the player has scrolled up (ChatFollow); the question on its way always.
+        return FollowingScroll(newest: assistant.pending == nil ? exchanges.last?.id : "pending", asked: assistant.pending != nil) {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                 if exchanges.isEmpty, assistant.pending == nil { empty }
                 ForEach(exchanges) { exchange in
