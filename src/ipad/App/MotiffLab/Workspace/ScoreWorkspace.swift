@@ -119,6 +119,17 @@ final class ScoreWorkspace: ObservableObject {
         score.practise(.tap)
     }
 
+    /// The pill's assistant button (Andrei's 0.8 test, finding 8, and his card of 2026-11-18 21:49 UTC): the panel opens
+    /// with the conversation it had when it was closed (`AssistantController.close` keeps it), or closes; only an Ask
+    /// opens it empty (`AssistantController.open`). The panel opened puts the sheet away (`assistantPanelChanged`).
+    func assistantPressed() {
+        if assistant.panelOpen {
+            assistant.close()
+        } else {
+            assistant.panelOpen = true
+        }
+    }
+
     /// A flag tapped on the score opens Check on its bar.
     func checkPicked() {
         change(.open(.check))

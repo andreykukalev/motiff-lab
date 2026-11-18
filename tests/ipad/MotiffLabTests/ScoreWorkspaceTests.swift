@@ -192,6 +192,21 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertFalse(workspace.assistant.panelOpen)
     }
 
+    /// The bottom bar's assistant button (Andrei's v0.8 finding 8, his card of 2026-11-18 21:49 UTC): it opens the panel on
+    /// the last conversation, not empty as an Ask does, and the next press closes it, keeping that conversation.
+    func testTheBarsAssistantButtonOpensTheLastConversationAndClosesIt() {
+        let workspace = make()
+        workspace.assistant.start(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "mentor")
+        let last = workspace.assistant.currentId
+        XCTAssertNotNil(last, "a conversation was had")
+        workspace.assistantPressed()
+        XCTAssertTrue(workspace.assistant.panelOpen)
+        XCTAssertEqual(workspace.assistant.currentId, last, "the last conversation, not an empty one")
+        workspace.assistantPressed()
+        XCTAssertFalse(workspace.assistant.panelOpen)
+        XCTAssertEqual(workspace.assistant.currentId, last, "closing keeps it")
+    }
+
     /// The roll is on screen in its drawer while the drawer is open (on Expand's card: RollTests, `RollPlace.shown`).
     func testTheRollIsWhereItsDrawerIs() {
         let workspace = make()

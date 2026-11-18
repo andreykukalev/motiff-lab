@@ -7,12 +7,15 @@ extension Walk {
     /// The example piece opened from the empty library and played: the sound loads and the playing moves on.
     func openExampleAndPlay() throws {
         try openExample(shots: true)
-        for (label, what) in [("Библиотека", "Back"), ("Фразы", "Phrases"), ("Фортепианный ролл", "the piano roll"), ("Инсайты", "Insights"),
+        for (label, what) in [("Библиотека", "Back"), ("Фразы", "Phrases"), ("Инсайты", "Insights"),
                               ("Навигация", "Navigate"), ("Выделение", "Select"), ("Перо", "the Pen"), ("Источники", "Sources")] {
             try need(button(label), "\(what) in the score's bar")
         }
         try need(more, "More in the score's bar")
         try need(button(beginning: "Играть с"), "the pill's Play")
+        // The piano roll and the assistant are the pill's (Andrei's 0.8 test, findings 7 and 8).
+        try need(button("Фортепианный ролл"), "the piano roll in the pill")
+        try need(button("Ассистент"), "the assistant in the pill")
         shot("10-score", settle: 1.5)
         try play("on the piece")
         try stop()
@@ -73,7 +76,7 @@ extension Walk {
     /// probe does not say where.
     func rollAndExpand() throws {
         try choosePhrase()
-        try press(button("Фортепианный ролл"), "the piano roll in the bar")
+        try press(button("Фортепианный ролл"), "the piano roll in the pill")
         try until("the roll drawer open and drawn", timeout: 15) { $0["roll"] == "drawer" && $0["zoom"] != "none" }
         try need(button(beginning: "Потяните"), "the roll drawer's handle")
         let open = try settledZoom("the roll drawer's zoom")
@@ -90,7 +93,7 @@ extension Walk {
         try until("Collapse gives the roll drawer back", timeout: 8) { !$0.on("focus") && $0["roll"] == "drawer" && $0["zoom"] != "none" }
         let back = try settledZoom("the roll drawer's zoom after Collapse")
         guard zoomKept(open, back) else { throw miss("Expand changed the roll's zoom from \(open) to \(back) (ROLL-01)") }
-        try press(button("Фортепианный ролл"), "the piano roll in the bar again")
+        try press(button("Фортепианный ролл"), "the piano roll in the pill again")
         try until("the roll drawer put away") { $0["roll"] == "none" }
 
         try press(button("Фокус"), "Expand in the selection menu")
@@ -228,7 +231,8 @@ extension Walk {
         }
     }
 
-    /// The assistant's panel opened from More on the whole piece, and closed.
+    /// The assistant's panel opened from More on the whole piece, and closed; then the pill's assistant opens it and closes
+    /// it.
     func assistantPanel() throws {
         try press(more, "More")
         try press(button("Спросить о пьесе"), "Ask about the piece in More")
@@ -237,6 +241,11 @@ extension Walk {
         shot("35-assistant", settle: 1)
         try press(button("Закрыть"), "Close on the assistant's panel")
         try until("the assistant's panel closed") { !$0.on("assistant") }
+        // The pill's assistant opens the panel again and closes it (Andrei's 0.8 test, finding 8).
+        try press(button("Ассистент"), "the assistant in the pill")
+        try until("the pill's assistant opens the panel") { $0.on("assistant") }
+        try press(button("Ассистент"), "the assistant in the pill again")
+        try until("the pill's assistant closes the panel") { !$0.on("assistant") }
     }
 
     /// The other places of the score for the mockups: Phrases, a bookmark, the Contents, More and Settings, Sources; then

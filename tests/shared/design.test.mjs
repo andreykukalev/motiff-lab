@@ -70,13 +70,16 @@ test("colours from the tokens are read, made translucent and mixed for the canva
 
 
 // Andrei, 2026-11-18: the selection menu's Note looked like a speech bubble and read as the assistant. It is a note sheet
-// (`memo`), unlike the bubble, the assistant's and Insights' magnifier (`insight`, `search`) and the pages (`pages`, `file`).
+// (`memo`), unlike the bubble, the assistant's (the pill's «Ассистент», v0.9 finding 8), and Insights' magnifier
+// (`insight`, `search`) and the pages (`pages`, `file`).
 test("the selection menu's Note has a note's icon, never the assistant's look", () => {
     const icons = readIcons();
     assert.ok("memo" in icons);
     assert.equal(new Set(["memo", "note", "insight", "search", "pages", "file"].map((name) => icons[name])).size, 6, "each its own drawing");
-    const menu = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
-    assert.match(menu, /item\("memo", text\["menu\.note"\]/);
-    assert.doesNotMatch(menu, /item\("note"/);
-    assert.match(menu, /item\("memo", text\["menu\.note"\][\s\S]*?item\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
+    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
+    const menu = screen.slice(screen.indexOf("struct SelectionMenu"), screen.indexOf("struct ClearSelectionButton"));
+    assert.match(menu, /iconItem\("memo", text\["menu\.note"\]/);
+    assert.doesNotMatch(menu, /Item\("note"/);
+    assert.match(menu, /iconItem\("memo", text\["menu\.note"\][\s\S]*?iconItem\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
+    assert.match(screen, /iconItem\("note", text\["pill\.assistant"\]/, "the bubble is the assistant's");
 });

@@ -249,8 +249,10 @@ struct ScoreScreenContent: View {
         // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
         // The pill always shows (the playback model, v0.5.2, #479 item 22): it is where the music plays.
         if score.practiceChrome.transport {
-            Pill(player: player, score: score, selectionModel: selectionModel, focusModel: focusModel, text: text)
-                .transition(.opacity)
+            Pill(player: player, score: score, selectionModel: selectionModel, focusModel: focusModel, text: text, rollOpen: panel(.roll)) {
+                workspace.assistantPressed()
+            }
+            .transition(.opacity)
         }
         if score.practiceChrome.controls {
             PracticeControls(player: player, score: score, text: text)
@@ -280,7 +282,7 @@ struct ScoreScreenContent: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = selectionModel.menuPlace {
-                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -766,7 +768,8 @@ struct ScoreBar: View {
         playAndMore
     }
 
-    /// What the score shows: Phrases and its menu, the extra information and its list, and the piano roll.
+    /// What the score shows: Phrases and its menu, and the extra information and its list; the piano roll is the pill's
+    /// alone (Andrei's 0.8 test, finding 7, answer 1).
     @ViewBuilder private var viewButtons: some View {
         Button {
             phrasesOpen.toggle()
@@ -807,14 +810,6 @@ struct ScoreBar: View {
                     .presentationCompactAdaptation(.popover)
             }
         }
-        Button {
-            change(.toggle(.roll))
-        } label: {
-            Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-        }
-        .buttonStyle(BarActionStyle(on: panels[.roll]))
-        .accessibilityLabel(text["bar.roll"])
-        .accessibilityAddTraits(panels[.roll] ? .isSelected : [])
     }
 
     /// More: the pill, always shown, plays (the playback model, v0.5.2, #479 item 22).
@@ -856,7 +851,8 @@ struct ScoreBar: View {
     }
 }
 
-/// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score.
+/// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score, then the piano roll
+/// and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8).
 struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
@@ -864,9 +860,36 @@ struct Pill: View {
     @ObservedObject var focusModel: FocusModel
     @ObservedObject private var metronome = Metronome.shared
     let text: UIText
+    /// The roll's drawer, which its button opens and puts away.
+    @Binding var rollOpen: Bool
+    /// The assistant's button: its panel with the conversation it had, or closed (ScoreWorkspace.assistantPressed).
+    let assistantPressed: () -> Void
     @EnvironmentObject private var settings: DeviceSettings
+    @EnvironmentObject private var assistant: AssistantController
 
     var body: some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            playback.disabled(!player.ready)
+            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            // The roll in its drawer (finding 7); in Expand the bar's Notes | Piano roll shows the passage as a roll.
+            if !focusModel.focused {
+                iconItem("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
+            }
+            // The assistant (finding 8, Andrei's card of 2026-11-18 21:49 UTC): its panel with the last conversation, or
+            // closed; an Ask elsewhere opens it empty.
+            iconItem("note", text["pill.assistant"], on: assistant.panelOpen, action: assistantPressed)
+                .accessibilityHint(text["pill.assistantHint"])
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, CGFloat.ds("s-2"))
+        .frame(height: 52)
+        .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["transport.label"])
+    }
+
+    /// Play, the tempo, the hands and the metronome: they wait for the player.
+    private var playback: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // The playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span; in
             // Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
@@ -891,13 +914,6 @@ struct Pill: View {
             .accessibilityAddTraits(metronome.running ? .isSelected : [])
             .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
         }
-        .disabled(!player.ready)
-        .padding(.leading, 6)
-        .padding(.trailing, CGFloat.ds("s-2"))
-        .frame(height: 52)
-        .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["transport.label"])
     }
 
     /// Hands separately at the instrument (#328): both, right or left, two touches away, and the
@@ -941,9 +957,10 @@ struct Pill: View {
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
-/// what applies and what the iPad has so far: Loop, Focus, Bookmark and Note, then the piano roll and Insights (none for a
-/// passage without notes), and More with Highlight. Bookmark and Note turn the menu into their cards, as on the web. Its
-/// actions show their icons alone (v0.5.2, #495 UX-11), each at a fingertip's square, with its word for VoiceOver.
+/// what applies and what the iPad has so far: Focus, Note and Bookmark, then Insights (none for a passage without notes),
+/// and More with Highlight; the piano roll is the pill's (Andrei's 0.8 test, finding 7). Bookmark and Note turn the menu
+/// into their cards, as on the web. Its actions show their icons alone (v0.5.2, #495 UX-11), each at a fingertip's square,
+/// with its word for VoiceOver.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
@@ -951,7 +968,6 @@ struct SelectionMenu: View {
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
     let text: UIText
-    @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @State private var more = false
     @EnvironmentObject private var account: Account
@@ -1043,42 +1059,41 @@ struct SelectionMenu: View {
             }
             if !score.penOn {
                 // Expand into focus: two arrows to the corners, unlike Insights' magnifier (#511 section 9).
-                item("expand", text["focus.enter"], on: false) { score.enterFocus() }
+                iconItem("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
             }
             // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the
             // assistant (Andrei, 2026-11-18).
-            item("memo", text["menu.note"], on: false) {
+            iconItem("memo", text["menu.note"], on: false) {
                 contents.cancel()
                 score.startNote()
             }
-            item("bookmark", text["menu.bookmark"], on: false) {
+            iconItem("bookmark", text["menu.bookmark"], on: false) {
                 score.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
             if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
-                item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
+                iconItem("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
-            item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
+            iconItem("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
-            item("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
+            iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
             ClearSelectionButton(score: score, focusModel: focusModel, text: text, iconOnly: true)
         }
     }
+}
 
-    /// An action of the menu as its icon alone (#495 UX-11): the word for VoiceOver and the pointer's tip.
-    private func item(_ icon: String, _ label: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(name: icon)
-        }
-        .buttonStyle(DSIconItemStyle(on: on))
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(on ? .isSelected : [])
-        .help(label)
+/// An action of the selection menu or the pill as its icon alone (#495 UX-11): the word for VoiceOver and the pointer's tip.
+@MainActor private func iconItem(_ icon: String, _ label: String, on: Bool, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Icon(name: icon)
     }
+    .buttonStyle(DSIconItemStyle(on: on))
+    .accessibilityLabel(label)
+    .accessibilityAddTraits(on ? .isSelected : [])
+    .help(label)
 }
 
 /// Clear selection (#338): the one way to let go of a selection, as a tap elsewhere on the page or the roll keeps it.
