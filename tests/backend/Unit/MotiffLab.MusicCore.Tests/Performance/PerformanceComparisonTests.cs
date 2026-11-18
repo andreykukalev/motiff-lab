@@ -1,5 +1,10 @@
+using System.Text;
+
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Tests.Golden;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Performance;
@@ -227,14 +232,77 @@ public class PerformanceComparisonTests
     {
         // Public-domain material: Für Elise's opening as printed, and Transkun's hearing of a recording of the whole piece.
         // Notes played just before the opening ends, early for a bar it does not have, are counted in its last bar.
-        string fixtures = AppContext.BaseDirectory;
-        var piece = MotiffLab.MusicCore.Import.PieceImporter.Import(
-            "fur-elise-original.musicxml", File.ReadAllBytes(Path.Combine(fixtures, "Experiments", "Fixtures", "fur-elise-original.musicxml"))).Piece!;
-        IReadOnlyList<PlayedNote> played = PlayedNotes.FromMidi(File.ReadAllBytes(Path.Combine(fixtures, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid")));
+        ImportedPiece piece = Piece("Experiments", "Fixtures", "fur-elise-original.musicxml");
+        IReadOnlyList<PlayedNote> played = Recording("transkun-fur-elise.mid");
 
         PerformanceComparison comparison = PerformanceComparison.Compare(piece.Notes, piece.Meter, played, PerformanceAlignment.Align(piece.Notes, played));
 
         Assert.Equal(piece.Notes.Count, comparison.MatchedCount);
         Assert.Empty(comparison.Differences);
+    }
+
+    private static ImportedPiece Piece(params string[] path) =>
+        PieceImporter.Import(path[^1], File.ReadAllBytes(Path.Combine([AppContext.BaseDirectory, .. path]))).Piece!;
+
+    private static IReadOnlyList<PlayedNote> Recording(string name) =>
+        PlayedNotes.FromMidi(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", name)));
+
+    /// <summary>The score played as printed but for bar 3's melody, played backwards, and a very quiet extra note in bar 4.</summary>
+    private static List<PlayedNote> BackwardsMelody(List<Note> score)
+    {
+        string[] bar3 = ["rh08", "rh09", "rh10", "rh11"];
+        List<PlayedNote> played = AsPrinted(score.Select(note => Array.IndexOf(bar3, note.Id) is var i and >= 0
+            ? note with { Span = new TickSpan(new Tick((2 * BarTicks) + ((3 - i) * Quarter)), note.Span.Duration) }
+            : note));
+        played.Add(new PlayedNote("quiet", new Pitch(90), Time((3 * BarTicks) + Quarter), 10, 100_000));
+        return played;
+    }
+
+    /// <summary>The print, the meter and the performance of a golden case.</summary>
+    private static (IReadOnlyList<Note> Score, MeterMap Meter, IReadOnlyList<PlayedNote> Played) Case(string name)
+    {
+        List<Note> score = Score();
+        return name switch
+        {
+            "eight-bars" => (score, MeterMap.Default, Performance()),
+            "eight-bars-free-opening" => (score, MeterMap.Default, [.. AsPrinted(score).Select(note => note.Onset < Time(2 * BarTicks) ? note with { Pitch = new Pitch(note.Pitch.MidiNumber + 1) } : note)]),
+            "eight-bars-backwards-melody" => (score, MeterMap.Default, BackwardsMelody(score)),
+            "fur-elise-transkun" => Real(Piece("Experiments", "Fixtures", "fur-elise-original.musicxml"), Recording("transkun-fur-elise.mid")),
+            "kit-elise-transkun" => Real(Piece("Golden", "Analysis", "elise.musicxml"), Recording("transkun-fur-elise.mid")),
+            "ode-to-joy-basic-pitch" => Real(Piece("Experiments", "Fixtures", "ode-to-joy.musicxml"), Recording("basic-pitch-melody.mid")),
+            _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown case."),
+        };
+
+        static (IReadOnlyList<Note>, MeterMap, IReadOnlyList<PlayedNote>) Real(ImportedPiece piece, IReadOnlyList<PlayedNote> played) => (piece.Notes, piece.Meter, played);
+    }
+
+    /// <summary>
+    /// Every bar of the comparison, a bar a line, kept character for character (Golden/*.txt): whether it is aligned, its
+    /// difference and confidence, the notes on each side and the marker in both languages. With MOTIFF_UPDATE_SNAPSHOTS=1 the
+    /// golden is written again, when it changes on purpose.
+    /// </summary>
+    [Theory]
+    [InlineData("eight-bars")]
+    [InlineData("eight-bars-free-opening")]
+    [InlineData("eight-bars-backwards-melody")]
+    [InlineData("fur-elise-transkun")]
+    [InlineData("kit-elise-transkun")]
+    [InlineData("ode-to-joy-basic-pitch")]
+    public void Every_bar_is_compared_as_before(string name)
+    {
+        (IReadOnlyList<Note> score, MeterMap meter, IReadOnlyList<PlayedNote> played) = Case(name);
+        PerformanceComparison comparison = PerformanceComparison.Compare(score, meter, played, PerformanceAlignment.Align(score, played));
+        static string Listed(IEnumerable<string> items) => $"[{string.Join(' ', items)}]";
+        static string Placed(IEnumerable<PlacedNote> notes) => Listed(notes.Select(note => $"{note.Id}:{note.Pitch.MidiNumber}@{note.At.Value}v{note.Velocity}"));
+        var text = new StringBuilder().Append($"matched {comparison.MatchedCount}, anchors {comparison.Alignment.Anchors.Count}\n");
+        foreach (BarComparison bar in comparison.Bars)
+        {
+            text.Append($"bar {bar.Bar} {(bar.Aligned ? "aligned" : "free")} {bar.Difference} {bar.Confidence}% «{bar.Marker(Words.English)}» «{bar.Marker(Words.Russian)}»")
+                .Append($" | matched {Listed(bar.Matched.Select(match => $"{match.PrintedId}={match.PlayedId}{match.Offset:+0;-0;+0}"))}")
+                .Append($" | not heard {Listed(bar.PrintedNotHeard)} | probably not heard {Listed(bar.ProbablyNotHeard)}")
+                .Append($" | not printed {Placed(bar.PlayedNotPrinted)} | artefacts {Placed(bar.LikelyArtefacts)}\n");
+        }
+
+        TextGoldens.AssertTextGolden("Performance", $"{name}.txt", text.ToString());
     }
 }

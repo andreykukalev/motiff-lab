@@ -1,0 +1,10 @@
+matched 53, anchors 47
+bar 0 aligned None 100% «» «» | matched [n_0001=n_0001+0 n_0002=n_0002+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 1 aligned None 100% «» «» | matched [n_0003=n_0003+0 n_0004=n_0004+0 n_0005=n_0005+0 n_0006=n_0006+0 n_0007=n_0007+0 n_0008=n_0008+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 2 aligned None 100% «» «» | matched [n_0009=n_0010+1 n_0010=n_0009+0 n_0011=n_0011+0 n_0012=n_0012+0 n_0013=n_0013+0 n_0014=n_0014+0 n_0015=n_0015+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 3 aligned None 100% «» «» | matched [n_0016=n_0017+1 n_0017=n_0016+0 n_0018=n_0018+0 n_0019=n_0019+0 n_0020=n_0020+0 n_0021=n_0021+0 n_0022=n_0022+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 4 aligned None 100% «» «» | matched [n_0023=n_0023+0 n_0024=n_0024+0 n_0025=n_0025+0 n_0026=n_0026+0 n_0027=n_0027+0 n_0028=n_0028+0 n_0029=n_0029+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 5 aligned None 100% «» «» | matched [n_0030=n_0030+0 n_0031=n_0031+0 n_0032=n_0032+0 n_0033=n_0033+0 n_0034=n_0034+0 n_0035=n_0035+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 6 aligned None 100% «» «» | matched [n_0036=n_0036+0 n_0037=n_0037+0 n_0038=n_0038+0 n_0039=n_0039+0 n_0040=n_0040+0 n_0041=n_0041+0 n_0042=n_0042+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 7 aligned None 100% «» «» | matched [n_0043=n_0043+0 n_0044=n_0044+1 n_0045=n_0045+0 n_0046=n_0046+0 n_0047=n_0047+0 n_0048=n_0048+0 n_0049=n_0049+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 8 aligned None 100% «» «» | matched [n_0050=n_0050+0 n_0051=n_0051+1 n_0052=n_0052+0 n_0053=n_0053+0] | not heard [] | probably not heard [] | not printed [n_0054:45@5761v89 n_0056:52@5882v86] | artefacts [n_0055:69@5761v86]

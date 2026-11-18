@@ -1,0 +1,9 @@
+matched 47, anchors 23
+bar 1 free None 0% «» «» | matched [] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 2 free None 0% «» «» | matched [] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 3 aligned DifferentBass 58% «different bass» «другой бас» | matched [lh20b=p_lh20b-15 rh09=p_rh09+0 lh22a=p_lh22a+14 lh22b=p_lh22b+4 rh10=p_rh10+0 rh11=p_rh11+0] | not heard [lh20a rh08] | probably not heard [] | not printed [p_lh20a:53@3818v70 p_rh08:78@3822v70] | artefacts []
+bar 4 aligned None 91% «» «» | matched [lh30a=p_lh30a+10 lh30b=p_lh30b+0 rh12=p_rh12+14 rh13=p_rh13+0 lh32a=p_lh32a+0 lh32b=p_lh32b+7 rh14=p_rh14+3 rh15=p_rh15+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 5 aligned None 100% «» «» | matched [lh40a=p_lh40a+0 lh40b=p_lh40b+6 rh16=p_rh16+3 rh17=p_rh17+0 lh42a=p_lh42a+0 lh42b=p_lh42b+6 rh18=p_rh18+3 rh19=p_rh19+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 6 aligned None 100% «» «» | matched [low=p_low+9 lh50a=p_lh50a+13 lh50b=p_lh50b+3 rh20=p_rh20+0 rh21=p_rh21+0 lh52a=p_lh52a+10 lh52b=p_lh52b+0 rh22=p_rh22+13 rh23=p_rh23+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 7 aligned None 100% «» «» | matched [lh60a=p_lh60a+0 lh60b=p_lh60b+6 rh24=p_rh24+3 rh25=p_rh25+0 lh62a=p_lh62a+0 lh62b=p_lh62b+6 rh26=p_rh26+3 rh27=p_rh27+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 8 aligned None 100% «» «» | matched [lh70a=p_lh70a+0 lh70b=p_lh70b+6 rh28=p_rh28+3 rh29=p_rh29+0 lh72a=p_lh72a+12 lh72b=p_lh72b+3 rh30=p_rh30+0 rh31=p_rh31+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
