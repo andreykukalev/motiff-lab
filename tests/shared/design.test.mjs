@@ -78,4 +78,5 @@ test("the selection menu's Note has a note's icon, never the assistant's look", 
     const menu = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
     assert.match(menu, /item\("memo", text\["menu\.note"\]/);
     assert.doesNotMatch(menu, /item\("note"/);
+    assert.match(menu, /item\("memo", text\["menu\.note"\][\s\S]*?item\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
 });
