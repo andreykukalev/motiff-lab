@@ -206,7 +206,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// focus does, and a variation the player tried is not taken for it.
     func testTheVersionInFocusSoundsInTheVariationsPlace() {
         let workspace = make()
-        var version = ScoreController.FocusVersion(id: "v1", name: "Urtext", notes: [], sounds: true, differing: [])
+        var version = FocusModel.Version(id: "v1", name: "Urtext", notes: [], sounds: true, differing: [])
         workspace.focusVersionChanged(version)
         XCTAssertTrue(workspace.player.hasVariation)
         XCTAssertTrue(workspace.player.secondIsVersion)
@@ -260,7 +260,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// Out of Expand the player takes what plays for the selection (the playback model, T9–T11), and lets it go with it.
     func testThePlayerTakesWhatPlaysForTheSelection() {
         let workspace = make()
-        let plays = ScoreController.PlayRange(selection: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1), range: 0..<1920)
+        let plays = FocusModel.PlayRange(selection: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1), range: 0..<1920)
         workspace.whatPlaysChanged(from: nil, to: plays)
         XCTAssertEqual(workspace.player.selection, 0..<1920)
         workspace.whatPlaysChanged(from: plays, to: nil)
@@ -302,6 +302,20 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(now?.focused, false)
         XCTAssertEqual(now?.tempoPercent, workspace.player.tempoPercent)
         XCTAssertEqual(now?.loop, false)
+    }
+
+    /// PLAY-06, Andrei's answer 3 (2026-11-18 12:55 UTC): a finger's tap on a beat with the Pen on places the playhead as in
+    /// Navigate (#479 item 18) and does not turn Цикл off; outside the selection Play plays from there (the lead-in).
+    func testAFingersTapWithThePenOnLeavesCycleOn() async throws {
+        let workspace = try await selected()
+        let passage = try XCTUnwrap(workspace.score.playRange?.range)
+        workspace.player.hold(selection: passage)
+        XCTAssertTrue(workspace.player.cycle, "a selection made where there was none turns Цикл on")
+        workspace.score.penOn = true
+        workspace.placeTapped(passage.upperBound + 480..<passage.upperBound + 960)
+        XCTAssertTrue(workspace.player.cycle, "the Pen's tap leaves Цикл on")
+        XCTAssertTrue(workspace.player.leadIn, "Play plays from the tap into the selection")
+        XCTAssertEqual(workspace.player.selection, passage)
     }
 
     /// PDF | Notes (#511 section 10): the "Notes" view kept as the screen goes comes back on the screen that opens from

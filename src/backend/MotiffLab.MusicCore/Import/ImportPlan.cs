@@ -16,7 +16,7 @@ public sealed record FoundFile(string Path, long Bytes)
 
     public long Bytes { get; } = Bytes >= 0 ? Bytes : throw new ArgumentOutOfRangeException(nameof(Bytes));
 
-    /// <summary>The SHA-256 of its bytes as <see cref="Projects.PieceOriginal.Fingerprint"/> gives it; null until the app worked it out.</summary>
+    /// <summary>The SHA-256 of its bytes as <c>PieceOriginal.Fingerprint</c> gives it; null until the app worked it out.</summary>
     public string? Sha256
     {
         get;

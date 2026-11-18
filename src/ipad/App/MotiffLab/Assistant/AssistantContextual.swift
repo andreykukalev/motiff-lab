@@ -4,7 +4,8 @@ import SwiftUI
 /// turns the menu into a small chat where the menu was, which the page places beside the selection rather than over it.
 /// It looks at the selected bars, takes one question at a time with no conversation before it (the field, Send and the
 /// keyboard's own dictation), and shows the answer with the facts it cites and any draft the assistant made, to accept or
-/// cancel. «Добавить в контекст» moves the question and answer into the full assistant's open conversation.
+/// cancel. «Добавить в контекст» moves the question and answer into the full assistant's open conversation; «Продолжить в
+/// чате» starts a new one there with them and opens the panel. Nothing else of it is kept.
 ///
 /// It closes by itself once its work is done: after «Добавить в контекст», once every draft is cancelled, and when the
 /// selection goes or changes while its field is not in use (an accepted draft stays, with Undo, until then); a selection
@@ -30,7 +31,9 @@ struct AssistantHereCard: View {
                 if let asking = assistant.here?.asking {
                     AssistantPendingView(question: asking, phase: assistant.phase, text: text)
                 } else if let exchange = assistant.here?.exchange {
-                    ScrollView { answer(exchange) }
+                    // The answer scrolls by finger and Pencil; a new one shows from its start, the player scrolls down for
+                    // the rest (Andrei, 2026-11-18 14:11 UTC; ChatFollow).
+                    FollowingScroll(newest: exchange.id) { answer(exchange).id(exchange.id) }
                         .frame(maxHeight: Self.answerHeight)
                         .scrollDismissesKeyboard(.never)
                 }
@@ -77,6 +80,8 @@ struct AssistantHereCard: View {
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["drawer.close"])
         }
+        // The card is dragged by its head only, so the answer under it scrolls (MenuDrag).
+        .menuDragHandle()
     }
 
     private func answer(_ exchange: AssistantExchange) -> some View {
@@ -94,12 +99,22 @@ struct AssistantHereCard: View {
                 }
             }
             if exchange.note == nil {
-                Button(text["padAssistant.addToContext"]) {
-                    flow.apply(.close)
-                    assistant.addHere()
+                // One under the other: the card is narrow, the Russian words long.
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                    Button(text["padAssistant.addToContext"]) {
+                        flow.apply(.close)
+                        assistant.addHere()
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                    .accessibilityHint(text["padAssistant.addToContextHint"])
+                    // The conversation goes on in the full assistant, starting from this question and answer.
+                    Button(text["padAssistant.continue"]) {
+                        flow.apply(.close)
+                        assistant.continueHere()
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                    .accessibilityHint(text["padAssistant.continueHint"])
                 }
-                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                .accessibilityHint(text["padAssistant.addToContextHint"])
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

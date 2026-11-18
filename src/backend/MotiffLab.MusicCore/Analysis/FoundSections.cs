@@ -1,5 +1,5 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Analysis;
@@ -49,7 +49,7 @@ public enum SectionCueKind
     /// <summary>A boundary the player added by hand.</summary>
     Added,
 
-    /// <summary>A boundary of the pieces layer the player confirmed before (<see cref="Projects.PieceLayer.Review"/>).</summary>
+    /// <summary>A boundary of the pieces layer the player confirmed before (<c>PieceLayer.Review</c>).</summary>
     Kept,
 }
 
@@ -94,7 +94,7 @@ public sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int L
     /// <summary>The heading written where it starts ("Trio", "Andante"), if any.</summary>
     public string? Heading => Cues.Select(cue => cue.Label).FirstOrDefault(label => label is not null);
 
-    /// <summary>Whether the player confirmed this piece before, in the pieces layer (<see cref="Projects.PieceLayer.Review"/>).</summary>
+    /// <summary>Whether the player confirmed this piece before, in the pieces layer (<c>PieceLayer.Review</c>).</summary>
     public bool IsKept => Cues.Any(cue => cue.Kind == SectionCueKind.Kept);
 
     /// <summary>Inferred, at the confidence of its boundary; the player's own when the player set or confirmed it.</summary>

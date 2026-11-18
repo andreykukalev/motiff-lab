@@ -210,7 +210,7 @@ public static class ProjectSync
     /// What versions 0.4 and 0.5 add within version 15 and a build before them drops on writing, kept from this device when
     /// the online copy has none: the piece's place in its collection (<see cref="Project.PartOf"/>), the scan server's page
     /// reports (<see cref="ScanOrigin.Pages"/>), a recording's changes of signature (<see cref="BarGrid.Meters"/>) and where
-    /// in its file the stretch heard started (<see cref="TranscriptionOrigin.SentFromMilliseconds"/>) while the notes are the
+    /// in its file the stretch heard started (<see cref="Import.Transcription.TranscriptionOrigin.SentFromMilliseconds"/>) while the notes are the
     /// same import. A margin on a stroke goes with the file, as every stroke does; whether the corrections
     /// are off (<see cref="Project.EditsOff"/>) is bookkeeping, and the copy saved last says it.
     /// </summary>

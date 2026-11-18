@@ -95,11 +95,13 @@ struct AskFlow: Equatable {
     }
 }
 
-/// The text field of a chat with the assistant (#582 item 16): a UIKit field, so the Pencil focuses it as a finger does.
+/// The text field of a chat with the assistant (#582 item 16): a UIKit text view, so the Pencil focuses it as a finger does.
 /// iPadOS gives a Pencil's press on a text field to Scribble, which takes the focus without the keyboard (and shows its own
 /// small palette instead); the field declines Scribble, so the press opens the keyboard. The keyboard's own bar (dictation,
 /// the keyboard switch) is the system's and stays: the field sets no input assistant or accessory of its own. Its return key
-/// is Send.
+/// is Send. The question wraps over as many lines as it takes (Andrei, 2026-11-18: one line cut it with «…»): the field
+/// starts at one line, grows with the text up to `lines` lines and then scrolls inside, its text and its placeholder at the
+/// top leading edge.
 struct AskField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
@@ -107,38 +109,81 @@ struct AskField: UIViewRepresentable {
     var enabled = true
     let submit: () -> Void
 
+    /// The most lines the field grows to; a longer question scrolls inside it.
+    static let lines = 5
+
+    /// The room above and below the text: one line in it is a fingertip's height (`h-touch`).
+    static var inset: CGFloat { CGFloat.ds("s-3") }
+
+    /// The field's height for text that takes `fitted` points with its insets, each line `line` points: a fingertip's at
+    /// least, and at most `lines` lines with the insets.
+    static func height(fitted: CGFloat, line: CGFloat) -> CGFloat {
+        min(max(fitted, CGFloat.ds("h-touch")), line * CGFloat(lines) + inset * 2)
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
 
-    func makeUIView(context: Context) -> UITextField {
-        let field = UITextField()
+    func makeUIView(context: Context) -> UITextView {
+        let field = UITextView()
         field.delegate = context.coordinator
         field.font = Self.font
         field.adjustsFontForContentSizeCategory = true
         field.textColor = DesignTokens.dynamicColor("ink")
         field.tintColor = DesignTokens.dynamicColor("accent")
+        field.backgroundColor = .clear
         field.returnKeyType = .send
         field.enablesReturnKeyAutomatically = true
+        field.textContainerInset = UIEdgeInsets(top: Self.inset, left: 0, bottom: Self.inset, right: 0)
+        field.textContainer.lineFragmentPadding = 0
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
         field.addInteraction(UIScribbleInteraction(delegate: context.coordinator))
+        let hint = context.coordinator.placeholder
+        hint.font = Self.font
+        hint.adjustsFontForContentSizeCategory = true
+        hint.textColor = DesignTokens.dynamicColor("ink-3")
+        hint.numberOfLines = 0
+        hint.isAccessibilityElement = false
+        hint.translatesAutoresizingMaskIntoConstraints = false
+        field.addSubview(hint)
+        NSLayoutConstraint.activate([
+            hint.leadingAnchor.constraint(equalTo: field.frameLayoutGuide.leadingAnchor),
+            hint.trailingAnchor.constraint(equalTo: field.frameLayoutGuide.trailingAnchor),
+            hint.topAnchor.constraint(equalTo: field.frameLayoutGuide.topAnchor, constant: Self.inset),
+        ])
         return field
     }
 
-    func updateUIView(_ field: UITextField, context: Context) {
+    func updateUIView(_ field: UITextView, context: Context) {
         context.coordinator.parent = self
         if field.text != text { field.text = text }
-        field.isEnabled = enabled
-        field.attributedPlaceholder = NSAttributedString(
-            string: placeholder, attributes: [.foregroundColor: DesignTokens.dynamicColor("ink-3"), .font: Self.font]
-        )
+        field.isEditable = enabled
+        field.isSelectable = enabled
+        context.coordinator.placeholder.text = placeholder
+        context.coordinator.placeholder.isHidden = !text.isEmpty
         field.accessibilityLabel = placeholder
         // The chat lets the field go (a press on its ground); only the player's press gives it the focus (AskFlow 5).
         if !focused && field.isFirstResponder {
             DispatchQueue.main.async { field.resignFirstResponder() }
         }
+    }
+
+    /// As tall as its text, or its placeholder while it is empty, wrapped at the width it is given (`height`).
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView field: UITextView, context: Context) -> CGSize? {
+        let width = proposal.width ?? field.bounds.width
+        let line = (field.font ?? Self.font).lineHeight
+        // Asked for its ideal size: one line of its placeholder.
+        guard width > 0, width.isFinite else {
+            return CGSize(width: context.coordinator.placeholder.intrinsicContentSize.width, height: Self.height(fitted: 0, line: line))
+        }
+        let unbounded = CGSize(width: width, height: .greatestFiniteMagnitude)
+        var fitted = field.sizeThatFits(unbounded).height
+        if field.text.isEmpty {
+            fitted = max(fitted, context.coordinator.placeholder.sizeThatFits(unbounded).height + Self.inset * 2)
+        }
+        return CGSize(width: width, height: Self.height(fitted: fitted, line: line))
     }
 
     /// The kit's body face (t-body), growing with the reader's text size.
@@ -149,27 +194,31 @@ struct AskField: UIViewRepresentable {
         return UIFontMetrics(forTextStyle: .body).scaledFont(for: base)
     }
 
-    final class Coordinator: NSObject, UITextFieldDelegate, UIScribbleInteractionDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIScribbleInteractionDelegate {
         var parent: AskField
+        /// The placeholder, at the text's first line while the field is empty.
+        let placeholder = UILabel()
 
         init(_ parent: AskField) {
             self.parent = parent
         }
 
-        @objc func changed(_ field: UITextField) {
-            parent.text = field.text ?? ""
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text ?? ""
         }
 
-        func textFieldDidBeginEditing(_ textField: UITextField) {
+        func textViewDidBeginEditing(_ textView: UITextView) {
             if !parent.focused { parent.focused = true }
         }
 
-        func textFieldDidEndEditing(_ textField: UITextField) {
+        func textViewDidEndEditing(_ textView: UITextView) {
             if parent.focused { parent.focused = false }
         }
 
-        /// The keyboard's Send: the question goes, and the field keeps the focus for the next one.
-        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        /// The keyboard's Send (its return key): the question goes, and the field keeps the focus for the next one. Text
+        /// pasted or dictated with line breaks in it stays as it is.
+        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            guard text == "\n" else { return true }
             parent.submit()
             return false
         }
@@ -181,9 +230,11 @@ struct AskField: UIViewRepresentable {
     }
 }
 
-/// The chat's field and Send in one row, the same on every surface: the kit's text field (DSFieldLook) at a fingertip's
-/// height with its placeholder, the microphone inside it with «Диктовка» on (Dictation), and Send beside it, enabled once
-/// there is something to ask. Presses on the row keep the keyboard up (Typing); a press anywhere else puts it away.
+/// The chat's field and Send, the same on every surface: the kit's text field (DSFieldLook) with its placeholder, growing
+/// with the question (AskField), the microphone inside it at its last line with «Диктовка» on (Dictation), and under it
+/// Send at the trailing edge, enabled once there is something to ask, beside what the dictation says (Andrei,
+/// 2026-11-18: Send beside the field took the narrow panel's width). Presses on the field and its Send keep the keyboard
+/// up (Typing); a press anywhere else puts it away.
 struct AskInputRow: View {
     @Binding var flow: AskFlow
     let text: UIText
@@ -204,33 +255,34 @@ struct AskInputRow: View {
     private let dictating = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                HStack(spacing: 0) {
-                    AskField(
-                        text: Binding(get: { flow.draft }, set: { flow.apply(.type($0)) }),
-                        focused: Binding(get: { flow.focused }, set: { flow.apply($0 ? .focus : .blur) }),
-                        placeholder: text["padAsk.placeholder"],
-                        enabled: enabled,
-                        submit: submit
-                    )
-                    .frame(maxWidth: .infinity, minHeight: CGFloat.ds("h-touch"))
-                    if dictating {
-                        DictationButton(dictation: dictation, text: text, draft: flow.draft).disabled(!enabled)
-                    }
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(alignment: .bottom, spacing: 0) {
+                AskField(
+                    text: Binding(get: { flow.draft }, set: { flow.apply(.type($0)) }),
+                    focused: Binding(get: { flow.focused }, set: { flow.apply($0 ? .focus : .blur) }),
+                    placeholder: text["padAsk.placeholder"],
+                    enabled: enabled,
+                    submit: submit
+                )
+                .frame(maxWidth: .infinity)
+                if dictating {
+                    DictationButton(dictation: dictation, text: text, draft: flow.draft).disabled(!enabled)
                 }
-                .padding(.leading, CGFloat.ds("s-3"))
-                .padding(.trailing, dictating ? 0 : CGFloat.ds("s-3"))
-                .modifier(DSFieldLook(focused: flow.focused || dictation.flow.listening))
+            }
+            .padding(.leading, CGFloat.ds("s-3"))
+            .padding(.trailing, dictating ? 0 : CGFloat.ds("s-3"))
+            .modifier(DSFieldLook(focused: flow.focused || dictation.flow.listening))
+            HStack(spacing: CGFloat.ds("s-2")) {
+                if dictating, let line = DictationButton.line(dictation.flow, text) {
+                    Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
                 Button(text["mentor.send"], action: submit)
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                     .disabled(!enabled || !flow.canSend)
             }
-            .keepsTyping()
-            if dictating, let line = DictationButton.line(dictation.flow, text) {
-                Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
-            }
         }
+        .keepsTyping()
         .onAppear {
             let flow = $flow
             dictation.write = { flow.wrappedValue.apply(.type($0)) }

@@ -1,5 +1,3 @@
-using MotiffLab.MusicCore.Notation;
-
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>How a chord's tones are spread (version 0.5): close, all within an octave above the bass, or open.</summary>

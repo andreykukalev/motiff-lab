@@ -74,42 +74,37 @@ struct AssistantPanel: View {
     }
 
     private var conversation: some View {
-        ScrollViewReader { reader in
-            ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                    let exchanges = assistant.current?.exchanges ?? []
-                    if exchanges.isEmpty, assistant.pending == nil { empty }
-                    ForEach(exchanges) { exchange in
-                        AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn) {
-                            if let question = assistant.forget(exchange) { ask(question) }
-                        }
-                        // The drafts its tool calls made, with «Помощник правит ноты» (#582 item 17.3).
-                        ForEach(exchange.drafts ?? []) { draft in
-                            AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
-                                Task { await assistant.accept(draft) }
-                            } cancel: {
-                                assistant.cancel(draft)
-                            } undo: {
-                                Task { await assistant.undo(draft) }
-                            }
+        let exchanges = assistant.current?.exchanges ?? []
+        // A new answer from its start, unless the player has scrolled up (ChatFollow); the question on its way always.
+        return FollowingScroll(newest: assistant.pending == nil ? exchanges.last?.id : "pending", asked: assistant.pending != nil) {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+                if exchanges.isEmpty, assistant.pending == nil { empty }
+                ForEach(exchanges) { exchange in
+                    AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn) {
+                        if let question = assistant.forget(exchange) { ask(question) }
+                    }
+                    .id(exchange.id)
+                    // The drafts its tool calls made, with «Помощник правит ноты» (#582 item 17.3).
+                    ForEach(exchange.drafts ?? []) { draft in
+                        AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
+                            Task { await assistant.accept(draft) }
+                        } cancel: {
+                            assistant.cancel(draft)
+                        } undo: {
+                            Task { await assistant.undo(draft) }
                         }
                     }
-                    if let pending = assistant.pending {
-                        AssistantPendingView(question: pending, phase: assistant.phase, text: text).id("pending")
-                    }
-                    Color.clear.frame(height: 1).id("end")
                 }
-                .padding(CGFloat.ds("s-4"))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // A press on the panel's own ground puts the keyboard away; the panel stays.
-                .background(Color.clear.contentShape(Rectangle()).onTapGesture { flow.apply(.blur) })
+                if let pending = assistant.pending {
+                    AssistantPendingView(question: pending, phase: assistant.phase, text: text).id("pending")
+                }
             }
-            .scrollDismissesKeyboard(.never)
-            .onChange(of: assistant.current?.exchanges.count) { _, _ in
-                withAnimation(.ds("t-fast")) { reader.scrollTo("end", anchor: .bottom) }
-            }
-            .onChange(of: assistant.busy) { _, _ in reader.scrollTo("end", anchor: .bottom) }
+            .padding(CGFloat.ds("s-4"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // A press on the panel's own ground puts the keyboard away; the panel stays.
+            .background(Color.clear.contentShape(Rectangle()).onTapGesture { flow.apply(.blur) })
         }
+        .scrollDismissesKeyboard(.never)
     }
 
     /// Before the first question: what it does, and three questions to ask about what it looks at.
@@ -147,11 +142,11 @@ struct AssistantPanel: View {
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 if let label {
-                    Button(label) { assistant.choose(wholePiece: false, selection: selection) }
+                    Button(label) { Task { await assistant.pickShowingBars(wholePiece: false, selection: selection) } }
                         .buttonStyle(DSChipStyle(on: !whole))
                         .accessibilityAddTraits(!whole ? .isSelected : [])
                 }
-                Button(text["ask.wholePiece"]) { assistant.choose(wholePiece: true, selection: selection) }
+                Button(text["ask.wholePiece"]) { Task { await assistant.pickShowingBars(wholePiece: true, selection: selection) } }
                     .buttonStyle(DSChipStyle(on: whole))
                     .accessibilityAddTraits(whole ? .isSelected : [])
             }

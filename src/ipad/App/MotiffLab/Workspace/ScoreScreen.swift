@@ -75,6 +75,9 @@ struct ScoreScreenContent: View {
     @State private var dnaFromMore = false
     @ObservedObject private var originals: OriginalsController
     @ObservedObject private var sources: SourcesController
+    /// The other versions and the merge draft, which the score's marker, toast, switch, window and Sources show.
+    @ObservedObject private var sourcesModel: SourcesModel
+    @ObservedObject private var mergeModel: MergeModel
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
 
@@ -92,6 +95,8 @@ struct ScoreScreenContent: View {
         _contents = ObservedObject(wrappedValue: workspace.contents)
         _originals = ObservedObject(wrappedValue: workspace.originals)
         _sources = ObservedObject(wrappedValue: workspace.sources)
+        _sourcesModel = ObservedObject(wrappedValue: workspace.score.sourcesModel)
+        _mergeModel = ObservedObject(wrappedValue: workspace.score.mergeModel)
     }
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
@@ -267,7 +272,7 @@ struct ScoreScreenContent: View {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
-                if selectionMenuOpen, let place = score.menuPlace {
+                if selectionMenuOpen, let place = score.selectionModel.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
@@ -277,11 +282,11 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
-                if let pick = score.markerPick, !score.focused {
+                if let pick = mergeModel.markerPick, !score.focused {
                     GeometryReader { area in
                         ZStack(alignment: .topLeading) {
                             Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
-                            MarkerPopover(score: score, text: text, pick: pick)
+                            MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
@@ -294,18 +299,18 @@ struct ScoreScreenContent: View {
                         .padding(.bottom, pillBottom + 56)
                         .padding(.trailing, pillTrailing)
                         .transition(.opacity)
-                } else if let toast = score.mergeToast {
+                } else if let toast = mergeModel.toast {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    SelectionToastView(score: score, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
-            .fullScreenCover(isPresented: $score.comparing) {
-                CompareVersionsScreen(score: score, text: text)
+            .fullScreenCover(isPresented: Binding(get: { mergeModel.comparing }, set: { mergeModel.compare($0) })) {
+                CompareVersionsScreen(score: score, mergeModel: mergeModel, text: text)
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -329,8 +334,8 @@ struct ScoreScreenContent: View {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, text: text)
                     }
-                    if score.merge != nil && !score.focused && !score.comparing {
-                        MergeShowSwitch(score: score, text: text)
+                    if mergeModel.draft != nil && !score.focused && !mergeModel.comparing {
+                        MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
                             .transition(.opacity)
                     }
                 }
@@ -532,8 +537,8 @@ extension ScoreScreenContent {
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
             open: pickView,
-            versionPage: SourcesSheet.versionPage(score),
-            versionStatus: score.versionStatus
+            versionPage: SourcesSheet.versionPage(sourcesModel),
+            versionStatus: sourcesModel.status
         )
     }
 
@@ -906,8 +911,8 @@ struct Pill: View {
             .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
         }
         if score.selection != nil && !score.focused {
-            step("back", text["focus.previous"], enabled: score.canStepBack) { score.step(-1) }
-            step("fwd", text["focus.next"], enabled: score.canStepOn) { score.step(1) }
+            step("back", text["focus.previous"], enabled: score.focusModel.canStepBack) { score.step(-1) }
+            step("fwd", text["focus.next"], enabled: score.focusModel.canStepOn) { score.step(1) }
         }
     }
 
@@ -1025,13 +1030,15 @@ struct SelectionMenu: View {
                 item("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
             }
+            // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the
+            // assistant (Andrei, 2026-11-18).
+            item("memo", text["menu.note"], on: false) {
+                contents.cancel()
+                score.startNote()
+            }
             item("bookmark", text["menu.bookmark"], on: false) {
                 score.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
-            }
-            item("note", text["menu.note"], on: false) {
-                contents.cancel()
-                score.startNote()
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
@@ -1132,7 +1139,7 @@ struct FocusShowAs: View {
     private func option(_ roll: Bool, _ key: String) -> some View {
         let on = score.focusRoll == roll
         return Button {
-            score.focusRoll = roll
+            score.focusModel.showAsRoll(roll)
         } label: {
             SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
@@ -1153,7 +1160,7 @@ struct FocusBar: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             // The way back by the way in (#521 17): «К странице» from the score, «Свернуть» from the roll; Escape too.
-            let entry = score.expandEntry
+            let entry = score.focusModel.entry
             Button {
                 score.leaveFocus()
             } label: {
@@ -1169,7 +1176,7 @@ struct FocusBar: View {
             .keyboardShortcut(.cancelAction)
             .help(text[entry.backHintKey])
             .accessibilityHint(text[entry.backHintKey])
-            Text(score.focusPosition)
+            Text(score.focusModel.position(in: text))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink-2"))
                 .monospacedDigit()
@@ -1220,7 +1227,7 @@ struct PhrasesPanel: View {
             }
             PaletteRule()
             row(text["phrases.hide"], count: nil, on: score.phrasesHidden) {
-                score.phrasesHidden = true
+                score.selectionModel.hidePhrases(true)
             }
             .accessibilityHint(text["phrases.hideHint"])
             PaletteRule()

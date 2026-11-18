@@ -7,9 +7,9 @@ import Foundation
 ///
 /// The Swift port of the reference, src/shared/Scripts/playback/playback-model.ts: the same pure rules (the
 /// design's T1–T16, the drag of a playhead included), run on the same case file, tests/ipad/MotiffLabTests/Golden/playback-model.json
-/// (PlaybackPositionTests), but for one rule of the iPad's own: a selection changed while Цикл plays takes the position to
-/// its start when it does not hold it (`select`, Golden/playback-model-ipad.json). Player owns the selection and Цикл and
-/// sends the steps to the engine.
+/// (PlaybackPositionTests), but for two rules of the iPad's own (Golden/playback-model-ipad.json): a selection changed while
+/// Цикл plays takes the position to its start when it does not hold it (`select`), and a tap on the score's beat leaves Цикл
+/// on (`place`). Player owns the selection, Цикл and the lead-in and sends the steps to the engine.
 enum PlaybackModel {
     /// The selection and Цикл are the player's own, the tick and the transport the engine's.
     struct State: Equatable {
@@ -19,6 +19,9 @@ enum PlaybackModel {
         var loop: Bool
         var tick: Double
         var transport: TransportState
+        /// The iPad's own (answers 14 and 16, `place`): the position was put outside the selection with Цикл on, so Play plays
+        /// from it into the selection, which then loops; any other move of the position, the selection or Цикл ends it.
+        var leadIn = false
     }
 
     /// Which playhead a gesture held: the black one is the piece's, the blue one the selection's.
@@ -37,6 +40,9 @@ enum PlaybackModel {
         case select(Range<Double>?)
         /// T12: a tap on a beat or a bar, or on the whole-piece strip, moves the black playhead.
         case seek(Double)
+        /// T12 on the iPad's score (Andrei's answers 14 and 16, 2026-11-18): a tap on a beat, or the position kept with the
+        /// notes' view put back, moves the black playhead and leaves Цикл as it is.
+        case place(Double)
         /// T13: a tap on the roll's loop strip moves both playheads inside the selection.
         case seekInLoop(Double)
         /// T14: a playhead's handle taken by the pen or a finger: playback stands while it is held.
@@ -98,7 +104,7 @@ enum PlaybackModel {
             } else {
                 blue = state.loop ? selection.lowerBound : min(max(state.tick, selection.lowerBound), selection.upperBound)
             }
-            if !sounding {
+            if !sounding && !state.leadIn {
                 holds = state.loop || within
                 if state.loop && !within { at = selection.lowerBound }
             }
@@ -115,6 +121,7 @@ enum PlaybackModel {
             var after = state
             after.tick = tick
             after.transport = transport
+            after.leadIn = state.leadIn && !inside(tick, state.selection)
             return (after, [])
         case .cycle:
             return cycle(state)
@@ -122,6 +129,8 @@ enum PlaybackModel {
             return select(state, selection)
         case .seek(let at):
             return seek(state, to: at)
+        case .place(let at):
+            return place(state, at: at)
         case .seekInLoop(let at):
             return seekInLoop(state, to: at)
         case .grab:
@@ -133,8 +142,9 @@ enum PlaybackModel {
         }
     }
 
-    /// T1 a pause while it plays; T2 stopped with Цикл on outside the selection, the selection from its start; T3 else from
-    /// the position.
+    /// T1 a pause while it plays; T2 stopped with Цикл on outside the selection, the selection from its start, or after a
+    /// lead-in (`place`) from the position: the engine starts there with no loop, then loops the selection as it reaches its
+    /// end; T3 else from the position.
     private static func press(_ state: State) -> Decision {
         var after = state
         if playing(state.transport) {
@@ -143,6 +153,7 @@ enum PlaybackModel {
         }
         after.transport = .playing
         if let selection = state.selection, state.loop, !selection.contains(state.tick) {
+            if state.leadIn { return (after, [.loopOff, .play, .loop(selection)]) }
             after.tick = selection.lowerBound
             return (after, [.seek(selection.lowerBound), .play])
         }
@@ -155,6 +166,7 @@ enum PlaybackModel {
         guard let selection = state.selection else { return (state, []) }
         var after = state
         after.loop = !state.loop
+        after.leadIn = false
         if state.loop {
             return (after, [.loopOff])
         }
@@ -172,6 +184,7 @@ enum PlaybackModel {
         guard selection != state.selection else { return (state, []) }
         var after = state
         after.selection = selection
+        after.leadIn = false
         if state.selection == nil && selection != nil {
             after.loop = true
         }
@@ -191,10 +204,22 @@ enum PlaybackModel {
         let to = max(0, at)
         var after = state
         after.tick = to
+        after.leadIn = false
         if engineLoop(state) != nil && !inside(to, state.selection) {
             after.loop = false
             return (after, [.loopOff, .seek(to)])
         }
+        return (after, [.seek(to)])
+    }
+
+    /// T12 on the iPad's score (answers 14 and 16): the position goes there and Цикл stays as it is. Outside the selection
+    /// with Цикл on it is a lead-in: playing, it plays on and the engine's loop takes it round at the selection's end;
+    /// stopped, Play plays from there (T2). With Цикл off it is T12.
+    private static func place(_ state: State, at: Double) -> Decision {
+        let to = max(0, at)
+        var after = state
+        after.tick = to
+        after.leadIn = engineLoop(state) != nil && !inside(to, state.selection)
         return (after, [.seek(to)])
     }
 
@@ -204,6 +229,7 @@ enum PlaybackModel {
         let to = min(max(at, selection.lowerBound), max(selection.lowerBound, selection.upperBound - 1))
         var after = state
         after.tick = to
+        after.leadIn = false
         return (after, [.seek(to)])
     }
 
@@ -227,6 +253,7 @@ enum PlaybackModel {
         guard to != state.tick else { return (state, []) }
         var after = state
         after.tick = to
+        after.leadIn = false
         // Put down by a long press it seeks: nothing it jumped over sounds, and the drag's first move sounds the note it leaves.
         let step: TransportStep = jump ? .seek(to) : .scrub(from: state.tick, to: to)
         return (after, [step])
@@ -237,6 +264,7 @@ enum PlaybackModel {
     /// began, it plays on from there.
     private static func release(_ state: State, _ handle: Handle, resume: Bool) -> Decision {
         var after = state
+        after.leadIn = false
         var steps: [TransportStep] = [.scrubEnd]
         if handle == .black && engineLoop(state) != nil && !inside(state.tick, state.selection) {
             after.loop = false

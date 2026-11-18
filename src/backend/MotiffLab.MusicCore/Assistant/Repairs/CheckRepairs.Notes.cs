@@ -1,5 +1,5 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -90,7 +90,7 @@ public static partial class CheckRepairs
             ("sixteenths", CanonicalTime.TicksPerQuarter / 4, w.T("Snap the bar to 16ths", "Выровнять такт по шестнадцатым")),
             ("triplets", CanonicalTime.TicksPerQuarter / 3, w.T("Snap the bar to triplet 8ths", "Выровнять такт по триольным восьмым")),
         ];
-        long origin = context.Bar.IsPickup ? context.Bar.Span.End.Value - context.Bar.Signature.BarTicks : context.Bar.Span.Onset.Value;
+        long origin = context.Bar.Origin;
         var candidates = new List<RepairCandidate>();
         foreach ((string id, long step, string title) in grids)
         {

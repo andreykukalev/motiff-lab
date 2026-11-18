@@ -2,7 +2,6 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Notation;
 
 namespace MotiffLab.MusicCore.Facade;
 

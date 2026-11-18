@@ -5,19 +5,33 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 
 ## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
 
-- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`.
-- `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`).
+- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
+  the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
+- `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`);
+  pitch spelling (`NoteNaming`, `NoteNames`, `PitchSpeller`, `SpelledPitch`, `TransposedSpelling`, `KeyChange`).
 - `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
-  `ImportReport`, `MidiIssueCodes`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars
-  of a recording (`BarGrid`, `GridSearch`; the beat search moves back to `Import.Transcription` with W1.9), `PageMap`,
-  `Transcribed`, the player's `PieceMetadata` (`TitleOf`) and `OriginalKind` (`OriginalKinds.FileKind`).
-- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`), PDFs (`Vector`), folders.
+  `ImportReport`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars of a recording
+  (`BarGrid`, `GridMeter`; found and applied by `Import.Transcription.RecordingBars`, with `GridSearch`), `PageMap`,
+  `Transcribed`, the player's `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`),
+  where Notes came from (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
+- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`, with `TranscriptionOrigin`), PDFs
+  (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`). The MusicXML reader (W1.9):
+  `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`), and `ScoreBuilder` puts
+  them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks` (grace notes, rests, slurs, repeats, bar
+  lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged.
-- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals, parts, sync (`ProjectSync`),
-  what a library card shows (`PieceDetails`, `LibraryOriginals`).
+- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
+  (`SavedPerformance`, `PerformanceSource`).
+- The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
+  (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
+  `HeardRhythm` and `HeardOnsets` (notes heard in a recording), `ControlPlan` (the marks of the playing per bar,
+  `ControlEvents`; the marks come from `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and
+  `BarAccidentals` (a staff in a bar, `LayoutElements`), and `MeiWriter`.
+- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
+  provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
+  `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
@@ -33,19 +47,21 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 ## Tests
 
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
-  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`).
+  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `Notation/Golden/` for the MEI written
+  for real pieces (`NotationGoldenTests`); both written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again with `MOTIFF_UPDATE_SNAPSHOTS=1`).
 
 ## Which namespace uses which
 
-`Pieces` uses only `Time`, `Events`, `Motifs` and the root (`Words`), and `Playback`'s tempo model (`PlaybackTempo`,
-`TempoSource`) until W1.2 moves it to `Time`; every rule and `Projects` may use it. `Import` uses no `Analysis` or
-`Projects`, and `Analysis` no `Import` (W1.1, 2026-11-18). Still mutual (`docs/REFACTORING_AUDIT.md` W1.2, W1.3):
-`Analysis`–`Notation` and `Notation`–`Playback` (pitch spelling), `Pieces`–`Playback` (tempo), `Analysis`, `Assembly`
-and `Performance` with `Projects` (saved records). A new mutual pair is a defect; the `dependencies` check does not
-read these edges yet (W1.3).
+No two namespaces use each other, directly or round a loop (W1.1 to W1.3, 2026-11-18), counted by `using` lines, code
+and `cref`s alike: a `cref` needs the namespace too, so a comment names a type of a higher namespace in plain text
+(`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only `Time` and the root (`Words`); `Motifs`
+only `Time` and `Events`; `Pieces` those and the root; `Import` (all its sub-namespaces counted as one) and `Playback` add
+nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`, `Assembly`, `Variations`, ...),
+`Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers (`CORE_LAYERS`, listed in
+`governance/quality/README.md`): a namespace uses only the layers below its own.
 
 ## Rules not to break
 

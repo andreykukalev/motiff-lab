@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Playback;
 
 /// <summary>
 /// Which hands a piece's notes carry, for hearing one hand alone (#328): a hand is offered only when some notes are
-/// marked with it, and the offer says when any hand was inferred (<see cref="Import.HandInference"/>) rather than read
+/// marked with it, and the offer says when any hand was inferred (<c>HandInference</c>) rather than read
 /// from the file, so the player knows it is a reading of the notes. Pure: the same notes give the same answer.
 /// </summary>
 /// <param name="Right">Whether any note is marked for the right hand.</param>

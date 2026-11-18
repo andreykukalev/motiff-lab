@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
@@ -28,6 +30,26 @@ public static class LiveBars
         return GridSearch.Live with { Starts = [.. StartsOf(project, opened).Skip(1)], Hint = hint };
     }
 
+    /// <summary>
+    /// The bars that fit the transcription's notes best (decision record 0016), in the signature and with a beat of
+    /// as many 16ths as asked when given; null when the notes follow no beat.
+    /// </summary>
+    /// <param name="project">A transcription.</param>
+    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
+    /// <param name="search">How to follow a live performance (version 0.5, <see cref="RecordingBars.FindLive"/>); null finds the beat once.</param>
+    public static BarGrid? FindBars(this Project project, TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        if (project.Transcription is null)
+        {
+            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
+        }
+
+        MidiImport heard = Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi
+            ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
+        return RecordingBars.Find(heard, signature, stepsPerBeat, search);
+    }
+
     /// <summary>The bars of the project's recording found by <paramref name="search"/>, with how many sections and whether a hinted signature was taken.</summary>
     /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
     public static GridFound Find(Project project, GridSearch search)
@@ -39,12 +61,12 @@ public static class LiveBars
             throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
         }
 
-        return Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi is { } heard ? BarGrid.FindLive(heard, search) : GridFound.None;
+        return Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi is { } heard ? RecordingBars.FindLive(heard, search) : GridFound.None;
     }
 
     /// <summary>
     /// Where the recording's bars read better in an odd signature (version 0.5, «Смена размера в записи», a preview: nothing
-    /// is changed or saved): <see cref="BarGrid.OddMeters"/> on the project's bars, each stretch as the numbers of the first
+    /// is changed or saved): <see cref="RecordingBars.OddMeters"/> on the project's bars, each stretch as the numbers of the first
     /// and last bars of <paramref name="opened"/> it covers. None for a project without bars worked out from its notes.
     /// </summary>
     /// <param name="opened">The project's piece as it opens, on its bars.</param>

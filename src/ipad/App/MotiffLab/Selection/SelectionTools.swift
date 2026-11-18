@@ -108,8 +108,8 @@ extension ScoreController {
             chosen: chosen,
             choose: { [weak self] tool in self?.chooseMode(tool) },
             controls: ExpandRules.ringControls(focused: focused, otherwise: StylusRules.ringControls(chosen)),
-            canUndo: ink ? canUndo : selectionSteps.canUndo,
-            canRedo: ink ? canRedo : selectionSteps.canRedo,
+            canUndo: ink ? canUndo : selectionModel.steps.canUndo,
+            canRedo: ink ? canRedo : selectionModel.steps.canRedo,
             canClear: selection != nil && !focused,
             undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
             redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
@@ -185,11 +185,11 @@ struct SelectionOptionsRow: View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button { score.undoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionSteps.canUndo)
+                .disabled(!score.selectionModel.steps.canUndo)
                 .accessibilityLabel(text["selection.undo"])
             Button { score.redoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")).scaleEffect(x: -1, y: 1) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionSteps.canRedo)
+                .disabled(!score.selectionModel.steps.canRedo)
                 .accessibilityLabel(text["selection.redo"])
         }
         .modifier(PaletteSurface())
@@ -201,73 +201,127 @@ struct SelectionOptionsRow: View {
 /// The selection menu moved aside (#582 item 7): pressed and dragged with a finger or the Pencil it follows, and let go it
 /// stays there (ScoreController.moveMenu; the page keeps the place inside the window, Scripts/score/menu-drag.ts) until the
 /// menu closes, when the next one opens over its band again. A tap still reaches the menu's buttons: the drag begins only
-/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts).
+/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts). A card
+/// in the menu with a handle (`menuDragHandle()`, the assistant's chat at the selection) is dragged only by it, so its
+/// answer scrolls (Andrei, 2026-11-18: the whole card's drag took the scroll's pan, by finger and by the Pencil).
 struct MenuDrag: ViewModifier {
     let score: ScoreController
     @State private var moved = CGSize.zero
+    /// Whether a handle in the menu takes the drag (MenuHandleKey).
+    @State private var handled = false
 
     /// How far a touch on the menu moves before it drags the menu, in points.
     static let distance: CGFloat = 6
 
     func body(content: Content) -> some View {
+        let moves = MenuDragMoves(changed: { moved = $0 }, ended: { translation in
+            score.moveMenu(by: translation)
+            moved = .zero
+        })
         content
+            .environment(\.menuDragMoves, moves)
+            .onPreferenceChange(MenuHandleKey.self) { handled = $0 }
             .offset(moved)
-            .highPriorityGesture(
-                DragGesture(minimumDistance: Self.distance, coordinateSpace: .global)
-                    .onChanged { value in moved = value.translation }
-                    .onEnded { value in
-                        score.moveMenu(by: value.translation)
-                        moved = .zero
-                    }
-            )
+            .highPriorityGesture(Self.drag(moves), including: handled ? .subviews : .all)
+    }
+
+    /// The drag that moves the menu, on the whole menu or on its handle.
+    static func drag(_ moves: MenuDragMoves) -> some Gesture {
+        DragGesture(minimumDistance: distance, coordinateSpace: .global)
+            .onChanged { value in moves.changed(value.translation) }
+            .onEnded { value in moves.ended(value.translation) }
+    }
+}
+
+/// Where a drag of the menu goes (MenuDrag): the menu follows it, and let go it stays there.
+struct MenuDragMoves {
+    var changed: (CGSize) -> Void = { _ in }
+    var ended: (CGSize) -> Void = { _ in }
+}
+
+private struct MenuDragMovesKey: EnvironmentKey {
+    static let defaultValue = MenuDragMoves()
+}
+
+/// Whether the menu shows a card with a handle, which alone drags it.
+struct MenuHandleKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
+extension EnvironmentValues {
+    var menuDragMoves: MenuDragMoves {
+        get { self[MenuDragMovesKey.self] }
+        set { self[MenuDragMovesKey.self] = newValue }
+    }
+}
+
+/// The part of a card in the menu that drags the menu (MenuDrag); the rest of the card keeps its own gestures (a scroll).
+private struct MenuDragHandle: ViewModifier {
+    @Environment(\.menuDragMoves) private var moves
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .highPriorityGesture(MenuDrag.drag(moves))
+            .preference(key: MenuHandleKey.self, value: true)
+    }
+}
+
+extension View {
+    /// Makes this the handle that alone drags the selection menu it is in (MenuDrag).
+    func menuDragHandle() -> some View {
+        modifier(MenuDragHandle())
     }
 }
 
 /// After a clear or a replace, «Выделение снято · Вернуть» for six seconds (#511 11): one tap brings the selection back,
 /// with any pointer; no Redo here. While a pointer that cannot scroll moves off the selection before the hold, the hint
-/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there.
+/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there but while a
+/// merge draft is open (`merging`): the draft has its own.
 struct SelectionToastView: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    let merging: Bool
 
     var body: some View {
         ZStack {
-            UndoKeys(score: score)
+            if !merging { UndoKeys(score: score) }
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
-            } else if score.selectionToast != nil && score.selectionSteps.canUndo && !score.focused {
+            } else if score.selectionModel.toast != nil && score.selectionModel.steps.canUndo && !score.focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    Text(text[score.selectionToastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Text(text[score.selectionModel.toastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
                 .modifier(ToastSurface())
-            } else if score.holdHint != nil {
+            } else if score.selectionModel.holdHint != nil {
                 Text(text["selection.holdHint"]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
             }
         }
-        .animation(.easeOut(duration: 0.16), value: score.selectionToast)
-        .animation(.easeOut(duration: 0.16), value: score.holdHint)
+        .animation(.easeOut(duration: 0.16), value: score.selectionModel.toast)
+        .animation(.easeOut(duration: 0.16), value: score.selectionModel.holdHint)
         .animation(.easeOut(duration: 0.16), value: score.notice)
     }
 }
 
-/// ⌘Z and ⇧⌘Z on a keyboard: Undo and Redo of the tool in force (#521 9, ScoreController.undoOwner), nothing in Navigate;
-/// not while a merge has its own.
+/// ⌘Z and ⇧⌘Z on a keyboard: Undo and Redo of the tool in force (#521 9, ScoreController.undoOwner), nothing in Navigate.
 struct UndoKeys: View {
     @ObservedObject var score: ScoreController
 
     var body: some View {
-        if score.merge == nil {
-            Group {
-                Button("") { score.undoKey() }.keyboardShortcut("z", modifiers: .command)
-                Button("") { score.redoKey() }.keyboardShortcut("z", modifiers: [.command, .shift])
-            }
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
+        Group {
+            Button("") { score.undoKey() }.keyboardShortcut("z", modifiers: .command)
+            Button("") { score.redoKey() }.keyboardShortcut("z", modifiers: [.command, .shift])
         }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
     }
 }
 

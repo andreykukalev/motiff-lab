@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
@@ -68,7 +69,7 @@ public class TempoProfileTests
     public void A_recordings_profile_is_inferred_and_follows_the_playing()
     {
         ImportedPiece heard = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 150_000, BarGridTests.Waltz())));
-        ImportedPiece barred = BarGrid.Find(heard.Midi!)!.Apply(heard);
+        ImportedPiece barred = RecordingBars.Find(heard.Midi!)!.Apply(heard);
 
         TempoProfile profile = TempoProfile.Of(barred.Meter, PlaybackScore.FromPiece(barred).Tempos, barred.End, inferred: true)!;
 

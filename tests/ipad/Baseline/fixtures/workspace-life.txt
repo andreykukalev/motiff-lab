@@ -91,18 +91,19 @@
   page playheads: selection none, cycle on
   player selection: 3120–4560
   player loops: 3120–4560
-  player cycle: off
-  player loops: none
   panels: roll
-  page playheads: selection 3120–4560, cycle off
+  page playheads: selection 3120–4560, cycle on
   roll load: a first load, frame given
   roll lanes: on
-  roll selection: 3120–4560, loops none
+  roll selection: 3120–4560, loops 3120–4560
 
 ## the selection is cleared
   player selection: none
+  player loops: none
+  roll selection: none, loops 3120–4560
+  page playheads: selection none, cycle on
+  roll position: 0 standing, looping no
   roll selection: none, loops none
-  page playheads: selection none, cycle off
   roll position: 0 standing, looping no
 
 ## the interface's language changes

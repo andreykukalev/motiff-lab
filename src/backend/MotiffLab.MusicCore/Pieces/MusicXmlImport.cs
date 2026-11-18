@@ -48,12 +48,12 @@ public sealed record MusicXmlImport(
     /// <summary>The words and rehearsal marks written over the music (tempo words, headings, letters), in time order.</summary>
     public IReadOnlyList<MusicXmlText> Texts { get; init; } = [];
 
-    /// <summary>The slurs and repeat signs as phrase evidence for <see cref="Analysis.PhraseBoundaryFinder"/>.</summary>
+    /// <summary>The slurs and repeat signs as phrase evidence for <c>PhraseBoundaryFinder</c>.</summary>
     public PhraseMarks PhraseMarks => new(
         [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
         [.. Repeats.Select(static repeat => repeat.At).Distinct()]);
 
-    /// <summary>The accents written on the notes, by shared-model note id, for <see cref="Analysis.MotifAnalyzer"/> (S1-A1).</summary>
+    /// <summary>The accents written on the notes, by shared-model note id, for <c>MotifAnalyzer</c> (S1-A1).</summary>
     public IReadOnlyList<AccentMark> AccentMarks =>
         [.. SourceNotes.Zip(Notes)
             .Where(static pair => pair.First.Accent is not null)
@@ -186,7 +186,7 @@ public sealed record MusicXmlTempoChange(Tick At, int MeasureIndex, decimal Quar
     public int MicrosecondsPerQuarter => (int)Math.Round(60_000_000m / QuarterNotesPerMinute, MidpointRounding.AwayFromZero);
 
     /// <summary>Notated when the score states it, assumed for the default (version 0.5.4).</summary>
-    public Playback.TempoSource Source => IsAssumed ? Playback.TempoSource.Assumed : Playback.TempoSource.Notated;
+    public TempoSource Source => IsAssumed ? TempoSource.Assumed : TempoSource.Notated;
 }
 
 /// <param name="Denominator">Note value of the beat as a power of two, 1–128.</param>

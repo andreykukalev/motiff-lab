@@ -3,7 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Settings;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects;
 

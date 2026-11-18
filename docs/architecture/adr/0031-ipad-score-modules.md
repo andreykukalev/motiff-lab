@@ -127,3 +127,97 @@ The web's `PlaybackLab` and `app.css` are not in this record (platform focus is 
 it has one implementation, and the features' tests call the facade itself. Its answers are typed (`Platform/PieceAnswers.swift`)
 and pinned by `tests/contracts/facade-answers`. A protocol, with a fake for a model's tests, comes with the first model
 (steps 3–9) that is tested without the framework. The decision above is unchanged.
+
+## Note, 2026-11-18 (step S1, `SelectionModel`)
+
+`SelectionModel` (`Selection/SelectionModel.swift`) owns the selection's state: the selection, its history, the toast,
+the hold hint, the menu's place, the phrases shown and whether they are hidden. Its state is set only through its own
+methods; `ScoreController` hands in what music-core and the page answer (`answered`, `show`, `placeMenu`).
+
+Two things stay in the root for now, and each has a step that removes it:
+
+- **Selecting** (`select`, `clearSelection`, `showLevel`, `resetLevel`): each runs, after music-core's answer, the page,
+  the play range and Expand in one order. It moves into `SelectionModel` in **S3**, once `FocusModel` owns Expand and
+  the play range and the root only connects the two.
+- **The relay and the forwarders**: `ScoreController` sends each `objectWillChange` of the model on as its own and
+  forwards `selection`, `phrases` and `phrasesHidden` read-only, so the views and reactions that observe the controller
+  update at the same moment as before and the tests (the protected `tests/ipad/Baseline` among them) read the same
+  names. This is against section 3's «views observe the model they show», for one step. They go in **S7** (blueprint
+  phase C: `ScoreScreen`'s view types into their files, this record's step 10), which moves each view onto the model it
+  shows; the readers in other features (Marks, Roll, Playback, Assistant) and the tests then read `selectionModel`.
+
+## Note, 2026-11-18 (step S3, `FocusModel`)
+
+`FocusModel` (`Playback/FocusModel.swift`) owns Expand's state but one: where it was opened from (`entry`), whether the
+card shows the roll (`asRoll`), the card's options, the version in focus and the play range, with the rules that need
+only the selection (the play range, the unit the card is, `canStepBack`/`canStepOn`, the card's position text). It reads
+`SelectionModel`. `SelectionModel` now selects and changes the level through music-core itself (`select`, `showLevel`,
+`resetLevel`, `loadPhrases`, and `hidePhrases` as the writer of `phrasesHidden`); `show` is gone. The root keeps the
+order after each answer: the page, then the play range, then the card.
+
+What stays in `ScoreController`, and the step that removes each:
+
+- **`focused`**: the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$focused`, a publisher a
+  forwarder cannot give. It moves into `FocusModel` with the relay and the forwarders in **S7**, whose change to the
+  baseline's harness Andrei merges.
+- **`clearSelection`**: it leaves Expand between the step recorded and the selection taken away, so it calls both models;
+  it is the root's connecting of the two, as `enterFocus`, `leaveFocus` and `step` are, which open the card on the page.
+- **`practice`** (the protected baseline writes `score.practice`) and **`ossia`** (its change engraves the card again,
+  which needs the page and music-core): with the root's page calls, in **S7** and step 9 (the composition root).
+- The forwarders `focusRoll`, `playRange` and `focusVersion` join S1's, under the same S7 removal.
+
+## Note, 2026-11-18 (step S4, `SourcesModel`)
+
+`SourcesModel` (`Sources/SourcesModel.swift`) owns the other versions (`versions`), what the last thing done with one
+came to (`status`), the version whose page Sources shows (`page`) and the score as last engraved (`engraved`: the draft's
+view, even bars, the notes it colours). It reads a version and the list through music-core itself (`readVersion`,
+`readList`) and has the words on a version just added (`addedStatus`); the root writes the rest through `read`, `say`,
+`showPage` and `keepEngraved`, and forwards `versions`, `versionStatus` and `versionPage` read-only under S1's relay.
+`MergeModel` follows in its own pull request, after rule tests for the draft (the blueprint's S4 row).
+
+What stays in `ScoreController`, and the step that removes each:
+
+- **`sources`** (`SourcesInfo`): the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$sources`,
+  as it does `score.$focused`. It moves in **S7**, with the harness change Andrei merges.
+- **The version's notes to hear** (`versionPlayback`, `versionNotes`): they are `PlaybackNote`s, a Playback type, and
+  the folder table (`governance/quality/README.md`) lets Sources use only Platform and Selection. They move to
+  `FocusModel` in **S4b**: `versionNotes` names only `PieceCore` (Platform) and Playback's own types, and the root hands
+  in the version's id as a string (`versions.shownId`) and asks it to forget them from `notesDidChange`, so no folder
+  edge and no change of the table is needed (the lead, 2026-11-18).
+- **Drawing the versions on the page and engraving** (`drawVersions`, `engraveScore`, `applyMergeView`): the page's,
+  with the root's page calls in step 9.
+
+`engraved` stays in `SourcesModel` in S4b, as section 3's table gives it: it records how the page was engraved (even
+bars, the view, the notes coloured), which is not the draft's. `MergeModel` owns the view the draft asks for
+(`mergeShow`), and the root keeps comparing the two (`wantedView`) until step 9.
+
+## Note, 2026-11-18 (step S4b, `MergeModel`)
+
+`MergeModel` (`Sources/MergeModel.swift`, reading `SelectionModel` and `SourcesModel`) owns the merge draft (`draft`),
+the change it shows (`at`), Bar | Phrase (`phrase`), the view the draft asks for (`view`), what was last heard
+(`hearing`), Compare versions (`comparing`), the toast (`toast`) and the marker tapped (`markerPick`), with the rules
+that need only those two models: the bars a choice goes for (`choiceBars`), the span heard (`hearSpan`), the change
+‹ › go to (`stepped`), the bars Compare versions shows (`seenBars`) and one `performance.merge` call (`call`, music-core's
+refusal back for the root to put in the version's words). `MergeDraftTests` were written to pin the draft's
+rules through `ScoreController`'s calls before the move, but first ran after it (Swift builds only in the iPad
+workflow), and passed there unchanged. `FocusModel` keeps the version's notes to hear
+(`versionNotes(of:in:)`, `forgetVersionNotes`), as the S4 note says.
+
+`ScoreController` forwards the draft's state read-only, but for `mergePhrase` and `comparing`, which the views bind
+(`$score.comparing`, Bar | Phrase): their forwarders also set, through `scope(phrase:)` and `compare(_:)`. All of them go
+in **S7** with S1's. Hearing the draft (`hearMerge`: its notes are Playback's), engraving its view and the card for
+Compare versions, and what follows a merge applied or undone (the notes, Check, the version's words) stay the root's,
+with its page calls, until step 9.
+
+## Note, 2026-11-18 (step S7a, the sources and merge views)
+
+S7 goes in three pull requests, the protected harness change in the smallest. In **S7a** the views that show the other
+versions or the merge draft observe `SourcesModel` and `MergeModel` themselves (`ScoreScreenContent`, `VersionPage`,
+`DraftBlock`, `BarStrip`, `MergeScope`, `MergeRow`, `MergeListen`, `MergeShowSwitch`, `MarkerPopover`,
+`CompareVersionsScreen`), Bar | Phrase and Compare versions bind to `scope(phrase:)` and `compare(_:)`, and the root's
+relay of the two models and its forwarders of their state are deleted. The keyboard's ⌘Z of the selection's toast is
+left out while a draft is open by the screen, which observes `MergeModel` (`SelectionToastView`'s `merging`), as
+Selection may not name a Sources type. `LayersList` (Marks) reads `pieceExtra`, which asks whether there are versions;
+it is drawn each time it opens, and nothing adds or removes a version while it is open. **S7b** does the same for
+`SelectionModel` and `FocusModel` but for what the protected baseline reads; **S7c** moves `focused` and `sources` out
+of the root, with the change of `tests/ipad/Baseline` that Andrei merges.

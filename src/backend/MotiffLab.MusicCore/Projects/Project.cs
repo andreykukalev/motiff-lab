@@ -69,7 +69,7 @@ public sealed partial record Project(
     public ScanOrigin? Scan { get; init; }
 
     /// <summary>Set when the source was heard in an audio or video recording by transcription (0014); null otherwise.</summary>
-    public TranscriptionOrigin? Transcription { get; init; }
+    public Import.Transcription.TranscriptionOrigin? Transcription { get; init; }
 
     /// <summary>
     /// The printed piece as the player added it, a PDF, shown exactly as it is in the "PDF" view (0023; Andrei, 2026-11-04);
@@ -236,7 +236,7 @@ public sealed partial record Project(
         {
             PieceOriginal.DocumentId => Document is not null,
             PieceOriginal.SourceFileId => HasNotes,
-            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi } || Sources.Data.ContainsKey(original.Id),
+            _ => FindPerformance(original.Id) is { Source: Performance.PerformanceSource.Midi } || Sources.Data.ContainsKey(original.Id),
         };
     }
 
@@ -577,16 +577,16 @@ public sealed partial record Project(
     public IReadOnlyList<CheckFlag>? Check { get; init; } = [];
 
     /// <summary>The performances compared with the piece (decision record 0022), in the order they were added.</summary>
-    public IReadOnlyList<SavedPerformance> Performances { get; init; } = [];
+    public IReadOnlyList<Performance.SavedPerformance> Performances { get; init; } = [];
 
-    public SavedPerformance? FindPerformance(string id) => Performances.FirstOrDefault(performance => performance.Id == id);
+    public Performance.SavedPerformance? FindPerformance(string id) => Performances.FirstOrDefault(performance => performance.Id == id);
 
     /// <summary>The next free performance id: "perf_" and one more than the highest number used.</summary>
     public string NextPerformanceId() =>
         $"perf_{Performances.Select(performance => int.TryParse(performance.Id.AsSpan(5), out int number) ? number : 0).DefaultIfEmpty(0).Max() + 1}";
 
     /// <exception cref="ArgumentException">A performance with the same id is already there.</exception>
-    public Project AddPerformance(SavedPerformance performance)
+    public Project AddPerformance(Performance.SavedPerformance performance)
     {
         ArgumentNullException.ThrowIfNull(performance);
         return FindPerformance(performance.Id) is not null
@@ -595,10 +595,10 @@ public sealed partial record Project(
     }
 
     /// <exception cref="KeyNotFoundException">No performance has the id.</exception>
-    public Project ChangePerformance(string id, Func<SavedPerformance, SavedPerformance> change)
+    public Project ChangePerformance(string id, Func<Performance.SavedPerformance, Performance.SavedPerformance> change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        SavedPerformance changed = change(FindPerformance(id) ?? throw new KeyNotFoundException($"There is no performance {id}."));
+        Performance.SavedPerformance changed = change(FindPerformance(id) ?? throw new KeyNotFoundException($"There is no performance {id}."));
         return changed.Id != id
             ? throw new ArgumentException("A performance keeps its id.", nameof(change))
             : this with { Performances = [.. Performances.Select(performance => performance.Id == id ? changed : performance)] };
@@ -609,7 +609,7 @@ public sealed partial record Project(
     public Project RemovePerformance(string id)
     {
         _ = FindPerformance(id) ?? throw new KeyNotFoundException($"There is no performance {id}.");
-        List<SavedPerformance> left = [.. Performances.Where(performance => performance.Id != id)];
+        List<Performance.SavedPerformance> left = [.. Performances.Where(performance => performance.Id != id)];
         return this with
         {
             Performances = left,
@@ -623,7 +623,7 @@ public sealed partial record Project(
     /// performances the project had before it was removed.
     /// </summary>
     /// <exception cref="ArgumentException">A performance with the same id is already there.</exception>
-    public Project PutBackPerformance(SavedPerformance performance, int index, IEnumerable<CheckFlag> flags)
+    public Project PutBackPerformance(Performance.SavedPerformance performance, int index, IEnumerable<CheckFlag> flags)
     {
         ArgumentNullException.ThrowIfNull(performance);
         ArgumentNullException.ThrowIfNull(flags);
@@ -632,7 +632,7 @@ public sealed partial record Project(
             throw new ArgumentException($"There is already a performance {performance.Id}.", nameof(performance));
         }
 
-        List<SavedPerformance> all = [.. Performances];
+        List<Performance.SavedPerformance> all = [.. Performances];
         all.Insert(Math.Clamp(index, 0, all.Count), performance);
         return (this with { Performances = all }).WithPerformanceChecks(flags);
     }
@@ -709,24 +709,6 @@ public sealed partial record Project(
         && !(Check ?? []).Any(flag => flag.Resolved);
 
     /// <summary>
-    /// The bars that fit the transcription's notes best (decision record 0016), in the signature and with a beat of
-    /// as many 16ths as asked when given; null when the notes follow no beat.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
-    /// <param name="search">How to follow a live performance (version 0.5, <see cref="BarGrid.FindLive"/>); null finds the beat once.</param>
-    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
-    {
-        if (Transcription is null)
-        {
-            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
-        }
-
-        MidiImport heard = PieceImporter.Import(FileName, Source).Piece?.Midi
-            ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
-        return BarGrid.Find(heard, signature, stepsPerBeat, search);
-    }
-
-    /// <summary>
     /// The transcription written in other bars, or as the engine wrote it when <paramref name="bars"/> is null. Its
     /// Check flags are worked out again for the new bars, and its resume points go back to the start of the piece,
     /// since every position moves.
@@ -744,7 +726,7 @@ public sealed partial record Project(
             throw new InvalidOperationException("The bars cannot change once something has been placed in them.");
         }
 
-        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams, From = heard.From, At = heard.At };
+        Import.Transcription.TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams, From = heard.From, At = heard.At };
         Project changed = this with
         {
             Transcription = origin,

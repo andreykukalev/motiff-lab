@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
@@ -46,7 +46,7 @@ public class BarGridLiveTests
     {
         (ImportedPiece piece, long[] starts) = Concert((150_000, BarGridTests.Waltz(), 3_000_000), (220_000, BarGridTests.Waltz(), 0));
 
-        GridFound found = BarGrid.FindLive(piece.Midi!, GridSearch.Live);
+        GridFound found = RecordingBars.FindLive(piece.Midi!, GridSearch.Live);
 
         Assert.Equal(2, found.Sections);
         BarGrid grid = found.Grid!;
@@ -74,7 +74,7 @@ public class BarGridLiveTests
         }
 
         ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(notes));
-        GridFound found = BarGrid.FindLive(piece.Midi!, GridSearch.Live);
+        GridFound found = RecordingBars.FindLive(piece.Midi!, GridSearch.Live);
 
         Assert.Equal(2, found.Sections);
         long[] late = [.. chords.Skip(56)];
@@ -82,7 +82,7 @@ public class BarGridLiveTests
 
         // The single grid's beat stays within 8/5 of where it started, but since issue #455 it finds the chords again each
         // time they slip off it.
-        Assert.InRange(OnBeats(BarGrid.Find(piece.Midi!)!, late), 85, 100);
+        Assert.InRange(OnBeats(RecordingBars.Find(piece.Midi!)!, late), 85, 100);
     }
 
     /// <summary>The percentage of <paramref name="onsets"/>, microseconds of the recording, that fall within 30 ms of a beat of the grid.</summary>
@@ -98,10 +98,10 @@ public class BarGridLiveTests
     {
         foreach (MidiImport import in new[] { BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 150_000, BarGridTests.Waltz()))).Midi!, BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 166_667, BarGridTests.March()))).Midi! })
         {
-            GridFound found = BarGrid.FindLive(import, GridSearch.Live);
+            GridFound found = RecordingBars.FindLive(import, GridSearch.Live);
 
             Assert.Equal(1, found.Sections);
-            Assert.Equal(BarGrid.Find(import), found.Grid);
+            Assert.Equal(RecordingBars.Find(import), found.Grid);
             Assert.Null(found.HintFits);
         }
     }
@@ -110,9 +110,9 @@ public class BarGridLiveTests
     public void A_starting_point_given_starts_a_section_there()
     {
         (ImportedPiece piece, long[] starts) = Concert((150_000, BarGridTests.Waltz(), 1_000_000), (150_000, BarGridTests.Waltz(), 0));
-        Assert.Equal(1, BarGrid.FindLive(piece.Midi!, GridSearch.Live).Sections);
+        Assert.Equal(1, RecordingBars.FindLive(piece.Midi!, GridSearch.Live).Sections);
 
-        GridFound found = BarGrid.FindLive(piece.Midi!, GridSearch.Live with { Starts = [starts[1]] });
+        GridFound found = RecordingBars.FindLive(piece.Midi!, GridSearch.Live with { Starts = [starts[1]] });
 
         Assert.Equal(2, found.Sections);
         Assert.True(OnDownbeats(found.Grid!, piece, 48));
@@ -123,8 +123,8 @@ public class BarGridLiveTests
     {
         MidiImport waltz = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 150_000, BarGridTests.Waltz()))).Midi!;
 
-        GridFound fits = BarGrid.FindLive(waltz, GridSearch.Live with { Hint = new GridHint(new TimeSignature(3, 4), 100) });
-        GridFound not = BarGrid.FindLive(waltz, GridSearch.Live with { Hint = new GridHint(TimeSignature.CommonTime, null) });
+        GridFound fits = RecordingBars.FindLive(waltz, GridSearch.Live with { Hint = new GridHint(new TimeSignature(3, 4), 100) });
+        GridFound not = RecordingBars.FindLive(waltz, GridSearch.Live with { Hint = new GridHint(TimeSignature.CommonTime, null) });
 
         Assert.True(fits.HintFits);
         Assert.Equal(new TimeSignature(3, 4), fits.Grid!.Signature);
@@ -138,8 +138,8 @@ public class BarGridLiveTests
         MidiImport few = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 150_000, BarGridTests.Waltz().Take(8)))).Midi!;
         (ImportedPiece piece, _) = Concert((150_000, BarGridTests.Waltz(), 3_000_000), (220_000, BarGridTests.Waltz(), 0));
 
-        Assert.Equal(GridFound.None, BarGrid.FindLive(few, GridSearch.Live));
-        Assert.Equal(BarGrid.FindLive(piece.Midi!, GridSearch.Live), BarGrid.FindLive(piece.Midi!, GridSearch.Live));
-        Assert.Equal(BarGrid.FindLive(piece.Midi!, GridSearch.Live).Grid, BarGrid.Find(piece.Midi!, search: GridSearch.Live));
+        Assert.Equal(GridFound.None, RecordingBars.FindLive(few, GridSearch.Live));
+        Assert.Equal(RecordingBars.FindLive(piece.Midi!, GridSearch.Live), RecordingBars.FindLive(piece.Midi!, GridSearch.Live));
+        Assert.Equal(RecordingBars.FindLive(piece.Midi!, GridSearch.Live).Grid, RecordingBars.Find(piece.Midi!, search: GridSearch.Live));
     }
 }

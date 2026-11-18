@@ -194,6 +194,10 @@ final class Player: ObservableObject {
     /// selection appears, and is kept while there is none.
     @Published private(set) var cycle = true
 
+    /// The position put outside the selection by a tap with Цикл on (the model's lead-in, `PlaybackModel.State.leadIn`):
+    /// Play plays from it into the selection.
+    @Published private(set) var leadIn = false
+
     /// The piece's beats as bar.beat, from music-core's playback score: the pill's and the roll's words for a place.
     private(set) var barBeats = BarBeats()
 
@@ -204,7 +208,7 @@ final class Player: ObservableObject {
 
     /// The model's state now: the selection and Цикл are the player's, the position and the transport the engine's.
     var model: PlaybackModel.State {
-        PlaybackModel.State(selection: selection, loop: cycle, tick: tick, transport: state)
+        PlaybackModel.State(selection: selection, loop: cycle, tick: tick, transport: state, leadIn: leadIn)
     }
 
     /// A playhead held by the pen or a finger now (T14–T16, PlayheadDrag.swift); nil while none is.
@@ -218,6 +222,7 @@ final class Player: ObservableObject {
         let decided = PlaybackModel.next(given ?? model, event)
         selection = decided.state.selection
         cycle = decided.state.loop
+        leadIn = decided.state.leadIn
         perform(decided.steps)
         return decided.state
     }
@@ -230,8 +235,8 @@ final class Player: ObservableObject {
         if wanted != loop { applyLoop(wanted) }
     }
 
-    /// A tap on a beat, a bar or the whole-piece strip (T12): the position goes there, playing on from there when it plays,
-    /// and Цикл turns off when it leaves the selection; `play` starts it from there.
+    /// A tap on the roll's bars or strips (T12): the position goes there, playing on from there when it plays, and Цикл
+    /// turns off when it leaves the selection; `play` starts it from there. A tap on the score's beat is `place`.
     func go(to at: Double, play: Bool) {
         apply(.seek(at))
         if play && state == .stopped {
@@ -438,6 +443,8 @@ final class Player: ObservableObject {
         if abs(now - tick) >= 1 {
             tick = now
         }
+        // The lead-in ends once the position reaches the selection (T4–T6).
+        if leadIn { leadIn = PlaybackModel.next(model, .report(tick: tick, transport: state)).state.leadIn }
     }
 
     /// The engine on the audio thread: messages from the main thread wait in an inbox until the next block, and the

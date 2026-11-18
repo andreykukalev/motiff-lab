@@ -115,6 +115,33 @@ final class AssistantActionsTests: XCTestCase {
         XCTAssertNil(assistant.here)
     }
 
+    /// «Продолжить в чате» (Andrei, 2026-11-18 14:10 UTC): the question and answer at the selection start a new
+    /// conversation in the full assistant, whose panel opens on the selected bars; without the press nothing is kept.
+    func testContinueInTheAssistantStartsAConversationWithTheQuestionAndAnswer() async {
+        let (assistant, folder) = controller()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bar3 = ScoreSelection(onset: 3840, end: 5760, firstBar: 3, lastBar: 3)
+        assistant.add(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "proposer")
+        let earlier = assistant.currentId
+        assistant.openHere(on: bar3, role: "proposer")
+        assistant.continueHere()
+        XCTAssertNotNil(assistant.here, "nothing to carry before an answer")
+        XCTAssertFalse(assistant.panelOpen)
+        let signedOut = AssistantRelay(session: .shared, request: { _ in nil })
+        await assistant.askHere("Why?", about: AssistantAsk(
+            piece: 0, selection: bar3, wholePiece: false, scope: "Bar 3", language: "en", role: "proposer", relay: signedOut
+        ))
+        XCTAssertEqual(assistant.chats.count, 1, "the chat at the selection keeps nothing by itself")
+        assistant.continueHere()
+        XCTAssertNil(assistant.here, "the small chat closes")
+        XCTAssertTrue(assistant.panelOpen, "the full assistant opens")
+        XCTAssertFalse(assistant.scope.isWholePiece(bar3), "on the selected bars")
+        XCTAssertNotEqual(assistant.currentId, earlier, "a new conversation, not the one open before")
+        XCTAssertEqual(assistant.chats.count, 2)
+        XCTAssertEqual(assistant.current?.exchanges.map(\.question), ["Why?"], "it starts with the question asked at the selection")
+        XCTAssertEqual(AssistantStore(folder: folder).chats(of: "p1").count, 2, "kept with the piece's conversations")
+    }
+
     func testACancelledDraftIsSaidSoAndKeptSo() throws {
         let (assistant, folder) = controller()
         defer { try? FileManager.default.removeItem(at: folder) }

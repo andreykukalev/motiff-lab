@@ -12,7 +12,7 @@ What the code already has (`develop` `1d8ca4d`):
 
 - The player's corrections as a log over the imported notes, never changing them: each edit keeps the values it replaced, is undone one by one, and marks the note user-edited (`MusicCore/Events/NoteEditLog.cs`); the layer can be switched off (`EditsApplied.cs`).
 - A note editor on the roll with a draft: change, add, remove, undo, reset, cancel, save (`Web/Roll/NoteEditor.cs`).
-- Check flags per bar with a reason: too long or short for the meter, staves differ, out of range, grace notes, a poor page, an octave lost against a recording (`MusicCore/Projects/CheckFlag.cs`).
+- Check flags per bar with a reason: too long or short for the meter, staves differ, out of range, grace notes, a poor page, an octave lost against a recording (`MusicCore/Import/CheckFlag.cs`).
 - Pure variation operations with parameter ranges, Keep checks and explanations written from the diff; a hand edit is a step of a chain (`MusicCore/Variations/*`).
 - The assistant's entry points (Ask from the selection, the focus bar, Piece DNA), which send nothing yet (`Web/Pages/PlaybackLab.Assistant.cs`).
 

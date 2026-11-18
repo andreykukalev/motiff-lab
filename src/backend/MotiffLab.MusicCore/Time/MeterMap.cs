@@ -128,7 +128,7 @@ public sealed class MeterMap
     public MetricPosition ToPosition(Tick position)
     {
         Bar bar = BarAt(position);
-        long offset = position.Value - bar.Span.Onset.Value + bar.LeadIn;
+        long offset = position.Value - bar.Origin;
         long beatTicks = bar.Signature.BeatTicks;
         return new MetricPosition(bar.Number, (int)(offset / beatTicks) + 1, offset % beatTicks);
     }
@@ -264,6 +264,9 @@ public readonly record struct Bar(int Number, TickSpan Span, TimeSignature Signa
 
     /// <summary>Ticks of the full bar that come before this one starts: non-zero only for a pickup, which ends on the bar line.</summary>
     internal long LeadIn => IsPickup ? Signature.BarTicks - Span.Duration : 0;
+
+    /// <summary>Where a full bar would start: the bar's start, or for a pickup a full bar before its end.</summary>
+    internal long Origin => Span.Onset.Value - LeadIn;
 }
 
 /// <summary>

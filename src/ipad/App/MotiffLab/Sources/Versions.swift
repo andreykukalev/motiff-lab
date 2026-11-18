@@ -224,17 +224,19 @@ func mergeViewColor(_ view: String) -> Color {
 /// version's name and Remove.
 struct VersionPage: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var sourcesModel: SourcesModel
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
     let version: VersionEntry
     @Binding var name: String
     @ObservedObject private var settings = DeviceSettings.shared
 
     var body: some View {
-        let versions = score.versions
+        let versions = sourcesModel.versions
         let differing = versions.differingAll
         let sure = differing.filter { $0.confidence >= 80 }.count
-        if let merge = score.merge, merge.id == version.id {
-            DraftBlock(score: score, text: text, merge: merge)
+        if let merge = mergeModel.draft, merge.id == version.id {
+            DraftBlock(score: score, sourcesModel: sourcesModel, mergeModel: mergeModel, text: text, merge: merge)
         } else {
             if let at = version.mergedAt {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -272,7 +274,7 @@ struct VersionPage: View {
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .fixedSize(horizontal: false, vertical: true)
-                BarStrip(score: score, text: text, bars: versions.bars)
+                BarStrip(score: score, mergeModel: mergeModel, text: text, bars: versions.bars)
                 if !differing.isEmpty {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                         startButton("mine", text["merge.keepMine"], swatch: "mine")
@@ -284,13 +286,13 @@ struct VersionPage: View {
                 }
             }
         }
-        if !versions.differingAll.isEmpty || score.merge != nil {
-            Button { score.comparing = true } label: {
+        if !versions.differingAll.isEmpty || mergeModel.draft != nil {
+            Button { mergeModel.compare(true) } label: {
                 Label { Text(text["merge.window"] + " ⤢") } icon: { Icon(name: "layers") }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))
         }
-        if let status = score.versionStatus {
+        if let status = sourcesModel.status {
             Text(status)
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
@@ -348,6 +350,7 @@ struct VersionPage: View {
 /// decided in the draft in their view's colour; a tap goes to the bar.
 struct BarStrip: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
     let bars: [VersionBar]
 
@@ -355,12 +358,12 @@ struct BarStrip: View {
         HStack(spacing: 1) {
             ForEach(bars) { bar in
                 Button {
-                    if score.merge != nil { score.goToMergeBar(bar.bar) } else { score.showVersionBar(bar.bar) }
+                    if mergeModel.draft != nil { score.goToMergeBar(bar.bar) } else { score.showVersionBar(bar.bar) }
                 } label: {
                     Rectangle()
                         .fill(fill(bar))
                         .frame(maxWidth: .infinity, minHeight: 18, maxHeight: 18)
-                        .overlay(Rectangle().strokeBorder(score.mergeAt == bar.bar ? Color.ds("accent") : Color.clear, lineWidth: 2))
+                        .overlay(Rectangle().strokeBorder(mergeModel.at == bar.bar ? Color.ds("accent") : Color.clear, lineWidth: 2))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(text.format("check.bar", String(bar.bar)) + ": " + (bar.kind == "none" ? text["merge.same"] : bar.marker))
@@ -372,7 +375,7 @@ struct BarStrip: View {
     }
 
     private func fill(_ bar: VersionBar) -> Color {
-        if let choice = score.merge?.choice(at: bar.bar) {
+        if let choice = mergeModel.draft?.choice(at: bar.bar) {
             switch choice {
             case "version": return Color.ds("plum")
             case "own": return Color.ds("amber")
@@ -395,6 +398,8 @@ func mergeChoiceName(_ choice: String?, _ text: UIText) -> String {
 /// version for the change shown, the list of changes, the three views to hear, and Undo, Redo, Reset, Cancel and Apply.
 struct DraftBlock: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var sourcesModel: SourcesModel
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
     let merge: MergeInfo
     @ObservedObject private var settings = DeviceSettings.shared
@@ -411,9 +416,9 @@ struct DraftBlock: View {
             Text(text.count("merge.changes", merge.taking))
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-            if let at = score.mergeAt, let current = merge.bars.first(where: { $0.bar == at }) {
+            if let at = mergeModel.at, let current = merge.bars.first(where: { $0.bar == at }) {
                 MergeStep(score: score, text: text, current: current)
-                MergeScope(score: score, text: text)
+                MergeScope(mergeModel: mergeModel, text: text)
                 HStack(spacing: CGFloat.ds("s-2")) {
                     MergeChoiceButton(text: text["merge.takeMine"], view: "mine", on: current.choice == "mine") { score.chooseMerge("mine") }
                     MergeChoiceButton(text: text["merge.takeVersion"], view: "version", on: current.choice == "version") { score.chooseMerge("version") }
@@ -424,10 +429,10 @@ struct DraftBlock: View {
             }
             VStack(spacing: CGFloat.ds("s-1")) {
                 ForEach(merge.bars) { bar in
-                    MergeRow(score: score, text: text, bar: bar, detail: bar.marker)
+                    MergeRow(score: score, mergeModel: mergeModel, text: text, bar: bar, detail: bar.marker)
                 }
             }
-            MergeListen(score: score, text: text)
+            MergeListen(score: score, mergeModel: mergeModel, text: text)
             HStack(spacing: CGFloat.ds("s-1")) {
                 Button { score.undoDraft() } label: {
                     Label { Text(text["merge.undo"]) } icon: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
@@ -446,7 +451,7 @@ struct DraftBlock: View {
                 Button(text["merge.cancel"]) { score.cancelDraft() }
                     .buttonStyle(DSButtonStyle(kind: .quiet))
                 Button { score.applyMerge() } label: {
-                    Label { Text(text[score.versions.shown?.mergedAt != nil ? "merge.applyAgain" : "merge.apply"]) } icon: { Icon(name: "check", size: CGFloat.ds("icon-s")) }
+                    Label { Text(text[sourcesModel.versions.shown?.mergedAt != nil ? "merge.applyAgain" : "merge.apply"]) } icon: { Icon(name: "check", size: CGFloat.ds("icon-s")) }
                 }
                 .buttonStyle(DSButtonStyle(kind: .primary))
             }
@@ -495,12 +500,12 @@ struct MergeStep: View {
 
 /// Take for: Bar | Phrase.
 struct MergeScope: View {
-    @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
 
     var body: some View {
-        SegmentedChoice(options: [(false, text["merge.scopeBar"]), (true, text["merge.scopePhrase"])], chosen: score.mergePhrase, label: text["merge.scope"]) {
-            score.mergePhrase = $0
+        SegmentedChoice(options: [(false, text["merge.scopeBar"]), (true, text["merge.scopePhrase"])], chosen: mergeModel.phrase, label: text["merge.scope"]) {
+            mergeModel.scope(phrase: $0)
         }
     }
 }
@@ -528,12 +533,13 @@ struct MergeChoiceButton: View {
 /// A change in the list: its bar, what differs and its state; a tap goes to it.
 struct MergeRow: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
     let bar: MergeInfo.Bar
     let detail: String
 
     var body: some View {
-        let on = score.mergeAt == bar.bar
+        let on = mergeModel.at == bar.bar
         Button { score.goToMergeBar(bar.bar) } label: {
             HStack(spacing: CGFloat.ds("s-2")) {
                 Text(text.format("check.bar", String(bar.bar)))
@@ -571,6 +577,7 @@ struct MergeRow: View {
 /// Listen: Mine · Version · Result · In turn, each in its view's colour.
 struct MergeListen: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
 
     var body: some View {
@@ -583,7 +590,7 @@ struct MergeListen: View {
                         Text(text["merge.view.\(view)"])
                     }
                 }
-                .buttonStyle(DSButtonStyle(kind: score.mergeHearing == view ? .secondary : .quiet, compact: true))
+                .buttonStyle(DSButtonStyle(kind: mergeModel.hearing == view ? .secondary : .quiet, compact: true))
                 .accessibilityLabel(text.format("merge.hearView", text["merge.view.\(view)"]))
             }
         }
@@ -593,13 +600,14 @@ struct MergeListen: View {
 /// While a draft is open, what the score shows: "Show: Mine · Version · Result", floating over the score.
 struct MergeShowSwitch: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Text(text["merge.show"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             ForEach(["mine", "version", "result"], id: \.self) { view in
-                let on = score.mergeShow == view
+                let on = mergeModel.view == view
                 Button { score.showMergeView(view) } label: {
                     HStack(spacing: 4) {
                         Circle().fill(mergeViewColor(view)).frame(width: 8, height: 8)
@@ -613,11 +621,11 @@ struct MergeShowSwitch: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
-            Button { score.hearMerge(score.mergeShow) } label: {
+            Button { score.hearMerge(mergeModel.view) } label: {
                 Icon(name: "play", size: CGFloat.ds("icon-s")).frame(width: 32, height: 32)
             }
             .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text.format("merge.hearView", text["merge.view.\(score.mergeShow)"]))
+            .accessibilityLabel(text.format("merge.hearView", text["merge.view.\(mergeModel.view)"]))
         }
         .padding(.horizontal, CGFloat.ds("s-3"))
         .padding(.vertical, CGFloat.ds("s-1"))
@@ -633,7 +641,7 @@ struct MergeShowSwitch: View {
 struct MergeToastView: View {
     @ObservedObject var score: ScoreController
     let text: UIText
-    let toast: ScoreController.MergeToast
+    let toast: MergeModel.Toast
 
     var body: some View {
         UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { score.undoToast() } : nil) { score.closeToast() }
@@ -674,13 +682,14 @@ struct UndoToast: View {
 /// the draft; nothing is taken from the score here.
 struct MarkerPopover: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var sourcesModel: SourcesModel
     let text: UIText
-    let pick: ScoreController.MarkerPick
+    let pick: MergeModel.MarkerPick
 
     var body: some View {
-        let bar = score.versions.bars.first { $0.bar == pick.bar }
+        let bar = sourcesModel.versions.bars.first { $0.bar == pick.bar }
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text.format("merge.markerTitle", String(pick.bar), score.versions.shown?.name ?? "")).overline()
+            Text(text.format("merge.markerTitle", String(pick.bar), sourcesModel.versions.shown?.name ?? "")).overline()
             if let bar {
                 Text(bar.marker).dsType(.label).foregroundStyle(Color.ds("ink"))
             }
@@ -699,6 +708,6 @@ struct MarkerPopover: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
         .dsShadow("shadow-menu")
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(text.format("merge.markerTitle", String(pick.bar), score.versions.shown?.name ?? ""))
+        .accessibilityLabel(text.format("merge.markerTitle", String(pick.bar), sourcesModel.versions.shown?.name ?? ""))
     }
 }

@@ -107,9 +107,10 @@ final class ScoreWorkspace: ObservableObject {
     }
 
     /// The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
-    /// on from there when it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
+    /// on from there when it plays, and Цикл stays as it is (`place`, answer 16); in focus it stays inside the loop. Notes
+    /// are edited only in the roll (#479 item 23).
     func placeTapped(_ beat: Range<Double>) {
-        player.go(to: beat.lowerBound, play: false)
+        player.apply(.place(beat.lowerBound))
         score.practise(.tap)
     }
 

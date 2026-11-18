@@ -8,6 +8,8 @@
 // 3. The iPad app's folders (src/ipad/App/MotiffLab/<Folder>) use only the folders IPAD_FOLDER_USES allows. The app is
 //    one Swift module, so the compiler does not enforce them: the check indexes the types each folder declares and
 //    reports a file that names a type of a folder it may not use. Today's edges are in the ratchet's baseline.
+// 4. music-core's namespaces use only the namespaces of the layers below their own (CORE_LAYERS), so no two use each
+//    other, directly or round a loop: the compiler allows such a loop within one project.
 import { posix } from 'node:path';
 
 export const CORE = 'src/backend/MotiffLab.MusicCore';
@@ -39,6 +41,28 @@ export const IPAD_FOLDER_USES = {
   Assistant: ['Platform', 'Selection'],
   Account: ['Platform'],
 };
+
+/**
+ * music-core's namespaces (MotiffLab.MusicCore.<Namespace>; a sub-namespace such as Import.Scan counts as its top one)
+ * in layers, from the bottom (docs/code-map/core.md, «Which namespace uses which»): a namespace uses only namespaces of
+ * the layers before its own, never one of its own layer, so none uses another round a loop. `(root)` is
+ * MotiffLab.MusicCore itself (`Words`), which the namespaces from layer 2 up may use; `Time`, `Settings` and `Accounts`
+ * share its layer and use nothing. governance/quality/README.md shows the same
+ * layers, and tools/quality/dependencies.test.mjs checks that the two agree.
+ */
+export const CORE_LAYERS = [
+  ['(root)', 'Time', 'Settings', 'Accounts'],
+  ['Events'],
+  ['Motifs', 'Export'],
+  ['Pieces'],
+  ['Import', 'Playback'],
+  ['Analysis', 'Performance'],
+  ['Notation', 'Variations', 'Invitations'],
+  ['Experiments', 'Assembly'],
+  ['Analytics', 'Projects'],
+  ['Assistant'],
+  ['Facade'],
+];
 
 const CORE_FORBIDDEN = /^(Microsoft\.AspNetCore|Microsoft\.JSInterop|Microsoft\.Extensions\.AI|Microsoft\.Identity|Azure|OpenAI|System\.Net\.Http)\b/;
 
@@ -72,6 +96,171 @@ export function coreViolations(files, read) {
           out.push(violation('core-using', file, m[1], lineAt(text, m.index),
             `music-core uses ${m[1]}: no web, cloud or AI dependency in music-core; the apps or the API call it instead.`));
         }
+      }
+    }
+  }
+  return out;
+}
+
+// ---- music-core's namespaces --------------------------------------------------------------------------------
+//
+// An unqualified name in C# reaches another namespace only through a `using` line or a namespace that encloses the
+// file's own (a sub-namespace sees its top one, and every file sees the root: so a use of the root is not seen, and
+// `Time`, `Settings` or `Accounts` using `Words` would pass). So a file's edges are its `using` lines (a dead one too:
+// the line is a use) and the names it writes qualified, `Performance.SavedPerformance` or
+// `MotiffLab.MusicCore.Import.Scan.ScanCheck`, in code and in a cref, whose name needs the namespace as code does.
+// A qualified name counts when its path leads to a type the namespace declares, so `Assembly.GetExecutingAssembly()`
+// or a member named like a namespace is no use. Other comment text and string literals are no use. What it cannot see:
+// a type reached without its name written (`var bars = piece.Bars`, a member of a member) needs no `using`, so it is no
+// use; the edge runs through the file that declares the member. A `global using` in one file would count for that file
+// only (music-core has none of its own namespaces).
+
+const CS_NAMESPACE = /^[ \t]*namespace[ \t]+MotiffLab\.MusicCore((?:\.\w+)*)[ \t]*[;{]/m;
+const CS_USING = /^[ \t]*(?:global[ \t]+)?using[ \t]+(?:static[ \t]+)?(?:\w+[ \t]*=[ \t]*)?(?:global::)?MotiffLab\.MusicCore\.(\w+)[\w.]*[ \t]*;/gm;
+const CS_TYPE = /\b(?:record[ \t]+(?:struct|class)|class|struct|record|enum|interface)[ \t]+([A-Z]\w*)/g;
+const CS_QUALIFIED = /(?<![\w.])(?:global::)?(?:MotiffLab\.)?(?:MusicCore\.)?([A-Z]\w*)((?:[ \t]*\.[ \t]*[A-Z]\w*)+)/g;
+
+/** Where a C# string literal that starts at `i` ends: '…', "…", @"…", $"…" (blanked whole) or a raw """…""". */
+function csharpLiteralEnd(text, i) {
+  if (text[i] === "'") {
+    const m = /^'(?:\\.|[^'\\\n])*'/.exec(text.slice(i, i + 12));
+    return i + (m ? m[0].length : 1);
+  }
+  const prefix = /^[$@]*/.exec(text.slice(i, i + 4))[0];
+  let k = i + prefix.length;
+  const quotes = /^"*/.exec(text.slice(k))[0].length;
+  if (quotes >= 3) {
+    const end = text.indexOf('"'.repeat(quotes), k + quotes);
+    return end < 0 ? text.length : end + quotes;
+  }
+  const verbatim = prefix.includes('@');
+  for (k += 1; k < text.length; k += 1) {
+    if (text[k] === '\\' && !verbatim) {
+      k += 1;
+    } else if (text[k] === '"' && verbatim && text[k + 1] === '"') {
+      k += 1;
+    } else if (text[k] === '"' || (text[k] === '\n' && !verbatim)) {
+      return k + 1;
+    }
+  }
+  return k;
+}
+
+/**
+ * The C# source with its comments and string literals blanked, except the value of each cref, which names a type as
+ * code does: each blanked character becomes a space and the line breaks stay, so line numbers still match the source.
+ */
+export function csharpCode(text) {
+  const chars = text.split('');
+  const blank = (from, to) => {
+    for (let k = from; k < to; k++) {
+      if (chars[k] !== '\n') {
+        chars[k] = ' ';
+      }
+    }
+  };
+  let i = 0;
+  while (i < text.length) {
+    const two = text.slice(i, i + 2);
+    let end = i + 1;
+    if (two === '//') {
+      end = text.indexOf('\n', i) < 0 ? text.length : text.indexOf('\n', i);
+      blank(i, end);
+      for (const m of text.slice(i, end).matchAll(/cref="([^"]*)"/g)) {
+        const at = i + m.index + 6;
+        [...m[1]].forEach((ch, k) => { chars[at + k] = ch; });
+      }
+    } else if (two === '/*') {
+      end = text.indexOf('*/', i + 2) < 0 ? text.length : text.indexOf('*/', i + 2) + 2;
+      blank(i, end);
+    } else if (/^(?:'|[$@]*")/.test(text.slice(i, i + 4)) && !/\w/.test(text[i - 1] ?? '')) {
+      end = csharpLiteralEnd(text, i);
+      blank(i, end);
+    }
+    i = end;
+  }
+  return chars.join('');
+}
+
+/** The top namespace of a namespace path below MotiffLab.MusicCore (".Import.Scan" is "Import"); "" is "(root)". */
+function coreTop(path) {
+  return path ? path.split('.')[1] : '(root)';
+}
+
+/**
+ * The full namespace path (".Import.Scan") that a qualified name's segments lead to a type of, or null. `declared`
+ * holds the types of each namespace path and of each path above one ("" for none).
+ */
+function qualifiedPath(segments, declared) {
+  let at = '';
+  for (const segment of segments) {
+    if (declared.has(`${at}.${segment}`)) {
+      at = `${at}.${segment}`;
+    } else {
+      return at !== '' && declared.get(at).has(segment) ? at : null;
+    }
+  }
+  return null;
+}
+
+/** The type names each namespace path declares, with an empty set for each path above one that has no file of its own. */
+function coreDeclarations(scanned) {
+  const declared = new Map();
+  for (const f of scanned) {
+    const parts = f.path.split('.');
+    for (let k = 2; k < parts.length; k++) {
+      declared.set(parts.slice(0, k).join('.'), declared.get(parts.slice(0, k).join('.')) ?? new Set());
+    }
+    declared.set(f.path, new Set([...(declared.get(f.path) ?? []), ...[...f.code.matchAll(CS_TYPE)].map((m) => m[1])]));
+  }
+  return declared;
+}
+
+/** The namespaces of music-core one file uses, each with the line of its first use. */
+function coreUses(f, declared) {
+  const uses = new Map();
+  const use = (top, index) => {
+    if (!uses.has(top)) {
+      uses.set(top, lineAt(f.code, index));
+    }
+  };
+  for (const m of f.code.matchAll(CS_USING)) {
+    use(m[1], m.index);
+  }
+  for (const m of f.code.matchAll(CS_QUALIFIED)) {
+    const path = qualifiedPath([m[1], ...m[2].split('.').map((part) => part.trim()).filter(Boolean)], declared);
+    if (path !== null) {
+      use(coreTop(path), m.index);
+    }
+  }
+  return uses;
+}
+
+/**
+ * Each namespace of music-core that a file uses although it is not in a layer below the file's own (rule
+ * "core-namespace", one violation per file and namespace, the symbol "<Namespace>: <used namespace>"), and each file
+ * of a namespace the layers do not list (rule "core-namespace-unlisted").
+ */
+export function coreNamespaceViolations(files, read, layers = CORE_LAYERS) {
+  const scanned = files.filter((file) => file.endsWith('.cs')).map((file) => {
+    const code = csharpCode(read(file));
+    return { file, code, path: CS_NAMESPACE.exec(code)?.[1] };
+  }).filter((f) => f.path !== undefined);
+  const declared = coreDeclarations(scanned);
+  const below = new Map(layers.flatMap((layer, index) => layer.map((name) => [name, new Set(layers.slice(0, index).flat())])));
+  const out = [];
+  for (const f of scanned) {
+    const own = coreTop(f.path);
+    if (!below.has(own)) {
+      out.push(violation('core-namespace-unlisted', f.file, own, 1, `${f.file} is in the namespace ${own} of music-core, `
+        + 'which CORE_LAYERS (tools/quality/dependencies.mjs) does not list: add it to the layer it belongs to.'));
+      continue;
+    }
+    for (const [top, line] of coreUses(f, declared)) {
+      if (top !== own && !below.get(own).has(top)) {
+        out.push(violation('core-namespace', f.file, `${own}: ${top}`, line, `${f.file} (namespace ${own}) uses ${top}, `
+          + `which is not in a layer below ${own}'s (CORE_LAYERS in tools/quality/dependencies.mjs): move the type down `
+          + 'or the code up; a doc comment names a type of a higher namespace in plain text (<c>Type</c>), not by cref.'));
       }
     }
   }
