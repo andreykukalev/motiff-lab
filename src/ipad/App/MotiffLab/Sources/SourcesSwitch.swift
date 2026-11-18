@@ -264,7 +264,8 @@ struct SourcesToastView: View {
 }
 
 /// The «Исполнение» view on the iPad: the recording's sound kept on this iPad, heard as it is, from a capsule under the
-/// bar while the score stays the working notes. ✕ goes back to the notes.
+/// bar while the score stays the working notes. Its slider moves through the recording, the time beside it (Andrei, v0.8
+/// finding 20). ✕ goes back to the notes.
 struct RecordingViewCapsule: View {
     let url: URL
     let title: String
@@ -283,6 +284,18 @@ struct RecordingViewCapsule: View {
             .accessibilityLabel(listening.playing ? text["sources.sheet.pause"] : text.format("sources.sheet.listen", title))
             Icon(name: "mic", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-2"))
             Text(title).dsType(.label).foregroundStyle(Color.ds("ink")).lineLimit(1)
+            Slider(
+                value: Binding(get: { Double(listening.elapsed) }, set: { listening.seek(to: Int($0.rounded())) }),
+                in: 0...Double(max(1, listening.length))
+            ) { editing in
+                listening.holding = editing
+            }
+            .tint(Color.ds("accent"))
+            // Five fingertips wide: room to aim at a minute of a long recording.
+            .frame(width: CGFloat.ds("h-touch") * 5)
+            .disabled(listening.length == 0)
+            .accessibilityLabel(text["sources.sheet.seek"])
+            .accessibilityValue(text.format("sources.sheet.seekValue", SourceLayers.duration(listening.elapsed), SourceLayers.duration(listening.length)))
             Text(SourceLayers.duration(listening.elapsed) + " / " + SourceLayers.duration(listening.length))
                 .dsType(.caption)
                 .monospacedDigit()
@@ -309,6 +322,8 @@ final class RecordingListening: ObservableObject {
     /// Where it is and how long it is, in milliseconds.
     @Published private(set) var elapsed = 0
     @Published private(set) var length = 0
+    /// The player's finger is on the slider: the place it shows is the finger's, not the sound's.
+    var holding = false
     private var player: AVAudioPlayer?
     private var timer: Timer?
 
@@ -345,8 +360,16 @@ final class RecordingListening: ObservableObject {
         timer = nil
     }
 
-    private func tick() {
+    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there.
+    func seek(to milliseconds: Int) {
         guard let player else { return }
+        let place = min(max(0, milliseconds), length)
+        player.currentTime = Double(place) / 1000
+        elapsed = place
+    }
+
+    private func tick() {
+        guard let player, !holding else { return }
         elapsed = Int((player.currentTime * 1000).rounded())
         if !player.isPlaying {
             playing = false
