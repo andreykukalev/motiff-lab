@@ -33,8 +33,11 @@ final class WorkspaceSession {
     private var watched: [AnyCancellable] = []
     private var reactions: [Reaction] = []
     private var shown: [String: String] = [:]
-    /// Whether the roll's page was sent a piece: before that it has no frame to answer.
-    private var rollDrawn = false
+    /// How many times the roll's page was sent a piece: before the first it has no frame to answer. A step that has the
+    /// roll load its notes again waits for the next one with `until`.
+    private(set) var rollLoads = 0
+    /// Whether the view showed the roll: from then its first load is on its way, until it comes.
+    private var rollWanted = false
 
     /// A reaction of the view: the value it observes, as the render before showed it, and what it calls.
     private final class Reaction {
@@ -128,8 +131,10 @@ final class WorkspaceSession {
         XCTFail("the screen did not settle")
     }
 
-    /// Waits until nothing is on its way: no call in music-core, and nothing new said for a while. What is done off the
-    /// main actor outside music-core (the project file written) is not seen here: a step waits for it with `until`.
+    /// Waits until nothing is on its way: no call in music-core, the roll's first load come once the view showed the roll
+    /// (its answer is read off the main actor after music-core's call is done), and nothing new said for a while. What else
+    /// is done off the main actor outside music-core (the project file written, the roll's notes loaded again) is not seen
+    /// here: a step waits for it with `until`.
     func quiet() async {
         var still = 0
         var said = lines.count
@@ -137,10 +142,11 @@ final class WorkspaceSession {
             for _ in 0..<10 { await Task.yield() }
             try? await Task.sleep(for: .milliseconds(20))
             let waiting = ProbeCounts.shared.snapshot()["pending"] ?? 0
-            still = waiting == 0 && lines.count == said ? still + 1 : 0
+            let loading = rollWanted && rollLoads == 0
+            still = waiting == 0 && !loading && lines.count == said ? still + 1 : 0
             said = lines.count
         }
-        XCTAssertGreaterThanOrEqual(still, 10, "the screen went on doing something")
+        XCTAssertGreaterThanOrEqual(still, 10, "the screen went on doing something, or the roll shown never loaded")
     }
 
     /// Waits, up to ten seconds, for what a step started that `quiet` does not see.
@@ -159,14 +165,15 @@ final class WorkspaceSession {
         let workspace = workspace
         let score = workspace.score
         let player = workspace.player
+        let rollShown = { [weak self] (shown: Bool) in if shown { self?.rollWanted = true } }
         reactions = [
             Reaction({ player.hearingAlone }, { _, alone in workspace.hearingAloneChanged(alone) }),
             Reaction({ workspace.panels[.contents] }, { _, open in workspace.contentsChanged(open) }),
             Reaction({ score.focused }, { _, focused in workspace.focusChanged(focused) }),
             Reaction({ score.practicing }, { _, on in workspace.practicingChanged(on) }),
             Reaction({ score.selectionControlsShown }, { _, shown in workspace.selectionControlsChanged(shown) }),
-            Reaction({ score.focused && score.focusRoll }, { _, shown in workspace.focusRollChanged(shown, dark: false) }),
-            Reaction({ workspace.panels[.roll] }, { _, open in workspace.rollDrawerChanged(open, dark: false) }),
+            Reaction({ score.focused && score.focusRoll }, { _, shown in rollShown(shown); workspace.focusRollChanged(shown, dark: false) }),
+            Reaction({ workspace.panels[.roll] }, { _, open in rollShown(open); workspace.rollDrawerChanged(open, dark: false) }),
             Reaction({ score.check }, { _, _ in workspace.checkChanged() }),
             Reaction({ workspace.panels[.insights] }, { _, open in workspace.insightsChanged(open) }),
             Reaction({ workspace.panels.placeFromMoreOpen }, { _, open in workspace.placeFromMoreChanged(open) }),
@@ -260,7 +267,7 @@ final class WorkspaceSession {
         case .load?:
             let kept = fields["keep"] as? Bool == true ? "the zoom and the view kept" : "a first load"
             say("roll load: \(kept), frame \(fields["frame"] is NSNull ? "none" : "given")")
-            rollDrawn = true
+            rollLoads += 1
             return ["colourBy": "hand", "modes": ["hand"]] as [String: Any]
         case .selection?:
             say("roll selection: \(Self.span(fields["selected"])), loops \(Self.span(fields["loop"]))")
@@ -277,8 +284,8 @@ final class WorkspaceSession {
         case .zoom?:
             say("roll zoom: \(fields["axis"] as? String ?? "") \(Int(Self.number(fields["direction"]) ?? 0))")
         case .frame?:
-            say("roll frame: \(rollDrawn ? "given" : "none, the roll never drew")")
-            guard rollDrawn else { return nil }
+            say("roll frame: \(rollLoads > 0 ? "given" : "none, the roll never drew")")
+            guard rollLoads > 0 else { return nil }
             return ["zoom": 2.0, "rowScale": 1.0, "scroll": 480.0, "pitchTop": 84.0].mapValues { NSNumber(value: $0) }
         default:
             break

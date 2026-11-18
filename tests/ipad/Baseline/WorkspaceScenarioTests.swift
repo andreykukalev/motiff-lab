@@ -10,8 +10,8 @@ import XCTest
 /// workspace and the assistant), VIEW-02 (nothing keeps a visited screen's workspace), of PLAY-02 the pages' playhead
 /// gestures reaching the player, and of PLAY-02 and PLAY-04 what the player's model decides while it plays. The
 /// screen's life and the views of the switch are no entry of the baseline: their transcripts are kept here as the
-/// workspace's own. What a page, a gesture or the sound decides stays with the page scenarios, the walk and the device. A transcript is what the app does today: a line in it is not
-/// thereby approved.
+/// workspace's own. What a page, a gesture or the sound decides stays with the page scenarios, the walk and the device.
+/// A transcript is what the app does today: a line in it is not thereby approved.
 @MainActor
 final class WorkspaceScenarioTests: XCTestCase {
     /// The pieces opened in music-core for a test, and what it left on the device.
@@ -89,7 +89,11 @@ final class WorkspaceScenarioTests: XCTestCase {
         await session.step("the player zooms the roll in") { workspace.roll.zoomStep(.time, 1) }
         await session.step("the roll picks bars 7–8") { workspace.roll.picked?(.bars(first: 7, last: 8, extend: false), nil) }
         await session.step("a beat outside the selection is tapped on the score") { score.placeTapped?(240..<480) }
-        await session.step("the piece's notes change") { score.notesChanged?() }
+        await session.step("the piece's notes change") {
+            let loads = session.rollLoads
+            score.notesChanged?()
+            await session.until("the roll loads the notes again") { session.rollLoads > loads }
+        }
         await session.step("Expand on the roll's drawer") {
             workspace.change(.expandFromDrawer)
             score.expandRoll()
