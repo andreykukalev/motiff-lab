@@ -350,9 +350,8 @@ enum LibraryShelf {
     }
 }
 
-/// A kind of source a piece really has, in the order the library shows them (v0.5.6, #533 section 10; music-core's
-/// `LibrarySources`, which the web reads): PDF, notes, recording, then the others. A new kind is one more case here, one
-/// more line in `of` and one more icon in `SourceIcons`.
+/// A kind of source a piece really has, in the order the library shows them (v0.5.6, #533 section 10): PDF, notes,
+/// recording, then the others. A new kind is one more case here, one more line in `of` and one more icon in `SourceIcons`.
 enum LibrarySource: CaseIterable, Equatable, Sendable {
     case pdf, notes, recording, photos, midi
 

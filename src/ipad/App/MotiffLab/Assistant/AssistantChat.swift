@@ -83,8 +83,8 @@ enum JSONValue: Codable, Equatable, Sendable {
 
     var isTrue: Bool { self == .bool(true) }
 
-    /// The first object anywhere in the value with this "id" and a "text": a fact of a digest or of a tool result, as
-    /// music-core's CitedFacts finds it.
+    /// The first object anywhere in the value with this "id" and a "text": a fact of a digest or of a tool result,
+    /// which a citation names.
     func fact(_ id: String) -> (text: String, bars: ClosedRange<Int>?)? {
         switch self {
         case let .object(object):

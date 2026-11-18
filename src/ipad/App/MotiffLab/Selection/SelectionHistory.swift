@@ -4,8 +4,7 @@ import Foundation
 /// that changed the selection: made, an edge moved (from inside or by a handle), taken away (✕ or a hold outside), or
 /// replaced (a hold, the selection gone, a drag: one step). Every change a gesture makes carries its name, so they are
 /// kept as one step. A touch that changes nothing, a gesture cancelled, scrolling, the zoom, playing and the loop are no
-/// steps. A new step drops what Redo had. Up to 50 steps for the piece while it is open, apart from the ink's Undo. The
-/// same rules as music-core's SelectionHistory, which the web app keeps (MotiffLab.MusicCore.Motifs).
+/// steps. A new step drops what Redo had. Up to 50 steps for the piece while it is open, apart from the ink's Undo.
 struct SelectionHistory<Selection: Equatable> {
     /// One step: the selection before and after it, the gesture that made it, and whether the selection was gone on the way.
     struct Step: Equatable {
