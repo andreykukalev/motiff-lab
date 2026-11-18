@@ -51,6 +51,22 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(reported, [])
     }
 
+    /// The roll's payload (step B7): typed, it reaches the page (`RollAnswer.argument`, RollPage.load) with every field and
+    /// value music-core wrote, as the answer was passed on before it was typed.
+    func testTheRollsPayloadDecodesAndReachesThePageAsItWas() throws {
+        let (_, text) = try XCTUnwrap(Self.answers("roll").first)
+        let roll = try XCTUnwrap(FacadeAnswer.decode(RollAnswer.self, text, of: "roll"), "\(reported)")
+        XCTAssertEqual(reported, [])
+        XCTAssertEqual(roll.notes.count, roll.ids.count * 7, "seven numbers a note")
+        XCTAssertEqual(roll.bars.count % 4, 0, "four numbers a bar")
+        XCTAssertEqual(roll.names.notes.count, roll.ids.count)
+        XCTAssertEqual(roll.names.short.count, roll.ids.count)
+        XCTAssertEqual(roll.names.rows.count, roll.names.keyTicks.count, "a row of names for each key signature")
+        XCTAssertTrue((roll.names.rows + roll.names.shortRows).allSatisfy { $0.count == 128 }, "one name for each MIDI pitch")
+        XCTAssertEqual(roll.names.octaves.count, 11)
+        XCTAssertEqual(facadeRequest(roll.argument), facadeRequest(try XCTUnwrap(facadeObject(text))), "what the page gets is the answer")
+    }
+
     func testTheSourceLayersDecode() throws {
         let answers = try Self.answers("sources.layers")
         XCTAssertEqual(answers.count, 9, "each call's answer but the version's, which only builds the state")

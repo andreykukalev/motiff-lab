@@ -347,9 +347,9 @@ final class RollController: NSObject, ObservableObject {
         naming = settings["notes.naming"]
         if !settings.values.isEmpty, noteNames != settings.isOn("roll.noteNames") { noteNames = settings.isOn("roll.noteNames") }
         let asked = naming == "letters" || naming == "syllables" ? "{\"naming\": \"\(naming)\"}" : nil
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "roll", asked) }
-        guard let roll = Self.payload(answer) else {
-            problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
+        let answer = await PieceCore(piece: id).roll(asked)
+        guard let roll = answer.value else {
+            problem = answer.message ?? "music-core gave no piano roll."
             return
         }
         // The same piece's notes again (a note edited, a version taken in, another naming) keep the zoom and the view (BUG-04); back from the PDF, the roll's first load takes the frame the player left (#511 10).
@@ -394,13 +394,6 @@ final class RollController: NSObject, ObservableObject {
     /// The roll's zoom and view now (Web/roll.js `frame`), for the "Notes" view; nil before the roll first drew.
     func frame() async -> [String: Double]? {
         await page.frame()
-    }
-
-    /// The answer of `roll` (`Answer.Roll`), passed to roll.js as it is; nil for a refusal or without a field roll.js reads.
-    static func payload(_ answer: String) -> [String: Any]? {
-        guard let roll = FacadeAnswer(answer, of: "roll"), roll.has("ids", "notes", "bars", "end", "names"),
-              roll.entry("names")?.has("notes", "keyTicks", "rows", "short", "shortRows", "octaves") == true else { return nil }
-        return roll.fields
     }
 
     /// The roll's own words, from the web app's string files (`roll.js.*`), as the web app passes them.

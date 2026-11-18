@@ -3,10 +3,10 @@ import XCTest
 @testable import MotiffLab
 
 /// Step A7 (loud failures): the hot answers the score's screen reads (`select`, the playback score, the roll's payload,
-/// `sources.layers`, `corrections.*`, `performance.merge`) are read through `FacadeAnswer`. Each reader reads music-core's
-/// real answer cleanly; the same answer with a field music-core always writes renamed, as a rename in C# would send it, is
-/// a broken contract the reader reports and does not read, instead of an empty panel. A refusal is neither read as a
-/// success nor reported. In the app `broken` asserts; here it collects what it is told.
+/// `sources.layers`, `corrections.*`, `performance.merge`) are read through `FacadeAnswer.decode`. Each reader reads
+/// music-core's real answer cleanly; the same answer with a field music-core always writes renamed, as a rename in C#
+/// would send it, is a broken contract the reader reports and does not read, instead of an empty panel. A refusal is
+/// neither read as a success nor reported. In the app `broken` asserts; here it collects what it is told.
 final class FacadeAnswerTests: XCTestCase {
     private var piece: Int32 = 0
     private var reported: [String] = []
@@ -28,29 +28,13 @@ final class FacadeAnswerTests: XCTestCase {
 
     func testARefusalIsNotASuccessAndNotABrokenAnswer() throws {
         let refusal = #"{"error": "noSelection", "message": "Select a passage first."}"#
-        XCTAssertNil(FacadeAnswer(refusal, of: "select"))
+        XCTAssertNil(FacadeAnswer.decode(SelectionAnswer.self, refusal, of: "select"))
         XCTAssertEqual(FacadeAnswer.problem(refusal), "Select a passage first.", "the problem line keeps music-core's words")
         XCTAssertEqual(reported, [], "a refusal is music-core's answer, not a broken one")
 
-        XCTAssertNil(FacadeAnswer("not JSON", of: "select"))
+        XCTAssertNil(FacadeAnswer.decode(SelectionAnswer.self, "not JSON", of: "select"))
         XCTAssertEqual(reported.count, 1)
         XCTAssertEqual(FacadeAnswer.problem("not JSON"), UIText.current["parts.pdf.failedNoWord"], "the problem line says music-core gave no answer")
-    }
-
-    func testAFieldMusicCoreAlwaysWritesIsReportedWhenMissingOrOfAnotherType() throws {
-        let answer = try XCTUnwrap(FacadeAnswer(#"{"count": 2, "name": "x", "group": null, "names": {"notes": 3}}"#, of: "test"))
-        XCTAssertEqual(answer.required("count", NSNumber.self)?.intValue, 2)
-        XCTAssertEqual(answer.required("name", String.self), "x")
-        XCTAssertEqual(answer.entry("names")?.required("notes", NSNumber.self)?.intValue, 3)
-        XCTAssertTrue(answer.has("count", "name"))
-        XCTAssertEqual(reported, [])
-
-        XCTAssertNil(answer.required("name", Bool.self))
-        XCTAssertNil(answer.required("total", NSNumber.self))
-        XCTAssertNil(answer.entry("names")?.required("keyTicks", [Int].self))
-        XCTAssertFalse(answer.has("count", "group"), "null is missing for a payload passed on")
-        XCTAssertEqual(reported.count, 4, "\(reported)")
-        XCTAssertTrue(reported.contains { $0.contains("test.names") && $0.contains("\"keyTicks\"") }, "the problem names where: \(reported)")
     }
 
     // MARK: - The hot answers
@@ -90,16 +74,27 @@ final class FacadeAnswerTests: XCTestCase {
         expectBroken("tempos") { PlaybackScore.read(renamed(answer, "tempos")) }
     }
 
-    @MainActor
     func testTheRollsPayload() throws {
-        let answer = MusicCore.call(piece: piece, "roll")
-        let payload = try XCTUnwrap(RollController.payload(answer))
-        XCTAssertFalse((payload["ids"] as? [String] ?? []).isEmpty)
+        // Each naming the roll asks for: the page gets every field and value music-core wrote (RollPage.load), as the app
+        // passed the answer on before it was typed (step B7).
+        for request in [nil, #"{"naming": "letters"}"#, #"{"naming": "syllables"}"#] {
+            let answer = MusicCore.call(piece: piece, "roll", request)
+            let roll = try XCTUnwrap(rollAnswer(answer))
+            XCTAssertFalse(roll.ids.isEmpty)
+            XCTAssertEqual(facadeRequest(roll.argument), facadeRequest(try XCTUnwrap(facadeObject(answer))), "\(request ?? "no naming")")
+        }
         XCTAssertEqual(reported, [])
 
-        expectBroken("bars") { RollController.payload(renamed(answer, "bars")) }
-        expectBroken("keyTicks") { RollController.payload(renamed(answer, "keyTicks")) }
-        XCTAssertNil(RollController.payload(#"{"error": "noPiece", "message": "No piece."}"#))
+        let answer = MusicCore.call(piece: piece, "roll")
+        expectBroken("bars") { rollAnswer(renamed(answer, "bars")) }
+        XCTAssertNil(rollAnswer(renamed(answer, "keyTicks")))
+        XCTAssertTrue(reported.contains { $0.contains("\"keyTicks\" at roll.names") }, "the problem names where: \(reported)")
+        reported = []
+        // Null, as music-core never writes it there, is no value of the field's type.
+        XCTAssertNil(rollAnswer(answer.replacingOccurrences(of: "\"end\":", with: "\"end\":null,\"endWas\":")))
+        XCTAssertTrue(reported.contains { $0.contains("\"end\" of type Int at roll") }, "\(reported)")
+        reported = []
+        XCTAssertNil(rollAnswer(#"{"error": "noPiece", "message": "No piece."}"#))
         XCTAssertEqual(reported, [])
     }
 
@@ -169,6 +164,11 @@ final class FacadeAnswerTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// The roll's payload read as `PieceCore.roll` reads it.
+    private func rollAnswer(_ answer: String) -> RollAnswer? {
+        FacadeAnswer.decode(RollAnswer.self, answer, of: "roll")
+    }
 
     /// A merge draft's answer read as `PieceCore.merge` reads it.
     private func mergeAnswer(_ answer: String) -> MergeAnswer? {
