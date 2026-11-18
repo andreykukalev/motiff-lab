@@ -48,7 +48,7 @@ public class HeardCutTests
             Attribution = Attribution.Imported,
         })];
         byte[] midi = MidiExporter.Export(notes, [], MeterMap.Default, "concert");
-        BarGrid? grid = BarGrid.Find(PieceImporter.Import("concert.mid", midi).Piece!.Midi!);
+        BarGrid? grid = RecordingBars.Find(PieceImporter.Import("concert.mid", midi).Piece!.Midi!);
         Project project = Project.Create("p_concert", "concert.mid", midi, s_now) with
         {
             Transcription = new TranscriptionOrigin("transkun 2", grid) { Seams = [40_000], At = s_now, SentFromMilliseconds = 90_000 },

@@ -1,6 +1,7 @@
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Pieces;
+namespace MotiffLab.MusicCore.Import.Transcription;
 
 /// <summary>
 /// A stretch of a recording's bars that reads better in another signature (version 0.5, «Смена размера в записи», a
@@ -9,7 +10,7 @@ namespace MotiffLab.MusicCore.Pieces;
 /// </summary>
 public sealed record MeterStretch(int From, int To, TimeSignature Signature);
 
-public sealed partial record BarGrid
+public static partial class RecordingBars
 {
     /// <summary>The odd bars tried in a recording, by their 16ths: 5/8, 7/8, 9/8, 5/4 and 12/8.</summary>
     public static IReadOnlyList<TimeSignature> OddSignatures { get; } =
@@ -29,31 +30,33 @@ public sealed partial record BarGrid
     /// weighs a whole piece: an odd bar is taken only when the bass falls on its bar lines at least 1.25 times as well as on
     /// the best of the usual bars, and two windows or more in a row with the same odd bar make one stretch. Deterministic.
     /// </summary>
+    /// <param name="grid">The grid found for the recording.</param>
     /// <param name="import">The engine's MIDI the grid was found for, on the engine's clock.</param>
-    public IReadOnlyList<MeterStretch> OddMeters(MidiImport import)
+    public static IReadOnlyList<MeterStretch> OddMeters(this BarGrid grid, MidiImport import)
     {
+        ArgumentNullException.ThrowIfNull(grid);
         ArgumentNullException.ThrowIfNull(import);
         var clock = new Clock(import.Tempos);
         Onset[] onsets = Cluster(import.Notes, clock);
-        int first = Array.FindIndex(onsets, onset => onset.Tick >= Origin);
+        int first = Array.FindIndex(onsets, onset => onset.Tick >= grid.Origin);
         if (first < 0)
         {
             return [];
         }
 
-        // Counted from the grid's origin as Apply counts, so a stretch's 16ths are its ticks over StepTicks.
-        long originUnits = clock.Units(Origin);
+        // Counted from the grid's origin as Apply counts, so a stretch's 16ths are its ticks over BarGrid.StepTicks.
+        long originUnits = clock.Units(grid.Origin);
         Onset[] heard = onsets[first..];
-        int[] steps = [.. heard.Select(onset => (int)((ThousandthsOfSteps((onset.Units - originUnits) / Clock.UnitsPerMicrosecond) + 500) / 1000))];
+        int[] steps = [.. heard.Select(onset => (int)((grid.ThousandthsOfSteps((onset.Units - originUnits) / Clock.UnitsPerMicrosecond) + 500) / 1000))];
         int[] lowest = [.. heard.Select(onset => onset.Lowest)];
-        int bar = (int)(Signature.BarTicks / StepTicks), window = MeterWindowBars * bar;
+        int bar = (int)(grid.Signature.BarTicks / BarGrid.StepTicks), window = MeterWindowBars * bar;
         var found = new List<(MeterStretch Stretch, int Windows)>();
         int last = steps.Length == 0 ? 0 : steps[^1] + 1;
-        for (int from = BarStarts[0]; from < last; from += MeterHopBars * bar)
+        for (int from = grid.BarStarts[0]; from < last; from += MeterHopBars * bar)
         {
             // Only whole windows are weighed, but the last reaches to the end and a piece shorter than one is one.
             int to = from + window + (MeterHopBars * bar) >= last ? last : from + window;
-            if (from > BarStarts[0] && from + window > last)
+            if (from > grid.BarStarts[0] && from + window > last)
             {
                 break;
             }
@@ -76,7 +79,7 @@ public sealed partial record BarGrid
         }
 
         // A change holds for two windows running, twelve bars at least, unless one window is the whole piece.
-        return [.. found.Where(each => each.Windows >= 2 || (each.Stretch.From == BarStarts[0] && each.Stretch.To == last)).Select(each => each.Stretch)];
+        return [.. found.Where(each => each.Windows >= 2 || (each.Stretch.From == grid.BarStarts[0] && each.Stretch.To == last)).Select(each => each.Stretch)];
     }
 
     /// <summary>
@@ -105,7 +108,7 @@ public sealed partial record BarGrid
         long usual = new[] { 16, 6, 12, 8 }.Max(Score);
         // By 16ths in a bar; a near tie goes to the shorter bar, as in Find: 5/8 before 5/4, which holds two of them.
         (TimeSignature Signature, long Score)[] odd = [.. OddSignatures
-            .Select(signature => (signature, Score((int)(signature.BarTicks / StepTicks))))
+            .Select(signature => (signature, Score((int)(signature.BarTicks / BarGrid.StepTicks))))
             .OrderBy(candidate => candidate.signature.BarTicks)];
         long most = odd.Max(candidate => candidate.Score);
         (TimeSignature Signature, long Score) best = odd.First(candidate => 10 * candidate.Score >= 9 * most);

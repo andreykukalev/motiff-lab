@@ -28,7 +28,7 @@ public sealed record ImportedPiece(
     MusicXmlImport? MusicXml,
     byte[]? ScoreXml)
 {
-    /// <summary>For a transcription, the bars and tempo worked out from its notes (<see cref="BarGrid.Apply"/>); null otherwise.</summary>
+    /// <summary>For a transcription, the bars and tempo worked out from its notes (<c>Import.Transcription.RecordingBars.Apply</c>); null otherwise.</summary>
     public BarGrid? Bars { get; init; }
 
     /// <summary>The tempo of notes made by an assembly and applied to the piece (decision record 0024); null for a piece as its file has it.</summary>

@@ -1,9 +1,10 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Pieces;
+namespace MotiffLab.MusicCore.Import.Transcription;
 
-public sealed partial record BarGrid
+public static partial class RecordingBars
 {
     /// <summary>
     /// The grid that fits a live performance (version 0.5, «Темп живого исполнения»): the beat found afresh in each
@@ -11,7 +12,7 @@ public sealed partial record BarGrid
     /// keeps its bars. Each section is searched over its own opening, at the 16th of the one before when that does nearly
     /// as well, and tracked within 3/5 to 8/5 of its own start; its first downbeat starts the bars afresh. One signature
     /// for the whole recording, the one the sections support best together, and one number of 16ths a beat, the first
-    /// section's. The grid is written as any other (<see cref="Beats"/>, <see cref="BarStarts"/>).
+    /// section's. The grid is written as any other (<see cref="BarGrid.Beats"/>, <see cref="BarGrid.BarStarts"/>).
     /// </summary>
     public static GridFound FindLive(MidiImport import, GridSearch search, TimeSignature? signature = null, int? stepsPerBeat = null)
     {
@@ -30,7 +31,7 @@ public sealed partial record BarGrid
         List<LiveSection> sections = live.Sections();
         (long[] beats, int[] firstBeats) = Join(sections);
         long[] gaps = [.. beats.Zip(beats.Skip(1), (a, b) => b - a).Order()];
-        long sixteenth = Math.Clamp(gaps[gaps.Length / 2] / live.PerBeat, ShortestSixteenth, LongestSixteenth);
+        long sixteenth = Math.Clamp(gaps[gaps.Length / 2] / live.PerBeat, BarGrid.ShortestSixteenth, BarGrid.LongestSixteenth);
         Tick origin = onsets[0].Tick;
         var grid = new BarGrid(origin, (int)sixteenth, TimeSignature.CommonTime, [0], beats, live.PerBeat);
         if (!live.FirstHasBass && stepsPerBeat is null)
@@ -51,19 +52,6 @@ public sealed partial record BarGrid
         var bars = new SectionBars(sections, sectionStarts, steps, lowest, live.PerBeat);
         (TimeSignature picked, bool? fits) = bars.Pick(signature, search.Hint?.Signature);
         return new GridFound(new BarGrid(origin, (int)sixteenth, picked, bars.Starts(picked), beats, live.PerBeat), sections.Count, fits);
-    }
-
-    private static void Validate(TimeSignature? signature, int? stepsPerBeat)
-    {
-        if (signature is { } chosen && !Signatures.Contains(chosen))
-        {
-            throw new ArgumentException($"Bars of {chosen} are not offered.", nameof(signature));
-        }
-
-        if (stepsPerBeat is < FewestStepsPerBeat or > MostStepsPerBeat)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stepsPerBeat), stepsPerBeat, "A beat is written as 1 to 16 16ths.");
-        }
     }
 
     /// <summary>For each onset, how long nothing sounded before it, in microseconds; 0 for the first.</summary>
@@ -208,7 +196,7 @@ public sealed partial record BarGrid
                 long period = Math.Max(1, PerBeat * step);
                 beats = BassBeat(lows) is { } bass
                     ? Divided(TrackBass(local, lows, bass, GridSearch.JumpRun, out jumped, _relock), Within(bass, period))
-                    : BarGrid.Track(local, period, GridSearch.JumpRun, out jumped, _relock);
+                    : RecordingBars.Track(local, period, GridSearch.JumpRun, out jumped, _relock);
             }
 
             int end = jumped is { } at ? from + Array.IndexOf(local, at) : to;
@@ -257,7 +245,7 @@ public sealed partial record BarGrid
             }
 
             PerBeat = _steps ?? 2;
-            return BarGrid.Track(local, PerBeat * step, GridSearch.JumpRun, out jumped, _relock);
+            return RecordingBars.Track(local, PerBeat * step, GridSearch.JumpRun, out jumped, _relock);
         }
 
         /// <summary>The 16ths searched: within 0.6 to 1.6 of a hinted 16th, else all.</summary>
@@ -277,7 +265,7 @@ public sealed partial record BarGrid
             var costs = new List<(long Step, long Cost)>();
             foreach (long step in new[] { found / 2, found, found * 2 })
             {
-                if (step is >= ShortestSixteenth and <= LongestSixteenth)
+                if (step is >= BarGrid.ShortestSixteenth and <= BarGrid.LongestSixteenth)
                 {
                     (long Step, long Phase, long Cost) best = (0, 0, 0);
                     Consider(opening, step, 16, ref best);
@@ -311,12 +299,12 @@ public sealed partial record BarGrid
             long best = scores.Max();
             int index = best <= 0 ? 0 : Array.FindIndex(scores, score => 10 * score >= 9 * best);
             TimeSignature picked = Named(s_sizes[index]);
-            if (hint is not { } hinted || !Signatures.Contains(hinted))
+            if (hint is not { } hinted || !BarGrid.Signatures.Contains(hinted))
             {
                 return (picked, null);
             }
 
-            int size = (int)(hinted.BarTicks / StepTicks);
+            int size = (int)(hinted.BarTicks / BarGrid.StepTicks);
             int at = Array.IndexOf(s_sizes, size);
             bool fits = at >= 0 && 4 * scores[at] >= 3 * best;
             return fits ? (hinted, true) : (picked, false);
@@ -325,7 +313,7 @@ public sealed partial record BarGrid
         /// <summary>In 16ths from the origin: each section's bar starts after its own first beat, in order.</summary>
         public int[] Starts(TimeSignature signature)
         {
-            int size = (int)(signature.BarTicks / StepTicks);
+            int size = (int)(signature.BarTicks / BarGrid.StepTicks);
             var all = new List<int>();
             for (int k = 0; k < sections.Count; k++)
             {
