@@ -38,6 +38,14 @@ struct PieceCore: Sendable {
         return Answer(text, of: "playback")
     }
 
+    /// `roll`: the piano roll's data; the request's "naming" ("letters" or "syllables") spells the names, else the piece's
+    /// language's.
+    func roll(_ request: String?) async -> Answer<RollAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "roll", request) }
+        return Answer(text, of: "roll")
+    }
+
     /// `sources.layers`: the piece's sources by the layers of decision record 0030 as the request's "device" sees them,
     /// with "here", the originals whose bytes the app keeps on this device.
     func sourceLayers(_ request: String) async -> Answer<SourceLayersAnswer> {

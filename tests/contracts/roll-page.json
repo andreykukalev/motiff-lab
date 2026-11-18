@@ -1,5 +1,5 @@
 {
-  "note": "The roll page's contract (decision record 0031, step 12; the v0.7 blueprint's B7): the functions of window.roll in src/ipad/App/Web/roll.js, the app's RollCommand; the keys of the messages the page posts, the app's RollEvent.Kind (its first message, the string \"ready\", is no event); an example of each function's argument and answer and of each message, with exactly the fields roll.js reads (at any depth) or posts, except what roll.js passes on whole to piano-roll.ts unread (labels, frame, tuplets, the arrays of music-core's payload), whose keys are not checked further; and the callbacks of PianoRoll's host (piano-roll.ts) that roll.js passes on to Swift or drops. Checked by tests/shared/roll-page-contract.test.mjs and tests/ipad/MotiffLabTests/RollPageContractTests.swift.",
+  "note": "The roll page's contract (decision record 0031, step 12; the v0.7 blueprint's B7): the functions of window.roll in src/ipad/App/Web/roll.js, the app's RollCommand; the keys of the messages the page posts, the app's RollEvent.Kind (its first message, the string \"ready\", is no event); an example of each function's argument and answer and of each message, with exactly the fields roll.js reads (at any depth) or posts, except what roll.js passes on whole to piano-roll.ts unread (labels, frame, tuplets, the arrays of music-core's payload), whose keys are not checked further (the load's roll has the types of music-core's roll answer, the app's RollAnswer); and the callbacks of PianoRoll's host (piano-roll.ts) that roll.js passes on to Swift or drops. Checked by tests/shared/roll-page-contract.test.mjs and tests/ipad/MotiffLabTests/RollPageContractTests.swift.",
   "commands": [
     "load",
     "nextColour",
@@ -41,7 +41,7 @@
         "notes": [0, 240, 76, 0, 0, 0, 1, 240, 240, 75, 0, 0, 0, 1],
         "bars": [0, 720, 0, 1],
         "end": 720,
-        "names": { "notes": ["E5", "D#5"], "keyTicks": [76, 75], "rows": [76, 75], "short": ["E", "D#"], "shortRows": [76, 75], "octaves": [5] }
+        "names": { "notes": ["E5", "D#5"], "keyTicks": [0], "rows": [["E5", "D#5"]], "short": ["E", "D#"], "shortRows": [["E", "D#"]], "octaves": ["octave 5"] }
       },
       "labels": { "rightHand": "Right hand", "leftHand": "Left hand" },
       "noteNames": true,

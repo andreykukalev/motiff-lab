@@ -58,8 +58,9 @@ final class RollPageContractTests: XCTestCase {
             return answers[name]
         }
         let load = try XCTUnwrap(arguments["load"] as? [String: Any])
+        let roll = try JSONDecoder().decode(RollAnswer.self, from: JSONSerialization.data(withJSONObject: try XCTUnwrap(load["roll"])))
         let shown = try await page.load(
-            roll: try XCTUnwrap(load["roll"] as? [String: Any]), labels: try XCTUnwrap(load["labels"] as? [String: String]), noteNames: true,
+            roll: roll, labels: try XCTUnwrap(load["labels"] as? [String: String]), noteNames: true,
             dark: false, colourBy: "hand", keep: false, frame: ["zoom": 1.5, "rowScale": 1, "scroll": 960, "pitchTop": 84]
         )
         XCTAssertEqual(shown, RollShown(["colourBy": "hand", "modes": ["hand", "track"]] as [String: Any]))

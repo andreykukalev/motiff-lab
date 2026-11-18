@@ -135,6 +135,9 @@ public class FacadeAnswersContractTests
         ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
+        // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for
+        // the keys in the piece's language, as the roll asks it while the player chose no naming of their own.
+        ["roll"] = [("roll", null)],
     };
 
     /// <summary>
