@@ -128,7 +128,7 @@ internal sealed partial class OpenPiece
 
         long milliseconds = heard.Long("milliseconds")!.Value;
         IReadOnlyList<RecordingPart> plan = PlanOf(heard, milliseconds);
-        BarGrid? bars = BarGrid.Find(imported.Midi, search: LiveTempoRequest.Of(heard));
+        (BarGrid? bars, ImportedPiece piece) = LiveTempoRequest.Heard(imported, heard);
         long? sentFrom = heard.Long("sentFromMs");
         if (sentFrom is < 0)
         {
@@ -140,7 +140,6 @@ internal sealed partial class OpenPiece
             Seams = plan.Count > 1 ? RecordingParts.Seams(plan) : [],
             SentFromMilliseconds = sentFrom,
         };
-        ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
         return (midi, origin, CheckFlag.FromTranscription(origin, midi, piece));
     }
 

@@ -9,13 +9,13 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// A stretch of a recording heard, by time, cut into a transcription of its own (version 0.5, a piece from a concert): the
 /// engine's notes, pedal and keys with their onset in the stretch, on the engine's clock, moved to start at 0; then bars
-/// and a tempo worked out afresh from that stretch alone (<see cref="BarGrid.Find"/>), so a piece cut from a concert of
+/// and a tempo worked out afresh from that stretch alone (<see cref="RecordingBars.Find"/>), so a piece cut from a concert of
 /// several pieces has its own tempo and bars, not the concert's. Its Check flags are worked out again, since its bars are
 /// other bars. The collection is never changed.
 /// </summary>
 /// <remarks>
 /// Integer arithmetic only, deterministic: the same collection and stretch give the same piece. A stretch with fewer onsets
-/// than a grid needs (<see cref="BarGrid.MinOnsets"/>) keeps the engine's bars, as any short recording does.
+/// than a grid needs (<see cref="RecordingBars.MinOnsets"/>) keeps the engine's bars, as any short recording does.
 /// </remarks>
 public static class HeardCut
 {
@@ -85,7 +85,7 @@ public static class HeardCut
 
         byte[] midi = Midi(engine, notes, start, stop);
         ImportedPiece read = PieceImporter.Import("part.mid", midi).Piece is { Midi: not null } imported ? imported : throw new ArgumentException("The notes cut could not be read.", nameof(collection));
-        BarGrid? bars = BarGrid.Find(read.Midi!, search: live ? GridSearch.Live : null);
+        BarGrid? bars = RecordingBars.Find(read.Midi!, search: live ? GridSearch.Live : null);
         var origin = new TranscriptionOrigin(heard.Engine, bars)
         {
             Seams = [.. heard.Seams.Where(seam => seam > from && seam < to).Select(seam => seam - from)],

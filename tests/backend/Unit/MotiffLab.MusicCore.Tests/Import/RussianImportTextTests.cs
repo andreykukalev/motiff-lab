@@ -1,5 +1,6 @@
 using System.Reflection;
 
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
@@ -65,7 +66,7 @@ public class RussianImportTextTests
     public void The_bars_worked_out_for_a_transcription_are_described_in_russian()
     {
         ImportedPiece heard = PieceImporter.Import("take.mid", File.ReadAllBytes(Fixture("Transcription", "Fixtures", "transkun-fur-elise.mid"))).Piece!;
-        BarGrid grid = BarGrid.Find(heard.Midi!)!;
+        BarGrid grid = RecordingBars.Find(heard.Midi!)!;
         ImportIssue issue = grid.Apply(heard).Report.Issues.Single(issue => issue.Code == BarGrid.IssueCode);
 
         Assert.Equal(grid.Describe(), issue.Message);

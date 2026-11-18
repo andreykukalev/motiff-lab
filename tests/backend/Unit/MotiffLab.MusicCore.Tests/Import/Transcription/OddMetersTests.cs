@@ -1,6 +1,7 @@
 using System.Text;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -45,7 +46,7 @@ public class OddMetersTests
     private static (BarGrid Grid, IReadOnlyList<MeterStretch> Odd) Heard(IEnumerable<(int, int, int)> notes)
     {
         ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, Sixteenth, notes)));
-        BarGrid grid = BarGrid.Find(piece.Midi!)!;
+        BarGrid grid = RecordingBars.Find(piece.Midi!)!;
         return (grid, grid.OddMeters(piece.Midi!));
     }
 
