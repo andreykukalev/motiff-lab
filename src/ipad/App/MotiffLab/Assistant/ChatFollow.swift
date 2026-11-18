@@ -1,84 +1,84 @@
 import SwiftUI
 
-/// Whether a chat's scroll follows its end (Andrei, 2026-11-18, the chat at the selection): new text brings the latest
-/// line into view, unless the player has scrolled up from the end; scrolled back down to it, the chat follows again. Each
-/// measure of the chat's end says whether to scroll to it now. After new text the end is out of view until the scroll
-/// has brought it in (settling): that is the text growing, not the player scrolling up.
-struct ChatFollow<Content: Equatable>: Equatable {
-    private(set) var following = true
-    private var settling = false
-    private var seen: Content?
+/// How a chat's scroll follows what comes into it (Andrei, 2026-11-18), for the panel and the chat at the selection alike.
+/// A change of the rows' height is the chat growing; a move of their end at the same height is the player scrolling, and
+/// the chat follows while its end is in view. Growing while it follows, the chat shows a new answer from its start or its
+/// end (`newAnswer`, the caller's choice), and anything else that grows at its end by its end; the player's own question
+/// always comes into view. Scrolled up, nothing pulls the player back.
+struct ChatFollow: Equatable {
+    enum Scroll: Equatable {
+        case none, end
+        /// The start of the row with this id.
+        case start(String)
+    }
 
-    /// The end of the chat measured `end` points below the top of its view, `height` points tall, showing `content`: true
-    /// when the chat should scroll to its end now.
-    mutating func measured(_ content: Content, end: CGFloat, height: CGFloat) -> Bool {
-        let inView = end <= height + 1
-        if content != seen {
-            seen = content
-            settling = following && !inView
-            return settling
+    enum NewAnswer: Equatable {
+        case start, end
+    }
+
+    let newAnswer: NewAnswer
+    private(set) var following = true
+    private var rows: CGFloat?
+    private var newest: String?
+
+    init(newAnswer: NewAnswer) {
+        self.newAnswer = newAnswer
+    }
+
+    /// The rows measured, `rows` tall with their end `end` below the top of a view `height` tall; `newest` names the last
+    /// row (an answer, or the player's question on its way when `asked`): where to scroll now.
+    mutating func measured(rows: CGFloat, end: CGFloat, height: CGFloat, newest: String?, asked: Bool) -> Scroll {
+        guard rows != self.rows else {
+            if height > 0 { following = end <= height + 1 }
+            return .none
         }
-        if settling {
-            settling = !inView
-            return settling
+        let isNew = newest != self.newest
+        self.rows = rows
+        self.newest = newest
+        if asked && isNew {
+            following = true
+            return .end
         }
-        following = inView
-        return false
+        guard following else { return .none }
+        if isNew, let newest, newAnswer == .start { return .start(newest) }
+        return .end
     }
 }
 
-/// A chat's scroll view that follows its end (ChatFollow), by finger or Pencil: the scroll view's own pan, which nothing
-/// over it takes (the chat's card drags by its handle only, MenuDrag).
-struct FollowingScroll<Content: Equatable, Rows: View>: View {
-    let content: Content
+/// A chat's scroll view under ChatFollow, by finger or Pencil (nothing over it takes its pan: the chat at the selection's
+/// card drags by its head only, MenuDrag). The rows give each answer its id (`.id`), as `newest` names it.
+struct FollowingScroll<Rows: View>: View {
+    let newest: String?
+    let asked: Bool
     let rows: () -> Rows
-    @State private var follow = ChatFollow<Content>()
+    @State private var follow: ChatFollow
     @State private var height: CGFloat = 0
-    @State private var end: CGFloat = 0
 
-    init(following content: Content, @ViewBuilder _ rows: @escaping () -> Rows) {
-        self.content = content
+    init(newAnswer: ChatFollow.NewAnswer, newest: String?, asked: Bool = false, @ViewBuilder _ rows: @escaping () -> Rows) {
+        self.newest = newest
+        self.asked = asked
         self.rows = rows
+        _follow = State(initialValue: ChatFollow(newAnswer: newAnswer))
     }
 
     var body: some View {
         ScrollViewReader { reader in
             ScrollView {
-                VStack(spacing: 0) {
-                    rows()
-                    Color.clear.frame(height: 1).id(Self.endId).background {
-                        GeometryReader { proxy in
-                            Color.clear.preference(key: ChatEndKey.self, value: proxy.frame(in: .named(Self.space)).maxY)
+                rows()
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                        switch follow.measured(rows: frame.height, end: frame.maxY, height: height, newest: newest, asked: asked) {
+                        case .none: break
+                        case .end: reader.scrollTo(Self.end, anchor: .bottom)
+                        case let .start(id): reader.scrollTo(id, anchor: .top)
                         }
                     }
-                }
+                Color.clear.frame(height: 0).id(Self.end)
             }
             .coordinateSpace(.named(Self.space))
-            .background {
-                GeometryReader { proxy in
-                    Color.clear
-                        .onAppear { height = proxy.size.height }
-                        .onChange(of: proxy.size.height) { _, now in height = now }
-                }
-            }
-            .onPreferenceChange(ChatEndKey.self) { now in end = now }
-            .onChange(of: [end, height]) { _, _ in measure(reader) }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
     }
 
-    private func measure(_ reader: ScrollViewProxy) {
-        guard height > 0, follow.measured(content, end: end, height: height) else { return }
-        reader.scrollTo(Self.endId, anchor: .bottom)
-    }
-
-    private static var endId: String { "chat-end" }
+    private static var end: String { "chat-end" }
     private static var space: String { "chat" }
-}
-
-private struct ChatEndKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
 }
