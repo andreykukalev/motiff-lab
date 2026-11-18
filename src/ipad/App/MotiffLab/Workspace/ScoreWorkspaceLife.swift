@@ -165,10 +165,11 @@ extension ScoreWorkspace {
         if let span = kept.selection, span.end > span.onset {
             await score.select(request: span.span.request, step: false, picked: span.picked != nil)
         }
-        // The model takes the selection now (T9), then Цикл as it was and the position (T7, T12).
+        // The model takes the selection now (T9), then Цикл as it was and the position, which leaves Цикл as it is (T7,
+        // `place`, answer 14).
         player.hold(selection: score.playRange?.range)
         if player.cycle != kept.loop { player.apply(.cycle) }
-        player.go(to: kept.position, play: false)
+        player.apply(.place(kept.position))
         change(kept.rollOpen ? .open(.roll) : .close(.roll))
         await score.showPlace(kept.place, zoom: kept.zoom, left: kept.left)
     }

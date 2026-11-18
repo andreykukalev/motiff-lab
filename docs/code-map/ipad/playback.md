@@ -24,16 +24,20 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 `showVersion`, `updatePlayRange`); the play range is the selection's span, nil without one; `unit` is the unit of the
 level shown that is selected, or the one that holds the selection's start.
 
-`PlaybackModel` follows the shared case file above. The rest: not recorded yet.
+`PlaybackModel` follows the shared case file above, but for the iPad's own cases (`Golden/playback-model-ipad.json`): a
+selection changed while Цикл plays, and `place`, the score's tap on a beat and the position put back from the PDF, which
+leaves Цикл on and, outside the selection, makes a lead-in that Play plays from (answers 14 and 16, PLAY-06). The roll's
+taps stay `seek` (T12, Цикл off outside the selection). The rest: not recorded yet.
 
 ## The state it owns
 
 `FocusModel`: `entry`, `asRoll`, the card's options, `version`, `playRange` and the version's notes to hear; Expand's
 `focused` is still `ScoreController`'s ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the note of S3).
 
-The practice visibilities (`PracticeView`). The rest: not recorded yet.
+The practice visibilities (`PracticeView`); the selection, Цикл and the lead-in (`Player`, written only from the model's
+decisions, the lead-in also ended in `poll` once the position reaches the selection). The rest: not recorded yet.
 
 ## Baseline entries that protect it
 
-UX baseline: `PLAY-01` to `PLAY-05`. Quality ratchet: `PlaybackEngine.swift` file_length and `handle`
+UX baseline: `PLAY-01` to `PLAY-06`. Quality ratchet: `PlaybackEngine.swift` file_length and `handle`
 cyclomatic_complexity.
