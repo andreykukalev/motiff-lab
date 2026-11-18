@@ -134,13 +134,13 @@ struct AssistantHereCard: View {
 
     /// Ask in the selection's menu: the assistant opens at the selection, in the role «Помощник правит ноты» sets.
     @MainActor static func open(_ assistant: AssistantController, score: ScoreController, settings: DeviceSettings) {
-        guard let selection = selectionModel.selection else { return }
+        guard let selection = score.selectionModel.selection else { return }
         assistant.openHere(on: selection, role: AssistantSide.role(settings))
     }
 
     /// What a question here is asked about: the selected bars of the piece open in music-core.
     @MainActor static func ask(score: ScoreController, text: UIText, role: String, relay: AssistantRelay) -> AssistantAsk? {
-        guard let piece = score.pieceId, let selection = selectionModel.selection else { return nil }
+        guard let piece = score.pieceId, let selection = score.selectionModel.selection else { return nil }
         return AssistantAsk(
             piece: piece, selection: selection, wholePiece: false, scope: score.askLabel ?? "", language: text.language, role: role, relay: relay
         )
