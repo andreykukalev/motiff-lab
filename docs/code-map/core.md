@@ -29,6 +29,9 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   `HeardRhythm` and `HeardOnsets` (notes heard in a recording), `ControlPlan` (the marks of the playing per bar,
   `ControlEvents`; the marks come from `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and
   `BarAccidentals` (a staff in a bar, `LayoutElements`), and `MeiWriter`.
+- The comparison of a performance with the print (W1.9): `PerformanceComparison` (`Compare`) pairs the notes with
+  `NoteMatcher`, sorts the rest into bars and names each bar's kind with `DifferenceClassifier`; a bar's result is a
+  `BarComparison` (`BarDifference`, `NoteMatch`, `PlacedNote`).
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
   provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
   `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
