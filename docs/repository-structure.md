@@ -94,7 +94,9 @@ there, except in a task whose `allowed_paths` name `archive/`. Bringing a part b
   `global.json`, `Directory.Build.props`), and only then are the app built, the Swift tests run in the simulator and the
   walk's UI tests compiled (not run), on every push.
   Its job `ipad-gate` reports on every pull request and is a required check on `develop` (`infra/github/protect.ps1`).
-  The same tests run on `develop` after a merge that touches those inputs, on every version tag and by hand. The walk
+  On `develop` after a merge that touches those inputs, the run builds the app for a real iPad (and music-core's cache,
+  below) without running the Swift tests again: the pull request ran them on its merge commit. The tests run on every
+  version tag, nightly and by hand. The walk
   of the screens' journeys (`tests/ipad/MotiffLabScreens`, asserting, one appearance, a few minutes) runs on tags,
   nightly and with Walk ticked; the pictures for the mockups only with Screenshots ticked (every appearance, about half
   an hour, during which the Mac takes no other run and pull requests queue behind it). Either fails its run when the
