@@ -30,7 +30,9 @@ struct AssistantHereCard: View {
                 if let asking = assistant.here?.asking {
                     AssistantPendingView(question: asking, phase: assistant.phase, text: text)
                 } else if let exchange = assistant.here?.exchange {
-                    ScrollView { answer(exchange) }
+                    // The answer scrolls by finger and Pencil; a new one shows from its start, the player scrolls down for
+                    // the rest (Andrei, 2026-11-18 14:11 UTC; ChatFollow).
+                    FollowingScroll(newAnswer: .start, newest: exchange.id) { answer(exchange).id(exchange.id) }
                         .frame(maxHeight: Self.answerHeight)
                         .scrollDismissesKeyboard(.never)
                 }
@@ -77,6 +79,8 @@ struct AssistantHereCard: View {
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["drawer.close"])
         }
+        // The card is dragged by its head only, so the answer under it scrolls (MenuDrag).
+        .menuDragHandle()
     }
 
     private func answer(_ exchange: AssistantExchange) -> some View {

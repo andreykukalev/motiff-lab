@@ -56,6 +56,29 @@ final class AssistantStatesTests: XCTestCase {
         XCTAssertFalse(assistant.scope.isWholePiece(bar3), "Ask on the selection looks at it")
     }
 
+    /// Andrei, 2026-11-18: picking the selected bars in the panel scrolls the score to them (the page's `reveal`, the one
+    /// way the app brings a passage into view); the whole piece moves nothing, and nor does the panel opening on them.
+    func testPickingTheSelectedBarsBringsThemIntoView() async {
+        let (assistant, folder) = controller()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let score = ScoreController()
+        let page = RecordingScorePage()
+        var revealed: [Double] = []
+        page.called = { command, argument in
+            if command == .reveal, let start = (argument as? [String: Any])?["start"] as? Double { revealed.append(start) }
+        }
+        score.scorePage = page
+        assistant.load(piece: "p1", score: score)
+        assistant.open(wholePiece: false, selection: bar3)
+        XCTAssertEqual(revealed, [], "the panel opening on the selection does not scroll")
+        await assistant.pickShowingBars(wholePiece: true, selection: bar3)
+        XCTAssertTrue(assistant.scope.isWholePiece(bar3))
+        XCTAssertEqual(revealed, [], "the whole piece does not scroll")
+        await assistant.pickShowingBars(wholePiece: false, selection: bar3)
+        XCTAssertFalse(assistant.scope.isWholePiece(bar3))
+        XCTAssertEqual(revealed, [bar3.onset], "the selected bars come into view")
+    }
+
     func testEachProblemSaysWhatToDo() {
         XCTAssertEqual(AssistantRecovery.of("mentor.signIn"), .signIn)
         XCTAssertEqual(AssistantRecovery.shown("mentor.signIn"), "padAssistant.signIn")

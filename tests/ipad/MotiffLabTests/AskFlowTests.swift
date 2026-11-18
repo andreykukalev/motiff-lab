@@ -107,6 +107,50 @@ final class AskFlowTests: XCTestCase {
         XCTAssertNil(flow.apply(.send))
     }
 
+    /// Andrei, 2026-11-18: the field starts at one line, a fingertip's height, grows with the question and stops at
+    /// `AskField.lines` lines, beyond which it scrolls inside.
+    @MainActor func testTheFieldGrowsWithTheQuestionUpToItsLines() {
+        let line: CGFloat = 20
+        let insets = AskField.inset * 2
+        let most = line * CGFloat(AskField.lines) + insets
+        XCTAssertEqual(AskField.height(fitted: 0, line: line), CGFloat.ds("h-touch"), "empty: one fingertip's line")
+        XCTAssertEqual(AskField.height(fitted: line + insets, line: line), max(CGFloat.ds("h-touch"), line + insets))
+        XCTAssertEqual(AskField.height(fitted: line * 3 + insets, line: line), line * 3 + insets, "three lines: three lines tall")
+        XCTAssertEqual(AskField.height(fitted: line * 12 + insets, line: line), most, "a long question scrolls inside")
+    }
+
+    /// Andrei, 2026-11-18 14:11 UTC: in the chat at the selection a new answer shows from its start, the player scrolling
+    /// down for the rest; end-following would put its last line in view and the question out of it.
+    func testTheChatAtTheSelectionShowsANewAnswerFromItsStart() {
+        var follow = ChatFollow(newAnswer: .start)
+        XCTAssertEqual(follow.measured(rows: 600, end: 600, height: 200, newest: "a1", asked: false), .start("a1"))
+        XCTAssertEqual(follow.measured(rows: 600, end: 600, height: 200, newest: "a1", asked: false), .none, "the start shown")
+        XCTAssertFalse(follow.following, "the answer's end below: reading, not following")
+        XCTAssertEqual(follow.measured(rows: 640, end: 640, height: 200, newest: "a1", asked: false), .none, "a draft decided while reading")
+    }
+
+    /// The panel follows new answers to their end, unless the player has scrolled up (the review of #696: no yank), and
+    /// the player's own question always comes into view.
+    func testThePanelFollowsItsEndUnlessThePlayerScrolledUp() {
+        var follow = ChatFollow(newAnswer: .end)
+        XCTAssertEqual(follow.measured(rows: 150, end: 150, height: 200, newest: nil, asked: false), .end)
+        XCTAssertEqual(follow.measured(rows: 300, end: 300, height: 200, newest: "pending", asked: true), .end, "the question asked")
+        XCTAssertEqual(follow.measured(rows: 300, end: 200, height: 200, newest: "pending", asked: true), .none, "scrolled to the end")
+        XCTAssertEqual(follow.measured(rows: 500, end: 400, height: 200, newest: "a1", asked: false), .end, "the answer followed")
+        XCTAssertEqual(follow.measured(rows: 500, end: 200, height: 200, newest: "a1", asked: false), .none)
+        XCTAssertTrue(follow.following)
+        // The review's case: at the end, the content changes at the same height (a draft accepted), then the player
+        // scrolls up: nothing pulls them back.
+        XCTAssertEqual(follow.measured(rows: 500, end: 200, height: 200, newest: "a1", asked: false), .none)
+        XCTAssertEqual(follow.measured(rows: 500, end: 450, height: 200, newest: "a1", asked: false), .none, "the player scrolled up")
+        XCTAssertFalse(follow.following)
+        XCTAssertEqual(follow.measured(rows: 560, end: 510, height: 200, newest: "a1", asked: false), .none, "grown while scrolled up")
+        XCTAssertEqual(follow.measured(rows: 800, end: 750, height: 200, newest: "a2", asked: false), .none, "a new answer while scrolled up")
+        XCTAssertEqual(follow.measured(rows: 800, end: 200, height: 200, newest: "a2", asked: false), .none, "back at the end")
+        XCTAssertTrue(follow.following)
+        XCTAssertEqual(follow.measured(rows: 900, end: 300, height: 200, newest: "a2", asked: false), .end, "following again")
+    }
+
     func testTheKeyboardsOverlapIsWhatItCoversFromBelow() {
         let sheet = CGRect(x: 600, y: 80, width: 380, height: 640)
         XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: nil), 0)

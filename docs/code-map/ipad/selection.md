@@ -18,6 +18,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 
 ## The contract others may rely on
 
+`menuDragHandle()` (`SelectionTools.swift`, with `MenuDrag`): a card in the selection menu that marks a handle is
+dragged by it alone, the rest keeping its own gestures (the assistant's chat at the selection marks its head, so its
+answer scrolls); a menu with no handle drags whole.
+
 `SelectionModel`: `record` makes a step of the history (a clear or a replace shows the toast), `undo`, `redo` and
 `revert` give the step whose selection the caller selects again, with the toast put away. `select` (music-core's
 refusal back, nil once selected), `showLevel`, `resetLevel` and `loadPhrases` ask music-core and keep its answer;

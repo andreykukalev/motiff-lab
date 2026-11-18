@@ -1729,8 +1729,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// Scrolls the page smoothly to where a tick is, without a jump of page.
-    private func reveal(_ tick: Double) async {
+    /// Scrolls the page smoothly to where a tick is, without a jump of page (also for the assistant's scope chip).
+    func reveal(_ tick: Double) async {
         await scorePage.send(.reveal, ["start": tick])
     }
 
