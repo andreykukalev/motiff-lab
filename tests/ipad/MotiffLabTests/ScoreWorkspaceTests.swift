@@ -206,7 +206,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// focus does, and a variation the player tried is not taken for it.
     func testTheVersionInFocusSoundsInTheVariationsPlace() {
         let workspace = make()
-        var version = ScoreController.FocusVersion(id: "v1", name: "Urtext", notes: [], sounds: true, differing: [])
+        var version = FocusModel.Version(id: "v1", name: "Urtext", notes: [], sounds: true, differing: [])
         workspace.focusVersionChanged(version)
         XCTAssertTrue(workspace.player.hasVariation)
         XCTAssertTrue(workspace.player.secondIsVersion)
@@ -260,7 +260,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// Out of Expand the player takes what plays for the selection (the playback model, T9–T11), and lets it go with it.
     func testThePlayerTakesWhatPlaysForTheSelection() {
         let workspace = make()
-        let plays = ScoreController.PlayRange(selection: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1), range: 0..<1920)
+        let plays = FocusModel.PlayRange(selection: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1), range: 0..<1920)
         workspace.whatPlaysChanged(from: nil, to: plays)
         XCTAssertEqual(workspace.player.selection, 0..<1920)
         workspace.whatPlaysChanged(from: plays, to: nil)

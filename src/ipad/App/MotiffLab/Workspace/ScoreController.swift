@@ -73,14 +73,21 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
     /// The selection, its history, toast and hold hint, the menu's place and the phrases shown (Selection/SelectionModel.swift).
-    let selectionModel = SelectionModel()
-    /// A change of the selection model is a change of the controller, for the views and reactions that observe it.
+    let selectionModel: SelectionModel
+    /// Expand, the card's roll and options, the version in focus and the play range (Playback/FocusModel.swift).
+    let focusModel: FocusModel
+    /// A change of the selection or the focus model is a change of the controller, for the views and reactions that observe it.
     private var selectionChanges: AnyCancellable?
+    private var focusChanges: AnyCancellable?
     /// The passage selected, the phrases at the level shown and whether they are hidden, as the screen and the other
     /// features read them (SelectionModel's).
     var selection: ScoreSelection? { selectionModel.selection }
     var phrases: PhraseLevelsShown? { selectionModel.phrases }
     var phrasesHidden: Bool { selectionModel.phrasesHidden }
+    /// The card's roll, the play range and the version in focus, as the screen and the other features read them (FocusModel's).
+    var focusRoll: Bool { focusModel.asRoll }
+    var playRange: FocusModel.PlayRange? { focusModel.playRange }
+    var focusVersion: FocusModel.Version? { focusModel.version }
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -102,25 +109,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// sheet goes away; the selection stays (#338).
     var blankTapped: (@MainActor () -> Void)?
     /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
-    /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back.
+    /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back. Kept
+    /// here, not in FocusModel, while the protected UX baseline observes `score.$focused` (ADR 0031, the note of S3).
     @Published private(set) var focused = false
     /// Practice view (#533 11, PracticeView.swift): view state, changed by `practise`, its two visibilities kept on the device
     /// (v0.6.4, spec 9); and the time its controls hide.
     @Published var practice = PracticeView.saved()
     var practiceTimer: Task<Void, Never>?
-    /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
-    @Published private(set) var expandEntry = ExpandEntry.notes
-    /// What Play and Loop take for the selection: its span (Lead-in went in v0.5.6, #533 3).
-    @Published private(set) var playRange: PlayRange?
     /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
     var ossia: String? {
         didSet { if oldValue != ossia, focused { Task { await engraveCard() } } }
-    }
-
-    /// The span play takes for a selection, and the selection it was taken for.
-    struct PlayRange: Equatable {
-        var selection: ScoreSelection
-        var range: Range<Double>
     }
     @Published private(set) var markCount = 0
     /// The margin notes, highlights and inked bars, as music-core answered the last mark call.
@@ -200,20 +198,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
-    /// The version shown, for the phrase in focus with no variation open: what Version plays, its name, and the bars of
-    /// the phrase it has otherwise or that were taken from it (0022, section 5); nil out of focus or without a version.
-    @Published private(set) var focusVersion: FocusVersion?
-
-    struct FocusVersion: Equatable {
-        var id: String
-        var name: String
-        /// The version's notes over the whole piece in the score's time, for the player's second source.
-        var notes: [PlaybackNote]
-        /// Whether any of them start in the phrase: only then can it be heard there.
-        var sounds: Bool
-        /// The bars of the phrase the version has otherwise, the first of which Open in the draft goes to.
-        var differing: [Int]
-    }
 
     /// The draft's view the page is engraved with ("version" or "result"); nil for the player's notes.
     private var engravedView: String?
@@ -312,8 +296,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The eraser's points not yet sent to the page, in the page's pixels, and whether a send is waiting in the queue.
     private var rubPoints: [[String: Double]] = []
     private var rubQueued = false
-    /// Verovio's options for the card at its width now, as the page gives them.
-    private var cardOptions: String?
     /// The places ringed for the fact chosen in Insights.
     private var ringed: [Fact.Place] = []
     /// The bookmarks as the page draws them, and where each is, for a tap on its bracket or its entry in the Contents.
@@ -345,8 +327,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
         scorePage = WebScorePage(webView)
+        let selecting = SelectionModel()
+        selectionModel = selecting
+        focusModel = FocusModel(selection: selecting)
         super.init()
         selectionChanges = selectionModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        focusChanges = focusModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -557,7 +543,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case .leave:
             leaveFocus()
         case .cardLayout(let options):
-            cardOptions = facadeRequest(options)
+            focusModel.takeCardOptions(facadeRequest(options))
             Task { await engraveCard() }
         default:
             break
@@ -569,16 +555,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
     /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
-        selectionModel.phrasesHidden = false
+        selectionModel.hidePhrases(false)
         guard let piece, level != phrases?.level else { return }
-        let request = "{\"level\": \"\(level)\"}"
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
-            let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(shown) }
-            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
+            await selectionModel.showLevel(level, in: piece.id)
             await showSelection()
-            await updatePlayRange()
+            focusModel.updatePlayRange()
         }
     }
 
@@ -586,12 +569,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// the Music Studio, and has the units found in the file again.
     func resetLevel() {
         guard let piece, let level = phrases?.level, phrases?.edited.contains(level) == true else { return }
-        let request = "{\"reset\": true, \"level\": \"\(level)\"}"
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.edit", request) }
-            if let shown = PhraseLevelsShown(answer: answer) { selectionModel.show(shown) }
+            await selectionModel.resetLevel(level, in: piece.id)
             await showSelection()
-            await updatePlayRange()
+            focusModel.updatePlayRange()
         }
     }
 
@@ -627,17 +608,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// a new selection in place of the one there was (a replace with «Вернуть»).
     func select(request: String, gesture: String? = nil, step: Bool = true, picked: Bool = false, replaces: Bool = false) async {
         guard let piece else { return }
-        let answer = await PieceCore(piece: piece.id).select(request)
-        guard var chosen = answer.value?.selection.map(ScoreSelection.init) else {
-            let message = FacadeAnswer.problem(answer.text)
+        let refused = await selectionModel.select(in: piece.id, request: request, gesture: gesture, step: step, picked: picked, replaces: replaces)
+        if let message = refused {
             if !softlyRefused(message) { problem = message }
             return
         }
-        if picked { chosen.picked = chosen.noteIds }
-        if step { selectionModel.record(from: selection, to: chosen, gesture: gesture, replaces: replaces) }
-        selectionModel.answered(chosen)
         await showSelection()
-        await updatePlayRange()
+        focusModel.updatePlayRange()
         if focused {
             await engraveCard()
             await updateFocusVersion()
@@ -653,7 +630,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         selectionModel.answered(nil)
         Task {
             await showSelection()
-            await updatePlayRange()
+            focusModel.updatePlayRange()
         }
     }
 
@@ -881,12 +858,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         default: "phrase"
         }
         guard level != shownLevel else { return }
-        let request = "{\"level\": \"\(level)\", \"remember\": false}"
-        let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(levels) }
-        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
+        await selectionModel.showLevel(level, in: piece.id, remember: false)
         await showSelection()
-        await updatePlayRange()
+        focusModel.updatePlayRange()
     }
 
     private static let granularity = "phrases.granularity"
@@ -1391,16 +1365,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The version for the phrase in focus: its notes to hear, and the bars of the phrase it has otherwise.
     private func updateFocusVersion() async {
         guard focused, let piece, let selection, let shown = versions.shown else {
-            focusVersion = nil
+            focusModel.showVersion(nil)
             return
         }
         guard let notes = await versionNotes(piece.id, shown.id), focused, self.selection == selection, versions.shownId == shown.id else { return }
         let bars = selection.firstBar...selection.lastBar
-        focusVersion = FocusVersion(
+        focusModel.showVersion(FocusModel.Version(
             id: shown.id, name: shown.name, notes: notes,
             sounds: notes.contains { $0.onset >= selection.onset && $0.onset < selection.end },
             differing: versions.differing.map(\.bar).filter { bars.contains($0) }
-        )
+        ))
     }
 
     /// The version's notes in the score's time, as music-core gives them to play (`playback` of `version`), kept until
@@ -1716,28 +1690,25 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// the page neither scrolls nor takes the Pencil until the way back, which `entry` names (#521 17).
     func enterFocus(from entry: ExpandEntry = .notes) {
         guard shown, ExpandRules.opens(selected: selection != nil, penOn: penOn), !focused else { return }
-        expandEntry = entry
+        focusModel.open(from: entry)
         focused = true
         setPageStill(true)
-        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text[entry.backKey]]
+        let label = text.format("focus.cardLabel", focusModel.position(in: text))
+        let request: [String: Any] = ["open": true, "label": label, "back": text[entry.backKey]]
         Task {
             let answer = try? await scorePage.call(.focus, request) as? [String: Any]
-            if let options = answer?["options"] as? [String: Any] { cardOptions = facadeRequest(options) }
-            await updatePlayRange()
+            if let options = answer?["options"] as? [String: Any] { focusModel.takeCardOptions(facadeRequest(options)) }
+            focusModel.updatePlayRange()
             await engraveCard()
             await updateFocusVersion()
         }
     }
 
-    /// Whether the card in focus shows the phrase as a roll (testing item 12): Notes | Piano roll in the focus bar, kept while
-    /// the piece is open.
-    @Published var focusRoll = false
-
     /// Expand on the roll drawer: the selection in focus as a roll, its way back Collapse (#521 17). Only with a selection
     /// (#521 19.1): without one the button says so instead (showNotice).
     func expandRoll() {
         guard selection != nil else { return }
-        focusRoll = true
+        focusModel.showAsRoll(true)
         enterFocus(from: .roll)
     }
 
@@ -1755,29 +1726,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func leaveFocus() {
         guard focused else { return }
         focused = false
-        focusVersion = nil
+        focusModel.close()
         setPageStill(false)
         Task {
             await scorePage.send(.focus, ["open": false])
-            await updatePlayRange()
+            focusModel.updatePlayRange()
         }
     }
-
-    /// The unit of the level shown that the card is, or that holds its start.
-    var focusUnit: PhraseUnit? {
-        guard let selection, let units = phrases?.units else { return nil }
-        return units.first { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }
-            ?? units.first { $0.onset <= selection.onset && selection.onset < $0.end }
-    }
-
-    var canStepBack: Bool { (focusUnit?.number ?? 1) > 1 }
-
-    var canStepOn: Bool { focusUnit.map { $0.number < (phrases?.units.count ?? 0) } ?? false }
 
     /// Previous or next at the level shown: the card moves on to that unit. Outside focus (the pill's arrows, #328) the
     /// page brings it into view.
     func step(_ direction: Int) {
-        guard let unit = focusUnit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
+        guard let unit = focusModel.unit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
         Task {
             await select(next.selectableOnset, next.selectableEnd)
             if !focused { await reveal(next.selectableOnset) }
@@ -1831,21 +1791,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await firstTick(onPage: pages.first)
     }
 
-    /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.
-    var focusPosition: String {
-        guard let selection else { return "" }
-        let bars = selection.firstBar == selection.lastBar
-            ? text.format("bars.one", String(selection.firstBar))
-            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        guard let units = phrases?.units,
-              let unit = units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end })
-        else { return bars }
-        return text.format("focus.position", bars, unit.name, String(unit.number), String(units.count))
-    }
-
     /// Engraves the selection's bars at the card's width and shows them on the card.
     private func engraveCard() async {
-        guard focused, let piece, let selection, let options = cardOptions else { return }
+        guard focused, let piece, let selection, let options = focusModel.cardOptions else { return }
         let first = selection.firstBar
         let last = selection.lastBar
         let id = piece.id
@@ -1867,15 +1815,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case .failure(let error):
             problem = error.message
         }
-    }
-
-    /// What play takes for the selection now: its span.
-    private func updatePlayRange() async {
-        guard let selection else {
-            playRange = nil
-            return
-        }
-        playRange = PlayRange(selection: selection, range: selection.onset..<selection.end)
     }
 
     /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.
@@ -1944,8 +1883,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func loadPhrases(_ piece: OpenPiece) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
-        selectionModel.show(PhraseLevelsShown(answer: answer))
+        await selectionModel.loadPhrases(of: piece.id)
         await showSelection()
     }
 
