@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
+using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Notation;
@@ -101,7 +102,7 @@ public class BarGridTests
     [Fact]
     public void A_free_tempo_follows_the_bass_and_keeps_the_bars()
     {
-        BarGrid grid = BarGrid.Find(Import(Rubato()).Midi!)!;
+        BarGrid grid = RecordingBars.Find(Import(Rubato()).Midi!)!;
 
         Assert.True(grid.FollowsPlaying);
         Assert.Equal(TimeSignature.CommonTime, grid.Signature);
@@ -133,7 +134,7 @@ public class BarGridTests
     [Fact]
     public void Fur_elise_gets_its_printed_bars_and_tempo()
     {
-        BarGrid grid = BarGrid.Find(Import(FurElise()).Midi!)!;
+        BarGrid grid = RecordingBars.Find(Import(FurElise()).Midi!)!;
 
         Assert.Equal(new TimeSignature(3, 8), grid.Signature);
         Assert.Equal(72, grid.QuarterNotesPerMinute);
@@ -145,7 +146,7 @@ public class BarGridTests
     [Fact]
     public void A_waltz_gets_three_four_its_tempo_and_its_pickup()
     {
-        BarGrid grid = BarGrid.Find(Import(Played(150_000, Waltz())).Midi!)!;
+        BarGrid grid = RecordingBars.Find(Import(Played(150_000, Waltz())).Midi!)!;
 
         Assert.Equal(new TimeSignature(3, 4), grid.Signature);
         Assert.Equal(100, grid.QuarterNotesPerMinute);
@@ -156,7 +157,7 @@ public class BarGridTests
     [Fact]
     public void A_march_gets_four_four_when_the_bass_also_falls_on_beat_three()
     {
-        BarGrid grid = BarGrid.Find(Import(Played(166_667, March())).Midi!)!;
+        BarGrid grid = RecordingBars.Find(Import(Played(166_667, March())).Midi!)!;
 
         Assert.Equal(TimeSignature.CommonTime, grid.Signature);
         Assert.Equal(90, grid.QuarterNotesPerMinute);
@@ -168,16 +169,16 @@ public class BarGridTests
     {
         MidiImport import = Import(FurElise()).Midi!;
 
-        Assert.Equal(BarGrid.Find(import), BarGrid.Find(import));
+        Assert.Equal(RecordingBars.Find(import), RecordingBars.Find(import));
     }
 
     [Fact]
     public void The_player_can_choose_the_bars_and_twice_or_half_the_tempo()
     {
         MidiImport import = Import(Played(150_000, Waltz())).Midi!;
-        BarGrid found = BarGrid.Find(import)!;
+        BarGrid found = RecordingBars.Find(import)!;
 
-        BarGrid faster = BarGrid.Find(import, new TimeSignature(6, 8), found.StepsPerBeat * 2)!;
+        BarGrid faster = RecordingBars.Find(import, new TimeSignature(6, 8), found.StepsPerBeat * 2)!;
 
         Assert.Equal(new TimeSignature(6, 8), faster.Signature);
         Assert.Equal(found.SixteenthMicroseconds / 2, faster.SixteenthMicroseconds);
@@ -190,25 +191,25 @@ public class BarGridTests
     {
         MidiImport import = Import(Played(150_000, Waltz())).Midi!;
 
-        Assert.Throws<ArgumentException>(() => BarGrid.Find(import, new TimeSignature(5, 4)));
+        Assert.Throws<ArgumentException>(() => RecordingBars.Find(import, new TimeSignature(5, 4)));
     }
 
     [Fact]
     public void Too_few_notes_or_no_steady_beat_give_no_bars()
     {
-        Assert.Null(BarGrid.Find(Import(Played(150_000, Waltz().Take(10))).Midi!));
+        Assert.Null(RecordingBars.Find(Import(Played(150_000, Waltz().Take(10))).Midi!));
 
         // Onsets that wander from 0.3 to 0.9 s apart, counted here in milliseconds, follow no steady beat.
         int at = 0;
         IEnumerable<(int, int, int)> wandering = Enumerable.Range(0, 120).Select(i => (at += 300 + (i * i * 37 % 600), 200, 60 + (i % 12))).ToList();
-        Assert.Null(BarGrid.Find(Import(Played(1_000, wandering)).Midi!));
+        Assert.Null(RecordingBars.Find(Import(Played(1_000, wandering)).Midi!));
     }
 
     [Fact]
     public void Applying_keeps_the_notes_and_their_sound_and_writes_them_against_the_beat()
     {
         ImportedPiece piece = Import(Played(150_000, Waltz()));
-        BarGrid grid = BarGrid.Find(piece.Midi!)!;
+        BarGrid grid = RecordingBars.Find(piece.Midi!)!;
 
         ImportedPiece barred = grid.Apply(piece);
 
@@ -235,7 +236,7 @@ public class BarGridTests
         MidiPedal held = new(0, 0, 0, 0, TickSpan.FromBounds(played.Notes[0].Span.Onset, played.Notes[6].Span.Onset));
         ImportedPiece piece = played with { Midi = played.Midi! with { SustainPedal = [held] } };
 
-        ImportedPiece barred = BarGrid.Find(piece.Midi!)!.Apply(piece);
+        ImportedPiece barred = RecordingBars.Find(piece.Midi!)!.Apply(piece);
 
         Assert.Equal(TickSpan.FromBounds(barred.Notes[0].Span.Onset, barred.Notes[6].Span.Onset), Assert.Single(barred.Midi!.SustainPedal).Span);
     }
@@ -269,7 +270,7 @@ public class BarGridTests
     public void Applying_says_what_was_worked_out_and_drops_the_engines_defaults()
     {
         ImportedPiece piece = Import(Played(150_000, Waltz()));
-        BarGrid grid = BarGrid.Find(piece.Midi!)!;
+        BarGrid grid = RecordingBars.Find(piece.Midi!)!;
 
         ImportedPiece barred = grid.Apply(piece);
 
@@ -285,7 +286,7 @@ public class BarGridTests
     public void A_transcriptions_tempo_is_inferred_and_marked_about()
     {
         ImportedPiece piece = Import(Played(150_000, Waltz()));
-        ImportedPiece barred = BarGrid.Find(piece.Midi!)!.Apply(piece);
+        ImportedPiece barred = RecordingBars.Find(piece.Midi!)!.Apply(piece);
 
         // Version 0.5.4 (#511 section 17): worked out from the playing, never taken for the notes' own or the default.
         PlaybackScore heard = PlaybackScore.FromPiece(barred);
@@ -298,7 +299,7 @@ public class BarGridTests
     [Fact]
     public void The_tempo_fact_says_it_was_worked_out_from_the_notes()
     {
-        ImportedPiece barred = BarGrid.Find(Import(Played(150_000, Waltz())).Midi!)!.Apply(Import(Played(150_000, Waltz())));
+        ImportedPiece barred = RecordingBars.Find(Import(Played(150_000, Waltz())).Midi!)!.Apply(Import(Played(150_000, Waltz())));
 
         CharacterContext context = CharacterContext.FromPiece(barred);
 
@@ -310,7 +311,7 @@ public class BarGridTests
     public void A_short_bar_starts_the_bars_afresh()
     {
         ImportedPiece piece = Import(Played(150_000, Waltz()));
-        BarGrid grid = new(BarGrid.Find(piece.Midi!)!.Origin, 150_000, new TimeSignature(3, 4), [4, 22]);
+        BarGrid grid = new(RecordingBars.Find(piece.Midi!)!.Origin, 150_000, new TimeSignature(3, 4), [4, 22]);
 
         MeterMap meter = grid.Apply(piece).Meter;
 
@@ -337,7 +338,7 @@ public class BarGridTests
     public void A_transcribed_project_keeps_its_bars_and_reopens_with_them()
     {
         byte[] midi = Played(150_000, Waltz());
-        BarGrid grid = BarGrid.Find(Import(midi).Midi!)!;
+        BarGrid grid = RecordingBars.Find(Import(midi).Midi!)!;
         Project project = Project.Create("p_heard", "take.mid", midi, s_now) with { Transcription = new TranscriptionOrigin("transkun 2.0.1", grid) };
 
         Project reread = ProjectFile.Read(ProjectFile.Write(project));
@@ -367,7 +368,7 @@ public class BarGridTests
         byte[] midi = Played(150_000, Waltz());
         Project project = Project.Create("p_heard", "take.mid", midi, s_now) with
         {
-            Transcription = new TranscriptionOrigin("basic-pitch 0.4.0", BarGrid.Find(Import(midi).Midi!)),
+            Transcription = new TranscriptionOrigin("basic-pitch 0.4.0", RecordingBars.Find(Import(midi).Midi!)),
         };
         string file = Projects.LegacyFile.AsVersion(ProjectFile.Write(project), 9).Replace("\"resumePoints\": []", "\"sessions\": []", StringComparison.Ordinal);
 
@@ -378,7 +379,7 @@ public class BarGridTests
     public void Version_10_bars_keep_one_tempo()
     {
         byte[] midi = Played(150_000, Waltz());
-        BarGrid found = BarGrid.Find(Import(midi).Midi!)!;
+        BarGrid found = RecordingBars.Find(Import(midi).Midi!)!;
         Project project = Project.Create("p_heard", "take.mid", midi, s_now) with { Transcription = new TranscriptionOrigin("transkun 2.0.1", found) };
         string file = Projects.LegacyFile.AsVersion(ProjectFile.Write(project), 10).Replace("\"resumePoints\": []", "\"sessions\": []", StringComparison.Ordinal);
 
@@ -395,7 +396,7 @@ public class BarGridTests
         byte[] midi = Played(150_000, Waltz());
         Project project = Project.Create("p_heard", "take.mid", midi, s_now) with
         {
-            Transcription = new TranscriptionOrigin("transkun 2.0.1", BarGrid.Find(Import(midi).Midi!)),
+            Transcription = new TranscriptionOrigin("transkun 2.0.1", RecordingBars.Find(Import(midi).Midi!)),
         };
         string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"3/4\"", "\"5/4\"", StringComparison.Ordinal);
 

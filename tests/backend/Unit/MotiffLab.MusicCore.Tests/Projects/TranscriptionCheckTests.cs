@@ -96,7 +96,7 @@ public class TranscriptionCheckTests
     {
         byte[] midi = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid"));
         ImportedPiece engine = PieceImporter.Import("transkun-fur-elise.mid", midi).Piece!;
-        BarGrid grid = BarGrid.Find(engine.Midi!)!;
+        BarGrid grid = RecordingBars.Find(engine.Midi!)!;
         ImportedPiece piece = Transcribed.Mark(grid.Apply(engine));
         var origin = new TranscriptionOrigin("transkun 2", grid) { Seams = [20_000] };
 

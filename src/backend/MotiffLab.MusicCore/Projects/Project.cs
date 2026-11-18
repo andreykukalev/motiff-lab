@@ -709,24 +709,6 @@ public sealed partial record Project(
         && !(Check ?? []).Any(flag => flag.Resolved);
 
     /// <summary>
-    /// The bars that fit the transcription's notes best (decision record 0016), in the signature and with a beat of
-    /// as many 16ths as asked when given; null when the notes follow no beat.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
-    /// <param name="search">How to follow a live performance (version 0.5, <see cref="BarGrid.FindLive"/>); null finds the beat once.</param>
-    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
-    {
-        if (Transcription is null)
-        {
-            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
-        }
-
-        MidiImport heard = PieceImporter.Import(FileName, Source).Piece?.Midi
-            ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
-        return BarGrid.Find(heard, signature, stepsPerBeat, search);
-    }
-
-    /// <summary>
     /// The transcription written in other bars, or as the engine wrote it when <paramref name="bars"/> is null. Its
     /// Check flags are worked out again for the new bars, and its resume points go back to the start of the piece,
     /// since every position moves.

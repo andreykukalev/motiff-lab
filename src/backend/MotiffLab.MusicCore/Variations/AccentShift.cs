@@ -116,7 +116,7 @@ public sealed class AccentShift : VariationOperation<AccentShiftParameters>
         Bar bar = meter.BarAt(new Tick(onset));
         TimeSignature signature = bar.Signature;
         long beat = signature.BeatTicks * (signature.Denominator == 8 && signature.Numerator % 3 == 0 && signature.Numerator > 3 ? 3 : 1);
-        long inBar = onset - bar.Span.Onset.Value + bar.LeadIn;
+        long inBar = onset - bar.Origin;
         return parameters.Pattern switch
         {
             AccentPattern.OnBeat => inBar % beat == 0,

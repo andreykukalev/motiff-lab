@@ -203,7 +203,7 @@ final class AssistantController: ObservableObject {
         here = nil
     }
 
-    /// «Продолжить в ассистенте» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
+    /// «Продолжить в чате» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
     /// the full assistant (as «Добавить в контекст» moves them, `addHere`), whose panel opens on the selected bars to go on
     /// there; the chat at the selection closes. Without this press the chat at the selection keeps nothing.
     func continueHere() {

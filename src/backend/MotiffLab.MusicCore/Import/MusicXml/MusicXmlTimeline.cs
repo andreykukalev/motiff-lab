@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
 /// <summary>The timeline of a score: its tempos, its time signatures and bars (with a pickup), and each part's keys.</summary>
-internal static class ScoreTimeline
+internal static class MusicXmlTimeline
 {
     /// <summary>The tempo changes, one per tick; an assumed tempo at the start when the score marks none there.</summary>
     public static List<MusicXmlTempoChange> Tempos(List<PartReader> parts, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)

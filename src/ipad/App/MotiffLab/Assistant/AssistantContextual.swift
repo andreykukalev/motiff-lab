@@ -5,7 +5,7 @@ import SwiftUI
 /// It looks at the selected bars, takes one question at a time with no conversation before it (the field, Send and the
 /// keyboard's own dictation), and shows the answer with the facts it cites and any draft the assistant made, to accept or
 /// cancel. «Добавить в контекст» moves the question and answer into the full assistant's open conversation; «Продолжить в
-/// ассистенте» starts a new one there with them and opens the panel. Nothing else of it is kept.
+/// чате» starts a new one there with them and opens the panel. Nothing else of it is kept.
 ///
 /// It closes by itself once its work is done: after «Добавить в контекст», once every draft is cancelled, and when the
 /// selection goes or changes while its field is not in use (an accepted draft stays, with Undo, until then); a selection
@@ -34,7 +34,7 @@ struct AssistantHereCard: View {
                 } else if let exchange = assistant.here?.exchange {
                     // The answer scrolls by finger and Pencil; a new one shows from its start, the player scrolls down for
                     // the rest (Andrei, 2026-11-18 14:11 UTC; ChatFollow).
-                    FollowingScroll(newAnswer: .start, newest: exchange.id) { answer(exchange).id(exchange.id) }
+                    FollowingScroll(newest: exchange.id) { answer(exchange).id(exchange.id) }
                         .frame(maxHeight: Self.answerHeight)
                         .scrollDismissesKeyboard(.never)
                 }

@@ -191,7 +191,7 @@ public static class MotifSelector
         ArgumentNullException.ThrowIfNull(meter);
         Bar bar = meter.BarAt(position);
         long beatTicks = bar.Signature.BeatTicks;
-        long offset = position.Value - bar.Span.Onset.Value + bar.LeadIn;
+        long offset = position.Value - bar.Origin;
         long start = position.Value - (offset % beatTicks);
         return new Tick(Math.Max(start, bar.Span.Onset.Value));
     }
@@ -208,7 +208,7 @@ public static class MotifSelector
 
         Bar bar = meter.BarAt(position);
         long beatTicks = bar.Signature.BeatTicks;
-        long offset = start.Value - bar.Span.Onset.Value + bar.LeadIn;
+        long offset = start.Value - bar.Origin;
         long next = start.Value + beatTicks - (offset % beatTicks);
         return new Tick(Math.Min(next, bar.Span.End.Value));
     }

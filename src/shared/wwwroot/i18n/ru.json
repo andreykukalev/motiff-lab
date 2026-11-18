@@ -86,7 +86,7 @@
   "nav.backTo": "Назад: {0}",
   "ask.wholePiece": "Вся пьеса",
   "mentor.showInScore": "Показать в нотах",
-  "mentor.thinking": "Помощник разбирает фрагмент…",
+  "mentor.thinking": "Ассистент разбирает фрагмент…",
   "mentor.noPiece": "Откройте ноты пьесы, чтобы спросить о них.",
   "mentor.conversations.one": "{0} беседа об этой пьесе",
   "mentor.conversations.few": "{0} беседы об этой пьесе",
