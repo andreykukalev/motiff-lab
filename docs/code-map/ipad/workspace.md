@@ -12,7 +12,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   Sources keeps under it. `asked(_:)` is what an action writes (an `Intent`), `following(_:)` one rule of the screen (a
   `Rule`: what the change of one value does to the other panels). Tested by
   `tests/ipad/MotiffLabTests/PanelStateTests.swift` against `Golden/panel-states.txt`, the table of start states and
-  every action offered in each, render by render (78 states, 914 lines).
+  every action offered in each, render by render.
 
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
@@ -30,7 +30,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
   `following`); `ScoreBar`, `SelectionMenu`, `FocusBar`.
 - `ScoreScreenViews.swift`: where the page is scrolled to (`viewPlace`, `showPlace`).
-- `ScoreController.swift`: the page (selection, menu place and drag, marks, corrections, merge, focus/Expand).
+- `ScoreController.swift`: the page (selecting through music-core, the menu's drag, marks, corrections, merge,
+  focus/Expand); the selection's state: [`selection.md`](selection.md).
 
 ## The contract others may rely on
 
@@ -69,10 +70,10 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: the page's selection, menu place, marks, corrections, merge and focus; `mode` (never nil since
-v0.6.5). `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and whether
-Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`. `ScoreScreenContent`: what only the view shows (the
-drawer's height, Piece DNA, a view shown over the piece). The rest: not recorded yet.
+`ScoreController`: the page's marks, corrections, merge and focus; `mode` (never nil since v0.6.5);
+`selectionModel` ([`selection.md`](selection.md)). `ScoreWorkspace`: the controllers and `panels` (PanelState), the
+one copy of which panels are open and whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
+`ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).
 
 ## Baseline entries that protect it
 

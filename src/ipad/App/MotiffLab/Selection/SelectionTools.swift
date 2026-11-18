@@ -108,8 +108,8 @@ extension ScoreController {
             chosen: chosen,
             choose: { [weak self] tool in self?.chooseMode(tool) },
             controls: ExpandRules.ringControls(focused: focused, otherwise: StylusRules.ringControls(chosen)),
-            canUndo: ink ? canUndo : selectionSteps.canUndo,
-            canRedo: ink ? canRedo : selectionSteps.canRedo,
+            canUndo: ink ? canUndo : selectionModel.steps.canUndo,
+            canRedo: ink ? canRedo : selectionModel.steps.canRedo,
             canClear: selection != nil && !focused,
             undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
             redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
@@ -185,11 +185,11 @@ struct SelectionOptionsRow: View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button { score.undoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionSteps.canUndo)
+                .disabled(!score.selectionModel.steps.canUndo)
                 .accessibilityLabel(text["selection.undo"])
             Button { score.redoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")).scaleEffect(x: -1, y: 1) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionSteps.canRedo)
+                .disabled(!score.selectionModel.steps.canRedo)
                 .accessibilityLabel(text["selection.redo"])
         }
         .modifier(PaletteSurface())
@@ -236,19 +236,19 @@ struct SelectionToastView: View {
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
-            } else if score.selectionToast != nil && score.selectionSteps.canUndo && !score.focused {
+            } else if score.selectionModel.toast != nil && score.selectionModel.steps.canUndo && !score.focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    Text(text[score.selectionToastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Text(text[score.selectionModel.toastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
                 .modifier(ToastSurface())
-            } else if score.holdHint != nil {
+            } else if score.selectionModel.holdHint != nil {
                 Text(text["selection.holdHint"]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
             }
         }
-        .animation(.easeOut(duration: 0.16), value: score.selectionToast)
-        .animation(.easeOut(duration: 0.16), value: score.holdHint)
+        .animation(.easeOut(duration: 0.16), value: score.selectionModel.toast)
+        .animation(.easeOut(duration: 0.16), value: score.selectionModel.holdHint)
         .animation(.easeOut(duration: 0.16), value: score.notice)
     }
 }

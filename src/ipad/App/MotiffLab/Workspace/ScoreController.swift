@@ -1,3 +1,4 @@
+import Combine
 import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -71,22 +72,15 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The one playback position as the page last had it (the selection it turns cobalt in), or nil for the one playhead of before.
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
-    /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
-    @Published private(set) var phrases: PhraseLevelsShown?
-    /// «Не показывать» in the Phrases menu (#479 item 21): the phrases are not named, in the Contents nor for the
-    /// selection, until a level is chosen again. Kept on this device for every piece; the piece's level stays as it was.
-    @Published var phrasesHidden = UserDefaults.standard.bool(forKey: ScoreController.phrasesHiddenKey) {
-        didSet { UserDefaults.standard.set(phrasesHidden, forKey: Self.phrasesHiddenKey) }
-    }
-    static let phrasesHiddenKey = "motiff.phrases.hidden"
-    /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
-    @Published private(set) var selection: ScoreSelection?
-    /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
-    @Published private(set) var selectionSteps = SelectionHistory<SelectionSpan>()
-    /// «Выделение снято · Вернуть» for a while after a clear or a replace (#511 11); nil while none shows.
-    @Published private(set) var selectionToast: SelectionToast?
-    /// «Задержите касание…» for a moment after a pointer that cannot scroll moved off the selection (#511 2.1, C).
-    @Published private(set) var holdHint: UUID?
+    /// The selection, its history, toast and hold hint, the menu's place and the phrases shown (Selection/SelectionModel.swift).
+    let selectionModel = SelectionModel()
+    /// A change of the selection model is a change of the controller, for the views and reactions that observe it.
+    private var selectionChanges: AnyCancellable?
+    /// The passage selected, the phrases at the level shown and whether they are hidden, as the screen and the other
+    /// features read them (SelectionModel's).
+    var selection: ScoreSelection? { selectionModel.selection }
+    var phrases: PhraseLevelsShown? { selectionModel.phrases }
+    var phrasesHidden: Bool { selectionModel.phrasesHidden }
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -94,6 +88,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var key: String
         var id = UUID()
     }
+    /// How long a word of guidance stays, in seconds: as long as the hint to hold.
+    static let noticeSeconds = 2.0
     /// The piece's beat lines (SelectionTools.swift): the one selection's grid; the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
@@ -102,11 +98,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var zoomedFrom: (scale: CGFloat, offset: CGPoint)?
     /// The tool the Pencil's «switch to previous» left for Select, which its next one goes back to (StylusRules.selectTurn).
     var toolBeforeSelect: InteractionMode?
-    /// The piece as its selection's history knows it (SelectionHistories.key).
-    private var historyKey: String?
-    /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
-    /// nothing is selected or a drag is on.
-    @Published private(set) var menuPlace: CGPoint?
     /// A tap on the page that selects nothing: away from the bars, or anywhere while a passage is selected. The Insights
     /// sheet goes away; the selection stays (#338).
     var blankTapped: (@MainActor () -> Void)?
@@ -355,6 +346,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         webView = WKWebView(frame: .zero, configuration: configuration)
         scorePage = WebScorePage(webView)
         super.init()
+        selectionChanges = selectionModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -403,8 +395,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             ProbeCounts.shared.mark("show")
             // The pages wait out of sight for the place they land on (#533 6), so the top of the first one never shows first.
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
-            historyKey = SelectionHistories.key(piece)
-            selectionSteps = SelectionHistories.history(of: SelectionHistories.key(piece))
+            selectionModel.open(piece)
             rendered = false
             versions = VersionShelf()
             versionStatus = nil
@@ -490,7 +481,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func handleSelection(_ event: PageEvent) -> Bool {
         switch event {
         case .menu(let place):
-            menuPlace = place
+            selectionModel.placeMenu(place)
         case let .chosen(chosen, start, end):
             choose(chosen, start, end)
         case .cleared(let gesture):
@@ -498,7 +489,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case .gestureCancelled(let gesture):
             revertGesture(gesture)
         case .holdHint:
-            showHoldHint()
+            selectionModel.showHoldHint()
         case let .picked(id, picked):
             selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
         case .zoomSelection(let box):
@@ -578,14 +569,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
     /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
-        phrasesHidden = false
+        selectionModel.phrasesHidden = false
         guard let piece, level != phrases?.level else { return }
         let request = "{\"level\": \"\(level)\"}"
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
             let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { phrases = shown }
-            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selection = moved }
+            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(shown) }
+            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
             await showSelection()
             await updatePlayRange()
         }
@@ -598,7 +589,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = "{\"reset\": true, \"level\": \"\(level)\"}"
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.edit", request) }
-            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
+            if let shown = PhraseLevelsShown(answer: answer) { selectionModel.show(shown) }
             await showSelection()
             await updatePlayRange()
         }
@@ -643,8 +634,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             return
         }
         if picked { chosen.picked = chosen.noteIds }
-        if step { noteSelectionChange(from: selection, to: chosen, gesture: gesture, replaces: replaces) }
-        selection = chosen
+        if step { selectionModel.record(from: selection, to: chosen, gesture: gesture, replaces: replaces) }
+        selectionModel.answered(chosen)
         await showSelection()
         await updatePlayRange()
         if focused {
@@ -656,10 +647,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Takes the selection away: ✕, Escape, or a hold outside it (`gesture`, #511 2.1); `step` false for Undo.
     func clearSelection(gesture: String? = nil, step: Bool = true) {
         guard selection != nil else { return }
-        if step { noteSelectionChange(from: selection, to: nil, gesture: gesture) }
+        if step { selectionModel.record(from: selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
         leaveFocus()
-        selection = nil
+        selectionModel.answered(nil)
         Task {
             await showSelection()
             await updatePlayRange()
@@ -892,8 +883,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard level != shownLevel else { return }
         let request = "{\"level\": \"\(level)\", \"remember\": false}"
         let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { phrases = levels }
-        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selection = moved }
+        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(levels) }
+        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
         await showSelection()
         await updatePlayRange()
     }
@@ -1755,7 +1746,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let shown = Notice(key: key)
         notice = shown
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
+            try? await Task.sleep(for: .seconds(Self.noticeSeconds))
             if self?.notice == shown { self?.notice = nil }
         }
     }
@@ -1939,8 +1930,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The selection menu dragged aside by the player and let go (#582 item 7): it stays where it was let go at once, and the
     /// page keeps that place inside the window until the menu closes (Scripts/score/menu-drag.ts), reporting it back.
     func moveMenu(by translation: CGSize) {
-        guard shown, let place = menuPlace else { return }
-        menuPlace = CGPoint(x: place.x + translation.width, y: place.y + translation.height)
+        guard shown, let place = selectionModel.menuPlace else { return }
+        selectionModel.placeMenu(CGPoint(x: place.x + translation.width, y: place.y + translation.height))
         let data: [String: Any] = ["dx": Double(translation.width), "dy": Double(translation.height)]
         Task { await scorePage.send(.menuMoved, data) }
     }
@@ -1954,7 +1945,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func loadPhrases(_ piece: OpenPiece) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
-        phrases = PhraseLevelsShown(answer: answer)
+        selectionModel.show(PhraseLevelsShown(answer: answer))
         await showSelection()
     }
 
@@ -2293,64 +2284,26 @@ struct NoteEditorState: Equatable, Sendable {
     var picked: String?
 }
 
-// MARK: - The selection's gestures and its Undo and Redo (#511 sections 2 and 11)
+// MARK: - The selection's Undo and Redo (#511 section 11): the steps are SelectionModel's, the selecting the root's
 
 extension ScoreController {
-    /// What a toast after a clear or a replace says, and which one it is.
-    struct SelectionToast: Equatable {
-        var replaced: Bool
-        var id = UUID()
-    }
-
-    /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
-    static let selectionToastSeconds = 6.0
-    static let holdHintSeconds = 2.0
-
-    /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a
-    /// replace shows «Вернуть»; any other step puts it away, as it would no longer take back the clear.
-    func noteSelectionChange(from before: ScoreSelection?, to after: ScoreSelection?, gesture: String?, replaces: Bool = false) {
-        guard let historyKey else { return }
-        let step = selectionSteps.record(from: SelectionSpan(before), to: SelectionSpan(after), gesture: gesture, replaces: replaces)
-        SelectionHistories.keep(selectionSteps, of: historyKey)
-        switch step?.kind {
-        case .clear?, .replace?:
-            showSelectionToast(replaced: step?.kind == .replace)
-        case nil where gesture == nil:
-            break
-        default:
-            selectionToast = nil
-        }
-    }
-
     /// Undo of the selection (the Selection row, the Pencil's ring, ⌘Z, «Вернуть»): the selection before the last step,
     /// selected again exactly; the score neither scrolls nor zooms.
     func undoSelection() {
-        guard let step = selectionSteps.undo() else { return }
-        keepSteps()
+        guard let step = selectionModel.undo() else { return }
         Task { await restore(step.before) }
     }
 
     /// Redo of the selection (the Selection row, ⇧⌘Z).
     func redoSelection() {
-        guard let step = selectionSteps.redo() else { return }
-        keepSteps()
+        guard let step = selectionModel.redo() else { return }
         Task { await restore(step.after) }
     }
 
     /// A gesture cancelled after its hold took the selection away: the selection comes back and no step stays.
     func revertGesture(_ gesture: String) {
-        guard let step = selectionSteps.revert(gesture) else { return }
-        keepSteps()
+        guard let step = selectionModel.revert(gesture) else { return }
         Task { await restore(step.before) }
-    }
-
-    func closeSelectionToast() {
-        selectionToast = nil
-    }
-
-    private func keepSteps() {
-        selectionToast = nil
-        if let historyKey { SelectionHistories.keep(selectionSteps, of: historyKey) }
     }
 
     private func restore(_ span: SelectionSpan?) async {
@@ -2359,23 +2312,5 @@ extension ScoreController {
             return
         }
         await select(request: span.request, step: false, picked: span.picked != nil)
-    }
-
-    private func showSelectionToast(replaced: Bool) {
-        let toast = SelectionToast(replaced: replaced)
-        selectionToast = toast
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.selectionToastSeconds))
-            if self?.selectionToast == toast { self?.selectionToast = nil }
-        }
-    }
-
-    private func showHoldHint() {
-        let shown = UUID()
-        holdHint = shown
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.holdHintSeconds))
-            if self?.holdHint == shown { self?.holdHint = nil }
-        }
     }
 }

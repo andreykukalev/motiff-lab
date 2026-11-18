@@ -267,7 +267,7 @@ struct ScoreScreenContent: View {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
-                if selectionMenuOpen, let place = score.menuPlace {
+                if selectionMenuOpen, let place = score.selectionModel.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
@@ -1220,7 +1220,7 @@ struct PhrasesPanel: View {
             }
             PaletteRule()
             row(text["phrases.hide"], count: nil, on: score.phrasesHidden) {
-                score.phrasesHidden = true
+                score.selectionModel.phrasesHidden = true
             }
             .accessibilityHint(text["phrases.hideHint"])
             PaletteRule()

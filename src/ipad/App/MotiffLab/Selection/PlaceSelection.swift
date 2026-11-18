@@ -39,14 +39,6 @@ extension ScoreController {
     }
 }
 
-extension ScoreController {
-    /// What the toast after a clear or a replace says: «Выделение заменено» for a replace by the place rule; otherwise
-    /// «Выделение снято».
-    var selectionToastKey: String {
-        selectionToast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
-    }
-}
-
 // MARK: - The score page's place rule (v0.6.2 S2, Scripts/score/selection-place-layer.ts)
 
 extension ScoreController {
