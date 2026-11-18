@@ -17,7 +17,9 @@ Not recorded yet.
 
 ## The state it owns
 
-Not recorded yet.
+- The Pencil's hover over a window (`WindowHover`, `PencilPalette.swift`): one recognizer on the window, put on it by
+  the first score's screen that watches it and shared by the next ones, so the window keeps no recognizer per visit
+  (#681).
 
 ## Baseline entries that protect it
 
