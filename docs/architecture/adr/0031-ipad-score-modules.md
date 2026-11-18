@@ -127,3 +127,21 @@ The web's `PlaybackLab` and `app.css` are not in this record (platform focus is 
 it has one implementation, and the features' tests call the facade itself. Its answers are typed (`Platform/PieceAnswers.swift`)
 and pinned by `tests/contracts/facade-answers`. A protocol, with a fake for a model's tests, comes with the first model
 (steps 3–9) that is tested without the framework. The decision above is unchanged.
+
+## Note, 2026-11-18 (step S1, `SelectionModel`)
+
+`SelectionModel` (`Selection/SelectionModel.swift`) owns the selection's state: the selection, its history, the toast,
+the hold hint, the menu's place, the phrases shown and whether they are hidden. Its state is set only through its own
+methods; `ScoreController` hands in what music-core and the page answer (`answered`, `show`, `placeMenu`).
+
+Two things stay in the root for now, and each has a step that removes it:
+
+- **Selecting** (`select`, `clearSelection`, `showLevel`, `resetLevel`): each runs, after music-core's answer, the page,
+  the play range and Expand in one order. It moves into `SelectionModel` in **S3**, once `FocusModel` owns Expand and
+  the play range and the root only connects the two.
+- **The relay and the forwarders**: `ScoreController` sends each `objectWillChange` of the model on as its own and
+  forwards `selection`, `phrases` and `phrasesHidden` read-only, so the views and reactions that observe the controller
+  update at the same moment as before and the tests (the protected `tests/ipad/Baseline` among them) read the same
+  names. This is against section 3's «views observe the model they show», for one step. They go in **S7** (blueprint
+  phase C: `ScoreScreen`'s view types into their files, this record's step 10), which moves each view onto the model it
+  shows; the readers in other features (Marks, Roll, Playback, Assistant) and the tests then read `selectionModel`.

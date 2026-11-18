@@ -25,7 +25,6 @@ final class SelectionModelTests: XCTestCase {
     func testAClearShowsTheToastThatUndoPutsAwayAndTheStepComesBack() throws {
         let model = opened(9_101)
         model.record(from: nil, to: one, gesture: nil)
-        XCTAssertNil(model.toast, "a new selection is no clear")
         model.record(from: one, to: nil, gesture: nil)
         XCTAssertEqual(model.toast?.replaced, false)
         XCTAssertEqual(model.toastKey, "selection.clearedToast")
@@ -44,11 +43,22 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertEqual(model.toastKey, "selection.replacedToast")
     }
 
+    func testAnyOtherStepPutsTheToastAway() {
+        let model = opened(9_106)
+        model.record(from: nil, to: one, gesture: nil)
+        model.record(from: one, to: nil, gesture: nil)
+        model.record(from: nil, to: nil, gesture: nil)
+        XCTAssertNotNil(model.toast, "no step of its own leaves the toast")
+        model.record(from: nil, to: far, gesture: nil)
+        XCTAssertNil(model.toast, "a new selection is a step that no longer takes back the clear")
+    }
+
     func testTheHistoryIsThePiecesWhenItsScreenOpensAgain() {
-        let first = opened(9_103)
-        first.record(from: nil, to: one, gesture: nil)
+        opened(9_103).record(from: nil, to: one, gesture: nil)
         XCTAssertTrue(opened(9_103).steps.canUndo, "the same piece keeps its history")
-        XCTAssertFalse(opened(9_104).steps.canUndo, "another piece starts its own")
+        opened(9_104).record(from: nil, to: far, gesture: nil)
+        XCTAssertTrue(opened(9_104).steps.canUndo)
+        XCTAssertFalse(opened(9_103).steps.canUndo, "another piece's history replaced the first one's")
     }
 
     func testARevertedGestureLeavesNoStep() throws {

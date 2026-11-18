@@ -88,6 +88,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var key: String
         var id = UUID()
     }
+    /// How long a word of guidance stays, in seconds: as long as the hint to hold.
+    static let noticeSeconds = 2.0
     /// The piece's beat lines (SelectionTools.swift): the one selection's grid; the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
@@ -479,7 +481,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func handleSelection(_ event: PageEvent) -> Bool {
         switch event {
         case .menu(let place):
-            selectionModel.menuPlace = place
+            selectionModel.placeMenu(place)
         case let .chosen(chosen, start, end):
             choose(chosen, start, end)
         case .cleared(let gesture):
@@ -573,8 +575,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
             let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.phrases = shown }
-            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.selection = moved }
+            if let shown = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(shown) }
+            if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
             await showSelection()
             await updatePlayRange()
         }
@@ -587,7 +589,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let request = "{\"reset\": true, \"level\": \"\(level)\"}"
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.edit", request) }
-            if let shown = PhraseLevelsShown(answer: answer) { selectionModel.phrases = shown }
+            if let shown = PhraseLevelsShown(answer: answer) { selectionModel.show(shown) }
             await showSelection()
             await updatePlayRange()
         }
@@ -633,7 +635,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
         if picked { chosen.picked = chosen.noteIds }
         if step { selectionModel.record(from: selection, to: chosen, gesture: gesture, replaces: replaces) }
-        selectionModel.selection = chosen
+        selectionModel.answered(chosen)
         await showSelection()
         await updatePlayRange()
         if focused {
@@ -648,7 +650,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if step { selectionModel.record(from: selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
         leaveFocus()
-        selectionModel.selection = nil
+        selectionModel.answered(nil)
         Task {
             await showSelection()
             await updatePlayRange()
@@ -881,8 +883,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard level != shownLevel else { return }
         let request = "{\"level\": \"\(level)\", \"remember\": false}"
         let answer = await PieceCore(piece: piece.id).phraseLevel(request).value
-        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.phrases = levels }
-        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.selection = moved }
+        if let levels = answer.map({ PhraseLevelsShown($0.phrases) }) { selectionModel.show(levels) }
+        if selection != nil, let moved = answer?.selection.selection.map(ScoreSelection.init) { selectionModel.answered(moved) }
         await showSelection()
         await updatePlayRange()
     }
@@ -1744,7 +1746,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let shown = Notice(key: key)
         notice = shown
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(SelectionModel.holdHintSeconds))
+            try? await Task.sleep(for: .seconds(Self.noticeSeconds))
             if self?.notice == shown { self?.notice = nil }
         }
     }
@@ -1929,7 +1931,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// page keeps that place inside the window until the menu closes (Scripts/score/menu-drag.ts), reporting it back.
     func moveMenu(by translation: CGSize) {
         guard shown, let place = selectionModel.menuPlace else { return }
-        selectionModel.menuPlace = CGPoint(x: place.x + translation.width, y: place.y + translation.height)
+        selectionModel.placeMenu(CGPoint(x: place.x + translation.width, y: place.y + translation.height))
         let data: [String: Any] = ["dx": Double(translation.width), "dy": Double(translation.height)]
         Task { await scorePage.send(.menuMoved, data) }
     }
@@ -1943,7 +1945,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     private func loadPhrases(_ piece: OpenPiece) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
-        selectionModel.phrases = PhraseLevelsShown(answer: answer)
+        selectionModel.show(PhraseLevelsShown(answer: answer))
         await showSelection()
     }
 

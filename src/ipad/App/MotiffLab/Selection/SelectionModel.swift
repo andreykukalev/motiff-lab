@@ -5,8 +5,9 @@ import SwiftUI
 /// phrases at the level shown with whether they are hidden (#479 item 21). It owns this state and the rules of its own
 /// that need nothing else: the history's steps, kept for the piece beside the screen (SelectionHistories), and how long
 /// the toast and the hint stay. Selecting through music-core and what follows a new selection (the page, the play range,
-/// Expand) are ScoreController's, the composition root, which writes the selection and the phrases here as music-core
-/// answers them; ScoreController's own observers see each change of it as a change of the controller.
+/// Expand) are ScoreController's, the composition root, which hands the selection, the phrases and the menu's place in
+/// here as music-core and the page answer them (`answered`, `show`, `placeMenu`); ScoreController's own observers see
+/// each change of it as a change of the controller. Until which step: ADR 0031, the note of 2026-11-18 (S1).
 @MainActor
 final class SelectionModel: ObservableObject {
     /// What a toast after a clear or a replace says, and which one it is.
@@ -21,14 +22,14 @@ final class SelectionModel: ObservableObject {
     static let phrasesHiddenKey = "motiff.phrases.hidden"
 
     /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
-    @Published var phrases: PhraseLevelsShown?
+    @Published private(set) var phrases: PhraseLevelsShown?
     /// «Не показывать» in the Phrases menu (#479 item 21): the phrases are not named, in the Contents nor for the
     /// selection, until a level is chosen again. Kept on this device for every piece; the piece's level stays as it was.
     @Published var phrasesHidden = UserDefaults.standard.bool(forKey: SelectionModel.phrasesHiddenKey) {
         didSet { UserDefaults.standard.set(phrasesHidden, forKey: Self.phrasesHiddenKey) }
     }
     /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
-    @Published var selection: ScoreSelection?
+    @Published private(set) var selection: ScoreSelection?
     /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
     @Published private(set) var steps = SelectionHistory<SelectionSpan>()
     /// «Выделение снято · Вернуть» for a while after a clear or a replace (#511 11); nil while none shows.
@@ -37,7 +38,7 @@ final class SelectionModel: ObservableObject {
     @Published private(set) var holdHint: UUID?
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
     /// nothing is selected or a drag is on.
-    @Published var menuPlace: CGPoint?
+    @Published private(set) var menuPlace: CGPoint?
     /// The piece as its selection's history knows it (SelectionHistories.key).
     private var historyKey: String?
 
@@ -45,6 +46,21 @@ final class SelectionModel: ObservableObject {
     /// «Выделение снято».
     var toastKey: String {
         toast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
+    }
+
+    /// The selection as music-core answered it (a select, a clear, the selection moved to another level), or none.
+    func answered(_ selection: ScoreSelection?) {
+        self.selection = selection
+    }
+
+    /// The phrases at the level shown, as music-core answered them.
+    func show(_ phrases: PhraseLevelsShown?) {
+        self.phrases = phrases
+    }
+
+    /// Where the page places the selection menu, or where the player let it go; nil for none.
+    func placeMenu(_ place: CGPoint?) {
+        menuPlace = place
     }
 
     /// Another piece shown: its selection's history, as it was kept beside the screen.

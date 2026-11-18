@@ -19,9 +19,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 
 `SelectionModel`: `record` makes a step of the history (a clear or a replace shows the toast), `undo`, `redo` and
 `revert` give the step whose selection the caller selects again, with the toast put away. `ScoreController` (the
-composition root) selects through music-core, writes `selection` and `phrases` as music-core answers them, and then
+composition root) selects through music-core, hands in `selection` and `phrases` as music-core answers them, and then
 runs what follows (the page, the play range, Expand); it sends each change of the model on as its own, so a view
-observing the controller sees it, and forwards `selection`, `phrases` and `phrasesHidden` read-only.
+observing the controller sees it, and forwards `selection`, `phrases` and `phrasesHidden` read-only. The model's
+state is set only through its methods. What stays in the root, and the steps that remove it (S3, S7): [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the
+note of 2026-11-18.
 
 ## The state it owns
 
