@@ -105,7 +105,7 @@ final class MergeDraftTests: XCTestCase {
         let score = try await score()
         let merge = try await draft(score)
         let at = try XCTUnwrap(score.mergeModel.at)
-        let unit = try XCTUnwrap(score.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
+        let unit = try XCTUnwrap(score.selectionModel.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
         let inPhrase = merge.bars.map(\.bar).filter { unit.firstBar <= $0 && $0 <= unit.lastBar }
         XCTAssertEqual(inPhrase, [2, 3], "the first phrase has two changes")
 
@@ -177,7 +177,7 @@ final class MergeDraftTests: XCTestCase {
         score.mergeModel.scope(phrase: true)
         score.hearMerge("alternate")
         await until("mine and the version in turn") { !inTurn.isEmpty }
-        let unit = try XCTUnwrap(score.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
+        let unit = try XCTUnwrap(score.selectionModel.phrases?.units.first { $0.firstBar <= at && at <= $0.lastBar })
         XCTAssertEqual(inTurn.last, unit.onset..<unit.end, "with Phrase, over its phrase")
         score.stepMerge(1)
         await until("the next change is heard the same way") { inTurn.count == 2 }

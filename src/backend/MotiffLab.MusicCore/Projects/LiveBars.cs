@@ -11,6 +11,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// each piece starts in the recording, and each piece moves along by the time it was played: its tick on the old bars to
 /// the time in the recording (<see cref="HeardClock"/>), that time to a tick on the new ones, and to the nearest bar start.
 /// Everything else placed in the bars (corrections, marks, ideas, checked bars, other bookmarks) still keeps them as they are.
+/// It also finds a transcription's bars afresh from the notes it keeps (<see cref="FindBars"/>, <see cref="Find"/>).
 /// </summary>
 public static class LiveBars
 {
@@ -40,12 +41,7 @@ public static class LiveBars
     public static BarGrid? FindBars(this Project project, TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
     {
         ArgumentNullException.ThrowIfNull(project);
-        if (project.Transcription is null)
-        {
-            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
-        }
-
-        MidiImport heard = Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi
+        MidiImport heard = HeardNotes(project)
             ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
         return RecordingBars.Find(heard, signature, stepsPerBeat, search);
     }
@@ -56,12 +52,7 @@ public static class LiveBars
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(search);
-        if (project.Transcription is null)
-        {
-            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
-        }
-
-        return Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi is { } heard ? RecordingBars.FindLive(heard, search) : GridFound.None;
+        return HeardNotes(project) is { } heard ? RecordingBars.FindLive(heard, search) : GridFound.None;
     }
 
     /// <summary>
@@ -140,6 +131,18 @@ public static class LiveBars
 
         // The layer's bookmarks keep their ids and categories: saved again over the project without them.
         return PieceLayer.Save(changed with { Bookmarks = project.Bookmarks, Categories = project.Categories }, moved, reopened.Meter, reopened.End, words, now);
+    }
+
+    /// <summary>The notes the transcription keeps, as the engine wrote them; null when its piece is not MIDI.</summary>
+    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
+    private static MidiImport? HeardNotes(Project project)
+    {
+        if (project.Transcription is null)
+        {
+            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
+        }
+
+        return Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi;
     }
 
     /// <summary>Where each piece of the layer starts in the recording, in microseconds of the stretch sent.</summary>

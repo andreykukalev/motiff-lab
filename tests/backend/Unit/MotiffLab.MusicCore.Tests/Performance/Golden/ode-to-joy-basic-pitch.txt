@@ -1,0 +1,9 @@
+matched 6, anchors 6
+bar 1 free None 0% «» «» | matched [] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 2 free None 0% «» «» | matched [] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 3 aligned Simplified 9% «−3 · simplified» «−3 · упрощено» | matched [n_0010=n_0001+0] | not heard [n_0009 n_0011 n_0012] | probably not heard [] | not printed [] | artefacts []
+bar 4 aligned Simplified 27% «−3 · simplified» «−3 · упрощено» | matched [] | not heard [n_0013 n_0014 n_0015] | probably not heard [] | not printed [] | artefacts []
+bar 5 aligned Simplified 27% «−2 · simplified» «−2 · упрощено» | matched [n_0017=n_0002+0 n_0019=n_0003+0] | not heard [n_0016 n_0018] | probably not heard [] | not printed [n_0004:72@9355v95] | artefacts []
+bar 6 aligned Simplified 33% «−3 · simplified» «−3 · упрощено» | matched [n_0020=n_0005+0] | not heard [n_0021 n_0022 n_0023] | probably not heard [] | not printed [] | artefacts []
+bar 7 aligned Simplified 27% «−3 · simplified» «−3 · упрощено» | matched [n_0027=n_0006+0] | not heard [n_0024 n_0025 n_0026] | probably not heard [] | not printed [] | artefacts []
+bar 8 aligned None 28% «» «» | matched [n_0029=n_0007+240] | not heard [n_0028 n_0030] | probably not heard [] | not printed [] | artefacts []

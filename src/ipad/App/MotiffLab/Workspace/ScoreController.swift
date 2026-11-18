@@ -80,19 +80,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     let sourcesModel: SourcesModel
     /// The merge draft, its change, view and hearing, Compare versions, the toast and the marker tapped (Sources/MergeModel.swift).
     let mergeModel: MergeModel
-    /// A change of the selection or focus model is a change of the controller, for the views and reactions that observe it;
-    /// the sources and merge views observe their models.
-    private var selectionChanges: AnyCancellable?
-    private var focusChanges: AnyCancellable?
-    /// The passage selected, the phrases at the level shown and whether they are hidden, as the screen and the other
-    /// features read them (SelectionModel's).
-    var selection: ScoreSelection? { selectionModel.selection }
-    var phrases: PhraseLevelsShown? { selectionModel.phrases }
-    var phrasesHidden: Bool { selectionModel.phrasesHidden }
-    /// The card's roll, the play range and the version in focus, as the screen and the other features read them (FocusModel's).
-    var focusRoll: Bool { focusModel.asRoll }
-    var playRange: FocusModel.PlayRange? { focusModel.playRange }
-    var focusVersion: FocusModel.Version? { focusModel.version }
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -113,17 +100,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// A tap on the page that selects nothing: away from the bars, or anywhere while a passage is selected. The Insights
     /// sheet goes away; the selection stays (#338).
     var blankTapped: (@MainActor () -> Void)?
-    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it. Since
-    /// v0.5.5 Expand (#521 19): bound to the selection it was opened on, which nothing changes until the way back. Kept
-    /// here, not in FocusModel, while the protected UX baseline observes `score.$focused` (ADR 0031, the note of S3).
-    @Published private(set) var focused = false
     /// Practice view (#533 11, PracticeView.swift): view state, changed by `practise`, its two visibilities kept on the device
     /// (v0.6.4, spec 9); and the time its controls hide.
     @Published var practice = PracticeView.saved()
     var practiceTimer: Task<Void, Never>?
     /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
     var ossia: String? {
-        didSet { if oldValue != ossia, focused { Task { await engraveCard() } } }
+        didSet { if oldValue != ossia, focusModel.focused { Task { await engraveCard() } } }
     }
     @Published private(set) var markCount = 0
     /// The margin notes, highlights and inked bars, as music-core answered the last mark call.
@@ -156,9 +139,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var editsLayer: EditsLayerState?
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
-    /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
-    /// Kept here, not in SourcesModel, while the protected UX baseline observes `score.$sources` (ADR 0031, the note of S4).
-    @Published private(set) var sources = SourcesInfo()
 
     /// The draft's notes to hear over a span, once: the screen's player plays them on their own.
     var hearNotes: (@MainActor ([PlaybackNote], Range<Double>) -> Void)?
@@ -171,12 +151,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The layers of the player's marks.
     var pieceLayers: [String] { Self.layers }
 
-    /// The kinds of extra information this piece has: the differences and taken bars with a version, Check with flags.
-    var pieceExtra: [String] {
+    /// The kinds of extra information this piece has: the differences and taken bars with a version (`hasVersions`, from
+    /// the screen that observes SourcesModel), Check with flags.
+    func pieceExtra(hasVersions: Bool) -> [String] {
         Self.extra.filter { item in
             switch item {
             case "check": check.hasFlags
-            default: !sourcesModel.versions.entries.isEmpty
+            default: hasVersions
             }
         }
     }
@@ -293,8 +274,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         sourcesModel = sourcing
         mergeModel = MergeModel(selection: selecting, sources: sourcing)
         super.init()
-        selectionChanges = selectionModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
-        focusChanges = focusModel.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -346,7 +325,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             selectionModel.open(piece)
             rendered = false
             sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
-            sources = SourcesInfo()
             mergeModel.open()
             focusModel.forgetVersionNotes()
         }
@@ -439,7 +417,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case let .bar(start, end):
             // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or
             // another choice (a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
-            if selection == nil {
+            if selectionModel.selection == nil {
                 Task { await select(start, end) }
             } else {
                 blankTapped?()
@@ -510,7 +488,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// not drawn on the score (#479 item 14).
     func showLevel(_ level: String) {
         selectionModel.hidePhrases(false)
-        guard let piece, level != phrases?.level else { return }
+        guard let piece, level != selectionModel.phrases?.level else { return }
         pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
             await selectionModel.showLevel(level, in: piece.id)
@@ -522,7 +500,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// «Вернуть найденные» (the web app's Reset level): the level shown forgets the player's own boundaries, made in
     /// the Music Studio, and has the units found in the file again.
     func resetLevel() {
-        guard let piece, let level = phrases?.level, phrases?.edited.contains(level) == true else { return }
+        guard let piece, let level = selectionModel.phrases?.level, selectionModel.phrases?.edited.contains(level) == true else { return }
         Task {
             await selectionModel.resetLevel(level, in: piece.id)
             await showSelection()
@@ -551,7 +529,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func selectBars(_ first: Int, _ last: Int, extend: Bool, gesture: String? = nil) {
         var from = first
         var to = last
-        if extend, let selection {
+        if extend, let selection = selectionModel.selection {
             if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
         }
         Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
@@ -569,7 +547,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
         await showSelection()
         focusModel.updatePlayRange()
-        if focused {
+        if focusModel.focused {
             await engraveCard()
             await updateFocusVersion()
         }
@@ -577,8 +555,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Takes the selection away: ✕, Escape, or a hold outside it (`gesture`, #511 2.1); `step` false for Undo.
     func clearSelection(gesture: String? = nil, step: Bool = true) {
-        guard selection != nil else { return }
-        if step { selectionModel.record(from: selection, to: nil, gesture: gesture) }
+        guard selectionModel.selection != nil else { return }
+        if step { selectionModel.record(from: selectionModel.selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
         leaveFocus()
         selectionModel.answered(nil)
@@ -613,13 +591,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @discardableResult
     func goToBookmark(_ id: String) -> Bool {
         guard let span = bookmarkSpans[id] else { return false }
-        if let shownBookmark, shownBookmark.id == id, shownBookmark.selection == selection, !penOn {
+        if let shownBookmark, shownBookmark.id == id, shownBookmark.selection == selectionModel.selection, !penOn {
             enterFocus()
             return true
         }
         Task {
             await select(span.lowerBound, span.upperBound)
-            if let selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
+            if let selection = selectionModel.selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
             await scorePage.send(.reveal, ["start": span.lowerBound])
         }
         return false
@@ -627,7 +605,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Whether the selection is the bookmark last gone to: its entry in the Contents shows it.
     func isShown(_ id: String) -> Bool {
-        shownBookmark?.id == id && shownBookmark?.selection == selection
+        shownBookmark?.id == id && shownBookmark?.selection == selectionModel.selection
     }
 
     /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
@@ -638,17 +616,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The assistant's scope chip for the selection (testing item 23): "This phrase · bars 9–16" or "This selection · bar 3".
     var askLabel: String? {
-        guard let selection else { return nil }
+        guard let selection = selectionModel.selection else { return nil }
         let bars = selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))
             : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        let phrase = !phrasesHidden && phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } == true
+        let phrase = !selectionModel.phrasesHidden && selectionModel.phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } == true
         return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", bars)
     }
 
     var bookmarkTitle: String {
-        guard let selection else { return "" }
-        if !phrasesHidden, let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+        guard let selection = selectionModel.selection else { return "" }
+        if !selectionModel.phrasesHidden, let unit = selectionModel.phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
             return label(of: unit)
         }
         let bars = selection.firstBar == selection.lastBar
@@ -700,7 +678,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Starts a note over the selection.
     func startNote() {
-        guard let selection else { return }
+        guard let selection = selectionModel.selection else { return }
         noteDraft = NoteDraft(id: nil, onset: selection.onset, end: selection.end, firstBar: selection.firstBar, lastBar: selection.lastBar, text: "")
     }
 
@@ -709,7 +687,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let note = marks.notes.first(where: { $0.id == id }) else { return }
         let draft = NoteDraft(id: id, onset: note.onset, end: note.end, firstBar: note.firstBar, lastBar: note.lastBar, text: note.text)
         Task {
-            if selection?.onset != note.onset || selection?.end != note.end {
+            if selectionModel.selection?.onset != note.onset || selectionModel.selection?.end != note.end {
                 await select(note.onset, note.end)
                 await scorePage.send(.reveal, ["start": note.onset])
             }
@@ -744,13 +722,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The highlight laid exactly over the selection, the newest when there are more.
     var selectedHighlight: HighlightMark? {
-        guard let selection else { return nil }
+        guard let selection = selectionModel.selection else { return nil }
         return marks.highlights.last { $0.onset == selection.onset && $0.end == selection.end }
     }
 
     /// Lays the selection in an ink; the highlight already over it gives way to the new one.
     func highlightSelection(_ ink: String) {
-        guard let piece, let selection else { return }
+        guard let piece, let selection = selectionModel.selection else { return }
         let existing = selectedHighlight
         guard existing?.colour != ink else { return }
         Task {
@@ -805,7 +783,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The level a piece opens in (the setting "phrases.granularity"), shown without becoming the piece's own; a piece that
     /// has its own keeps it.
     private func applyLevel() async {
-        guard let piece, pieceOverrides[Self.granularity] == nil, let shownLevel = phrases?.level else { return }
+        guard let piece, pieceOverrides[Self.granularity] == nil, let shownLevel = selectionModel.phrases?.level else { return }
         let level = switch DeviceSettings.shared[Self.granularity] {
         case "short": "short"
         case "sentences": "sentence"
@@ -1053,7 +1031,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return }
         var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
-        request["bar"] = selection?.firstBar ?? 1
+        request["bar"] = selectionModel.selection?.firstBar ?? 1
         let body = facadeRequest(request)
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
@@ -1121,22 +1099,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await loadCheck(piece)
     }
 
-    /// A recording heard by the scan server in parts, as another version (0022): music-core joins the parts' notes and
-    /// lines them up with the score. Returns why it could not be added, or nil.
-    func addRecordingVersion(_ heard: HeardRecording) async -> String? {
-        guard let piece else { return nil }
-        var fields = heard.request
-        fields["name"] = heard.name.isEmpty ? text["performance.defaultName"] : heard.name
-        let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
-        guard sourcesModel.read(performance: answer) else {
-            return FacadeAnswer.message(answer) ?? text["transcribe.failed"]
-        }
-        sourcesModel.say(sourcesModel.addedStatus(in: text))
-        await versionAdded(piece)
-        return nil
-    }
-
     // MARK: - Sources (testing item 16)
 
     func refreshSources() {
@@ -1146,7 +1108,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private func readSources() async {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
-        if let read = SourcesInfo(answer: answer) { sources = read }
+        sourcesModel.read(sources: answer)
     }
 
     /// Show on a bar of the version: the bar is selected and comes into view.
@@ -1266,7 +1228,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
             sourcesModel.keepEngraved(SourcesModel.Engraved(view: view, even: even, added: engraving.version, own: engraving.own))
             await render()
-            if focused { await engraveCard() }
+            if focusModel.focused { await engraveCard() }
         case .failure(let error):
             problem = error.message
         }
@@ -1274,7 +1236,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The draft's view the score should show: the version or the result while a draft is open out of focus.
     private var wantedView: String? {
-        mergeModel.draft != nil && !focused && mergeModel.view != "mine" ? mergeModel.view : nil
+        mergeModel.draft != nil && !focusModel.focused && mergeModel.view != "mine" ? mergeModel.view : nil
     }
 
     /// The page engraved again when the view it should show changed.
@@ -1310,11 +1272,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The version for the phrase in focus: its notes to hear, and the bars of the phrase it has otherwise.
     private func updateFocusVersion() async {
-        guard focused, let piece, let selection, let shown = sourcesModel.versions.shown else {
+        guard focusModel.focused, let piece, let selection = selectionModel.selection, let shown = sourcesModel.versions.shown else {
             focusModel.showVersion(nil)
             return
         }
-        guard let notes = await focusModel.versionNotes(of: shown.id, in: piece.id), focused, self.selection == selection, sourcesModel.versions.shownId == shown.id else { return }
+        guard let notes = await focusModel.versionNotes(of: shown.id, in: piece.id), focusModel.focused, selectionModel.selection == selection, sourcesModel.versions.shownId == shown.id else { return }
         let bars = selection.firstBar...selection.lastBar
         focusModel.showVersion(FocusModel.Version(
             id: shown.id, name: shown.name, notes: notes,
@@ -1371,7 +1333,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Open in the draft from focus: focus is left, and the draft opens on the first bar of the phrase that differs.
     func openDraftFromFocus() {
-        guard focusVersion != nil, let bar = focusVersion?.differing.first ?? selection?.firstBar else { return }
+        guard focusModel.version != nil, let bar = focusModel.version?.differing.first ?? selectionModel.selection?.firstBar else { return }
         leaveFocus()
         openDraft(at: bar)
     }
@@ -1579,9 +1541,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Lifts the selection into focus (Expand, #521 19): the page dims, the card shows the selection's bars on their own, and
     /// the page neither scrolls nor takes the Pencil until the way back, which `entry` names (#521 17).
     func enterFocus(from entry: ExpandEntry = .notes) {
-        guard shown, ExpandRules.opens(selected: selection != nil, penOn: penOn), !focused else { return }
+        guard shown, ExpandRules.opens(selected: selectionModel.selection != nil, penOn: penOn), !focusModel.focused else { return }
         focusModel.open(from: entry)
-        focused = true
         setPageStill(true)
         let label = text.format("focus.cardLabel", focusModel.position(in: text))
         let request: [String: Any] = ["open": true, "label": label, "back": text[entry.backKey]]
@@ -1597,7 +1558,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Expand on the roll drawer: the selection in focus as a roll, its way back Collapse (#521 17). Only with a selection
     /// (#521 19.1): without one the button says so instead (showNotice).
     func expandRoll() {
-        guard selection != nil else { return }
+        guard selectionModel.selection != nil else { return }
         focusModel.showAsRoll(true)
         enterFocus(from: .roll)
     }
@@ -1614,8 +1575,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Back to the page, with the selection as it is: Back, a tap on the dimmed page, or Escape.
     func leaveFocus() {
-        guard focused else { return }
-        focused = false
+        guard focusModel.focused else { return }
         focusModel.close()
         setPageStill(false)
         Task {
@@ -1627,10 +1587,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Previous or next at the level shown: the card moves on to that unit. Outside focus (the pill's arrows, #328) the
     /// page brings it into view.
     func step(_ direction: Int) {
-        guard let unit = focusModel.unit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
+        guard let unit = focusModel.unit, let next = selectionModel.phrases?.unit(unit.number + direction.signum()) else { return }
         Task {
             await select(next.selectableOnset, next.selectableEnd)
-            if !focused { await reveal(next.selectableOnset) }
+            if !focusModel.focused { await reveal(next.selectableOnset) }
         }
     }
 
@@ -1671,7 +1631,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             return
         }
         await select(passage.lowerBound, passage.upperBound, step: false)
-        guard let selection else { return }
+        guard let selection = selectionModel.selection else { return }
         await reveal(selection.onset)
         if place.focused { enterFocus() }
     }
@@ -1683,7 +1643,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Engraves the selection's bars at the card's width and shows them on the card.
     private func engraveCard() async {
-        guard focused, let piece, let selection, let options = focusModel.cardOptions else { return }
+        guard focusModel.focused, let piece, let selection = selectionModel.selection, let options = focusModel.cardOptions else { return }
         let first = selection.firstBar
         let last = selection.lastBar
         let id = piece.id
@@ -1695,7 +1655,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options, ossia: withOssia, version: version?.id)
         }
         // Stepped on, left, or the variation or the version changed while it engraved: the newer call shows its own.
-        guard focused, self.selection == selection, ossia == name, withOssia || sourcesModel.versions.shown == version else { return }
+        guard focusModel.focused, selectionModel.selection == selection, ossia == name, withOssia || sourcesModel.versions.shown == version else { return }
         switch engraved {
         case .success(let card):
             let timemap = (try? JSONSerialization.jsonObject(with: Data(card.timemap.utf8))) ?? []
@@ -1781,7 +1741,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func showSelection() async {
         guard shown else { return }
         var band: Any = NSNull()
-        if let selection {
+        if let selection = selectionModel.selection {
             var drawn: [String: Any] = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]]
             if let hand = selection.hand { drawn["hand"] = hand }
             if let picked = selection.picked { drawn["picked"] = picked }

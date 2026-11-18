@@ -95,6 +95,14 @@ final class FocusModelTests: XCTestCase {
         XCTAssertEqual(focus.position(in: text), "")
     }
 
+    func testExpandIsOpenFromItsOpeningUntilTheWayBack() {
+        XCTAssertFalse(focus.focused, "a piece opens out of Expand")
+        focus.open(from: .notes)
+        XCTAssertTrue(focus.focused)
+        focus.close()
+        XCTAssertFalse(focus.focused, "the way back closes it")
+    }
+
     func testTheWayBackTakesTheVersionAwayAndTheRollIsKept() {
         focus.open(from: .roll)
         XCTAssertEqual(focus.entry, .roll, "the way back is the roll's")

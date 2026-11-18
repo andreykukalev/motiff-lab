@@ -4,10 +4,9 @@ import Foundation
 /// what the last thing done with a version came to, the version whose page Sources shows (testing item 32), and the score
 /// as last engraved (the draft's view, even bars, and the notes it colours). It owns this state and the rules of its own
 /// that need nothing else: reading a version and the list through music-core, and the words on a version just added.
-/// The piece's `sources`, the version's notes to hear, drawing the versions on the page, engraving and merging are
+/// Since S7c it holds the piece's sources too (`info`). Drawing the versions on the page, engraving and merging are
 /// ScoreController's, the composition root, which hands in what they give (`read`, `say`, `showPage`, `keepEngraved`);
-/// its observers see each change of this model as a change of the controller. Until which step: ADR 0031, the note of
-/// 2026-11-18 (S4).
+/// the views observe this model. ADR 0031, the notes of 2026-11-18 (S4, S7c).
 @MainActor
 final class SourcesModel: ObservableObject {
     /// The score as last engraved: the draft's view ("version" or "result", nil for the player's notes), whether its bars
@@ -27,6 +26,8 @@ final class SourcesModel: ObservableObject {
     /// The version whose page Sources shows (testing item 32): its overview, the merge draft and what was merged; nil for
     /// the list of sources.
     @Published private(set) var page: String?
+    /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
+    @Published private(set) var info = SourcesInfo()
     private(set) var engraved: Engraved
 
     /// `evenBars`: whether the score is engraved with even bars now (the device's setting).
@@ -34,12 +35,18 @@ final class SourcesModel: ObservableObject {
         engraved = Engraved(view: nil, even: evenBars)
     }
 
-    /// Another piece shown: none of the last one's versions, words, page or view.
+    /// Another piece shown: none of the last one's versions, words, page, view or sources.
     func open(evenBars: Bool) {
         versions = VersionShelf()
         status = nil
         page = nil
         engraved = Engraved(view: nil, even: evenBars)
+        info = SourcesInfo()
+    }
+
+    /// The piece's sources as music-core answered `sources`; an answer it cannot read leaves them as they were.
+    func read(sources answer: String) {
+        if let read = SourcesInfo(answer: answer) { info = read }
     }
 
     /// What the last thing done with a version came to, or nothing.

@@ -199,7 +199,7 @@ final class WorkspaceScenarioTests: XCTestCase {
         await session.step("More opens") { workspace.change(.toggle(.more)) }
         await session.step("«Спросить о пьесе» in More") {
             workspace.change(.close(.more))
-            workspace.assistant.open(wholePiece: true, selection: workspace.score.selection)
+            workspace.assistant.open(wholePiece: true, selection: workspace.score.selectionModel.selection)
         }
         XCTAssertTrue(workspace.assistant.panelOpen, "VIEW-05: the assistant's panel stays")
         XCTAssertFalse(workspace.panels.sheetOpen, "VIEW-05: Sources closes and Insights does not come back")

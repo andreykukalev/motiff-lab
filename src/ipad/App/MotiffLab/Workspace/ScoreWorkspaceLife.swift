@@ -82,7 +82,7 @@ extension ScoreWorkspace {
         player.tempoPercent = place.tempoPercent
         if player.handsHeld.canSeparate { player.hands = place.hands }
         await score.arrive(at: place)
-        if place.loop, let range = score.playRange?.range ?? place.passage {
+        if place.loop, let range = score.focusModel.playRange?.range ?? place.passage {
             player.setLoop(range, play: false)
         }
     }
@@ -90,9 +90,9 @@ extension ScoreWorkspace {
     /// Where the player is now, taken before the player stops.
     func resumeNow() -> ResumePlace.Now? {
         ResumePlace.Now(
-            passage: score.selection.map { $0.onset..<$0.end },
+            passage: score.selectionModel.selection.map { $0.onset..<$0.end },
             tick: player.tick,
-            focused: score.focused,
+            focused: score.focusModel.focused,
             tempoPercent: player.tempoPercent,
             hands: player.hands,
             loop: player.loop != nil
@@ -127,9 +127,9 @@ extension ScoreWorkspace {
     /// The "Notes" view as it is now, read before the player stops; where the score and the roll are is read as it is kept.
     func notesViewNow() -> NotesViewState {
         var state = NotesViewState()
-        state.selection = score.selection.map { SelectionSpanKept($0) }
+        state.selection = score.selectionModel.selection.map { SelectionSpanKept($0) }
         state.position = player.tick
-        state.loop = player.cycle && score.selection != nil
+        state.loop = player.cycle && score.selectionModel.selection != nil
         state.rollOpen = panels[.roll]
         return state
     }
@@ -167,7 +167,7 @@ extension ScoreWorkspace {
         }
         // The model takes the selection now (T9), then Цикл as it was and the position, which leaves Цикл as it is (T7,
         // `place`, answer 14).
-        player.hold(selection: score.playRange?.range)
+        player.hold(selection: score.focusModel.playRange?.range)
         if player.cycle != kept.loop { player.apply(.cycle) }
         player.apply(.place(kept.position))
         change(kept.rollOpen ? .open(.roll) : .close(.roll))
@@ -181,7 +181,7 @@ extension ScoreWorkspace {
         guard let switchView, !handingOver else { return }
         handingOver = true
         defer { handingOver = false }
-        let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
+        let pages = piece.other?.pages ?? PageMap(starts: score.sourcesModel.info.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
         await keepForHandOver()
         await switchView(.page(pages.page(of: tick)))

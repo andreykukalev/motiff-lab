@@ -5,10 +5,10 @@ import Foundation
 /// phrase in focus (0022 section 5), and the span Play and Loop take for the selection (#533 3). It owns this state and
 /// the rules of its own that need only the selection (SelectionModel, which it reads): the play range, the unit of the
 /// level shown the card is, and the card's words for where it is; and since S4b the version's notes to hear, read for the
-/// version id the root hands in. Whether Expand is open (`focused`), opening and leaving it on the page, engraving the
-/// card and which version is in focus are ScoreController's, the composition root, which hands in what they give (`open`,
-/// `close`, `takeCardOptions`, `showVersion`); its observers see each change of this model as a change of the controller.
-/// Until which step: ADR 0031, the notes of 2026-11-18 (S3, S4b).
+/// version id the root hands in; and since S7c whether Expand is open (`focused`). Opening and leaving it on the page,
+/// engraving the card and which version is in focus are ScoreController's, the composition root, which hands in what they
+/// give (`open`, `close`, `takeCardOptions`, `showVersion`); the views observe this model. ADR 0031, the notes of
+/// 2026-11-18 (S3, S4b, S7c).
 @MainActor
 final class FocusModel: ObservableObject {
     /// The span play takes for a selection, and the selection it was taken for.
@@ -33,6 +33,8 @@ final class FocusModel: ObservableObject {
     /// The selection read: what plays, and the unit the card is.
     private let selection: SelectionModel
 
+    /// Whether Expand is open (0018 section 4, #521 19): the selection lifted into a card, the page dimmed behind it.
+    @Published private(set) var focused = false
     /// Where Expand was opened from, which names the way back (#521 17): the score's «К странице», the roll's «Свернуть».
     @Published private(set) var entry = ExpandEntry.notes
     /// Whether the card in focus shows the phrase as a roll (testing item 12): Notes | Piano roll in the focus bar, kept while
@@ -54,10 +56,12 @@ final class FocusModel: ObservableObject {
     /// Expand opened, from where its way back leads.
     func open(from entry: ExpandEntry) {
         self.entry = entry
+        focused = true
     }
 
-    /// Back to the page: no version for a phrase in focus any more.
+    /// Back to the page: Expand closed, no version for a phrase in focus any more.
     func close() {
+        focused = false
         version = nil
     }
 

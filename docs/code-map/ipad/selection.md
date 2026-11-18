@@ -26,8 +26,8 @@ answer scrolls); a menu with no handle drags whole.
 `revert` give the step whose selection the caller selects again, with the toast put away. `select` (music-core's
 refusal back, nil once selected), `showLevel`, `resetLevel` and `loadPhrases` ask music-core and keep its answer;
 `hidePhrases` writes `phrasesHidden`. `ScoreController` (the composition root) calls them, then runs what follows (the
-page, the play range, Expand), and clears the selection (`answered(nil)`) after leaving Expand; it sends each change of the model on as its own, so a view
-observing the controller sees it, and forwards `selection`, `phrases` and `phrasesHidden` read-only. The model's
+page, the play range, Expand), and clears the selection (`answered(nil)`) after leaving Expand. The views that show the selection or the phrases observe
+the model themselves (S7b, S7c). The model's
 state is set only through its methods. What stays in the root, and the step that removes it (S7): [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the
 notes of 2026-11-18.
 

@@ -99,9 +99,9 @@ enum ScreensProbe {
             guard let from, let to else { return "none" }
             return "\(Int(from))-\(Int(to))"
         }
-        let range = score.playRange?.range
-        var line = " sel=\(span(score.selection?.onset, score.selection?.end)) range=\(span(range?.lowerBound, range?.upperBound))"
-        line += " focus=\(score.focused ? 1 : 0) as=\(score.focusRoll ? "roll" : "notes") mode=\(score.mode.rawValue) pen=\(score.penOn ? 1 : 0)"
+        let range = score.focusModel.playRange?.range
+        var line = " sel=\(span(score.selectionModel.selection?.onset, score.selectionModel.selection?.end)) range=\(span(range?.lowerBound, range?.upperBound))"
+        line += " focus=\(score.focusModel.focused ? 1 : 0) as=\(score.focusModel.asRoll ? "roll" : "notes") mode=\(score.mode.rawValue) pen=\(score.penOn ? 1 : 0)"
         line += " ink=\(score.markCount) scroll=\(Int(score.webView.scrollView.contentOffset.y))"
         let zoom = roll?.zoom.map { "\($0.bars)x\($0.octaves)" } ?? "none"
         line += " roll=\(roll?.place.map { $0 == .drawer ? "drawer" : "focus" } ?? "none") zoom=\(zoom)"

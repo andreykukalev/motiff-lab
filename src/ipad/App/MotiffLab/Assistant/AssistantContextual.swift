@@ -14,6 +14,7 @@ import SwiftUI
 struct AssistantHereCard: View {
     @ObservedObject var assistant: AssistantController
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let ask: (String) -> Void
     @State private var flow = AskFlow(surface: .contextual)
@@ -56,10 +57,10 @@ struct AssistantHereCard: View {
         // What the API says the player may do, asked again once they sign in or out.
         .task(id: account.player) { await assistant.check(account.assistant) }
         // The passage, not its notes: an accepted draft changes the notes under the same selection.
-        .onChange(of: score.selection.map { [$0.onset, $0.end] }) { _, _ in
-            if let now = score.selection, flow.focused || !flow.question.isEmpty { assistant.follow(now) } else { close() }
+        .onChange(of: selectionModel.selection.map { [$0.onset, $0.end] }) { _, _ in
+            if let now = selectionModel.selection, flow.focused || !flow.question.isEmpty { assistant.follow(now) } else { close() }
         }
-        .onDisappear { if score.selection == nil { assistant.closeHere() } }
+        .onDisappear { if selectionModel.selection == nil { assistant.closeHere() } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["padAssistant.title"])
     }
@@ -133,13 +134,13 @@ struct AssistantHereCard: View {
 
     /// Ask in the selection's menu: the assistant opens at the selection, in the role «Помощник правит ноты» sets.
     @MainActor static func open(_ assistant: AssistantController, score: ScoreController, settings: DeviceSettings) {
-        guard let selection = score.selection else { return }
+        guard let selection = score.selectionModel.selection else { return }
         assistant.openHere(on: selection, role: AssistantSide.role(settings))
     }
 
     /// What a question here is asked about: the selected bars of the piece open in music-core.
     @MainActor static func ask(score: ScoreController, text: UIText, role: String, relay: AssistantRelay) -> AssistantAsk? {
-        guard let piece = score.pieceId, let selection = score.selection else { return nil }
+        guard let piece = score.pieceId, let selection = score.selectionModel.selection else { return nil }
         return AssistantAsk(
             piece: piece, selection: selection, wholePiece: false, scope: score.askLabel ?? "", language: text.language, role: role, relay: relay
         )
