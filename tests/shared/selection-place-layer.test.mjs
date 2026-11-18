@@ -12,6 +12,7 @@ class FakeElement {
         this.own = own;
         this.className = "";
         this.style = {};
+        Object.defineProperty(this.style, "setProperty", { value: (name, value) => (this.style[name] = value) });
         this.attributes = {};
         this.parent = null;
     }
@@ -67,6 +68,7 @@ globalThis.window = {
 globalThis.Element = FakeElement;
 
 const { PlaceLayer } = await import("../../src/shared/wwwroot/js/score/selection-place-layer.js");
+const { edgeHandles } = await import("../../src/shared/wwwroot/js/score/selection-places.js");
 
 const BAR = 1920;
 const staves = [{ n: 1, top: 100, bottom: 180 }, { n: 2, top: 220, bottom: 300 }];
@@ -153,6 +155,16 @@ test("an edge's grip, anywhere along the band's height, moves that edge", () => 
     gesture([[505, 290], [700, 290]]);
     assert.deepEqual(said.find((step) => step.chosen), { chosen: { start: BAR, end: 3 * BAR, hand: null }, how: "edit" });
     assert.ok(root.children.filter((child) => child.className.startsWith("sel-edge")).length === 2, "the edges are drawn over the band again");
+});
+
+test("an edge's circle is drawn where its handle takes a press (edgeHandles), so the two cannot drift apart", () => {
+    const { root, layer } = page();
+    layer.decorate();
+    const drawn = root.children.filter((child) => child.className.startsWith("sel-edge"))
+        .map((edge) => ({ x: parseFloat(edge.style.left), y: parseFloat(edge.style.top) + parseFloat(edge.style["--handle-y"]) }));
+    const band = root.children.find((child) => child.className === "sel-band");
+    const box = { left: parseFloat(band.style.left), top: parseFloat(band.style.top), right: parseFloat(band.style.left) + parseFloat(band.style.width), bottom: parseFloat(band.style.top) + parseFloat(band.style.height) };
+    assert.deepEqual(drawn, edgeHandles([box]));
 });
 
 test("a move from inside extends the selection, the addition dashed while it goes", () => {
@@ -287,13 +299,16 @@ test("the click after a stylus' tap is swallowed whenever it comes, until the ne
     assert.equal(layer.swallowsClick(), false, "a new press's click is its own");
 });
 
-test("an edge wins over a playhead's handle within its reach; elsewhere, or with the rule off, the handle takes the press", () => {
+test("a playhead's handle at the selection's edge takes the press; only on the edge's own handle the edge wins (0.8 finding 1)", () => {
     const { layer } = page();
     const at = (x, y, pointerType = "pen") => ({ pointerType, clientX: x, clientY: y });
-    assert.equal(layer.edgeAt(at(300, 90)), true, "the start edge's circle");
-    assert.equal(layer.edgeAt(at(400, 90)), false, "inside");
-    assert.equal(layer.edgeAt(at(300, 90, "touch")), false, "a finger takes the handle");
-    assert.equal(page({ on: false }).layer.edgeAt(at(300, 90)), false);
+    assert.equal(layer.handleAt(at(300, 200)), true, "the start edge's circle, at the middle of the band");
+    assert.equal(layer.handleAt(at(500, 200)), true, "the end edge's circle");
+    assert.equal(layer.handleAt(at(300, 90)), false, "at the edge's top, where the blue playhead's knob stands: the playhead");
+    assert.equal(layer.handleAt(at(300, 300)), false, "down the edge, away from its circle: the playhead");
+    assert.equal(layer.handleAt(at(400, 200)), false, "inside");
+    assert.equal(layer.handleAt(at(300, 200, "touch")), false, "a finger takes the playhead");
+    assert.equal(page({ on: false }).layer.handleAt(at(300, 200)), false);
 });
 
 test("the page scrolls by itself only at the edges of the part of the window the score shows, toward where the stylus went", () => {

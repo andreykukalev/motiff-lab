@@ -26,7 +26,8 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
   `score/selection-places.ts`: edge, inside = add, outside = new, taps, double tap = Fit, drag of picked notes = move)
   and its drawing (`HANDLE`: the score's hollow handles at the edges' middles, the dashed rectangle, lasso, old span dashed).
   v0.6.4: a drag is a span of time on the grid (`score/selection-grid.ts`, tuplets from the score), notes or none; only the
-  lasso picks notes; a span let go is held (`placed`) until Swift's selection comes back; an edge wins over a playhead.
+  lasso picks notes; a span let go is held (`placed`) until Swift's selection comes back; only an edge's handle beats a
+  playhead (0.9, `onPlaceHandle`).
 - `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view, zoom, playhead, lanes.
 
 ## Not reached by the iPad's roll (W0.6, measured 2026-11-16; written down, not cut)

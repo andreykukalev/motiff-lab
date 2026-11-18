@@ -17,13 +17,16 @@ import { type BandHand, MUSIC_REACH, bandBoxes, handRuns, onMusic, setBox } from
 import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "./selection-gesture.js";
 import { barlines, tickAt } from "./selection-handles.js";
 import {
+    type EdgeHandle,
     type PlaceEnd,
     type PlaceGesture,
     type PlaceRule,
     type Tap,
     doubleTap,
+    edgeHandles,
     headAt,
     movedEdge,
+    onEdgeHandle,
     placeAt,
     placeChange,
     placeEnded,
@@ -140,17 +143,16 @@ export class PlaceLayer {
     }
 
     /**
-     * Whether a press at a point of the window would take an edge of the selection: there the edge wins over a playhead's
-     * handle under it (section F, «Кромка выигрывает в своей зоне»), so the host leaves the press to this layer.
+     * Whether a press at a point of the window lands on a handle of the selection's edges (`onEdgeHandle`): there the edge
+     * wins over a playhead's handle under it, so the host leaves the press to this layer; elsewhere on the edge the
+     * playhead is taken first (Andrei, 2026-11-18, answer 3 on finding 1 of the 0.8 test; before, the whole edge won).
      */
-    edgeAt(event: PointerEvent): boolean {
-        const geometry = this.host.geometry();
-        if (!this.host.on() || this.host.rule(event.pointerType) !== "now" || geometry === null) {
+    handleAt(event: PointerEvent): boolean {
+        if (!this.host.on() || this.host.rule(event.pointerType) !== "now" || this.selection() === null) {
             return false;
         }
         const at = this.point(event.clientX, event.clientY);
-        const place = placeAt(this.selection(), at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
-        return place === "edge-start" || place === "edge-end";
+        return onEdgeHandle(edgeHandles(bandBoxes(this.root)), at.x, at.y);
     }
 
     /** Whether a gesture of this layer holds the pointer now. */
@@ -174,9 +176,10 @@ export class PlaceLayer {
         }
         const first = boxes[0];
         const last = boxes[boxes.length - 1];
+        const [start, end] = edgeHandles(boxes);
         const hot = this.active() ? this.drag?.gesture.place : undefined;
-        this.root.append(this.edge("start", first.left, first.top, first.bottom, hot === "edge-start"));
-        this.root.append(this.edge("end", last.right, last.top, last.bottom, hot === "edge-end"));
+        this.root.append(this.edge("start", start, first.top, first.bottom, hot === "edge-start"));
+        this.root.append(this.edge("end", end, last.top, last.bottom, hot === "edge-end"));
     }
 
     dispose(): void {
@@ -190,13 +193,15 @@ export class PlaceLayer {
         this.end();
     }
 
-    private edge(which: "start" | "end", x: number, top: number, bottom: number, hot: boolean): HTMLElement {
+    /** An edge's line from `top` to `bottom`, its circle at `handle`: where `handleAt` takes a press on it. */
+    private edge(which: "start" | "end", handle: EdgeHandle, top: number, bottom: number, hot: boolean): HTMLElement {
         const edge = document.createElement("div");
         edge.className = `${EDGE_CLASS} ${which}${hot ? " hot" : ""}`;
         edge.setAttribute("aria-hidden", "true");
-        edge.style.left = `${x}px`;
+        edge.style.left = `${handle.x}px`;
         edge.style.top = `${top}px`;
         edge.style.height = `${Math.max(4, bottom - top)}px`;
+        edge.style.setProperty("--handle-y", `${handle.y - top}px`);
         return edge;
     }
 
@@ -226,7 +231,7 @@ export class PlaceLayer {
         if (this.drag !== null || !this.host.on() || rule === "none" || geometry === null || (event.pointerType === "mouse" && event.button !== 0)) {
             return;
         }
-        // A playhead's handle that takes the press stops it before it gets here; one it leaves (an edge over it) is a place.
+        // A playhead's handle that takes the press stops it before it gets here; one it leaves (an edge's handle over it) is a place.
         if (event.target instanceof Element && event.target.closest(OWN_TARGETS) !== null) {
             return;
         }

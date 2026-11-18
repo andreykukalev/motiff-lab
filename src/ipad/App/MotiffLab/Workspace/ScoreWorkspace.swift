@@ -107,11 +107,27 @@ final class ScoreWorkspace: ObservableObject {
     }
 
     /// The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
-    /// on from there when it plays, and Цикл stays as it is (`place`, answer 16); in focus it stays inside the loop. Notes
-    /// are edited only in the roll (#479 item 23).
+    /// on from there when it plays, and Цикл stays as it is (`place`, answer 16). On Expand's card it goes there inside the
+    /// passage, as on Expand's roll, and starts nothing (finding 2 of the 0.8 test, Andrei's answer 4 of 2026-11-18), the
+    /// model outside Expand left as it is (T18). Notes are edited only in the roll (#479 item 23).
     func placeTapped(_ beat: Range<Double>) {
-        player.apply(.place(beat.lowerBound))
+        if let passage = score.expandPassage {
+            player.move(to: beat.lowerBound, play: false, within: passage)
+        } else {
+            player.apply(.place(beat.lowerBound))
+        }
         score.practise(.tap)
+    }
+
+    /// The pill's assistant button (Andrei's 0.8 test, finding 8, and his card of 2026-11-18 21:49 UTC): the panel opens
+    /// with the conversation it had when it was closed (`AssistantController.close` keeps it), or closes; only an Ask
+    /// opens it empty (`AssistantController.open`). The panel opened puts the sheet away (`assistantPanelChanged`).
+    func assistantPressed() {
+        if assistant.panelOpen {
+            assistant.close()
+        } else {
+            assistant.show()
+        }
     }
 
     /// A flag tapped on the score opens Check on its bar.

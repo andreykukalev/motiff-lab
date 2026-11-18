@@ -185,11 +185,26 @@ final class ScoreWorkspaceTests: XCTestCase {
         workspace.assistantPanelChanged(true)
         XCTAssertFalse(workspace.panels.sheetOpen)
         XCTAssertTrue(workspace.panels[.roll], "the roll's drawer is not on the right")
-        workspace.assistant.panelOpen = true
+        workspace.assistant.show()
         workspace.sheetChanged(false)
         XCTAssertTrue(workspace.assistant.panelOpen)
         workspace.sheetChanged(true)
         XCTAssertFalse(workspace.assistant.panelOpen)
+    }
+
+    /// The bottom bar's assistant button (Andrei's v0.8 finding 8, his card of 2026-11-18 21:49 UTC): it opens the panel on
+    /// the last conversation, not empty as an Ask does, and the next press closes it, keeping that conversation.
+    func testTheBarsAssistantButtonOpensTheLastConversationAndClosesIt() {
+        let workspace = make()
+        workspace.assistant.start(AssistantExchange(id: "e0", question: "Earlier", scope: "Bar 1"), answer: "Before", role: "mentor")
+        let last = workspace.assistant.currentId
+        XCTAssertNotNil(last, "a conversation was had")
+        workspace.assistantPressed()
+        XCTAssertTrue(workspace.assistant.panelOpen)
+        XCTAssertEqual(workspace.assistant.currentId, last, "the last conversation, not an empty one")
+        workspace.assistantPressed()
+        XCTAssertFalse(workspace.assistant.panelOpen)
+        XCTAssertEqual(workspace.assistant.currentId, last, "closing keeps it")
     }
 
     /// The roll is on screen in its drawer while the drawer is open (on Expand's card: RollTests, `RollPlace.shown`).
@@ -316,6 +331,22 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertTrue(workspace.player.cycle, "the Pen's tap leaves Цикл on")
         XCTAssertTrue(workspace.player.leadIn, "Play plays from the tap into the selection")
         XCTAssertEqual(workspace.player.selection, passage)
+    }
+
+    /// Finding 2 of the 0.8 test (Andrei's answer 4, 2026-11-18): a tap on a beat of Expand's card moves the playhead there
+    /// inside the passage, as on Expand's roll, and starts nothing; the page's model is left as it is (T18), so a tap past
+    /// the passage makes no lead-in out of it as a tap on the page would.
+    func testATapInExpandMovesThePlayheadInsideThePassageOnly() async throws {
+        let workspace = try await selected()
+        let passage = try XCTUnwrap(workspace.score.focusModel.playRange?.range)
+        workspace.player.hold(selection: passage)
+        workspace.score.enterFocus()
+        XCTAssertEqual(workspace.score.expandPassage, passage, "Expand opens on the selection")
+        workspace.placeTapped(passage.upperBound + 480..<passage.upperBound + 960)
+        XCTAssertFalse(workspace.player.leadIn, "no lead-in: the tap stays inside the passage")
+        XCTAssertTrue(workspace.player.cycle, "Цикл as it was")
+        XCTAssertEqual(workspace.player.selection, passage, "the page's selection as it was")
+        XCTAssertEqual(workspace.player.state, .stopped, "a tap starts nothing")
     }
 
     /// PDF | Notes (#511 section 10): the "Notes" view kept as the screen goes comes back on the screen that opens from

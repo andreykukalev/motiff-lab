@@ -331,6 +331,16 @@ struct BarActionStyle: ButtonStyle {
     }
 }
 
+extension Text {
+    /// The piece's title in a bar: the display face at 17 on one line, the accent while what it opens is open; the same
+    /// on the score, the PDF (BarLeading) and Piece DNA (Andrei, v0.8 finding 11).
+    func barTitle(on: Bool = false) -> some View {
+        font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
+            .lineLimit(1)
+    }
+}
+
 /// A word whose weight shows the choice (ds.css `.seg button.on`, `.pill .it.on`): it keeps the width of its bolder weight
 /// either way, so a control keeps its size as it is chosen or left (#479 item 11, #582 item 3).
 struct SteadyWord: View {
@@ -374,6 +384,8 @@ struct SteadyLabel<Label: View>: View {
 /// either way (#582 item 3).
 struct DSItemStyle: ButtonStyle {
     var on = false
+    /// The tint's outline: a capsule in the pill and palettes, a row's rounded rectangle in a list (ControlShape).
+    var outline = ControlShape.capsule
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -381,9 +393,9 @@ struct DSItemStyle: ButtonStyle {
             .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
             .padding(.horizontal, CGFloat.ds("s-3"))
             .frame(minHeight: 36)
-            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Capsule())
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
             .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(Capsule())
+            .contentShape(outline.shape)
     }
 }
 

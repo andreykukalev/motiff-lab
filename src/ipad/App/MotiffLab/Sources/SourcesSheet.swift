@@ -2,7 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// The Sources sheet (version 0.6; decision record 0030 and the sources sheet handoff), in
-/// the side sheet where Other versions was: «Оригиналы» and «Ноты», each row its pictogram, its name never cut, the eye
+/// the side sheet where Other versions was: «Оригиналы», each in one card with the Notes made from it under it (v0.9,
+/// Andrei's v0.8 finding 19), then «Ноты без оригинала»; each row its pictogram, its name never cut, the eye
 /// «Показывать в переключателе», «Открыть» and ⋯, a line under the name and a state line. An original is added without
 /// recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
 /// «Распознать ещё раз») into new Notes beside the ones there are, and deleted with or without its notes, which the toast
@@ -212,15 +213,17 @@ struct SourcesSheet: View {
         }
         sectionHead(text.format("sources.sheet.originalsCount", String(layers.liveCount)))
             .padding(.top, CGFloat.ds("s-2"))
-        ForEach(layers.listedOriginals) { original in
-            originalRow(original)
-            Divider().overlay(Color.ds("hairline"))
+            .padding(.bottom, CGFloat.ds("s-2"))
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            ForEach(layers.groups) { group in groupBox(group) }
         }
-        sectionHead(text.format("sources.sheet.notesCount", String(layers.notes.count)))
-            .padding(.top, CGFloat.ds("s-5"))
-        ForEach(layers.listedNotes) { notes in
-            notesRow(notes)
-            Divider().overlay(Color.ds("hairline"))
+        if !layers.looseNotes.isEmpty {
+            sectionHead(text.format("sources.sheet.looseNotesCount", String(layers.looseNotes.count)))
+                .padding(.top, CGFloat.ds("s-5"))
+            ForEach(layers.looseNotes) { notes in
+                notesRow(notes)
+                Divider().overlay(Color.ds("hairline"))
+            }
         }
         if let status = versionStatus {
             caption(status, colour: "ink-2").padding(.top, CGFloat.ds("s-3"))
@@ -230,6 +233,20 @@ struct SourcesSheet: View {
     private func view(_ id: String) -> SourceLayers.ViewEntry? { layers.views.first { $0.id == id } }
 
     private func isCurrent(_ id: String) -> Bool { id == (current ?? layers.working) }
+
+    /// An original and the Notes made from it, together in one card, the Notes under it, set in (Andrei, v0.8 finding 19).
+    private func groupBox(_ group: SourceLayers.Group) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            originalRow(group.original)
+            ForEach(group.notes) { notes in
+                Divider().overlay(Color.ds("hairline"))
+                notesRow(notes, underOriginal: true).padding(.leading, CGFloat.ds("s-6"))
+            }
+        }
+        .padding(CGFloat.ds("s-1"))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        .accessibilityElement(children: .contain)
+    }
 
     // MARK: - An original's row
 
@@ -305,13 +322,13 @@ struct SourcesSheet: View {
 
     // MARK: - Notes' row
 
-    private func notesRow(_ notes: SourceLayers.Notes) -> some View {
+    private func notesRow(_ notes: SourceLayers.Notes, underOriginal: Bool = false) -> some View {
         let shownView = view(notes.id)
         let current = isCurrent(notes.id)
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             rowHead(
                 icon: SourceLayers.pictogram(op: notes.op), iconLabel: SourceLayers.operationName(notes.op, text),
-                title: layers.title(of: notes, text), removed: false,
+                title: layers.title(of: notes, text, underOriginal: underOriginal), removed: false,
                 eye: notes.isWorking ? nil : shownView.map { (id: $0.id, hidden: $0.hidden) },
                 opens: current ? nil : shownView,
                 menu: notes.isWorking ? nil : AnyView(notesMenu(notes))
@@ -446,7 +463,7 @@ struct SourcesSheet: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
     }
 
-    /// «Оригиналы · 4», «Ноты · 3»: the overline in the second ink, as the web's sheet has it.
+    /// «Оригиналы · 4», «Ноты без оригинала · 1»: the overline in the second ink, as the web's sheet has it.
     private func sectionHead(_ words: String) -> some View {
         Text(words)
             .dsType(.overline)
@@ -505,92 +522,5 @@ struct SourcesSheet: View {
                 await sources.addPages(data, fileName: url.lastPathComponent, kind: kind)
             }
         }
-    }
-}
-
-/// The warning before an original is deleted (0030, section 4; the web's `.apply-dialog`): the Notes made from it and
-/// the marks on its pages, then «Удалить только оригинал» first, «Удалить вместе с нотами», «Отмена».
-struct DeleteOriginalDialog: View {
-    let layers: SourceLayers
-    let original: SourceLayers.Original
-    let text: UIText
-    let delete: (_ withNotes: Bool) -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        let made = original.notes.compactMap { layers.notes($0) }
-        // The working notes cannot go while they are working (0030, section 4).
-        let withNotesAllowed = !made.isEmpty && !made.contains(where: \.isWorking)
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            Text(text.format("sources.sheet.deleteTitle", original.shown))
-                .dsType(.heading)
-                .foregroundStyle(Color.ds("ink"))
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            if !made.isEmpty {
-                Text(text["sources.sheet.deleteLead"]).dsType(.body).foregroundStyle(Color.ds("ink"))
-                ForEach(made) { notes in
-                    HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                        Icon(name: SourceLayers.pictogram(op: notes.op)).foregroundStyle(Color.ds("ink-2"))
-                        Text(layers.title(of: notes, text)).dsType(.body).foregroundStyle(Color.ds("ink"))
-                        Text(SourceLayers.caption(of: notes, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                    }
-                }
-            }
-            if original.pageMarks > 0 {
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    Icon(name: "pen").foregroundStyle(Color.ds("ink-2"))
-                    Text(text.count("sources.sheet.pageMarks", original.pageMarks)).dsType(.body).foregroundStyle(Color.ds("ink"))
-                }
-            }
-            Button { delete(false) } label: {
-                Text(text[made.isEmpty ? "sources.sheet.deleteButton" : "sources.sheet.deleteOnly"])
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(FilledDangerStyle())
-            .padding(.top, CGFloat.ds("s-2"))
-            if withNotesAllowed {
-                Button { delete(true) } label: {
-                    Text(text["sources.sheet.deleteWith"]).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(DangerOutlineStyle())
-            }
-            Button(action: cancel) {
-                Text(text["common.cancel"]).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(DSButtonStyle(kind: .quiet))
-        }
-        .padding(CGFloat.ds("s-6"))
-        .frame(maxWidth: 440)
-        .background(Color.ds("surface"))
-    }
-}
-
-/// The first way to delete: filled in the danger colour.
-struct FilledDangerStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .dsType(.label)
-            .fontWeight(.semibold)
-            .foregroundStyle(Color.ds("on-accent"))
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .frame(minHeight: CGFloat.ds("h-control"))
-            .background(Color.ds("danger").opacity(configuration.isPressed ? 0.85 : 1), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .contentShape(Rectangle())
-    }
-}
-
-/// The second way to delete: outlined in the danger colour.
-struct DangerOutlineStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .dsType(.label)
-            .fontWeight(.semibold)
-            .foregroundStyle(Color.ds("danger"))
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .frame(minHeight: CGFloat.ds("h-control"))
-            .background(configuration.isPressed ? Color.ds("accent-tint") : Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("danger")))
-            .contentShape(Rectangle())
     }
 }

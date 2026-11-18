@@ -8,44 +8,17 @@ using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 
-/// <summary>A score longer than the scan server reads at a time, planned in parts and joined back (v0.5, issue #479).</summary>
+/// <summary>A score longer than the scan server reads at a time, read in parts and joined back (v0.5, issue #479).</summary>
 public class ScanPartsTests
 {
     private static ImportedPiece Import(byte[] score) => PieceImporter.Import("scan.musicxml", score).Piece!;
 
     [Fact]
-    public void A_pdf_longer_than_the_server_reads_goes_in_consecutive_full_parts()
-    {
-        Assert.Equal([new PageRange(1, 4), new PageRange(5, 6)], ScanParts.Plan(6, 4));
-        Assert.Equal([new PageRange(1, 4), new PageRange(5, 8), new PageRange(9, 9)], ScanParts.Plan(9, 4));
-        Assert.Equal(25, ScanParts.Plan(100, 4).Count);
-        Assert.Equal(new PageRange(97, 100), ScanParts.Plan(100, 4)[^1]);
-        Assert.Equal(4, ScanParts.Plan(100, 4)[^1].Count);
-    }
-
-    [Fact]
-    public void A_pdf_that_fits_goes_whole_and_a_server_that_does_not_say_reads_the_safe_number()
-    {
-        Assert.Equal([new PageRange(1, 6)], ScanParts.Plan(6, 8));
-        Assert.Equal([new PageRange(1, 1)], ScanParts.Plan(1, 4));
-        Assert.Equal([new PageRange(1, 4), new PageRange(5, 5)], ScanParts.Plan(5, 0));
-        Assert.Equal(ScanParts.Plan(7, ScanParts.SafePages), ScanParts.Plan(7, -1));
-    }
-
-    [Fact]
-    public void A_score_of_more_than_a_hundred_pages_or_none_is_refused()
-    {
-        Assert.Equal(100, ScanParts.MostPages);
-        Assert.Throws<ArgumentOutOfRangeException>(() => ScanParts.Plan(101, 4));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ScanParts.Plan(0, 4));
-    }
-
-    [Fact]
     public void Parts_joined_are_the_pages_joined_and_each_page_of_the_pdf_still_starts_where_it_did()
     {
         byte[][] pages = [ScanJoinTests.Page(3), ScanJoinTests.Page(2), ScanJoinTests.Page(4), ScanJoinTests.Page(1), ScanJoinTests.Page(2), ScanJoinTests.Page(3)];
-        // What the server sends for each part: its pages already joined, as src/backend/omr/app/merge.py does.
-        byte[][] parts = [.. ScanParts.Plan(pages.Length, 4).Select(part => ScanJoin.Join(pages[(part.First - 1)..part.Last]))];
+        // What the server sends for each part of four pages: its pages already joined, as src/backend/omr/app/merge.py does.
+        byte[][] parts = [ScanJoin.Join(pages[0..4]), ScanJoin.Join(pages[4..6])];
 
         byte[] joined = ScanJoin.Join(parts);
 

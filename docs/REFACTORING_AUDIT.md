@@ -551,8 +551,8 @@ D11 and D13 to D17 can be removed.
   experiment card», shared modules → «the web»). They now send an agent towards `archive/`, which it must not read.
   Reword when the file is next touched; the rule is in the comment, not in the archived file.
 - **Types used only by tests** in music-core (candidates, to confirm with the reference finder before deleting):
-  `SecondFileSource`, `SurprisePick`, `SelectionStep`, `MotifSourceReference`, `GridFit`, `SwingMeasure`,
-  `MeterStretch`, `InkThinning`, `Cadence`. `Invitations` is two files of 27 lines that only hold `Passage` and
+  ~~`SecondFileSource`~~, `SurprisePick`, ~~`SelectionStep`~~, `MotifSourceReference`, `GridFit`, `SwingMeasure`,
+  ~~`MeterStretch`~~, `InkThinning`, `Cadence` (struck: deleted in W1.11, v0.9 a-4). `Invitations` is two files of 27 lines that only hold `Passage` and
   `InvitationContext` for `Experiments`. With the web gone, re-run this list: types only the web used now look the same.
 - **Missing map.** `governance/roles/common.md` requires a code map per area; `docs/code-map/` has `ipad`, `score` and
   `roll` but no `core.md`, the largest area. This audit and the code maps are not linked from `docs/README.md`.

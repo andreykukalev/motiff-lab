@@ -51,11 +51,10 @@ import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
 import { rollPressFor } from "./roll-press.js";
 import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
-import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
+import { drawPickedNotes, drawPlaceEdges, drawPlacePreview, onPlaceHandle } from "./roll-place-draw.js";
 import { movedNote, type PickShape } from "./roll-place.js";
 import { nextGestureId, staleGesture, type SelectionChange } from "../score/selection-gesture.js";
 import { type GridSpan, gridLines } from "../score/selection-grid.js";
-import { placeAt } from "../score/selection-places.js";
 import { barShareInView, barsInView, octavesInView, pinchStep, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import {
     chase,
@@ -1174,17 +1173,14 @@ export class PianoRoll {
     }
 
     /**
-     * Whether a press of this pointer at x lands on an edge of the selection by the place rule: there the edge wins over a
-     * playhead's handle in its reach (v0.6.4, as on the score's page): the blue playhead stands at the selection's start, and
-     * the edge there is still taken (roll-press.ts).
+     * Whether a press of this pointer at (x, y) lands on a handle of the selection's edges by the place rule: only there the
+     * edge wins over a playhead, so the blue playhead standing at the selection's start is taken first, as on the score's
+     * page (0.8 finding 1, Andrei's answer 3; since v0.6.4 the whole edge won; roll-press.ts).
      */
-    private onPlaceEdge(type: string, x: number, y: number): boolean {
+    private onSelectionHandle(type: string, x: number, y: number): boolean {
         const span = this.placeSpan();
-        if (!this.placesAt(type, y) || span === null) {
-            return false;
-        }
-        const place = placeAt(span, x, y, [{ left: this.xOf(span.start), right: this.xOf(span.end), top: -Infinity, bottom: Infinity }]);
-        return place === "edge-start" || place === "edge-end";
+        const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, height: this.roll.clientHeight };
+        return this.placesAt(type, y) && span !== null && onPlaceHandle(frame, span, x, y);
     }
 
     /** How Select picks notes: a box (the default) or a lasso, the switch in the roll's head (report «Рамка или лассо»). */
@@ -3106,7 +3102,7 @@ export class PianoRoll {
         const press = rollPressFor({
             gutter: x < GUTTER,
             header: y < this.header,
-            placeEdge: () => this.onPlaceEdge(type, x, y),
+            placeHandle: () => this.onSelectionHandle(type, x, y),
             playhead: () => (under.head = this.playheadUnder(type, x, y)) !== null,
             places: () => this.placesAt(type, y),
             // In touch reading a finger on the notes moves through the music, neither selecting nor sounding; so does a pointer

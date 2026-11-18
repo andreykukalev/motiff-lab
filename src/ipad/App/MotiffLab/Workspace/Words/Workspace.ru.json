@@ -31,9 +31,6 @@
   "focus.enterHint": "Поднять фразу в карточку во всю ширину, страница за ней затемнится.",
   "menu.bookmark": "Закладка",
   "bookmark.label": "Закладка: {0}, {1}",
-  "bookmark.structureAdded.one": "Добавлена {0} закладка «Структура»",
-  "bookmark.structureAdded.few": "Добавлены {0} закладки «Структура»",
-  "bookmark.structureAdded.many": "Добавлено {0} закладок «Структура»",
   "contents.open": "{0}: открыть оглавление",
   "menu.note": "Заметка",
   "margin.markerLabel": "Заметка {0}, {1}: {2}",
@@ -63,5 +60,7 @@
   "pill.span": "{0} – {1}",
   "sources.sheet.viewOnly": "Только просмотр",
   "padAssistant.undone": "Черновик отменён. Ноты такие, как были до него.",
-  "padEdits.offNotice": "Мои правки выключены: включите их в «Ещё», чтобы исправлять ноты."
+  "padEdits.offNotice": "Мои правки выключены: включите их в «Ещё», чтобы исправлять ноты.",
+  "pill.assistant": "Ассистент",
+  "pill.assistantHint": "Открывает ассистента с последним разговором или закрывает его."
 }

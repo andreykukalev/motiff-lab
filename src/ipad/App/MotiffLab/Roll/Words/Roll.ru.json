@@ -46,5 +46,7 @@
   "rollZoom.pitchOut": "Больше октав",
   "rollZoom.time": "Масштаб по времени",
   "rollZoom.timeIn": "Меньше тактов",
-  "rollZoom.timeOut": "Больше тактов"
+  "rollZoom.timeOut": "Больше тактов",
+  "roll.collapse": "Свернуть",
+  "roll.collapseHint": "Убирает ролл вниз; кнопка ролла в нижней панели возвращает его."
 }

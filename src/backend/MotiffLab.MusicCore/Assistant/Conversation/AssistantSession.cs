@@ -47,7 +47,7 @@ public sealed record AssistantSession(AssistantRole Role, IReadOnlyList<TurnEntr
     /// <summary>The tool calls made since the last question.</summary>
     public int ToolCallsInQuestion => TurnRequest.CallsSinceQuestion(History);
 
-    /// <summary>The tool results the device sent since the last question: with the context, where its answer's citations are found (<see cref="CitedFacts"/>).</summary>
+    /// <summary>The tool results the device sent since the last question: with the context, where its answer's citations are found.</summary>
     public IReadOnlyList<ToolOutcome> ResultsInQuestion => [.. History.Skip(TurnRequest.LastQuestion(History)).SelectMany(static entry => entry.Results)];
 
     /// <summary>The questions and answers, in order, for the conversation's view.</summary>
@@ -138,34 +138,6 @@ public sealed record AssistantSession(AssistantRole Role, IReadOnlyList<TurnEntr
 
         json.WriteEndArray();
         json.WriteEndObject();
-    }
-
-    /// <summary>The session written in <paramref name="json"/>, or null when it is not one.</summary>
-    public static AssistantSession? Read(JsonElement json)
-    {
-        if (json.ValueKind != JsonValueKind.Object || !json.TryGetProperty("role", out JsonElement role) || AssistantRoles.Parse(role.GetString()) is not { } read
-            || !json.TryGetProperty("history", out JsonElement history) || history.ValueKind != JsonValueKind.Array
-            || !json.TryGetProperty("drafts", out JsonElement drafts) || drafts.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        TurnEntry?[] entries = [.. history.EnumerateArray().Select(TurnEntry.Read)];
-        SessionDraft?[] kept = [.. drafts.EnumerateArray().Select(ReadDraft)];
-        return entries.Contains(null) || kept.Contains(null) ? null : new AssistantSession(read, [.. entries.OfType<TurnEntry>()], [.. kept.OfType<SessionDraft>()]);
-    }
-
-    private static SessionDraft? ReadDraft(JsonElement json)
-    {
-        try
-        {
-            DraftState state = Enum.GetValues<DraftState>().First(value => ToolSchema.Camel(value.ToString()) == json.GetProperty("state").GetString());
-            return new SessionDraft(json.GetProperty("id").GetString()!, json.GetProperty("tool").GetString()!, json.GetProperty("arguments").Clone(), json.GetProperty("index").GetInt32(), state);
-        }
-        catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or FormatException)
-        {
-            return null;
-        }
     }
 
     private static int? NextQuestion(IReadOnlyList<TurnEntry> history)

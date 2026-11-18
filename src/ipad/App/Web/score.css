@@ -108,7 +108,7 @@ body[data-selection-hidden] .sel-handle { visibility: hidden; }
    never at a corner. The old selection is dashed while a new one is drawn, the addition dashed while extending; pale ticks
    show where a moving edge can stop; the notes picked are cobalt. */
 .sel-edge { position: absolute; z-index: 2; width: 0; pointer-events: none; }
-.sel-edge::after { content: ""; position: absolute; left: 0; top: 50%; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
+.sel-edge::after { content: ""; position: absolute; left: 0; top: var(--handle-y, 50%); width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
 .sel-edge.hot::after { background: var(--accent); }
 body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }
@@ -137,8 +137,10 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 #focus .card { position: relative; min-height: 0; display: flex; background: var(--paper); color: var(--notation); border: 2px solid var(--accent); border-radius: var(--r-m); box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-sheet); pointer-events: auto; animation: card-lift var(--t-slow) var(--ease); }
 @keyframes card-lift { from { transform: scale(0.96); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #focus .veil, #focus .card { animation: none; } }
-/* Room for the step buttons inside the card's edges; a long phrase scrolls inside the card. */
-#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 var(--s-3); min-height: 120px; }
+/* Room for the step buttons inside the card's edges; a long phrase scrolls inside the card. Under the last system the room
+   for the black playhead's track, its gap under the ink and its dot (playheads.ts trackOf), and as much over the first, so
+   the playhead stays in the card at the last bars and the notes stand in its middle (finding 3 of the 0.8 test). */
+#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 var(--s-3); padding-block: calc(var(--playhead-gap) + var(--s-3)); box-sizing: border-box; min-height: 120px; }
 #focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
 #focus .card-score svg use { fill: currentColor; }
 #focus .card-score svg [color]:not(.playing) { color: inherit !important; }

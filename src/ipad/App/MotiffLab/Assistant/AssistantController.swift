@@ -15,7 +15,8 @@ final class AssistantController: ObservableObject {
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
 
-    @Published var panelOpen = false
+    /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
+    @Published private(set) var panelOpen = false
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
     /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
@@ -47,11 +48,12 @@ final class AssistantController: ObservableObject {
         consentGiven = defaults.string(forKey: Self.consentKey) == Self.consented
     }
 
-    /// The conversation open in the panel: the one chosen, else a new one.
+    /// The conversation open in the panel: the one chosen, or the one its first question starts (nil until then). Closing
+    /// the panel keeps it.
     var current: AssistantChat? { chats.first { $0.id == currentId } }
 
-    /// The piece's conversations from the iPad; the newest is the one the panel opens on. `score` is the screen's, where a
-    /// draft is accepted.
+    /// The piece's conversations from the iPad; the newest is the one open until an Ask opens the panel empty (`open`).
+    /// `score` is the screen's, where a draft is accepted.
     func load(piece key: String, score: ScoreController? = nil) {
         if let score { self.score = score }
         guard key != piece else { return }
@@ -62,11 +64,13 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
-    /// The panel opens on the newest conversation, looking at the selection when there is one, or at the whole piece when
-    /// asked about it (for the selection that stands now: bars selected after it are what the next question is about).
+    /// An Ask (Andrei, 2026-11-18, v0.8 finding 4): the panel opens empty, ready for a question, whatever was open before;
+    /// no conversation is made until its first question goes (`ask`), and the earlier ones stay in the list. It looks at
+    /// the selection when there is one, or at the whole piece when asked about it (for the selection that stands now: bars
+    /// selected after it are what the next question is about).
     func open(wholePiece: Bool, selection: ScoreSelection?) {
         choose(wholePiece: wholePiece, selection: selection)
-        listShown = false
+        startNew()
         panelOpen = true
     }
 
@@ -97,6 +101,12 @@ final class AssistantController: ObservableObject {
     func close() {
         panelOpen = false
         listShown = false
+    }
+
+    /// The panel opened again on the conversation it had when it was closed (the pill's «Ассистент», Andrei's 0.8 test,
+    /// finding 8, and his card of 2026-11-18 21:49 UTC); only an Ask opens it empty (`open`).
+    func show() {
+        panelOpen = true
     }
 
     /// A new conversation, empty until its first question.
@@ -195,22 +205,14 @@ final class AssistantController: ObservableObject {
         here?.answer = text
     }
 
-    /// «Добавить в контекст» at the selection: its question and answer join the full assistant's open conversation, and
-    /// it closes, its work done.
-    func addHere() {
-        guard let open = here, let exchange = open.exchange else { return }
-        add(exchange, answer: open.answer, role: open.role)
-        here = nil
-    }
-
     /// «Продолжить в чате» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
-    /// the full assistant (as «Добавить в контекст» moves them, `addHere`), whose panel opens on the selected bars to go on
-    /// there; the chat at the selection closes. Without this press the chat at the selection keeps nothing.
+    /// the full assistant (`start`), whose panel opens on the selected bars to go on there; the chat at the selection
+    /// closes. Without this press the chat at the selection keeps nothing.
     func continueHere() {
-        guard let asked = here, asked.exchange != nil else { return }
-        startNew()
-        addHere()
+        guard let asked = here, let exchange = asked.exchange else { return }
         open(wholePiece: false, selection: asked.selection)
+        start(exchange, answer: asked.answer, role: asked.role)
+        here = nil
     }
 
     /// Accept on a draft (#582 item 17.3): music-core makes it again from its call and adds it as corrections; the draft
@@ -258,12 +260,11 @@ final class AssistantController: ObservableObject {
         keep(chat)
     }
 
-    /// «Добавить в контекст» (#582 item 17.2, the lead's decision 5): a question and answer of the assistant at the
-    /// selection join the open conversation of the full assistant, as asked and answered there, so the next question
-    /// there has them.
-    func add(_ exchange: AssistantExchange, answer text: String, role: String) {
-        var chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: role)
-        if !text.isEmpty, chat.history.last?.kind ?? .answer == .answer {
+    /// A new conversation of the full assistant that starts with a question and answer of the assistant at the selection
+    /// («Продолжить в чате»), as asked and answered there, so the next question there has them.
+    func start(_ exchange: AssistantExchange, answer text: String, role: String) {
+        var chat = AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: role)
+        if !text.isEmpty {
             chat = chat.asking(exchange.question).answered(text)
         }
         var added = exchange
@@ -339,7 +340,7 @@ final class AssistantController: ObservableObject {
 }
 
 /// The assistant at the selection (#582 items 17.2 and 17.4): the passage it was opened on, the role its question takes,
-/// and its one exchange with the answer's text, which «Добавить в контекст» moves into the full assistant's conversation.
+/// and its one exchange with the answer's text, which «Продолжить в чате» moves into a conversation of the full assistant.
 struct AssistantHere: Equatable {
     var selection: ScoreSelection
     var role: String

@@ -4,11 +4,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`KeptCopies`, `Merge`, `MergeModel`, `OriginalSounds`, `Originals`, `OriginalsController`, `OriginalsViews`, `SourceLayers`,
-`SourcesController`, `SourcesModel`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+`DeleteOriginalDialog`, `KeptCopies`, `Merge`, `MergeModel`, `OriginalSounds`, `Originals`, `OriginalsController`,
+`OriginalsViews`, `SourceLayers`, `SourcesController`, `SourcesModel`, `SourcesSheet`, `SourcesSwitch`, `Versions`
+(`.swift`).
 
+- `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
+  `SourcesSheet.swift` in v0.9).
 - `SourceLayers.swift`: the sources by the layers of 0030 as the app shows them, built from `SourceLayersAnswer`
-  (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`).
+  (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
+  original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
 - `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
