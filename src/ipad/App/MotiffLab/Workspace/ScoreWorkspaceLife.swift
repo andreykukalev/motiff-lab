@@ -167,7 +167,7 @@ extension ScoreWorkspace {
         }
         // The model takes the selection now (T9), then Цикл as it was and the position, which leaves Цикл as it is (T7,
         // `place`, answer 14).
-        player.hold(selection: score.playRange?.range)
+        player.hold(selection: score.focusModel.playRange?.range)
         if player.cycle != kept.loop { player.apply(.cycle) }
         player.apply(.place(kept.position))
         change(kept.rollOpen ? .open(.roll) : .close(.roll))

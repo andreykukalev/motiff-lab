@@ -308,7 +308,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// Navigate (#479 item 18) and does not turn Цикл off; outside the selection Play plays from there (the lead-in).
     func testAFingersTapWithThePenOnLeavesCycleOn() async throws {
         let workspace = try await selected()
-        let passage = try XCTUnwrap(workspace.score.playRange?.range)
+        let passage = try XCTUnwrap(workspace.score.focusModel.playRange?.range)
         workspace.player.hold(selection: passage)
         XCTAssertTrue(workspace.player.cycle, "a selection made where there was none turns Цикл on")
         workspace.score.penOn = true

@@ -81,8 +81,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The merge draft, its change, view and hearing, Compare versions, the toast and the marker tapped (Sources/MergeModel.swift).
     let mergeModel: MergeModel
     /// The passage selected, the card's roll, the play range and the version in focus, for the protected
-    /// tests/ipad/Baseline harness, which reads these names, and one line of ScoreWorkspaceLife that #690 changes beside;
-    /// the views observe the models, and these go with the harness change in S7c (ADR 0031).
+    /// tests/ipad/Baseline harness alone, which reads these names; the views observe the models, and these go with the
+    /// harness change in S7c (ADR 0031).
     var selection: ScoreSelection? { selectionModel.selection }
     var focusRoll: Bool { focusModel.asRoll }
     var playRange: FocusModel.PlayRange? { focusModel.playRange }
