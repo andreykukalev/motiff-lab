@@ -15,7 +15,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 - `AssistantStates.swift`: `AssistantScope` (core AskScope), `AssistantPhase` (no streaming), `AssistantRecovery`.
 - `AssistantController.swift`: panel state, `scope` (`choose`; the chips' `pickShowingBars` also scrolls the score to
   the selected bars by `ScoreController.reveal`), `phase`, `standing` (`check`: `/assistant/status`), the piece's
-  conversations, `ask` (status → `assistant.context` → turns), `forget` (Try again), `add` («Добавить в контекст»).
+  conversations, `open` (an Ask: the panel opens empty, a conversation is made only by its first question, v0.9),
+  `ask` (status → `assistant.context` → turns), `forget` (Try again), `start` (a conversation begun by «Продолжить в чате»).
 - `AssistantTurns.swift`: one question's turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`,
   the turn format v1, cited facts. `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`.
 - `AssistantStore.swift`: conversations by piece in Application Support (never the project file).
@@ -32,7 +33,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 
 ## The contract others may rely on
 
-Every Ask opens the real assistant, no switch (v0.6.3): selection menu → `AssistantHereCard`, others → the panel.
+Every Ask opens the real assistant, no switch (v0.6.3): selection menu → `AssistantHereCard`, others → the panel
+(`open`), empty, ready for a question (v0.9); closing the panel keeps its conversation. «Продолжить в чате» is the small
+chat's one way into the panel («Добавить в контекст» removed in v0.9).
 
 ## The state it owns
 

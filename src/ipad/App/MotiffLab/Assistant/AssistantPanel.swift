@@ -292,7 +292,9 @@ struct AssistantConsent: View {
     }
 }
 
-/// The piece's conversations kept on this iPad, newest first: each by its first question and when it was last asked.
+/// The piece's conversations kept on this iPad, newest first: each by its first question and when it was last asked. The
+/// open one is a row's rounded rectangle on the accent's tint (the bar action's outline, `r-s`), not a capsule (Andrei,
+/// v0.8 finding 9).
 struct AssistantChatList: View {
     @ObservedObject var assistant: AssistantController
     let text: UIText
@@ -312,9 +314,11 @@ struct AssistantChatList: View {
                             Text(chat.updated.formatted(date: .abbreviated, time: .shortened))
                                 .dsType(.caption).foregroundStyle(Color.ds("ink-3"))
                         }
+                        .padding(.horizontal, CGFloat.ds("s-3"))
+                        .padding(.vertical, CGFloat.ds("s-2"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(DSItemStyle(on: chat.id == assistant.currentId))
+                    .buttonStyle(BarActionStyle(on: chat.id == assistant.currentId))
                     .accessibilityAddTraits(chat.id == assistant.currentId ? .isSelected : [])
                 }
             }
