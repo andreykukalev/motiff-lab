@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Playback;
+namespace MotiffLab.MusicCore.Time;
 
 /// <summary>
 /// Where a tempo comes from (version 0.5.4, #511 section 17): the tempo printed in the notes, one worked out from a

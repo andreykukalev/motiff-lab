@@ -5,8 +5,10 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 
 ## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
 
-- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`.
-- `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`).
+- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
+  the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
+- `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`);
+  pitch spelling (`NoteNaming`, `NoteNames`, `PitchSpeller`, `SpelledPitch`, `TransposedSpelling`, `KeyChange`).
 - `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
   `ImportReport`, `MidiIssueCodes`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars
@@ -40,12 +42,11 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-`Pieces` uses only `Time`, `Events`, `Motifs` and the root (`Words`), and `Playback`'s tempo model (`PlaybackTempo`,
-`TempoSource`) until W1.2 moves it to `Time`; every rule and `Projects` may use it. `Import` uses no `Analysis` or
-`Projects`, and `Analysis` no `Import` (W1.1, 2026-11-18). Still mutual (`docs/REFACTORING_AUDIT.md` W1.2, W1.3):
-`Analysis`–`Notation` and `Notation`–`Playback` (pitch spelling), `Pieces`–`Playback` (tempo), `Analysis`, `Assembly`
-and `Performance` with `Projects` (saved records). A new mutual pair is a defect; the `dependencies` check does not
-read these edges yet (W1.3).
+`Time` uses nothing; `Events` only `Time` and the root (`Words`); `Pieces` only `Time`, `Events`, `Motifs` and the root;
+every rule and `Projects` may use them. `Import` uses no `Analysis` or `Projects`, and `Analysis` no `Import` (W1.1);
+neither `Analysis` nor `Playback` uses `Notation`, and `Pieces` no `Playback` (W1.2, 2026-11-18). Still mutual
+(`docs/REFACTORING_AUDIT.md` W1.3): `Analysis`, `Assembly` and `Performance` with `Projects` (saved records). A new
+mutual pair is a defect; the `dependencies` check does not read these edges yet (W1.3).
 
 ## Rules not to break
 

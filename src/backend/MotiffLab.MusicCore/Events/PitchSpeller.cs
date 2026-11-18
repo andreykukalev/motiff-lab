@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Notation;
+namespace MotiffLab.MusicCore.Events;
 
 /// <summary>A written pitch: a letter step, its alteration and its octave.</summary>
 /// <param name="Step">0 for C up to 6 for B.</param>

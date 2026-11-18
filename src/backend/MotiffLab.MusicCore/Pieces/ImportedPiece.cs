@@ -32,7 +32,7 @@ public sealed record ImportedPiece(
     public BarGrid? Bars { get; init; }
 
     /// <summary>The tempo of notes made by an assembly and applied to the piece (decision record 0024); null for a piece as its file has it.</summary>
-    public IReadOnlyList<Playback.PlaybackTempo>? AssembledTempos { get; init; }
+    public IReadOnlyList<PlaybackTempo>? AssembledTempos { get; init; }
 
     /// <summary>
     /// The tempo the player set for the piece, in quarter notes a minute (project file "tempo", version 0.5.4): what it

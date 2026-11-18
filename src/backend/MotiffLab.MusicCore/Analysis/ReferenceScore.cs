@@ -324,7 +324,7 @@ internal sealed class ReferenceScore(bool grandStaff, int fifths)
     /// <summary>The accidentals in force in one bar: the key signature's, then each one written, staff by staff, to the bar line.</summary>
     private sealed class Accidentals(int fifths)
     {
-        private readonly int[] _key = Notation.PitchSpeller.KeyAlterations(fifths);
+        private readonly int[] _key = PitchSpeller.KeyAlterations(fifths);
         private readonly Dictionary<(int Staff, int Step, int Octave), int> _written = [];
 
         /// <summary>Whether the tone needs its accidental written; from then on it is in force.</summary>

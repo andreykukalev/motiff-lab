@@ -175,7 +175,7 @@ public class AssemblyTests
         work = work.ChangeNote("c1.c2r1", 2, s_at);
         work = work.With(work.Carry("cover", new TickSpan(new Tick(5 * Bar), Bar), AssemblyPlace.Between(Find(notes, "n5l"), Find(notes, "n5r2")), 0, s_at));
 
-        IReadOnlyList<JournalRow> rows = AssemblyJournal.Rows(work, Words.Russian, MusicCore.Notation.NoteNaming.Syllables);
+        IReadOnlyList<JournalRow> rows = AssemblyJournal.Rows(work, Words.Russian, NoteNaming.Syllables);
         Assert.Equal("№1 · 4 ноты из Кавера → такт 3", rows[0].Title);
         Assert.Equal("положил 4, убрал 4", rows[0].Detail);
         Assert.Equal("№2 · Правка ноты", rows[1].Title);
