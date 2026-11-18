@@ -11,7 +11,8 @@ roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
   for a load again (selection, tuplets, highlight, editor, input, passage, lanes, practice); every call into the page
   goes through its `RollPage` (`Platform/RollPage.swift`) and every message comes in decoded as `RollEvent`s
   (`received` → the callbacks `picked`, `cleared`, `spanPicked`, `notesPicked`, `playheadMoved`, `noteEdited`, …).
-  `frame()` (the zoom and view for the "Notes" view) is its, since B7.
+  `frame()` (the zoom and view for the "Notes" view) is its, since B7. `page` is settable: a workspace scenario
+  (`tests/ipad/Baseline/WorkspaceSession.swift`) puts a recording `RollPage` there.
 - `RollTools.swift`: `RollPick` (bars or beats from a `RollRange`, by `byBeats`), the zoom's words on `RollZoom`, the
   drawer's height, `RollPlace`, the mode switch, the zoom controls, the note editor's tools.
 - `RollPlace.swift`: `RollPickShape`, `RollPlaceInput` (`place`, `stylus` added to `RollInput.page`), `RollPickSwitch`.

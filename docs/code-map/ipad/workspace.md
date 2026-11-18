@@ -17,7 +17,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
-  `backToMore` write `panels`. Tests: `ScoreWorkspaceTests`.
+  `backToMore` write `panels`. Tests: `ScoreWorkspaceTests`; sessions:
+  `WorkspaceScenarioTests` (`../ipad.md`).
 - `ScoreWorkspaceReactions.swift`: the methods of the view's `.onChange` reactions on the panels and Expand, in the
   view's order (`contentsChanged`, `focusChanged`, …), with `syncPlayheads`, `showRollPosition`, `rollPlace`.
 - `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, …), and
@@ -75,6 +76,6 @@ drawer's height, Piece DNA, a view shown over the piece). The rest: not recorded
 
 ## Baseline entries that protect it
 
-UX baseline: `VIEW-01` to `VIEW-06` (the piece's screen, its views, its panels; VIEW-05 and VIEW-06 tested in
-`tests/ipad/Baseline/PanelBaselineTests.swift`). Quality ratchet: `ScoreController.swift` file_length and
-`class ScoreController` type_body_length; `ScoreScreen.swift` file_length and `layers` function_body_length.
+UX baseline: `VIEW-01` to `VIEW-06` (tests: `PanelBaselineTests`, `WorkspaceScenarioTests`). Quality ratchet:
+`ScoreController.swift` file_length and `class ScoreController` type_body_length; `ScoreScreen.swift` file_length and
+`layers` function_body_length.

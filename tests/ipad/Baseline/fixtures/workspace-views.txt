@@ -1,0 +1,19 @@
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen opens, its sound not loaded
+
+## the piece itself is added as another version, and the sources are read
+  score reads its sources
+
+## the version is picked in the switch
+  panels: versions
+  the recording heard: none
+  panels: versions {beforeSources=nothing}
+
+## a recording is picked
+  the recording heard: r1
+
+## the working notes are picked
+  the recording heard: none
