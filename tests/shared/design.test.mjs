@@ -68,3 +68,14 @@ test("colours from the tokens are read, made translucent and mixed for the canva
     assert.equal(mix("nonsense", "#000", 0.5), "nonsense");
 });
 
+
+// Andrei, 2026-11-18: the selection menu's Note looked like a speech bubble and read as the assistant. It is a note sheet
+// (`memo`), unlike the bubble, the assistant's and Insights' magnifier (`insight`, `search`) and the pages (`pages`, `file`).
+test("the selection menu's Note has a note's icon, never the assistant's look", () => {
+    const icons = readIcons();
+    assert.ok("memo" in icons);
+    assert.equal(new Set(["memo", "note", "insight", "search", "pages", "file"].map((name) => icons[name])).size, 6, "each its own drawing");
+    const menu = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
+    assert.match(menu, /item\("memo", text\["menu\.note"\]/);
+    assert.doesNotMatch(menu, /item\("note"/);
+});

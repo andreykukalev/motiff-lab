@@ -1025,13 +1025,15 @@ struct SelectionMenu: View {
                 item("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
             }
+            // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the
+            // assistant (Andrei, 2026-11-18).
+            item("memo", text["menu.note"], on: false) {
+                contents.cancel()
+                score.startNote()
+            }
             item("bookmark", text["menu.bookmark"], on: false) {
                 score.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
-            }
-            item("note", text["menu.note"], on: false) {
-                contents.cancel()
-                score.startNote()
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
