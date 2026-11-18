@@ -49,6 +49,7 @@ import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { HoldToPlace } from "../playback/hold-place.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from "./roll-head-drag.js";
 import { RollStripGesture, keptDrag, type StripHost } from "./roll-strip-gesture.js";
+import { rollPressFor } from "./roll-press.js";
 import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
 import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
 import { movedNote, type PickShape } from "./roll-place.js";
@@ -1173,21 +1174,13 @@ export class PianoRoll {
     }
 
     /**
-     * A press on a playhead's handle or by the place rule; true when one took it. An edge of the selection wins over a
+     * Whether a press of this pointer at x lands on an edge of the selection by the place rule: there the edge wins over a
      * playhead's handle in its reach (v0.6.4, as on the score's page): the blue playhead stands at the selection's start, and
-     * the edge there is still taken.
+     * the edge there is still taken (roll-press.ts).
      */
-    private pressHeadOrPlace(event: PointerEvent, x: number, y: number, tick: number): boolean {
-        if (this.onPlaceEdge(event, x, y) && this.beginPlace(event, x, y, tick)) {
-            return true;
-        }
-        return this.pressPlayhead(event, x, y) || this.beginPlace(event, x, y, tick);
-    }
-
-    /** Whether a press of this pointer at x lands on an edge of the selection by the place rule: there the edge wins over a playhead. */
-    private onPlaceEdge(event: PointerEvent, x: number, y: number): boolean {
+    private onPlaceEdge(type: string, x: number, y: number): boolean {
         const span = this.placeSpan();
-        if (!this.placeSelects(event.pointerType) || span === null || this.inHiddenLane(y)) {
+        if (!this.placesAt(type, y) || span === null) {
             return false;
         }
         const place = placeAt(span, x, y, [{ left: this.xOf(span.start), right: this.xOf(span.end), top: -Infinity, bottom: Infinity }]);
@@ -1210,13 +1203,9 @@ export class PianoRoll {
         return this.placeOn && this.mode === "select" && !this.editing && this.selectsWith(type) && (type !== "touch" || !this.placeStylus);
     }
 
-    /** A press in Select read by its place (roll-place-gesture.ts), over the notes and the bar numbers alike; true when it was one. */
-    private beginPlace(event: PointerEvent, x: number, y: number, tick: number): boolean {
-        if (!this.placeSelects(event.pointerType) || this.inHiddenLane(y)) {
-            return false;
-        }
-        this.place.begin(event.pointerId, this.placePoint(x, y, tick), y < this.header);
-        return true;
+    /** Whether Select reads a press of this pointer at y by its place (roll-place-gesture.ts), over the notes and the bar numbers alike. */
+    private placesAt(type: string, y: number): boolean {
+        return this.placeSelects(type) && !this.inHiddenLane(y);
     }
 
     private movePlace(event: PointerEvent, x: number, y: number): boolean {
@@ -2404,30 +2393,42 @@ export class PianoRoll {
     }
 
     /**
-     * A press on the playhead takes it rather than what lies under it: on its handle, or with a finger in touch reading
-     * anywhere down its line, a touch target wide. Not while the notes are being edited.
+     * The playhead a press takes rather than what lies under it: on its handle, or with a finger in touch reading anywhere
+     * down its line, a touch target wide; "line" for the black one before the modes, taken by RollPlayhead. Not while the
+     * notes are being edited, nor while another pointer holds one (PlayheadDrag.grab). Nothing begins here. In Expand
+     * (#533 2) it is the model's blue one over the passage, dragged inside the passage on the sixteenth grid, heard.
      */
-    private pressPlayhead(event: PointerEvent, x: number, y: number): boolean {
-        const finger = event.pointerType !== "mouse";
-        const line = this.touchReading && finger;
+    private playheadUnder(type: string, x: number, y: number): Handle | "line" | null {
         if (this.editing || this.player === null) {
-            return false;
+            return null;
         }
+        const finger = type !== "mouse";
+        const onLine = (): boolean => onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, finger ? TOUCH : KNOB_MOUSE, this.touchReading && finger);
+        const state = this.passage === null && !this.lanes ? this.heldModel() : null;
+        let handle: Handle | null;
         if (this.passage !== null) {
-            return this.pressPassageHead(event, x, y, finger ? TOUCH : KNOB_MOUSE, line);
+            handle = onLine() ? "blue" : null;
+        } else if (this.lanes) {
+            handle = this.laneHeadUnder(type, x, y);
+        } else if (state !== null) {
+            handle = this.modelHeadUnder(type, state, x, y);
+        } else {
+            return onLine() ? "line" : null;
         }
-        if (this.lanes) {
-            return this.pressLaneHead(event, x, y);
+        return this.laneDrag.handle === null ? handle : null;
+    }
+
+    /**
+     * A playhead taken (playheadUnder): by its handle (#533 4), while the music plays it stands as soon as it is held, the
+     * press telling the player at once (T14), and plays on from where it is let go (T16); stopped, a tap on it moves nothing.
+     */
+    private beginPlayhead(head: Handle | "line", pointer: number, x: number): void {
+        if (head === "line") {
+            this.playhead.begin(pointer, x);
+            return;
         }
-        const state = this.heldModel();
-        if (state !== null) {
-            return this.pressModelHead(event, state, x, y);
-        }
-        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
-            return false;
-        }
-        this.playhead.begin(event.pointerId, x);
-        return true;
+        this.laneDrag.grab(head, pointer, this.playing());
+        this.lanePress = x;
     }
 
     /** Where the two playheads are drawn now, across the roll: the black one always, the blue one with the model's selection. */
@@ -2472,10 +2473,10 @@ export class PianoRoll {
      * With the lanes (#495 UX-08 and UX-10) a press takes the blue playhead by its handle in the loop strip, or the black one
      * down its line a touch target wide (lineTakesHead: not the stylus mode's stylus in Select): the drag moves it on the grid.
      */
-    private pressLaneHead(event: PointerEvent, x: number, y: number): boolean {
+    private laneHeadUnder(type: string, x: number, y: number): Handle | null {
         const { black, blue } = this.headsNear(x);
         const heads = { black, blue, stripTop: BAR_ROW, stripBottom: this.header, reach: TOUCH / 2 };
-        return this.grabHead(laneHeadAt(x, y, heads, lineTakesHead(event.pointerType, this.placeStylus, this.placeSelects("pen"))), event.pointerId, x);
+        return laneHeadAt(x, y, heads, lineTakesHead(type, this.placeStylus, this.placeSelects("pen")));
     }
 
     /**
@@ -2483,7 +2484,7 @@ export class PianoRoll {
      * black one by its dot, on the bar numbers' edge, a touch target wide for a finger. The drag moves the one taken, not
      * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
      */
-    private pressModelHead(event: PointerEvent, state: ModelState, x: number, y: number): boolean {
+    private modelHeadUnder(type: string, state: ModelState, x: number, y: number): Handle | null {
         const knobs = playheadKnobs({ xOf: (tick) => this.xOf(tick), header: this.header }, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))));
         // Playing, the knob is found where it was drawn a moment ago too (headsNear); its height stays.
         const near = this.headsNear(x);
@@ -2491,32 +2492,8 @@ export class PianoRoll {
             black: knobs.black === null ? null : { ...knobs.black, x: near.black },
             blue: knobs.blue === null || near.blue === null ? null : { ...knobs.blue, x: near.blue },
         };
-        const reach = (event.pointerType === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
-        return this.grabHead(knobHeadAt(x, y, found, reach), event.pointerId, x);
-    }
-
-    /**
-     * A playhead taken by its handle (#533 4): while the music plays, it stands as soon as it is held, the press telling the
-     * player at once (T14), and plays on from where it is let go (T16); stopped, a tap on it moves nothing.
-     */
-    private grabHead(handle: Handle | null, pointer: number, x: number): boolean {
-        if (handle === null || !this.laneDrag.grab(handle, pointer, this.playing())) {
-            return false;
-        }
-        this.lanePress = x;
-        return true;
-    }
-
-    /**
-     * In Expand (#533 2) the playhead is the model's blue one over the passage: taken by its handle, or with a finger in touch
-     * reading anywhere down its line, a touch target wide (found where it was drawn a moment ago while playing), and dragged
-     * inside the passage on the sixteenth grid, heard; playing, it stands while held and plays on from where it is let go.
-     */
-    private pressPassageHead(event: PointerEvent, x: number, y: number, touch: number, line: boolean): boolean {
-        if (!onPlayhead(x, y, this.headsNear(x).black, BAR_ROW, touch, line)) {
-            return false;
-        }
-        return this.grabHead("blue", event.pointerId, x);
+        const reach = (type === "mouse" ? KNOB_MOUSE : TOUCH) / 2;
+        return knobHeadAt(x, y, found, reach);
     }
 
     /** The web's playback model while the player holds it under the modes, which the roll draws and drags; else null. */
@@ -3120,41 +3097,67 @@ export class PianoRoll {
         // No text selection while dragging; focus by hand so the keys (Escape, arrows) reach the roll.
         event.preventDefault();
         this.roll.focus({ preventScroll: true });
-        if (x < GUTTER) {
-            // The pitch names play their row's key, as the keyboard does.
-            if (y >= this.header) {
-                this.press = { pointer: event.pointerId, x, y, tick: -1, pitch, add: false, sounding: this.strike(pitch), top: null };
-            }
-            return;
-        }
+        const type = event.pointerType;
         const tick = this.tickAtX(x);
-        if (this.pressHeadOrPlace(event, x, y, tick)) {
-            return;
-        }
         // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).
-        const edits = this.editing && this.editsWith(event.pointerType);
-        if (this.pressPanOrEdge(event, x, y, tick, edits)) {
-            return;
-        }
-        if (y < this.header) {
-            if (!this.editing) {
+        const edits = this.editing && this.editsWith(type);
+        // What the press table found under the press, for the gesture it names (roll-press.ts).
+        const under: { head: Handle | "line" | null; anchor: number | null } = { head: null, anchor: null };
+        const press = rollPressFor({
+            gutter: x < GUTTER,
+            header: y < this.header,
+            placeEdge: () => this.onPlaceEdge(type, x, y),
+            playhead: () => (under.head = this.playheadUnder(type, x, y)) !== null,
+            places: () => this.placesAt(type, y),
+            // In touch reading a finger on the notes moves through the music, neither selecting nor sounding; so does a pointer
+            // that does not edit while the editor is on (#479 item 23).
+            pans: () => this.touchReading && !edits && y >= this.header && type !== "mouse",
+            edge: () => (under.anchor = this.edgeAnchorUnder(type, x, y)) !== null,
+            editing: this.editing,
+            edits,
+            rules: () => this.mode !== null && !this.editing,
+        });
+        switch (press) {
+            case "none":
+                return;
+            case "keys":
+                // The pitch names play their row's key, as the keyboard does.
+                this.press = { pointer: event.pointerId, x, y, tick: -1, pitch, add: false, sounding: this.strike(pitch), top: null };
+                return;
+            case "place":
+                this.place.begin(event.pointerId, this.placePoint(x, y, tick), y < this.header);
+                return;
+            case "playhead":
+                if (under.head !== null) {
+                    this.beginPlayhead(under.head, event.pointerId, x);
+                }
+                return;
+            case "pan":
+                this.beginPan(event, x, y);
+                return;
+            case "edge":
+                this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor: under.anchor ?? tick, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
+                this.invalidate();
+                return;
+            case "barNumbers":
                 this.pressBarNumbers(event, model, x, y, tick, pitch);
-            } else {
+                return;
+            case "loopLane":
                 this.pressLoopLane(y, tick);
+                return;
+            case "edit":
+                this.editPress(event, model, x, y, tick, pitch);
+                return;
+            case "rule":
+                this.beginRulePress(event, x, y, tick, pitch);
+                return;
+            case "note": {
+                // A note sounds as soon as it is pressed, over playback too.
+                const index = model.noteAt(tick, pitch);
+                const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
+                this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
             }
-            return;
         }
-        if (edits) {
-            this.editPress(event, model, x, y, tick, pitch);
-            return;
-        }
-        if (this.beginRulePress(event, x, y, tick, pitch)) {
-            return;
-        }
-        // A note sounds as soon as it is pressed, over playback too.
-        const index = model.noteAt(tick, pitch);
-        const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
-        this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
 
     /** While the Pen is on, the stylus is the Pen's: a gesture belongs to one tool, so on the roll it does nothing (#521 10). */
@@ -3166,28 +3169,24 @@ export class PianoRoll {
         return true;
     }
 
+    /** A press that moves the roll (touch reading); Navigate's hold begins with it. */
+    private beginPan(event: PointerEvent, x: number, y: number): void {
+        this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+        if (this.navigates(event.pointerType)) {
+            this.hold.begin(event.pointerId, x, y);
+        }
+    }
+
     /**
-     * A press that moves the roll or drags an edge of the selection; true when it was one. In touch reading a finger on the
-     * notes moves through the music: it neither selects nor sounds; so does a pointer that does not edit while the editor is
-     * on (#479 item 23). A press on an edge drags that edge, the other staying where it is; under the iPad's rules the
-     * handles over the notes take it with the editor on too, as the selection's handles do in every mode.
+     * The edge of the selection a press drags, as the tick the other edge keeps; under the iPad's rules the handles over the
+     * notes take it with the editor on too, as the selection's handles do in every mode. Null for none.
      */
-    private pressPanOrEdge(event: PointerEvent, x: number, y: number, tick: number, edits: boolean): boolean {
-        if (this.touchReading && !edits && y >= this.header && event.pointerType !== "mouse") {
-            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
-            if (this.navigates(event.pointerType)) {
-                this.hold.begin(event.pointerId, x, y);
-            }
-            return true;
-        }
-        const edge = !this.selectsWith(event.pointerType) || (this.editing && (this.pointerRules === null || y >= this.header)) ? null : this.edgeAt(x);
+    private edgeAnchorUnder(type: string, x: number, y: number): number | null {
+        const edge = !this.selectsWith(type) || (this.editing && (this.pointerRules === null || y >= this.header)) ? null : this.edgeAt(x);
         if (edge === null || this.motif === null) {
-            return false;
+            return null;
         }
-        const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
-        this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
-        this.invalidate();
-        return true;
+        return edge === "start" ? this.motif.end - 1 : this.motif.start;
     }
 
     /** A press on the bar numbers: a Check flag opens Check at its bar; else it begins selecting bars, or Shift extends. */
