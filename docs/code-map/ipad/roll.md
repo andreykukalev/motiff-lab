@@ -17,7 +17,7 @@ roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
 - `RollTools.swift`: `RollPick` (bars or beats from a `RollRange`, by `byBeats`), the zoom's words on `RollZoom`, the
   drawer's height, `RollPlace`, the mode switch, the zoom controls, the note editor's tools.
 - `RollPlace.swift`: `RollPickShape`, `RollPlaceInput` (`place`, `stylus` added to `RollInput.page`), `RollPickSwitch`.
-- `RollDrawer.swift`: the drawer's head.
+- `RollDrawer.swift`: the drawer's head, ending with «Свернуть» (`close`); the pill's roll button opens the drawer.
 
 ## The contract others may rely on
 

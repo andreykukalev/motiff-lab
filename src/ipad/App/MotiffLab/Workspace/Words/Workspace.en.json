@@ -59,5 +59,7 @@
   "pill.span": "{0} – {1}",
   "sources.sheet.viewOnly": "View only",
   "padAssistant.undone": "The draft is taken back. The notes are as they were before it.",
-  "padEdits.offNotice": "My corrections are off: turn them on in More to correct notes."
+  "padEdits.offNotice": "My corrections are off: turn them on in More to correct notes.",
+  "pill.assistant": "Assistant",
+  "pill.assistantHint": "Opens the assistant with the last conversation, or closes it."
 }

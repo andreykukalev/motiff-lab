@@ -70,13 +70,27 @@ test("colours from the tokens are read, made translucent and mixed for the canva
 
 
 // Andrei, 2026-11-18: the selection menu's Note looked like a speech bubble and read as the assistant. It is a note sheet
-// (`memo`), unlike the bubble, the assistant's and Insights' magnifier (`insight`, `search`) and the pages (`pages`, `file`).
+// (`memo`), unlike the bubble, the assistant's (the pill's «Ассистент», v0.9 finding 8), and Insights' magnifier
+// (`insight`, `search`) and the pages (`pages`, `file`).
 test("the selection menu's Note has a note's icon, never the assistant's look", () => {
     const icons = readIcons();
     assert.ok("memo" in icons);
     assert.equal(new Set(["memo", "note", "insight", "search", "pages", "file"].map((name) => icons[name])).size, 6, "each its own drawing");
-    const menu = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
-    assert.match(menu, /item\("memo", text\["menu\.note"\]/);
-    assert.doesNotMatch(menu, /item\("note"/);
-    assert.match(menu, /item\("memo", text\["menu\.note"\][\s\S]*?item\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
+    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
+    const menu = screen.slice(screen.indexOf("struct SelectionMenu"), screen.indexOf("struct ClearSelectionButton"));
+    assert.match(menu, /iconItem\("memo", text\["menu\.note"\]/);
+    assert.doesNotMatch(menu, /Item\("note"/);
+    assert.match(menu, /iconItem\("memo", text\["menu\.note"\][\s\S]*?iconItem\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
+    assert.match(screen, /iconItem\("note", text\["pill\.assistant"\]/, "the bubble is the assistant's");
+});
+
+// Andrei's 0.8 test, finding 7 and answer 1: the piano roll's button is the pill's alone, not the top bar's or the
+// selection menu's.
+test("the piano roll's button is in the pill only", () => {
+    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
+    const between = (from, to) => screen.slice(screen.indexOf(from), screen.indexOf(to, screen.indexOf(from)));
+    assert.match(between("struct Pill", "struct SelectionMenu"), /iconItem\("roll", text\["bar\.roll"\]/);
+    const rollButton = /"roll"|bar\.roll|rollOpen|\(\.roll\)|\[\.roll\]/;
+    assert.doesNotMatch(between("struct SelectionMenu", "struct ClearSelectionButton"), rollButton);
+    assert.doesNotMatch(between("struct ScoreBar", "struct Pill"), rollButton);
 });

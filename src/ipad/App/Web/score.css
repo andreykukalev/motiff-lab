@@ -108,7 +108,7 @@ body[data-selection-hidden] .sel-handle { visibility: hidden; }
    never at a corner. The old selection is dashed while a new one is drawn, the addition dashed while extending; pale ticks
    show where a moving edge can stop; the notes picked are cobalt. */
 .sel-edge { position: absolute; z-index: 2; width: 0; pointer-events: none; }
-.sel-edge::after { content: ""; position: absolute; left: 0; top: 50%; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
+.sel-edge::after { content: ""; position: absolute; left: 0; top: var(--handle-y, 50%); width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
 .sel-edge.hot::after { background: var(--accent); }
 body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }

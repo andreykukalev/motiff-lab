@@ -12,6 +12,7 @@ class FakeElement {
         this.own = own;
         this.className = "";
         this.style = {};
+        Object.defineProperty(this.style, "setProperty", { value: (name, value) => (this.style[name] = value) });
         this.attributes = {};
         this.parent = null;
     }
@@ -67,6 +68,7 @@ globalThis.window = {
 globalThis.Element = FakeElement;
 
 const { PlaceLayer } = await import("../../src/shared/wwwroot/js/score/selection-place-layer.js");
+const { edgeHandles } = await import("../../src/shared/wwwroot/js/score/selection-places.js");
 
 const BAR = 1920;
 const staves = [{ n: 1, top: 100, bottom: 180 }, { n: 2, top: 220, bottom: 300 }];
@@ -153,6 +155,16 @@ test("an edge's grip, anywhere along the band's height, moves that edge", () => 
     gesture([[505, 290], [700, 290]]);
     assert.deepEqual(said.find((step) => step.chosen), { chosen: { start: BAR, end: 3 * BAR, hand: null }, how: "edit" });
     assert.ok(root.children.filter((child) => child.className.startsWith("sel-edge")).length === 2, "the edges are drawn over the band again");
+});
+
+test("an edge's circle is drawn where its handle takes a press (edgeHandles), so the two cannot drift apart", () => {
+    const { root, layer } = page();
+    layer.decorate();
+    const drawn = root.children.filter((child) => child.className.startsWith("sel-edge"))
+        .map((edge) => ({ x: parseFloat(edge.style.left), y: parseFloat(edge.style.top) + parseFloat(edge.style["--handle-y"]) }));
+    const band = root.children.find((child) => child.className === "sel-band");
+    const box = { left: parseFloat(band.style.left), top: parseFloat(band.style.top), right: parseFloat(band.style.left) + parseFloat(band.style.width), bottom: parseFloat(band.style.top) + parseFloat(band.style.height) };
+    assert.deepEqual(drawn, edgeHandles([box]));
 });
 
 test("a move from inside extends the selection, the addition dashed while it goes", () => {

@@ -15,7 +15,8 @@ final class AssistantController: ObservableObject {
     static let consentKey = "ml-assistant-consent"
     static let consented = "yes"
 
-    @Published var panelOpen = false
+    /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
+    @Published private(set) var panelOpen = false
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
     /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
@@ -100,6 +101,12 @@ final class AssistantController: ObservableObject {
     func close() {
         panelOpen = false
         listShown = false
+    }
+
+    /// The panel opened again on the conversation it had when it was closed (the pill's «Ассистент», Andrei's 0.8 test,
+    /// finding 8, and his card of 2026-11-18 21:49 UTC); only an Ask opens it empty (`open`).
+    func show() {
+        panelOpen = true
     }
 
     /// A new conversation, empty until its first question.
