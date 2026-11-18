@@ -30,6 +30,9 @@ public class NotationGoldenTests
 
     private static KeyChange[] Keys(MusicXmlImport import) => [.. import.KeySignatures.Where(key => key.Track == 0).Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)))];
 
+    /// <summary>How many bars of the recording the recording cases write.</summary>
+    private const int RecordingBars = 16;
+
     private static MusicXmlImport FurElise() => MusicXmlImporter.Import(Fixture("Experiments", "Fixtures", "fur-elise-original.musicxml"));
 
     [Theory]
@@ -59,7 +62,10 @@ public class NotationGoldenTests
         AssertIs(golden, NotationGenerator.FromMidi(import, fixture, asHeard, PlaybackScore.FromMidi(import).Tempos));
     }
 
-    /// <summary>A recording in the three ways the facade writes one: for reading, for reading with its marks, and as played.</summary>
+    /// <summary>
+    /// A recording's first <see cref="RecordingBars"/> bars in the three ways the facade writes one: for reading (notes held
+    /// to the next, cut at it, a grace note), for reading with its marks, and as played.
+    /// </summary>
     [Theory]
     [InlineData("recording-readable")]
     [InlineData("recording-reading-marks")]
@@ -69,12 +75,14 @@ public class NotationGoldenTests
         MidiImport import = Midi("Transcription", "transkun-fur-elise.mid");
         PlaybackScore played = PlaybackScore.FromMidi(import);
         KeyChange[] keys = Keys(import);
+        Tick end = import.Meter.GetBar(RecordingBars + 1).Span.Onset;
+        Note[] notes = [.. import.Notes.Where(note => note.Span.Onset < end)];
 
         GeneratedNotation notation = golden switch
         {
-            "recording-readable" => NotationGenerator.Generate(import.Notes, import.Meter, keys, import.End, golden, asHeard: true, tempos: played.Tempos),
-            "recording-reading-marks" => NotationGenerator.Generate(import.Notes, import.Meter, keys, import.End, golden, asHeard: true, playedTempos: played.Tempos, marks: PlayedMarks.Significant, tempos: played.Tempos),
-            _ => NotationGenerator.Generate(import.Notes, import.Meter, keys, import.End, golden, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), tempos: played.Tempos),
+            "recording-readable" => NotationGenerator.Generate(notes, import.Meter, keys, end, golden, asHeard: true, tempos: played.Tempos),
+            "recording-reading-marks" => NotationGenerator.Generate(notes, import.Meter, keys, end, golden, asHeard: true, playedTempos: played.Tempos, marks: PlayedMarks.Significant, tempos: played.Tempos),
+            _ => NotationGenerator.Generate(notes, import.Meter, keys, end, golden, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), tempos: played.Tempos),
         };
 
         AssertIs(golden, notation);
@@ -222,7 +230,7 @@ public class NotationGoldenTests
         Assert.Equal(kept, written);
     }
 
-    /// <summary>The counts, staves and ossias of a notation, one to a line, then its MEI as written.</summary>
+    /// <summary>The counts, staves and ossias of a notation, one to a line, then its MEI as written, a bar to a line.</summary>
     private static string Describe(GeneratedNotation notation)
     {
         var text = new StringBuilder();
@@ -254,7 +262,8 @@ public class NotationGoldenTests
             Line("ossia", $"{ossia.Label} {ossia.IdPrefix} {ossia.NoteCount} notes, staves {string.Join(", ", ossia.Staves)}");
         }
 
-        Line("mei", notation.Mei);
+        // A line a bar, so that a changed golden shows which bars changed.
+        Line("mei", notation.Mei.Replace("<measure ", "\n<measure ", StringComparison.Ordinal));
         return text.ToString();
     }
 }

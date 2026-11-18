@@ -264,6 +264,9 @@ public readonly record struct Bar(int Number, TickSpan Span, TimeSignature Signa
 
     /// <summary>Ticks of the full bar that come before this one starts: non-zero only for a pickup, which ends on the bar line.</summary>
     internal long LeadIn => IsPickup ? Signature.BarTicks - Span.Duration : 0;
+
+    /// <summary>Where a full bar would start: the bar's start, or for a pickup a full bar before its end.</summary>
+    internal long Origin => Span.Onset.Value - LeadIn;
 }
 
 /// <summary>

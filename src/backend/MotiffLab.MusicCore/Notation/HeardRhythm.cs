@@ -9,9 +9,6 @@ namespace MotiffLab.MusicCore.Notation;
 /// </summary>
 internal static class HeardRhythm
 {
-    /// <summary>Onsets this close are one chord when written as heard: a 64th.</summary>
-    public const long HeardChord = NotationGenerator.Grid / 2;
-
     private const long Grid = NotationGenerator.Grid;
 
     /// <summary>A staff's notes written as heard (see <see cref="NotationGenerator.Generate"/>'s <c>asHeard</c>).</summary>
@@ -58,7 +55,7 @@ internal static class HeardRhythm
         var chords = new List<List<ShownNote>>();
         foreach (ShownNote note in notes.OrderBy(note => together.Onset(note.Note)).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
         {
-            if (chords.Count > 0 && together.Onset(note.Note) - together.Onset(chords[^1][0].Note) < HeardChord)
+            if (chords.Count > 0 && together.Onset(note.Note) - together.Onset(chords[^1][0].Note) < NotationGenerator.HeardChord)
             {
                 chords[^1].Add(note);
             }

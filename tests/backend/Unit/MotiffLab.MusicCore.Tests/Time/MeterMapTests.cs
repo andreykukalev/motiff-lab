@@ -75,6 +75,10 @@ public class MeterMapTests
         Assert.False(pickup.IsComplete);
         Assert.Equal(new TickSpan(Tick.Zero, 480), pickup.Span);
         Assert.Equal(new TickSpan(new Tick(480), 1440), map.GetBar(1).Span);
+
+        // Where a full bar would start: a full bar before the pickup's end, and a bar's own start after it.
+        Assert.Equal((-960L, 960L), (pickup.Origin, pickup.LeadIn));
+        Assert.Equal((480L, 0L), (map.GetBar(1).Origin, map.GetBar(1).LeadIn));
     }
 
     [Fact]
