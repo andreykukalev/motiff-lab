@@ -8,7 +8,7 @@ import SwiftUI
 extension ScoreWorkspace {
     /// In focus with no way tried, the other version is there to hear in the variation's place (0022, section 5). The
     /// reaction on `score.focusVersion`.
-    func focusVersionChanged(_ version: ScoreController.FocusVersion?) {
+    func focusVersionChanged(_ version: FocusModel.Version?) {
         guard insights.trial == nil else { return }
         if let version, version.sounds {
             player.setVariation(version.notes, version: true)
@@ -79,7 +79,7 @@ extension ScoreWorkspace {
 
     /// What plays for the selection changed (the reaction on `score.playRange`): the player takes it, then the page and
     /// the roll draw the model.
-    func whatPlaysChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
+    func whatPlaysChanged(from old: FocusModel.PlayRange?, to new: FocusModel.PlayRange?) {
         playRangeChanged(from: old, to: new)
         syncPlayheads()
     }
@@ -89,7 +89,7 @@ extension ScoreWorkspace {
 extension ScoreWorkspace {
     /// What plays for the selection changed. A loop follows it, as on the web; a new selection stops the old loop. Under the
     /// playback model (v0.5.2) the player takes the selection, and Цикл decides (T9–T11).
-    func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
+    func playRangeChanged(from old: FocusModel.PlayRange?, to new: FocusModel.PlayRange?) {
         // Expand loops its passage (#533 2): what plays for it plays on round it.
         if score.focused {
             if let new, player.state != .stopped { player.keepWithin(new.range) }

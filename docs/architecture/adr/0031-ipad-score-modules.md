@@ -145,3 +145,23 @@ Two things stay in the root for now, and each has a step that removes it:
   names. This is against section 3's «views observe the model they show», for one step. They go in **S7** (blueprint
   phase C: `ScoreScreen`'s view types into their files, this record's step 10), which moves each view onto the model it
   shows; the readers in other features (Marks, Roll, Playback, Assistant) and the tests then read `selectionModel`.
+
+## Note, 2026-11-18 (step S3, `FocusModel`)
+
+`FocusModel` (`Playback/FocusModel.swift`) owns Expand's state but one: where it was opened from (`entry`), whether the
+card shows the roll (`asRoll`), the card's options, the version in focus and the play range, with the rules that need
+only the selection (the play range, the unit the card is, `canStepBack`/`canStepOn`, the card's position text). It reads
+`SelectionModel`. `SelectionModel` now selects and changes the level through music-core itself (`select`, `showLevel`,
+`resetLevel`, `loadPhrases`, and `hidePhrases` as the writer of `phrasesHidden`); `show` is gone. The root keeps the
+order after each answer: the page, then the play range, then the card.
+
+What stays in `ScoreController`, and the step that removes each:
+
+- **`focused`**: the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$focused`, a publisher a
+  forwarder cannot give. It moves into `FocusModel` with the relay and the forwarders in **S7**, whose change to the
+  baseline's harness Andrei merges.
+- **`clearSelection`**: it leaves Expand between the step recorded and the selection taken away, so it calls both models;
+  it is the root's connecting of the two, as `enterFocus`, `leaveFocus` and `step` are, which open the card on the page.
+- **`practice`** (the protected baseline writes `score.practice`) and **`ossia`** (its change engraves the card again,
+  which needs the page and music-core): with the root's page calls, in **S7** and step 9 (the composition root).
+- The forwarders `focusRoll`, `playRange` and `focusVersion` join S1's, under the same S7 removal.

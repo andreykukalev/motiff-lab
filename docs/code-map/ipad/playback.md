@@ -4,9 +4,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 
 ## Files
 
-`Expand`, `Metronome`, `Piano`, `PlaybackEngine`, `PlaybackPosition`, `Player`, `PlayheadDrag`, `PositionTransport`,
+`Expand`, `FocusModel`, `Metronome`, `Piano`, `PlaybackEngine`, `PlaybackPosition`, `Player`, `PlayheadDrag`, `PositionTransport`,
 `Practice`, `PracticeView`, `Tempo` (`.swift`).
 
+- `FocusModel.swift` (S3, ADR 0031 section 3): Expand's state but `focused` (the way back, the card as a roll, its
+  options, the version in focus) and the play range, reading `SelectionModel`; `ScoreController` forwards `focusRoll`,
+  `playRange` and `focusVersion`. Tests: `MotiffLabTests/FocusModelTests`.
 - `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes,
   `ScoreController.mode` never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and
   Цикл only out of it (`holdsSelection`). The card's black playhead: `score.js` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8).

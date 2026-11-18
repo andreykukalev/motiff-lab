@@ -15,6 +15,7 @@
   "focus.backHint": "Back to the page, where the phrase is (Escape)",
   "focus.collapse": "Collapse",
   "focus.collapseHint": "Back to the piano roll as you left it (Escape)",
+  "focus.position": "{0} · {1} {2} of {3}",
   "metronome.start": "Start the metronome",
   "metronome.stop": "Stop the metronome",
   "metronome.slower": "Slower",
