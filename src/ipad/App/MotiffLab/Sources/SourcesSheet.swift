@@ -240,7 +240,7 @@ struct SourcesSheet: View {
             originalRow(group.original)
             ForEach(group.notes) { notes in
                 Divider().overlay(Color.ds("hairline"))
-                notesRow(notes).padding(.leading, CGFloat.ds("s-6"))
+                notesRow(notes, underOriginal: true).padding(.leading, CGFloat.ds("s-6"))
             }
         }
         .padding(CGFloat.ds("s-1"))
@@ -322,13 +322,13 @@ struct SourcesSheet: View {
 
     // MARK: - Notes' row
 
-    private func notesRow(_ notes: SourceLayers.Notes) -> some View {
+    private func notesRow(_ notes: SourceLayers.Notes, underOriginal: Bool = false) -> some View {
         let shownView = view(notes.id)
         let current = isCurrent(notes.id)
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             rowHead(
                 icon: SourceLayers.pictogram(op: notes.op), iconLabel: SourceLayers.operationName(notes.op, text),
-                title: layers.title(of: notes, text), removed: false,
+                title: layers.title(of: notes, text, underOriginal: underOriginal), removed: false,
                 eye: notes.isWorking ? nil : shownView.map { (id: $0.id, hidden: $0.hidden) },
                 opens: current ? nil : shownView,
                 menu: notes.isWorking ? nil : AnyView(notesMenu(notes))

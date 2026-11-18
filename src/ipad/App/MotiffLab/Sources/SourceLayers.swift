@@ -136,8 +136,8 @@ struct SourceLayers: Equatable, Sendable {
     /// The Notes in the sheet's order: the working notes first.
     var listedNotes: [Notes] { notes.filter(\.isWorking) + notes.filter { !$0.isWorking } }
 
-    /// The sheet's groups: each original with its Notes in music-core's order, the group of the working notes first, then
-    /// the others as `listedOriginals` has them (the tombstones last).
+    /// The sheet's groups: each original with its Notes in music-core's order; the group of the working notes first, even
+    /// when its original is a tombstone, then the others as `listedOriginals` has them (the other tombstones last).
     var groups: [Group] {
         let all = listedOriginals.map { original in Group(original: original, notes: original.notes.compactMap { notes($0) }) }
         let working = { (group: Group) in group.notes.contains(where: \.isWorking) }
@@ -183,11 +183,12 @@ struct SourceLayers: Equatable, Sendable {
         }
     }
 
-    /// The Notes' title: the file they were made from, else their name, else what made them.
-    func title(of notes: Notes, _ text: UIText) -> String {
-        if let original = original(notes.original) { return original.shown }
+    /// The Notes' title: the file they were made from, else their name, else what made them. Under their original in the
+    /// sheet's card (`underOriginal`), only what tells them from it: their name, else «Ноты» and what made them.
+    func title(of notes: Notes, _ text: UIText, underOriginal: Bool = false) -> String {
+        if !underOriginal, let original = original(notes.original) { return original.shown }
         if let name = notes.name, !name.isEmpty { return name }
-        return Self.operationName(notes.op, text)
+        return underOriginal ? text["sources.roleNotes"] + " · " + Self.operationName(notes.op, text) : Self.operationName(notes.op, text)
     }
 
     /// A view's word in the switch: «PDF», «Ноты» or «Исполнение».

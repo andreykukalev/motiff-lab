@@ -288,7 +288,7 @@ struct RecordingViewCapsule: View {
                 value: Binding(get: { Double(listening.elapsed) }, set: { listening.seek(to: Int($0.rounded())) }),
                 in: 0...Double(max(1, listening.length))
             ) { editing in
-                listening.holding = editing
+                if editing { listening.hold() } else { listening.release() }
             }
             .tint(Color.ds("accent"))
             // Five fingertips wide: room to aim at a minute of a long recording.
@@ -322,8 +322,10 @@ final class RecordingListening: ObservableObject {
     /// Where it is and how long it is, in milliseconds.
     @Published private(set) var elapsed = 0
     @Published private(set) var length = 0
-    /// The player's finger is on the slider: the place it shows is the finger's, not the sound's.
-    var holding = false
+    /// The player's finger is on the slider: the place shown is the finger's, and the sound moves there on release.
+    private(set) var holding = false
+    /// Where the sound is now, in milliseconds.
+    var heardAt: Int { Int(((player?.currentTime ?? 0) * 1000).rounded()) }
     private var player: AVAudioPlayer?
     private var timer: Timer?
 
@@ -360,17 +362,28 @@ final class RecordingListening: ObservableObject {
         timer = nil
     }
 
-    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there.
+    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there. While the
+    /// finger holds the slider only the place shown moves, so the sound does not stutter; it follows on `release`.
     func seek(to milliseconds: Int) {
         guard let player else { return }
-        let place = min(max(0, milliseconds), length)
-        player.currentTime = Double(place) / 1000
-        elapsed = place
+        elapsed = min(max(0, milliseconds), length)
+        if !holding { player.currentTime = Double(elapsed) / 1000 }
+    }
+
+    /// The finger is on the slider.
+    func hold() {
+        holding = true
+    }
+
+    /// The finger leaves the slider: the sound moves to the place shown.
+    func release() {
+        holding = false
+        seek(to: elapsed)
     }
 
     private func tick() {
         guard let player, !holding else { return }
-        elapsed = Int((player.currentTime * 1000).rounded())
+        elapsed = heardAt
         if !player.isPlaying {
             playing = false
             timer?.invalidate()
