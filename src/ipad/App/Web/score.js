@@ -632,9 +632,10 @@ const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => s
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
     lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
-    // Within an edge's reach the selection's edge wins over a playhead's handle under it (v0.6.3): the press goes on to the place layer.
+    // A playhead's handle at the selection's edge is taken first; only on the edge's own handle the edge wins and the press
+    // goes on to the place layer (Andrei, 2026-11-18, answer 3 on finding 1 of the 0.8 test; since v0.6.3 the whole edge won).
     grab: (handle, event) => {
-        if (!places.edgeAt(event)) {
+        if (!places.handleAt(event)) {
             grabs.begin(handle, event);
         }
     },
