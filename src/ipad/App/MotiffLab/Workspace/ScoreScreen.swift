@@ -75,6 +75,9 @@ struct ScoreScreenContent: View {
     @State private var dnaFromMore = false
     @ObservedObject private var originals: OriginalsController
     @ObservedObject private var sources: SourcesController
+    /// The other versions and the merge draft, which the score's marker, toast, switch, window and Sources show.
+    @ObservedObject private var sourcesModel: SourcesModel
+    @ObservedObject private var mergeModel: MergeModel
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
 
@@ -92,6 +95,8 @@ struct ScoreScreenContent: View {
         _contents = ObservedObject(wrappedValue: workspace.contents)
         _originals = ObservedObject(wrappedValue: workspace.originals)
         _sources = ObservedObject(wrappedValue: workspace.sources)
+        _sourcesModel = ObservedObject(wrappedValue: workspace.score.sourcesModel)
+        _mergeModel = ObservedObject(wrappedValue: workspace.score.mergeModel)
     }
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
@@ -277,11 +282,11 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
-                if let pick = score.markerPick, !score.focused {
+                if let pick = mergeModel.markerPick, !score.focused {
                     GeometryReader { area in
                         ZStack(alignment: .topLeading) {
                             Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
-                            MarkerPopover(score: score, text: text, pick: pick)
+                            MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
@@ -294,18 +299,18 @@ struct ScoreScreenContent: View {
                         .padding(.bottom, pillBottom + 56)
                         .padding(.trailing, pillTrailing)
                         .transition(.opacity)
-                } else if let toast = score.mergeToast {
+                } else if let toast = mergeModel.toast {
                     MergeToastView(score: score, text: text, toast: toast)
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    SelectionToastView(score: score, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
-            .fullScreenCover(isPresented: $score.comparing) {
-                CompareVersionsScreen(score: score, text: text)
+            .fullScreenCover(isPresented: Binding(get: { mergeModel.comparing }, set: { mergeModel.compare($0) })) {
+                CompareVersionsScreen(score: score, mergeModel: mergeModel, text: text)
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -329,8 +334,8 @@ struct ScoreScreenContent: View {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, text: text)
                     }
-                    if score.merge != nil && !score.focused && !score.comparing {
-                        MergeShowSwitch(score: score, text: text)
+                    if mergeModel.draft != nil && !score.focused && !mergeModel.comparing {
+                        MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
                             .transition(.opacity)
                     }
                 }
@@ -532,8 +537,8 @@ extension ScoreScreenContent {
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
             open: pickView,
-            versionPage: SourcesSheet.versionPage(score),
-            versionStatus: score.versionStatus
+            versionPage: SourcesSheet.versionPage(sourcesModel),
+            versionStatus: sourcesModel.status
         )
     }
 

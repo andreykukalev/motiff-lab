@@ -69,6 +69,7 @@ struct MergeCard: UIViewRepresentable {
 /// how much they show, the size of the notes, the choices and the keys M, V, ← → and ⌘Z / ⇧⌘Z of a keyboard.
 struct CompareVersionsScreen: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var mergeModel: MergeModel
     let text: UIText
     @State private var filter = "all"
     @State private var see = "bar"
@@ -84,7 +85,7 @@ struct CompareVersionsScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let merge = score.merge {
+            if let merge = mergeModel.draft {
                 header(merge)
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                 HStack(alignment: .top, spacing: 0) {
@@ -96,7 +97,7 @@ struct CompareVersionsScreen: View {
             }
         }
         .background(Color.ds("surface").ignoresSafeArea())
-        .task(id: CardKey(at: score.mergeAt, see: see, zoom: zoom, merge: score.merge)) {
+        .task(id: CardKey(at: mergeModel.at, see: see, zoom: zoom, merge: mergeModel.draft)) {
             var fresh: [String: MergeCardImage] = [:]
             for view in ["mine", "version", "result"] {
                 if let card = await score.mergeCard(view, see: see, zoom: zoom) { fresh[view] = card }
@@ -109,7 +110,7 @@ struct CompareVersionsScreen: View {
 
     private func header(_ merge: MergeInfo) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            Button { score.comparing = false } label: {
+            Button { mergeModel.compare(false) } label: {
                 Label { Text(text["merge.toNotes"]) } icon: { Icon(name: "back") }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))
@@ -182,7 +183,7 @@ struct CompareVersionsScreen: View {
                             }
                             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                             ForEach(inGroup) { bar in
-                                MergeRow(score: score, text: text, bar: bar, detail: "\(bar.marker) · \(bar.confidence) %")
+                                MergeRow(score: score, mergeModel: mergeModel, text: text, bar: bar, detail: "\(bar.marker) · \(bar.confidence) %")
                             }
                         }
                     }
@@ -195,12 +196,12 @@ struct CompareVersionsScreen: View {
     }
 
     @ViewBuilder private func main(_ merge: MergeInfo) -> some View {
-        if let at = score.mergeAt, let current = merge.bars.first(where: { $0.bar == at }) {
+        if let at = mergeModel.at, let current = merge.bars.first(where: { $0.bar == at }) {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                     MergeStep(score: score, text: text, current: current)
                     HStack(spacing: CGFloat.ds("s-2")) {
-                        MergeScope(score: score, text: text).fixedSize()
+                        MergeScope(mergeModel: mergeModel, text: text).fixedSize()
                         MergeChoiceButton(text: text["merge.takeMine"] + "  M", view: "mine", on: current.choice == "mine") { score.chooseMerge("mine") }
                             .keyboardShortcut("m", modifiers: [])
                         MergeChoiceButton(text: text["merge.takeVersion"] + "  V", view: "version", on: current.choice == "version") { score.chooseMerge("version") }
@@ -250,7 +251,7 @@ struct CompareVersionsScreen: View {
                         .padding(CGFloat.ds("s-2"))
                         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(mergeViewColor(view), lineWidth: 1.5))
                     }
-                    MergeListen(score: score, text: text)
+                    MergeListen(score: score, mergeModel: mergeModel, text: text)
                 }
                 .padding(CGFloat.ds("s-4"))
             }

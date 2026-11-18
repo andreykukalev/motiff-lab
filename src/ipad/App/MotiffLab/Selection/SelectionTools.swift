@@ -280,14 +280,16 @@ extension View {
 
 /// After a clear or a replace, «Выделение снято · Вернуть» for six seconds (#511 11): one tap brings the selection back,
 /// with any pointer; no Redo here. While a pointer that cannot scroll moves off the selection before the hold, the hint
-/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there.
+/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there but while a
+/// merge draft is open (`merging`): the draft has its own.
 struct SelectionToastView: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    let merging: Bool
 
     var body: some View {
         ZStack {
-            UndoKeys(score: score)
+            if !merging { UndoKeys(score: score) }
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
@@ -308,21 +310,18 @@ struct SelectionToastView: View {
     }
 }
 
-/// ⌘Z and ⇧⌘Z on a keyboard: Undo and Redo of the tool in force (#521 9, ScoreController.undoOwner), nothing in Navigate;
-/// not while a merge has its own.
+/// ⌘Z and ⇧⌘Z on a keyboard: Undo and Redo of the tool in force (#521 9, ScoreController.undoOwner), nothing in Navigate.
 struct UndoKeys: View {
     @ObservedObject var score: ScoreController
 
     var body: some View {
-        if score.merge == nil {
-            Group {
-                Button("") { score.undoKey() }.keyboardShortcut("z", modifiers: .command)
-                Button("") { score.redoKey() }.keyboardShortcut("z", modifiers: [.command, .shift])
-            }
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
+        Group {
+            Button("") { score.undoKey() }.keyboardShortcut("z", modifiers: .command)
+            Button("") { score.redoKey() }.keyboardShortcut("z", modifiers: [.command, .shift])
         }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
     }
 }
 

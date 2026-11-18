@@ -29,9 +29,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 ## The state it owns
 
 `SourcesModel`: `versions` (`VersionShelf`), `status`, `page` and `engraved`. `MergeModel`: `draft`, `at`, `phrase`,
-`view`, `hearing`, `comparing`, `toast`, `markerPick`. Both are set only through their methods; `ScoreController`
-forwards them (`mergePhrase` and `comparing` also set, as the views bind them) and keeps `sources` (`SourcesInfo`) as
-[ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes of S4 and S4b, says. `SourcesController`: the
+`view`, `hearing`, `comparing`, `toast`, `markerPick`. Both are set only through their methods; the views observe
+them (Bar | Phrase and Compare versions bind `scope(phrase:)` and `compare(_:)`), and `ScoreController` keeps `sources`
+(`SourcesInfo`) as [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes of S4, S4b and S7a, say. `SourcesController`: the
 layers of 0030.
 
 ## Baseline entries that protect it
