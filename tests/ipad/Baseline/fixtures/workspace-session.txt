@@ -48,6 +48,8 @@
   roll position: 0 standing, looping yes
 
 ## a beat outside the selection is tapped on the score
+
+## Цикл is turned off
   player cycle: off
   player loops: none
   roll selection: 4560–6000, loops none

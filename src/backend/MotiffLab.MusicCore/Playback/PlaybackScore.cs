@@ -173,8 +173,7 @@ public sealed class PlaybackScore
             bars.Add(new PlaybackBar(bar.Number, bar.Span, beatTicks, bar.Signature.Numerator, bar.IsPickup));
 
             // A pickup's beats count from the end of a full bar, so its first beat can fall after its start.
-            long leadIn = bar.Signature.BarTicks - bar.Span.Duration;
-            long firstOffset = bar.IsPickup ? (beatTicks - (leadIn % beatTicks)) % beatTicks : 0;
+            long firstOffset = (beatTicks - (bar.LeadIn % beatTicks)) % beatTicks;
             for (long offset = firstOffset; offset < bar.Span.Duration; offset += beatTicks)
             {
                 Tick at = bar.Span.Onset.Offset(offset);

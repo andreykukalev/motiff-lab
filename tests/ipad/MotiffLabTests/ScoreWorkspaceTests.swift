@@ -304,6 +304,20 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(now?.loop, false)
     }
 
+    /// PLAY-06, Andrei's answer 3 (2026-11-18 12:55 UTC): a finger's tap on a beat with the Pen on places the playhead as in
+    /// Navigate (#479 item 18) and does not turn Цикл off; outside the selection Play plays from there (the lead-in).
+    func testAFingersTapWithThePenOnLeavesCycleOn() async throws {
+        let workspace = try await selected()
+        let passage = try XCTUnwrap(workspace.score.playRange?.range)
+        workspace.player.hold(selection: passage)
+        XCTAssertTrue(workspace.player.cycle, "a selection made where there was none turns Цикл on")
+        workspace.score.penOn = true
+        workspace.placeTapped(passage.upperBound + 480..<passage.upperBound + 960)
+        XCTAssertTrue(workspace.player.cycle, "the Pen's tap leaves Цикл on")
+        XCTAssertTrue(workspace.player.leadIn, "Play plays from the tap into the selection")
+        XCTAssertEqual(workspace.player.selection, passage)
+    }
+
     /// PDF | Notes (#511 section 10): the "Notes" view kept as the screen goes comes back on the screen that opens from
     /// the PDF (`Landing.kept`): the selection and the roll's drawer, and the pages show once they stand there.
     func testTheNotesViewKeptComesBack() async throws {

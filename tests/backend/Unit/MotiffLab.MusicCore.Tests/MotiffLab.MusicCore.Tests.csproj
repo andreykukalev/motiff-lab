@@ -34,6 +34,8 @@
     <None Include="Notation\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- What the MusicXML importer reads from real scores (Import/MusicXml/MusicXmlImportGoldenTests.cs). -->
     <None Include="Import\MusicXml\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- How every step is explained (Variations/ExplanationGoldenTests.cs). -->
+    <None Include="Variations\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- The print and a performance compared bar by bar (Performance/PerformanceComparisonTests.cs). -->
     <None Include="Performance\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- The phrases, form and Piece DNA golden the iPad tests assert under NativeAOT too, and the kit's piece it is made from. -->

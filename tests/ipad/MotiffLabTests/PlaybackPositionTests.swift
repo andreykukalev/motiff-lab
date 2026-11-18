@@ -13,7 +13,8 @@ final class PlaybackPositionTests: XCTestCase {
     }
 
     func testThePortAnswersEveryCaseAsTheReferenceDoes() throws {
-        // The iPad's own rule (v0.6.3, #608 item 3): its cases stand in for the shared ones they name; the web runs those.
+        // The iPad's own rules (v0.6.3, #608 item 3; 0.8, answers 14 and 16): its cases stand in for the shared ones they name,
+        // or add the score's `place`; the web runs the shared ones.
         let own = try Self.file("playback-model-ipad")
         let replaces = try XCTUnwrap(own["replaces"] as? [String])
         let ownCases = try XCTUnwrap(own["cases"] as? [[String: Any]])
@@ -97,7 +98,9 @@ final class PlaybackPositionTests: XCTestCase {
             throw Malformed(what: "\(label): a state")
         }
         let selection = try span(object["selection"], label)
-        return PlaybackModel.State(selection: selection, loop: loop, tick: tick, transport: transport)
+        // The iPad's lead-in (answers 14 and 16): only its own cases write it; the shared file has none.
+        let leadIn = object["leadIn"] as? Bool ?? false
+        return PlaybackModel.State(selection: selection, loop: loop, tick: tick, transport: transport, leadIn: leadIn)
     }
 
     private static func event(_ value: Any?, _ label: String) throws -> PlaybackModel.Event {
@@ -116,6 +119,8 @@ final class PlaybackPositionTests: XCTestCase {
             return .select(selection)
         case "seek":
             if let at = number(object["at"]) { return .seek(at) }
+        case "place":
+            if let at = number(object["at"]) { return .place(at) }
         case "seekInLoop":
             if let at = number(object["at"]) { return .seekInLoop(at) }
         case "grab", "drag", "release":

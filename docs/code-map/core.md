@@ -12,24 +12,24 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 - `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
   `ImportReport`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars of a recording
-  (`BarGrid`, `GridMeter`; found and applied by `Import.Transcription.RecordingBars`, with `GridSearch`), `PageMap`,
-  `Transcribed`, the player's `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`),
-  where Notes came from (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
-- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`, with `TranscriptionOrigin`), PDFs
-  (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`). The MusicXML reader (W1.9):
-  `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`), and `ScoreBuilder` puts
-  them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks` (grace notes, rests, slurs, repeats, bar
-  lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
+  (`BarGrid`, `GridMeter`; found and applied in `Import.Transcription`), `PageMap`, `Transcribed`, the player's
+  `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`), where Notes came from
+  (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
+- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
+  `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
+  The MusicXML reader (W1.9): `MusicXmlImporter` (file checks, part list) walks each part with `PartReader`
+  (`PartFacts`), and `ScoreBuilder` puts them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks`
+  (grace notes, rests, slurs, repeats, bar lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
-- `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
-  (`SavedPerformance`, `PerformanceSource`); the comparison: `PerformanceComparison` (`NoteMatcher`,
-  `DifferenceClassifier`, `BarComparison`).
+- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
+  `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
+- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
+  `NoteMatcher`, `DifferenceClassifier`, `BarComparison`), merged and kept (`SavedPerformance`, `PerformanceSource`).
 - The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
-  `HeardRhythm` and `HeardOnsets` (notes heard in a recording), `ControlPlan` (the marks of the playing per bar,
-  `ControlEvents`; the marks come from `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and
-  `BarAccidentals` (a staff in a bar, `LayoutElements`), and `MeiWriter`.
+  `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (the playing's marks per bar, `ControlEvents`, from
+  `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
+  `LayoutElements`), and `MeiWriter`.
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
   provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
   `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
