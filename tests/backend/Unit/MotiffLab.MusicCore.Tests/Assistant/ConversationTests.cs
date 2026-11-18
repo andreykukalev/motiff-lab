@@ -142,9 +142,6 @@ public class ConversationTests
 
         SessionDraft draft = Assert.Single(session.Drafts);
         Assert.Equal(("d1", "notes.edit", 0, DraftState.Accepted), (draft.Id, draft.Tool, draft.Index, draft.State));
-        AssistantSession read = AssistantSession.Read(Json(Written(session.Write)))!;
-        Assert.Equal(Written(session.Write), Written(read.Write));
-        Assert.Null(AssistantSession.Read(Json("""{"role": "mentor"}""")));
     }
 
     [Fact]

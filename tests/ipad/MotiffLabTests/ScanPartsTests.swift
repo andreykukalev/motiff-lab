@@ -84,7 +84,7 @@ final class ScanPartsTests: XCTestCase {
         // 30 s and 40 s: 35 s a page for the six pages not back yet is three and a half minutes, so about four.
         progress = progress.read(after: 30_000).read(after: 40_000)
         XCTAssertEqual(progress.minutesLeft, 4)
-        XCTAssertEqual(ScanProgress.minutes(measured: [30_000, 32_000], pagesLeft: 10), 6, "as music-core's PageProgress")
+        XCTAssertEqual(ScanProgress.minutes(measured: [30_000, 32_000], pagesLeft: 10), 6, "the mean of the pages read times the pages left")
         XCTAssertNil(ScanProgress.minutes(measured: [], pagesLeft: 3))
         XCTAssertNil(ScanProgress.minutes(measured: [1_000], pagesLeft: 0))
         XCTAssertEqual(ScanProgress.minutes(measured: [1], pagesLeft: 1), 1, "at least one")
