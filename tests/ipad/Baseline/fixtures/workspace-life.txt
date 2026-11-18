@@ -72,6 +72,7 @@
   page placeAt
   roll frame: given
   the library opens the PDF at page 1
+  project file: written again
 
 ## the screen goes
   player shut down

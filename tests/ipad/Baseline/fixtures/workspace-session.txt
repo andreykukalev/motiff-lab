@@ -92,7 +92,25 @@
   roll selection: 4560–6000, loops none
   roll passage: 4560–6000
 
+## Expand's roll: the playhead is taken and dragged past the passage's end
+  playhead held: blue at 5999, standing
+
+## Expand's roll: the playhead is let go
+  playhead held: none
+
+## the score's page in Expand: its playhead is taken and dragged before the passage's start
+  playhead held: blue at 4560, standing
+
 ## Back to page
   Expand: closed
   roll lanes: on
   roll passage: none
+
+## the score: the playhead is taken and dragged
+  playhead held: black at 5040, standing
+
+## the score: the playhead is let go
+  playhead held: none
+
+## the roll's drawer: the playhead is taken, dragged and let go
+  playhead held: black at 4800, standing

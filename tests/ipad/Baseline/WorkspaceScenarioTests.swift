@@ -7,10 +7,10 @@ import XCTest
 /// (`fixtures/workspace-*.txt`, read where they lie in the repository). They protect what docs/ux-baseline.md says of
 /// the reactions between features, as far as the workspace decides it: PLAY-03 and PLAY-04 (Expand's passage, the loop
 /// rule), ROLL-01 (nothing the app sends changes the roll's zoom), VIEW-05 and VIEW-06 (the panels through the
-/// workspace and the assistant), VIEW-02 (nothing keeps a visited screen's workspace), and of PLAY-02 and PLAY-04 what
-/// the player's model decides while it plays. The screen's life and the views of the switch are no entry of the
-/// baseline: their transcripts are kept here as the workspace's own. What a page, a gesture or the sound decides stays
-/// with the page scenarios, the walk and the device. A transcript is what the app does today: a line in it is not
+/// workspace and the assistant), VIEW-02 (nothing keeps a visited screen's workspace), of PLAY-02 the pages' playhead
+/// gestures reaching the player, and of PLAY-02 and PLAY-04 what the player's model decides while it plays. The
+/// screen's life and the views of the switch are no entry of the baseline: their transcripts are kept here as the
+/// workspace's own. What a page, a gesture or the sound decides stays with the page scenarios, the walk and the device. A transcript is what the app does today: a line in it is not
 /// thereby approved.
 @MainActor
 final class WorkspaceScenarioTests: XCTestCase {
@@ -64,7 +64,9 @@ final class WorkspaceScenarioTests: XCTestCase {
     /// PLAY-04, PLAY-03, ROLL-01: a selection made where there was none turns Цикл on and a moved edge leaves it as the
     /// player set it; Expand shows the passage it was opened on, in the view it was in last, and Play there loops it
     /// whatever Цикл says; and through selecting, Цикл, a tap, the notes drawn again and Expand the roll is sent one
-    /// zoom, the player's own, and after its first load only loads that keep the zoom and the view.
+    /// zoom, the player's own, and after its first load only loads that keep the zoom and the view. PLAY-02, the
+    /// workspace's part, nothing playing: a playhead taken on the score's page or the roll's reaches the player, and in
+    /// Expand it is held inside the passage.
     func testPLAY03PLAY04ROLL01ASessionOnTheNotesAndTheRoll() async throws {
         let session = await WorkspaceSession(piece: try await kit())
         let workspace = session.workspace
@@ -101,12 +103,51 @@ final class WorkspaceScenarioTests: XCTestCase {
         await session.step("the roll's drawer closes") { workspace.change(.toggle(.roll)) }
         await session.step("Expand from the selection's menu") { score.enterFocus() }
         XCTAssertEqual(workspace.rollPlace, .focus, "Expand opens in the view it was in last")
+        let held = { session.say("playhead held: \(Self.words(workspace.player.drag))") }
+        await session.step("Expand's roll: the playhead is taken and dragged past the passage's end") {
+            workspace.roll.playheadGestured?(.grab(.black))
+            workspace.roll.playheadGestured?(.move(7000))
+            held()
+        }
+        XCTAssertEqual(workspace.player.drag?.handle, .blue, "PLAY-02: on Expand's roll the playhead held is the passage's")
+        XCTAssertEqual(workspace.player.drag?.last, 5999, "PLAY-02: held inside the passage, a tick before its end")
+        await session.step("Expand's roll: the playhead is let go") {
+            workspace.roll.playheadGestured?(.release)
+            held()
+        }
+        await session.step("the score's page in Expand: its playhead is taken and dragged before the passage's start") {
+            score.playheadGestured?(.grab(.black))
+            score.playheadGestured?(.move(1000))
+            held()
+            score.playheadGestured?(.release)
+        }
         await session.step("Back to page") { score.leaveFocus() }
+        await session.step("the score: the playhead is taken and dragged") {
+            score.playheadGestured?(.grab(.black))
+            score.playheadGestured?(.move(5040))
+            held()
+        }
+        XCTAssertEqual(workspace.player.drag, PlayheadDrag(handle: .black, resume: false, last: 5040), "PLAY-02: the score's handle reaches the player")
+        await session.step("the score: the playhead is let go") {
+            score.playheadGestured?(.release)
+            held()
+        }
+        await session.step("the roll's drawer: the playhead is taken, dragged and let go") {
+            workspace.roll.playheadGestured?(.grab(.black))
+            workspace.roll.playheadGestured?(.move(4800))
+            held()
+            workspace.roll.playheadGestured?(.release)
+        }
 
         try compare(session.transcript, with: "workspace-session")
         let roll = session.lines.filter { $0.hasPrefix("  roll ") }
         XCTAssertEqual(roll.filter { $0.hasPrefix("  roll zoom") }, ["  roll zoom: time 1"], "the one zoom is the player's")
         XCTAssertEqual(roll.filter { $0.hasPrefix("  roll load") }.dropFirst().filter { !$0.contains("kept") }, [], "a load after the first keeps the zoom")
+    }
+
+    /// A playhead held, as a transcript writes it.
+    private static func words(_ drag: PlayheadDrag?) -> String {
+        drag.map { "\($0.handle.rawValue) at \(Int($0.last)), \($0.resume ? "to play on" : "standing")" } ?? "none"
     }
 
     /// PLAY-02, what the player's model decides (the handle is the pages', the sound the device's): taken while it
@@ -261,8 +302,10 @@ final class WorkspaceScenarioTests: XCTestCase {
                 atPdf = true
             }
             XCTAssertNotNil(toPdf, "the piece has a PDF to go to")
+            let before = Self.written(file)
             toPdf?()
             await session.until("the piece is saved and handed to its PDF") { atPdf }
+            session.say("project file: \(Self.written(file) != before ? "written again" : "not written again")")
         }
         await session.step("the screen goes") { workspace.disappeared() }
         kept(session, file, view)

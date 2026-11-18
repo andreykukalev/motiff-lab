@@ -140,6 +140,7 @@ final class WorkspaceSession {
             still = waiting == 0 && lines.count == said ? still + 1 : 0
             said = lines.count
         }
+        XCTAssertGreaterThanOrEqual(still, 10, "the screen went on doing something")
     }
 
     /// Waits, up to ten seconds, for what a step started that `quiet` does not see.
