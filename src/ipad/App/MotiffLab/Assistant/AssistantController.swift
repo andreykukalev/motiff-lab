@@ -203,6 +203,16 @@ final class AssistantController: ObservableObject {
         here = nil
     }
 
+    /// «Продолжить в ассистенте» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
+    /// the full assistant (as «Добавить в контекст» moves them, `addHere`), whose panel opens on the selected bars to go on
+    /// there; the chat at the selection closes. Without this press the chat at the selection keeps nothing.
+    func continueHere() {
+        guard let asked = here, asked.exchange != nil else { return }
+        startNew()
+        addHere()
+        open(wholePiece: false, selection: asked.selection)
+    }
+
     /// Accept on a draft (#582 item 17.3): music-core makes it again from its call and adds it as corrections; the draft
     /// says it is accepted, or why it could not be. True when it was.
     @discardableResult

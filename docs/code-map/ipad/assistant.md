@@ -20,7 +20,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   the turn format v1, cited facts. `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`.
 - `AssistantStore.swift`: conversations by piece in Application Support (never the project file).
 - `AssistantPanel.swift`, `AssistantSide.swift`: the side panel, the consent, the list, `AssistantPendingView`,
-  `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection (`SelectionMenu` turns into it),
+  `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection (`SelectionMenu` turns into it;
+  «Продолжить в ассистенте», `continueHere`, starts a conversation in the panel with its question and answer),
   `KeyboardLift`.
 - `ChatFollow.swift`: `ChatFollow`, the one follow rule of both chats (a height change is growth, an end moved at the
   same height the player; scrolled up, nothing pulls back; a new answer from its start or its end, the caller's
