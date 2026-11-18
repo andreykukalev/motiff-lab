@@ -144,6 +144,23 @@ final class RecognitionTests: XCTestCase {
         XCTAssertEqual(UIText(language: "ru").count("recognition.pieces", 8), "8 пьес")
     }
 
+    func testTheConsentAndTheBatchSpeakInTheIPadsWordsNotTheComputers() {
+        // Andrei's answer 12 (2026-11-17): the iPad's own wording, «на этом устройстве», not the web's «на этом компьютере».
+        let english = UIText(language: "en"), russian = UIText(language: "ru")
+        XCTAssertEqual(english.format("recognition.whereHere", "192.168.1.5"), "The PDFs go to the recognition server on this device (192.168.1.5); they do not leave it.")
+        XCTAssertEqual(russian.format("recognition.whereHere", "192.168.1.5"), "PDF уйдут на сервер распознавания на этом устройстве (192.168.1.5) и не покинут его.")
+        XCTAssertEqual(english.format("recognition.whereOwn", "scan.example.org"), "The PDFs go to your recognition server at scan.example.org.")
+        XCTAssertEqual(russian.format("recognition.whereOwn", "scan.example.org"), "PDF уйдут на ваш сервер распознавания scan.example.org.")
+        XCTAssertEqual(english["recognition.whereHosted"], "The PDFs go to the Motiff Lab recognition server, which deletes them once read.")
+        XCTAssertEqual(russian["recognition.whereHosted"], "PDF уйдут на сервер распознавания Motiff Lab, который удалит их после чтения.")
+        XCTAssertEqual(english.format("recognition.todayLine", "3", "1000"), "3 of the 1000 pages a day on the Motiff Lab server")
+        XCTAssertEqual(russian.format("recognition.todayLine", "3", "1000"), "3 из 1000 страниц дневного лимита на сервере Motiff Lab")
+        XCTAssertEqual(english["recognition.whatLine"], "The notes go into these same pieces. The PDFs and the marks on them stay as they are.")
+        XCTAssertEqual(english.format("recognition.finished", "2", "3"), "Notes recognised: 2 of 3")
+        XCTAssertEqual(english["recognition.failMissing"], "The piece is no longer in the library")
+        XCTAssertEqual(russian["recognition.failMissing"], "Пьесы больше нет в библиотеке")
+    }
+
     func testSelectAllPicksEveryPieceShownWithoutNotesOrNone() {
         func entry(_ name: String, withoutNotes: Bool) -> LibraryEntry {
             var entry = LibraryEntry(url: URL(fileURLWithPath: "/p/\(name)"), title: name, composer: nil, tags: [], modified: Date())

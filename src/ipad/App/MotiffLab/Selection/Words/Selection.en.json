@@ -4,7 +4,7 @@
   "selection.holdHint": "Hold to start a new selection",
   "selection.byBeats": "By beats",
   "selection.options": "Selection options",
-  "selection.noNotes": ": no notes start here, so there is nothing to loop.",
+  "selection.noNotes": "No notes there: the selection stays as it was",
   "selection.beatSpan": "Bar {0}, beat {1} → bar {2}, beat {3}",
   "selection.replacedToast": "Selection replaced",
   "selection.tooLong": "A selection spans up to 32 bars: it stays as it was"
