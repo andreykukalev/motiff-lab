@@ -20,9 +20,16 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 
 ## The contract others may rely on
 
+`FocusModel`: its state changes only through its methods (`open`, `close`, `showAsRoll`, `takeCardOptions`,
+`showVersion`, `updatePlayRange`); the play range is the selection's span, nil without one; `unit` is the unit of the
+level shown that is selected, or the one that holds the selection's start.
+
 `PlaybackModel` follows the shared case file above. The rest: not recorded yet.
 
 ## The state it owns
+
+`FocusModel`: `entry`, `asRoll`, the card's options, `version` and `playRange`; Expand's `focused` is still
+`ScoreController`'s ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the note of S3).
 
 The practice visibilities (`PracticeView`). The rest: not recorded yet.
 

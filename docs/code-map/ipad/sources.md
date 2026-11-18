@@ -5,12 +5,14 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 ## Files
 
 `KeptCopies`, `Merge`, `OriginalSounds`, `Originals`, `OriginalsController`, `OriginalsViews`, `SourceLayers`,
-`SourcesController`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+`SourcesController`, `SourcesModel`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
 - `SourceLayers.swift`: the sources by the layers of 0030 as the app shows them, built from `SourceLayersAnswer`
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`).
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
+- `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a
+  version and the list through music-core. Tests: `MotiffLabTests/SourcesModelTests`.
 - `Versions.swift`: `MergeInfo` (the draft, from `MergeAnswer`: `PieceCore.merge`), `VersionShelf` (the versions and the
   one compared, from `PerformanceAnswer`: `PieceCore.mergeApply` and `.mergeUndoApplied`, or from the text of the version
   calls not yet in the port, `read(performance:)`, `read(list:)`), `VersionEntry` (`init?(_: VersionHead)`), the views.
@@ -24,7 +26,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## The state it owns
 
-Not recorded yet.
+`SourcesModel`: `versions` (`VersionShelf`), `status`, `page` and `engraved`, set only through its methods;
+`ScoreController` forwards `versions`, `versionStatus` and `versionPage` read-only and keeps `sources` (`SourcesInfo`)
+and the version's notes to hear (to `FocusModel` in S4b) as [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md),
+the note of S4, says. `SourcesController`: the layers of 0030.
 
 ## Baseline entries that protect it
 

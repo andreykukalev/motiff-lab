@@ -415,8 +415,8 @@
     {"tool":"swiftlint","rule":"cyclomatic_complexity","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"handle","value":19,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"","value":852,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Sources/Versions.swift","symbol":"","value":1007,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"","value":2254,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"type_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"class ScoreController","value":1621,"why":"existing before #332"},
+    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"","value":2239,"why":"existing before #332"},
+    {"tool":"swiftlint","rule":"type_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"class ScoreController","value":1608,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift","symbol":"","value":2088,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"function_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift","symbol":"layers","value":143,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"tests/ipad/MotiffLabTests/FacadeTests.swift","symbol":"","value":701,"why":"existing before #332"}

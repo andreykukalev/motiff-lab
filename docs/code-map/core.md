@@ -57,8 +57,8 @@ and `cref`s alike: a `cref` needs the namespace too, so a comment names a type o
 (`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only `Time` and the root (`Words`); `Motifs`
 only `Time` and `Events`; `Pieces` those and the root; `Import` (all its sub-namespaces counted as one) and `Playback` add
 nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`, `Assembly`, `Variations`, ...),
-`Projects`, `Assistant` and `Facade`. A new loop is a defect; the `dependencies` check does not read these edges yet
-(W1.3, rules pull request).
+`Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers (`CORE_LAYERS`, listed in
+`governance/quality/README.md`): a namespace uses only the layers below its own.
 
 ## Rules not to break
 

@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
-  IPAD_FOLDER_USES, bundledFolders, coreViolations, ipadFolderViolations, ipadPageViolations, runtimeImports, swiftCode,
+  CORE_LAYERS, IPAD_FOLDER_USES, bundledFolders, coreNamespaceViolations, coreViolations, csharpCode, ipadFolderViolations,
+  ipadPageViolations, runtimeImports, swiftCode,
 } from './dependencies.mjs';
 import { compare, updateBaseline } from './ratchet.mjs';
 
@@ -26,6 +27,48 @@ test('music-core references no project and no forbidden package', () => {
     + '  <PackageReference Include="OpenAI" Version="2" />\n  <ProjectReference Include="..\\Web\\Web.csproj" />\n</ItemGroup>';
   const out = coreViolations(['src/backend/MotiffLab.MusicCore/M.csproj'], reader({ 'src/backend/MotiffLab.MusicCore/M.csproj': csproj }));
   assert.deepEqual(rules(out), ['core-reference ..\\Web\\Web.csproj', 'core-package OpenAI']);
+});
+
+const core = (files) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`src/backend/MotiffLab.MusicCore/${path}`, text]));
+const namespaceEdges = (files) => coreNamespaceViolations(Object.keys(files), reader(files)).map((v) => `${v.file.slice(32)}:${v.line} ${v.symbol}`);
+const namespaces = {
+  'Time/Tick.cs': 'namespace MotiffLab.MusicCore.Time;\npublic readonly record struct Tick(long Value);\n',
+  'Pieces/ImportedPiece.cs': 'using MotiffLab.MusicCore.Time;\n\nnamespace MotiffLab.MusicCore.Pieces;\npublic sealed record ImportedPiece(Tick End);\n',
+  'Import/Scan/ScanCheck.cs': 'namespace MotiffLab.MusicCore.Import.Scan;\npublic sealed class ScanCheck {}\n',
+  'Projects/Project.cs': 'namespace MotiffLab.MusicCore.Projects;\npublic sealed partial record Project { public PieceAssembly Assembly { get; } }\n',
+};
+
+test('a music-core namespace uses the layers below its own, by a using line or a name written qualified', () => {
+  const files = core({
+    ...namespaces,
+    'Pieces/Bookmark.cs': 'using MotiffLab.MusicCore.Projects;\n\nnamespace MotiffLab.MusicCore.Pieces;\n'
+      + '/// <summary>Kept in <see cref="Projects.Project"/>, read by <c>Import.Scan.ScanCheck</c>.</summary>\n'
+      + 'public sealed record Bookmark(Tick At) { const string S = "Import.Scan.ScanCheck"; }\n',
+    'Time/Meter.cs': 'namespace MotiffLab.MusicCore.Time;\n// Pieces.ImportedPiece reads it.\n'
+      + 'public sealed class Meter { Pieces.ImportedPiece? piece; MusicCore.Import.Scan.ScanCheck? check; }\n',
+    'Projects/Open.cs': 'using MotiffLab.MusicCore.Import.Scan;\n\nnamespace MotiffLab.MusicCore.Projects;\n'
+      + 'partial record Project { string A => Assembly.Steps; Pieces.ImportedPiece? P; string B => typeof(Project).Assembly.FullName; }\n',
+  });
+  assert.deepEqual(namespaceEdges(files), ['Pieces/Bookmark.cs:1 Pieces: Projects', 'Time/Meter.cs:3 Time: Pieces', 'Time/Meter.cs:3 Time: Import']);
+});
+
+test("a cref's name is code, other comment text and string literals are not", () => {
+  const text = '/// <see cref="A.B"/> and C.D\n/* E.F */ var s = @"x ""G.H"" y" + $"{I.J}" + """\nK.L\n""" + \'"\' + "M.N";\n';
+  const code = csharpCode(text);
+  assert.deepEqual([...code.matchAll(/[A-Z]\.[A-Z]/g)].map((m) => m[0]), ['A.B']);
+  assert.equal(code.length, text.length);
+  assert.equal(code.split('\n').length, text.split('\n').length);
+});
+
+test('a file in a music-core namespace the layers do not list is reported', () => {
+  const files = core({ 'Practice/Drill.cs': 'namespace MotiffLab.MusicCore.Practice;\npublic sealed class Drill {}\n' });
+  assert.deepEqual(rules(coreNamespaceViolations(Object.keys(files), reader(files))), ['core-namespace-unlisted Practice']);
+});
+
+test("governance/quality/README.md shows music-core's layers as CORE_LAYERS has them", () => {
+  const readme = readFileSync(new URL('../../governance/quality/README.md', import.meta.url), 'utf8');
+  const rows = [...readme.matchAll(/^\| (\d+) \| (.+?) \|$/gm)].map((m) => [Number(m[1]), m[2]]);
+  assert.deepEqual(rows, CORE_LAYERS.map((layer, index) => [index + 1, layer.map((name) => `\`${name}\``).join(', ')]));
 });
 
 test('the bundled folders are the wwwroot/js paths of the iPad project', () => {

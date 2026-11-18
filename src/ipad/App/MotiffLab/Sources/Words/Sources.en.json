@@ -3,6 +3,8 @@
   "sources.makeWorking": "Make working",
   "performance.close": "Close Other versions",
   "performance.name": "Name",
+  "performance.noMatch": "The version does not line up with these notes: no note found its pair. Is it the same piece?",
+  "performance.added": "Lined up: {0} of {1} notes found in the version, {2} bars differ.",
   "merge.overview": "Overview",
   "merge.verdict": "{0} plays {1} differently, {2}.",
   "merge.verdictSame": "{0} plays every bar as your notes have it.",
