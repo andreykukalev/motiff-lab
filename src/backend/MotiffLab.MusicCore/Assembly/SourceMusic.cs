@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -58,7 +58,7 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
 
         ImportedPiece heard = Transcribed.Mark(BarGrid.Find(piece.Midi) is { } grid ? grid.Apply(piece) : piece);
         SourceMusic music = OfPiece(heard, heard.Notes);
-        return heard.Keys.Count == 0 && Transcribed.KeyOf(heard.Notes) is { } key
+        return heard.Keys.Count == 0 && MusicalKey.OfHeard(heard.Notes) is { } key
             ? music with { Keys = [new KeySignature(Tick.Zero, key.Fifths, key.Mode)] }
             : music;
     }
@@ -127,7 +127,7 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
         Tick from = new(Math.Max(0, start.Value - context));
         Tick to = end.Offset(context);
         Note[] notes = [.. Notes.Where(note => note.Span.Onset >= from && note.Span.Onset < to)];
-        return Transcribed.KeyOf(notes);
+        return MusicalKey.OfHeard(notes);
     }
 
     /// <summary>The notes that start in <c>[start, end)</c>.</summary>

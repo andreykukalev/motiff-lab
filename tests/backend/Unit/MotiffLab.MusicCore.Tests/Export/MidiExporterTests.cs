@@ -2,6 +2,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;

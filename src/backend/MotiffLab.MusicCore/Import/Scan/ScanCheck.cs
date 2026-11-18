@@ -1,6 +1,5 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import.MusicXml;
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;

@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Import.Midi;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>Stable codes for MIDI import issues, and their descriptions in English and Russian.</summary>
 public static class MidiIssueCodes

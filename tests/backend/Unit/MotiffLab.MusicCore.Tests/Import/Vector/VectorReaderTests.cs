@@ -4,6 +4,7 @@ using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Vector;
+using MotiffLab.MusicCore.Pieces;
 
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Core;

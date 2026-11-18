@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Motifs;

@@ -1,7 +1,5 @@
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Midi;
-using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Playback;
@@ -263,7 +261,7 @@ public sealed class PlaybackScore
     {
         ArgumentNullException.ThrowIfNull(piece);
         ArgumentNullException.ThrowIfNull(score);
-        if (score.PieceTempos[0].Source != TempoSource.Assumed || Import.Transcription.Transcribed.IsHeard(piece))
+        if (score.PieceTempos[0].Source != TempoSource.Assumed || Transcribed.IsHeard(piece))
         {
             return score;
         }
@@ -280,7 +278,7 @@ public sealed class PlaybackScore
     {
         ArgumentNullException.ThrowIfNull(piece);
         ArgumentNullException.ThrowIfNull(score);
-        if (piece.Bars is not null || piece.AssembledTempos is not null || !Import.Transcription.Transcribed.IsHeard(piece) || score.PieceTempos.All(static tempo => tempo.Source != TempoSource.Notated))
+        if (piece.Bars is not null || piece.AssembledTempos is not null || !Transcribed.IsHeard(piece) || score.PieceTempos.All(static tempo => tempo.Source != TempoSource.Notated))
         {
             return score;
         }

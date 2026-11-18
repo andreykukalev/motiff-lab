@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -66,7 +67,7 @@ public class TempoSourceTests
         PlaybackScore clock = PlaybackScore.Create([], [new PlaybackTempo(Tick.Zero, 500_000)], MeterMap.Default, Tick.Zero);
         ImportedPiece heard = PieceImporter.Import(
             "heard.mid", File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "scale-type0.mid"))).Piece!;
-        heard = MotiffLab.MusicCore.Import.Transcription.Transcribed.Mark(heard);
+        heard = Transcribed.Mark(heard);
 
         Assert.Same(clock, PlaybackScore.DefaultTempoOf(heard, clock));
         Assert.Equal(TempoSource.Default, PlaybackScore.DefaultTempoOf(Piece(Homr()), clock).StartTempo.Source);

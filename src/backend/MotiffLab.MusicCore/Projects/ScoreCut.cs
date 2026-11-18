@@ -13,7 +13,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// </summary>
 /// <remarks>
 /// The first measure loses a scan's <c>new-page</c> mark, since it begins the score; the later ones keep theirs, so the
-/// stretch's own pages are known (<see cref="PageMap.Of"/>). Pure and deterministic; nothing is read from outside the text.
+/// stretch's own pages are known (<see cref="Pieces.PageMap.Of"/>). Pure and deterministic; nothing is read from outside the text.
 /// </remarks>
 internal static class ScoreCut
 {

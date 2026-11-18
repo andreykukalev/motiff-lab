@@ -11,6 +11,7 @@ using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
@@ -614,7 +615,7 @@ internal sealed partial class OpenPiece
 
     /// <summary>The key signatures the score is written in: the piece's, or for notes heard without one the key worked out from them.</summary>
     private IEnumerable<KeyChange> NotationKeys(bool heard) =>
-        heard && Piece.Keys.Count == 0 && Transcribed.KeyOf(Notes) is { } heardKey
+        heard && Piece.Keys.Count == 0 && MusicalKey.OfHeard(Notes) is { } heardKey
             ? [new KeyChange(Tick.Zero, heardKey.Fifths)]
             : Piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
 

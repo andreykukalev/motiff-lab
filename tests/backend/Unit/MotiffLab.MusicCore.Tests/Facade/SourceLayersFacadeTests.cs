@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;

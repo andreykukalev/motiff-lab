@@ -3,7 +3,7 @@ using System.Text;
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;

@@ -5,6 +5,7 @@ using MotiffLab.MusicCore.Assistant.Repairs;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 

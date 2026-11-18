@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 

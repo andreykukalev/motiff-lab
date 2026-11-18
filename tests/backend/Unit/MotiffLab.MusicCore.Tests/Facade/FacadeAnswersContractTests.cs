@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Facade;

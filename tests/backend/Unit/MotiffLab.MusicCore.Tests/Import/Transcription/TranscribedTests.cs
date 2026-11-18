@@ -1,6 +1,7 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Import.Transcription;
@@ -112,7 +113,7 @@ public class TranscribedTests
             Attribution = Attribution.Imported,
         })];
 
-        Assert.Equal("F minor", Transcribed.KeyOf(notes)!.Value.Name);
-        Assert.Null(Transcribed.KeyOf([]));
+        Assert.Equal("F minor", MusicalKey.OfHeard(notes)!.Value.Name);
+        Assert.Null(MusicalKey.OfHeard([]));
     }
 }

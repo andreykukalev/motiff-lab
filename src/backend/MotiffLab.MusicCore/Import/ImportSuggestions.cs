@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import;
 
@@ -50,7 +50,7 @@ internal sealed class ImportSuggestions
     /// </summary>
     private bool IsPossibleCollection(FoundFile file, string[] segments) =>
         file.Pages > LibraryImport.CollectionPages
-        || FileNameDetails.NamesCollection(PieceDetails.TitleOf(file.Name))
+        || FileNameDetails.NamesCollection(PieceMetadata.TitleOf(file.Name))
         || (segments.Length > 0 && _alone.Contains(file.Path) && FileNameDetails.NamesCollection(segments[^1]));
 
     private static Suggestion TitleOf(FoundFile file)
@@ -62,7 +62,7 @@ internal sealed class ImportSuggestions
 
         return FileNameDetails.Of(file.Name).Title is { } named
             ? new(named, SuggestionSource.FileName, Named)
-            : new(PieceDetails.TitleOf(file.Name), SuggestionSource.FileName, NameOnly);
+            : new(PieceMetadata.TitleOf(file.Name), SuggestionSource.FileName, NameOnly);
     }
 
     private Suggestion? ComposerOf(FoundFile file, string[] segments)

@@ -4,7 +4,7 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 

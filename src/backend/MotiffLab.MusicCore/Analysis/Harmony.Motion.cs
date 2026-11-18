@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Analysis;

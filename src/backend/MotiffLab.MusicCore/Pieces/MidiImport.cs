@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.Midi;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// Everything Stage 1 keeps from a Standard MIDI File, on the canonical timeline, with the import report.

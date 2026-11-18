@@ -1,15 +1,8 @@
-using MotiffLab.MusicCore.Import.Midi;
-using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Analysis;
-
-public enum KeyMode
-{
-    Major,
-    Minor,
-}
 
 /// <summary>A major or minor key, named by its key signature.</summary>
 public readonly record struct MusicalKey
@@ -98,45 +91,25 @@ public readonly record struct MusicalKey
         _ => "",
     };
 
+    /// <summary>
+    /// The key to write notes heard in a recording in, which the engine does not give: the major or
+    /// minor key whose profile best fits how long each pitch class sounds (decision record 0016), with
+    /// notes below middle C counting twice, since the bass carries the roots of the harmony.
+    /// An inference for the score's key signature only; analysis still treats the piece as having none.
+    /// Null without notes.
+    /// </summary>
+    public static MusicalKey? OfHeard(IReadOnlyList<Note> notes)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        double[] weights = new double[12];
+        foreach (Note note in notes)
+        {
+            int bass = note.Pitch.MidiNumber < 60 ? 2 : 1;
+            weights[note.Pitch.MidiNumber % 12] += bass * Math.Min(note.Span.Duration, 4 * CanonicalTime.TicksPerQuarter);
+        }
+
+        return weights.All(weight => weight == 0) ? null : KeyFinder.Rank(weights)[0].Key;
+    }
+
     private static int Mod12(int value) => ((value % 12) + 12) % 12;
-}
-
-/// <summary>A key signature as the source file states it.</summary>
-/// <param name="Fifths">Sharps (positive) or flats (negative), −7 to 7.</param>
-/// <param name="Mode">The mode when the file states it; null when it gives only the sharps or flats.</param>
-public sealed record KeySignature(Tick At, int Fifths, KeyMode? Mode)
-{
-    /// <summary>A MIDI key signature always states its mode.</summary>
-    public static IReadOnlyList<KeySignature> FromMidi(MidiImport import)
-    {
-        ArgumentNullException.ThrowIfNull(import);
-        return [.. import.KeySignatures
-            .Select(key => new KeySignature(key.At, Math.Clamp(key.Sharps, -7, 7), key.IsMinor ? KeyMode.Minor : KeyMode.Major))
-            .OrderBy(key => key.At)];
-    }
-
-    /// <summary>The key signatures of the first part that has any, as the score view uses them. Modes other than major and minor count as not stated.</summary>
-    public static IReadOnlyList<KeySignature> FromMusicXml(MusicXmlImport import)
-    {
-        ArgumentNullException.ThrowIfNull(import);
-        int firstTrack = import.KeySignatures.Count == 0 ? 0 : import.KeySignatures.Min(key => key.Track);
-        return [.. import.KeySignatures
-            .Where(key => key.Track == firstTrack)
-            .Select(key => new KeySignature(key.At, Math.Clamp(key.Fifths, -7, 7), ModeOf(key.Mode)))
-            .OrderBy(key => key.At)];
-    }
-
-    /// <summary>The key signature in force at a position, or null before the first.</summary>
-    public static KeySignature? InForce(IEnumerable<KeySignature> keys, Tick position)
-    {
-        ArgumentNullException.ThrowIfNull(keys);
-        return keys.Where(key => key.At <= position).OrderBy(key => key.At).LastOrDefault();
-    }
-
-    private static KeyMode? ModeOf(string? mode) => mode?.Trim().ToLowerInvariant() switch
-    {
-        "major" or "ionian" => KeyMode.Major,
-        "minor" or "aeolian" => KeyMode.Minor,
-        _ => null,
-    };
 }

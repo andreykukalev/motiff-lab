@@ -1,10 +1,9 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
-using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;

@@ -1,13 +1,13 @@
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Import.Transcription;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// How a recording's beat grid is searched for when it follows a live performance (version 0.5, «Темп живого
 /// исполнения»): afresh in each section, a section starting after every pause of at least
 /// <see cref="SectionSilence"/>, at each of <see cref="Starts"/>, and where the beat sticks at the edge of
 /// the tempo it may bend to for <see cref="JumpRun"/> beats running. A score linked to the recording may give a
-/// <see cref="Hint"/>; it is never imposed. Without a search, <see cref="BarGrid.Find(Midi.MidiImport, TimeSignature?, int?, GridSearch?)"/> works as before.
+/// <see cref="Hint"/>; it is never imposed. Without a search, <see cref="BarGrid.Find(MidiImport, TimeSignature?, int?, GridSearch?)"/> works as before.
 /// </summary>
 public sealed record GridSearch
 {

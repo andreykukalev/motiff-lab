@@ -2,8 +2,8 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 
-using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.MusicXml;
@@ -33,9 +33,6 @@ public static class MusicXmlImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
     public const int MaxFileBytes = 50 * 1024 * 1024;
-
-    /// <summary>Velocity for notes the score gives no playback dynamics: between mp and mf.</summary>
-    public const int DefaultVelocity = 80;
 
     /// <summary>MusicXML dynamics are a percentage of forte, which is velocity 90.</summary>
     private const int ForteVelocity = 90;
@@ -178,7 +175,7 @@ public static class MusicXmlImporter
                     note.Staff,
                     note.Voice,
                     note.Pitch,
-                    note.Velocity ?? DefaultVelocity,
+                    note.Velocity ?? MusicXmlImport.DefaultVelocity,
                     note.Velocity is null,
                     onset,
                     duration,

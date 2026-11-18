@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Pieces;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>Where an original's bytes are, or where the original of Notes is, as the Sources sheet says it (0030, section 3).</summary>

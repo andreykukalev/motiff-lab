@@ -3,6 +3,7 @@ using System.Text;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Import;
 

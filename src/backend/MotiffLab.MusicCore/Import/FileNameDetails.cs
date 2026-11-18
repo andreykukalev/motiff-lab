@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import;
 
@@ -22,7 +22,7 @@ public sealed partial record FileNameDetails(string? Title, string? Composer, st
     public static FileNameDetails Of(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
-        return OfText(PieceDetails.TitleOf(NameText.Composed(fileName)));
+        return OfText(PieceMetadata.TitleOf(NameText.Composed(fileName)));
     }
 
     /// <summary>What a title written somewhere else suggests: no extension is taken off.</summary>

@@ -15,16 +15,16 @@ public class ExperimentCatalogueTests
     private const string FurElise = "fur-elise-original.musicxml";
     private const string OdeToJoy = "ode-to-joy.musicxml";
 
-    private static ImportedPiece Piece(string name) =>
+    private static Pieces.ImportedPiece Piece(string name) =>
         PieceImporter.Import(name, File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", name))).Piece!;
 
     /// <summary>What the app reads for a selection of bars: the motif, structure and character analyses.</summary>
     private static InvitationContext Context(string name, int firstBar, int lastBar, int maxBars = MotifSelection.MaxBars)
     {
-        ImportedPiece piece = Piece(name);
+        Pieces.ImportedPiece piece = Piece(name);
         TickSpan span = TickSpan.FromBounds(piece.Meter.GetBar(firstBar).Span.Onset, lastBar == MotifSelector.LastBar(piece.Meter, piece.End) ? piece.End : piece.Meter.GetBar(lastBar).Span.End);
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, span, SelectionFilter.All, maxBars);
-        KeySignature? key = KeySignature.InForce(piece.Keys, selection.Span.Onset);
+        Pieces.KeySignature? key = Pieces.KeySignature.InForce(piece.Keys, selection.Span.Onset);
         return new InvitationContext(
             piece.Notes,
             piece.Meter,
@@ -230,7 +230,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Surprise_me_has_nothing_for_a_single_note()
     {
-        ImportedPiece piece = Piece(OdeToJoy);
+        Pieces.ImportedPiece piece = Piece(OdeToJoy);
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, new TickSpan(Tick.Zero, 480), SelectionFilter.All);
         var context = new InvitationContext(
             piece.Notes,

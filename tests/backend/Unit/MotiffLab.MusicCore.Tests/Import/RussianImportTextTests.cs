@@ -3,7 +3,7 @@ using System.Reflection;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Import;
 

@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
 using MotiffLab.MusicCore.Time;

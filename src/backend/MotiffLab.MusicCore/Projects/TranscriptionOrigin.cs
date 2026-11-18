@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects;
 

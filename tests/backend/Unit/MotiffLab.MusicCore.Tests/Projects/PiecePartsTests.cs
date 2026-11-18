@@ -8,7 +8,7 @@ using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Tests.Import.Scan;

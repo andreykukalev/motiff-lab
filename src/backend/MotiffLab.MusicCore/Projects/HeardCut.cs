@@ -1,7 +1,6 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Midi;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Projects;

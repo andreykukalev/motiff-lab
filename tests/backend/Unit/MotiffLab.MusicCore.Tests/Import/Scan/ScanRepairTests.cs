@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 

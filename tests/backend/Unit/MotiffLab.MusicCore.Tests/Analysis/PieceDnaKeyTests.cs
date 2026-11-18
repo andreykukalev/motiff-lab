@@ -1,6 +1,6 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
 
@@ -23,8 +23,8 @@ public class PieceDnaKeyTests
 
         // The reading a transcription's key signature gets (0016), so a recording's lane and its score agree.
         DnaKey key = Assert.Single(dna.Keys);
-        Assert.NotNull(Transcribed.KeyOf(piece.Notes));
-        Assert.Equal(Transcribed.KeyOf(piece.Notes), key.Key);
+        Assert.NotNull(MusicalKey.OfHeard(piece.Notes));
+        Assert.Equal(MusicalKey.OfHeard(piece.Notes), key.Key);
         Assert.True(key.KeyInferred);
         Assert.False(key.ModeInferred);
         Assert.True(key.Inferred);

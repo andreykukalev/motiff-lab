@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;

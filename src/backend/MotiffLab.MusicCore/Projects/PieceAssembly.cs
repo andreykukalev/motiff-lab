@@ -1,6 +1,6 @@
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects;
 

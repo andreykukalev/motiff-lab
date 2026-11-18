@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Projects;
@@ -156,8 +157,8 @@ public class PieceMetadataTests
 
         Project pdf = Project.CreateDocument("p_pdf", "Nocturne.final.pdf", Encoding.ASCII.GetBytes("%PDF-1.4\n%%EOF\n"), s_now);
         Assert.Equal("Nocturne.final", pdf.Details.Title.Value);
-        Assert.Equal("Nocturne", PieceDetails.TitleOf("Nocturne.motiff.json"));
-        Assert.Equal(".mid", PieceDetails.TitleOf(".mid"));
+        Assert.Equal("Nocturne", PieceMetadata.TitleOf("Nocturne.motiff.json"));
+        Assert.Equal(".mid", PieceMetadata.TitleOf(".mid"));
     }
 
     [Theory]

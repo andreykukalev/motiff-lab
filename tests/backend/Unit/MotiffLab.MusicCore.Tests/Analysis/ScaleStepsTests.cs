@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
 

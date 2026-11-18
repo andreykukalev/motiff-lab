@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -21,7 +21,7 @@ public static class LiveBars
 
     /// <summary>The live search for the recording, a section starting where each piece of the layer after the first starts, with the hint when one is given.</summary>
     /// <param name="opened">The project's piece as it opens, on its bars.</param>
-    public static GridSearch SearchFor(Project project, Import.ImportedPiece opened, GridHint? hint = null)
+    public static GridSearch SearchFor(Project project, ImportedPiece opened, GridHint? hint = null)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(opened);
@@ -48,7 +48,7 @@ public static class LiveBars
     /// and last bars of <paramref name="opened"/> it covers. None for a project without bars worked out from its notes.
     /// </summary>
     /// <param name="opened">The project's piece as it opens, on its bars.</param>
-    public static IReadOnlyList<OddBars> OddMeters(Project project, Import.ImportedPiece opened)
+    public static IReadOnlyList<OddBars> OddMeters(Project project, ImportedPiece opened)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(opened);
@@ -89,7 +89,7 @@ public static class LiveBars
     /// the pieces layer moved along by the recording's time; a piece that would start no later than the one before it joins it.
     /// </summary>
     /// <exception cref="InvalidOperationException">The project is not a transcription, or <see cref="CanChange"/> is false.</exception>
-    public static Project Change(Project project, Import.ImportedPiece opened, BarGrid? bars, Words words, DateTimeOffset now)
+    public static Project Change(Project project, ImportedPiece opened, BarGrid? bars, Words words, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(opened);
@@ -101,7 +101,7 @@ public static class LiveBars
             return changed;
         }
 
-        Import.ImportedPiece reopened = OpenedProject.Open(changed).Piece;
+        ImportedPiece reopened = OpenedProject.Open(changed).Piece;
         HeardClock clock = HeardClock.Of(changed, reopened)!;
         int lastBar = reopened.Meter.BarAt(new Tick(Math.Max(0, reopened.End.Value - 1))).Number;
         var moved = new List<PieceStart>(layer.Count);
@@ -121,7 +121,7 @@ public static class LiveBars
     }
 
     /// <summary>Where each piece of the layer starts in the recording, in microseconds of the stretch sent.</summary>
-    private static long[] StartsOf(Project project, Import.ImportedPiece opened) =>
+    private static long[] StartsOf(Project project, ImportedPiece opened) =>
         HeardClock.Of(project, opened) is { } clock
             ? [.. PieceLayer.Read(project, opened.Meter).Select(piece => clock.MicrosecondsAt(piece.Span.Onset))]
             : [];
