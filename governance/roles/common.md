@@ -102,7 +102,8 @@ context. The context is compacted automatically at about 400K tokens (the enviro
   `design/kit`, `tests/contracts`, `tests/pages`, `global.json`, `Directory.Build.props`) runs the Swift tests in the
   iPad simulator and compiles the walk of the screens (`tests/ipad/MotiffLabScreens`) on every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
   every pull request (passed when the iPad run was not needed) and is required on `develop` with `build-test`: a red or
-  cancelled iPad run blocks the merge. The same tests run on `develop` after each merge that touches those inputs, on
+  cancelled iPad run blocks the merge. After a merge that touches those inputs, `develop` only builds the app for a
+  real iPad and music-core's cache (the pull request ran the tests on its merge commit); the tests run on
   every version tag (`v*`, with the asserting walk of the screens) and by hand; the walk and the switch tests also run
   nightly on `develop` when it changed, once that schedule is on `main`. A failing walk fails its run. By hand, tick
   Walk for the asserting walk (a few minutes); Screenshots, the pictures for the mockups, holds the only Mac for about

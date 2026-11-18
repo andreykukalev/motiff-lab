@@ -5,8 +5,11 @@
 #   app is built from (its list); only then does the job `ipad` build the app and run the Swift tests in the simulator,
 #   on every push. The job `gate` (check `ipad-gate`) reports on every pull request, so the develop ruleset can require it
 #   (infra/github/protect.ps1): it passes when nothing of the app changed, and otherwise only when `ipad` passed.
-# - Every push to develop (a merge) that touches the same inputs: the same tests on develop, and the build for a real
-#   iPad. The core's framework built there is the cache that pull requests to develop read.
+# - Every push to develop (a merge) that touches the same inputs: the build for a real iPad, and the core's framework,
+#   built there on a change, is the cache that pull requests to develop read. The Swift tests and the walk's compile do
+#   not run again there: the pull request ran them on its merge commit (Andrei, 2026-11-18: fewer Mac runs); two pull
+#   requests green apart and red together show in the next run by hand (the lead's daily walk and switch test on
+#   develop), on the tag, and nightly once the schedule is on main.
 # - Every version tag (version.yml starts it by hand on the tag) and by hand from the Actions tab: everything, with the
 #   walk of the screens' journeys (on a tag, or with Walk ticked: asserting, one appearance, a few minutes), the
 #   pictures for the mockups (only with Screenshots ticked: every appearance, about half an hour, during which the Mac
@@ -24,7 +27,7 @@ run-name: >-
   github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
   || github.event_name == 'schedule' && 'start the nightly run of develop'
   || startsWith(github.ref, 'refs/tags/') && format('tag {0}', github.ref_name)
-  || github.event_name == 'push' && format('push to {0}', github.ref_name)
+  || github.event_name == 'push' && format('push to {0} (build only, no tests)', github.ref_name)
   || format('by hand on {0}', github.ref_name),
   format('{0}{1}', inputs.walk && ' + walk' || '', inputs.screenshots && ' + screenshots' || ''),
   inputs.switch_test && ' + switch test' || '') }}
@@ -144,8 +147,10 @@ jobs:
           xcodebuild -version
           dotnet --version
 
-      # The simulator boots while the frameworks build, instead of inside the test step.
+      # The simulator boots while the frameworks build, instead of inside the test step. Not on a push to develop: no
+      # test runs there (the header).
       - name: Start the iPad simulator
+        if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
         run: |
           id=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -232,6 +237,7 @@ jobs:
           key: ipad-packages-${{ hashFiles('src/ipad/App/project.yml') }}
 
       - name: Test in the iPad simulator
+        if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
         working-directory: src/ipad/App
         run: |
           xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
@@ -241,10 +247,10 @@ jobs:
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
       # The walk's Swift (tests/ipad/MotiffLabScreens, the Screens scheme) is in no target of the MotiffLab scheme: on a
-      # pull request and on develop it is compiled here, not run, so a walk that no longer compiles shows before the tag.
+      # pull request it is compiled here, not run, so a walk that no longer compiles shows before the merge.
       # Same destination and derived data as the tests above, so only the UI-test bundle is built.
       - name: Compile the walk
-        if: github.event_name == 'pull_request' || github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        if: github.event_name == 'pull_request'
         working-directory: src/ipad/App
         run: |
           set -o pipefail
