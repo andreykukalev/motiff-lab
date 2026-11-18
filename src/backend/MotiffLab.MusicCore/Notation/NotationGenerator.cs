@@ -20,8 +20,10 @@ namespace MotiffLab.MusicCore.Notation;
 /// and write accidentals per bar and staff.
 /// </para>
 /// <para>
-/// Tuplets, grace notes, pedal and dynamics are not written: triplets land on the nearest 32nd and
-/// are counted as approximated. The notes themselves are never changed; only how they are written.
+/// Beats whose onsets fit thirds or sixths of the beat are written as triplets; other tuplets (fives, sevens) land on
+/// the nearest 32nd and are counted as approximated. Grace notes are written only for notes heard in a recording
+/// (<c>asHeard</c>); dynamics, accents, tempo words, hairpins, slurs, fermatas and pedal only from how the notes were
+/// played (<c>playedTempos</c>). The notes themselves are never changed; only how they are written.
 /// </para>
 /// <para>
 /// An excerpt writes only some bars, and ossias stand above the original bar for bar as smaller staves of the
@@ -49,6 +51,9 @@ public static class NotationGenerator
 
     /// <summary>The grid notes heard in a recording are written on: a 16th, or a 32nd where 16ths would merge two onsets.</summary>
     public const long HeardGrid = CanonicalTime.TicksPerQuarter / 4;
+
+    /// <summary>Onsets this close are one chord when written as heard: a 64th.</summary>
+    internal const long HeardChord = Grid / 2;
 
     /// <summary>Notation for a MIDI import, with its key signatures.</summary>
     /// <param name="asHeard">See <see cref="Generate"/>.</param>

@@ -63,7 +63,7 @@ internal sealed class HeardOnsets
     private static int Together(Note[] sorted, int start)
     {
         int end = start + 1;
-        while (end < sorted.Length && sorted[end].Span.Onset.Value - sorted[start].Span.Onset.Value < HeardRhythm.HeardChord)
+        while (end < sorted.Length && sorted[end].Span.Onset.Value - sorted[start].Span.Onset.Value < NotationGenerator.HeardChord)
         {
             end++;
         }

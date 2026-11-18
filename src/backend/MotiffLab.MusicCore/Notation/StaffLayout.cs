@@ -12,7 +12,7 @@ internal static class StaffLayout
 {
     public static StaffMeasure LayOut(StaffPlan staff, Bar bar, int fifths, TransposedSpelling? spelling)
     {
-        var grid = new ValueGrid(bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value, BarValues.Pulse(bar.Signature), BarValues.Middle(bar.Signature));
+        var grid = new ValueGrid(bar.Origin, BarValues.Pulse(bar.Signature), BarValues.Middle(bar.Signature));
         long beamGroup = Beaming.BeamGroup(bar.Signature);
         long start = bar.Span.Onset.Value;
         long stop = bar.Span.End.Value;

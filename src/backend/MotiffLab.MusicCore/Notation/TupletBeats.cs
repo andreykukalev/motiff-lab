@@ -20,7 +20,7 @@ internal static class TupletBeats
         var onsets = new List<long>();
         foreach (long onset in notes.Where(note => !note.IsGrace).Select(note => note.Note.Span.Onset.Value).Order())
         {
-            if (onsets.Count == 0 || onset - onsets[^1] >= HeardRhythm.HeardChord)
+            if (onsets.Count == 0 || onset - onsets[^1] >= NotationGenerator.HeardChord)
             {
                 onsets.Add(onset);
             }
@@ -35,7 +35,7 @@ internal static class TupletBeats
                 continue;
             }
 
-            long origin = bar.Span.Onset.Value - bar.LeadIn;
+            long origin = bar.Origin;
             for (long start = origin; start + beat <= bar.Span.End.Value; start += beat)
             {
                 if (Candidate(onsets, start, beat) is { } candidate)

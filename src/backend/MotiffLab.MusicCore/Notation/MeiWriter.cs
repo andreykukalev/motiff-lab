@@ -239,7 +239,6 @@ internal static class MeiWriter
     /// <summary>A part's words, dynamics, hairpins, slurs and pedal marks in a bar, on the part's own staves.</summary>
     private static void WriteDirections(XmlWriter xml, Bar bar, PartMeasure part)
     {
-        long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
         string top = Number(part.FirstStaff);
         string Beat(long at) => MeiWriter.Beat(bar, at);
         if (part.TempoWord is { } word)
@@ -247,7 +246,7 @@ internal static class MeiWriter
             xml.WriteStartElement("dir", MeiNamespace);
             xml.WriteAttributeString("staff", top);
             xml.WriteAttributeString("place", "above");
-            xml.WriteAttributeString("tstamp", Beat(Math.Max(origin, bar.Span.Onset.Value)));
+            xml.WriteAttributeString("tstamp", Beat(Math.Max(bar.Origin, bar.Span.Onset.Value)));
             xml.WriteStartElement("rend", MeiNamespace);
             xml.WriteAttributeString("fontstyle", "italic");
             xml.WriteString(word);
@@ -461,7 +460,6 @@ internal static class MeiWriter
     /// <summary>A position in a bar as an MEI time stamp: 1 on the bar's first beat, counted in the bar's beats.</summary>
     public static string Beat(Bar bar, long at)
     {
-        long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
-        return (1 + ((decimal)(at - origin) * bar.Signature.Denominator / (4 * CanonicalTime.TicksPerQuarter))).ToString("0.###", CultureInfo.InvariantCulture);
+        return (1 + ((decimal)(at - bar.Origin) * bar.Signature.Denominator / (4 * CanonicalTime.TicksPerQuarter))).ToString("0.###", CultureInfo.InvariantCulture);
     }
 }
