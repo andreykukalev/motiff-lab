@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
@@ -49,13 +50,13 @@ public class SlippedBeatTests
     {
         // 62 ms late at the 140th eighth: just past the reach of the beat, as in the recording.
         ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(Arpeggio(40, 140, 62_000)));
-        BarGrid grid = BarGrid.Find(piece.Midi!)!;
+        BarGrid grid = RecordingBars.Find(piece.Midi!)!;
         Assert.Equal(2, grid.StepsPerBeat);
         Assert.Equal(TimeSignature.CommonTime, grid.Signature);
         // Only the eighth the player held back on, in both hands, is off its beat; before, every eighth from it on to the
         // next bar line found again was, half a beat away.
         Assert.InRange(OffTheBeat(grid.Apply(piece)), 0, 2);
-        Assert.Equal(grid, BarGrid.Find(piece.Midi!));
+        Assert.Equal(grid, RecordingBars.Find(piece.Midi!));
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public class SlippedBeatTests
         }
 
         ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(notes));
-        GridFound found = BarGrid.FindLive(piece.Midi!, GridSearch.Live);
+        GridFound found = RecordingBars.FindLive(piece.Midi!, GridSearch.Live);
 
         Assert.Equal(2, found.Sections);
         Assert.Equal(2, found.Grid!.StepsPerBeat);
