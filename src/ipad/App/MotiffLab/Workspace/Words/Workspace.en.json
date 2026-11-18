@@ -31,8 +31,6 @@
   "focus.enterHint": "Lift the phrase into a card across the screen, the page dimmed behind it.",
   "menu.bookmark": "Bookmark",
   "bookmark.label": "Bookmark: {0}, {1}",
-  "bookmark.structureAdded.one": "{0} Structure bookmark added",
-  "bookmark.structureAdded.many": "{0} Structure bookmarks added",
   "contents.open": "{0}: open the contents",
   "menu.note": "Note",
   "margin.markerLabel": "Note {0}, {1}: {2}",

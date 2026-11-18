@@ -15,7 +15,7 @@ function facts(held = {}, asked = []) {
     return {
         gutter: held.gutter === true,
         header: held.header === true,
-        placeEdge: fact("placeEdge"),
+        placeHandle: fact("placeHandle"),
         playhead: fact("playhead"),
         places: fact("places"),
         pans: fact("pans"),
@@ -37,8 +37,9 @@ test("each approved press begins its own gesture", () => {
         // Select by the place of the touch, over the notes and the bar numbers alike (#601, SEL-02, SEL-03).
         [{ places: true }, "place"],
         [{ places: true, header: true }, "place"],
-        // An edge of the selection wins over a playhead in its reach (v0.6.4, as on the score's page).
-        [{ placeEdge: true, playhead: true, places: true }, "place"],
+        // An edge's handle wins over a playhead (0.8 finding 1, as on the score's page); elsewhere on the edge the playhead
+        // is taken first, ahead of the place rule.
+        [{ placeHandle: true, playhead: true, places: true }, "place"],
         // R7, PLAY-02: a playhead taken by its handle or its line, while playing too, ahead of a new selection.
         [{ playhead: true, places: true }, "playhead"],
         [{ playhead: true, pans: true }, "playhead"],
@@ -65,12 +66,12 @@ test("a press asks only the facts the table reaches, in its order", () => {
     rollPressFor(facts({ gutter: true }, keys));
     assert.deepEqual(keys, [], "the pitch names test nothing under the press");
     const edge = [];
-    rollPressFor(facts({ placeEdge: true, playhead: true }, edge));
-    assert.deepEqual(edge, ["placeEdge"], "an edge by the place rule: no playhead is looked for");
+    rollPressFor(facts({ placeHandle: true, playhead: true }, edge));
+    assert.deepEqual(edge, ["placeHandle"], "an edge's handle by the place rule: no playhead is looked for");
     const note = [];
     rollPressFor(facts({}, note));
-    assert.deepEqual(note, ["placeEdge", "playhead", "places", "pans", "edge", "rules"]);
+    assert.deepEqual(note, ["placeHandle", "playhead", "places", "pans", "edge", "rules"]);
     const strips = [];
     rollPressFor(facts({ header: true }, strips));
-    assert.deepEqual(strips, ["placeEdge", "playhead", "places", "pans", "edge"], "the strips ask no rule");
+    assert.deepEqual(strips, ["placeHandle", "playhead", "places", "pans", "edge"], "the strips ask no rule");
 });
