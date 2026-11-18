@@ -53,7 +53,8 @@ final class MergeDraftTests: XCTestCase {
         score.show(piece, dark: false)
         let drawn = await score.whenRendered()
         XCTAssertTrue(drawn, "the score's page is drawn")
-        await score.addVersion(fileName: "cover.musicxml", data: try Self.cover())
+        let cover = try Self.cover()
+        await score.addVersion(fileName: "cover.musicxml", data: cover)
         XCTAssertFalse(score.versions.differing.isEmpty, "the cover has bars otherwise")
         return score
     }

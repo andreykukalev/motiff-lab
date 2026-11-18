@@ -76,7 +76,8 @@ final class FocusModelTests: XCTestCase {
         var shelf = VersionShelf()
         XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.add", request)))
         let id = try XCTUnwrap(shelf.shownId)
-        let notes = try XCTUnwrap(await focus.versionNotes(of: id, in: piece))
+        let read = await focus.versionNotes(of: id, in: piece)
+        let notes = try XCTUnwrap(read)
         XCTAssertFalse(notes.isEmpty, "the version's notes to hear")
 
         _ = MusicCore.call(piece: piece, "performance.remove", facadeRequest(["id": id]))
