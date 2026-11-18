@@ -106,6 +106,8 @@ struct ScoreScreenContent: View {
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
     var panels: PanelState { workspace.panels }
+    /// Whether the piece has other versions: the layers lists offer their marks (ScoreController.pieceExtra).
+    private var hasVersions: Bool { !sourcesModel.versions.entries.isEmpty }
 
     var body: some View {
         GeometryReader { screen in
@@ -330,14 +332,14 @@ struct ScoreScreenContent: View {
                     if score.focused {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, hasVersions: !sourcesModel.versions.entries.isEmpty, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if sourcesOn && !score.focused { recordingCapsule }
                     if !score.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
-                        ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: !sourcesModel.versions.entries.isEmpty)
+                        ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions)
                     }
                     if mergeModel.draft != nil && !score.focused && !mergeModel.comparing {
                         MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
