@@ -23,15 +23,13 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
-  (`SavedPerformance`, `PerformanceSource`).
+  (`SavedPerformance`, `PerformanceSource`); the comparison: `PerformanceComparison` (`NoteMatcher`,
+  `DifferenceClassifier`, `BarComparison`).
 - The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard in a recording), `ControlPlan` (the marks of the playing per bar,
   `ControlEvents`; the marks come from `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and
   `BarAccidentals` (a staff in a bar, `LayoutElements`), and `MeiWriter`.
-- The comparison of a performance with the print (W1.9): `PerformanceComparison` (`Compare`) pairs the notes with
-  `NoteMatcher`, sorts the rest into bars and names each bar's kind with `DifferenceClassifier`; a bar's result is a
-  `BarComparison` (`BarDifference`, `NoteMatch`, `PlacedNote`).
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
   provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
   `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
@@ -50,21 +48,20 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 ## Tests
 
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
-  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `Notation/Golden/` for the MEI written
-  for real pieces (`NotationGoldenTests`); both written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
+  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `<Folder>/Golden/*.txt` for what real
+  pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again with `MOTIFF_UPDATE_SNAPSHOTS=1`).
 
 ## Which namespace uses which
 
-No two namespaces use each other, directly or round a loop (W1.1 to W1.3, 2026-11-18), counted by `using` lines, code
-and `cref`s alike: a `cref` needs the namespace too, so a comment names a type of a higher namespace in plain text
-(`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only `Time` and the root (`Words`); `Motifs`
-only `Time` and `Events`; `Pieces` those and the root; `Import` (all its sub-namespaces counted as one) and `Playback` add
-nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`, `Assembly`, `Variations`, ...),
-`Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers (`CORE_LAYERS`, listed in
-`governance/quality/README.md`): a namespace uses only the layers below its own.
+No two namespaces use each other, directly or round a loop (W1.1 to W1.3), by `using`, code or `cref`: a comment names a
+type of a higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only
+`Time` and the root (`Words`); `Motifs` only `Time` and `Events`; `Pieces` those and the root; `Import` (with its
+sub-namespaces) and `Playback` add nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`,
+`Assembly`, `Variations`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers
+(`CORE_LAYERS`, listed in `governance/quality/README.md`): a namespace uses only the layers below its own.
 
 ## Rules not to break
 
