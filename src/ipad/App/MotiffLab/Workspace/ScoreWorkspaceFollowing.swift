@@ -7,7 +7,7 @@ import SwiftUI
 /// share with them (`syncPlayheads`, `showRollPosition`, `rollShown`), are in ScoreWorkspaceReactions.swift.
 extension ScoreWorkspace {
     /// In focus with no way tried, the other version is there to hear in the variation's place (0022, section 5). The
-    /// reaction on `score.focusVersion`.
+    /// reaction on `score.focusModel.version`.
     func focusVersionChanged(_ version: FocusModel.Version?) {
         guard insights.trial == nil else { return }
         if let version, version.sounds {
@@ -48,7 +48,7 @@ extension ScoreWorkspace {
         if rollShown { showRollPosition() }
     }
 
-    /// The selection changed (the reaction on `score.selection`): the roll shows it, and what was started on the one
+    /// The selection changed (the reaction on `score.selectionModel.selection`): the roll shows it, and what was started on the one
     /// before goes.
     func selectionChanged(_ selection: ScoreSelection?) {
         roll.showSelection(selection, loop: player.loop)
@@ -67,7 +67,7 @@ extension ScoreWorkspace {
     /// Цикл turned on or off: the blue playhead waits at the selection's start or stands at its end (v0.5.2). The
     /// reaction on `player.loop`.
     func loopChanged(_ loop: Range<Double>?) {
-        roll.showSelection(score.selection, loop: loop)
+        roll.showSelection(score.selectionModel.selection, loop: loop)
         syncPlayheads()
     }
 
@@ -77,7 +77,7 @@ extension ScoreWorkspace {
         roll.showEditor(editor)
     }
 
-    /// What plays for the selection changed (the reaction on `score.playRange`): the player takes it, then the page and
+    /// What plays for the selection changed (the reaction on `score.focusModel.playRange`): the player takes it, then the page and
     /// the roll draw the model.
     func whatPlaysChanged(from old: FocusModel.PlayRange?, to new: FocusModel.PlayRange?) {
         playRangeChanged(from: old, to: new)
@@ -103,6 +103,6 @@ extension ScoreWorkspace {
     func applyModel() {
         score.setBeatLines(player.beatLines)
         syncPlayheads()
-        if score.holdsSelection { player.hold(selection: score.playRange?.range) }
+        if score.holdsSelection { player.hold(selection: score.focusModel.playRange?.range) }
     }
 }

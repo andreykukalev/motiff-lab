@@ -78,6 +78,9 @@ struct ScoreScreenContent: View {
     /// The other versions and the merge draft, which the score's marker, toast, switch, window and Sources show.
     @ObservedObject private var sourcesModel: SourcesModel
     @ObservedObject private var mergeModel: MergeModel
+    /// The selection and Expand, which the score's menu, pill, bars, reactions and assistant show.
+    @ObservedObject private var selectionModel: SelectionModel
+    @ObservedObject private var focusModel: FocusModel
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
 
@@ -97,10 +100,14 @@ struct ScoreScreenContent: View {
         _sources = ObservedObject(wrappedValue: workspace.sources)
         _sourcesModel = ObservedObject(wrappedValue: workspace.score.sourcesModel)
         _mergeModel = ObservedObject(wrappedValue: workspace.score.mergeModel)
+        _selectionModel = ObservedObject(wrappedValue: workspace.score.selectionModel)
+        _focusModel = ObservedObject(wrappedValue: workspace.score.focusModel)
     }
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
     var panels: PanelState { workspace.panels }
+    /// Whether the piece has other versions: the layers lists offer their marks (ScoreController.pieceExtra).
+    private var hasVersions: Bool { !sourcesModel.versions.entries.isEmpty }
 
     var body: some View {
         GeometryReader { screen in
@@ -137,7 +144,7 @@ struct ScoreScreenContent: View {
 
     /// What loops while a variation is heard: what play takes for the selection, on to the variation's end.
     private var variationRange: Range<Double>? {
-        guard let range = score.playRange?.range else { return nil }
+        guard let range = focusModel.playRange?.range else { return nil }
         return range.lowerBound..<max(range.upperBound, insights.trial?.end ?? 0)
     }
 
@@ -174,9 +181,9 @@ struct ScoreScreenContent: View {
         if panels[.versions] && sourcesOn {
             sourcesSheet
         } else if panels[.check] {
-            CheckDrawer(score: score, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
+            CheckDrawer(score: score, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
         } else {
-            InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { change(.close(.insights)) }
+            InsightsSheet(insights: insights, score: score, selectionModel: selectionModel, player: player, range: variationRange, text: text) { change(.close(.insights)) }
         }
     }
 
@@ -186,7 +193,7 @@ struct ScoreScreenContent: View {
         case .none:
             EmptyView()
         case .side:
-            ContentsDrawer(contents: contents, score: score, text: text) { change(.close(.contents)) }
+            ContentsDrawer(contents: contents, score: score, selectionModel: selectionModel, text: text) { change(.close(.contents)) }
                 .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                 .dsShadow("shadow-sheet")
@@ -197,7 +204,7 @@ struct ScoreScreenContent: View {
         case .bottom(let height):
             VStack {
                 Spacer(minLength: 0)
-                ContentsDrawer(contents: contents, score: score, text: text) { change(.close(.contents)) }
+                ContentsDrawer(contents: contents, score: score, selectionModel: selectionModel, text: text) { change(.close(.contents)) }
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
                     .dsShadow("shadow-sheet")
                     .frame(height: height)
@@ -211,7 +218,7 @@ struct ScoreScreenContent: View {
     /// The drawer's Expand: only with a selection (#521 19.1), without one the dimmed button says why. Expand inspects the
     /// passage, so the Pen, which would write nothing there, is put away first.
     private func expandFromDrawer() {
-        guard score.selection != nil else {
+        guard selectionModel.selection != nil else {
             score.showNotice("roll.expandNeedsSelection")
             return
         }
@@ -242,7 +249,7 @@ struct ScoreScreenContent: View {
         // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
         // The pill always shows (the playback model, v0.5.2, #479 item 22): it is where the music plays.
         if score.practiceChrome.transport {
-            Pill(player: player, score: score, text: text)
+            Pill(player: player, score: score, selectionModel: selectionModel, focusModel: focusModel, text: text)
                 .transition(.opacity)
         }
         if score.practiceChrome.controls {
@@ -254,7 +261,7 @@ struct ScoreScreenContent: View {
     /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed, and the selection
     /// controls shown (#582 item 10: `ScoreController.selectionControlsShown`, whatever the playback controls do).
     private var selectionMenuOpen: Bool {
-        score.selection != nil && !score.focused && !panels[.roll] && score.selectionControlsShown
+        selectionModel.selection != nil && !score.focused && !panels[.roll] && score.selectionControlsShown
     }
 
     /// The score and everything that floats over it.
@@ -272,8 +279,8 @@ struct ScoreScreenContent: View {
                 // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
-                if selectionMenuOpen, let place = score.selectionModel.menuPlace {
-                    SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
+                if selectionMenuOpen, let place = selectionModel.menuPlace {
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, contents: contents, text: text, rollOpen: panel(.roll), insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -306,7 +313,7 @@ struct ScoreScreenContent: View {
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    SelectionToastView(score: score, selectionModel: selectionModel, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .fullScreenCover(isPresented: Binding(get: { mergeModel.comparing }, set: { mergeModel.compare($0) })) {
@@ -323,16 +330,16 @@ struct ScoreScreenContent: View {
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
-                        FocusBar(score: score, player: player, variationRange: variationRange, text: text)
+                        FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if sourcesOn && !score.focused { recordingCapsule }
                     if !score.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
-                        ModeOptions(score: score, text: text)
+                        ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions)
                     }
                     if mergeModel.draft != nil && !score.focused && !mergeModel.comparing {
                         MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
@@ -346,7 +353,7 @@ struct ScoreScreenContent: View {
             }
             .overlay(alignment: .bottom) {
                 if panels[.roll] {
-                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: expandFromDrawer, resize: { dy, ended in
+                    RollDrawer(roll: roll, score: score, selectionModel: selectionModel, text: text, span: rollSpan, expand: expandFromDrawer, resize: { dy, ended in
                         resizeDrawer(by: dy, ended: ended, screen: screen)
                     }, step: { direction in
                         stepDrawer(direction, screen: screen)
@@ -425,7 +432,7 @@ struct ScoreScreenContent: View {
             .onChange(of: score.focused) { _, focused in workspace.focusChanged(focused) }
             .onChange(of: score.practicing, initial: true) { _, on in workspace.practicingChanged(on) }
             .onChange(of: score.selectionControlsShown) { _, shown in workspace.selectionControlsChanged(shown) }
-            .onChange(of: score.focused && score.focusRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
+            .onChange(of: score.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
             .onChange(of: panels[.roll]) { _, open in workspace.rollDrawerChanged(open, dark: colorScheme == .dark) }
             .onChange(of: score.check) { _, _ in workspace.checkChanged() }
             .onChange(of: panels[.insights]) { _, open in workspace.insightsChanged(open) }
@@ -455,7 +462,7 @@ struct ScoreScreenContent: View {
                         ask: {
                             // The map gives way to the score with the assistant beside it, on the whole piece.
                             dna = nil
-                            assistant.open(wholePiece: true, selection: score.selection)
+                            assistant.open(wholePiece: true, selection: selectionModel.selection)
                         }
                     )
                 }
@@ -493,16 +500,16 @@ struct ScoreScreenContent: View {
     /// What follows the selection, the player and the fact chosen.
     private func following(_ content: some View) -> some View {
         content
-            .onChange(of: score.focusVersion) { _, version in workspace.focusVersionChanged(version) }
+            .onChange(of: focusModel.version) { _, version in workspace.focusVersionChanged(version) }
             .onChange(of: insights.chosen) { _, chosen in workspace.factChosen(chosen) }
             .onChange(of: colorScheme) { _, scheme in workspace.appearanceChanged(scheme) }
             .onChange(of: workspace.rollPlace) { _, place in workspace.rollPlaceChanged(place) }
             .onChange(of: player.tick) { _, tick in workspace.playerMoved(tick) }
             .onChange(of: player.state) { old, state in workspace.playerStateChanged(from: old, to: state) }
-            .onChange(of: score.selection) { _, selection in workspace.selectionChanged(selection) }
+            .onChange(of: selectionModel.selection) { _, selection in workspace.selectionChanged(selection) }
             .onChange(of: player.loop) { _, loop in workspace.loopChanged(loop) }
             .onChange(of: score.noteEditor) { _, editor in workspace.noteEditorChanged(editor) }
-            .onChange(of: score.playRange) { old, new in workspace.whatPlaysChanged(from: old, to: new) }
+            .onChange(of: focusModel.playRange) { old, new in workspace.whatPlaysChanged(from: old, to: new) }
     }
 }
 
@@ -611,7 +618,7 @@ extension ScoreScreenContent {
             .overlay(alignment: .bottomTrailing) {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
-                    AssistantSide(assistant: assistant, text: text, selection: score.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                    AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
                 }
             }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
@@ -620,9 +627,9 @@ extension ScoreScreenContent {
 
     /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
     private func askAssistant(_ question: String) {
-        let whole = assistant.scope.isWholePiece(score.selection)
+        let whole = assistant.scope.isWholePiece(selectionModel.selection)
         let ask = AssistantAsk(
-            piece: piece.id, selection: score.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
+            piece: piece.id, selection: selectionModel.selection, wholePiece: whole, scope: whole ? text["ask.wholePiece"] : score.askLabel ?? "",
             language: text.language, role: AssistantSide.role(settings), relay: account.assistant
         )
         Task { await assistant.ask(question, about: ask) }
@@ -665,7 +672,7 @@ extension ScoreScreenContent {
 
     /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
     private var rollSpan: String? {
-        guard let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
+        guard let range = focusModel.playRange?.range, let span = player.barBeats.span(range) else { return nil }
         return text.format("pill.span", span.first, span.last)
     }
 }
@@ -679,6 +686,9 @@ struct ScoreBar: View {
     let text: UIText
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
+    /// Whether the piece has other versions: the layers list offers their marks (ScoreController.pieceExtra).
+    let hasVersions: Bool
     /// Which panels are open (PanelState), and the screen's way to change them.
     let panels: PanelState
     let change: (PanelState.Intent) -> Void
@@ -766,8 +776,8 @@ struct ScoreBar: View {
         }
         .buttonStyle(BarActionStyle(on: phrasesOpen))
         .accessibilityLabel(text["bar.phrases"])
-        .accessibilityValue(score.phrasesHidden ? text["phrases.hide"] : "")
-        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
+        .accessibilityValue(selectionModel.phrasesHidden ? text["phrases.hide"] : "")
+        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, selectionModel: selectionModel, text: text) }
         // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {
@@ -789,7 +799,7 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: extraOpen))
             .accessibilityLabel(text["extra.list"])
             .popover(isPresented: $extraOpen) {
-                LayersList(score: score, text: text)
+                LayersList(score: score, text: text, hasVersions: hasVersions)
                     .padding(CGFloat.ds("s-4"))
                     .frame(width: 300, alignment: .leading)
                     .presentationCompactAdaptation(.popover)
@@ -815,7 +825,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.more]))
         .accessibilityLabel(text["bar.more"])
         .popover(isPresented: panels.binding(.more, change: change)) {
-            MorePanel(score: score, text: text, problem: player.problem ?? score.problem, openCheck: {
+            MorePanel(score: score, hasVersions: hasVersions, text: text, problem: player.problem ?? score.problem, openCheck: {
                 change(.openFromMore(.check))
             }, openVersions: viewing == nil ? openSources : nil, openSettings: {
                 change(.openFromMore(.settings))
@@ -825,7 +835,7 @@ struct ScoreBar: View {
             }, askAboutPiece: {
                 change(.close(.more))
                 // The assistant's panel opens on the whole piece (#582 item 17.1).
-                assistant.open(wholePiece: true, selection: score.selection)
+                assistant.open(wholePiece: true, selection: selectionModel.selection)
             })
         }
     }
@@ -848,6 +858,8 @@ struct ScoreBar: View {
 struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
+    @ObservedObject var focusModel: FocusModel
     @ObservedObject private var metronome = Metronome.shared
     let text: UIText
     @EnvironmentObject private var settings: DeviceSettings
@@ -910,9 +922,9 @@ struct Pill: View {
             .accessibilityLabel(label)
             .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
         }
-        if score.selection != nil && !score.focused {
-            step("back", text["focus.previous"], enabled: score.focusModel.canStepBack) { score.step(-1) }
-            step("fwd", text["focus.next"], enabled: score.focusModel.canStepOn) { score.step(1) }
+        if selectionModel.selection != nil && !score.focused {
+            step("back", text["focus.previous"], enabled: focusModel.canStepBack) { score.step(-1) }
+            step("fwd", text["focus.next"], enabled: focusModel.canStepOn) { score.step(1) }
         }
     }
 
@@ -932,6 +944,8 @@ struct Pill: View {
 /// actions show their icons alone (v0.5.2, #495 UX-11), each at a fingertip's square, with its word for VoiceOver.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
+    @ObservedObject var focusModel: FocusModel
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
     let text: UIText
@@ -952,7 +966,7 @@ struct SelectionMenu: View {
                     .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             } else if let draft = contents.draft, draft.id == nil {
                 BookmarkCard(contents: contents, text: text) {
-                    let selection = score.selection
+                    let selection = selectionModel.selection
                     let title = score.bookmarkTitle
                     Task { await contents.save(over: selection, defaultTitle: title) }
                 }
@@ -961,15 +975,15 @@ struct SelectionMenu: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
-            } else if assistant.here != nil, score.selection != nil {
+            } else if assistant.here != nil, selectionModel.selection != nil {
                 // The assistant at the selection where the menu was (#582 items 17.2 and 17.4).
-                AssistantHereCard(assistant: assistant, score: score, text: text, ask: askHere)
+                AssistantHereCard(assistant: assistant, score: score, selectionModel: selectionModel, text: text, ask: askHere)
             } else {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                     actions
                     if more {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-                        HighlightRow(score: score, text: text)
+                        HighlightRow(score: score, selectionModel: selectionModel, text: text)
                         Button {
                             // The assistant opens at the selection, where the menu was (#582 item 17.2).
                             AssistantHereCard.open(assistant, score: score, settings: settings)
@@ -1009,10 +1023,10 @@ struct SelectionMenu: View {
     /// Where the selection starts and ends: as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); beat by
     /// beat until the sound has given the bars' beats.
     private var menuSpan: String? {
-        if let range = score.playRange?.range, let span = player.barBeats.span(range) {
+        if let range = focusModel.playRange?.range, let span = player.barBeats.span(range) {
             return text.format("pill.span", span.first, span.last)
         }
-        return score.selection?.beatSpan(text)
+        return selectionModel.selection?.beatSpan(text)
     }
 
     private var actions: some View {
@@ -1042,7 +1056,7 @@ struct SelectionMenu: View {
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
-            if !(score.selection?.noteIds.isEmpty ?? true) {
+            if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
             item("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
@@ -1120,6 +1134,7 @@ struct FocusRollCard: View {
 /// Notes | Piano roll in the focus bar (testing item 12), drawn as the hearing switch is.
 struct FocusShowAs: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var focusModel: FocusModel
     let text: UIText
 
     var body: some View {
@@ -1137,9 +1152,9 @@ struct FocusShowAs: View {
     }
 
     private func option(_ roll: Bool, _ key: String) -> some View {
-        let on = score.focusRoll == roll
+        let on = focusModel.asRoll == roll
         return Button {
-            score.focusModel.showAsRoll(roll)
+            focusModel.showAsRoll(roll)
         } label: {
             SteadyWord(text: text[key], on: on)
                 .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
@@ -1152,6 +1167,9 @@ struct FocusShowAs: View {
 
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
+    /// The card's position names the selection, from both models.
+    @ObservedObject var selectionModel: SelectionModel
+    @ObservedObject var focusModel: FocusModel
     @ObservedObject var player: Player
     let variationRange: Range<Double>?
     let text: UIText
@@ -1160,7 +1178,7 @@ struct FocusBar: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             // The way back by the way in (#521 17): «К странице» from the score, «Свернуть» from the roll; Escape too.
-            let entry = score.focusModel.entry
+            let entry = focusModel.entry
             Button {
                 score.leaveFocus()
             } label: {
@@ -1176,25 +1194,25 @@ struct FocusBar: View {
             .keyboardShortcut(.cancelAction)
             .help(text[entry.backHintKey])
             .accessibilityHint(text[entry.backHintKey])
-            Text(score.focusModel.position(in: text))
+            Text(focusModel.position(in: text))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink-2"))
                 .monospacedDigit()
                 .lineLimit(1)
                 .truncationMode(.tail)
-            FocusShowAs(score: score, text: text)
+            FocusShowAs(score: score, focusModel: focusModel, text: text)
             Spacer(minLength: CGFloat.ds("s-2"))
             if player.hasVariation, let variationRange {
-                HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? score.focusVersion?.name : nil)
+                HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? focusModel.version?.name : nil)
             }
-            if score.focusVersion != nil, !player.hasVariation || player.secondIsVersion {
+            if focusModel.version != nil, !player.hasVariation || player.secondIsVersion {
                 // The way into the merge draft for this phrase (testing item 32); bars are no longer taken here.
                 Button(text["merge.openDraft"]) { score.openDraftFromFocus() }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
                 // The assistant's panel opens on the phrase in focus (#582 item 17.1).
-                assistant.open(wholePiece: false, selection: score.selection)
+                assistant.open(wholePiece: false, selection: selectionModel.selection)
             } label: {
                 Text(text["ask.menu"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 40)
             }
@@ -1212,6 +1230,7 @@ struct FocusBar: View {
 /// a level the player changed. It never lists the phrases, and since #479 item 14 the score does not draw them.
 struct PhrasesPanel: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
 
     private static let names = ["short": "phrases.levelShort", "phrase": "phrases.levelPhrases", "sentence": "phrases.levelSentences"]
@@ -1220,20 +1239,20 @@ struct PhrasesPanel: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
             Text(text["phrases.levelTitle"]).overline().padding(.bottom, CGFloat.ds("s-1"))
             ForEach(PhraseLevelsShown.ids, id: \.self) { level in
-                let count = score.phrases?.counts[level]
-                row(text[Self.names[level] ?? ""], count: count.map(String.init), on: !score.phrasesHidden && (score.phrases?.level ?? "phrase") == level) {
+                let count = selectionModel.phrases?.counts[level]
+                row(text[Self.names[level] ?? ""], count: count.map(String.init), on: !selectionModel.phrasesHidden && (selectionModel.phrases?.level ?? "phrase") == level) {
                     score.showLevel(level)
                 }
             }
             PaletteRule()
-            row(text["phrases.hide"], count: nil, on: score.phrasesHidden) {
-                score.selectionModel.hidePhrases(true)
+            row(text["phrases.hide"], count: nil, on: selectionModel.phrasesHidden) {
+                selectionModel.hidePhrases(true)
             }
             .accessibilityHint(text["phrases.hideHint"])
             PaletteRule()
             Button(text["phrases.resetLevel"]) { score.resetLevel() }
                 .buttonStyle(DSItemStyle())
-                .disabled(score.phrasesHidden || !(score.phrases.map { $0.edited.contains($0.level) } ?? false))
+                .disabled(selectionModel.phrasesHidden || !(selectionModel.phrases.map { $0.edited.contains($0.level) } ?? false))
                 .accessibilityHint(text["phrases.resetHint"])
         }
         .padding(CGFloat.ds("s-3"))
@@ -1281,6 +1300,8 @@ extension PanelState {
 /// steps.
 struct MorePanel: View {
     @ObservedObject var score: ScoreController
+    /// Whether the piece has other versions: the layers list offers their marks (ScoreController.pieceExtra).
+    let hasVersions: Bool
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
@@ -1338,7 +1359,7 @@ struct MorePanel: View {
                 EditsLayerSection(score: score, text: text)
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            LayersList(score: score, text: text)
+            LayersList(score: score, text: text, hasVersions: hasVersions)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {
                 HStack(spacing: CGFloat.ds("s-2")) {

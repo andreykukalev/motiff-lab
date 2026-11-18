@@ -80,7 +80,7 @@ extension ScoreController {
     /// Expand's passage while it is open (#521 19, #533 2): the selection it was opened on, which plays round and round and
     /// which the playhead is kept inside; nil out of Expand.
     var expandPassage: Range<Double>? {
-        PlaybackScope.expandPassage(focused: focused, playRange: playRange?.range)
+        PlaybackScope.expandPassage(focused: focused, playRange: focusModel.playRange?.range)
     }
 
     /// Whether the playback model takes the score's selection and Цикл (T9–T11): out of Expand, whose passage loops on its

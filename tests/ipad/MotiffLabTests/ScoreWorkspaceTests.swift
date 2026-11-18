@@ -37,7 +37,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         fit(&piece)
         let workspace = await drawn(piece)
         await workspace.score.select(request: #"{"bars": {"first": 1, "last": 2}}"#, step: false)
-        XCTAssertNotNil(workspace.score.playRange, "the first two bars are selected")
+        XCTAssertNotNil(workspace.score.focusModel.playRange, "the first two bars are selected")
         return workspace
     }
 
@@ -271,7 +271,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// plays changes nor once the sound has loaded; out of it, it is.
     func testExpandLeavesThePlaybackModelAsItIs() async throws {
         let workspace = try await selected()
-        let plays = try XCTUnwrap(workspace.score.playRange)
+        let plays = try XCTUnwrap(workspace.score.focusModel.playRange)
         workspace.score.enterFocus()
         XCTAssertTrue(workspace.score.focused, "Expand opens on the selection")
         workspace.applyModel()
@@ -308,7 +308,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// Navigate (#479 item 18) and does not turn Цикл off; outside the selection Play plays from there (the lead-in).
     func testAFingersTapWithThePenOnLeavesCycleOn() async throws {
         let workspace = try await selected()
-        let passage = try XCTUnwrap(workspace.score.playRange?.range)
+        let passage = try XCTUnwrap(workspace.score.focusModel.playRange?.range)
         workspace.player.hold(selection: passage)
         XCTAssertTrue(workspace.player.cycle, "a selection made where there was none turns Цикл on")
         workspace.score.penOn = true
@@ -325,7 +325,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         defer { UserDefaults.standard.removeObject(forKey: ViewStates.notesKey(key)) }
         let own = try XCTUnwrap(PieceSummary(answer: #"{"project": {"id": "\#(key)"}}"#))
         let left = try await selected { $0.own = own }
-        let selection = try XCTUnwrap(left.score.selection)
+        let selection = try XCTUnwrap(left.score.selectionModel.selection)
         left.change(.open(.roll))
         let view = left.notesViewNow()
         XCTAssertEqual(view.selection, SelectionSpanKept(selection))
@@ -337,11 +337,11 @@ final class ScoreWorkspaceTests: XCTestCase {
         var piece = left.piece
         piece.landing = .kept
         let back = await drawn(piece)
-        XCTAssertNil(back.score.selection)
+        XCTAssertNil(back.score.selectionModel.selection)
         XCTAssertEqual(back.score.webView.alpha, 0, "the pages wait out of sight for the view kept")
         await back.returnToNotesView()
-        XCTAssertEqual(back.score.selection?.onset, selection.onset)
-        XCTAssertEqual(back.score.selection?.end, selection.end)
+        XCTAssertEqual(back.score.selectionModel.selection?.onset, selection.onset)
+        XCTAssertEqual(back.score.selectionModel.selection?.end, selection.end)
         XCTAssertTrue(back.panels[.roll], "the roll's drawer is open again")
         XCTAssertEqual(back.score.webView.alpha, 1, "the pages show once they stand where they were left")
     }
@@ -361,7 +361,7 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// A visit keeps one resume point (#327): the second time it is brought up to date, not made again.
     func testAVisitKeepsOneResumePoint() async throws {
         let workspace = try await selected()
-        let selection = try XCTUnwrap(workspace.score.selection)
+        let selection = try XCTUnwrap(workspace.score.selectionModel.selection)
         XCTAssertNil(workspace.resumeId)
         await workspace.keepResume(workspace.resumeNow())
         let first = try XCTUnwrap(workspace.resumeId, "music-core says which point it saved")

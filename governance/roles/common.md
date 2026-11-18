@@ -113,6 +113,12 @@ context. The context is compacted automatically at about 400K tokens (the enviro
   deletes the repository variable `IPAD_RUNNER` (Settings → Secrets and variables → Actions → Variables), cancels the
   waiting runs and starts them again (a re-run or a new push), and they run on GitHub's macOS (10–20 minutes);
   `infra/github/mac-runner.sh` sets the variable again. Agents tell the lead; they never change it.
+- Andrei's Mac is the only machine for iPad runs, and there will be no other (Andrei, 2026-11-18). A longer queue
+  makes nothing faster: every run that lands wakes an agent, which reads its whole context again, and every merge
+  makes the waiting pull requests build again on the new `develop`. So a lead runs at most two tracks whose pull
+  requests need the iPad run: one pull request on the Mac, the next reviewed before its push. The reviewer reads the
+  developer's committed, unpushed worktree; the developer pushes once after APPROVE. Small follow-ups ride in the next
+  real pull request, never one of their own.
 - The browser tests belong to the archived web and run only by hand.
 
 ## Never
