@@ -1,7 +1,7 @@
 import PDFKit
 import SwiftUI
 
-/// A score sent a page a request (v0.5, issue #479; v0.5.6, #533 section 1; music-core's `ScanParts`): the PDF is cut into
+/// A score sent a page a request (v0.5, issue #479; v0.5.6, #533 section 1): the PDF is cut into
 /// one-page PDFs, each that page as it is, sent one after another to the same server, so each answer is a real step of
 /// the progress (`ScanProgress`); music-core joins what they read (`scan.join`), as the server joins its pages, so each
 /// page of the PDF still starts in the notes where it did. Nothing changes on the server, and any server, an older one
@@ -11,7 +11,7 @@ enum ScanParts {
     static let mostPages = 100
     /// The pages a server is taken to read in one request when a plan is asked for without saying.
     static let safePages = 4
-    /// The pages the iPad sends a request, as the web does (music-core's `ScanParts.PagesARequest`).
+    /// The pages the iPad sends a request.
     static let pagesARequest = 1
 
     /// The parts, pages from 1: consecutive, in order, each as full as it can be. One part when the PDF fits.
@@ -35,7 +35,7 @@ enum ScanParts {
 /// Hears how far a score's notes are read, on the main actor.
 typealias ScanProgressListener = @MainActor @Sendable (ScanProgress) -> Void
 
-/// How far the notes of one score are read (v0.5.6, #533 section 1), as music-core's `PageProgress`: the pages whose notes
+/// How far the notes of one score are read (v0.5.6, #533 section 1): the pages whose notes
 /// are back are done, the page sent is current, the rest wait; nothing moves by time alone. The time left is told only
 /// from the pages already read, timed from send to answer: their mean times the pages not back yet, none before the first.
 struct ScanProgress: Equatable, Sendable {

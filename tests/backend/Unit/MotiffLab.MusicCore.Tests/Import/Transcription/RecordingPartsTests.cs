@@ -34,14 +34,14 @@ public class RecordingPartsTests
     [Fact]
     public void Up_to_two_minutes_is_heard_in_one_part()
     {
-        Assert.Equal(new RecordingPart(0, 0, 100_000, 0, 100_000), Assert.Single(RecordingParts.Plan(100_000)));
-        Assert.Single(RecordingParts.Plan(120_000));
+        Assert.Equal(new RecordingPart(0, 0, 100_000, 0, 100_000), Assert.Single(RecordingParts.Plan(100_000, [])));
+        Assert.Single(RecordingParts.Plan(120_000, []));
     }
 
     [Fact]
     public void Seven_minutes_are_heard_in_four_overlapping_parts_the_server_can_take()
     {
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(420_000);
+        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(420_000, []);
 
         Assert.Equal(
             [(0L, 105_000L), (105_000L, 210_000L), (210_000L, 315_000L), (315_000L, 420_000L)],
@@ -55,7 +55,7 @@ public class RecordingPartsTests
     [Fact]
     public void Parts_join_on_the_recordings_clock_keeping_each_note_once_and_the_pedal_as_one_press()
     {
-        RecordingPart[] plan = [.. RecordingParts.Plan(240_000)];
+        RecordingPart[] plan = [.. RecordingParts.Plan(240_000, [])];
         Assert.Equal(115_000, plan[1].SendFromMilliseconds);
 
         // The first part hears a note just before the seam, one after it in the overlap, and the pedal pressed to its end.
@@ -77,7 +77,7 @@ public class RecordingPartsTests
     [Fact]
     public void Joining_is_deterministic()
     {
-        RecordingPart[] plan = [.. RecordingParts.Plan(240_000)];
+        RecordingPart[] plan = [.. RecordingParts.Plan(240_000, [])];
         byte[] first = Part(Note(1_000, 60));
         byte[] second = Part(Note(10_000, 62));
 
@@ -92,7 +92,7 @@ public class RecordingPartsTests
     [Fact]
     public void Forty_minutes_are_heard_in_twenty_parts_each_short_enough_for_the_server()
     {
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(2_400_000);
+        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(2_400_000, []);
 
         Assert.Equal(20, parts.Count);
         Assert.Equal(0, parts[0].KeepFromMilliseconds);
@@ -118,8 +118,7 @@ public class RecordingPartsTests
     [Fact]
     public void Without_loudness_the_seams_are_cut_evenly_and_with_even_loudness_stay_by_the_cut()
     {
-        Assert.Equal(RecordingParts.Plan(420_000), RecordingParts.Plan(420_000, []));
-        Assert.Equal([105_000L, 210_000L, 315_000L], RecordingParts.Seams(RecordingParts.Plan(420_000)));
+        Assert.Equal([105_000L, 210_000L, 315_000L], RecordingParts.Seams(RecordingParts.Plan(420_000, [])));
 
         IReadOnlyList<long> seams = RecordingParts.Seams(RecordingParts.Plan(420_000, Levels(420_000, 50)));
         Assert.Equal([104_950L, 209_950L, 314_950L], seams);
@@ -144,7 +143,7 @@ public class RecordingPartsTests
     [Fact]
     public void A_note_held_across_a_seam_keeps_the_length_the_next_part_hears()
     {
-        RecordingPart[] plan = [.. RecordingParts.Plan(240_000)];
+        RecordingPart[] plan = [.. RecordingParts.Plan(240_000, [])];
         Assert.Equal((115_000L, 125_000L), (plan[1].SendFromMilliseconds, plan[0].SendToMilliseconds));
 
         // The first part's sound ends while three notes still sound: C3 from 118 s, E3 from 110 s, G3 from 119 s; and B3,

@@ -31,8 +31,8 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
   `LayoutElements`), and `MeiWriter`.
 - `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
-  provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
-  `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
+  provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`),
+  bookmark categories (`BookmarkCategory`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,

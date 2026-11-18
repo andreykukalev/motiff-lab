@@ -50,15 +50,9 @@ public static class RecordingParts
     private const int TicksPerQuarter = CanonicalTime.TicksPerQuarter;
 
     /// <summary>
-    /// The parts a recording of <paramref name="milliseconds"/> is heard in: one for up to two minutes,
-    /// otherwise as few equal stretches as keep each to two minutes, cut evenly.
-    /// </summary>
-    public static IReadOnlyList<RecordingPart> Plan(long milliseconds) => Plan(milliseconds, []);
-
-    /// <summary>
-    /// The parts a recording of <paramref name="milliseconds"/> is heard in, as many as <see cref="Plan(long)"/> plans,
-    /// each seam at the quietest moment within <see cref="SeamWindowMilliseconds"/> of the even cut by
-    /// <paramref name="levels"/>: how loud the recording is in each <see cref="LevelMilliseconds"/> from its start, on
+    /// The parts a recording of <paramref name="milliseconds"/> is heard in: one for up to two minutes, otherwise as few
+    /// equal stretches as keep each to two minutes, each seam at the quietest moment within
+    /// <see cref="SeamWindowMilliseconds"/> of the even cut by <paramref name="levels"/>: how loud the recording is in each <see cref="LevelMilliseconds"/> from its start, on
     /// any scale, larger louder. Of moments as quiet, the one nearest the even cut wins, then the earlier; a seam with no
     /// levels near it stays at the even cut, as all do without levels. No part keeps more than
     /// <see cref="MostKeptMilliseconds"/>.

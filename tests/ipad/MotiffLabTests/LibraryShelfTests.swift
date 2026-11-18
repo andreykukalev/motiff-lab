@@ -242,7 +242,7 @@ final class PieceDetailsFileTests: XCTestCase {
     }
 
     func testTheSourceIconsShowOnlyWhatThePieceHasInAFixedOrder() throws {
-        // v0.5.6, #533 section 10, as music-core's LibrarySources (tests/backend/Unit/MotiffLab.MusicCore.Tests/Projects).
+        // v0.5.6, #533 section 10: PDF, notes, recording, then the others, only what the piece has.
         XCTAssertEqual(LibrarySource.of(try summary(hasNotes: false, [("src_pdf", "pdf")])), [.pdf], "PDF only")
         XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("src_pdf", "pdf")])), [.pdf, .notes], "PDF and its notes")
         XCTAssertEqual(LibrarySource.of(try summary(hasNotes: true, [("v_1", "audio"), ("src_pdf", "pdf"), ("v_2", "audio")])), [.pdf, .notes, .recording], "and a recording, once")

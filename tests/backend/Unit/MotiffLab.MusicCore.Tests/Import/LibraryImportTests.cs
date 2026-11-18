@@ -234,19 +234,5 @@ public class LibraryImportTests
         Assert.Equal(new PieceMetadata("Prelude", null, [], []), LibraryImport.Confirmed(PieceMetadata.None, "Prelude", null, [], []));
     }
 
-    [Fact]
-    public void Library_originals_carry_the_pieces_title_and_composer()
-    {
-        Project project = Project.CreateDocument("p_pdf", "Chopin - Ballade.pdf", "%PDF-1.4 x"u8.ToArray(), DateTimeOffset.UnixEpoch) with
-        {
-            Metadata = new PieceMetadata("Ballade No. 1", "Chopin", null, null),
-        };
-
-        LibraryOriginal original = Assert.Single(LibraryOriginals.Of(project));
-
-        Assert.Equal(("p_pdf", PieceOriginal.DocumentId, "Ballade No. 1", "Chopin"), (original.ProjectId, original.OriginalId, original.Title, original.Composer));
-        Assert.Equal(PieceOriginal.Fingerprint("%PDF-1.4 x"u8), original.Sha256);
-    }
-
     private static string Describe(PlannedFile file) => $"{file.File.Path} {file.Status} {file.SameAs} {string.Join(',', file.Playlists)}";
 }

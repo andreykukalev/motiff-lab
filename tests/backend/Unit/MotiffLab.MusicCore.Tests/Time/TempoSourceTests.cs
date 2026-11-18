@@ -163,22 +163,6 @@ public class TempoSourceTests
     }
 
     [Fact]
-    public void A_score_shown_as_written_carries_the_players_tempo_in_place_of_its_own()
-    {
-        string xml = Encoding.UTF8.GetString(Score(metronome: true));
-        PlaybackScore notated = PlaybackScore.FromPiece(Piece(Score(metronome: true)));
-
-        Assert.Same(xml, WrittenTempo.With(xml, notated));
-        string marked = WrittenTempo.With(xml, notated.WithPlayerTempo(92));
-
-        Assert.DoesNotContain("<per-minute>72</per-minute>", marked, StringComparison.Ordinal);
-        Assert.Contains("</attributes><direction placement=\"above\"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>92</per-minute></metronome></direction-type><sound tempo=\"92\" /></direction>", marked, StringComparison.Ordinal);
-        Assert.Equal(92, PlaybackScore.FromPiece(Piece(Encoding.UTF8.GetBytes(marked))).StartTempo.PerMinute);
-        Assert.Contains("<per-minute>92</per-minute>", WrittenTempo.With(Encoding.UTF8.GetString(Homr()), PlaybackScore.FromPiece(Piece(Homr())).WithPlayerTempo(92)), StringComparison.Ordinal);
-        Assert.Contains("<per-minute>80</per-minute>", WrittenTempo.With(Encoding.UTF8.GetString(Homr()), PlaybackScore.FromPiece(Piece(Homr()))), StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void The_tempo_fact_names_the_players_tempo_as_theirs()
     {
         ImportedPiece piece = Piece(Homr()) with { PlayerTempo = 92 };
@@ -254,9 +238,6 @@ public class TempoSourceTests
         Assert.Equal(92, TempoBeat.DottedQuarter.QuarterNotes(61));
         Assert.All(Enumerable.Range(14, 187), perMinute =>
             Assert.Equal(perMinute, TempoBeat.DottedQuarter.PerMinute(TempoSources.MicrosecondsPerQuarter(TempoBeat.DottedQuarter.QuarterNotes(perMinute)))));
-        string written = WrittenTempo.With(Encoding.UTF8.GetString(Compound(metronome: false)), PlaybackScore.FromPiece(Piece(Compound(metronome: false))).WithPlayerTempo(92));
-        Assert.Contains("<metronome><beat-unit>quarter</beat-unit><beat-unit-dot /><per-minute>61</per-minute></metronome></direction-type><sound tempo=\"92\" />", written, StringComparison.Ordinal);
-        Assert.Equal(92, PlaybackScore.FromPiece(Piece(Encoding.UTF8.GetBytes(written))).StartTempo.PerMinute);
     }
 
     [Fact]
