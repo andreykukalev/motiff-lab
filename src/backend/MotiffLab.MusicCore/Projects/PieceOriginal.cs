@@ -174,7 +174,9 @@ public sealed record PieceOriginal(string Id, OriginalKind Kind, string FileName
 
 /// <summary>
 /// The originals of a piece: the ones its own data shows (the PDF in it, the file it was imported from, each recording
-/// and MIDI version), with the descriptions the file keeps laid over them, and how two copies' descriptions merge.
+/// and MIDI version), with the descriptions the file keeps laid over them, and how two copies' descriptions merge; and
+/// the provenance the piece's data shows for its Notes, from those originals (<see cref="OfWorkingNotes"/>,
+/// <see cref="OfVersion"/>, <see cref="SourcesOf"/>).
 /// </summary>
 public static class PieceOriginals
 {

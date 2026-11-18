@@ -104,14 +104,22 @@ function toRepoPath(path) {
   return relativePath(ROOT, absolute).split('\\').join('/');
 }
 
-/** The repository's files matching the patterns, without archive/: archived code is not checked (docs/repository-structure.md). */
+/**
+ * The repository's files matching the patterns, without archive/: archived code is not checked
+ * (docs/repository-structure.md). archive/ is left out here, not by an exclude pathspec: git 2.43 lists no file at all
+ * for `src/backend/MotiffLab.MusicCore/*.cs` with `:(exclude)archive/**` (#694). Every check expects files, so none
+ * found is an error, never a clean pass.
+ */
 function gitFiles(...patterns) {
-  const result = run('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...patterns,
-    ':(exclude)archive/**']);
+  const result = run('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...patterns]);
   if (result.status !== 0) {
     throw new Error(`git ls-files failed: ${result.stderr}`);
   }
-  return result.stdout.split('\0').filter(Boolean);
+  const files = result.stdout.split('\0').filter((file) => file && !file.startsWith('archive/'));
+  if (files.length === 0) {
+    throw new Error(`git ls-files found no file for ${patterns.join(' ')}: a check of no files would pass on nothing`);
+  }
+  return files;
 }
 
 function lineCount(text) {

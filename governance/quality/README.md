@@ -71,8 +71,7 @@ function, a global constant or a member an extension adds to a type used from an
 
 music-core is one C# project, so the compiler lets its namespaces (`MotiffLab.MusicCore.<Namespace>`, a sub-namespace
 such as `Import.Scan` counted as its top one) use each other in a loop. `dependencies` keeps them in layers: a namespace
-uses only the namespaces of the layers above it in this table (the layers below it in the code), never one of its own
-layer, so none uses another, directly or round a loop (W1.1 to W1.3, 2026-11-18; `docs/code-map/core.md`). The table is
+uses only namespaces of a layer with a lower number, never one of its own layer, so none uses another, directly or round a loop (W1.1 to W1.3, 2026-11-18; `docs/code-map/core.md`). The table is
 `CORE_LAYERS` in `tools/quality/dependencies.mjs`, and its test keeps this copy equal. `(root)` is `MotiffLab.MusicCore`
 itself (`Words`):
 

@@ -46,7 +46,8 @@ export const IPAD_FOLDER_USES = {
  * music-core's namespaces (MotiffLab.MusicCore.<Namespace>; a sub-namespace such as Import.Scan counts as its top one)
  * in layers, from the bottom (docs/code-map/core.md, «Which namespace uses which»): a namespace uses only namespaces of
  * the layers before its own, never one of its own layer, so none uses another round a loop. `(root)` is
- * MotiffLab.MusicCore itself (`Words`), which every namespace may use. governance/quality/README.md shows the same
+ * MotiffLab.MusicCore itself (`Words`), which the namespaces from layer 2 up may use; `Time`, `Settings` and `Accounts`
+ * share its layer and use nothing. governance/quality/README.md shows the same
  * layers, and tools/quality/dependencies.test.mjs checks that the two agree.
  */
 export const CORE_LAYERS = [
@@ -104,9 +105,10 @@ export function coreViolations(files, read) {
 // ---- music-core's namespaces --------------------------------------------------------------------------------
 //
 // An unqualified name in C# reaches another namespace only through a `using` line or a namespace that encloses the
-// file's own (a sub-namespace sees its top one and the root, which every layer may use). So a file's edges are its
-// `using` lines (a dead one too: the line is a use) and the names it writes qualified, `Performance.SavedPerformance`
-// or `MotiffLab.MusicCore.Import.Scan.ScanCheck`, in code and in a cref, whose name needs the namespace as code does.
+// file's own (a sub-namespace sees its top one, and every file sees the root: so a use of the root is not seen, and
+// `Time`, `Settings` or `Accounts` using `Words` would pass). So a file's edges are its `using` lines (a dead one too:
+// the line is a use) and the names it writes qualified, `Performance.SavedPerformance` or
+// `MotiffLab.MusicCore.Import.Scan.ScanCheck`, in code and in a cref, whose name needs the namespace as code does.
 // A qualified name counts when its path leads to a type the namespace declares, so `Assembly.GetExecutingAssembly()`
 // or a member named like a namespace is no use. Other comment text and string literals are no use. What it cannot see:
 // a type reached without its name written (`var bars = piece.Bars`, a member of a member) needs no `using`, so it is no
