@@ -251,3 +251,13 @@ test("the selected span's handles are the kit's hollow circles at the middle of 
     drawPlaceEdges(context, frame, { start: 0, end: 4000 }, { accent: "cobalt", tint: "tint", surface: "white" });
     assert.deepEqual(discs, [], "edges out of view are not drawn");
 });
+
+test("a press takes an edge only on its handle, where it is drawn; elsewhere down the edge a playhead is taken first (0.8 finding 1)", async () => {
+    const { onPlaceHandle } = await import("../../src/shared/wwwroot/js/roll/roll-place-draw.js");
+    const frame = { xOf: (tick) => tick / 4, header: 24, height: 300 };
+    const span = { start: 480, end: 1920 };
+    assert.equal(onPlaceHandle(frame, span, 120, 162), true, "the start's handle");
+    assert.equal(onPlaceHandle(frame, span, 485, 170), true, "the end's, within its reach");
+    assert.equal(onPlaceHandle(frame, span, 120, 12), false, "on the bar numbers, where the playhead's knob is");
+    assert.equal(onPlaceHandle(frame, span, 120, 280), false, "low down the edge");
+});

@@ -165,11 +165,11 @@ final class ContentsController: ObservableObject {
     }
 
     /// Add Structure bookmarks from Piece DNA (testing item 22): one per section of the form, "Section A′, bars 17–32";
-    /// answers how many were added.
-    func addForm() async -> Int {
+    /// answers how many were added, or nil with no piece open or when music-core refused (`problem` says why).
+    func addForm() async -> Int? {
         let before = shelf?.bookmarks.count ?? 0
         await call("bookmark.form", ["now": Self.now()])
-        return (shelf?.bookmarks.count ?? 0) - before
+        return piece == nil || problem != nil ? nil : (shelf?.bookmarks.count ?? 0) - before
     }
 
     /// Whether the drawer offers the detected form as Structure bookmarks: the piece has sections and none is filed yet.

@@ -264,7 +264,8 @@ struct SourcesToastView: View {
 }
 
 /// The «Исполнение» view on the iPad: the recording's sound kept on this iPad, heard as it is, from a capsule under the
-/// bar while the score stays the working notes. ✕ goes back to the notes.
+/// bar while the score stays the working notes. Its slider moves through the recording, the time beside it (Andrei, v0.8
+/// finding 20). ✕ goes back to the notes.
 struct RecordingViewCapsule: View {
     let url: URL
     let title: String
@@ -283,6 +284,18 @@ struct RecordingViewCapsule: View {
             .accessibilityLabel(listening.playing ? text["sources.sheet.pause"] : text.format("sources.sheet.listen", title))
             Icon(name: "mic", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-2"))
             Text(title).dsType(.label).foregroundStyle(Color.ds("ink")).lineLimit(1)
+            Slider(
+                value: Binding(get: { Double(listening.elapsed) }, set: { listening.seek(to: Int($0.rounded())) }),
+                in: 0...Double(max(1, listening.length))
+            ) { editing in
+                if editing { listening.hold() } else { listening.release() }
+            }
+            .tint(Color.ds("accent"))
+            // Five fingertips wide: room to aim at a minute of a long recording.
+            .frame(width: CGFloat.ds("h-touch") * 5)
+            .disabled(listening.length == 0)
+            .accessibilityLabel(text["sources.sheet.seek"])
+            .accessibilityValue(text.format("sources.sheet.seekValue", SourceLayers.duration(listening.elapsed), SourceLayers.duration(listening.length)))
             Text(SourceLayers.duration(listening.elapsed) + " / " + SourceLayers.duration(listening.length))
                 .dsType(.caption)
                 .monospacedDigit()
@@ -309,7 +322,14 @@ final class RecordingListening: ObservableObject {
     /// Where it is and how long it is, in milliseconds.
     @Published private(set) var elapsed = 0
     @Published private(set) var length = 0
+    /// The player's finger is on the slider: the place shown is the finger's, and the sound moves there on release.
+    private(set) var holding = false
+    /// Where the sound is now, in milliseconds.
+    var heardAt: Int { atEnd ? length : Int(((player?.currentTime ?? 0) * 1000).rounded()) }
     private var player: AVAudioPlayer?
+    /// Moved to the end: AVAudioPlayer keeps no `currentTime` equal to its duration (it reads back 0), so the sound is
+    /// stopped there and the next play starts from the beginning.
+    private var atEnd = false
     private var timer: Timer?
 
     func load(_ url: URL) {
@@ -330,6 +350,7 @@ final class RecordingListening: ObservableObject {
             // Heard with the ring switch on silent too, as the score's own playback is (Player).
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)
+            atEnd = false
             player.play()
             playing = true
             timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
@@ -345,9 +366,32 @@ final class RecordingListening: ObservableObject {
         timer = nil
     }
 
-    private func tick() {
+    /// Moves the sound to a place, in milliseconds, kept within the recording; playing, it goes on from there, and at the
+    /// end it stops. While the finger holds the slider only the place shown moves, so the sound does not stutter; it
+    /// follows on `release`.
+    func seek(to milliseconds: Int) {
         guard let player else { return }
-        elapsed = Int((player.currentTime * 1000).rounded())
+        elapsed = min(max(0, milliseconds), length)
+        guard !holding else { return }
+        atEnd = elapsed >= length
+        if atEnd { stop() }
+        player.currentTime = atEnd ? 0 : Double(elapsed) / 1000
+    }
+
+    /// The finger is on the slider.
+    func hold() {
+        holding = true
+    }
+
+    /// The finger leaves the slider: the sound moves to the place shown.
+    func release() {
+        holding = false
+        seek(to: elapsed)
+    }
+
+    private func tick() {
+        guard let player, !holding else { return }
+        elapsed = heardAt
         if !player.isPlaying {
             playing = false
             timer?.invalidate()

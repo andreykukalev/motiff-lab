@@ -105,7 +105,7 @@ struct RollDrawer: View {
 
     /// The head (the approved mockup v0.5.2, #479 item 23; #521 18): the name and the roll's mode switch first, where they
     /// always are; then in Navigate the selection's place and Clear selection, Note names, the colour scheme, Expand and
-    /// Close, or in Edit notes the editor's tools, the selection's place, Cancel and Save. The selection's place takes the
+    /// Collapse, or in Edit notes the editor's tools, the selection's place, Cancel and Save. The selection's place takes the
     /// room left and never pushes a control (#521 18.4).
     @ViewBuilder private func head(compact: Bool, mode: RollMode, editor: NoteEditorState?, live: Bool, pick: Bool = false) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -132,11 +132,15 @@ struct RollDrawer: View {
                 if let editor {
                     RollEditFinish(score: score, editor: editor, text: text)
                 }
+                // «Свернуть» puts the drawer down (Andrei's 0.8 test, finding 7: in place of the cross); the pill's roll
+                // button brings it back up.
                 Button(action: close) {
-                    Icon(name: "close")
+                    Icon(name: "chevd")
                 }
                 .buttonStyle(RollHeadStyle(round: true))
-                .accessibilityLabel(text["bar.close"])
+                .accessibilityLabel(text["roll.collapse"])
+                .accessibilityHint(text["roll.collapseHint"])
+                .help(text["roll.collapse"])
             }
         }
     }

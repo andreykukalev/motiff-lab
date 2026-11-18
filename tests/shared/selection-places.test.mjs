@@ -10,8 +10,10 @@ import {
     DOUBLE_TAP_MS,
     doubleTap,
     drawnRange,
+    edgeHandles,
     headAt,
     movedEdge,
+    onEdgeHandle,
     placeAt,
     placeChange,
     placeEnded,
@@ -58,6 +60,17 @@ test("a short selection keeps an inside: its edges reach a quarter of it inward 
     assert.equal(placeAt(span, 119, 50, short), "edge-end");
     assert.equal(placeAt(span, 100 - EDGE_REACH, 50, short), "edge-start");
     assert.equal(placeAt(span, 124 + EDGE_REACH, 50, short), "edge-end");
+});
+
+test("the edges' handles stand at the middle of the start's edge and of the end's, and take a press within the reach of their centre", () => {
+    const handles = edgeHandles(runs);
+    assert.deepEqual(handles, [{ x: 300, y: 200 }, { x: 260, y: 500 }]);
+    assert.deepEqual(edgeHandles([]), []);
+    assert.equal(onEdgeHandle(handles, 300, 200), true);
+    assert.equal(onEdgeHandle(handles, 300, 200 + EDGE_REACH), true);
+    assert.equal(onEdgeHandle(handles, 260 - EDGE_REACH, 500), true, "the end's handle");
+    assert.equal(onEdgeHandle(handles, 300, 200 + EDGE_REACH + 1), false, "further down the edge: not its handle");
+    assert.equal(onEdgeHandle(handles, 300, 100), false, "at the edge's top, where the blue playhead's knob stands: not the handle");
 });
 
 test("without a selection every press is outside, or on the margin off the music", () => {

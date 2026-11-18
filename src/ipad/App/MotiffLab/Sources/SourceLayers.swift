@@ -57,6 +57,14 @@ struct SourceLayers: Equatable, Sendable {
         var canMakeWorking: Bool { role == "other" }
     }
 
+    /// An original with the Notes music-core lists as made from it: the sheet shows them together (Andrei, v0.8 finding
+    /// 19: a PDF and the notes read from it were at the two ends of the list).
+    struct Group: Identifiable, Equatable, Sendable {
+        var original: Original
+        var notes: [Notes]
+        var id: String { original.id }
+    }
+
     /// A view of the switch: an original as it is, Notes, or a recording's sound.
     struct ViewEntry: Identifiable, Equatable, Sendable {
         var id: String
@@ -128,6 +136,20 @@ struct SourceLayers: Equatable, Sendable {
     /// The Notes in the sheet's order: the working notes first.
     var listedNotes: [Notes] { notes.filter(\.isWorking) + notes.filter { !$0.isWorking } }
 
+    /// The sheet's groups: each original with its Notes in music-core's order; the group of the working notes first, even
+    /// when its original is a tombstone, then the others as `listedOriginals` has them (the other tombstones last).
+    var groups: [Group] {
+        let all = listedOriginals.map { original in Group(original: original, notes: original.notes.compactMap { notes($0) }) }
+        let working = { (group: Group) in group.notes.contains(where: \.isWorking) }
+        return all.filter(working) + all.filter { !working($0) }
+    }
+
+    /// The Notes made from no original of this piece (a version from a file), after the groups, the working notes first.
+    var looseNotes: [Notes] {
+        let grouped = Set(originals.flatMap(\.notes))
+        return listedNotes.filter { !grouped.contains($0.id) }
+    }
+
     // MARK: - Words and pictograms
 
     /// The pictogram of what made Notes (sources sheet, new icons): a PDF read, a recording heard, an assembly, a file.
@@ -161,11 +183,12 @@ struct SourceLayers: Equatable, Sendable {
         }
     }
 
-    /// The Notes' title: the file they were made from, else their name, else what made them.
-    func title(of notes: Notes, _ text: UIText) -> String {
-        if let original = original(notes.original) { return original.shown }
+    /// The Notes' title: the file they were made from, else their name, else what made them. Under their original in the
+    /// sheet's card (`underOriginal`), only what tells them from it: their name, else «Ноты» and what made them.
+    func title(of notes: Notes, _ text: UIText, underOriginal: Bool = false) -> String {
+        if !underOriginal, let original = original(notes.original) { return original.shown }
         if let name = notes.name, !name.isEmpty { return name }
-        return Self.operationName(notes.op, text)
+        return underOriginal ? text["sources.roleNotes"] + " · " + Self.operationName(notes.op, text) : Self.operationName(notes.op, text)
     }
 
     /// A view's word in the switch: «PDF», «Ноты» or «Исполнение».
