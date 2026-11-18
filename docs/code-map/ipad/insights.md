@@ -4,8 +4,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
 
 ## Files
 
-`Circle`, `Dna`, `Insights` (`.swift`).
+`Circle`, `Dna`, `DnaBookmarks`, `Insights` (`.swift`).
 
+- `DnaBookmarks.swift`: what Piece DNA's «Добавить закладки «Структура»» did, in words (how many, or that every section
+  has one, and where: the contents, Bookmarks › Structure; nothing when the call failed).
 - `Insights.swift`: `InsightsController` (facts, Try ways, `trial`), `InsightsSheet` (the stream; Ask's foot).
 
 ## The contract others may rely on

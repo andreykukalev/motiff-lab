@@ -455,10 +455,7 @@ struct ScoreScreenContent: View {
                                 if openInsights { change(.open(.insights)) }
                             }
                         },
-                        addBookmarks: {
-                            let added = await contents.addForm()
-                            return text.count("bookmark.structureAdded", added)
-                        },
+                        addBookmarks: { await contents.addForm() },
                         ask: {
                             // The map gives way to the score with the assistant beside it, on the whole piece.
                             dna = nil
