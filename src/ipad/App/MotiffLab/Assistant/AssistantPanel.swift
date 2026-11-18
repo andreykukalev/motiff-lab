@@ -292,7 +292,9 @@ struct AssistantConsent: View {
     }
 }
 
-/// The piece's conversations kept on this iPad, newest first: each by its first question and when it was last asked.
+/// The piece's conversations kept on this iPad, newest first: each by its first question and when it was last asked. The
+/// open one is tinted in a row's rounded rectangle (`DSItemStyle`'s `.rounded` outline, `r-s`), not a capsule (Andrei,
+/// v0.8 finding 9).
 struct AssistantChatList: View {
     @ObservedObject var assistant: AssistantController
     let text: UIText
@@ -314,7 +316,7 @@ struct AssistantChatList: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(DSItemStyle(on: chat.id == assistant.currentId))
+                    .buttonStyle(DSItemStyle(on: chat.id == assistant.currentId, outline: .rounded))
                     .accessibilityAddTraits(chat.id == assistant.currentId ? .isSelected : [])
                 }
             }
