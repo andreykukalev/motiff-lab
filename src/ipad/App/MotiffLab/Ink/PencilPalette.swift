@@ -35,31 +35,17 @@ enum PencilGesture {
 /// score), so over the piano roll, a drawer or the bars it gave none and the menu opened in a corner of the score (#521 7):
 /// once watching a window, the place where the Pencil last hovered over any of it stands in.
 @MainActor
-final class PencilGestures: NSObject, UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
+final class PencilGestures: NSObject, UIPencilInteractionDelegate {
     var perform: (PencilGesture.Action, CGPoint?) -> Void = { _, _ in }
-    private let hover = UIHoverGestureRecognizer()
+    /// The window's hover, while this watches it.
+    private weak var hover: WindowHover?
     /// Where the Pencil last hovered over the window watched, in its coordinates.
-    private(set) var hovered: CGPoint?
+    var hovered: CGPoint? { hover?.place }
 
     /// Follows the Pencil's hover over the whole window, beside every other gesture; again for another window.
     func watch(_ window: UIWindow?) {
-        guard let window, hover.view !== window else { return }
-        if hover.view == nil {
-            hover.addTarget(self, action: #selector(moved(_:)))
-            hover.delegate = self
-            hover.cancelsTouchesInView = false
-        } else {
-            hover.view?.removeGestureRecognizer(hover)
-        }
-        window.addGestureRecognizer(hover)
-    }
-
-    @objc private func moved(_ recognizer: UIHoverGestureRecognizer) {
-        if recognizer.state == .began || recognizer.state == .changed { hovered = recognizer.location(in: nil) }
-    }
-
-    func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        true
+        guard let window, hover?.view !== window else { return }
+        hover = WindowHover.on(window)
     }
 
     /// Before iPadOS 17.5: a double tap, at the Pencil's last hover.
@@ -90,6 +76,36 @@ final class PencilGestures: NSObject, UIPencilInteractionDelegate, UIGestureReco
     private func place(_ pose: UIPencilHoverPose?, _ interaction: UIPencilInteraction) -> CGPoint? {
         guard let pose, let view = interaction.view else { return hovered }
         return view.convert(pose.location, to: nil)
+    }
+}
+
+/// The Pencil's hover over a whole window, one for the window whichever screen watches it: each score's screen added its
+/// own and none took it off, so the window kept one more for every visit to the notes (VIEW-02, #681).
+@MainActor
+private final class WindowHover: UIHoverGestureRecognizer, UIGestureRecognizerDelegate {
+    /// Where the Pencil last hovered over the window, in its coordinates.
+    var place: CGPoint?
+
+    /// The window's hover, put on it the first time; a screen that starts watching has no place yet.
+    static func on(_ window: UIWindow) -> WindowHover {
+        if let found = window.gestureRecognizers?.lazy.compactMap({ $0 as? WindowHover }).first {
+            found.place = nil
+            return found
+        }
+        let hover = WindowHover(target: nil, action: nil)
+        hover.addTarget(hover, action: #selector(moved))
+        hover.delegate = hover
+        hover.cancelsTouchesInView = false
+        window.addGestureRecognizer(hover)
+        return hover
+    }
+
+    @objc private func moved() {
+        if state == .began || state == .changed { place = location(in: nil) }
+    }
+
+    func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
     }
 }
 

@@ -749,7 +749,8 @@ struct PdfScreen: View {
             sourcesOpen = false
             return
         }
-        sources.reopen = { await reopenHere() }
+        // Only while the screen is there: switched away while its pages were read, the way back would hold it (#681).
+        if !Task.isCancelled { sources.reopen = { await reopenHere() } }
         await sources.load(piece: piece.id, file: piece.file)
         SourcesHandover.drop(piece.file)
         await originals.load(piece)
