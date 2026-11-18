@@ -66,6 +66,8 @@ final class PlaceSelectionTests: XCTestCase {
         XCTAssertFalse(ScoreController.replaces([:]))
         XCTAssertEqual(ScoreController.refusal("A selection spans at most 32 bars. (Parameter 'span')"), "selection.tooLong")
         XCTAssertEqual(ScoreController.refusal("There are no notes in that passage."), "selection.noNotes")
+        XCTAssertEqual(UIText(language: "en")["selection.noNotes"], "No notes there: the selection stays as it was", "the iPad's words (answer 12)")
+        XCTAssertEqual(UIText(language: "ru")["selection.noNotes"], "Здесь нет нот: выделение осталось прежним")
         XCTAssertNil(ScoreController.refusal("Send \"bars\" {first, last}."))
         XCTAssertNil(ScoreController.refusal(nil))
         let box: [String: Any] = ["left": 100, "top": 200, "right": 300, "bottom": 260]
