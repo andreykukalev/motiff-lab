@@ -1,3 +1,6 @@
+using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Pieces;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>
@@ -42,10 +45,10 @@ public sealed partial record Project
     /// transcription's (<see cref="NotesProvenance.AudioRecognition"/>), else an import, from the imported file when the piece
     /// has one; each original with its fingerprint as the piece knows it now.
     /// </summary>
-    public NotesProvenance DerivedProvenance => NotesProvenance.OfWorkingNotes(this);
+    public NotesProvenance DerivedProvenance => PieceOriginals.OfWorkingNotes(this);
 
     /// <summary>A compared Notes' provenance: the kept one while it still tells of the version, else the one its data shows.</summary>
-    public NotesProvenance ProvenanceOf(SavedPerformance performance) => NotesProvenance.Kept(performance?.Provenance, NotesProvenance.OfVersion(this, performance!));
+    public NotesProvenance ProvenanceOf(SavedPerformance performance) => NotesProvenance.Kept(performance?.Provenance, PieceOriginals.OfVersion(this, performance!));
 
     /// <summary>
     /// The views the player hid from the switch at the top of the score (version 16; Andrei, 2026-11-14): ids of originals

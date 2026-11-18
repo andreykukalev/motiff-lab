@@ -13,13 +13,17 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
   `ImportReport`, `MidiIssueCodes`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars
   of a recording (`BarGrid`, `GridSearch`; the beat search moves back to `Import.Transcription` with W1.9), `PageMap`,
-  `Transcribed`, the player's `PieceMetadata` (`TitleOf`) and `OriginalKind` (`OriginalKinds.FileKind`).
-- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`), PDFs (`Vector`), folders.
+  `Transcribed`, the player's `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`),
+  where Notes came from (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
+- `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`, with `TranscriptionOrigin`), PDFs
+  (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged.
-- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals, parts, sync (`ProjectSync`),
-  what a library card shows (`PieceDetails`, `LibraryOriginals`).
+- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared and merged, and kept
+  (`SavedPerformance`, `PerformanceSource`).
+- `Projects`: `Project`, the project file (`ProjectFile`, `Version`), sources, originals (`PieceOriginals`, also the
+  provenance a piece's data shows), parts, sync (`ProjectSync`), what a library card shows (`PieceDetails`,
+  `LibraryOriginals`), bookmark categories (`BookmarkCategory`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
@@ -42,11 +46,13 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-`Time` uses nothing; `Events` only `Time` and the root (`Words`); `Pieces` only `Time`, `Events`, `Motifs` and the root;
-every rule and `Projects` may use them. `Import` uses no `Analysis` or `Projects`, and `Analysis` no `Import` (W1.1);
-neither `Analysis` nor `Playback` uses `Notation`, and `Pieces` no `Playback` (W1.2, 2026-11-18). Still mutual
-(`docs/REFACTORING_AUDIT.md` W1.3): `Analysis`, `Assembly` and `Performance` with `Projects` (saved records). A new
-mutual pair is a defect; the `dependencies` check does not read these edges yet (W1.3).
+No two namespaces use each other, directly or round a loop (W1.1 to W1.3, 2026-11-18), counted by `using` lines, code
+and `cref`s alike: a `cref` needs the namespace too, so a comment names a type of a higher namespace in plain text
+(`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only `Time` and the root (`Words`); `Motifs`
+only `Time` and `Events`; `Pieces` those and the root; `Import` (all its sub-namespaces counted as one) and `Playback` add
+nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`, `Assembly`, `Variations`, ...),
+`Projects`, `Assistant` and `Facade`. A new loop is a defect; the `dependencies` check does not read these edges yet
+(W1.3, rules pull request).
 
 ## Rules not to break
 

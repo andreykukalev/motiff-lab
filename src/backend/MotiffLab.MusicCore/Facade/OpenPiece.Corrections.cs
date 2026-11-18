@@ -3,7 +3,6 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Assistant.Conversation;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;

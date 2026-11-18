@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 

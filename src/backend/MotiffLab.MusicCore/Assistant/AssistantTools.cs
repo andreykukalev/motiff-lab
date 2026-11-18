@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using MotiffLab.MusicCore.Events;
-
 namespace MotiffLab.MusicCore.Assistant;
 
 /// <summary>What a tool does (the AI companion study, section 4.2). None of them changes the piece.</summary>

@@ -8,7 +8,6 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Tests.Projects;
 using MotiffLab.MusicCore.Time;
-using MotiffLab.MusicCore.Variations;
 
 using static MotiffLab.MusicCore.Tests.Assistant.AssistantScores;
 

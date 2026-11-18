@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;

@@ -1,6 +1,6 @@
-using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Pieces;
 
-namespace MotiffLab.MusicCore.Projects;
+namespace MotiffLab.MusicCore.Performance;
 
 /// <summary>Where another version's notes come from (decision record 0022, section 1).</summary>
 public enum PerformanceSource
@@ -45,7 +45,7 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
     /// <summary>The merge draft last applied (testing items 32 and 34), so it can be opened again; null before the first.</summary>
     public MergeRecord? Merge { get; init; }
 
-    /// <summary>The original these notes were heard in or read from (<see cref="PieceOriginal.Id"/>, version 0.3); null when not kept.</summary>
+    /// <summary>The original these notes were heard in or read from (<c>PieceOriginal.Id</c>, version 0.3); null when not kept.</summary>
     public string? From { get; init; }
 
     /// <summary>When the notes were made from it (version 0.3); null when not kept.</summary>
@@ -53,7 +53,7 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
 
     /// <summary>
     /// Where these notes came from as their file last said (project file version 16, 0030): kept while it still tells of
-    /// <see cref="Source"/>, <see cref="From"/>, <see cref="Engine"/> and <see cref="At"/> (<see cref="Projects.NotesProvenance.Kept"/>),
+    /// <see cref="Source"/>, <see cref="From"/>, <see cref="Engine"/> and <see cref="At"/> (<see cref="NotesProvenance.Kept"/>),
     /// so its fingerprints and params stay; null for notes this build made. Not part of equality: it tells how the notes were
     /// made, not what they are.
     /// </summary>
