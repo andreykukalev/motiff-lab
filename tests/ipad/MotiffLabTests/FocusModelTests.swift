@@ -4,7 +4,7 @@ import XCTest
 
 /// FocusModel (S3, ADR 0031 section 3) on the kit's piece open in music-core, selected through SelectionModel: the play
 /// range is the selection's span and goes with it; the card is the unit selected, or the unit that holds its start, and
-/// says where it is; a way back takes the version in focus away.
+/// says where it is; a way back takes the version in focus away; a version's notes are kept until the notes change.
 @MainActor
 final class FocusModelTests: XCTestCase {
     private var piece: Int32 = 0
@@ -68,6 +68,24 @@ final class FocusModelTests: XCTestCase {
         XCTAssertEqual(focus.unit?.number, 1)
         XCTAssertEqual(passage.firstBar, passage.lastBar)
         XCTAssertEqual(focus.position(in: text), text.format("bars.one", String(passage.firstBar)))
+    }
+
+    func testAVersionsNotesAreKeptUntilTheNotesChange() async throws {
+        let example = try XCTUnwrap(KitPiece.example)
+        let request = facadeRequest(["name": "Official", "file": example.data.base64EncodedString(), "fileName": example.fileName])
+        var shelf = VersionShelf()
+        XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.add", request)))
+        let id = try XCTUnwrap(shelf.shownId)
+        let read = await focus.versionNotes(of: id, in: piece)
+        let notes = try XCTUnwrap(read)
+        XCTAssertFalse(notes.isEmpty, "the version's notes to hear")
+
+        _ = MusicCore.call(piece: piece, "performance.remove", facadeRequest(["id": id]))
+        let kept = await focus.versionNotes(of: id, in: piece)
+        XCTAssertEqual(kept, notes, "kept, not read again")
+        focus.forgetVersionNotes()
+        let again = await focus.versionNotes(of: id, in: piece)
+        XCTAssertEqual(again, [], "read again once forgotten: the version is gone")
     }
 
     func testNoSelectionIsNoUnitAndNoPosition() {

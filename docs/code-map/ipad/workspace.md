@@ -69,7 +69,7 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: the page's marks, corrections, merge, `focused`, `sources`; `mode` (never nil since v0.6.5);
+`ScoreController`: the page's marks, corrections, `focused`, `sources`; `mode` (never nil since v0.6.5);
 the models. `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and
 whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).

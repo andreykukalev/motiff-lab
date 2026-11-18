@@ -28,8 +28,8 @@ level shown that is selected, or the one that holds the selection's start.
 
 ## The state it owns
 
-`FocusModel`: `entry`, `asRoll`, the card's options, `version` and `playRange`; Expand's `focused` is still
-`ScoreController`'s ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the note of S3).
+`FocusModel`: `entry`, `asRoll`, the card's options, `version`, `playRange` and the version's notes to hear; Expand's
+`focused` is still `ScoreController`'s ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the note of S3).
 
 The practice visibilities (`PracticeView`). The rest: not recorded yet.
 

@@ -633,7 +633,7 @@ struct MergeShowSwitch: View {
 struct MergeToastView: View {
     @ObservedObject var score: ScoreController
     let text: UIText
-    let toast: ScoreController.MergeToast
+    let toast: MergeModel.Toast
 
     var body: some View {
         UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { score.undoToast() } : nil) { score.closeToast() }
@@ -675,7 +675,7 @@ struct UndoToast: View {
 struct MarkerPopover: View {
     @ObservedObject var score: ScoreController
     let text: UIText
-    let pick: ScoreController.MarkerPick
+    let pick: MergeModel.MarkerPick
 
     var body: some View {
         let bar = score.versions.bars.first { $0.bar == pick.bar }
