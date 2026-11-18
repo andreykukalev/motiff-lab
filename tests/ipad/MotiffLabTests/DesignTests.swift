@@ -128,5 +128,7 @@ final class DesignTests: XCTestCase {
         let corner = CGPoint(x: 1, y: 1)
         XCTAssertFalse(ControlShape.capsule.shape.path(in: square).contains(corner), "a capsule's tint stays inside its rounded ends")
         XCTAssertTrue(ControlShape.rounded.shape.path(in: square).contains(CGPoint(x: 20, y: 1)))
+        XCTAssertEqual(DSItemStyle().outline, .capsule, "a pill item stays a capsule")
+        XCTAssertEqual(DSItemStyle(on: true, outline: .rounded).outline, .rounded, "a list row's tint is a rounded rectangle (v0.8 finding 9)")
     }
 }

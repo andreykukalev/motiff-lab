@@ -38,8 +38,11 @@ export interface RollPressFacts {
     readonly gutter: boolean;
     /** Over the bar numbers' strips, above the notes. */
     readonly header: boolean;
-    /** On an edge of the selection by the place rule, while Select reads this pointer by its place: the edge wins over a playhead. */
-    readonly placeEdge: () => boolean;
+    /**
+     * On a handle of the selection's edges by the place rule, while Select reads this pointer by its place: the edge wins
+     * over a playhead there; elsewhere on the edge the playhead is taken first (0.8 finding 1, Andrei's answer 3).
+     */
+    readonly placeHandle: () => boolean;
     /** On a playhead this pointer takes (its handle, or its line), with none held already. */
     readonly playhead: () => boolean;
     /** Select reads this pointer by its place here (Select, the host's place selection on, not the editor, not a hidden lane). */
@@ -61,7 +64,7 @@ export function rollPressFor(facts: RollPressFacts): RollPress {
     if (facts.gutter) {
         return facts.header ? "none" : "keys";
     }
-    if (facts.placeEdge()) {
+    if (facts.placeHandle()) {
         return "place";
     }
     if (facts.playhead()) {

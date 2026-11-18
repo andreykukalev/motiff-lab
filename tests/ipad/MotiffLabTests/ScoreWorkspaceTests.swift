@@ -318,6 +318,22 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.player.selection, passage)
     }
 
+    /// Finding 2 of the 0.8 test (Andrei's answer 4, 2026-11-18): a tap on a beat of Expand's card moves the playhead there
+    /// inside the passage, as on Expand's roll, and starts nothing; the page's model is left as it is (T18), so a tap past
+    /// the passage makes no lead-in out of it as a tap on the page would.
+    func testATapInExpandMovesThePlayheadInsideThePassageOnly() async throws {
+        let workspace = try await selected()
+        let passage = try XCTUnwrap(workspace.score.focusModel.playRange?.range)
+        workspace.player.hold(selection: passage)
+        workspace.score.enterFocus()
+        XCTAssertEqual(workspace.score.expandPassage, passage, "Expand opens on the selection")
+        workspace.placeTapped(passage.upperBound + 480..<passage.upperBound + 960)
+        XCTAssertFalse(workspace.player.leadIn, "no lead-in: the tap stays inside the passage")
+        XCTAssertTrue(workspace.player.cycle, "Цикл as it was")
+        XCTAssertEqual(workspace.player.selection, passage, "the page's selection as it was")
+        XCTAssertEqual(workspace.player.state, .stopped, "a tap starts nothing")
+    }
+
     /// PDF | Notes (#511 section 10): the "Notes" view kept as the screen goes comes back on the screen that opens from
     /// the PDF (`Landing.kept`): the selection and the roll's drawer, and the pages show once they stand there.
     func testTheNotesViewKeptComesBack() async throws {
