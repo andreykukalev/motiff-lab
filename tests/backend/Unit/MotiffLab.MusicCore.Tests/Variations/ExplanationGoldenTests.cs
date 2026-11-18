@@ -22,38 +22,6 @@ public class ExplanationGoldenTests
     private static ImportedPiece Piece(string name) =>
         PieceImporter.Import(name, File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", name))).Piece!;
 
-    private static IEnumerable<OperationParameters> ParameterSets(IVariationOperation operation) => operation switch
-    {
-        RhythmReshape => [
-            .. Enum.GetValues<RhythmReshapeKind>().Where(static kind => kind != RhythmReshapeKind.Displace).Select(static kind => new RhythmReshapeParameters(kind)),
-            new RhythmReshapeParameters(RhythmReshapeKind.Displace, 1),
-            new RhythmReshapeParameters(RhythmReshapeKind.Displace, 2),
-        ],
-        Articulation => Enum.GetValues<ArticulationKind>().Select(static kind => new ArticulationParameters(kind)),
-        DensityAndRests => [
-            .. Enum.GetValues<DensityKind>().Select(static kind => new DensityParameters(kind)),
-            .. Enum.GetValues<DensityKind>().Select(static kind => new DensityParameters(kind, PatternUnit.Sixteenths)),
-        ],
-        AccentShift => [
-            .. Enum.GetValues<AccentPattern>().Where(static pattern => pattern != AccentPattern.Custom).Select(static pattern => new AccentShiftParameters(pattern)),
-            new AccentShiftParameters(AccentPattern.Custom, new IntervalSet([0, 2])),
-        ],
-        MelodicSequence => [new MelodicSequenceParameters(1, 1), new MelodicSequenceParameters(-2, 3), new MelodicSequenceParameters(2, 1, Diatonic: false)],
-        AccompanimentPattern => [
-            .. Enum.GetValues<AccompanimentPatternKind>().Select(static kind => new AccompanimentPatternParameters(kind)),
-            .. Enum.GetValues<AccompanimentPatternKind>().Select(static kind => new AccompanimentPatternParameters(kind, PatternUnit.Sixteenths)),
-        ],
-        BassPattern => Enum.GetValues<BassPatternKind>().Select(static kind => new BassPatternParameters(kind)),
-        VoicingAndRegister => Enum.GetValues<VoicingKind>().Select(static kind => new VoicingParameters(kind)),
-        Simplify => Enumerable.Range(SimplifyParameters.MinLevel, SimplifyParameters.MaxLevel).Select(static level => new SimplifyParameters(level)),
-        IntervalReshape => [new IntervalReshapeParameters(1, null), new IntervalReshapeParameters(-2, null), new IntervalReshapeParameters(-1, new IntervalSet([0]))],
-        ChangeDirection => [new ChangeDirectionParameters(Diatonic: true, null), new ChangeDirectionParameters(Diatonic: false, null)],
-        PassingNotes => Enum.GetValues<PassingNoteKind>().Select(static kind => new PassingNotesParameters(kind)),
-        Ornament => Enum.GetValues<OrnamentKind>().Select(static kind => new OrnamentParameters(kind)),
-        Reharmonise => Enum.GetValues<ReharmoniseKind>().Select(static kind => new ReharmoniseParameters(kind)),
-        _ => [],
-    };
-
     /// <summary>A note removed, changed and added by hand: the first note of the passage, and a note after its last.</summary>
     private static IEnumerable<OperationParameters> ByHand(IReadOnlyList<Note> notes)
     {
@@ -112,7 +80,7 @@ public class ExplanationGoldenTests
         (IReadOnlyList<Note> notes, VariationContext english) = Passage(name, firstBar, lastBar);
         var text = new StringBuilder();
         IEnumerable<(IVariationOperation Operation, OperationParameters Parameters)> steps = [
-            .. VariationOperations.All.SelectMany(operation => ParameterSets(operation).Select(parameters => (operation, parameters))),
+            .. VariationOperations.All.SelectMany(operation => ParameterSets.Every(operation).Select(parameters => (operation, parameters))),
             .. ByHand(notes).Select(parameters => ((IVariationOperation)HandEdit.Instance, parameters)),
         ];
         foreach ((IVariationOperation operation, OperationParameters parameters) in steps)
