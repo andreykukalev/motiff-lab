@@ -8,7 +8,8 @@
 # - Every push to develop (a merge) that touches the same inputs: the build for a real iPad, and the core's framework,
 #   built there on a change, is the cache that pull requests to develop read. The Swift tests and the walk's compile do
 #   not run again there: the pull request ran them on its merge commit (Andrei, 2026-11-18: fewer Mac runs); two pull
-#   requests green apart and red together show in the next run by hand, nightly or on the tag.
+#   requests green apart and red together show in the next run by hand (the lead's daily walk and switch test on
+#   develop), on the tag, and nightly once the schedule is on main.
 # - Every version tag (version.yml starts it by hand on the tag) and by hand from the Actions tab: everything, with the
 #   walk of the screens' journeys (on a tag, or with Walk ticked: asserting, one appearance, a few minutes), the
 #   pictures for the mockups (only with Screenshots ticked: every appearance, about half an hour, during which the Mac
@@ -26,7 +27,7 @@ run-name: >-
   github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
   || github.event_name == 'schedule' && 'start the nightly run of develop'
   || startsWith(github.ref, 'refs/tags/') && format('tag {0}', github.ref_name)
-  || github.event_name == 'push' && format('push to {0}', github.ref_name)
+  || github.event_name == 'push' && format('push to {0} (build only, no tests)', github.ref_name)
   || format('by hand on {0}', github.ref_name),
   format('{0}{1}', inputs.walk && ' + walk' || '', inputs.screenshots && ' + screenshots' || ''),
   inputs.switch_test && ' + switch test' || '') }}
