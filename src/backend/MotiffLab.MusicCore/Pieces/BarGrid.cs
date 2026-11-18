@@ -20,13 +20,12 @@ namespace MotiffLab.MusicCore.Pieces;
 /// <para>
 /// Applied to the piece (<c>Import.Transcription.RecordingBars</c>, which also finds the grid), it re-expresses the same
 /// notes against the grid: it moves no note in time, keeps every id, and plays back as the recording was heard, with a
-/// tempo change on every beat. The grid is
-/// an inference shown as one, and the project keeps the engine's MIDI as its source, so the player
-/// can change or drop the grid. Everything is integer arithmetic and deterministic: the same notes
+/// tempo change on every beat. The grid is an inference shown as one, and the project keeps the engine's MIDI as its
+/// source, so the player can change or drop the grid. Everything is integer arithmetic and deterministic: the same notes
 /// give the same grid.
 /// </para>
 /// </remarks>
-public sealed partial record BarGrid
+public sealed record BarGrid
 {
     /// <summary>One grid step in canonical ticks: a 16th note.</summary>
     public const long StepTicks = CanonicalTime.TicksPerQuarter / 4;

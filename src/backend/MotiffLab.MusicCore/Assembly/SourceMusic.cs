@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
@@ -57,7 +57,7 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
             return OfPiece(piece, piece.Notes);
         }
 
-        ImportedPiece heard = Transcribed.Mark(RecordingBars.Find(piece.Midi) is { } grid ? grid.Apply(piece) : piece);
+        ImportedPiece heard = RecordingBars.Heard(piece).Piece;
         SourceMusic music = OfPiece(heard, heard.Notes);
         return heard.Keys.Count == 0 && MusicalKey.OfHeard(heard.Notes) is { } key
             ? music with { Keys = [new KeySignature(Tick.Zero, key.Fifths, key.Mode)] }

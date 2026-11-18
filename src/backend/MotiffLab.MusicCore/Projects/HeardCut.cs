@@ -85,7 +85,7 @@ public static class HeardCut
 
         byte[] midi = Midi(engine, notes, start, stop);
         ImportedPiece read = PieceImporter.Import("part.mid", midi).Piece is { Midi: not null } imported ? imported : throw new ArgumentException("The notes cut could not be read.", nameof(collection));
-        BarGrid? bars = RecordingBars.Find(read.Midi!, search: live ? GridSearch.Live : null);
+        (BarGrid? bars, ImportedPiece piece) = RecordingBars.Heard(read, live ? GridSearch.Live : null);
         var origin = new TranscriptionOrigin(heard.Engine, bars)
         {
             Seams = [.. heard.Seams.Where(seam => seam > from && seam < to).Select(seam => seam - from)],
@@ -93,7 +93,6 @@ public static class HeardCut
             At = heard.At,
             SentFromMilliseconds = heard.SentFromMilliseconds,
         };
-        ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(read) : read);
         return new PieceParts.Cut(midi, ".mid", origin, (from, to)) { Check = CheckFlag.FromTranscription(origin, midi, piece) };
     }
 

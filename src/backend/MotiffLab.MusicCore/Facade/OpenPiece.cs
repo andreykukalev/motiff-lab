@@ -128,7 +128,7 @@ internal sealed partial class OpenPiece
 
         long milliseconds = heard.Long("milliseconds")!.Value;
         IReadOnlyList<RecordingPart> plan = PlanOf(heard, milliseconds);
-        (BarGrid? bars, ImportedPiece piece) = LiveTempoRequest.Heard(imported, heard);
+        (BarGrid? bars, ImportedPiece piece) = RecordingBars.Heard(imported, LiveTempoRequest.Of(heard));
         long? sentFrom = heard.Long("sentFromMs");
         if (sentFrom is < 0)
         {

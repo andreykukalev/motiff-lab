@@ -44,13 +44,33 @@ public class TranscribedTests
         Assert.Equal(piece.Notes.Select(note => (note.Id, note.Pitch, note.Span, note.Hand)), once.Select(note => (note.Id, note.Pitch, note.Span, note.Hand)));
     }
 
+    /// <summary>One C in a bar of MusicXML: a piece that is not a transcription.</summary>
+    private static ImportedPiece Score() => PieceImporter.Import(
+        "score.musicxml",
+        "<score-partwise><part-list><score-part id=\"P1\"/></part-list><part id=\"P1\"><measure number=\"1\"><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note></measure></part></score-partwise>"u8.ToArray()).Piece!;
+
     [Fact]
     public void Only_midi_is_a_transcription()
     {
-        byte[] musicXml = "<score-partwise><part-list><score-part id=\"P1\"/></part-list><part id=\"P1\"><measure number=\"1\"><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note></measure></part></score-partwise>"u8.ToArray();
-        ImportedPiece piece = PieceImporter.Import("score.musicxml", musicXml).Piece!;
+        Assert.Throws<ArgumentException>(() => Transcribed.Mark(Score()));
+        Assert.Throws<ArgumentException>(() => RecordingBars.Heard(Score()));
+    }
 
-        Assert.Throws<ArgumentException>(() => Transcribed.Mark(piece));
+    [Fact]
+    public void The_notes_heard_are_put_on_the_bars_found_and_marked_or_left_on_the_engines_when_none_are()
+    {
+        ImportedPiece concert = PieceImporter.Import("take.mid", File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid"))).Piece!;
+        (BarGrid? bars, ImportedPiece heard) = RecordingBars.Heard(concert, GridSearch.Live);
+
+        Assert.Equal(RecordingBars.Find(concert.Midi!, search: GridSearch.Live), bars);
+        Assert.Equal(Transcribed.Mark(bars!.Apply(concert)).Notes, heard.Notes);
+
+        // Seven notes are too few for a beat: the engine's bars, the notes marked heard.
+        ImportedPiece melody = PieceImporter.Import("take.mid", Melody()).Piece!;
+        (BarGrid? none, ImportedPiece kept) = RecordingBars.Heard(melody);
+        Assert.Null(none);
+        Assert.Equal(Transcribed.Mark(melody).Notes, kept.Notes);
+        Assert.Equal(melody.Meter, kept.Meter);
     }
 
     [Fact]
