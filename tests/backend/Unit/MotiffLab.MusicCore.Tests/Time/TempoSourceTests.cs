@@ -15,7 +15,7 @@ using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;
 
-namespace MotiffLab.MusicCore.Tests.Playback;
+namespace MotiffLab.MusicCore.Tests.Time;
 
 /// <summary>
 /// Where a tempo comes from (version 0.5.4, #511 section 17): the +30 % of a scanned piece was the default of 120 taken for

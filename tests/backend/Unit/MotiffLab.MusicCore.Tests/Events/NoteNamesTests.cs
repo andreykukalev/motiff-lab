@@ -1,6 +1,6 @@
 using MotiffLab.MusicCore.Events;
 
-namespace MotiffLab.MusicCore.Tests.Notation;
+namespace MotiffLab.MusicCore.Tests.Events;
 
 /// <summary>The names the piano roll writes on its rows and notes (0018 section 4): spelled for the key, as letters or as Russian syllables.</summary>
 public class NoteNamesTests
