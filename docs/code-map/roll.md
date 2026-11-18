@@ -11,9 +11,8 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 ## Modules
 
 - `piano-roll.ts`: `PianoRoll` (the view, ~4000 lines, baselined): `load`/`show`, `setMotif`, `drawRoll` (grid, band,
-  notes), `onPointerDown` (pinch and the Pen's stylus first, then the press table and one `begin*` per gesture:
-  `place.begin`, `beginPlayhead` after `playheadUnder`, `beginPan`, the edge drag after `edgeAnchorUnder`, `pressBarNumbers` →
-  strips, `pressLoopLane`, `editPress`, `beginRulePress`); `onPointerMove`, `pointerUp` (chain of `end*`), `cancelPresses`.
+  notes), `onPointerDown` (pinch, the Pen's stylus, then `roll-press.ts` and one `begin*` per gesture); `onPointerMove`,
+  `pointerUp` (chain of `end*`), `cancelPresses`.
 - `roll-press.ts` (S2, the input router): `rollPressFor`, the press table: gutter (keys) › an edge by the place rule ›
   a playhead (R7) › Select by place › touch-reading pan › the old edge › strips or the loop lane › the editor › the modes
   (R8) › a note. Facts with a hit test are asked lazily, in that order. Test: `tests/shared/roll-press.test.mjs`.

@@ -3128,15 +3128,14 @@ export class PianoRoll {
                 this.place.begin(event.pointerId, this.placePoint(x, y, tick), y < this.header);
                 return;
             case "playhead":
-                if (under.head !== null) {
-                    this.beginPlayhead(under.head, event.pointerId, x);
-                }
+                // The table names a playhead only when playheadUnder found one.
+                this.beginPlayhead(under.head as Handle | "line", event.pointerId, x);
                 return;
             case "pan":
                 this.beginPan(event, x, y);
                 return;
             case "edge":
-                this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor: under.anchor ?? tick, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
+                this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor: under.anchor as number, current: tick, edge: true, how: "edit", gesture: nextGestureId() };
                 this.invalidate();
                 return;
             case "barNumbers":
@@ -3227,8 +3226,7 @@ export class PianoRoll {
      */
     private beginNavigatePress(event: PointerEvent, x: number, y: number, tick: number, pitch: number): void {
         if (this.touchReading && event.pointerType !== "mouse") {
-            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
-            this.hold.begin(event.pointerId, x, y);
+            this.beginPan(event, x, y);
             return;
         }
         this.beginRulePress(event, x, y, tick, pitch);
