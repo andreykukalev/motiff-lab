@@ -12,9 +12,10 @@ import XCTest
 ///   (ScoreWorkspaceLife.swift); and the PDF's controllers with its pages' view, made, watched and attached as PdfPages
 ///   makes them, handed back to the notes. Once the last has gone none of them is alive.
 /// - the real screens, ScoreScreen and PdfScreen, hosted in the window and swapped as the library's
-///   `navigationDestination(item:)` with `.id(piece.id)` swaps them, once before the PDF's screen has read its pages:
-///   once the last has gone, none of their controllers is alive (the Debug probe's counts, ScreensProbe). The library's
-///   part of a switch is run here, not the bar's: the screens are swapped as handed over, without saving first.
+///   `navigationDestination(item:)` with `.id(piece.id)` swaps them, and once popped as Back pops it while the PDF's
+///   screen still reads its pages: once the last has gone, none of their controllers is alive (the Debug probe's counts,
+///   ScreensProbe). The library's part of a switch is run here, not the bar's: the screens are swapped as handed over,
+///   without saving first.
 /// In both, the window has as many gesture recognizers after each visit to the notes as after the first.
 /// Not seen here: memory in WebKit's processes or in music-core, a Release build, the roll's drawer and the pencil palette
 /// opened, and the time a switch takes (MotiffLabScreens/SwitchUITests and the device see that).
@@ -81,11 +82,8 @@ final class SwitchReleaseTests: XCTestCase {
             recognizers.append(window.gestureRecognizers?.count ?? 0)
             try await host(open(file, at: .page(1), asPdf: true), in: shown, round: round)
         }
-        // Back to the notes, opened before, as soon as the PDF's screen begins to read its pages: before it reads its
-        // sources and sets their way back.
-        let notes = try await open(file, at: nil, asPdf: false)
-        try await host(open(file, at: .page(1), asPdf: true), in: shown, round: 4, ready: false)
-        try await host(notes, in: shown, round: 4)
+        try await popWhileLoading(open(file, at: .page(1), asPdf: true), in: shown)
+        try await host(open(file, at: nil, asPdf: false), in: shown, round: 4)
         recognizers.append(window.gestureRecognizers?.count ?? 0)
         if let last = shown.piece { await ClosedPieces.close(last.id) }
         shown.piece = nil
@@ -191,29 +189,59 @@ final class SwitchReleaseTests: XCTestCase {
 
     /// A piece opened in one of its views shown in the place of the one shown, as the library's `show` does: the one
     /// shown is closed as its screen gives way. Waits for the new screen to be ready as the switch test does (the notes
-    /// drawn and shown, the PDF's pages read), or, not `ready`, only for it to begin; then watches its controllers.
-    private func host(_ piece: OpenPiece, in shown: ShownPiece, round: Int, ready: Bool = true) async throws {
+    /// drawn and shown, the PDF's pages read); then watches its controllers.
+    private func host(_ piece: OpenPiece, in shown: ShownPiece, round: Int) async throws {
         if let earlier = shown.piece { await ClosedPieces.close(earlier.id) }
         shown.piece = piece
         let name = "round \(round) \(piece.isDocument ? "PDF" : "notes") screen:"
         if piece.isDocument {
-            let shows = await until(seconds: 30, every: ready ? 50 : 1) {
-                guard let pdf = ScreensProbe.pdf, pdf.piece == piece.id else { return false }
-                return !ready || pdf.document != nil
-            }
+            let shows = await until(seconds: 30) { ScreensProbe.pdf?.piece == piece.id && ScreensProbe.pdf?.document != nil }
             XCTAssertTrue(shows, "\(name) not shown")
             if let pdf = ScreensProbe.pdf { watch("\(name) controller", pdf) }
             return
         }
         let shows = await until(seconds: 30) {
             guard let score = ScreensProbe.score, score.piece?.id == piece.id else { return false }
-            return !ready || (score.rendered && score.webView.alpha > 0.99)
+            return score.rendered && score.webView.alpha > 0.99
         }
         XCTAssertTrue(shows, "\(name) not shown")
         let parts: [(String, AnyObject?)] = [
             ("score", ScreensProbe.score), ("roll", ScreensProbe.roll), ("player", ScreensProbe.player), ("assistant", ScreensProbe.assistant),
         ]
         for case let (part, object?) in parts { watch("\(name) \(part)", object) }
+    }
+
+    /// Back from a PDF's screen while it reads its pages, as Back pops it, with no music-core call (#681). The screen
+    /// before goes first and nothing of it is left waiting for music-core. Then music-core is held while the PDF's screen
+    /// is pushed and begins to read its pages, so its read waits; the screen is popped; music-core is let go only once the
+    /// screen has gone (the save its `onDisappear` makes is the next call waiting for music-core); the piece is closed
+    /// after. The screen's `.task` then comes back from its read cancelled, after `onDisappear` cleared the Sources
+    /// panel's way back: set then, the way back would hold the screen and its controllers (`PdfScreen.readSourceLayers`).
+    private func popWhileLoading(_ piece: OpenPiece, in shown: ShownPiece) async {
+        if let earlier = shown.piece { await ClosedPieces.close(earlier.id) }
+        shown.piece = nil
+        let settled = await until(seconds: 10) { ScreensProbe.pdf == nil && (ProbeCounts.shared.snapshot()["pending"] ?? 0) == 0 }
+        XCTAssertTrue(settled, "round 4: the screen before has gone")
+        let held = DispatchSemaphore(value: 0)
+        let gate = DispatchSemaphore(value: 0)
+        let holding = Task { await MusicCore.run { held.signal(); _ = gate.wait() } }
+        let holds = await until(seconds: 10) {
+            guard held.wait(timeout: .now()) == .success else { return false }
+            held.signal()
+            return true
+        }
+        XCTAssertTrue(holds, "round 4: music-core is held")
+        shown.piece = piece
+        let reading = await until(seconds: 30) { ScreensProbe.pdf?.piece == piece.id }
+        XCTAssertTrue(reading, "round 4: the PDF's screen begins to read its pages")
+        if let pdf = ScreensProbe.pdf { watch("round 4 PDF screen popped while reading: controller", pdf) }
+        let waiting = ProbeCounts.shared.snapshot()["pending"] ?? 0
+        shown.piece = nil
+        let gone = await until(seconds: 10) { (ProbeCounts.shared.snapshot()["pending"] ?? 0) > waiting }
+        XCTAssertTrue(gone, "round 4: the PDF's screen goes while its pages are read")
+        gate.signal()
+        await holding.value
+        await ClosedPieces.close(piece.id)
     }
 
     // MARK: - Helpers
@@ -258,10 +286,10 @@ final class SwitchReleaseTests: XCTestCase {
         XCTAssertEqual(made.filter { $0.alive() }.map(\.name), [], "what the visited screens made is still alive")
     }
 
-    /// Waits, at most so long, for a condition to hold, looking again every so many milliseconds, and says whether it did.
-    private func until(seconds: Double, every milliseconds: Int = 50, _ condition: () -> Bool) async -> Bool {
-        for _ in 0..<Int(seconds * 1000) / milliseconds where !condition() {
-            try? await Task.sleep(for: .milliseconds(milliseconds))
+    /// Waits, at most so long, for a condition to hold, and says whether it did.
+    private func until(seconds: Double, _ condition: () -> Bool) async -> Bool {
+        for _ in 0..<Int(seconds * 20) where !condition() {
+            try? await Task.sleep(for: .milliseconds(50))
         }
         return condition()
     }
