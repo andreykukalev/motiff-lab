@@ -36,7 +36,7 @@ public sealed record ImportedPiece(
 
     /// <summary>
     /// The tempo the player set for the piece, in quarter notes a minute (project file "tempo", version 0.5.4): what it
-    /// plays and is marked at from its start (<see cref="Playback.PlayerTempo"/>); null to play as the piece states.
+    /// plays and is marked at from its start (<c>PlayerTempo</c>); null to play as the piece states.
     /// </summary>
     public int? PlayerTempo { get; init; }
 
@@ -85,7 +85,7 @@ public enum TrackHands
     /// <summary>From the source, for example a grand staff.</summary>
     Imported,
 
-    /// <summary>Worked out by <see cref="Import.HandInference"/> for some or all notes.</summary>
+    /// <summary>Worked out by <c>HandInference</c> for some or all notes.</summary>
     Inferred,
 }
 

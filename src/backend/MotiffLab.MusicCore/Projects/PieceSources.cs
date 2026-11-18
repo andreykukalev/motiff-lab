@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Performance;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>

@@ -2,7 +2,6 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Pieces;
-using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 

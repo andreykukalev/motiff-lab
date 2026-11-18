@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 

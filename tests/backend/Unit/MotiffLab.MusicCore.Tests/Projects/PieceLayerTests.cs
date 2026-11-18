@@ -1,5 +1,6 @@
 using System.Text;
 
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 

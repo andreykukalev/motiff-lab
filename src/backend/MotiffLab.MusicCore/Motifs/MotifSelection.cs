@@ -33,7 +33,7 @@ public sealed record MotifSelection(
     /// <summary>
     /// The most bars a range selection holds. Until decision record 0018 a dragged or clicked range held 8 bars
     /// and only a structure the maps know could be longer; the redesign took that cap away, so a range holds as
-    /// many bars as a structure (<see cref="MaxStructureBars"/>). <see cref="Analysis.PhraseMap.LongPhraseBars"/>
+    /// many bars as a structure (<see cref="MaxStructureBars"/>). <c>PhraseMap.LongPhraseBars</c>
     /// keeps the old 8 as what a phrase usually runs.
     /// </summary>
     public const int MaxBars = 32;

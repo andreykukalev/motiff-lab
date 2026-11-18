@@ -1,7 +1,6 @@
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Playback;
-using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Performance;
 

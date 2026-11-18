@@ -1,4 +1,4 @@
-namespace MotiffLab.MusicCore.Projects;
+namespace MotiffLab.MusicCore.Pieces;
 
 /// <summary>
 /// One original, or a part of it, that Notes were made from (decision record 0030, section 2): its id in the piece's
@@ -136,45 +136,4 @@ public sealed record NotesProvenance(string Op)
         && Engine == other.Engine && ParamsJson == other.ParamsJson && At == other.At && Unknown.SequenceEqual(other.Unknown);
 
     public override int GetHashCode() => HashCode.Combine(Op, From.Count, Engine, At);
-
-    /// <summary>The provenance <paramref name="project"/>'s working notes show: a scan's, a transcription's, else an import's.</summary>
-    internal static NotesProvenance OfWorkingNotes(Project project) => project.Scan is { } scan
-        ? new NotesProvenance(PdfRecognition) { From = SourcesOf(project, scan.From, working: true), Engine = scan.Engine, At = scan.At }
-        : project.Transcription is { } heard
-            ? new NotesProvenance(AudioRecognition) { From = SourcesOf(project, heard.From, working: true), Engine = heard.Engine, At = heard.At }
-            : new NotesProvenance(Import) { From = SourcesOf(project, project.FindOriginal(PieceOriginal.SourceFileId) is { } file && project.HasNotes ? file.Id : null, working: true) };
-
-    /// <summary>The provenance a compared version shows: a recording heard, a score read by an engine, else an import.</summary>
-    internal static NotesProvenance OfVersion(Project project, SavedPerformance performance)
-    {
-        ArgumentNullException.ThrowIfNull(performance);
-        string op = performance.Source switch
-        {
-            PerformanceSource.Recording => AudioRecognition,
-            PerformanceSource.Score when performance.Engine is not null => PdfRecognition,
-            _ => Import,
-        };
-        return new NotesProvenance(op) { From = SourcesOf(project, performance.From, working: false), Engine = performance.Engine, At = performance.At };
-    }
-
-    /// <summary>
-    /// The original <paramref name="project"/>'s notes were made from, with its fingerprint; for the working notes, with the part of it the piece takes
-    /// and the PDF piece they were read from (0023); none when not known.
-    /// </summary>
-    internal static ProvenanceSource[] SourcesOf(Project project, string? original, bool working)
-    {
-        List<ProvenanceSource> from = [];
-        if (original is not null)
-        {
-            ProvenanceSource source = new(original) { Sha256 = project.FindOriginal(original)?.Sha256 ?? project.Sources.RemovedWith(original)?.Original.Sha256 };
-            from.Add(working && project.PartOf is { } part && part.Original == original ? source with { Pages = part.Pages, Milliseconds = part.Milliseconds } : source);
-        }
-
-        if (working && project.ReadFrom is { } read)
-        {
-            from.Add(new ProvenanceSource(PieceOriginal.DocumentId) { Project = read.ProjectId });
-        }
-
-        return [.. from];
-    }
 }

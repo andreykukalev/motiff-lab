@@ -3,7 +3,7 @@ namespace MotiffLab.MusicCore.Pieces;
 /// <summary>
 /// What the player wrote about the piece in the library (version 0.2): its title, its composer, their own tags and the
 /// playlists it is on. Each is the player's, never copied from the file: a title or composer the file gives is shown by
-/// <see cref="Projects.PieceDetails"/> until the player sets one. Values are cleaned on the way in: white space runs become one space
+/// <c>PieceDetails</c> until the player sets one. Values are cleaned on the way in: white space runs become one space
 /// and the ends are trimmed, so an empty value is none; tags and playlists keep the player's order and drop a name already
 /// there in any letter case.
 /// </summary>
@@ -22,7 +22,7 @@ public sealed record PieceMetadata
     /// <summary>No title, composer, tags or playlists: what every project had before the library kept them.</summary>
     public static PieceMetadata None { get; } = new(null, null, null, null);
 
-    /// <summary>The player's title; null shows the file's (<see cref="Projects.PieceDetails.Title"/>).</summary>
+    /// <summary>The player's title; null shows the file's (<c>PieceDetails.Title</c>).</summary>
     public string? Title { get; }
 
     /// <summary>The player's composer; null shows the file's, if it names one.</summary>

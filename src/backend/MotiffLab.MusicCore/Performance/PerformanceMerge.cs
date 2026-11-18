@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Performance;

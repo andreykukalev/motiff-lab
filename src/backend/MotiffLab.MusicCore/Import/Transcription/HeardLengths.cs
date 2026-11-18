@@ -35,7 +35,7 @@ public sealed record UncertainLengths(int Bar, IReadOnlyList<string> NoteIds, IR
 /// <remarks>
 /// A heard note's length is uncertain when the sustain pedal is down at the moment it ends, or when it sounds longer
 /// than a half note. Notes the player fixed or confirmed are certain, and so are notes not heard in a recording. These
-/// marks do not make chords uncertain: the Check flags do that (<see cref="Analysis.NoteDoubt"/>). Pure and
+/// marks do not make chords uncertain: the Check flags do that (<c>NoteDoubt</c>). Pure and
 /// deterministic: the same notes and pedal give the same bars.
 /// </remarks>
 public static class HeardLengths

@@ -142,7 +142,7 @@ public static partial class ProjectFile
         }
 
         ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
-        TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
+        Import.Transcription.TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
         if (scan is not null && transcription is not null)
         {
             throw Damaged("origin");
@@ -956,7 +956,7 @@ public static partial class ProjectFile
         return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
     }
 
-    private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
+    private static Import.Transcription.TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
     {
         if (!root.TryGetProperty("transcription", out JsonElement transcription) || transcription.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
         {
@@ -973,7 +973,7 @@ public static partial class ProjectFile
     }
 
     /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>
-    private static TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
+    private static Import.Transcription.TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
     {
         if (string.IsNullOrWhiteSpace(engine))
         {
@@ -991,7 +991,7 @@ public static partial class ProjectFile
 
         try
         {
-            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
+            return new Import.Transcription.TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
         }
         catch (ArgumentException)
         {

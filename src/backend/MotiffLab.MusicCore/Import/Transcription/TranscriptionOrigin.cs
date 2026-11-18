@@ -1,7 +1,6 @@
-using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 
-namespace MotiffLab.MusicCore.Projects;
+namespace MotiffLab.MusicCore.Import.Transcription;
 
 /// <summary>
 /// Marks a project whose source was heard in an audio or video recording by automatic transcription
@@ -32,7 +31,7 @@ public sealed record TranscriptionOrigin(string Engine, BarGrid? Bars = null)
             : [.. value];
     } = [];
 
-    /// <summary>The original the notes were heard in (<see cref="PieceOriginal.Id"/>, version 0.3); null when not kept.</summary>
+    /// <summary>The original the notes were heard in (<c>PieceOriginal.Id</c>, version 0.3); null when not kept.</summary>
     public string? From { get; init; }
 
     /// <summary>When the notes were heard (version 0.3); null when not kept.</summary>
@@ -40,7 +39,7 @@ public sealed record TranscriptionOrigin(string Engine, BarGrid? Bars = null)
 
     /// <summary>
     /// Where, in the recording file, the stretch sent to be heard started, in milliseconds (version 0.5, within version 15):
-    /// a piece's <see cref="Project.PartOf"/> times count from it, so with them it finds the piece's sound in the file on
+    /// a piece's <c>Project.PartOf</c> times count from it, so with them it finds the piece's sound in the file on
     /// any device. A piece cut from a recording heard keeps the recording's. Null when not kept, as in files before 0.5.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The time is negative.</exception>

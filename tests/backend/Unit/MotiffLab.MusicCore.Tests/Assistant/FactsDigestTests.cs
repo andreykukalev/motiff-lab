@@ -2,8 +2,8 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Assistant;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;
-using MotiffLab.MusicCore.Projects;
 
 using static MotiffLab.MusicCore.Tests.Assistant.AssistantScores;
 
