@@ -232,6 +232,7 @@ struct NoteCorrections: Equatable, Sendable {
 /// landscape and the lower half in portrait, as Insights. Fixing the bars of a transcription stays in the web app for now.
 struct CheckDrawer: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
@@ -366,7 +367,7 @@ struct CheckDrawer: View {
     }
 
     private func openEntry(_ bar: CheckShelf.BarFlags) -> some View {
-        let selected = score.selection?.firstBar == bar.bar
+        let selected = selectionModel.selection?.firstBar == bar.bar
         let fixing = score.corrections?.bar == bar.bar
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             HStack(spacing: CGFloat.ds("s-2")) {

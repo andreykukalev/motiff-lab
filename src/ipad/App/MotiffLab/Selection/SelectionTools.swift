@@ -110,7 +110,7 @@ extension ScoreController {
             controls: ExpandRules.ringControls(focused: focused, otherwise: StylusRules.ringControls(chosen)),
             canUndo: ink ? canUndo : selectionModel.steps.canUndo,
             canRedo: ink ? canRedo : selectionModel.steps.canRedo,
-            canClear: selection != nil && !focused,
+            canClear: selectionModel.selection != nil && !focused,
             undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
             redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
             clear: { [weak self] in self?.clearSelection() }
@@ -163,14 +163,18 @@ extension RollController {
 /// in Select; Navigate has none.
 struct ModeOptions: View {
     @ObservedObject var score: ScoreController
+    /// Handed on to Select's row, which shows the selection's Undo and Redo.
+    let selectionModel: SelectionModel
     let text: UIText
+    /// Whether the piece has other versions, from the screen that observes them: the layers list offers their marks.
+    let hasVersions: Bool
 
     var body: some View {
         if score.penOn {
-            PenPalette(score: score, text: text)
+            PenPalette(score: score, text: text, hasVersions: hasVersions)
                 .transition(.opacity.combined(with: .move(edge: .top)))
         } else if score.mode == .select {
-            SelectionOptionsRow(score: score, text: text).transition(.opacity)
+            SelectionOptionsRow(score: score, selectionModel: selectionModel, text: text).transition(.opacity)
         }
     }
 }
@@ -179,17 +183,18 @@ struct ModeOptions: View {
 /// nothing to take back. Navigate has none. «По тактам / По долям» went in v0.6.4 (Andrei, 19:53Z: one selection).
 struct SelectionOptionsRow: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button { score.undoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionModel.steps.canUndo)
+                .disabled(!selectionModel.steps.canUndo)
                 .accessibilityLabel(text["selection.undo"])
             Button { score.redoSelection() } label: { Icon(name: "undo", size: CGFloat.ds("icon-s")).scaleEffect(x: -1, y: 1) }
                 .buttonStyle(DSIconItemStyle())
-                .disabled(!score.selectionModel.steps.canRedo)
+                .disabled(!selectionModel.steps.canRedo)
                 .accessibilityLabel(text["selection.redo"])
         }
         .modifier(PaletteSurface())
@@ -284,6 +289,7 @@ extension View {
 /// merge draft is open (`merging`): the draft has its own.
 struct SelectionToastView: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let merging: Bool
 
@@ -293,19 +299,19 @@ struct SelectionToastView: View {
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
-            } else if score.selectionModel.toast != nil && score.selectionModel.steps.canUndo && !score.focused {
+            } else if selectionModel.toast != nil && selectionModel.steps.canUndo && !score.focused {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    Text(text[score.selectionModel.toastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Text(text[selectionModel.toastKey]).dsType(.label).foregroundStyle(Color.ds("ink"))
                     Button(text["selection.bringBack"]) { score.undoSelection() }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
                 .modifier(ToastSurface())
-            } else if score.selectionModel.holdHint != nil {
+            } else if selectionModel.holdHint != nil {
                 Text(text["selection.holdHint"]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
             }
         }
-        .animation(.easeOut(duration: 0.16), value: score.selectionModel.toast)
-        .animation(.easeOut(duration: 0.16), value: score.selectionModel.holdHint)
+        .animation(.easeOut(duration: 0.16), value: selectionModel.toast)
+        .animation(.easeOut(duration: 0.16), value: selectionModel.holdHint)
         .animation(.easeOut(duration: 0.16), value: score.notice)
     }
 }

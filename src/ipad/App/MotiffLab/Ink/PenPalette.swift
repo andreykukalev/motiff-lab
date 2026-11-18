@@ -56,10 +56,12 @@ extension PenPaletteView where Extra == EmptyView {
 struct PenPalette: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    /// Whether the piece has other versions, from the screen that observes them: the layers list offers their marks.
+    let hasVersions: Bool
 
     var body: some View {
         PenPaletteView(holder: score, text: text) {
-            PenLayersButton(score: score, text: text)
+            PenLayersButton(score: score, text: text, hasVersions: hasVersions)
         }
     }
 }
@@ -78,6 +80,7 @@ struct PdfPenPalette: View {
 private struct PenLayersButton: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    let hasVersions: Bool
     @State private var open = false
 
     var body: some View {
@@ -90,7 +93,7 @@ private struct PenLayersButton: View {
         .help(text["layers.title"])
         .buttonStyle(DSIconItemStyle(on: open || !score.hiddenLayers.isDisjoint(with: ScoreController.layers)))
         .popover(isPresented: $open) {
-            LayersList(score: score, text: text)
+            LayersList(score: score, text: text, hasVersions: hasVersions)
                 .padding(CGFloat.ds("s-4"))
                 .frame(width: 300, alignment: .leading)
                 .presentationCompactAdaptation(.popover)

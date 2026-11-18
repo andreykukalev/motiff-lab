@@ -12,8 +12,6 @@
 
   "account.title": "Your account",
 
-  "transcribe.failed": "The scan server could not transcribe this recording.",
-
   "import.scanBusy": "Reading the notes… this takes a while for each page",
 
   "selection.undo": "Undo",

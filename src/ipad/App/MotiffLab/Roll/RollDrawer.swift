@@ -7,6 +7,7 @@ import SwiftUI
 struct RollDrawer: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     /// The selection's span as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); nil for its bars.
     var span: String?
@@ -155,7 +156,7 @@ struct RollDrawer: View {
     /// Clear selection in the head (the selection menu gives way to the drawer, #338): its room is kept without a selection,
     /// so it appearing moves nothing (#521 18.4). Escape removes the selection too, on the head shown (`live`) and not on the unseen ones that measure it.
     private func clearSelection(live: Bool) -> some View {
-        let shown = score.selection != nil
+        let shown = selectionModel.selection != nil
         return Button {
             score.clearSelection()
         } label: {
@@ -189,7 +190,7 @@ struct RollDrawer: View {
         .disabled(!roll.canChangeColour)
         .help(text["roll.colourHint"])
         // Without a selection it stays where it is, dimmed, and a tap says to select a passage first (#521 19.1).
-        let can = score.selection != nil
+        let can = selectionModel.selection != nil
         Button(action: expand) {
             HStack(spacing: 6) {
                 Icon(name: "expand", size: CGFloat.ds("icon-s"))
@@ -204,14 +205,14 @@ struct RollDrawer: View {
     /// The same in More where the head is narrow, with Clear selection.
     private var more: some View {
         Menu {
-            if score.selection != nil {
+            if selectionModel.selection != nil {
                 Button(text["menu.clearSelection"]) { score.clearSelection() }
             }
             Toggle(text["roll.noteNames"], isOn: $roll.noteNames)
             Button(text["roll.colour.\(roll.colourBy)"]) { roll.nextColour() }
                 .disabled(!roll.canChangeColour)
             Button(text["roll.expand"], action: expand)
-                .disabled(score.selection == nil)
+                .disabled(selectionModel.selection == nil)
         } label: {
             Icon(name: "more")
         }
@@ -223,7 +224,7 @@ struct RollDrawer: View {
 
     /// "bars 9–16", the span as bar.beat under the one playback position, or nil with nothing selected.
     private var selectionPlace: String? {
-        guard let selection = score.selection else { return nil }
+        guard let selection = selectionModel.selection else { return nil }
         if let span { return span }
         return selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))

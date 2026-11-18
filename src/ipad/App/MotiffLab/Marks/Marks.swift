@@ -148,6 +148,7 @@ struct NoteCard: View {
 /// Highlight, under the menu's More: the inks as swatches, the one over the selection marked, and Remove the highlight.
 struct HighlightRow: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var selectionModel: SelectionModel
     let text: UIText
 
     var body: some View {
@@ -192,6 +193,8 @@ struct HighlightRow: View {
 struct LayersList: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    /// Whether the piece has other versions, a plain value from the screen that observes them (Marks may not read Sources).
+    let hasVersions: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -201,12 +204,13 @@ struct LayersList: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            if score.pieceExtra.isEmpty {
+            let extra = score.pieceExtra(hasVersions: hasVersions)
+            if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
             }
-            ForEach(score.pieceExtra, id: \.self) { item in
+            ForEach(extra, id: \.self) { item in
                 Toggle(score.layerName(item), isOn: Binding(get: { !score.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))

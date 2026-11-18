@@ -4,7 +4,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 ## Files
 
-`Bookmarks`, `Check`, `EditsLayer`, `Marks` (`.swift`).
+`Bookmarks`, `Check`, `EditsLayer`, `Marks`, `SegmentedChoice` (`.swift`).
+
+- `SegmentedChoice.swift`: the choice of two or three (ds.css `.seg`: `SegmentedChoice`, `SegmentFill`,
+  `SegmentedCapsule`), which other folders use too; out of `Bookmarks.swift` in S7b.
 
 - `Check.swift`: `CheckShelf` (`check`), the Check drawer, and Fix notes: `NoteCorrections`, a bar's notes built from
   `CorrectionsAnswer` (`PieceCore.corrections`), listed by `CorrectionsList`.
