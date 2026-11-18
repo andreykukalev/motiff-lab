@@ -34,7 +34,7 @@ The thresholds are kept in one place, [`settings.json`](settings.json): function
 | `swiftlint` | SwiftLint in Docker on Linux, `src/ipad/App` and `tests/ipad` | `cyclomatic_complexity` (15), `function_body_length` (80), `file_length` (600), `type_body_length` (600), `nesting` (4) |
 | `jscpd` | jscpd, C#, Razor, TypeScript, Swift and Python (`.jscpd.json`) | duplicated blocks from 10 lines |
 | `suppressions` | `tools/quality/quality.mjs` (a scan of the tracked sources and build files) | each way to hide a violation from the checks above is a violation itself: `eslint-disable` and other ESLint directives (ignored anyway: `noInlineConfig`), `swiftlint:disable`, `jscpd:ignore`, `#pragma warning disable` (bare or naming CA1502/CA1505/CA1506), `SuppressMessage` for them, `dotnet_diagnostic.CA150x` or a Maintainability-wide severity in an `.editorconfig` or `.globalconfig`, `NoWarn` naming them, analyzers turned off |
-| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device); each folder of the iPad app uses only the folders it may (below) |
+| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device); each folder of the iPad app uses only the folders it may (below); each namespace of music-core uses only the layers below its own (below) |
 | `config` | `tools/quality/quality.mjs` | the generated configuration matches `settings.json` |
 
 The iPad app is one Swift module, so the compiler does not keep its folders (`src/ipad/App/MotiffLab/<Folder>`,
@@ -68,6 +68,35 @@ file and type. A new one that the task cannot avoid: `node tools/quality/quality
 entries, then run the command without `--why`, which keeps their reasons and drops what no longer matches. What the
 scan cannot see is written above `swiftCode` in `dependencies.mjs`; above all, it indexes only types, so a free
 function, a global constant or a member an extension adds to a type used from another folder is missed.
+
+music-core is one C# project, so the compiler lets its namespaces (`MotiffLab.MusicCore.<Namespace>`, a sub-namespace
+such as `Import.Scan` counted as its top one) use each other in a loop. `dependencies` keeps them in layers: a namespace
+uses only namespaces of a layer with a lower number, never one of its own layer, so none uses another, directly or round a loop (W1.1 to W1.3, 2026-11-18; `docs/code-map/core.md`). The table is
+`CORE_LAYERS` in `tools/quality/dependencies.mjs`, and its test keeps this copy equal. `(root)` is `MotiffLab.MusicCore`
+itself (`Words`):
+
+| Layer | Namespaces |
+| --- | --- |
+| 1 | `(root)`, `Time`, `Settings`, `Accounts` |
+| 2 | `Events` |
+| 3 | `Motifs`, `Export` |
+| 4 | `Pieces` |
+| 5 | `Import`, `Playback` |
+| 6 | `Analysis`, `Performance` |
+| 7 | `Notation`, `Variations`, `Invitations` |
+| 8 | `Experiments`, `Assembly` |
+| 9 | `Analytics`, `Projects` |
+| 10 | `Assistant` |
+| 11 | `Facade` |
+
+A file uses a namespace by a `using` line (a dead one too) or by a name written qualified, in code or in a `cref`
+(`Performance.SavedPerformance`, `<see cref="Projects.Project"/>`): in C# an unqualified name reaches another namespace
+only through a `using` line or the namespaces around the file's own. A doc comment that names a type of a higher
+namespace says it in plain text (`<c>Project.PartOf</c>`), since a `cref` would need the namespace. A finding
+`src/backend/MotiffLab.MusicCore/Pieces/Bookmark.cs:1 | dependencies core-namespace | Pieces: Projects` says that the
+file, in `Pieces` (layer 4), uses `Projects` (layer 9) first on line 1: move the type it needs down to a layer `Pieces`
+may use, or the code up. A new namespace, or a namespace moved to another layer, is a change of this table, which
+Andrei merges like the rest of this file. What the scan cannot see is written above `csharpCode` in `dependencies.mjs`.
 
 The CA rules report only in a quality build (`-p:QualityMetrics=true`, `Directory.Build.props`), and there as warnings
 that never fail the build, although warnings are otherwise errors: the ratchet decides. An everyday `dotnet build`
