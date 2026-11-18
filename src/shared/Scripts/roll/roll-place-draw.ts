@@ -8,6 +8,7 @@
 import type { RollNote } from "./roll-model.js";
 import type { PlacePreview } from "./roll-place-gesture.js";
 import type { RollPoint, TickSpan } from "./roll-place.js";
+import { onEdgeHandle } from "../score/selection-places.js";
 
 /** Where the roll draws: ticks and pitches to pixels, its rows, the bar numbers' height and the notes' left and right. */
 export interface PlaceFrame {
@@ -33,13 +34,22 @@ export interface PlaceInks {
  * The selection's handle, the one place its look is set on the roll: the kit's `.handle` (ds.css: 14 px across, a 2 px
  * accent ring on the surface), as the score's `.sel-edge` draws it; `y` where it sits down the edge, the middle of the notes.
  */
-export const HANDLE = { diameter: 14, ring: 2, y: (frame: PlaceFrame): number => frame.header + (frame.height - frame.header) / 2 };
+export const HANDLE = { diameter: 14, ring: 2, y: (frame: Pick<PlaceFrame, "header" | "height">): number => frame.header + (frame.height - frame.header) / 2 };
 
 const EDGE_WIDTH = 2;
 /** The rectangle drawn: the notation's ink at this share, as the score's `.sel-trace` (color-mix 45%). */
 const TRACE_ALPHA = 0.45;
 const DASH = [4, 3];
 const WASH_ALPHA = 0.08;
+
+/**
+ * Whether a press at (x, y) lands on one of a selected span's handles where drawPlaceEdges draws them (the score's rule,
+ * `onEdgeHandle`): there the edge wins over a playhead, elsewhere on the edge the playhead does (0.8 finding 1).
+ */
+export function onPlaceHandle(frame: Pick<PlaceFrame, "xOf" | "header" | "height">, span: TickSpan, x: number, y: number): boolean {
+    const middle = HANDLE.y(frame);
+    return onEdgeHandle([{ x: frame.xOf(span.start), y: middle }, { x: frame.xOf(span.end), y: middle }], x, y);
+}
 
 /** A selected span's handles: at the middle of its start's edge and of its end's, the one taken (`hot`) filled. */
 export function drawPlaceEdges(context: CanvasRenderingContext2D, frame: PlaceFrame, span: TickSpan, inks: PlaceInks, hot: "start" | "end" | null = null): void {

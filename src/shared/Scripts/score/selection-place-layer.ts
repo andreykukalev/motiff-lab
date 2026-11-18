@@ -22,8 +22,10 @@ import {
     type PlaceRule,
     type Tap,
     doubleTap,
+    edgeHandles,
     headAt,
     movedEdge,
+    onEdgeHandle,
     placeAt,
     placeChange,
     placeEnded,
@@ -140,17 +142,16 @@ export class PlaceLayer {
     }
 
     /**
-     * Whether a press at a point of the window would take an edge of the selection: there the edge wins over a playhead's
-     * handle under it (section F, «Кромка выигрывает в своей зоне»), so the host leaves the press to this layer.
+     * Whether a press at a point of the window lands on a handle of the selection's edges (`onEdgeHandle`): there the edge
+     * wins over a playhead's handle under it, so the host leaves the press to this layer; elsewhere on the edge the
+     * playhead is taken first (Andrei, 2026-11-18, answer 3 on finding 1 of the 0.8 test; before, the whole edge won).
      */
-    edgeAt(event: PointerEvent): boolean {
-        const geometry = this.host.geometry();
-        if (!this.host.on() || this.host.rule(event.pointerType) !== "now" || geometry === null) {
+    handleAt(event: PointerEvent): boolean {
+        if (!this.host.on() || this.host.rule(event.pointerType) !== "now" || this.selection() === null) {
             return false;
         }
         const at = this.point(event.clientX, event.clientY);
-        const place = placeAt(this.selection(), at.x, at.y, bandBoxes(this.root), onMusic(geometry, at.x, at.y));
-        return place === "edge-start" || place === "edge-end";
+        return onEdgeHandle(edgeHandles(bandBoxes(this.root)), at.x, at.y);
     }
 
     /** Whether a gesture of this layer holds the pointer now. */
@@ -226,7 +227,7 @@ export class PlaceLayer {
         if (this.drag !== null || !this.host.on() || rule === "none" || geometry === null || (event.pointerType === "mouse" && event.button !== 0)) {
             return;
         }
-        // A playhead's handle that takes the press stops it before it gets here; one it leaves (an edge over it) is a place.
+        // A playhead's handle that takes the press stops it before it gets here; one it leaves (an edge's handle over it) is a place.
         if (event.target instanceof Element && event.target.closest(OWN_TARGETS) !== null) {
             return;
         }

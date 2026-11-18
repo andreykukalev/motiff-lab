@@ -69,6 +69,31 @@ export function placeAt(span: TickRange | null, x: number, y: number, boxes: rea
     return onMusic ? "outside" : "margin";
 }
 
+/** A handle of the selection's edges (SEL-04): its centre, in the press's pixels. */
+export interface EdgeHandle {
+    x: number;
+    y: number;
+}
+
+/** The handles of a selection drawn as `boxes` in time order: at the middle of its start's edge and of its end's. */
+export function edgeHandles(boxes: readonly PlaceBox[]): EdgeHandle[] {
+    if (boxes.length === 0) {
+        return [];
+    }
+    const first = boxes[0];
+    const last = boxes[boxes.length - 1];
+    return [{ x: first.left, y: (first.top + first.bottom) / 2 }, { x: last.right, y: (last.top + last.bottom) / 2 }];
+}
+
+/**
+ * Whether a press at (x, y) lands on a handle of the selection's edges, within `reach` of its centre. There the edge is
+ * taken; elsewhere on an edge a playhead's handle is taken first, so a playhead standing at the selection's start can be
+ * grabbed there (Andrei, 2026-11-18, answer 3 on finding 1 of the 0.8 test).
+ */
+export function onEdgeHandle(handles: readonly EdgeHandle[], x: number, y: number, reach = EDGE_REACH): boolean {
+    return handles.some((handle) => Math.hypot(x - handle.x, y - handle.y) <= reach);
+}
+
 /** How a pointer selects: at once (the stylus, the mouse, one finger without a stylus), or a finger that scrolls and holds. */
 export type PlaceRule = "now" | "longPress";
 
