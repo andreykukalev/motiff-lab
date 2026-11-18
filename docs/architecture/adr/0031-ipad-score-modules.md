@@ -180,7 +180,13 @@ What stays in `ScoreController`, and the step that removes each:
 - **`sources`** (`SourcesInfo`): the protected `tests/ipad/Baseline/WorkspaceSession.swift` observes `score.$sources`,
   as it does `score.$focused`. It moves in **S7**, with the harness change Andrei merges.
 - **The version's notes to hear** (`versionPlayback`, `versionNotes`): they are `PlaybackNote`s, a Playback type, and
-  the folder table (`governance/quality/README.md`) lets Sources use only Platform and Selection. Where they go is a
-  question for Andrei: the edge Sources → Playback, or the notes kept by `FocusModel`, which may read Sources.
+  the folder table (`governance/quality/README.md`) lets Sources use only Platform and Selection. They move to
+  `FocusModel` in **S4b**: `versionNotes` names only `PieceCore` (Platform) and Playback's own types, and the root hands
+  in the version's id as a string (`versions.shownId`) and asks it to forget them from `notesDidChange`, so no folder
+  edge and no change of the table is needed (the lead, 2026-11-18).
 - **Drawing the versions on the page and engraving** (`drawVersions`, `engraveScore`, `applyMergeView`): the page's,
   with the root's page calls in step 9.
+
+`engraved` stays in `SourcesModel` in S4b, as section 3's table gives it: it records how the page was engraved (even
+bars, the view, the notes coloured), which is not the draft's. `MergeModel` owns the view the draft asks for
+(`mergeShow`), and the root keeps comparing the two (`wantedView`) until step 9.

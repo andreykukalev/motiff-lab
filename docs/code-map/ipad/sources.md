@@ -28,8 +28,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 `SourcesModel`: `versions` (`VersionShelf`), `status`, `page` and `engraved`, set only through its methods;
 `ScoreController` forwards `versions`, `versionStatus` and `versionPage` read-only and keeps `sources` (`SourcesInfo`)
-and the version's notes to hear until the steps in [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the
-note of S4. `SourcesController`: the layers of 0030.
+and the version's notes to hear (to `FocusModel` in S4b) as [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md),
+the note of S4, says. `SourcesController`: the layers of 0030.
 
 ## Baseline entries that protect it
 
