@@ -1,6 +1,6 @@
 # Golden project files
 
-What today's reader and writer (`src/backend/MotiffLab.MusicCore/Projects/ProjectFile*.cs`, project file version 16) do with
+What today's reader and writer (`src/backend/MotiffLab.MusicCore/Projects/ProjectFile.cs` and `Projects/File/`, project file version 16) do with
 files of earlier, current and later versions (task #293; basis rules S6 and S7 and pre-build checks 1 and 2 of the
 project-continuity council, 2026-11-08), with the tolerant reader for enum values (#313). The tests are
 `ProjectFileGoldenTests.cs` and `AnalysisParityTests.cs` in this folder.
