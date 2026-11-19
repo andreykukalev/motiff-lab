@@ -57,7 +57,7 @@ import { PlaceLayer } from "../score/selection-place-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
-import { ScoreBeats, barLines, beatAt, keyLines } from "../score/selection-beats.js";
+import { ScoreBeats, keyLines } from "../score/selection-beats.js";
 import { mergedSpans, noteUnit, rubbedColour } from "../score/colour-bars.js";
 import { gridLines, tupletBlocks } from "../score/selection-grid.js";
 import { ScorePlayheadMarks, bandOf, playheadsOf } from "../score/playheads.js";
@@ -639,8 +639,7 @@ function showColouring(range) {
 /** The cell of the selection's grid under a point, on the bar nearest it, where the eraser takes colour. */
 function gridCell({ x, y }) {
     const geometry = state.geometry;
-    const bar = geometry?.barNear(x, y);
-    return bar === undefined || !Number.isFinite(bar.end) ? undefined : beatAt(barLines(selectionGrid(geometry), bar), (line) => selection.beats.lineX(bar, line), x);
+    return geometry === null ? undefined : selection.beats.near(geometry, selectionGrid(geometry), x, y);
 }
 
 /** The bars' starts in time order: the lines a band is cut at while Swift has sent no beats. */

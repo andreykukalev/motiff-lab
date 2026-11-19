@@ -131,8 +131,8 @@ struct PenToolSettings<Holder: PenHolder>: View {
     /// The colour bars' four colours, the chosen one ringed: a colour chosen keeps the tool.
     private func barColours(_ pen: PenState) -> some View {
         HStack(spacing: 0) {
-            ForEach(BarColour.allCases, id: \.self) { colour in
-                swatch(colour.color, chosen: pen.isChosen(barColour: colour), label: text[colour.labelKey]) { holder.pen.setBarColour(colour) }
+            ForEach(HighlightInk.allCases, id: \.self) { colour in
+                swatch(colour.color, chosen: pen.isChosen(barColour: colour), label: text[colour.penLabelKey]) { holder.pen.setBarColour(colour) }
             }
         }
         .accessibilityElement(children: .contain)

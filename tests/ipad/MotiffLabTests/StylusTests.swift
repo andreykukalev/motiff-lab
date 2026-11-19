@@ -348,6 +348,31 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(pdf.tool, .eraser, "«switch to previous» goes to the tool before")
     }
 
+    /// The palette shows the active tool's settings as the palette under the bar does (#495 UX-06), the colour bars' four
+    /// colours in the inks' places (finding 31); a colour chosen there keeps the tool and turns the Pen on.
+    @MainActor
+    func testThePaletteShowsTheActiveToolsSettingsAndTheColourBarsColours() {
+        let widths: [PaletteSetting] = [.width(0), .width(1), .width(2)]
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .pencil)), ScoreController.Ink.allCases.map(PaletteSetting.ink) + widths)
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .marker)), widths, "the marker draws in amber alone")
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .eraser)), [])
+        let colours = PaletteLayout.settings(of: PenState(active: .colour))
+        XCTAssertEqual(colours, HighlightInk.allCases.map(PaletteSetting.barColour), "the four colours, no thickness")
+        XCTAssertEqual(colours.map(PaletteLayout.slot), [0, 1, 2, 3], "in the inks' places")
+        XCTAssertEqual(widths.map(PaletteLayout.slot), [5, 6, 7], "the thicknesses on the right, after a gap")
+
+        let score = PenModel()
+        let saved = PenMemory.saved()
+        defer { PenMemory.keep(saved) }
+        score.pen = PenState(active: .colour, previous: .pencil)
+        score.chooseFromPalette(.barColour(.ochre))
+        XCTAssertEqual(score.pen.active, .colour, "a colour chosen there keeps the tool")
+        XCTAssertEqual(score.pen.colouring, .ochre)
+        XCTAssertTrue(score.penOn)
+        score.chooseFromPalette(.width(2))
+        XCTAssertEqual(score.pen.pencil.width, PenSizes.defaultWidth, "the colour bars have no thickness")
+    }
+
     func testThePaletteSpreadsItsButtonsOverAHalfCircleAndKeepsInside() {
         let arc = PaletteLayout.arc(count: 3, radius: 10, upward: true)
         XCTAssertEqual(arc[0].x, -10, accuracy: 1e-9)

@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 /// The pen's one active tool (v0.5.2, #495 UX-06): the pencil, the marker (the highlighter), the colour bars (finding 31,
 /// v0.10: «Закрасить такты», which colours the score as Select selects it) or the eraser, never two at once. A thickness or
@@ -31,12 +31,9 @@ enum ActiveTool: String, CaseIterable, Equatable {
     }
 }
 
-/// The colours the colour bars lay (finding 31): the four a highlight has always had, the amber highlighter's first, then
-/// the pencil inks; the names are the project file's.
-enum BarColour: String, CaseIterable, Equatable {
-    case amber, carmine, forest, ochre
-
-    var labelKey: String {
+/// The colour bars' colours (finding 31) are the highlight's inks; their names on the pen's palettes.
+extension HighlightInk {
+    var penLabelKey: String {
         switch self {
         case .amber: "pencil.colourAmber"
         case .carmine: "pencil.colourCarmine"
@@ -44,9 +41,6 @@ enum BarColour: String, CaseIterable, Equatable {
         case .ochre: "pencil.colourOchre"
         }
     }
-
-    /// The kit's colour: the amber highlighter's, or the ink's.
-    var color: Color { self == .amber ? .ds("amber") : .ds("ink-\(rawValue)") }
 }
 
 /// What a tool keeps while another one is chosen: its thickness (an index into PenSizes) and, for the pencil, its ink.
@@ -65,13 +59,13 @@ struct PenState: Equatable {
     private(set) var pencil: ToolSettings
     private(set) var marker: ToolSettings
     /// The colour the colour bars lay, amber the first time.
-    private(set) var barColour: BarColour
+    private(set) var barColour: HighlightInk
 
     init(
         active: ActiveTool = .pencil, previous: ActiveTool = .eraser,
         pencil: ToolSettings = ToolSettings(width: PenSizes.defaultWidth, ink: .graphite),
         marker: ToolSettings = ToolSettings(width: PenSizes.defaultWidth, ink: nil),
-        barColour: BarColour = .amber
+        barColour: HighlightInk = .amber
     ) {
         self.active = active
         self.previous = previous
@@ -90,7 +84,7 @@ struct PenState: Equatable {
     }
 
     /// The colour the bars are coloured in while the colour bars are the tool; nil for another tool.
-    var colouring: BarColour? { active == .colour ? barColour : nil }
+    var colouring: HighlightInk? { active == .colour ? barColour : nil }
 
     /// The settings the palette shows now: the active tool's.
     var current: ToolSettings? { settings(of: active) }
@@ -116,7 +110,7 @@ struct PenState: Equatable {
     func isChosen(ink: ScoreController.Ink) -> Bool { active == .pencil && self.ink == ink }
 
     /// Whether a colour of the bars shows as chosen: only while the colour bars are the tool.
-    func isChosen(barColour: BarColour) -> Bool { colouring == barColour }
+    func isChosen(barColour: HighlightInk) -> Bool { colouring == barColour }
 
     /// A tool chosen: it becomes the one tool, and the one it replaces is the way back. Each keeps its settings.
     mutating func choose(_ tool: ActiveTool) {
@@ -147,13 +141,14 @@ struct PenState: Equatable {
         choose(previous)
     }
 
-    /// A thickness for the active tool. It never changes the tool; the eraser has none, so there it does nothing.
+    /// A thickness for the active tool. It never changes the tool; the colour bars and the eraser have none, so there
+    /// it does nothing.
     mutating func setWidth(_ width: Int) {
         guard PenSizes.pen.indices.contains(width) else { return }
         switch active {
         case .pencil: pencil.width = width
         case .marker: marker.width = width
-        case .eraser: break
+        case .colour, .eraser: break
         }
     }
 
@@ -163,7 +158,7 @@ struct PenState: Equatable {
     }
 
     /// A colour for the colour bars. It never changes the tool: the palette offers them only while they are the tool.
-    mutating func setBarColour(_ colour: BarColour) {
+    mutating func setBarColour(_ colour: HighlightInk) {
         barColour = colour
     }
 
@@ -221,7 +216,7 @@ enum PenMemory {
             active: active?.tool ?? .pencil, previous: previous?.tool ?? .eraser,
             pencil: ToolSettings(width: savedWidth(highlighter: false, in: defaults), ink: ink),
             marker: ToolSettings(width: savedWidth(highlighter: true, in: defaults), ink: nil),
-            barColour: defaults.string(forKey: barColourKey).flatMap(BarColour.init(rawValue:)) ?? .amber
+            barColour: defaults.string(forKey: barColourKey).flatMap(HighlightInk.init(rawValue:)) ?? .amber
         )
     }
 

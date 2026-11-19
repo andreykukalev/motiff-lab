@@ -12,7 +12,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Ink`.
   `changeMarks` and `penTurned`. Tests: `MotiffLabTests/PenModelTests` (a fake score).
 
 - `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures. With the colour
-  bars (v0.10 d-5, finding 31: `ActiveTool.colour`, `BarColour`, `PenState.colouring`) the pointers that take the Pen
+  bars (v0.10 d-5, finding 31: `ActiveTool.colour`, `PenState.colouring` in a `HighlightInk` (Platform)) the pointers that take the Pen
   colour through the page (`InputRules.colours`, the page's `input.colour`) and the pen's gesture takes none
   (`InputRules.inks`); a PDF's pages offer no colour bars (`PenHolder.tools`, `ActiveTool.onPages`) and leave them for
   the tool before (`PenState.leaveColourBars` in `PdfInk.attach`).
