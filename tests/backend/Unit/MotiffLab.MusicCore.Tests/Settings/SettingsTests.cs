@@ -187,7 +187,7 @@ public class SettingsTests
         Assert.Empty(JsonDocument.Parse(facade.Call(1, "settings")).RootElement.GetProperty("overrides").EnumerateObject());
 
         // No build wrote one (a device setting never goes into the file), so a file that names one is damaged, as it was.
-        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v16-worked.motiff.json")))!.AsObject();
+        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
         file["workspace"]!["settings"]!["experimental.resume"] = Setting.On;
         byte[] bytes = Encoding.UTF8.GetBytes(file.ToJsonString());
 

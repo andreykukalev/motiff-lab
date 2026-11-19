@@ -21,8 +21,9 @@ namespace MotiffLab.MusicCore.Tests.Facade;
 /// The facade dispatches by name in <c>switch</c> expressions spread over many files, and by prefix between them, so the
 /// names are not read from the code's shape. Every name the facade could answer is a string literal compiled into
 /// music-core; each literal shaped like a call name, and each name the file lists, is sent to the facade on piece 0, on
-/// an open piece with notes and on an open PDF piece, and the facade's own answer says whether it knows the call there:
-/// it refuses an unknown one with "unknownCall" (or "noPiece" on piece 0 with nothing open) and, on a PDF piece, with
+/// an open piece with notes, on an open PDF piece and on an open piece that is only a recording (version 1.1), and the
+/// facade's own answer says whether it knows the call there: it refuses an unknown one with "unknownCall" (or "noPiece"
+/// on piece 0 with nothing open) and, on a PDF piece or a recording, with
 /// "noNotes" (or "unknownCall", should it hand a name on to a table that answers so). Any other answer, an error about the request included, means the call is dispatched. A call that one probe
 /// answers is sent again on a facade just opened, so what an earlier probe changed (corrections turned off, say) never
 /// decides it.
@@ -31,8 +32,8 @@ public class FacadeCallsContractTests
 {
     private const string UpdateVariable = "MOTIFF_UPDATE_SNAPSHOTS";
 
-    /// <summary>Where a call is answered, in the file's order: piece 0, an open piece with notes, an open PDF piece.</summary>
-    private static readonly string[] s_receivers = ["piece0", "piece", "pdf"];
+    /// <summary>Where a call is answered, in the file's order: piece 0, an open piece with notes, an open PDF piece, an open recording.</summary>
+    private static readonly string[] s_receivers = ["piece0", "piece", "pdf", "recording"];
 
     private static readonly byte[] s_pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
 
@@ -70,8 +71,8 @@ public class FacadeCallsContractTests
         Assert.Equal(["piece0"], answered["version"]);
         Assert.Equal(["piece"], answered["select"]);
         Assert.Equal(["pdf"], answered["document"]);
-        Assert.Equal(["piece0", "piece", "pdf"], answered["project.metadata"]);
-        Assert.Equal(["piece", "pdf"], answered["sources.layers"]);
+        Assert.Equal(["piece0", "piece", "pdf", "recording"], answered["project.metadata"]);
+        Assert.Equal(["piece", "pdf", "recording"], answered["sources.layers"]);
         Assert.Equal(["piece0", "piece"], answered["reference.key"]);
         Assert.Equal(["piece"], answered["language"]);
         Assert.False(answered.ContainsKey("phrases.granularity"));
@@ -117,7 +118,7 @@ public class FacadeCallsContractTests
         return answered;
     }
 
-    /// <summary>A facade with the receiver open: nothing for piece 0, Ode to Joy for a piece with notes, a PDF for a PDF piece.</summary>
+    /// <summary>A facade with the receiver open: nothing for piece 0, Ode to Joy for a piece with notes, a PDF for a PDF piece, a recording added as it is for a recording.</summary>
     private static (MusicCoreFacade Facade, int Piece) Opened(string receiver)
     {
         var facade = new MusicCoreFacade();
@@ -126,9 +127,12 @@ public class FacadeCallsContractTests
             return (facade, 0);
         }
 
-        JsonElement opened = FacadeCalls.Json(receiver == "pdf"
-            ? facade.Open("Nocturne.pdf", s_pdf, """{"id": "p_pdf", "now": "2026-11-16T12:00:00Z"}""")
-            : facade.Open("ode-to-joy.musicxml", FacadeCalls.Fixture("ode-to-joy.musicxml"), """{"id": "p_calls", "now": "2026-11-16T12:00:00Z"}"""));
+        JsonElement opened = FacadeCalls.Json(receiver switch
+        {
+            "pdf" => facade.Open("Nocturne.pdf", s_pdf, """{"id": "p_pdf", "now": "2026-11-16T12:00:00Z"}"""),
+            "recording" => facade.Open("Etude.m4a", [], """{"id": "p_rec", "now": "2026-11-16T12:00:00Z", "recording": {"durationMs": 60000}}"""),
+            _ => facade.Open("ode-to-joy.musicxml", FacadeCalls.Fixture("ode-to-joy.musicxml"), """{"id": "p_calls", "now": "2026-11-16T12:00:00Z"}"""),
+        });
         Assert.False(opened.TryGetProperty("error", out JsonElement error), $"{receiver}: {error}");
         return (facade, opened.GetProperty("piece").GetInt32());
     }
@@ -141,7 +145,7 @@ public class FacadeCallsContractTests
         return receiver switch
         {
             "piece0" => error is not ("unknownCall" or "noPiece"),
-            "pdf" => error is not ("noNotes" or "unknownCall"),
+            "pdf" or "recording" => error is not ("noNotes" or "unknownCall"),
             _ => error is not "unknownCall",
         };
     }
@@ -157,7 +161,7 @@ public class FacadeCallsContractTests
     {
         var text = new StringBuilder();
         text.Append("{\n");
-        text.Append("  \"note\": \"The calls MusicCoreFacade.Call answers by name (ml_call on the iPad), and where: piece0 (piece 0, nothing open), piece (an open piece with notes), pdf (an open PDF piece). ")
+        text.Append("  \"note\": \"The calls MusicCoreFacade.Call answers by name (ml_call on the iPad), and where: piece0 (piece 0, nothing open), piece (an open piece with notes), pdf (an open PDF piece), recording (an open piece that is only a recording). ")
             .Append("ml_open and ml_close are not calls by name. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeCallsContractTests.cs (")
             .Append(UpdateVariable)
             .Append("=1 writes it); every name the Swift sends is checked against it by tests/shared/facade-calls-contract.test.mjs.\",\n");

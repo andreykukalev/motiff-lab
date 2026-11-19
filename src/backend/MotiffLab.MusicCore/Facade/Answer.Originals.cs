@@ -68,7 +68,8 @@ internal static partial class Answer
         }
     }
 
-    private static void OptionalNumber(Utf8JsonWriter json, string name, long? value)
+    /// <summary>A number, or null when it is not known.</summary>
+    internal static void OptionalNumber(Utf8JsonWriter json, string name, long? value)
     {
         if (value is { } number)
         {

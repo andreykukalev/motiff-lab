@@ -1,7 +1,7 @@
 # Code map: music-core (`src/backend/MotiffLab.MusicCore`, `src/ipad/Core`)
 
 Notes, time, analysis, variations and the project file: pure, deterministic, no UI, I/O, cloud or AI. The iPad reads it
-only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
+through the facade; the API references it.
 
 ## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
 
@@ -17,7 +17,7 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
-  The MusicXML reader (W1.9): `MusicXmlImporter` (file checks, part list) walks each part with `PartReader`
+  The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader`
   (`PartFacts`), and `ScoreBuilder` puts them together with `ScoreNotes` (ties merged, the shared notes), `ScoreMarks`
   (grace notes, rests, slurs, repeats, bar lines, texts) and `MusicXmlTimeline` (tempos, bars, keys, via `TimedValues`).
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
@@ -25,19 +25,19 @@ only through the facade; the API (`src/backend/MotiffLab.Api`) references it.
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
   `NoteMatcher`, `DifferenceClassifier`, `BarComparison`), merged and kept (`SavedPerformance`, `PerformanceSource`).
-- The notation writer (W1.9): `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
+- The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (the playing's marks per bar, `ControlEvents`, from
   `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
   `LayoutElements`), and `MeiWriter`.
-- `Projects`: `Project`, sources, originals (`PieceOriginals`, also the provenance a piece's data shows), parts,
-  `ProjectSync`, `PieceDetails`, `BookmarkCategory`; `ProjectFile` (`Read`, `Write`, `ReadEnvelope`, `Version`) over
-  `Projects.File` (a `*Codec` per part, `UnknownEntities`, `Legacy`).
+- `Projects`: `Project` (`Project.Recording`: a recording only, v17), sources, originals (`PieceOriginals`, also
+  the provenance a piece's data shows), parts, `ProjectSync`, `PieceDetails`, `BookmarkCategory`; `ProjectFile`
+  (`Read`, `Write`, `ReadEnvelope`, `Version`) over `Projects.File` (a `*Codec` per part, `UnknownEntities`, `Legacy`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `OpenPiece*` and `OpenDocument` (a PDF piece) hold an open piece; `Request` reads a call's JSON;
-  `Answer*` write the answers by hand (no reflection, for NativeAOT).
+  `Contract`. `OpenPiece*` and `OpenDocument` (a piece without notes: a PDF or a recording) hold an open piece;
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (for NativeAOT).
 
 ## The native build (`src/ipad/Core`)
 
@@ -56,8 +56,8 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-No two namespaces use each other, directly or round a loop (W1.1 to W1.3), by `using`, code or `cref`: a comment names a
-type of a higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only
+No two namespaces use each other, directly or round a loop, by `using`, code or `cref`: a comment names a type of a
+higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only
 `Time` and the root (`Words`); `Motifs` only `Time` and `Events`; `Pieces` those and the root; `Import` (with its
 sub-namespaces) and `Playback` add nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`,
 `Assembly`, `Variations`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers

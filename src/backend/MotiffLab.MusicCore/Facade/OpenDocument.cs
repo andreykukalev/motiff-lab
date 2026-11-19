@@ -9,9 +9,11 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// A PDF piece the app has open (0023, within contract 4): the pages kept as the player added them and the marks made on
-/// them, with no notes. It answers only the calls about the document and its project file; a call about notes is refused
-/// with "noNotes", since nothing on a PDF's pages is music the engine knows until the notes are read from them.
+/// A piece the app has open without its notes: a PDF piece (0023, within contract 4), the pages kept as the player added
+/// them and the marks made on them, or (version 1.1, finding 29) a piece that is only its recording, kept on the device.
+/// It answers only the calls about the document, the sources and its project file; a call about notes is refused with
+/// "noNotes", since nothing on a PDF's pages or in a recording is music the engine knows until the notes are read from
+/// them.
 /// </summary>
 internal sealed class OpenDocument
 {
@@ -42,19 +44,60 @@ internal sealed class OpenDocument
     }
 
     /// <summary>
-    /// A saved piece's PDF: a PDF piece with no notes, or one with notes read from its PDF or added beside it (testing item
-    /// 16), opened in its "PDF" view. Either way the calls here are about the PDF and its marks.
+    /// A new piece for a recording the player added as it is (version 1.1, finding 29), with no notes: "recording" holds
+    /// its "durationMs" and, for a sound whose bytes are not sent (<paramref name="sound"/> empty), its "sha256"; the bytes,
+    /// when sent, give its fingerprint and size, as <c>sources.original.add</c> takes them. "device" is the device that keeps
+    /// the sound ("ipad", the default, or "web").
+    /// </summary>
+    public static OpenDocument CreateRecording(string id, string fileName, ReadOnlySpan<byte> sound, Request request, DateTimeOffset now)
+    {
+        Request recording = request.Object("recording");
+        try
+        {
+            return new OpenDocument(Project.CreateRecording(
+                id,
+                fileName,
+                recording.Long("durationMs"),
+                sound.IsEmpty ? recording.Text("sha256") : PieceOriginal.Fingerprint(sound),
+                sound.IsEmpty ? null : sound.Length,
+                SourceRequest.DeviceOf(request),
+                now));
+        }
+        catch (ArgumentException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// A saved piece without its notes: a PDF piece with no notes, or one with notes read from its PDF or added beside it
+    /// (testing item 16), opened in its "PDF" view, the calls here being about the PDF and its marks; or (version 17) a
+    /// piece that is only its recording.
     /// </summary>
     public static OpenDocument Open(Project project) =>
-        project is { Document: not null } ? new OpenDocument(project) : throw new ArgumentException("The project has no PDF.", nameof(project));
+        project is { Document: not null } or { IsOnlyRecording: true } ? new OpenDocument(project) : throw new ArgumentException("The project has no PDF or recording of its own.", nameof(project));
 
-    /// <summary>The open answer: the project's summary and what the document is.</summary>
+    /// <summary>
+    /// The open answer: the project's summary and what the document is, or for a piece that is only its recording (version
+    /// 1.1), "recording" in place of "document": its original's "id", "fileName" and "durationMs" (null when not known).
+    /// </summary>
     public void Summary(Utf8JsonWriter json)
     {
         Answer.Project(json, "project", Project);
+        if (Project.Document is not { } pdf)
+        {
+            PieceOriginal recording = Project.Originals.First(static original => original.Kind == OriginalKind.Audio);
+            json.WriteStartObject("recording");
+            json.WriteString("id", recording.Id);
+            json.WriteString("fileName", recording.FileName);
+            Answer.OptionalNumber(json, "durationMs", recording.DurationMs);
+            json.WriteEndObject();
+            return;
+        }
+
         json.WriteStartObject("document");
         json.WriteString("fileName", Project.DocumentFileName);
-        json.WriteNumber("bytes", Project.Document!.Length);
+        json.WriteNumber("bytes", pdf.Length);
         json.WriteString("kind", Kind);
         json.WriteEndObject();
     }
@@ -72,10 +115,15 @@ internal sealed class OpenDocument
         "project" => Answer.Write(json => Answer.Project(json, "project", Project)),
         "project.save" => Save(request),
         "project.metadata" => Metadata(request),
-        "document" => Pages(request),
-        "document.replace" => Replace(request),
+        // Version 1.1 (finding 29): the sources with the project's id, and a recording heard into the piece's notes.
+        "sources" => SourceRequest.Sources(Project, Words.For(request.Text("language"))),
+        "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words.For(request.Text("language"))),
         // Version 0.6: the sources by the layers of 0030 for a piece that is only its PDF, as for a piece with notes.
         _ when name.StartsWith("sources.", StringComparison.Ordinal) && SourceRequest.Call(name, request, () => Project, project => Project = project, null) is { } answer => answer,
+        _ when Project.Document is null =>
+            throw new FacadeException("noNotes", $"This piece is a recording with no notes yet, so there is no call \"{name}\" on it. Recognise its notes first."),
+        "document" => Pages(request),
+        "document.replace" => Replace(request),
         "document.marks" => Answer.Write(json => Marks(json, Project.PageMarksOf(OriginalOf(request)))),
         "document.ink.add" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
         "document.ink.remove" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),

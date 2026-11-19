@@ -19,7 +19,7 @@ internal sealed partial class OpenPiece
     private string? CallOnSourceLayers(string name, Request request) => name switch
     {
         "sources.notes.recognise" => RecogniseAgain(request),
-        "sources.notes.hear" => HearRecording(request),
+        "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words),
         _ => SourceRequest.Call(name, request, () => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages)),
     };
 
@@ -44,20 +44,5 @@ internal sealed partial class OpenPiece
         PageMap pages = PageMap.Of(read, Math.Max(1, request.Int("pages") ?? 1));
         List<PageReport>? reports = ScanRequest.ReportsIn(request);
         return Changed(request, project => project.RecognisedAgain(request.Required("original"), musicXml, request.Required("engine"), pages, Now(request), reports), json => json.WriteString("id", id));
-    }
-
-    /// <summary>
-    /// «Распознать» on a recording already added: "original" (the recording's id) and the notes the transcription heard in
-    /// the stretch sent («Что распознать»), as for transcribe ("milliseconds", "parts", "levels", "engine", "sentFromMs",
-    /// "tempo"), with "now". Other Notes beside the working ones, their provenance naming the stretch
-    /// ("sentFromMs" to "sentFromMs" + "milliseconds"). Answers the sources with their "id".
-    /// </summary>
-    private string HearRecording(Request request)
-    {
-        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = Heard(Path.ChangeExtension(Project.FileName, ".mid"), request, Words);
-        long from = request.Long("sentFromMs") ?? 0;
-        (long, long) stretch = (from, from + request.Long("milliseconds")!.Value);
-        string id = Project.NextNotesId();
-        return Changed(request, project => project.HeardFrom(request.Required("original"), midi, origin, check, Now(request), stretch), json => json.WriteString("id", id));
     }
 }

@@ -32,6 +32,7 @@ public sealed record PieceSources(PieceOrigin Base, bool HasDocument, bool ReadF
     public string BaseName(Words words) => Base switch
     {
         PieceOrigin.Pdf => words.T("the PDF, no notes yet", "PDF, нот пока нет"),
+        PieceOrigin.Audio => words.T("the recording, no notes yet", "запись, нот пока нет"),
         PieceOrigin.Scan when ReadFromDocument => words.T("the notes read from the PDF", "ноты, прочитанные с PDF"),
         PieceOrigin.Scan => words.T("the notes read from a scan", "ноты, прочитанные со скана"),
         PieceOrigin.Recording => words.T("the notes heard in a recording", "ноты, услышанные в записи"),

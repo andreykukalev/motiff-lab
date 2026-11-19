@@ -2,7 +2,7 @@
 
 **Status (2026-11-16):** the web app is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); the file stays the contract between the iPad app, the API and the web when it returns. While the web is frozen, a new version ships with the iPad alone, and the frozen web refuses files newer than it knows.
 
-**Version 17 (2026-11-19, [0034](architecture/adr/0034-drafts.md)):** adds the piece's drafts (`workspace.drafts`, "Drafts"); nothing else changes. It is written once music-core's drafts step lands; until then builds write version 16.
+**Version 17 (2026-11-19, [0034](architecture/adr/0034-drafts.md); version 1.1):** keeps the layout of version 16; a piece with no notes may be only its recording (finding 29, "A piece with no notes"), and the piece's drafts come (`workspace.drafts`, "Drafts") with music-core's drafts step; nothing else changes. Builds since version 1.1 write version 17.
 
 The project file is what a player keeps of a piece. Since version 16 ([0030](architecture/adr/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](architecture/adr/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
@@ -58,7 +58,7 @@ Every original of the piece, in order: the first PDF (`src_pdf`), the file the n
 - **`removed`**: a tombstone. The bytes left this device (a linked file was only unlinked), the description and the page marks stay, so the Notes made from it keep their provenance and the state "removed", and adding the same file again (the same `sha256`) revives the original with its marks. A tombstone has no `data` and no `held`.
 - An unknown `kind`, `kept` or `device` keeps the description whole as an unknown entity (S6).
 
-**A piece with no notes** is a piece when it has a live PDF original (in the file, linked in a folder or on another device): the library lists it (`project.summary`), and the facade's `open` answers `originalAway` until the file is here (`Project.RelinkDocument`, by fingerprint). A file with no Notes and no PDF original is damaged.
+**A piece with no notes** is a piece when it has a live PDF original (in the file, linked in a folder or on another device): the library lists it (`project.summary`), and the facade's `open` answers `originalAway` until the file is here (`Project.RelinkDocument`, by fingerprint). Since version 17 (version 1.1, finding 29; Andrei, 2026-11-19) it is a piece too when it has a live recording original: a recording added as it is, free, on the device (`Project.CreateRecording`: the original `src_rec`, kind `audio`, kept `device`, held by the device that added it, with its `durationMs`, `sha256` and `bytes` when known; the piece's `fileName` is the recording's name with `.mid`, so its title is the recording's name and stays when its notes are heard). It has no notes until the player recognises the recording («Распознать · Pro»), and the notes heard become its working notes. A file with no Notes and neither a live PDF nor a live recording original is damaged, and so is a file of version 16 or earlier with no Notes and no PDF original, recording or not: the builds that wrote one knew no such piece.
 
 ### The PDF online
 
@@ -486,7 +486,7 @@ Every version since 1 opens (`ProjectFile.Read`) and is converted to the current
 
 ### From version 16 to 17
 
-Nothing is converted: a version 16 file has no drafts, and everything else reads as it is. Written again, it is a version 17 file.
+Nothing is converted: a version 16 file has no drafts and no piece that is only a recording, and everything else reads as it is. Written again, it is the same file with version 17. An unknown value in a version 16 file is damage, as in every file older than the reader ("Unknown values").
 
 ### From version 15 (and earlier) to 16
 
@@ -530,7 +530,7 @@ Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` Inde
 
 ### Older builds
 
-A build before drafts refuses a version 17 file the same way ([0034](architecture/adr/0034-drafts.md), section 7); the API needs no release for it.
+A build before 1.1 refuses a version 17 file the same way ([0034](architecture/adr/0034-drafts.md), section 7), whether it holds drafts, a piece that is only a recording or neither; the API needs no release for it.
 
 A build before 0.6 refuses a version 16 file with "This project was saved by a newer version of Motiff Lab", so the web, the iPad and the API are released together ([0026](architecture/adr/0026-project-continuity.md), section 3; 0030, section 7). The API checks only the envelope (`format`, `version`, `id`, size, quota; 0026 S2) and stores the bytes it was sent, so a later version needs no API release.
 
