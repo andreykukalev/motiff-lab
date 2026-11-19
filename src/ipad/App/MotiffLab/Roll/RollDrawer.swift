@@ -17,6 +17,8 @@ struct RollDrawer: View {
     /// The handle dragged by a distance down (true when let go), and a step of its height up (+1) or down (−1).
     let resize: (_ dy: CGFloat, _ ended: Bool) -> Void
     let step: (_ direction: CGFloat) -> Void
+    /// Whether the bar's Pen is on, from the screen that observes the pen (Roll may not read Ink's model).
+    let penOn: Bool
     let close: () -> Void
     /// Whether the press on the handle has moved past a tap, so it resizes rather than puts the drawer away.
     @State private var handleMoved = false
@@ -100,7 +102,7 @@ struct RollDrawer: View {
 
     /// Whether «Рамка | Лассо» shows: the bar's Select (not the Pen), the roll not editing notes.
     private var pickShown: Bool {
-        RollPickShape.shown(tool: score.penOn ? InteractionMode.pen : score.mode, rollMode: roll.shownMode)
+        RollPickShape.shown(tool: penOn ? InteractionMode.pen : score.mode, rollMode: roll.shownMode)
     }
 
     /// The head (the approved mockup v0.5.2, #479 item 23; #521 18): the name and the roll's mode switch first, where they

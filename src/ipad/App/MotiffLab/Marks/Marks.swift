@@ -102,14 +102,15 @@ func barsText(_ first: Int, _ last: Int, _ text: UIText) -> String {
 /// a note already written. Emptying the words and choosing Done deletes the note.
 struct NoteCard: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     @FocusState private var focused: Bool
 
     var body: some View {
-        if let draft = score.noteDraft {
+        if let draft = marksModel.noteDraft {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                 Text(text.format("margin.about", barsText(draft.firstBar, draft.lastBar, text))).overline()
-                TextField(text["margin.placeholder"], text: Binding(get: { score.noteDraft?.text ?? "" }, set: { score.noteDraft?.text = $0 }), axis: .vertical)
+                TextField(text["margin.placeholder"], text: Binding(get: { marksModel.noteDraft?.text ?? "" }, set: { marksModel.noteDraft?.text = $0 }), axis: .vertical)
                     .lineLimit(3...6)
                     .focused($focused)
                     .dsType(.body)
@@ -132,7 +133,7 @@ struct NoteCard: View {
                         .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
                     }
                     Spacer(minLength: 0)
-                    Button(text["bookmark.cancel"]) { score.noteDraft = nil }
+                    Button(text["bookmark.cancel"]) { marksModel.noteDraft = nil }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     Button(text["bookmark.done"]) { score.saveNote() }
                         .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
@@ -149,6 +150,7 @@ struct NoteCard: View {
 struct HighlightRow: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
 
     var body: some View {
@@ -160,7 +162,7 @@ struct HighlightRow: View {
             .foregroundStyle(Color.ds("ink"))
             .padding(.trailing, CGFloat.ds("s-2"))
             ForEach(MarksShelf.highlightInks, id: \.self) { ink in
-                let on = score.selectedHighlight?.colour == ink
+                let on = marksModel.selectedHighlight?.colour == ink
                 Button {
                     score.highlightSelection(ink)
                 } label: {
@@ -176,7 +178,7 @@ struct HighlightRow: View {
                 .accessibilityLabel(text.format("menu.highlightIn", MarksShelf.inkName(ink, text)))
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
-            if let highlight = score.selectedHighlight {
+            if let highlight = marksModel.selectedHighlight {
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
                 Button(text["menu.removeHighlight"]) { score.removeHighlight(highlight.id) }
                     .buttonStyle(DSItemStyle())
@@ -191,7 +193,9 @@ struct HighlightRow: View {
 /// default, each kind with its own switch, then the layers of the player's own marks, each hidden for a clean page or all
 /// at once; all kept with the piece.
 struct LayersList: View {
+    /// Shows and hides the layers, and whether Check has flags.
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     /// Whether the piece has other versions, a plain value from the screen that observes them (Marks may not read Sources).
     let hasVersions: Bool
@@ -199,19 +203,19 @@ struct LayersList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["extra.title"]).overline()
-            let extraOn = !score.hiddenLayers.contains("extra")
+            let extraOn = !marksModel.hiddenLayers.contains("extra")
             Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            let extra = score.pieceExtra(hasVersions: hasVersions)
+            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: score.check.hasFlags)
             if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
             }
             ForEach(extra, id: \.self) { item in
-                Toggle(score.layerName(item), isOn: Binding(get: { !score.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
+                Toggle(marksModel.layerName(item), isOn: Binding(get: { !marksModel.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
@@ -220,14 +224,14 @@ struct LayersList: View {
             }
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Text(text["extra.yours"]).overline()
-            ForEach(score.pieceLayers, id: \.self) { layer in
-                Toggle(score.layerName(layer), isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
+            ForEach(marksModel.pieceLayers, id: \.self) { layer in
+                Toggle(marksModel.layerName(layer), isOn: Binding(get: { !marksModel.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
             }
-            let layers = score.pieceLayers
-            let allHidden = layers.allSatisfy { score.hiddenLayers.contains($0) }
+            let layers = marksModel.pieceLayers
+            let allHidden = layers.allSatisfy { marksModel.hiddenLayers.contains($0) }
             Button(allHidden ? text["layers.showAll"] : text["layers.hideAll"]) {
                 score.showLayers(layers, allHidden)
             }
@@ -240,12 +244,13 @@ struct LayersList: View {
 /// bars with ink; a tap goes there and selects the bars, and a note opens to read or change.
 struct NotesList: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     @State private var filter: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            let marks = score.marks
+            let marks = marksModel.marks
             if marks.isEmpty {
                 Text(text["contents.notesEmpty"])
                     .dsType(.label)

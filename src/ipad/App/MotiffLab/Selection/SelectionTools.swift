@@ -81,10 +81,10 @@ extension ScoreController {
     /// The Pencil's double tap or squeeze on the score: «switch to previous» as StylusRules says; the rest as on a PDF.
     func scorePencilGesture(_ action: PencilGesture.Action, at point: CGPoint?) {
         guard action == .previous else {
-            pencilGesture(action, at: point)
+            penModel.pencilGesture(action, at: point)
             return
         }
-        let turn = StylusRules.selectTurn(current: penOn ? .pen : mode, before: toolBeforeSelect)
+        let turn = StylusRules.selectTurn(current: penModel.penOn ? .pen : mode, before: toolBeforeSelect)
         toolBeforeSelect = turn.before
         chooseMode(turn.chosen)
     }
@@ -92,40 +92,40 @@ extension ScoreController {
     /// A mode chosen in the ring, as in the bar: the Pen is the Pen being on; another mode leaves it.
     func chooseMode(_ chosen: InteractionMode) {
         if chosen == .pen {
-            if !penOn { pen.writeOnChoosing() }
-            penOn = true
+            if !penModel.penOn { penModel.pen.writeOnChoosing() }
+            penModel.penOn = true
         } else {
             mode = chosen
-            penOn = false
+            penModel.penOn = false
         }
     }
 
     /// The stylus menu's tools and the chosen one's controls: the Pen's on its ink, Select's on the selection; Navigate's none.
     var ringModes: RingModes {
-        let chosen = penOn ? InteractionMode.pen : mode
+        let chosen = penModel.penOn ? InteractionMode.pen : mode
         let ink = chosen == .pen
         return RingModes(
             chosen: chosen,
             choose: { [weak self] tool in self?.chooseMode(tool) },
             controls: ExpandRules.ringControls(focused: focusModel.focused, otherwise: StylusRules.ringControls(chosen)),
-            canUndo: ink ? canUndo : selectionModel.steps.canUndo,
-            canRedo: ink ? canRedo : selectionModel.steps.canRedo,
+            canUndo: ink ? penModel.canUndo : selectionModel.steps.canUndo,
+            canRedo: ink ? penModel.canRedo : selectionModel.steps.canRedo,
             canClear: selectionModel.selection != nil && !focusModel.focused,
-            undo: { [weak self] in if ink { self?.undo() } else { self?.undoSelection() } },
-            redo: { [weak self] in if ink { self?.redo() } else { self?.redoSelection() } },
+            undo: { [weak self] in if ink { self?.penModel.undo() } else { self?.undoSelection() } },
+            redo: { [weak self] in if ink { self?.penModel.redo() } else { self?.redoSelection() } },
             clear: { [weak self] in self?.clearSelection() }
         )
     }
 
     /// The history Undo and Redo act on now (#521 9): the tool's in force; none in Navigate, nor in Expand (#521 19.3).
     var undoOwner: StylusRules.UndoOwner {
-        ExpandRules.undoOwner(focused: focusModel.focused, otherwise: StylusRules.undoOwner(penOn: penOn, mode: mode, rollEditing: rollEditing?() ?? false))
+        ExpandRules.undoOwner(focused: focusModel.focused, otherwise: StylusRules.undoOwner(penOn: penModel.penOn, mode: mode, rollEditing: rollEditing?() ?? false))
     }
 
     /// ⌘Z: Undo of the tool in force; nothing in Navigate.
     func undoKey() {
         switch undoOwner {
-        case .ink: undo()
+        case .ink: penModel.undo()
         case .selection: undoSelection()
         case .noteEdits: if noteEditor?.canUndo == true { undoNoteEdit() }
         case .nothing: break
@@ -135,7 +135,7 @@ extension ScoreController {
     /// ⇧⌘Z: Redo of the tool in force; the note edits have none, nor has Navigate.
     func redoKey() {
         switch undoOwner {
-        case .ink: redo()
+        case .ink: penModel.redo()
         case .selection: redoSelection()
         case .noteEdits, .nothing: break
         }
@@ -154,7 +154,7 @@ extension ScoreController {
 extension RollController {
     /// A mode chosen on the roll's switch, one tool at a time (#521 10): Edit notes turns the bar's Pen off first.
     func chooseTool(_ mode: RollMode, score: ScoreController) {
-        if RollInput.penOff(choosing: mode) { score.penOn = false }
+        if RollInput.penOff(choosing: mode) { score.penModel.penOn = false }
         choose(mode, score: score)
     }
 }
@@ -168,10 +168,14 @@ struct ModeOptions: View {
     let text: UIText
     /// Whether the piece has other versions, from the screen that observes them: the layers list offers their marks.
     let hasVersions: Bool
+    /// Whether the bar's Pen is on, and whether a layer of the player's marks is hidden, from the screen that observes the
+    /// pen and the marks (Selection may read neither).
+    let penOn: Bool
+    let marksHidden: Bool
 
     var body: some View {
-        if score.penOn {
-            PenPalette(score: score, text: text, hasVersions: hasVersions)
+        if penOn {
+            PenPalette(score: score, text: text, hasVersions: hasVersions, marksHidden: marksHidden)
                 .transition(.opacity.combined(with: .move(edge: .top)))
         } else if score.mode == .select {
             SelectionOptionsRow(score: score, selectionModel: selectionModel, text: text).transition(.opacity)

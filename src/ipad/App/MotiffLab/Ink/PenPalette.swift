@@ -58,10 +58,12 @@ struct PenPalette: View {
     let text: UIText
     /// Whether the piece has other versions, from the screen that observes them: the layers list offers their marks.
     let hasVersions: Bool
+    /// Whether a layer of the player's marks is hidden, from the screen that observes the marks (Ink may not read Marks).
+    let marksHidden: Bool
 
     var body: some View {
-        PenPaletteView(holder: score, text: text) {
-            PenLayersButton(score: score, text: text, hasVersions: hasVersions)
+        PenPaletteView(holder: score.penModel, text: text) {
+            PenLayersButton(score: score, text: text, hasVersions: hasVersions, marksHidden: marksHidden)
         }
     }
 }
@@ -81,6 +83,7 @@ private struct PenLayersButton: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     let hasVersions: Bool
+    let marksHidden: Bool
     @State private var open = false
 
     var body: some View {
@@ -91,9 +94,9 @@ private struct PenLayersButton: View {
         }
         .accessibilityLabel(text["layers.title"])
         .help(text["layers.title"])
-        .buttonStyle(DSIconItemStyle(on: open || !score.hiddenLayers.isDisjoint(with: ScoreController.layers)))
+        .buttonStyle(DSIconItemStyle(on: open || marksHidden))
         .popover(isPresented: $open) {
-            LayersList(score: score, text: text, hasVersions: hasVersions)
+            LayersList(score: score, marksModel: score.marksModel, text: text, hasVersions: hasVersions)
                 .padding(CGFloat.ds("s-4"))
                 .frame(width: 300, alignment: .leading)
                 .presentationCompactAdaptation(.popover)

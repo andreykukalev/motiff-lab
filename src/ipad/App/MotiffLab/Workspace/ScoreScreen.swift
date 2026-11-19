@@ -81,6 +81,8 @@ struct ScoreScreenContent: View {
     /// The selection and Expand, which the score's menu, pill, bars, reactions and assistant show.
     @ObservedObject private var selectionModel: SelectionModel
     @ObservedObject private var focusModel: FocusModel
+    @ObservedObject private var penModel: PenModel
+    @ObservedObject private var marksModel: MarksModel
     /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
     @State private var shownView: ShownView?
 
@@ -102,11 +104,13 @@ struct ScoreScreenContent: View {
         _mergeModel = ObservedObject(wrappedValue: workspace.score.mergeModel)
         _selectionModel = ObservedObject(wrappedValue: workspace.score.selectionModel)
         _focusModel = ObservedObject(wrappedValue: workspace.score.focusModel)
+        _penModel = ObservedObject(wrappedValue: workspace.score.penModel)
+        _marksModel = ObservedObject(wrappedValue: workspace.score.marksModel)
     }
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
     var panels: PanelState { workspace.panels }
-    /// Whether the piece has other versions: the layers lists offer their marks (ScoreController.pieceExtra).
+    /// Whether the piece has other versions: the layers lists offer their marks (MarksModel.pieceExtra).
     private var hasVersions: Bool { !sourcesModel.versions.entries.isEmpty }
 
     var body: some View {
@@ -222,7 +226,7 @@ struct ScoreScreenContent: View {
             score.showNotice("roll.expandNeedsSelection")
             return
         }
-        if score.penOn { score.penOn = false }
+        if penModel.penOn { penModel.penOn = false }
         change(.expandFromDrawer)
         score.expandRoll()
     }
@@ -282,7 +286,7 @@ struct ScoreScreenContent: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = selectionModel.menuPlace {
-                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights))
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights))
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -334,14 +338,15 @@ struct ScoreScreenContent: View {
                     if focusModel.focused {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, marksModel: marksModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if sourcesOn && !focusModel.focused { recordingCapsule }
                     if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
-                        ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions)
+                        ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions, penOn: penModel.penOn,
+                                    marksHidden: !marksModel.hiddenLayers.isDisjoint(with: MarksModel.layers))
                     }
                     if mergeModel.draft != nil && !focusModel.focused && !mergeModel.comparing {
                         MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
@@ -350,7 +355,7 @@ struct ScoreScreenContent: View {
                 }
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .padding(.top, CGFloat.ds("s-3"))
-                .animation(.easeOut(duration: 0.16), value: score.penOn)
+                .animation(.easeOut(duration: 0.16), value: penModel.penOn)
                 .animation(.easeOut(duration: 0.16), value: focusModel.focused)
             }
             .overlay(alignment: .bottom) {
@@ -359,7 +364,7 @@ struct ScoreScreenContent: View {
                         resizeDrawer(by: dy, ended: ended, screen: screen)
                     }, step: { direction in
                         stepDrawer(direction, screen: screen)
-                    }) { change(.close(.roll)) }
+                    }, penOn: penModel.penOn) { change(.close(.roll)) }
                         .frame(height: drawer)
                         .padding(.horizontal, CGFloat.ds("s-3"))
                         .transition(.move(edge: .bottom))
@@ -416,11 +421,11 @@ struct ScoreScreenContent: View {
             .onDisappear { workspace.disappeared() }
             .overlay {
                 // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8), over everything else.
-                if let call = score.pencilPalette {
-                    PencilPalette(holder: score, call: call, text: text, modes: score.ringModes)
+                if let call = penModel.pencilPalette {
+                    PencilPalette(holder: penModel, call: call, text: text, modes: score.ringModes)
                 }
             }
-            .animation(.easeOut(duration: 0.16), value: score.pencilPalette)
+            .animation(.easeOut(duration: 0.16), value: penModel.pencilPalette)
             .onChange(of: scenePhase) { _, phase in workspace.scenePhaseChanged(phase) }
     }
 
@@ -486,7 +491,7 @@ struct ScoreScreenContent: View {
                 ReferenceSheet(text: text, settings: settings, piece: piece.id)
             }
             .sheet(isPresented: panel(.settings)) {
-                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
+                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: marksModel.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
                               back: panels.fromMore.contains(.settings) ? (label: text["bar.more"], action: { backToMore(.settings) }) : nil)
             }
             .onChange(of: settings.values) { _, _ in workspace.settingsChanged() }
@@ -686,9 +691,11 @@ struct ScoreBar: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
+    /// Extra information's button shows whether it is on.
+    @ObservedObject var marksModel: MarksModel
     /// Handed on to Practice, which is off in Expand.
     let focusModel: FocusModel
-    /// Whether the piece has other versions: the layers list offers their marks (ScoreController.pieceExtra).
+    /// Whether the piece has other versions: the layers list offers their marks (MarksModel.pieceExtra).
     let hasVersions: Bool
     /// Which panels are open (PanelState), and the screen's way to change them.
     let panels: PanelState
@@ -741,7 +748,7 @@ struct ScoreBar: View {
         viewButtons
         PaletteDivider()
         // The modes (version 0.5): one group for the score and the roll, the Pen in it.
-        ModeGroup(score: score, text: text, compact: compact)
+        ModeGroup(score: score, penModel: score.penModel, text: text, compact: compact)
         PaletteDivider()
         if let openReference {
             // The Reference: the Circle, the circle with a sharp, opens the circle of fifths.
@@ -783,7 +790,7 @@ struct ScoreBar: View {
         // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {
-            let on = !score.hiddenLayers.contains("extra")
+            let on = !marksModel.hiddenLayers.contains("extra")
             Button {
                 score.toggleExtra()
             } label: {
@@ -801,7 +808,7 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: extraOpen))
             .accessibilityLabel(text["extra.list"])
             .popover(isPresented: $extraOpen) {
-                LayersList(score: score, text: text, hasVersions: hasVersions)
+                LayersList(score: score, marksModel: marksModel, text: text, hasVersions: hasVersions)
                     .padding(CGFloat.ds("s-4"))
                     .frame(width: 300, alignment: .leading)
                     .presentationCompactAdaptation(.popover)
@@ -962,6 +969,8 @@ struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
     @ObservedObject var focusModel: FocusModel
+    @ObservedObject var penModel: PenModel
+    @ObservedObject var marksModel: MarksModel
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
     let text: UIText
@@ -973,8 +982,8 @@ struct SelectionMenu: View {
 
     var body: some View {
         Group {
-            if score.noteDraft != nil {
-                NoteCard(score: score, text: text)
+            if marksModel.noteDraft != nil {
+                NoteCard(score: score, marksModel: marksModel, text: text)
                     .frame(width: 320)
                     .padding(CGFloat.ds("s-3"))
                     .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
@@ -998,7 +1007,7 @@ struct SelectionMenu: View {
                     actions
                     if more {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-                        HighlightRow(score: score, selectionModel: selectionModel, text: text)
+                        HighlightRow(score: score, selectionModel: selectionModel, marksModel: marksModel, text: text)
                         Button {
                             // The assistant opens at the selection, where the menu was (#582 item 17.2).
                             AssistantHereCard.open(assistant, score: score, settings: settings)
@@ -1054,7 +1063,7 @@ struct SelectionMenu: View {
                     .padding(.horizontal, CGFloat.ds("s-2"))
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             }
-            if !score.penOn {
+            if !penModel.penOn {
                 // Expand into focus: two arrows to the corners, unlike Insights' magnifier (#511 section 9).
                 iconItem("expand", text["focus.enter"], on: false) { score.enterFocus() }
                     .accessibilityHint(text["focus.enterHint"])
@@ -1063,17 +1072,17 @@ struct SelectionMenu: View {
             // assistant (Andrei, 2026-11-18).
             iconItem("memo", text["menu.note"], on: false) {
                 contents.cancel()
-                score.startNote()
+                marksModel.startNote()
             }
             iconItem("bookmark", text["menu.bookmark"], on: false) {
-                score.noteDraft = nil
+                marksModel.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
                 iconItem("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
-            iconItem("more", text["menu.more"], on: more || score.selectedHighlight != nil) { more.toggle() }
+            iconItem("more", text["menu.more"], on: more || marksModel.selectedHighlight != nil) { more.toggle() }
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
             iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
@@ -1316,7 +1325,7 @@ extension PanelState {
 /// steps.
 struct MorePanel: View {
     @ObservedObject var score: ScoreController
-    /// Whether the piece has other versions: the layers list offers their marks (ScoreController.pieceExtra).
+    /// Whether the piece has other versions: the layers list offers their marks (MarksModel.pieceExtra).
     let hasVersions: Bool
     let text: UIText
     let problem: String?
@@ -1375,7 +1384,7 @@ struct MorePanel: View {
                 EditsLayerSection(score: score, text: text)
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            LayersList(score: score, text: text, hasVersions: hasVersions)
+            LayersList(score: score, marksModel: score.marksModel, text: text, hasVersions: hasVersions)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {
                 HStack(spacing: CGFloat.ds("s-2")) {

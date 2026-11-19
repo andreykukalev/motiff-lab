@@ -52,9 +52,9 @@ const portFiles = ["PieceCore.swift"];
  */
 const unresolved = new Map([
     // The Pen's Undo and Redo hand InkStep.undo and .redo (InkGeometry.swift) the two names, which pass them back to the
-    // closure as `call`.
-    ["ScoreController.swift › undo › call", { names: ["ink.remove", "ink.add"] }],
-    ["ScoreController.swift › redo › call", { names: ["ink.remove", "ink.add"] }],
+    // closure as `call`; the closure hands them to the score the pen writes on (`PenScore`, ScoreController).
+    ["PenModel.swift › undo › score.changeMarks(…) may be ScoreController.changeMarks", { names: ["ink.remove", "ink.add"] }],
+    ["PenModel.swift › redo › score.changeMarks(…) may be ScoreController.changeMarks", { names: ["ink.remove", "ink.add"] }],
     ["PdfInk.swift › undo › call", { names: ["document.ink.remove", "document.ink.add"] }],
     ["PdfInk.swift › redo › call", { names: ["document.ink.remove", "document.ink.add"] }],
 ]);

@@ -33,7 +33,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `iconItem`), `FocusBar`.
 - `ScoreScreenViews.swift`: where the page is scrolled to (`viewPlace`, `showPlace`).
 - `ScoreController.swift`: the page (the menu's drag, marks, corrections, merge, Expand on the page); the
-  models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md).
+  models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
+  [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`).
 
 ## The contract others may rely on
 
@@ -72,7 +73,7 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: the page's marks, corrections; `mode` (never nil since v0.6.5);
+`ScoreController`: drawing the marks on the page, corrections; `mode` (never nil since v0.6.5);
 the models. `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and
 whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).
