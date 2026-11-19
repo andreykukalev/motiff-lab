@@ -35,9 +35,9 @@ public class ProjectFileGoldenTests
     private const string Future = "v17-future.motiff.json";
 
     /// <summary>
-    /// Where the future file puts an unknown value of each enum type the reader names (council fact V28: 24 types behind
-    /// the 33 uses of Name and LowerName in ProjectFile*.cs), as a path into the version 16 file: the working notes are the
-    /// first Notes, the compared ones the second.
+    /// Where the future file puts an unknown value of each enum type the reader names (council fact V28: 24 types then;
+    /// today 31 types behind the 36 uses of Name and LowerName in Projects/File/), as a path into the version 16 file:
+    /// the working notes are the first Notes, the compared ones the second.
     /// </summary>
     public static TheoryData<string, string> EnumValues => new()
     {

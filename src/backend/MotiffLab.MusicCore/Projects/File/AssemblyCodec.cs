@@ -6,12 +6,16 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Projects;
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.SpanCodec;
+
+namespace MotiffLab.MusicCore.Projects.File;
 
 /// <summary>The assembly in the project file (version 15, decision record 0024, section 7; the format is in docs/project-file.md).</summary>
-public static partial class ProjectFile
+internal static class AssemblyCodec
 {
-    private static void WriteAssembly(Utf8JsonWriter json, PieceAssembly assembly)
+    internal static void WriteAssembly(Utf8JsonWriter json, PieceAssembly assembly)
     {
         json.WriteStartObject("assembly");
         json.WriteNumber("next", assembly.Next);
@@ -44,7 +48,7 @@ public static partial class ProjectFile
         json.WriteEndObject();
     }
 
-    private static PieceAssembly ReadAssembly(JsonElement root)
+    internal static PieceAssembly ReadAssembly(JsonElement root)
     {
         if (!root.TryGetProperty("assembly", out JsonElement assembly))
         {
@@ -64,7 +68,7 @@ public static partial class ProjectFile
             {
                 Applied = assembly.TryGetProperty("applied", out JsonElement applied) ? ReadMusic(applied) : null,
                 Before = assembly.TryGetProperty("before", out JsonElement before) ? ReadMusic(before) : null,
-                AppliedAt = assembly.TryGetProperty("appliedAt", out _) ? Time(assembly, "appliedAt") : null,
+                AppliedAt = assembly.TryGetProperty("appliedAt", out _) ? JsonRead.Time(assembly, "appliedAt") : null,
             };
         }
         catch (Exception exception) when (exception is ArgumentException or FormatException or InvalidOperationException)
@@ -123,7 +127,7 @@ public static partial class ProjectFile
     {
         Expect(step, JsonValueKind.Object, "assembly");
         int number = Integer(step, "number");
-        DateTimeOffset at = Time(step, "at");
+        DateTimeOffset at = JsonRead.Time(step, "at");
         return Text(step, "kind") switch
         {
             "carry" => new CarryStep(number, at, Text(step, "source"), ReadSpan(Property(step, "from", JsonValueKind.Object), "assembly"), ReadPlace(Property(step, "to", JsonValueKind.Object)), Integer(step, "transpose"),
