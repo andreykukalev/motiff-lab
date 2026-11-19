@@ -871,13 +871,18 @@ struct Pill: View {
     /// The tempo's popover opened from «⋯» while the pill has no room for the tempo (finding 22).
     @State private var tempoFromMore = false
 
+    /// How much of the pill has room on it (finding 22): all of it; all but the tempo, the metronome and the roll, which go
+    /// into «⋯»; and with less still, the phrase's steps go there too.
+    private enum Room { case full, compact, tight }
+
     var body: some View {
         // As built while it fits; with no room (portrait beside the assistant, say), the tempo, the metronome and the roll go
-        // into «⋯» and play, the place, Цикл and the hands stay (finding 22, Andrei's answer A of 2026-11-19 09:55 UTC).
-        // SwiftUI measures: the first that fits the width the pill is given, else the second.
+        // into «⋯» and play, the place, Цикл and the hands stay (finding 22, Andrei's answer A of 2026-11-19 09:55 UTC), then
+        // the phrase's steps too. SwiftUI measures: the first that fits the width the pill is given, else the last.
         ViewThatFits(in: .horizontal) {
-            items(roomy: true)
-            items(roomy: false)
+            items(.full)
+            items(.compact)
+            items(.tight)
         }
         .padding(.leading, 6)
         .padding(.trailing, CGFloat.ds("s-2"))
@@ -887,17 +892,17 @@ struct Pill: View {
         .accessibilityLabel(text["transport.label"])
     }
 
-    private func items(roomy: Bool) -> some View {
+    private func items(_ room: Room) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            playback(roomy: roomy).disabled(!player.ready)
+            playback(room).disabled(!player.ready)
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            if roomy {
+            if room == .full {
                 // The roll in its drawer (finding 7); in Expand the bar's Notes | Piano roll shows the passage as a roll.
                 if !focusModel.focused {
                     iconItem("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
                 }
             } else {
-                more
+                more(steps: room == .tight)
             }
             // The assistant (finding 8, Andrei's card of 2026-11-18 21:49 UTC): its panel with the last conversation, or
             // closed; an Ask elsewhere opens it empty.
@@ -906,19 +911,23 @@ struct Pill: View {
         }
     }
 
-    /// Play, the tempo, the hands and the metronome: they wait for the player. Without room, play and the hands alone.
-    private func playback(roomy: Bool) -> some View {
+    /// Play, the tempo, the hands, the phrase's steps and the metronome: they wait for the player. Without room, play, the
+    /// hands and the steps; with less, play and the hands alone.
+    private func playback(_ room: Room) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // The playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span; in
             // Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
             PositionTransport(player: player, passage: score.expandPassage, text: text)
-            if roomy {
+            if room == .full {
                 // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
                 TempoControl(tempo: player.tempo, text: text, setPiece: setPieceTempo)
                     .equatable()
             }
             handsControls
-            if roomy {
+            if room != .tight {
+                stepButtons
+            }
+            if room == .full {
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
                 // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). Its icon
                 // alone, as the roll's and the assistant's, so the pill fits beside the assistant (finding 22).
@@ -929,11 +938,26 @@ struct Pill: View {
     }
 
     /// «⋯» with what the pill had no room for, by their words, in the pill's order: the tempo, whose item opens its popover
-    /// here; the metronome on or off; the roll's drawer, not in Expand. The tempo and the metronome wait for the player.
-    private var more: some View {
+    /// here; with `steps`, the phrase before and after; the metronome on or off; the roll's drawer, not in Expand. All but
+    /// the roll wait for the player.
+    private func more(steps: Bool) -> some View {
         Menu {
             TempoMenuItem(tempo: player.tempo, text: text) { tempoFromMore = true }
                 .disabled(!player.ready)
+            if steps && stepsShown {
+                Button {
+                    score.step(-1)
+                } label: {
+                    Label(text["focus.previous"], image: "ic-back")
+                }
+                .disabled(!player.ready || !focusModel.canStepBack)
+                Button {
+                    score.step(1)
+                } label: {
+                    Label(text["focus.next"], image: "ic-fwd")
+                }
+                .disabled(!player.ready || !focusModel.canStepOn)
+            }
             Toggle(isOn: Binding(get: { metronome.running }, set: { _ in metronome.toggle() })) {
                 Label(text["transport.metronome"], image: "ic-metronome")
             }
@@ -960,9 +984,8 @@ struct Pill: View {
         Task { [weak score] in await score?.setPieceTempo(perMinute) }
     }
 
-    /// Hands separately at the instrument (#328): both, right or left, two touches away, and the
-    /// phrase before or after without lifting it into focus. The hands are the ones music-core gives the notes, and the
-    /// menu says when they were worked out rather than read from the file.
+    /// Hands separately at the instrument (#328): both, right or left, two touches away. The hands are the ones music-core
+    /// gives the notes, and the menu says when they were worked out rather than read from the file.
     @ViewBuilder private var handsControls: some View {
         if player.handsHeld.canSeparate {
             let label = text.format("pill.handsLabel", text[player.hands.labelKey])
@@ -984,7 +1007,15 @@ struct Pill: View {
             .accessibilityLabel(label)
             .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
         }
-        if selectionModel.selection != nil && !focusModel.focused {
+    }
+
+    /// The phrase before or after without lifting it into focus (#328), with a selection out of Expand.
+    private var stepsShown: Bool {
+        selectionModel.selection != nil && !focusModel.focused
+    }
+
+    @ViewBuilder private var stepButtons: some View {
+        if stepsShown {
             step("back", text["focus.previous"], enabled: focusModel.canStepBack) { score.step(-1) }
             step("fwd", text["focus.next"], enabled: focusModel.canStepOn) { score.step(1) }
         }
