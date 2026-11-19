@@ -21,6 +21,9 @@ struct SourcesRow {
     func view(_ id: String, in layers: SourceLayers) -> SourceLayers.ViewEntry? { layers.views.first { $0.id == id } }
 
     func isCurrent(_ id: String, in layers: SourceLayers) -> Bool { id == (current ?? layers.working) }
+
+    /// Recognising the original is Pro: Motiff Lab's scan server reads it, as it always hears a recording.
+    func isPro(_ original: SourceLayers.Original) -> Bool { original.isRecording || hosted }
 }
 
 /// An original and the Notes made from it, together in one card, the Notes under it, set in (Andrei, v0.8 finding 19).
@@ -87,7 +90,7 @@ struct SourcesOriginalRow: View {
                 OriginalPlaceLabel(label: text["originals.nowhere"], badge: .nowhere)
             }
             if sources.canRecognise(original) && original.notes.isEmpty && recognising != original.id {
-                SourcesRecogniseButton(text: text, hosted: row.hosted) { recognising = original.id }
+                SourcesRecogniseButton(text: text, pro: row.isPro(original)) { recognising = original.id }
             }
             if recognising == original.id {
                 SourcesRecognisePanel(sources: sources, original: original, row: row, recognising: $recognising, problems: $problems)
@@ -113,7 +116,7 @@ struct SourcesOriginalRow: View {
     @ViewBuilder private var menu: some View {
         if sources.canRecognise(original) && !original.notes.isEmpty {
             Button { recognising = original.id } label: {
-                Label(row.hosted ? text["sources.sheet.recognise"] + " · Pro" : text["sources.sheet.recognise"], image: "ic-recheck")
+                Label(row.isPro(original) ? text["sources.sheet.recognise"] + " · Pro" : text["sources.sheet.recognise"], image: "ic-recheck")
             }
             Divider()
         }

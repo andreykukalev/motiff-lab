@@ -168,6 +168,12 @@ enum ClosedPieces {
     static func take(_ piece: Int32) -> Bool {
         closed.remove(piece) != nil
     }
+
+    /// Whether the piece was closed, leaving the answer for `take`: a switch to the piece's other view that never ran
+    /// (the library was opening another, or could not read the file) leaves it open.
+    static func isClosed(_ piece: Int32) -> Bool {
+        closed.contains(piece)
+    }
 }
 
 /// The roll's zoom and view kept for a piece until its roll first loads on this screen (`RollController.load`), which

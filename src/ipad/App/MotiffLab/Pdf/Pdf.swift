@@ -465,7 +465,10 @@ struct PdfScreen: View {
             // The Sources panel's way back held this screen, its PDF and controllers with it (v0.6.4 spec section 11).
             sources.reopen = nil
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
-            guard !ClosedPieces.take(piece.id) else { return }
+            guard !ClosedPieces.take(piece.id) else {
+                sources.handedAway()
+                return
+            }
             // Not handed over: the recording heard goes with the screen (v0.10 s-2 review).
             sources.leave(piece.file)
             metronome.stop()
@@ -738,6 +741,8 @@ struct PdfScreen: View {
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         ProbeCounts.shared.mark("saved")
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
+        // A switch that never ran takes the recording's hand-over back.
+        sources.switchReturned()
     }
 
     /// The first PDF's view of the switch: the one this screen shows.

@@ -196,10 +196,13 @@ struct HeardRecording: Sendable {
         ]
     }
 
-    /// The request as a new piece's "transcription" (version 0.5, «Темп живого исполнения», contract 12): "tempo": "live",
-    /// so music-core finds the beat again after each pause and tempo jump and a concert of several pieces keeps its bars.
-    /// No "starts": the iPad does not know where the pieces begin; and no "hint": a recording heard on the iPad becomes a
-    /// new piece, with no score of it to take a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so it keeps `request`.
+    /// The request with "tempo": "live" (version 0.5, «Темп живого исполнения», contract 12), so music-core finds the beat
+    /// again after each pause and tempo jump and a concert of several pieces keeps its bars: a new piece's
+    /// "transcription", and, since v0.10 s-3, the fields of Notes heard in a recording kept in the piece
+    /// (`sources.notes.hear`, `SourcesController.hearFields`), which add the working notes' metre and tempo as the "hint".
+    /// No "starts": the iPad does not know where the pieces begin; a new piece has no "hint", with no score of it to take
+    /// a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so
+    /// it keeps `request`.
     var transcription: [String: Any] {
         var fields = request
         fields["tempo"] = "live"

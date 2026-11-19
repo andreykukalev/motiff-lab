@@ -28,7 +28,10 @@ extension ScoreWorkspace {
         let handed = ClosedPieces.take(piece.id)
         if !handed { Metronome.shared.stop() }
         player.shutdown()
-        guard !handed else { return }
+        guard !handed else {
+            sources.handedAway()
+            return
+        }
         // Not handed over: the recording heard goes with the screen (v0.10 s-2 review).
         sources.leave(piece.file)
         // A variation only tried is not kept with the piece: it is left before the project file is written.

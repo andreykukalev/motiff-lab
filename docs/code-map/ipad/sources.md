@@ -21,8 +21,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   capsules showing it (`shown`, `hidden`) and stops at none, letting the file go (`end`), unless the screen handed the
   piece over (`handOver`, from `SourcesController.handOver`). `SourcesController.load` takes the recording handed
   (`takeHanded`) or stops it (not read, not shown, or the screen gone meanwhile); a screen that goes without handing
-  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`). Picking a view never closes
-  it; ✕ does, and silences it.
+  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`); a switch that never ran
+  takes it back (`switchReturned`: the piece not in `ClosedPieces`, `handedAway` once it ran). Picking a view never
+  closes it; ✕ does (`putAway`), silences it and withdraws its hand-over.
 - `SourcesSheet.swift`: the Sources sheet (`SourcesSheet`, called by `Workspace/ScoreScreen` and `Pdf/Pdf`): its header,
   the add menu, the list of groups and loose Notes, picking files (`Picking`, `take`) and the camera; it owns the view state
   the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.
@@ -30,17 +31,22 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   address and whether it is hosted, the buttons' actions; since s-2 a row opens no view: icon, name, eye, ⋯),
   `SourcesGroupCard` (an original with its Notes), `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus,
   `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
-- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted) and
-  `SourcesRecognisePanel` (where it goes, Send, Cancel), whose Send is `SourcesController.recognise`.
+- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted and always for a
+  recording, s-3) and `SourcesRecognisePanel` (its `Offer`: what it needs first, where it goes, Send's word; a
+  recording's from `RecordingChooser.blocker`), whose Send is `SourcesController.recognise`.
 - `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's three dialogs as one modifier: deleting an original
   (`DeleteOriginalDialog`), deleting Notes, an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
-  Recognising an original is one path: `canRecognise` (today the pages kept in the piece here, on a piece with working
-  notes), then `recognise` reads the original into a `Recognised` (its fields, the field dropped on a "badRequest", the
-  toast; `readPages` for the pages) and `keepRecognised` keeps it under the call name `recognise` gives it as a literal
-  (`sources.notes.recognise`; the facade-calls contract test reads it there): layers, `fresh`, save, toast. A
-  recording's branch (`sources.notes.hear`, v0.10 s-3) adds one reader beside `readPages`.
+  Recognising an original is one path: `canRecognise` (the pages kept in the piece here, or a recording whose sound is
+  here, on a piece with working notes), then `recognise` reads the original into a `Recognised` (its fields, the field
+  dropped on a "badRequest", the toast): `readPages` for the pages, `hearRecording` for a recording
+  (`OriginalSounds.file` → `RecordingHearing.hear`, Motiff Lab's server, `progress` meanwhile, s-3; its fields built by
+  `hearFields`: "tempo": "live" and the working notes' metre and tempo as "hint", `hint` from `playback`, sent again
+  without it when refused);
+  `keepRecognised` keeps it under the call name `recognise` gives it as a literal (`sources.notes.recognise`,
+  `sources.notes.hear`; the facade-calls contract test reads them there): layers, `fresh`, save, toast. The new Notes go
+  under their original; the working notes change only by «Сделать рабочими».
 - `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
   span heard, ‹ ›, the bars Compare versions shows, one `performance.merge` call). Tests: `MotiffLabTests/MergeDraftTests`.
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a

@@ -155,4 +155,40 @@ final class RecordingSeekTests: XCTestCase {
         XCTAssertFalse(listening.playing)
         XCTAssertNil(SourcesHandover.performance(for: other), "the screen that never came does not hear it later")
     }
+
+    /// v0.10 s-2 review, round 2: a switch to the piece's other view that never ran takes its hand-over back, so the
+    /// capsule going (focus) stops the sound, and a later switch finds no recording waiting; one that ran keeps it.
+    func testASwitchThatNeverRanTakesTheHandOverBack() throws {
+        let url = try silence()
+        let other = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("never-ran-pdf.motiff.json")
+        let listening = RecordingListening()
+        let sources = SourcesController()
+        sources.listening = listening
+        sources.performance = "r1"
+        listening.shown(url)
+        listening.toggle(url)
+        sources.handOver(to: other)
+        sources.switchReturned()
+        XCTAssertTrue(listening.playing, "the screen's capsule still shows it")
+        XCTAssertNil(SourcesHandover.performance(for: other), "nothing left waiting for a later switch")
+        listening.hidden()
+        XCTAssertFalse(listening.playing, "focus hides the capsule: the sound stops")
+
+        sources.handOver(to: other)
+        sources.handedAway()
+        sources.switchReturned()
+        XCTAssertEqual(SourcesHandover.performance(for: other), "r1", "the switch ran: the next screen takes it")
+    }
+
+    /// v0.10 s-2 review, round 2: ✕ puts the recording away for every screen it was handed to as well.
+    func testPuttingTheRecordingAwayWithdrawsItsHandOver() {
+        let other = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("put-away-pdf.motiff.json")
+        let sources = SourcesController()
+        sources.listening = RecordingListening()
+        sources.performance = "r1"
+        sources.handOver(to: other)
+        sources.putAway()
+        XCTAssertNil(sources.performance)
+        XCTAssertNil(SourcesHandover.performance(for: other))
+    }
 }
