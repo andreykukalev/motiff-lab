@@ -1051,6 +1051,13 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     // MARK: - A version picked (the bar-by-bar merge left the iPad in v1.1, ADR 0034 section 8)
 
+    /// «Переименовать…» on a version's row in Sources: the markers' labels and the popover take the new name.
+    func renameVersion(_ id: String, to name: String) async {
+        guard let piece else { return }
+        await sourcesModel.rename(id, to: name, in: piece.id)
+        await drawVersions()
+    }
+
     /// A version picked in the switch: it is the one compared on the score.
     func compareVersion(_ id: String) {
         if sourcesModel.versions.shownId != id { showVersion(id) }

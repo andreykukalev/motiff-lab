@@ -8,10 +8,10 @@ import UniformTypeIdentifiers
 /// does (v0.10, finding 25). An original is added without recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos,
 /// a recording, MIDI or MusicXML), recognised («Распознать», again from ⋯) into new Notes beside the ones there are, and
 /// deleted with or without its notes, which the toast undoes; a deleted original stays as a row that takes the same file
-/// back. Other Notes become the working ones from ⋯. A version picked in the switch opens the sheet (v1.1: its page,
-/// the bar-by-bar merge, left the iPad, ADR 0034 section 8). The rows are in `SourcesRows.swift`,
-/// «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this file is the sheet,
-/// its header and add menu, and picking files.
+/// back. Other Notes become the working ones from ⋯, and a version is renamed there. A version picked in the switch opens
+/// the sheet (v1.1: its page, the bar-by-bar merge, left the iPad, ADR 0034 section 8). The rows are in
+/// `SourcesRows.swift`, «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this
+/// file is the sheet, its header and add menu, and picking files.
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
     /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
@@ -47,6 +47,7 @@ struct SourcesSheet: View {
     @State private var problems: [String: String] = [:]
     @State private var deleting: SourceLayers.Original?
     @State private var deletingNotes: SourceLayers.Notes?
+    @State private var renaming: SourceLayers.Notes?
 
     private var layers: SourceLayers { sources.layers }
 
@@ -82,7 +83,10 @@ struct SourcesSheet: View {
             }
             .ignoresSafeArea()
         }
-        .modifier(SourcesDialogs(sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes))
+        .modifier(SourcesDialogs(
+            sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes, renaming: $renaming,
+            rename: { notes, name in Task { await score?.renameVersion(notes.id, to: name); await sources.refresh() } }
+        ))
         .onAppear {
             Task {
                 await sources.refresh()
@@ -186,7 +190,8 @@ struct SourcesSheet: View {
     private var row: SourcesRow {
         SourcesRow(
             text: text, current: current, address: scanAddress, hosted: hosted, pick: pick,
-            delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 }
+            delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
+            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes }
         )
     }
 

@@ -17,6 +17,8 @@ struct SourcesRow {
     let delete: (SourceLayers.Original) -> Void
     /// ⋯ → «Удалить ноты…» on Notes.
     let deleteNotes: (SourceLayers.Notes) -> Void
+    /// ⋯ → «Переименовать…» on a version; nil on the PDF, where no score holds the versions.
+    var rename: ((SourceLayers.Notes) -> Void)?
 
     func view(_ id: String, in layers: SourceLayers) -> SourceLayers.ViewEntry? { layers.views.first { $0.id == id } }
 
@@ -164,11 +166,16 @@ struct SourcesNotesRow: View {
         .background(SourcesRowBackground(current: current, fresh: sources.fresh == notes.id))
     }
 
-    /// ⋯ on Notes: «Сделать рабочими», a divider, «Удалить ноты…».
+    /// ⋯ on Notes: «Сделать рабочими» or, on a version, «Переименовать…», a divider, «Удалить ноты…».
     @ViewBuilder private var menu: some View {
         if notes.canMakeWorking {
             Button { Task { await sources.makeWorking(notes) } } label: {
                 Label(text["sources.sheet.makeWorking"], image: "ic-check")
+            }
+            Divider()
+        } else if notes.role == "version", let rename = row.rename {
+            Button { rename(notes) } label: {
+                Label(text["sources.sheet.rename"], image: "ic-pencil")
             }
             Divider()
         }

@@ -93,6 +93,21 @@ final class SourcesModel: ObservableObject {
         if !read(performance: answer) { status = FacadeAnswer.message(answer) }
     }
 
+    /// «Переименовать…» on a version's row in Sources: music-core keeps its new name (`performance.rename`) and the list is
+    /// read again, so the version shown stays the one shown; why not, in `status`. A blank name or the same one sends nothing.
+    func rename(_ id: String, to name: String, in piece: Int32) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != versions.entries.first(where: { $0.id == id })?.name else { return }
+        let request = facadeRequest(["id": id, "name": trimmed])
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance.rename", request) }
+        guard let object = facadeObject(answer), object["error"] == nil else {
+            status = FacadeAnswer.message(answer)
+            return
+        }
+        status = nil
+        await readList(of: piece)
+    }
+
     /// The words on a version just added: how many of the printed notes it lines up with, or that it lines up with none.
     func addedStatus(in text: UIText) -> String {
         versions.matched == 0

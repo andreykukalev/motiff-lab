@@ -29,13 +29,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.
 - `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (what a row takes from the sheet: the view shown now, the scan server's
   address and whether it is hosted, the buttons' actions; since s-2 a row opens no view: icon, name, eye, ⋯),
-  `SourcesGroupCard` (an original with its Notes), `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus,
-  `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
+  `SourcesGroupCard` (an original with its Notes), `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus (on a
+  version «Переименовать…», `rename`, only where the score is: `ScoreController.renameVersion`), `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
 - `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted and always for a
   recording, s-3) and `SourcesRecognisePanel` (its `Offer`: what it needs first, where it goes, Send's word; a
   recording's from `RecordingChooser.blocker`), whose Send is `SourcesController.recognise`.
-- `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's three dialogs as one modifier: deleting an original
-  (`DeleteOriginalDialog`), deleting Notes, an original picked kept where it lies or copied.
+- `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's dialogs as one modifier: deleting an original
+  (`DeleteOriginalDialog`), deleting Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
   Recognising an original is one path: `canRecognise` (the pages kept in the piece here, or a recording whose sound is
@@ -46,9 +46,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   without it when refused);
   `keepRecognised` keeps it under the call name `recognise` gives it as a literal (`sources.notes.recognise`,
   `sources.notes.hear`; the facade-calls contract test reads them there): layers, `fresh`, save, toast. The new Notes go
-  under their original; the working notes change only by «Сделать рабочими».
+  under their original; the working notes change only by «Сделать рабочими». A removal that takes a version away
+  (`removed`) opens the piece again from the file just saved (`reopen`, the toast handed over), since music-core's open
+  notes still hold the bars taken from it and the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words, a version's marker tapped (`markerPick`),
-  the score as last engraved (even bars); reads a version and the list through music-core. Tests:
+  the score as last engraved (even bars); reads a version and the list through music-core and renames a version
+  (`rename`, `performance.rename`, v1.1). Tests:
   `MotiffLabTests/SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
   `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,

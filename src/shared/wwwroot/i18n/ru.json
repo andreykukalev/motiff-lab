@@ -73,7 +73,6 @@
   "check.toReview.one": "{0} такт на проверку",
   "check.toReview.few": "{0} такта на проверку",
   "check.toReview.many": "{0} тактов на проверку",
-  "check.bar": "Такт {0}",
   "reference.open": "Круг",
   "reference.openHint": "Квартоквинтовый круг и тональности",
   "parts.pdf.failedNoWord": "music-core не ответил.",

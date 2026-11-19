@@ -1,13 +1,18 @@
 import SwiftUI
 
 /// The Sources sheet's dialogs (moved out of `SourcesSheet.swift` in v0.10): the warning before an original is deleted,
-/// with or without its notes; «Удалить ноты…»; and an original picked in Files kept where it lies or copied to this iPad.
+/// with or without its notes; «Удалить ноты…»; a version's new name; and an original picked in Files kept where it lies or
+/// copied to this iPad.
 struct SourcesDialogs: ViewModifier {
     @ObservedObject var sources: SourcesController
     @ObservedObject var originals: OriginalsController
     let text: UIText
     @Binding var deleting: SourceLayers.Original?
     @Binding var deletingNotes: SourceLayers.Notes?
+    /// The version whose name is being changed («Переименовать…»).
+    @Binding var renaming: SourceLayers.Notes?
+    let rename: (SourceLayers.Notes, String) -> Void
+    @State private var name = ""
 
     private var layers: SourceLayers { sources.layers }
 
@@ -33,6 +38,16 @@ struct SourcesDialogs: ViewModifier {
             } message: { _ in
                 Text(text["sources.sheet.deleteNotesLine"])
             }
+            .alert(
+                renaming.map { text.format("sources.sheet.renameTitle", layers.title(of: $0, text, underOriginal: true)) } ?? "",
+                isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }),
+                presenting: renaming
+            ) { notes in
+                TextField(text["performance.name"], text: $name).submitLabel(.done)
+                Button(text["sources.sheet.renameButton"]) { rename(notes, name) }
+                Button(text["common.cancel"], role: .cancel) {}
+            }
+            .onChange(of: renaming) { _, notes in name = notes?.name ?? "" }
             .confirmationDialog(
                 text["originals.linkOrCopy"],
                 isPresented: Binding(get: { originals.choice != nil }, set: { if !$0 { originals.choice = nil } }),
