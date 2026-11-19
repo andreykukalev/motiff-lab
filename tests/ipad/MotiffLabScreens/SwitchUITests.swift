@@ -101,7 +101,8 @@ final class SwitchUITests: XCTestCase {
 
     /// More opened and put away again: how long the app took to show its popover, or nil when it did not.
     private func answersTap() -> TimeInterval? {
-        let more = app.buttons["Ещё"].firstMatch
+        // The bar's More, not the pill's «⋯» while it has no room (finding 22).
+        let more = app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND identifier != 'ml-pill-more'")).firstMatch
         guard more.waitForExistence(timeout: 3), more.isHittable else { return nil }
         let start = Date()
         more.tap()

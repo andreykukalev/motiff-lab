@@ -14,7 +14,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
   `ScoreController.mode` never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and
   Цикл only out of it (`holdsSelection`). The card's black playhead: `score.js` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8);
   a tap on the card (`cardTapped`, the page's `beatUnder`) posts `place`, which `ScoreWorkspace.placeTapped` keeps inside
-  the passage in Expand (`Player.move(to:play:within:)`, playing nothing; 0.8 finding 2).
+  the passage in Expand (`Player.move(to:play:within:)`, playing nothing; 0.8 finding 2). The card's bars are read
+  again when its lift ends (`animationend` of `card-lift`, #729): bars read during the lift are scaled. Цикл shows its
+  icon and span alone, its word VoiceOver's (finding 22).
 - `PlaybackPosition.swift`: `PlaybackModel`, the Swift port of `Scripts/playback/playback-model.ts`; both run
   `tests/ipad/MotiffLabTests/Golden/playback-model.json`.
 - `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two
