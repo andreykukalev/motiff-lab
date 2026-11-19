@@ -53,7 +53,7 @@ struct SourceLayers: Equatable, Sendable {
         var hidden: Bool
 
         var isWorking: Bool { role == "working" }
-        /// Other Notes can become the working ones directly («Сделать рабочими»); a version only through a merge.
+        /// Other Notes can become the working ones («Сделать рабочими»); a version cannot (its merge left in v1.1).
         var canMakeWorking: Bool { role == "other" }
     }
 

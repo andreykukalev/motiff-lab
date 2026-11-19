@@ -80,6 +80,7 @@
   "contents.highlightEntry": "Highlight, {0}",
   "contents.ink": "Ink",
   "contents.inkEntry": "Ink, {0}",
+  "check.bar": "Bar {0}",
   "check.fromScan": "Read from a scan by {0}.",
   "check.fromRecording": "Heard in a recording by {0}.",
   "check.howScanShort": "Compare each flagged bar with the page: Show selects it to loop, and Looks right takes the flag away.",

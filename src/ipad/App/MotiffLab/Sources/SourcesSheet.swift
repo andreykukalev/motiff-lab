@@ -8,10 +8,10 @@ import UniformTypeIdentifiers
 /// does (v0.10, finding 25). An original is added without recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos,
 /// a recording, MIDI or MusicXML), recognised («Распознать», again from ⋯) into new Notes beside the ones there are, and
 /// deleted with or without its notes, which the toast undoes; a deleted original stays as a row that takes the same file
-/// back. Other Notes become the working ones from ⋯. A version picked in the switch shows its page here, as Other
-/// versions did (0022). The rows are in `SourcesRows.swift`,
-/// «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this file is the sheet,
-/// its header and add menu, and picking files.
+/// back. Other Notes become the working ones from ⋯, and a version is renamed there. A version picked in the switch opens
+/// the sheet (v1.1: its page, the bar-by-bar merge, left the iPad, ADR 0034 section 8). The rows are in
+/// `SourcesRows.swift`, «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this
+/// file is the sheet, its header and add menu, and picking files.
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
     /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
@@ -23,8 +23,6 @@ struct SourcesSheet: View {
     let close: () -> Void
     /// "‹ More" when opened from More; nil from elsewhere.
     var back: (label: String, action: () -> Void)?
-    /// The version whose page shows, once music-core has it shown (`SourcesSheet.versionPage`); nil on the PDF.
-    var versionPage: VersionEntry? = nil
     /// What the versions last said, from the score; nil on the PDF.
     var versionStatus: String? = nil
     @EnvironmentObject private var account: Account
@@ -49,15 +47,9 @@ struct SourcesSheet: View {
     @State private var problems: [String: String] = [:]
     @State private var deleting: SourceLayers.Original?
     @State private var deletingNotes: SourceLayers.Notes?
-    @State private var versionName = ""
+    @State private var renaming: SourceLayers.Notes?
 
     private var layers: SourceLayers { sources.layers }
-
-    /// The version whose page shows, once music-core has it shown.
-    static func versionPage(_ sources: SourcesModel) -> VersionEntry? {
-        guard let id = sources.page, let shown = sources.versions.shown, shown.id == id else { return nil }
-        return shown
-    }
 
     private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
     private var hosted: Bool { scanAddress != nil && scanAddress == ScanServer.hosted(account) }
@@ -67,11 +59,7 @@ struct SourcesSheet: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let page = versionPage, let score {
-                        VersionPage(score: score, sourcesModel: score.sourcesModel, mergeModel: score.mergeModel, text: text, version: page, name: $versionName)
-                    } else {
-                        list
-                    }
+                    list
                 }
                 .padding(.leading, CGFloat.ds("s-5"))
                 .padding(.trailing, CGFloat.ds("s-4"))
@@ -95,36 +83,33 @@ struct SourcesSheet: View {
             }
             .ignoresSafeArea()
         }
-        .modifier(SourcesDialogs(sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes))
+        .modifier(SourcesDialogs(
+            sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes, renaming: $renaming,
+            rename: { notes, name in Task { await score?.renameVersion(notes.id, to: name); await sources.refresh() } }
+        ))
         .onAppear {
-            versionName = versionPage?.name ?? ""
             Task {
                 await sources.refresh()
                 await originals.verify()
             }
         }
-        .onChange(of: versionPage?.name) { _, shown in versionName = shown ?? "" }
     }
 
     // MARK: - Header
 
     private var header: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            if let page = versionPage {
-                BackChip(label: text["sources.title"], text: text) { score?.closeVersionPage() }
-                    .padding(.leading, -CGFloat.ds("s-2"))
-                Text(text[page.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]).overline()
-            } else if let back {
+            if let back {
                 BackChip(label: back.label, text: text, action: back.action)
                     .padding(.leading, -CGFloat.ds("s-2"))
             }
             HStack(alignment: .center, spacing: CGFloat.ds("s-2")) {
-                Text(versionPage?.name ?? text["sources.title"])
-                    .dsType(versionPage == nil ? .title : .heading)
+                Text(text["sources.title"])
+                    .dsType(.title)
                     .foregroundStyle(Color.ds("ink"))
                     .accessibilityAddTraits(.isHeader)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if versionPage == nil { addMenu }
+                addMenu
                 Button(action: close) {
                     Icon(name: "close").frame(width: 32, height: 32)
                 }
@@ -205,7 +190,8 @@ struct SourcesSheet: View {
     private var row: SourcesRow {
         SourcesRow(
             text: text, current: current, address: scanAddress, hosted: hosted, pick: pick,
-            delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 }
+            delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
+            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes }
         )
     }
 

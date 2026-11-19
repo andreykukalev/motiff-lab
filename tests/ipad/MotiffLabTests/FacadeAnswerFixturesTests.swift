@@ -226,49 +226,25 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(phrases[2].edited, [], "reset")
     }
 
-    func testTheMergeDraftDecodes() throws {
+    /// A version with bars taken into the notes, as a file saved before v1.1 holds it (the bar-by-bar merge left the
+    /// iPad, ADR 0034 section 8): the answers of the merge applied and undone, read as any version is.
+    func testAVersionWithTakenBarsDecodes() throws {
         let answers = try Self.answers("performance.merge")
         XCTAssertEqual(answers.count, 11, "each call's answer but the version added and the result heard")
-        let drafts = try [0, 1, 2, 3, 4, 5, 6, 9, 10].map { try XCTUnwrap(FacadeAnswer.decode(MergeAnswer.self, answers[$0].text, of: "performance.merge"), "\(reported)") }
         let applied = try [7, 8].map { try XCTUnwrap(FacadeAnswer.decode(PerformanceAnswer.self, answers[$0].text, of: "performance.merge.apply"), "\(reported)") }
         XCTAssertEqual(reported, [])
-
-        let opened = try XCTUnwrap(drafts[0].merge.map(MergeInfo.init))
-        XCTAssertEqual(opened.id, "perf_1")
-        XCTAssertEqual(opened.bars.map(\.bar), [5])
-        XCTAssertEqual(opened.choice(at: 5), "mine")
-        XCTAssertEqual(opened.bars.first?.group, "addedNotes")
-        XCTAssertFalse(opened.canUndo)
-        let chosen = try XCTUnwrap(drafts[1].merge.map(MergeInfo.init))
-        XCTAssertEqual(chosen.choice(at: 5), "version")
-        XCTAssertEqual(chosen.taking, 1)
-        XCTAssertTrue(chosen.canUndo && chosen.changed)
-        // A bar's "choice" is always written, a string or null: a draft whose bar has none is broken, and reported.
-        let unchosen = answers[1].text.replacingOccurrences(of: "\"choice\":", with: "\"choiceRenamed\":")
-        XCTAssertNotEqual(unchosen, answers[1].text, "the draft's bar writes \"choice\"")
-        XCTAssertNil(FacadeAnswer.decode(MergeAnswer.self, unchosen, of: "performance.merge"))
-        XCTAssertTrue(reported.contains { $0.contains("\"choice\"") }, "\"choice\" renamed is reported: \(reported)")
-        reported = []
-        XCTAssertTrue(drafts[2].merge?.canRedo == true, "undone")
-        XCTAssertNil(try XCTUnwrap(drafts[4].merge.map(MergeInfo.init)).choice(at: 5), "undecided: null")
-        XCTAssertEqual(drafts[4].merge?.decided, 0)
-        XCTAssertEqual(drafts[7].merge.map(MergeInfo.init)?.choice(at: 5), "version", "opened again as applied")
-        XCTAssertNil(drafts[8].merge, "cancelled: none open")
 
         var shelf = VersionShelf()
         XCTAssertTrue(shelf.read(performance: applied[0]))
         XCTAssertEqual(shelf.shownId, "perf_1")
-        XCTAssertEqual(shelf.shown?.takenBars, 1)
-        XCTAssertNotNil(shelf.shown?.mergedAt)
-        XCTAssertEqual(shelf.shown?.mergeKept, true)
+        XCTAssertEqual(shelf.taken.map(\.bar), [5], "the bar taken, drawn as a taken-bar line")
         XCTAssertEqual(shelf.matched, shelf.printed)
         let bar5 = try XCTUnwrap(shelf.bars.first { $0.bar == 5 })
         XCTAssertTrue(bar5.taken && bar5.differs)
         XCTAssertEqual(bar5.played, 3)
         XCTAssertNotNil(bar5.span)
         XCTAssertTrue(shelf.read(performance: applied[1]))
-        XCTAssertNil(shelf.shown?.mergedAt, "the merge undone: null")
-        XCTAssertEqual(shelf.shown?.takenBars, 0)
+        XCTAssertEqual(shelf.taken.count, 0, "undone, no bar is taken")
         XCTAssertEqual(shelf.entries.count, 1)
     }
 

@@ -584,8 +584,7 @@ test("a call the port makes is made from no other file", () => {
     const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
     const corrections = ["", ".change", ".remove", ".revert", ".undo", ".acceptDraft", ".undoDraft", ".layer", ".drop", ".begin", ".set", ".add", ".reset", ".discard", ".save"]
         .map((call) => `corrections${call}`);
-    const merge = ["open", "choose", "undecide", "undo", "redo", "reset", "cancel", "playback", "apply", "undoApplied"].map((call) => `performance.merge.${call}`);
-    const required = ["select", "playback", "roll", "sources.layers", ...corrections, "phrases.level", ...merge];
+    const required = ["select", "playback", "roll", "sources.layers", ...corrections, "phrases.level"];
     assert.deepEqual(required.filter((name) => !ported.has(name)), [], `the port's calls read: ${[...ported].join(", ")}`);
     const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
         .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
@@ -593,12 +592,12 @@ test("a call the port makes is made from no other file", () => {
 });
 
 test("each case of the port's enums of calls sends the call it is named after", () => {
-    // PieceCore.Correction and PieceCore.Merge: the case is the last part of its call's name, so two literals swapped fail
+    // PieceCore.Correction: the case is the last part of its call's name, so two literals swapped fail
     // here. The one exception: `.bar` is the plain `corrections`.
     const port = readFileSync(join(swiftRoot, "Platform", "PieceCore.swift"), "utf8");
     const named = { bar: "corrections" };
     const cases = [...port.matchAll(/case \.(\w+):\s*\n\s*return await \w+\("([^"]+)"/g)].map(([, name, call]) => ({ name, call }));
-    assert.ok(cases.length >= 22, `only ${cases.length} cases read`);
+    assert.ok(cases.length >= 15, `only ${cases.length} cases read`);
     const wrong = cases.filter(({ name, call }) => (name in named ? call !== named[name] : call.split(".").pop() !== name)).map(({ name, call }) => `.${name} → ${call}`);
     assert.deepEqual(wrong, []);
 });
