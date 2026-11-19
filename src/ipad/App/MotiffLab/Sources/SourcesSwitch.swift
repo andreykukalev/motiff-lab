@@ -245,8 +245,7 @@ struct SourcesButton: View {
     }
 }
 
-/// What was just done in the Sources sheet, as the score's toast (MergeToastView): a light capsule with a quiet
-/// «Отменить» and ✕.
+/// What was just done in the Sources sheet, as the score's toast (`UndoToast`).
 struct SourcesToastView: View {
     @ObservedObject var sources: SourcesController
     let toast: SourcesToast
@@ -259,5 +258,35 @@ struct SourcesToastView: View {
                 try? await Task.sleep(for: .seconds(toast.undo == nil ? 4 : 10))
                 if sources.toast?.id == toast.id { sources.toast = nil }
             }
+    }
+}
+
+/// The score's toast: a light capsule with what was just done, a quiet «Отменить» where it can be undone, and ✕.
+struct UndoToast: View {
+    let words: String
+    let text: UIText
+    let undo: (() -> Void)?
+    let close: () -> Void
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-3")) {
+            Text(words)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink"))
+            if let undo {
+                Button(text["merge.toastUndo"], action: undo)
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
+            Button(action: close) { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["bar.close"])
+        }
+        .padding(.leading, CGFloat.ds("s-4"))
+        .padding(.trailing, CGFloat.ds("s-2"))
+        .padding(.vertical, CGFloat.ds("s-1"))
+        .background(Color.ds("surface"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .dsShadow("shadow-menu")
+        .accessibilityElement(children: .contain)
     }
 }

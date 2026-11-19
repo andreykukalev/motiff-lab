@@ -4,8 +4,8 @@ import XCTest
 
 /// SourcesModel (S4, ADR 0031 section 3) on the kit's piece open in music-core: a version added is the one shown and
 /// says how it lines up, the list and a version are read through music-core, a version that is not there leaves its
-/// words, and another piece starts with none of the last one's versions, words, page, engraved view or sources; the
-/// piece's sources are kept as read.
+/// words, and another piece starts with none of the last one's versions, words, marker or sources, engraved as the device
+/// engraves now; the piece's sources are kept as read.
 @MainActor
 final class SourcesModelTests: XCTestCase {
     private let text = UIText(language: "en")
@@ -57,13 +57,33 @@ final class SourcesModelTests: XCTestCase {
         let model = SourcesModel(evenBars: false)
         _ = try withVersion(model)
         model.say("Bar 12 is now as in Official")
-        model.showPage(model.versions.shownId)
-        model.keepEngraved(SourcesModel.Engraved(view: "result", even: false, added: ["n_0001"], own: []))
+        model.pickMarker(SourcesModel.MarkerPick(bar: 5, left: 10, bottom: 20))
+        model.keepEngraved(SourcesModel.Engraved(even: false))
         model.open(evenBars: true)
         XCTAssertTrue(model.versions.entries.isEmpty)
         XCTAssertNil(model.status)
-        XCTAssertNil(model.page)
-        XCTAssertEqual(model.engraved, SourcesModel.Engraved(view: nil, even: true), "the player's notes, as the device engraves them now")
+        XCTAssertNil(model.markerPick, "no marker of the last piece's")
+        XCTAssertEqual(model.engraved, SourcesModel.Engraved(even: true), "as the device engraves now")
+    }
+
+    /// A version's marker tapped on the score is picked with its place; «Источники» on its popover puts the popover away
+    /// and asks the screen for Sources by the marker's bar (VIEW-06's way from a marker, since «Открыть в черновике» left
+    /// with the merge in v1.1); a tap elsewhere only puts it away.
+    func testAMarkersPopoverOpensSourcesAndGoes() {
+        let score = ScoreController()
+        var asked: [Int] = []
+        score.versionPicked = { asked.append($0) }
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300))
+        XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 40.5, bottom: 300))
+        score.openSourcesFromMarker()
+        XCTAssertNil(score.sourcesModel.markerPick)
+        XCTAssertEqual(asked, [12])
+        score.openSourcesFromMarker()
+        XCTAssertEqual(asked, [12], "no marker picked, nothing asked")
+        score.handle(.performanceBar(3, left: 0, bottom: 0))
+        score.closeMarker()
+        XCTAssertNil(score.sourcesModel.markerPick)
+        XCTAssertEqual(asked, [12])
     }
 
     func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {

@@ -88,7 +88,7 @@ struct PhraseLevelAnswer: Decodable, Sendable {
     }
 }
 
-/// The playback score (`Answer.Playback`: `playback`, `performance.merge.playback`, the reference's sounds): notes with
+/// The playback score (`Answer.Playback`: `playback`, the reference's sounds): notes with
 /// the pedal already in their lengths, tempos, the tempo shown, beats and bars; "hands" only `playback` writes.
 struct PlaybackAnswer: Decodable, Sendable {
     struct Note: Decodable, Sendable {
@@ -403,58 +403,8 @@ struct OpenedEdits: Decodable, Sendable {
     let edits: EditsLayerAnswer?
 }
 
-/// The merge draft (`Answer.Merge`, contract 7), the answer of `performance.merge.open` and of each change to the draft:
-/// {"merge": {…}}, null when none is open (`performance.merge.cancel`). music-core writes every field.
-struct MergeAnswer: Decodable, Sendable {
-    struct Draft: Decodable, Sendable {
-        let id: String
-        let name: String
-        let decided: Int
-        let total: Int
-        let sure: Int
-        let taking: Int
-        let canUndo: Bool
-        let canRedo: Bool
-        let changed: Bool
-        let bars: [Bar]
-    }
-
-    struct Bar: Decodable, Sendable {
-        let bar: Int
-        let kind: String
-        let group: String
-        let marker: String
-        let confidence: Int
-        let sure: Bool
-        /// Null while undecided.
-        let choice: String?
-
-        private enum CodingKeys: String, CodingKey { case bar, kind, group, marker, confidence, sure, choice }
-
-        init(from decoder: Decoder) throws {
-            let fields = try decoder.container(keyedBy: CodingKeys.self)
-            bar = try fields.decode(Int.self, forKey: .bar)
-            kind = try fields.decode(String.self, forKey: .kind)
-            group = try fields.decode(String.self, forKey: .group)
-            marker = try fields.decode(String.self, forKey: .marker)
-            confidence = try fields.decode(Int.self, forKey: .confidence)
-            sure = try fields.decode(Bool.self, forKey: .sure)
-            choice = try fields.decodeNullable(String.self, forKey: .choice)
-        }
-    }
-
-    /// Always written, null with no draft open.
-    let merge: Draft?
-
-    private enum CodingKeys: String, CodingKey { case merge }
-
-    init(from decoder: Decoder) throws {
-        merge = try decoder.container(keyedBy: CodingKeys.self).decodeNullable(Draft.self, forKey: .merge)
-    }
-}
-
-/// A version compared with the piece bar by bar (`Answer.Performance`, decision record 0022): the answer of
-/// `performance.merge.apply` and `.undoApplied`, and of `performance` and the changes to a version. Read as before it was
+/// A version compared with the piece bar by bar (`Answer.Performance`, decision record 0022): the answer of `performance`
+/// and of the changes to a version. Read as before it was
 /// typed: "performance" is needed, its fields each with the default it had, and a bar without its number left out.
 struct PerformanceAnswer: Decodable, Sendable {
     struct Performance: Decodable, Sendable {
@@ -503,11 +453,6 @@ struct VersionHead: Decodable, Sendable {
     let id: String?
     let name: String?
     let takenBars: Int?
-    /// "score", "midi" or "recording".
-    let source: String?
-    /// ISO 8601, null before any merge is applied or once it is undone.
-    let mergedAt: String?
-    let mergeKept: Bool?
 }
 
 /// A span in ticks (`Answer.Span`), each end read as none when missing.

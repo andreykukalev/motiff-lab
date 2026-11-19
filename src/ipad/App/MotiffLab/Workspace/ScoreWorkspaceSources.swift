@@ -31,7 +31,8 @@ extension ScoreWorkspace {
         }
     }
 
-    /// A view picked in the switch or its menu. The recording heard over the views stays as it is (v0.10, finding 24).
+    /// A view picked in the switch or its menu. The recording heard over the views stays as it is (v0.10, finding 24). A
+    /// version opens Sources and is the one compared on the score (its page, the bar-by-bar merge, left in v1.1).
     func pickView(_ view: SourceLayers.ViewEntry, switchView: ((Landing) async -> Void)?, text: UIText, show: @escaping (ScoreScreenContent.ShownView) -> Void) {
         switch view.kind {
         case "performance":
@@ -47,7 +48,7 @@ extension ScoreWorkspace {
             guard view.id != sources.layers.working else { return }
             if sources.layers.notes(view.id)?.role == "version", score.sourcesModel.versions.entries.contains(where: { $0.id == view.id }) {
                 change(.open(.versions))
-                score.openVersionPage(view.id)
+                score.compareVersion(view.id)
             } else {
                 Task { await showNotes(view.id, text: text, show: show) }
             }

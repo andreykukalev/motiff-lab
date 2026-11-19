@@ -79,7 +79,6 @@ final class ScoreWorkspace: ObservableObject {
         score.checkPicked = { [weak self] _ in self?.checkPicked() }
         score.versionPicked = { [weak self] _ in self?.versionPicked() }
         score.hearNotes = { [weak self] notes, range in self?.hearNotes(notes, over: range) }
-        score.hearInTurn = { [weak self] notes, range in self?.hearInTurn(notes, over: range) }
         score.notesChanged = { [weak self] in self?.notesChanged() }
         insights.placeChosen = { [weak self] tick in self?.placeChosen(tick) }
         insights.scaleReady = { [weak self] notes, range in self?.scaleReady(notes, over: range) }
@@ -135,23 +134,17 @@ final class ScoreWorkspace: ObservableObject {
         change(.open(.check))
     }
 
-    /// Open in the draft, from a marker's popover or focus, opens Sources on the version's page.
+    /// «Источники» on a version's marker popover opens Sources.
     func versionPicked() {
         change(.open(.versions))
     }
 
-    /// The draft's views are heard on their own, or the notes and the version in turn.
+    /// A version's bar heard on its own (a marker's «Как в версии»).
     func hearNotes(_ notes: [PlaybackNote], over range: Range<Double>) {
         player.hearAlone(notes, over: range)
     }
 
-    func hearInTurn(_ notes: [PlaybackNote], over range: Range<Double>) {
-        player.setVariation(notes, version: true)
-        player.hear(.alternate, over: range)
-        if player.state != .playing { player.play(from: range.lowerBound) }
-    }
-
-    /// The piece's notes changed (a correction, a merge applied or undone): the roll, what plays and the facts follow.
+    /// The piece's notes changed (a correction, the tempo set): the roll, what plays and the facts follow.
     func notesChanged() {
         roll.notesChanged()
         let id = piece.id

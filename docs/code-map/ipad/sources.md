@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `KeptCopies`, `Merge`, `MergeModel`, `OriginalSounds`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `KeptCopies`, `OriginalSounds`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -47,31 +47,28 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `keepRecognised` keeps it under the call name `recognise` gives it as a literal (`sources.notes.recognise`,
   `sources.notes.hear`; the facade-calls contract test reads them there): layers, `fresh`, save, toast. The new Notes go
   under their original; the working notes change only by «Сделать рабочими».
-- `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
-  span heard, ‹ ›, the bars Compare versions shows, one `performance.merge` call). Tests: `MotiffLabTests/MergeDraftTests`.
-- `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a
-  version and the list through music-core. Tests: `MotiffLabTests/SourcesModelTests`.
-- `Versions.swift`: `MergeInfo` (the draft, from `MergeAnswer`: `PieceCore.merge`), `VersionShelf` (the versions and the
-  one compared, from `PerformanceAnswer`: `PieceCore.mergeApply` and `.mergeUndoApplied`, or from the text of the version
-  calls not yet in the port, `read(performance:)`, `read(list:)`), `VersionEntry` (`init?(_: VersionHead)`), the views.
+- `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words, a version's marker tapped (`markerPick`),
+  the score as last engraved (even bars); reads a version and the list through music-core. Tests:
+  `MotiffLabTests/SourcesModelTests`.
+- `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
+  `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
+  «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources
+  and is compared (`ScoreController.compareVersion`); files with taken bars read as before (music-core).
 
 ## The contract others may rely on
 
 - `SourceLayers` holds only what music-core answered (`tests/contracts/facade-answers/sources.layers.json`, decoded by
   `FacadeAnswerFixturesTests`); every request of the sheet carries `"device": "ipad"` and `"here"`.
-- `MergeInfo` and `VersionShelf` likewise (`performance.merge.json`); the draft's calls are made only by `MergeModel.call`
-  and `ScoreController`'s `applyDraft`, `unapply` and `hearMerge`, through `PieceCore`.
+- `VersionShelf` likewise (taken bars: `performance.merge.json`).
 
 ## The state it owns
 
-`SourcesModel`: `versions` (`VersionShelf`), `status`, `page`, `engraved` and the piece's sources (`info`,
-`SourcesInfo`, since S7c). `MergeModel`: `draft`, `at`, `phrase`, `view`, `hearing`, `comparing`, `toast`, `markerPick`.
-Both are set only through their methods; the views observe them (Bar | Phrase and Compare versions bind
-`scope(phrase:)` and `compare(_:)`): [ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes of S4 to
-S7c. `SourcesController`: the layers of 0030.
+`SourcesModel`: `versions` (`VersionShelf`), `status`, `markerPick`, `engraved` and the piece's sources (`info`,
+`SourcesInfo`, since S7c), set only through its methods; the views observe it:
+[ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes of S4 to S7c. `SourcesController`: the layers of 0030.
 
 ## Baseline entries that protect it
 
-UX baseline: `VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`). Tests:
-`MotiffLabTests/OriginalsTests` (`addWord`, `canRecognise`). Quality ratchet:
-`Versions.swift` file_length.
+UX baseline: `VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`); `VIEW-06`, a
+version's marker opens Sources (`Baseline/WorkspaceScenarioTests`). Tests: `MotiffLabTests/OriginalsTests` (`addWord`,
+`canRecognise`).

@@ -35,7 +35,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreColouring.swift` (v0.10 d-5, finding 31): `ScoreController`'s part of the pen's colour bars (`PenScore`'s
   `colouringChanged`, `colourBars`, `uncolourBars`): the change `Marks/HighlightPaint` works out, sent to music-core and
   drawn at its last call.
-- `ScoreController.swift`: the page (the menu's drag, marks, corrections, merge, Expand on the page); the
+- `ScoreController.swift`: the page (the menu's drag, marks, corrections, versions, Expand on the page); the
   models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
   [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`).
 
@@ -67,10 +67,8 @@ them, and the order inside each:
    (the player first, then `syncPlayheads`). 5. `body`: `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen`
    (`assistant.close()`).
 
-Two orders in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()`;
-`ScoreController.openDraftFromFocus` leaves Expand before `openDraft(at:)` asks for Sources, both in one update, so
-Sources opening over a drawer or Contents kept for after Expand rests on SwiftUI running the `focused` reaction before
-the `versions` one (the declared order; in the other, the drawer comes back and Sources does not open). A reaction
+An order in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()` (the other, «Открыть в
+черновике» leaving Expand and opening Sources in one update, left with the merge in v1.1). A reaction
 may act twice in a frame at most (SwiftUI drops a third), which is why the rules are not one reaction. A rule or
 reaction moved, merged or reordered changes what a player sees for a frame or more: change `panel-states.txt` first.
 
