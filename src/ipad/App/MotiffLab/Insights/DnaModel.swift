@@ -114,10 +114,20 @@ struct DnaMap: Sendable {
         return min(max((tick - start) / length, 0), 1)
     }
 
-    /// The whole tick at a place along the map (0 its start, 1 its end), inside the piece: where the playhead is let go.
+    /// The grid a dragged playhead goes to, as on the roll and the score: a sixteenth, 120 ticks at 480 to the quarter
+    /// (playhead-drag.ts DRAG_GRID).
+    static let dragGrid = 120.0
+
+    /// The tick at a place along the map (0 its start, 1 its end) where the playhead is dragged and let go: inside the piece,
+    /// on the nearest sixteenth counted from the start of the bar it lies in and no later than that bar's last one, as the
+    /// roll's black handle goes (playhead-drag.ts snapTick; the map has no note starts to stand on besides). A whole tick.
     func tick(at fraction: Double) -> Double {
-        let tick = (start + min(max(fraction, 0), 1) * (end - start)).rounded()
-        return min(tick, max(start, end - 1))
+        let inside = min(start + min(max(fraction, 0), 1) * (end - start), max(start, end - 1))
+        guard let index = barStarts.lastIndex(where: { $0 <= inside }), index + 1 < barStarts.count else { return inside.rounded() }
+        let bar = barStarts[index]
+        let last = max(0, ((barStarts[index + 1] - bar) / Self.dragGrid).rounded(.up) - 1)
+        let steps = min(max(((inside - bar) / Self.dragGrid).rounded(), 0), last)
+        return (bar + steps * Self.dragGrid).rounded()
     }
 
     /// Where a bar starts and ends, in ticks.

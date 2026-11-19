@@ -130,7 +130,7 @@ struct DnaScreen: View {
     /// An action of the header by its icon, as the score's bar has them.
     private func barButton(_ icon: String, _ words: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Icon(name: icon, size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            Icon(name: icon, size: CGFloat.ds("icon-l")).frame(width: CGFloat.ds("h-control"), height: CGFloat.ds("h-control"))
         }
         .buttonStyle(BarActionStyle())
         .accessibilityLabel(words)

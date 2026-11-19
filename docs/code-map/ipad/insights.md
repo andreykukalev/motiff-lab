@@ -10,7 +10,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
 - Piece DNA, one view over seven files (split from `Dna.swift` in v0.10 d-1, #723; behaviour unchanged):
   - `DnaModel.swift`: `DnaMap`, the typed `dna` answer (form, ideas and their marks, keys, chords, closes, the
     circles, density, new material, register, dynamics, `barStarts`, `bar(_:)`, `fraction(of:)` and `tick(at:)` along the
-    bar axis). Also read by `Marks/Bookmarks.swift` (the form's sections for the Contents) and
+    bar axis, `tick(at:)` on the roll's sixteenth grid, `dragGrid`). Also read by `Marks/Bookmarks.swift` (the form's sections for the Contents) and
     `Workspace/ScoreScreen.swift`, which decodes it and shows the screen.
   - `DnaScreen.swift`: `DnaScreen`, what it is given (the map, the player, `showInScore`, `addBookmarks`, `ask`), its
     view state (what is heard, the open circle, the explained close, the More lanes and the last action's words),
@@ -19,8 +19,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
     other files but `DnaPlayhead` are extensions of it.
   - `DnaLanes.swift`: the lanes on the bar axis (`lanes`, `row`, `x`), the playhead over them; `MarkShape`, `Arc`.
   - `DnaPlayhead.swift`: `DnaPlayhead`, the player's position always shown, its handle on top drawn as the roll's
-    marker and dragged as the roll's black playhead (`PlayheadGesture` through `Player.handle`, T14–T16: playback stands
-    while held, plays on from where it is let go); VoiceOver moves it a bar.
+    marker and dragged as the roll's black playhead (`PlayheadGesture` through `Player.handle`, T14–T16: taken where it
+    is, moved by the finger's travel, playback stands while held, plays on from where it is let go, let go too when the
+    drag is cancelled); VoiceOver puts it down a bar on (`place`).
   - `DnaHarmony.swift`: the harmony rows (`chordRow`, `degreeRow`, `functionRow`, `cadenceRow`), their switches
     (kept in `DeviceSettings`), and the card at the corner (`pop`): the circle of fifths of a section or key stretch,
     or what a tapped close is.
