@@ -78,8 +78,10 @@ final class SourcesController: ObservableObject {
     @Published var toast: SourcesToast?
     /// Why the last operation was not done, in the player's words; nil when it was.
     @Published var status: String?
-    /// The original whose pages are with the scan server now.
+    /// The original whose pages or sound are with the scan server now.
     @Published private(set) var reading: String?
+    /// How hearing a recording goes, in the player's words (`RecordingHearing`); nil while none is heard.
+    @Published private(set) var progress: String?
     /// Notes just recognised, shown highlighted once.
     @Published var fresh: String?
     /// The recording heard over the view shown («Исполнение», `PerformanceCapsule`); nil while none is. Picking a view
@@ -215,18 +217,29 @@ final class SourcesController: ObservableObject {
         toast = SourcesToast(text: text["sources.sheet.toastNotesGone"], undo: .restore(before))
     }
 
-    /// Whether the original can be recognised here: the pages can go to the scan server, a PDF or photos whose bytes are
-    /// kept in the piece here, on a piece with working notes.
+    /// Whether the original can be recognised here, on a piece with working notes: a PDF or photos whose bytes are kept in
+    /// the piece here, or a recording whose sound is on this iPad (v0.10, findings 26 and 28).
     func canRecognise(_ original: SourceLayers.Original) -> Bool {
-        original.isPages && original.isHere && original.kept == "file" && layers.working != nil
+        ((original.isPages && original.kept == "file") || original.isRecording) && original.isHere && layers.working != nil
     }
 
     /// «Распознать», the first time or again, the one path of recognising an original: what it is read from goes to the
-    /// scan server chosen (the player's yes is the panel's Send), and the notes it reads become new Notes of that original
-    /// beside the ones there are, which keep their corrections (`keepRecognised`). Answers why not, or nil once done.
-    func recognise(_ original: SourceLayers.Original, address: URL, account: Account) async -> String? {
+    /// scan server (the player's yes is the panel's Send): the pages to the one chosen (`address`), a recording's sound to
+    /// Motiff Lab's. The notes it reads become new Notes of that original beside the ones there are, which keep their
+    /// corrections, and the working notes stay as they are (`keepRecognised`). Answers why not, or nil once done.
+    func recognise(_ original: SourceLayers.Original, address: URL?, account: Account) async -> String? {
         reading = original.id
-        defer { reading = nil }
+        defer {
+            reading = nil
+            progress = nil
+        }
+        if original.isRecording {
+            switch await hearRecording(original, account: account) {
+            case .failure(let refusal): return refusal.words
+            case .success(let heard): return await keepRecognised("sources.notes.hear", heard)
+            }
+        }
+        guard let address else { return text["pdf.readNone"] }
         switch await readPages(original, address: address, account: account) {
         case .failure(let refusal): return refusal.words
         case .success(let read): return await keepRecognised("sources.notes.recognise", read)
@@ -263,6 +276,24 @@ final class SourcesController: ObservableObject {
         // The reports may not match the pages read: then the notes are kept without them.
         let dropped: String? = result.reports == nil ? nil : "reports"
         return .success(Recognised(fields: fields, dropped: dropped, toast: text.count("sources.sheet.toastRead", pages)))
+    }
+
+    /// The recording's sound, kept on this iPad, heard by Motiff Lab's scan server part by part (0014, as a recording added
+    /// as a new piece is), for `sources.notes.hear`: the notes of the whole recording, their bars found as for a live
+    /// performance ("tempo": "live").
+    private func hearRecording(_ original: SourceLayers.Original, account: Account) async -> Result<Recognised, Refusal> {
+        guard let projectId, let url = OriginalSounds.file(project: projectId, original: original.id) else {
+            return .failure(Refusal(words: text["sources.sheet.soundNotHere"]))
+        }
+        switch await RecordingHearing.hear(url, account: account, text: text, progress: { self.progress = $0 }) {
+        case .failure(let problem):
+            return .failure(Refusal(words: problem.message))
+        case .success(let heard):
+            var fields = heard.transcription
+            fields["original"] = original.id
+            fields["now"] = Self.now()
+            return .success(Recognised(fields: fields, dropped: nil, toast: text["sources.sheet.toastHeard"]))
+        }
     }
 
     /// The notes recognised kept by music-core (`name`, the call of the kind of original read) as new Notes of their

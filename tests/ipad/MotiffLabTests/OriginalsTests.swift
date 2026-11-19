@@ -73,11 +73,11 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(en[SourcesSheet.addWord(liveOriginals: 1)], "Add more")
     }
 
-    /// The Sources sheet offers «Распознать» for the pages kept in the piece here, on a piece with working notes: a PDF or
-    /// photos, never a recording, a linked or a deleted PDF, nor anything on a piece that is only its PDF (v0.10 s-1 pins
-    /// what the sheet's rule was before it moved to `SourcesController.canRecognise`).
+    /// The Sources sheet offers «Распознать» on a piece with working notes for the pages kept in the piece here (a PDF or
+    /// photos) and, since v0.10 (findings 26, 28), for a recording whose sound is on this iPad; never for a linked or a
+    /// deleted PDF, a recording heard elsewhere, MusicXML, nor anything on a piece that is only its PDF.
     @MainActor
-    func testOnlyPagesKeptInThePieceHereAreRecognised() {
+    func testThePagesKeptInThePieceAndARecordingHereAreRecognised() {
         func source(_ kind: String, state: String = "here", kept: String = "file") -> SourceLayers.Original {
             SourceLayers.Original(
                 id: "src_\(kind)", kind: kind, shown: kind, fileName: kind, state: state, removedAt: nil, kept: kept,
@@ -89,12 +89,30 @@ final class OriginalsTests: XCTestCase {
         let sources = SourcesController(layers: layers)
         XCTAssertTrue(sources.canRecognise(source("pdf")))
         XCTAssertTrue(sources.canRecognise(source("images")))
-        XCTAssertFalse(sources.canRecognise(source("audio", kept: "device")), "a recording is not recognised yet")
+        XCTAssertTrue(sources.canRecognise(source("audio", kept: "device")), "a recording whose sound is here")
+        XCTAssertFalse(sources.canRecognise(source("audio", state: "onAnotherDevice", kept: "device")), "its sound is on another iPad")
         XCTAssertFalse(sources.canRecognise(source("musicxml")))
         XCTAssertFalse(sources.canRecognise(source("pdf", kept: "link")), "only bytes kept in the piece go")
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "onAnotherDevice")))
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "removed")))
         XCTAssertFalse(SourcesController().canRecognise(source("pdf")), "a piece that is only its PDF has no notes to add to")
+    }
+
+    /// A recording is recognised from its sound on this iPad (v0.10, finding 26): without it nothing is sent, the row says
+    /// why, and the original is no longer being read.
+    @MainActor
+    func testARecordingWhoseSoundIsNotHereIsNotSent() async {
+        let recording = SourceLayers.Original(
+            id: "src_rec", kind: "audio", shown: "Live.m4a", fileName: "Live.m4a", state: "here", removedAt: nil, kept: "device",
+            pages: nil, durationMs: 60_000, hidden: false, notes: [], pageMarks: 0
+        )
+        let sources = SourcesController()
+        let english = UIText(language: "en")
+        let why = await sources.recognise(recording, address: nil, account: Account(options: nil))
+        XCTAssertEqual(why, UIText.current["sources.sheet.soundNotHere"])
+        XCTAssertFalse(english["sources.sheet.soundNotHere"].hasPrefix("sources."), "worded in English")
+        XCTAssertNil(sources.reading)
+        XCTAssertNil(sources.progress)
     }
 
     func testTheLibraryLineNamesTheFirstOriginalNotHere() {

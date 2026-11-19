@@ -26,17 +26,20 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   address and whether it is hosted, the buttons' actions; since s-2 a row opens no view: icon, name, eye, ⋯),
   `SourcesGroupCard` (an original with its Notes), `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus,
   `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
-- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted) and
-  `SourcesRecognisePanel` (where it goes, Send, Cancel), whose Send is `SourcesController.recognise`.
+- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted and always for a
+  recording, s-3) and `SourcesRecognisePanel` (its `Offer`: what it needs first, where it goes, Send's word; a
+  recording's from `RecordingChooser.blocker`), whose Send is `SourcesController.recognise`.
 - `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's three dialogs as one modifier: deleting an original
   (`DeleteOriginalDialog`), deleting Notes, an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
-  Recognising an original is one path: `canRecognise` (today the pages kept in the piece here, on a piece with working
-  notes), then `recognise` reads the original into a `Recognised` (its fields, the field dropped on a "badRequest", the
-  toast; `readPages` for the pages) and `keepRecognised` keeps it under the call name `recognise` gives it as a literal
-  (`sources.notes.recognise`; the facade-calls contract test reads it there): layers, `fresh`, save, toast. A
-  recording's branch (`sources.notes.hear`, v0.10 s-3) adds one reader beside `readPages`.
+  Recognising an original is one path: `canRecognise` (the pages kept in the piece here, or a recording whose sound is
+  here, on a piece with working notes), then `recognise` reads the original into a `Recognised` (its fields, the field
+  dropped on a "badRequest", the toast): `readPages` for the pages, `hearRecording` for a recording
+  (`OriginalSounds.file` → `RecordingHearing.hear`, Motiff Lab's server, "tempo": "live", `progress` meanwhile, s-3);
+  `keepRecognised` keeps it under the call name `recognise` gives it as a literal (`sources.notes.recognise`,
+  `sources.notes.hear`; the facade-calls contract test reads them there): layers, `fresh`, save, toast. The new Notes go
+  under their original; the working notes change only by «Сделать рабочими».
 - `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
   span heard, ‹ ›, the bars Compare versions shows, one `performance.merge` call). Tests: `MotiffLabTests/MergeDraftTests`.
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a
