@@ -14,11 +14,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
   original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
 - `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
-  (`SourcesController.performance`), placed by `ScoreScreen` (under its bar and over a view shown in a cover) and
-  `PdfScreen`; `RecordingViewCapsule` and `RecordingListening` (moved from `SourcesSwitch.swift`). The sound is
-  `RecordingListening.shared`: it counts the capsules showing it (`shown`, `hidden`) and stops at none, unless the
-  screen handed the piece over (`handOver`, from `SourcesController.handOver`); `SourcesController.load` takes the
-  recording handed (`SourcesHandover.performance`) or stops the sound. Picking a view never closes it; ✕ does.
+  (`SourcesController.performance`), placed under the bar of `ScoreScreen` and `PdfScreen`, for their own piece while
+  the switch shows or for the piece under a screen shown over it (`heardOver`: a view shown in a cover, the PDF linked
+  in Files; `PerformanceCapsule.sources(over:own:switchOn:)`); `RecordingViewCapsule` and `RecordingListening` (moved
+  from `SourcesSwitch.swift`). The sound is `RecordingListening.shared` (`SourcesController.listening`): it counts the
+  capsules showing it (`shown`, `hidden`) and stops at none, letting the file go (`end`), unless the screen handed the
+  piece over (`handOver`, from `SourcesController.handOver`). `SourcesController.load` takes the recording handed
+  (`takeHanded`) or stops it (not read, not shown, or the screen gone meanwhile); a screen that goes without handing
+  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`). Picking a view never closes
+  it; ✕ does, and silences it.
 - `SourcesSheet.swift`: the Sources sheet (`SourcesSheet`, called by `Workspace/ScoreScreen` and `Pdf/Pdf`): its header,
   the add menu, the list of groups and loose Notes, picking files (`Picking`, `take`) and the camera; it owns the view state
   the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.

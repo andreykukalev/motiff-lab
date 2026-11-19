@@ -339,6 +339,8 @@ struct PdfScreen: View {
     private let text = UIText.current
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    /// The piece under this screen when it is shown over it: its recording is heard under this bar.
+    @Environment(\.heardOver) private var pieceUnder
     @StateObject private var pdf = PdfController()
     @StateObject private var photos = PhotoReader()
     @ObservedObject private var metronome = Metronome.shared
@@ -392,7 +394,9 @@ struct PdfScreen: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                     // The recording heard over the pages, as over the notes (v0.10, finding 24).
-                    if sourceLayers != nil { PerformanceCapsule(sources: sources, text: text) }
+                    if let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourceLayers != nil) {
+                        PerformanceCapsule(sources: heard, text: text)
+                    }
                 }
                 // Where the score's bar floats (ds.css `.bar`), so PDF | Notes leaves it in place (#479 item 13).
                 .padding(.horizontal, CGFloat.ds("s-4"))
@@ -462,6 +466,8 @@ struct PdfScreen: View {
             sources.reopen = nil
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
+            // Not handed over: the recording heard goes with the screen (v0.10 s-2 review).
+            sources.leave(piece.file)
             metronome.stop()
             pdf.keepView()
             save()
