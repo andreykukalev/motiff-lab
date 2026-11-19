@@ -8,6 +8,8 @@ using MotiffLab.MusicCore.Pieces;
 
 using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
+using static MotiffLab.MusicCore.Projects.File.PerformanceCodec;
+using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -191,74 +193,6 @@ public static partial class ProjectFile
         }
 
         WriteNumbers(json, "starts", pages.Starts.Select(static start => start.Value));
-        json.WriteEndObject();
-    }
-
-    private static void WriteProvenance(Utf8JsonWriter json, NotesProvenance provenance)
-    {
-        json.WriteStartObject("provenance");
-        json.WriteString("op", provenance.Op);
-        json.WriteStartArray("from");
-        foreach (ProvenanceSource source in provenance.From)
-        {
-            WriteProvenanceSource(json, source);
-        }
-
-        json.WriteEndArray();
-        if (provenance.Inputs.Count > 0)
-        {
-            json.WriteStartArray("inputs");
-            foreach (string input in provenance.Inputs)
-            {
-                json.WriteStringValue(input);
-            }
-
-            json.WriteEndArray();
-        }
-
-        if (provenance.Engine is { } engine)
-        {
-            json.WriteString("engine", engine);
-        }
-
-        if (provenance.ParamsJson is { } parameters)
-        {
-            WriteUnknownFields(json, [new UnknownField("params", parameters)]);
-        }
-
-        if (provenance.At is { } at)
-        {
-            json.WriteString("at", at.ToString("O", CultureInfo.InvariantCulture));
-        }
-
-        WriteUnknownFields(json, provenance.Unknown);
-        json.WriteEndObject();
-    }
-
-    private static void WriteProvenanceSource(Utf8JsonWriter json, ProvenanceSource source)
-    {
-        json.WriteStartObject();
-        json.WriteString("original", source.Original);
-        if (source.Sha256 is { } sha256)
-        {
-            json.WriteString("sha256", sha256);
-        }
-
-        if (source.Pages is var (first, last))
-        {
-            WriteNumbers(json, "pages", [first, last]);
-        }
-
-        if (source.Milliseconds is var (from, to))
-        {
-            WriteNumbers(json, "ms", [from, to]);
-        }
-
-        if (source.Project is { } project)
-        {
-            json.WriteString("project", project);
-        }
-
         json.WriteEndObject();
     }
 }

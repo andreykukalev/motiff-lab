@@ -9,6 +9,8 @@ using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
+using static MotiffLab.MusicCore.Projects.File.PerformanceCodec;
+using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -28,8 +30,6 @@ public static partial class ProjectFile
     private static readonly HashSet<string> s_pdfFields = new([.. s_originalFields, "data", "marks"], StringComparer.Ordinal);
 
     private static readonly HashSet<string> s_removedFields = new([.. s_originalFields, "marks"], StringComparer.Ordinal);
-
-    private static readonly HashSet<string> s_provenanceFields = new(StringComparer.Ordinal) { "op", "from", "inputs", "engine", "params", "at" };
 
     private static Project ReadLayers(JsonElement root, Unknowns unknowns)
     {
@@ -324,69 +324,5 @@ public static partial class ProjectFile
         return (null, null);
     }
 
-    private static SavedPerformance ReadPerformanceNotes(JsonElement entry, JsonElement comparison)
-    {
-        Expect(comparison, JsonValueKind.Object, "performance");
-        NotesProvenance provenance = ReadProvenance(Property(entry, "provenance", JsonValueKind.Object));
-        try
-        {
-            return ReadComparison(comparison, Text(entry, "id"), Text(entry, "name"), Property(entry, "music", JsonValueKind.String).GetBytesFromBase64(), provenance.Engine) with
-            {
-                From = provenance.Original?.Original,
-                At = provenance.At,
-                Provenance = provenance,
-            };
-        }
-        catch (Exception exception) when (exception is FormatException or ArgumentException)
-        {
-            throw Damaged("performance");
-        }
-    }
-
     private static string EngineOf(NotesProvenance provenance) => provenance.Engine ?? throw Damaged("engine");
-
-    /// <summary>A provenance (0030, section 2); an operation this build does not know is read in the same shape and kept.</summary>
-    private static NotesProvenance ReadProvenance(JsonElement provenance)
-    {
-        Expect(provenance, JsonValueKind.Object, "provenance");
-        try
-        {
-            return new NotesProvenance(Text(provenance, "op"))
-            {
-                From = provenance.TryGetProperty("from", out JsonElement from) ? [.. Elements(from, "provenance").Select(ReadProvenanceSource)] : [],
-                Inputs = provenance.TryGetProperty("inputs", out JsonElement inputs)
-                    ? [.. Elements(inputs, "provenance").Select(input => input.ValueKind == JsonValueKind.String ? input.GetString()! : throw Damaged("provenance"))]
-                    : [],
-                Engine = provenance.TryGetProperty("engine", out _) ? Text(provenance, "engine") : null,
-                ParamsJson = provenance.TryGetProperty("params", out JsonElement parameters) ? Expected(parameters, "provenance").GetRawText() : null,
-                At = provenance.TryGetProperty("at", out _) ? JsonRead.Time(provenance, "at") : null,
-                Unknown = UnknownFieldsOf(provenance, s_provenanceFields),
-            };
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("provenance");
-        }
-    }
-
-    private static ProvenanceSource ReadProvenanceSource(JsonElement source)
-    {
-        Expect(source, JsonValueKind.Object, "provenance");
-        (long First, long Last)? pages = source.TryGetProperty("pages", out JsonElement range) ? Pair(range) : null;
-        (long First, long Last)? ms = source.TryGetProperty("ms", out JsonElement stretch) ? Pair(stretch) : null;
-        try
-        {
-            return new ProvenanceSource(Text(source, "original"))
-            {
-                Sha256 = source.TryGetProperty("sha256", out _) ? Text(source, "sha256") : null,
-                Pages = pages is var (first, last) ? (checked((int)first), checked((int)last)) : null,
-                Milliseconds = ms,
-                Project = source.TryGetProperty("project", out _) ? Text(source, "project") : null,
-            };
-        }
-        catch (OverflowException)
-        {
-            throw Damaged("provenance");
-        }
-    }
 }
