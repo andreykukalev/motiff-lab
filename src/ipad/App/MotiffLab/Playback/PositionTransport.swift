@@ -3,9 +3,10 @@ import SwiftUI
 /// The pill's transport under the playback model (v0.5.2, #495 UX-10, PlaybackModel): one Play button whose look follows
 /// the place, cobalt while it plays inside the selection (or, stopped, where Play will play the selection) and ink once
 /// playback goes on through the piece, with the place as bar.beat alone («10.3», #511 section 8.2: no words that come and go,
-/// at a width that does not change; VoiceOver still hears play or pause); with a selection, Цикл with
-/// its span («Цикл 9.1 – 12.3»): turned on, the position goes to the selection's start and the selection repeats. Space is
-/// the Play button. The model decides; this only shows it and sends the presses to the player.
+/// at a width that does not change; VoiceOver still hears play or pause); with a selection, Цикл as its icon and its span
+/// alone («9.1 – 12.3», finding 22: the word is VoiceOver's and the pointer's tip): turned on, the position goes to the
+/// selection's start and the selection repeats. Space is the Play button. The model decides; this only shows it and sends
+/// the presses to the player.
 struct PositionTransport: View {
     @ObservedObject var player: Player
     /// Expand's passage (v0.6.4, spec 8), nil out of Expand: the model over the passage as a selection that always loops
@@ -59,20 +60,24 @@ struct PositionTransport: View {
     }
 
     /// Цикл with the selection's span: on, the position goes to the selection's start and it repeats; off, playback goes on
-    /// past its end.
+    /// past its end. Its icon and the span show, so the pill fits beside the assistant (finding 22); «Цикл 9.1 – 12.3» is
+    /// VoiceOver's label and the pointer's tip.
     private func cycle(_ span: (first: String, last: String)) -> some View {
-        Button {
+        let label = text.format("pill.cycle", span.first, span.last)
+        return Button {
             player.apply(.cycle)
         } label: {
             HStack(spacing: CGFloat.ds("s-2")) {
                 Icon(name: "loop")
-                Text(text.format("pill.cycle", span.first, span.last))
+                Text(text.format("pill.cycleSpan", span.first, span.last))
                     .monospacedDigit()
             }
         }
         .buttonStyle(DSItemStyle(on: player.cycle))
+        .accessibilityLabel(label)
         .accessibilityAddTraits(player.cycle ? .isSelected : [])
         .accessibilityHint(text["pill.cycleHint"])
+        .help(label)
     }
 }
 

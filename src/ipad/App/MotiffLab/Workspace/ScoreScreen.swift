@@ -850,7 +850,9 @@ struct ScoreBar: View {
 }
 
 /// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score, then the piano roll
-/// and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8).
+/// and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8). Its controls show their icons
+/// alone, their words for VoiceOver and the pointer's tip, so it fits beside the assistant (v0.10, finding 22); what shows a
+/// value keeps it: the place, Цикл's span, the tempo and the hands, which say the mode.
 struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
@@ -899,18 +901,10 @@ struct Pill: View {
             .equatable()
             handsControls
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15).
-            Button {
-                metronome.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "metronome")
-                    Text(text["transport.metronome"])
-                }
-            }
-            .buttonStyle(DSItemStyle(on: metronome.running))
-            .accessibilityAddTraits(metronome.running ? .isSelected : [])
-            .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
+            // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). Its icon
+            // alone, as the roll's and the assistant's, so the pill fits beside the assistant (finding 22).
+            iconItem("metronome", text["transport.metronome"], on: metronome.running) { metronome.toggle() }
+                .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
         }
     }
 

@@ -1208,6 +1208,20 @@ function drawCardHeads() {
 focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
 
 /**
+ * The card's lift has ended (score.css `card-lift`, the kit's slow time): its bars are read again where they now stand
+ * (#729). Bars that came during the lift were read while the card was still scaled, so the dot, a tap's beat and the
+ * ossias' frames were off by up to 4 % until a resize; only the card's own animation counts, not one inside it.
+ */
+focusLayer.querySelector(".card").addEventListener("animationend", (event) => {
+    if (event.target !== event.currentTarget) {
+        return;
+    }
+    placeOssias();
+    layoutCard();
+    drawCardHeads();
+});
+
+/**
  * Lifts the selection into focus, or puts it back: the page dimmed behind an empty card, which `card` fills. Returns
  * Verovio's options for a card as wide as this one, for Swift to engrave the phrase with.
  */
