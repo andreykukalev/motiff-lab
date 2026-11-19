@@ -4,7 +4,8 @@ import SwiftUI
 /// «Исполнение» over the view shown (v0.10, Andrei's finding 24): the recording picked in the switch, heard from a capsule
 /// under the bar of the notes, the PDF or a view shown over the piece. It is no view of its own: the view under it stays
 /// as it is, and it goes on as the screen switches between the PDF and the notes of the same file
-/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen`.
+/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen`, under their bar, for their own
+/// piece or the one under them (`heardOver`).
 struct PerformanceCapsule: View {
     @ObservedObject var sources: SourcesController
     let text: UIText
@@ -17,6 +18,34 @@ struct PerformanceCapsule: View {
             .id(id)
             .transition(.opacity)
         }
+    }
+}
+
+extension PerformanceCapsule {
+    /// Whose recording a screen's bar shows: the piece's under a screen shown over it (a view picked in the switch, the PDF
+    /// linked in Files: `heardOver`), else the screen's own while its switch shows; nil for none.
+    static func sources(over: SourcesController?, own: SourcesController, switchOn: Bool) -> SourcesController? {
+        over ?? (switchOn ? own : nil)
+    }
+}
+
+private struct HeardOverKey: EnvironmentKey {
+    static var defaultValue: SourcesController? { nil }
+}
+
+extension EnvironmentValues {
+    /// The Sources of the piece under a screen shown over it, whose recording that screen's bar shows.
+    var heardOver: SourcesController? {
+        get { self[HeardOverKey.self] }
+        set { self[HeardOverKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// A screen shown over the piece (a view picked in the switch, the PDF linked in Files) hears the piece's recording in
+    /// a capsule under its own bar, above its mode's options (v0.10 s-2 review).
+    func heardOver(_ sources: SourcesController) -> some View {
+        environment(\.heardOver, sources)
     }
 }
 
@@ -57,7 +86,12 @@ struct RecordingViewCapsule: View {
                 .dsType(.caption)
                 .monospacedDigit()
                 .foregroundStyle(Color.ds("ink-2"))
-            Button(action: close) {
+            Button {
+                // Put away: silent, whatever was handed over before.
+                listening.cancelHandOver()
+                listening.stop()
+                close()
+            } label: {
                 Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28)
             }
             .buttonStyle(BarActionStyle())
@@ -124,7 +158,7 @@ final class RecordingListening: ObservableObject {
     /// piece over to its other view (`handOver`), whose capsule hears it on.
     func hidden() {
         shownIn = max(0, shownIn - 1)
-        if shownIn == 0 && !handedOver { stop() }
+        if !handedOver { end() }
         handedOver = false
     }
 
@@ -132,6 +166,25 @@ final class RecordingListening: ObservableObject {
     /// stops there when that screen does not show the recording (`SourcesController.load`).
     func handOver() {
         handedOver = true
+    }
+
+    /// The hand-over came to nothing: a screen went without handing the piece over, or the switch never ran. Once no
+    /// capsule shows the recording, the sound stops (v0.10 s-2 review: never heard on in the library).
+    func cancelHandOver() {
+        handedOver = false
+        end()
+    }
+
+    /// Once no capsule shows the recording, the sound stops and the player lets its file go; the next capsule loads it
+    /// again.
+    func end() {
+        guard shownIn == 0 else { return }
+        stop()
+        player = nil
+        url = nil
+        elapsed = 0
+        length = 0
+        atEnd = false
     }
 
     func toggle(_ url: URL) {
