@@ -4,11 +4,12 @@ import UniformTypeIdentifiers
 /// The Sources sheet (version 0.6; decision record 0030 and the sources sheet handoff), in
 /// the side sheet where Other versions was: «Оригиналы», each in one card with the Notes made from it under it (v0.9,
 /// Andrei's v0.8 finding 19), then «Ноты без оригинала»; each row its pictogram, its name never cut, the eye
-/// «Показывать в переключателе», «Открыть» and ⋯, a line under the name and a state line. An original is added without
-/// recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
-/// «Распознать ещё раз») into new Notes beside the ones there are, and deleted with or without its notes, which the toast
-/// undoes; a deleted original stays as a row that takes the same file back. Other Notes become the working ones from ⋯.
-/// A version's «Открыть» shows its page here, as Other versions did (0022). The rows are in `SourcesRows.swift`,
+/// «Показывать в переключателе» and ⋯, a line under the name and a state line; a row opens no view, the switch in the bar
+/// does (v0.10, finding 25). An original is added without recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos,
+/// a recording, MIDI or MusicXML), recognised («Распознать», again from ⋯) into new Notes beside the ones there are, and
+/// deleted with or without its notes, which the toast undoes; a deleted original stays as a row that takes the same file
+/// back. Other Notes become the working ones from ⋯. A version picked in the switch shows its page here, as Other
+/// versions did (0022). The rows are in `SourcesRows.swift`,
 /// «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this file is the sheet,
 /// its header and add menu, and picking files.
 struct SourcesSheet: View {
@@ -17,13 +18,11 @@ struct SourcesSheet: View {
     let score: ScoreController?
     @ObservedObject var originals: OriginalsController
     let text: UIText
-    /// The view shown now: its row is tinted and has no «Открыть».
+    /// The view shown now: its row is tinted.
     let current: String?
     let close: () -> Void
     /// "‹ More" when opened from More; nil from elsewhere.
     var back: (label: String, action: () -> Void)?
-    /// «Открыть» on a row: the screen shows that view.
-    let open: (SourceLayers.ViewEntry) -> Void
     /// The version whose page shows, once music-core has it shown (`SourcesSheet.versionPage`); nil on the PDF.
     var versionPage: VersionEntry? = nil
     /// What the versions last said, from the score; nil on the PDF.
@@ -205,7 +204,7 @@ struct SourcesSheet: View {
     /// What the rows take from the sheet: the view shown now, where recognising goes, and their buttons' actions here.
     private var row: SourcesRow {
         SourcesRow(
-            text: text, current: current, address: scanAddress, hosted: hosted, open: open, pick: pick,
+            text: text, current: current, address: scanAddress, hosted: hosted, pick: pick,
             delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 }
         )
     }

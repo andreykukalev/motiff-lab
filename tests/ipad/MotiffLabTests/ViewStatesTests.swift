@@ -144,6 +144,32 @@ final class ViewStatesTests: XCTestCase {
         XCTAssertEqual(SourcesController().layers, SourceLayers(), "a screen opened from the library reads its own")
     }
 
+    /// v0.10, Andrei's finding 24: the recording heard over the views goes with the switch to the next screen of the file,
+    /// read once there; nothing heard, nothing handed.
+    @MainActor
+    func testTheRecordingHeardIsHandedToTheNextScreenOfTheFile() {
+        let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("performance.motiff.json")
+        let sources = SourcesController()
+        sources.performance = "src_rec"
+        sources.handOver(to: file)
+        XCTAssertEqual(SourcesHandover.performance(for: URL(fileURLWithPath: file.path + "/../performance.motiff.json")), "src_rec")
+        XCTAssertNil(SourcesHandover.performance(for: file), "read once")
+        SourcesController().handOver(to: file)
+        XCTAssertNil(SourcesHandover.performance(for: file), "nothing heard, nothing handed")
+    }
+
+    /// v0.10 s-2 review: the PDF screen and the notes show the recording under their bar while their switch shows; a screen
+    /// shown over the piece (a view, the PDF linked in Files) shows the piece's under its own.
+    @MainActor
+    func testTheRecordingIsHeardUnderTheBarOfTheScreenShown() {
+        let own = SourcesController()
+        let under = SourcesController()
+        XCTAssertTrue(PerformanceCapsule.sources(over: nil, own: own, switchOn: true) === own, "the PDF or the notes with the switch")
+        XCTAssertNil(PerformanceCapsule.sources(over: nil, own: own, switchOn: false), "no switch, nothing heard")
+        XCTAssertTrue(PerformanceCapsule.sources(over: under, own: own, switchOn: false) === under, "the PDF linked in Files")
+        XCTAssertTrue(PerformanceCapsule.sources(over: under, own: own, switchOn: true) === under, "a view shown over the piece")
+    }
+
     /// v0.6.4 spec section 13: the score's screen knows its model before its first frame: it opens in Navigate.
     @MainActor
     func testTheScoreOpensInItsModeBeforeItsFirstFrame() {

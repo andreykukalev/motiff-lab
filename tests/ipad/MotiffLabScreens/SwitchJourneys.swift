@@ -79,18 +79,16 @@ extension Walk {
         throw miss("the notes did not open in 30 s after Notes in the switch")
     }
 
-    /// Sources from the bar lists the piece's originals; Open on the PDF's row shows the PDF, and Notes comes back.
-    func sourcesAndAView() throws {
+    /// Sources from the bar lists the piece's originals, each row with no «Открыть» (v0.10, Andrei's finding 25: a view is
+    /// picked in the switch); the sheet closes and the notes stay.
+    func sourcesSheet() throws {
         try press(button("Источники"), "Sources in the bar")
         try need(button("Закрыть другие версии"), "the Sources sheet")
         try need(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Оригиналы ·'")).firstMatch, "the originals in Sources")
         shot("51-sources-pdf", settle: 1)
-        try press(button("Открыть"), "Open on the PDF's row in Sources")
-        try until("the PDF opened from Sources", timeout: 30) { $0.screen == "pdf" && $0.ready }
-        try press(notesSwitch, "Notes in the switch")
-        try until("back on the notes", timeout: 30) { $0.screen == "score" && $0.ready }
-        let close = button("Закрыть другие версии")
-        if close.exists && close.isHittable { close.tap() }
+        if button("Открыть").exists { throw miss("a row in Sources still has «Открыть»") }
+        try press(button("Закрыть другие версии"), "Close Sources")
+        try until("still on the notes") { $0.screen == "score" && $0.ready }
     }
 
     /// A PDF piece (0023): its pages, the pen, More and the metronome.

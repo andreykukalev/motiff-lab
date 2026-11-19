@@ -339,6 +339,8 @@ struct PdfScreen: View {
     private let text = UIText.current
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    /// The piece under this screen when it is shown over it: its recording is heard under this bar.
+    @Environment(\.heardOver) private var pieceUnder
     @StateObject private var pdf = PdfController()
     @StateObject private var photos = PhotoReader()
     @ObservedObject private var metronome = Metronome.shared
@@ -390,6 +392,10 @@ struct PdfScreen: View {
                     if pdf.penOn {
                         PdfPenPalette(pdf: pdf, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    // The recording heard over the pages, as over the notes (v0.10, finding 24).
+                    if let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourceLayers != nil) {
+                        PerformanceCapsule(sources: heard, text: text)
                     }
                 }
                 // Where the score's bar floats (ds.css `.bar`), so PDF | Notes leaves it in place (#479 item 13).
@@ -460,6 +466,8 @@ struct PdfScreen: View {
             sources.reopen = nil
             // Handed to the notes, the piece was saved and closed already (#511 section 10); the metronome goes on there.
             guard !ClosedPieces.take(piece.id) else { return }
+            // Not handed over: the recording heard goes with the screen (v0.10 s-2 review).
+            sources.leave(piece.file)
             metronome.stop()
             pdf.keepView()
             save()
@@ -726,7 +734,7 @@ struct PdfScreen: View {
         defer { handingOver = false }
         ProbeCounts.shared.begin()
         pdf.keepView()
-        if sourceLayers != nil { SourcesHandover.give(sources.layers, to: other.file) }
+        if sourceLayers != nil { sources.handOver(to: other.file) }
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         ProbeCounts.shared.mark("saved")
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
@@ -747,6 +755,8 @@ struct PdfScreen: View {
         guard !linked, toNotes != nil else {
             sourcesOn = false
             sourcesOpen = false
+            // No switch here, so no recording heard over the pages (v0.10, finding 24).
+            sources.stopHandedRecording(for: piece.file)
             return
         }
         // Only while the screen is there: switched away while its pages were read, the way back would hold it (#681).
@@ -767,11 +777,7 @@ struct PdfScreen: View {
             if sourcesOpen, sourceLayers != nil {
                 SourcesSheet(
                     sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
-                    close: { sourcesOpen = false },
-                    open: { view in
-                        sourcesOpen = false
-                        pickView(view)
-                    }
+                    close: { sourcesOpen = false }
                 )
                 .modifier(BottomPanel(height: height))
             }
@@ -787,9 +793,14 @@ struct PdfScreen: View {
         await openRead(file, .page(max(1, pdf.page)))
     }
 
-    /// A view picked in the switch: the notes' screen shows it once the piece opens there, as only it holds the notes.
+    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views the notes' screen
+    /// shows once the piece opens there, as only it holds the notes.
     private func pickView(_ view: SourceLayers.ViewEntry) {
         guard view.id != PdfScreen.documentView else { return }
+        if view.kind == "performance" {
+            sources.performance = view.id
+            return
+        }
         if view.id != sourceLayers?.working, let file = piece.other?.file ?? piece.file {
             SourcesHandover.show(view.id, on: file)
         }

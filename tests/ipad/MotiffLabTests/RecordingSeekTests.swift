@@ -46,4 +46,113 @@ final class RecordingSeekTests: XCTestCase {
         listening.release()
         XCTAssertEqual(listening.heardAt, 500)
     }
+
+    /// v0.10, Andrei's finding 24: the sound goes on while a capsule shows it, also as the screen hands the piece over to
+    /// its other view, whichever capsule goes or comes first, and under a view shown over the piece; it stops once none
+    /// shows it.
+    func testTheRecordingGoesOnFromOneScreenToTheNext() throws {
+        let url = try silence()
+        let listening = RecordingListening()
+        listening.shown(url)
+        listening.toggle(url)
+        XCTAssertTrue(listening.playing)
+        listening.handOver()
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "handed over, the old screen's capsule leaves it on")
+        listening.shown(url)
+        XCTAssertTrue(listening.playing, "the next screen hears the same sound")
+        listening.handOver()
+        listening.shown(url)
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "the next screen's capsule came first")
+        listening.shown(url)
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "a view shown over the piece goes, the screen's capsule stays")
+        listening.hidden()
+        XCTAssertFalse(listening.playing, "no capsule shows it: the sound stops")
+    }
+
+    /// v0.10 s-2 review: once no capsule shows the recording, the sound stops and the player lets its file go.
+    func testARecordingNoCapsuleShowsIsLetGo() throws {
+        let url = try silence()
+        let listening = RecordingListening()
+        listening.shown(url)
+        listening.toggle(url)
+        listening.hidden()
+        XCTAssertFalse(listening.playing)
+        XCTAssertEqual(listening.length, 0, "the player let the file go")
+        listening.shown(url)
+        XCTAssertEqual(listening.length, 2000, "the next capsule loads it again")
+    }
+
+    /// v0.10 s-2 review: a hand-over that came to nothing (the next screen went while it opened, or the switch never ran)
+    /// stops the sound once no capsule shows it, and ✕ is never stuck behind it.
+    func testAHandOverThatCameToNothingIsNotHeardOn() throws {
+        let url = try silence()
+        let listening = RecordingListening()
+        listening.shown(url)
+        listening.toggle(url)
+        listening.handOver()
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "on its way to the next screen")
+        listening.cancelHandOver()
+        XCTAssertFalse(listening.playing, "the next screen went before it showed the recording")
+
+        listening.shown(url)
+        listening.toggle(url)
+        listening.handOver()
+        listening.cancelHandOver()
+        XCTAssertTrue(listening.playing, "the switch never ran: the screen's capsule still shows it")
+        listening.hidden()
+        XCTAssertFalse(listening.playing, "and its Back stops it")
+    }
+
+    /// v0.10 s-2 review: the next screen's sources read, the recording handed over is heard on when its switch shows it; it
+    /// stops when the switch does not, when the sources were not read, or when the screen went while they were read.
+    func testTheNextScreenHearsTheRecordingHandedOrStopsIt() throws {
+        let url = try silence()
+        let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("take-handed.motiff.json")
+        var layers = SourceLayers()
+        layers.working = "n1"
+        layers.views = [SourceLayers.ViewEntry(id: "r1", kind: "performance", group: nil, working: false, hidden: false, op: "recording")]
+        let cases: [(read: Bool, gone: Bool, views: [SourceLayers.ViewEntry], adopted: Bool)] = [
+            (true, false, layers.views, true), (true, true, layers.views, false), (false, false, layers.views, false), (true, false, [], false),
+        ]
+        for (read, gone, views, adopted) in cases {
+            var shown = layers
+            shown.views = views
+            let listening = RecordingListening()
+            listening.shown(url)
+            listening.toggle(url)
+            listening.handOver()
+            listening.hidden()
+            let next = SourcesController(layers: shown)
+            next.listening = listening
+            SourcesHandover.give(performance: "r1", to: file)
+            next.takeHanded(by: file, read: read, gone: gone)
+            XCTAssertEqual(next.performance, adopted ? "r1" : nil, "read \(read), gone \(gone), shown \(!views.isEmpty)")
+            XCTAssertEqual(listening.playing, adopted, "heard on only where it is shown")
+            XCTAssertNil(SourcesHandover.performance(for: file), "read once")
+            listening.stop()
+        }
+    }
+
+    /// v0.10 s-2 review: a screen that goes without handing the piece over takes the recording with it, and withdraws
+    /// what it handed to a screen that never came.
+    func testAScreenLeavingWithoutHandingOverStopsTheRecording() throws {
+        let url = try silence()
+        let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("leave.motiff.json")
+        let other = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("leave-pdf.motiff.json")
+        let listening = RecordingListening()
+        let sources = SourcesController()
+        sources.listening = listening
+        sources.performance = "r1"
+        listening.shown(url)
+        listening.toggle(url)
+        sources.handOver(to: other)
+        listening.hidden()
+        sources.leave(file)
+        XCTAssertFalse(listening.playing)
+        XCTAssertNil(SourcesHandover.performance(for: other), "the screen that never came does not hear it later")
+    }
 }

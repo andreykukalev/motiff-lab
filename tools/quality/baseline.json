@@ -196,6 +196,7 @@
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Playback: MetronomePill","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Reference: ReferenceSheet","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Sources: OriginalsController","why":"folder edge known when the check was added (B1b, #641)"},
+    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Sources: PerformanceCapsule","why":"the recording heard over the PDF, the capsule both screens place (v0.10 s-2, finding 24, #723)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Sources: SourceLayers","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Sources: SourcesButton","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"Sources: SourcesController","why":"folder edge known when the check was added (B1b, #641)"},

@@ -5,20 +5,31 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 ## Files
 
 `DeleteOriginalDialog`, `KeptCopies`, `Merge`, `MergeModel`, `OriginalSounds`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`, `SourcesRecognise`, `SourcesRows`,
-`SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+`OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`,
+`SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).
 - `SourceLayers.swift`: the sources by the layers of 0030 as the app shows them, built from `SourceLayersAnswer`
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
   original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
+- `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
+  (`SourcesController.performance`), placed under the bar of `ScoreScreen` and `PdfScreen`, for their own piece while
+  the switch shows or for the piece under a screen shown over it (`heardOver`: a view shown in a cover, the PDF linked
+  in Files; `PerformanceCapsule.sources(over:own:switchOn:)`); `RecordingViewCapsule` and `RecordingListening` (moved
+  from `SourcesSwitch.swift`). The sound is `RecordingListening.shared` (`SourcesController.listening`): it counts the
+  capsules showing it (`shown`, `hidden`) and stops at none, letting the file go (`end`), unless the screen handed the
+  piece over (`handOver`, from `SourcesController.handOver`). `SourcesController.load` takes the recording handed
+  (`takeHanded`) or stops it (not read, not shown, or the screen gone meanwhile); a screen that goes without handing
+  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`). Picking a view never closes
+  it; ✕ does, and silences it.
 - `SourcesSheet.swift`: the Sources sheet (`SourcesSheet`, called by `Workspace/ScoreScreen` and `Pdf/Pdf`): its header,
   the add menu, the list of groups and loose Notes, picking files (`Picking`, `take`) and the camera; it owns the view state
   the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.
 - `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (what a row takes from the sheet: the view shown now, the scan server's
-  address and whether it is hosted, the buttons' actions), `SourcesGroupCard` (an original with its Notes),
-  `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus, `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
+  address and whether it is hosted, the buttons' actions; since s-2 a row opens no view: icon, name, eye, ⋯),
+  `SourcesGroupCard` (an original with its Notes), `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus,
+  `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
 - `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted) and
   `SourcesRecognisePanel` (where it goes, Send, Cancel), whose Send is `SourcesController.recognise`.
 - `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's three dialogs as one modifier: deleting an original

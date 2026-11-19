@@ -54,6 +54,17 @@ enum SourcesHandover {
     static func drop(_ file: URL?) {
         if let file { layers[file.standardizedFileURL] = nil }
     }
+
+    /// The recording heard over the views as the screen hands over (v0.10, finding 24), by the project file of the next
+    /// screen: it opens there again and its sound goes on. Read once.
+    private static var performances: [URL: String] = [:]
+
+    static func give(performance id: String, to file: URL) { performances[file.standardizedFileURL] = id }
+
+    static func performance(for file: URL?) -> String? {
+        guard let file else { return nil }
+        return performances.removeValue(forKey: file.standardizedFileURL)
+    }
 }
 
 /// The piece's sources on its screen (version 0.6; decision record 0030): music-core's
@@ -71,12 +82,17 @@ final class SourcesController: ObservableObject {
     @Published private(set) var reading: String?
     /// Notes just recognised, shown highlighted once.
     @Published var fresh: String?
-    /// The recording heard as the «Исполнение» view; nil while the notes are shown.
+    /// The recording heard over the view shown («Исполнение», `PerformanceCapsule`); nil while none is. Picking a view
+    /// leaves it as it is (v0.10, finding 24).
     @Published var performance: String?
 
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
     private var file: URL?
+    /// The screen of the piece's other view this one handed the recording to (`handOver`), until it goes.
+    private var handedTo: URL?
+    /// The sound of the recording heard (`PerformanceCapsule`): the app's one, so it goes on from screen to screen.
+    var listening = RecordingListening.shared
     /// Keeps the screen's view and opens the piece's project file again in its place.
     var reopen: (() async -> Void)?
     private let text = UIText.current
@@ -89,7 +105,8 @@ final class SourcesController: ObservableObject {
     /// The ids of the originals whose sound is kept on this iPad, for music-core to count them here.
     var here: [String] { projectId.map { OriginalSounds.ids(project: $0) } ?? [] }
 
-    /// The piece's sources as it opens; the sounds of recordings deleted meanwhile leave this iPad.
+    /// The piece's sources as it opens; the sounds of recordings deleted meanwhile leave this iPad. The recording the
+    /// screen before handed over (`handOver`) goes on over this one when this piece shows it, and stops when it does not.
     func load(piece: Int32, file: URL?) async {
         self.piece = piece
         self.file = file
@@ -98,9 +115,51 @@ final class SourcesController: ObservableObject {
             projectId = facadeObject(answer)?["projectId"] as? String
         }
         // Only from an answer read: a piece whose sources could not be read keeps every sound.
-        if await refresh(), let projectId {
+        let read = await refresh()
+        if read, let projectId {
             OriginalSounds.forget(project: projectId, keeping: Set(layers.originals.filter { !$0.isRemoved && $0.isRecording }.map(\.id)))
         }
+        takeHanded(by: file, read: read, gone: Task.isCancelled)
+    }
+
+    /// The recording the screen before handed to the screen of `file` (`handOver`): heard on here when the sources were
+    /// read and this switch shows it; its sound stops when they were not, when it does not, or when the screen has gone
+    /// while they were read (its task cancelled: no capsule would ever show it).
+    func takeHanded(by file: URL?, read: Bool, gone: Bool) {
+        guard let handed = SourcesHandover.performance(for: file) else { return }
+        if read, !gone, layers.shownViews.contains(where: { $0.id == handed && $0.kind == "performance" }) {
+            performance = handed
+        } else {
+            listening.cancelHandOver()
+        }
+    }
+
+    /// The screen of `file` shows no switch, so not the recording the screen before handed over (`handOver`): its sound
+    /// stops.
+    func stopHandedRecording(for file: URL?) {
+        if SourcesHandover.performance(for: file) != nil { listening.cancelHandOver() }
+    }
+
+    /// The screen of `file` goes without handing the piece over (Back, ✕, or a switch to its other view that never ran):
+    /// the recording handed to it or by it is heard no more once no capsule shows it (v0.10 s-2 review).
+    func leave(_ file: URL?) {
+        _ = SourcesHandover.performance(for: file)
+        if let handedTo {
+            _ = SourcesHandover.performance(for: handedTo)
+            self.handedTo = nil
+        }
+        listening.cancelHandOver()
+    }
+
+    /// The screen hands the piece over to its other view, the screen of `file` (the PDF or the notes of the same project
+    /// file): that screen draws this switch from its first frame, and the recording heard goes on over it (v0.10,
+    /// finding 24).
+    func handOver(to file: URL?) {
+        SourcesHandover.give(layers, to: file)
+        guard let performance, let file else { return }
+        SourcesHandover.give(performance: performance, to: file)
+        handedTo = file
+        listening.handOver()
     }
 
     /// Reads the sources again; false when music-core did not answer them.
@@ -185,7 +244,7 @@ final class SourcesController: ObservableObject {
         original.isPages && original.isHere && original.kept == "file" && layers.working != nil
     }
 
-    /// «Распознать» or «Распознать ещё раз», the one path of recognising an original: what it is read from goes to the
+    /// «Распознать», the first time or again, the one path of recognising an original: what it is read from goes to the
     /// scan server chosen (the player's yes is the panel's Send), and the notes it reads become new Notes of that original
     /// beside the ones there are, which keep their corrections (`keepRecognised`). Answers why not, or nil once done.
     func recognise(_ original: SourceLayers.Original, address: URL, account: Account) async -> String? {

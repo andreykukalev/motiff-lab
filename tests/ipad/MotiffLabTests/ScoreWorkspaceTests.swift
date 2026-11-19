@@ -488,9 +488,9 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(picked, 0)
     }
 
-    /// A recording picked in the switch is heard from under the bar; the working notes picked put it away, and are
-    /// this screen already.
-    func testARecordingPickedIsHeardAndTheWorkingNotesPutItAway() {
+    /// A recording picked in the switch is heard from under the bar; it is no view, so the working notes picked leave it
+    /// there (v0.10, Andrei's finding 24), and are this screen already.
+    func testARecordingPickedIsHeardOverTheViewsAndStaysAsTheWorkingNotesArePicked() {
         var piece = OpenPiece(id: 7, title: "Nocturne", pages: [], timemap: "")
         piece.file = projectFile()
         var layers = SourceLayers()
@@ -503,7 +503,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         pick(SourceLayers.ViewEntry(id: "r1", kind: "performance", group: nil, working: false, hidden: false, op: "recording"))
         XCTAssertEqual(workspace.sources.performance, "r1")
         pick(SourceLayers.ViewEntry(id: "n1", kind: "notes", group: nil, working: true, hidden: false, op: "import"))
-        XCTAssertNil(workspace.sources.performance)
+        XCTAssertEqual(workspace.sources.performance, "r1", "the recording stays over the notes")
         XCTAssertFalse(workspace.panels[.versions])
         XCTAssertEqual(shown, 0, "the working notes are this screen")
     }
