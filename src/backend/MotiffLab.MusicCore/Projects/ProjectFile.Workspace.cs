@@ -5,6 +5,7 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierFile;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
@@ -99,7 +100,7 @@ public static partial class ProjectFile
     /// The player's work as <paramref name="work"/> holds it: the top level of a file before version 16, the workspace of a
     /// version 16 file. The project has the identity given and no notes yet; the caller adds them.
     /// </summary>
-    private static Project ReadWork(JsonElement root, JsonElement work, int version, Unknowns unknowns)
+    internal static Project ReadWork(JsonElement root, JsonElement work, int version, Unknowns unknowns)
     {
         List<SavedMotif> motifs = ReadMotifs(work, version, unknowns, out List<SavedVariation> variations);
         List<Observation> observations = version >= 6

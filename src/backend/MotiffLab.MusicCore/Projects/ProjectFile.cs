@@ -2,19 +2,16 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
-using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 
-using static MotiffLab.MusicCore.Projects.File.EditsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierFile;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
-using static MotiffLab.MusicCore.Projects.File.PerformanceCodec;
 using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
@@ -131,53 +128,8 @@ public static partial class ProjectFile
         }
     }
 
-    /// <summary>A file of a version before 16: its notes, its PDF and its work at the top level.</summary>
-    private static Project ReadEarlier(JsonElement root, int version, Unknowns unknowns)
-    {
-        byte[] source;
-        byte[]? pdf = null;
-        try
-        {
-            source = Property(root, "source", JsonValueKind.String).GetBytesFromBase64();
-        }
-        catch (FormatException)
-        {
-            throw Damaged("source");
-        }
-
-        if (root.TryGetProperty("document", out JsonElement documentElement))
-        {
-            pdf = ReadPdf(documentElement, "document");
-        }
-
-        ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
-        Import.Transcription.TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
-        if (scan is not null && transcription is not null)
-        {
-            throw Damaged("origin");
-        }
-
-        List<SavedPerformance> performances = version >= 13
-            ? [.. Property(root, "performances", JsonValueKind.Array).EnumerateArray().Select(ReadPerformance)]
-            : [];
-        return ReadWork(root, root, version, unknowns) with
-        {
-            Source = source,
-            Edits = version >= 3 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit)) : NoteEditLog.Empty,
-            Scan = scan,
-            Transcription = transcription,
-            Check = version >= 12 ? ReadCheck(root, unknowns) : null,
-            Performances = DistinctPerformances(performances),
-            Document = pdf,
-            DocumentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement) ? ReadDocumentMarks(documentMarksElement, unknowns) : DocumentMarks.Empty,
-            DocumentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement) ? ReadDocumentPages(pagesElement, pdf, source) : null,
-            ReadFrom = root.TryGetProperty("readFrom", out JsonElement readFromElement) ? ReadReadFrom(readFromElement, source) : null,
-            KeptOriginals = ReadOriginals(root, unknowns),
-        };
-    }
-
     /// <summary>A PDF's bytes in base64, as "document" and an original's "data" hold them; anything else is damage.</summary>
-    private static byte[] ReadPdf(JsonElement element, string what)
+    internal static byte[] ReadPdf(JsonElement element, string what)
     {
         byte[] pdf;
         try
@@ -191,9 +143,6 @@ public static partial class ProjectFile
 
         return PdfDocument.IsPdf(pdf) ? pdf : throw Damaged(what);
     }
-
-    private static List<SavedPerformance> DistinctPerformances(List<SavedPerformance> performances) =>
-        performances.Select(static performance => performance.Id).Distinct(StringComparer.Ordinal).Count() == performances.Count ? performances : throw Damaged("performances");
 
     /// <summary>
     /// The ink strokes as the pencil layer saves and reads them: {"version": 2, "marks": [stroke, …]}, each stroke in the
@@ -257,24 +206,7 @@ public static partial class ProjectFile
     /// <summary>One variation step as the file writes it (<see cref="VariationCodec.WriteStep"/>): the facade (0020) uses the same shape.</summary>
     internal static void WriteStep(Utf8JsonWriter json, SavedStep step) => VariationCodec.WriteStep(json, step);
 
-    /// <summary>Where each page of a recognised PDF starts in its notes (0023): ticks from page 1, which starts at 0.</summary>
-    private static PageMap ReadDocumentPages(JsonElement pages, byte[]? pdf, byte[] source) =>
-        pdf is null || source.Length == 0 ? throw Damaged("documentPages") : ReadPageMap(pages, "documentPages");
-
-    /// <summary>The PDF piece notes were read from (0023): {"project": id, "pages": [ticks, …]}; only a piece with notes.</summary>
-    private static ReadFromPdf ReadReadFrom(JsonElement element, byte[] source)
-    {
-        if (source.Length == 0 || element.ValueKind != JsonValueKind.Object
-            || !element.TryGetProperty("project", out JsonElement id) || id.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(id.GetString())
-            || !element.TryGetProperty("pages", out JsonElement pages))
-        {
-            throw Damaged("readFrom");
-        }
-
-        return new ReadFromPdf(id.GetString()!, ReadPageMap(pages, "readFrom"));
-    }
-
-    private static PageMap ReadPageMap(JsonElement pages, string field)
+    internal static PageMap ReadPageMap(JsonElement pages, string field)
     {
         if (pages.ValueKind != JsonValueKind.Array)
         {
@@ -290,51 +222,6 @@ public static partial class ProjectFile
         catch (ArgumentException)
         {
             throw Damaged(field);
-        }
-    }
-
-    /// <summary>A session of versions 8 to 11 as a resume point: its task is the name, its passage the place, "s_0001" becomes "r_0001".</summary>
-    private static ResumePoint ReadSessionAsResumePoint(JsonElement session)
-    {
-        Expect(session, JsonValueKind.Object, "sessions");
-        SavedPassage? passage = null;
-        if (session.TryGetProperty("passage", out _))
-        {
-            (TickSpan span, SelectionFilter filter) = ReadRange(Property(session, "passage", JsonValueKind.Object), "session passage");
-            passage = new SavedPassage(span, filter);
-        }
-
-        string id = Text(session, "id");
-        string? task = session.TryGetProperty("task", out _) ? Text(session, "task") : null;
-        try
-        {
-            return ResumePoint.Start(id.StartsWith("s_", StringComparison.Ordinal) ? "r_" + id[2..] : id, JsonRead.Time(session, "startedAt"), task)
-                .Touch(passage, JsonRead.Time(session, "lastActive"));
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("session");
-        }
-    }
-
-    /// <summary>A performance of a file before version 16: its notes, comparison and provenance in one object.</summary>
-    private static SavedPerformance ReadPerformance(JsonElement performance)
-    {
-        Expect(performance, JsonValueKind.Object, "performances");
-        try
-        {
-            (string? from, DateTimeOffset? at) = ReadMadeFrom(performance);
-            SavedPerformance read = ReadComparison(
-                performance,
-                Text(performance, "id"),
-                Text(performance, "name"),
-                Property(performance, "midi", JsonValueKind.String).GetBytesFromBase64(),
-                performance.TryGetProperty("engine", out _) ? Text(performance, "engine") : null);
-            return read with { From = from, At = at };
-        }
-        catch (Exception exception) when (exception is FormatException or ArgumentException)
-        {
-            throw Damaged("performance");
         }
     }
 
@@ -373,24 +260,8 @@ public static partial class ProjectFile
     private static PhraseEdits ReadPhraseLevel(JsonElement phrases, string name) =>
         phrases.TryGetProperty(name, out JsonElement level) && level.ValueKind == JsonValueKind.Object ? ReadPhrases(level) : PhraseEdits.None;
 
-    private static ScanOrigin? ReadScan(JsonElement root)
-    {
-        if (!root.TryGetProperty("scan", out JsonElement scan) || scan.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
-        {
-            throw Damaged("scan");
-        }
-
-        if (scan.ValueKind == JsonValueKind.Null)
-        {
-            return null;
-        }
-
-        (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
-        return ReadScanBlock(scan, Text(scan, "engine"), from, at);
-    }
-
     /// <summary>A scan's checked bars and page reports, with the engine, original and time its provenance names.</summary>
-    private static ScanOrigin ReadScanBlock(JsonElement scan, string engine, string? from, DateTimeOffset? at)
+    internal static ScanOrigin ReadScanBlock(JsonElement scan, string engine, string? from, DateTimeOffset? at)
     {
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
@@ -398,24 +269,8 @@ public static partial class ProjectFile
         return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
     }
 
-    private static Import.Transcription.TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
-    {
-        if (!root.TryGetProperty("transcription", out JsonElement transcription) || transcription.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
-        {
-            throw Damaged("transcription");
-        }
-
-        if (transcription.ValueKind == JsonValueKind.Null)
-        {
-            return null;
-        }
-
-        (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
-        return ReadHeard(transcription, version, Text(transcription, "engine"), from, at);
-    }
-
     /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>
-    private static Import.Transcription.TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
+    internal static Import.Transcription.TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
     {
         if (string.IsNullOrWhiteSpace(engine))
         {

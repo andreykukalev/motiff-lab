@@ -5,7 +5,6 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -16,7 +15,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// </summary>
 public static partial class ProjectFile
 {
-    private const string OriginalsList = "originals";
+    internal const string OriginalsList = "originals";
 
     /// <summary>The fields of an original's description (version 0.3), as every original of version 16 starts.</summary>
     private static void WriteOriginalFields(Utf8JsonWriter json, PieceOriginal original)
@@ -71,19 +70,7 @@ public static partial class ProjectFile
         }
     }
 
-    private static List<PieceOriginal> ReadOriginals(JsonElement root, Unknowns unknowns)
-    {
-        if (!root.TryGetProperty(OriginalsList, out JsonElement originals))
-        {
-            return [];
-        }
-
-        Expect(originals, JsonValueKind.Array, OriginalsList);
-        List<PieceOriginal> read = ReadList(originals, OriginalsList, ReadOriginal, unknowns);
-        return read.Select(static original => original.Id).Distinct(StringComparer.Ordinal).Count() == read.Count ? read : throw Damaged(OriginalsList);
-    }
-
-    private static PieceOriginal ReadOriginal(JsonElement original)
+    internal static PieceOriginal ReadOriginal(JsonElement original)
     {
         Expect(original, JsonValueKind.Object, OriginalsList);
         try
@@ -121,9 +108,4 @@ public static partial class ProjectFile
     /// </summary>
     private static Project Described(this Project project) =>
         project.HasNotes || project.Document is not null || project.DescribesDocument ? project : throw Damaged("source");
-
-    /// <summary>"from" and "at" on a scan, a transcription or a performance of a file before version 16 (version 0.3): the original the notes were made from, and when.</summary>
-    private static (string? From, DateTimeOffset? At) ReadMadeFrom(JsonElement element) => (
-        element.TryGetProperty("from", out _) ? Text(element, "from") : null,
-        element.TryGetProperty("at", out _) ? JsonRead.Time(element, "at") : null);
 }
