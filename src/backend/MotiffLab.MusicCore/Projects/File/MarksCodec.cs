@@ -73,7 +73,10 @@ internal static class MarksCodec
         }
     }
 
-    /// <summary>"margin" on a stroke: "left" or "right", only for a stroke begun in a line's margin.</summary>
+    /// <summary>
+    /// "margin" on a stroke: "left" or "right", only for a stroke begun in a line's margin (version 0.4; versions 0.2 and
+    /// 0.3 drop it when they write the file again).
+    /// </summary>
     private static void WriteMargin(Utf8JsonWriter json, StrokeMargin? margin)
     {
         if (margin is { } side)

@@ -14,7 +14,9 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// <summary>
 /// How a Notes was made, when it was recognised: from a PDF or photos ("scan": the bars the player checked and what the
 /// scan server saw of each page, version 0.4) or heard in a recording ("transcription": the bars and tempo worked out
-/// (0016), where they change signature, the seams and where the stretch sent started, version 0.5).
+/// (0016), where they change signature, the seams and where the stretch sent started, version 0.5). The newer fields are
+/// optional within version 15: versions 0.2 and 0.3 drop "scan"."pages", and 0.2 to 0.4 drop "meters" and "sentFromMs"
+/// (the bars fall back to the grid's "signature" from the same starts), when they write the file again.
 /// </summary>
 internal static class OriginCodec
 {

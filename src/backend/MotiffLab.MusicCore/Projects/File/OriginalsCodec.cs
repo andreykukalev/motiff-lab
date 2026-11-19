@@ -13,7 +13,8 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// <summary>
 /// The originals layer (decision record 0030; docs/project-file.md, "Originals"): every original of the piece described
 /// (version 0.3, local-first: Andrei 2026-11-11 21:20 UTC), with the PDF's bytes and every PDF's page marks, and the
-/// tombstones of removed ones, each with the fields this build does not know kept (0026 S6).
+/// tombstones of removed ones, each with the fields this build does not know kept (0026 S6). Within version 15 the
+/// descriptions were optional fields, like "metadata", so version 0.2 of both apps still opens the file.
 /// </summary>
 internal static class OriginalsCodec
 {

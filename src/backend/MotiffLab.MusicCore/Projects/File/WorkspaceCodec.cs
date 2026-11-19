@@ -24,7 +24,8 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// their ticks. A file of an earlier version keeps the same fields at its top level, so one reader takes both. Beside
 /// the codecs of its parts, it holds the ideas, the phrase boundaries, the piece's settings and hidden views, its place
 /// in its collection ("partOf", version 0.4), whether the corrections are off ("editsOff") and the player's tempo
-/// ("tempo", version 0.5).
+/// ("tempo", version 0.5). "partOf" and "editsOff" are optional within version 15: earlier builds open the file, with
+/// the corrections on, and drop them when they write it again ("partOf" versions 0.2 and 0.3, "editsOff" 0.2 to 0.4).
 /// </summary>
 internal static class WorkspaceCodec
 {
