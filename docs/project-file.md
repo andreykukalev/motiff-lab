@@ -1,6 +1,8 @@
-# The project file (`.motiff.json`), version 16
+# The project file (`.motiff.json`), version 17
 
 **Status (2026-11-16):** the web app is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); the file stays the contract between the iPad app, the API and the web when it returns. While the web is frozen, a new version ships with the iPad alone, and the frozen web refuses files newer than it knows.
+
+**Version 17 (2026-11-19, [0034](architecture/adr/0034-drafts.md)):** adds the piece's drafts (`workspace.drafts`, "Drafts"); nothing else changes. It is written once music-core's drafts step lands; until then builds write version 16.
 
 The project file is what a player keeps of a piece. Since version 16 ([0030](architecture/adr/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](architecture/adr/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
@@ -11,7 +13,7 @@ Ticks are integers at 480 per quarter ([0002](architecture/adr/0002-canonical-ti
 ```jsonc
 {
   "format": "motiff-lab-project",
-  "version": 16,
+  "version": 17,
   "id": "p_…",                    // the project's id
   "fileName": "minuet.musicxml",   // the piece's file name: how the working notes' music is read (by its extension), and its title when nothing else names it
   "createdAt": "…", "lastOpened": "…",
@@ -142,6 +144,7 @@ The working notes and everything the player made on them, in their ticks.
   "bookmarks": { … },
   "resumePoints": [ … ],
   "assembly": { … },                // absent while the piece has no assembly
+  "drafts": [ … ],                  // the piece's drafts (version 17); absent while it has none
   "settings": { … },
   "hiddenViews": ["src_pdf_2", "perf_1"]   // optional: the views hidden from the switch, only while the player hid one
 }
@@ -178,6 +181,7 @@ The online copy is the file without the bytes of originals (0026 C3, as amended)
 - **Originals** are the player's data: a pull unites both copies by fingerprint, else by id (a different original with an id the other copy uses gets the next free one, `src_a_2`); `held` marks as above. A tombstone wins over a live description of the same original (by fingerprint, else by id) unless that copy added or held it again after the removal (its `addedAt` or a `held` mark later than `removed.at`), which revives it; Notes made from it meanwhile on another device stay, in the state "removed".
 - **Notes** merge by id (`ProjectSync.Resolve`): the copy kept takes the other Notes and versions only the other copy has, and the corrections of notes only the other copy corrected, in the working notes and in other Notes alike, while both are the same Notes with the same `music` (S9 and its source guard). The same note corrected on both copies is a conflict: the copy saved last keeps its corrections, the other's stay in the previous copy kept beside. With the copy both last agreed on (`base`, when the app keeps one, 0026 S5), Notes removed and corrections undone on one side since then go through; without it the merge is a union with no deletions (S4), so they come back. What an import brought (`scan.pages`, `transcription.bars.meters`, `transcription.sentFromMs`) is kept from this device when the online copy has none and the notes are the same (the same `music`).
 - **The workspace** is the player's data, except `editsOff` and `lastOpened` (bookkeeping, the copy saved last says it) and `check` (derived).
+- **Drafts** (version 17) merge by id, as Notes do: the copy kept takes the drafts only the other copy has; the same draft changed on both copies is a conflict, the copy saved last keeps its draft and the other's stays in the previous copy kept beside. With `base`, a draft removed on one side since then goes through; without it, it comes back.
 
 ## Marks (`marks`)
 
@@ -382,6 +386,74 @@ A note in `applied` and `before` is `{ "id", "pitch", "onset", "duration", "velo
 
 The notes a project opens with: with `applied`, those notes, its bars and tempo, then the edits made since (the taken bars of compared Notes are part of them); without it, as before. The journal builds from `before` once there is one, otherwise from the notes the project opens with. A file before version 15 reads as no assembly.
 
+## Drafts (`drafts`)
+
+The piece's drafts (version 17, [0034](architecture/adr/0034-drafts.md)): the player's own versions put together from fragments of any Notes, of this piece or another, without changing them. Left out while the piece has none. A draft is not the working notes: nothing in it is played, analysed or synced as the piece's notes, and no other part of the file names it.
+
+```jsonc
+"drafts": [
+  { "id": "d_1", "name": "Предложение 1", "createdAt": "…",
+    "places": [                                   // in order; the draft's bars are numbered from 1 through them
+      { "id": "pl_1", "base": "v_1",              // the variant that gives the place its bars, meter, key and tempo
+        "variants": [ { … }, { … } ],             // at least one; the base among them
+        "marks": { … } },                         // optional: pencil marks on the place, as workspace.marks, in the place's ticks
+      { "id": "pl_2", "base": "v_3", "variants": [ { … } ],
+        "bridge": true }                          // optional: a place made for a seam, its variants the bridge candidates
+    ],
+    "shelf": [ { … } ],                           // variants not in a place; empty when none
+    "next": 6,                                    // the number the next step takes
+    "steps": [ … ] }                              // the journal, oldest first
+]
+```
+
+A **variant** is a copy of a fragment, with where it came from:
+
+```jsonc
+{ "id": "v_2", "addedAt": "…",
+  "from": { "notes": "perf_1",                    // the Notes it was copied from
+            "project": "p_…",                     // optional: only when they are another piece's
+            "span": { "onset": 23040, "duration": 7680 },   // in those Notes' ticks
+            "bars": [9, 12],                      // optional: their bar numbers, both ends included, for the label
+            "ms": [72000, 84500],                 // optional: the stretch of the recording, from < to
+            "part": "all" },                      // all, right, left or melody
+  "provenance": { … },                            // those Notes' provenance, copied as it was (below)
+  "music": { "notes": [ … ], "bars": [ … ], "tempos": [ … ], "keys": [ … ] },   // the fragment's own notes, from 0
+  "anchors": [ { "place": 1920, "variant": 2160 } ] }   // optional, in a place's variant that is not the base: the ticks the player confirmed match
+```
+
+- **`music`** has the shapes of the assembly's `applied` ("Assembly"): notes with their attribution and hand, bars following one another from 0, tempos and keys. A variant's notes keep their ids; in a place they are named `<variant id>.<note id>` (`v_2.n_0042`), as a carried note is in the assembly. The music is a copy, so the variant stays whole when its Notes, their original or their piece is removed.
+- **`provenance`** is the provenance of the Notes copied, with the shape of "Provenance"; from another piece, every entry of its `from` gets that piece's `project` when it has none. So an original's `sha256` follows the fragment, and the draft shows whether its source is here, changed or removed, worked out on open as for any Notes (0030, section 3). The sound of a recording is never in the file: it is played from the original on the device when it is there (`ms`).
+- **`part`**: `melody` only when the voices of the fragment were cleanly split; its notes are marked inferred, as the engine found them.
+- **`anchors`**: only the ones the player confirmed, both strictly increasing; the rest of the alignment with the base is worked out on every open (0022, section 2), through them.
+- The draft's bar numbers, a place's meter, key and tempo (from its base and its steps), its seams and the приёмы of its variants are worked out, never stored.
+
+A **step** names its place and changes only it. Steps are applied in number order on the place's base, as the assembly's journal is (0024, section 2): a step whose notes are no longer there is not applied, and the place says what it lost.
+
+```jsonc
+"steps": [
+  { "number": 1, "at": "…", "kind": "take", "place": "pl_1", "variant": "v_2",
+    "technique": { "kind": "fill", "bars": [10, 14] },   // optional: the приём it came from; a label, not read by the rebuild
+    "part": "right",                              // optional: only the notes of a hand were taken
+    "removed": ["v_1.n_0031", "v_1.n_0032"],      // base notes the step takes out
+    "added": ["v_2.n_0042", "v_2.n_0043"] },      // variant notes the step puts in, at the place the alignment gives them
+  { "number": 2, "at": "…", "kind": "take", "place": "pl_1", "variant": "v_2",
+    "technique": { "kind": "insertBars", "bars": [16] },
+    "insert": { "at": 7680, "span": { "onset": 8160, "duration": 1920 } } },   // bars of the variant put in at a place tick, the rest after them moved
+  { "number": 3, "at": "…", "kind": "leave", "place": "pl_1", "variant": "v_2",
+    "technique": { "kind": "octave", "bars": [12] } },   // the приём is kept as in the base, and its number goes
+  { "number": 4, "at": "…", "kind": "transpose", "place": "pl_2", "semitones": -3 },
+  { "number": 5, "at": "…", "kind": "tempo", "place": "pl_2", "quarterNotesPerMinute": 92 },
+  { "number": 6, "at": "…", "kind": "leave", "place": "pl_2", "seam": true,   // the seam before the place is kept as it is
+    "group": "g_…", "origin": "assistant" }       // optional on any step: accepted with others as one; who proposed it
+]
+```
+
+- **`kind`**: `take` (a приём, a hand or a selection of a variant), `leave` (a приём, or the seam before the place, kept as it is), `transpose`, `tempo`. `technique.kind` is one of `fill`, `bass`, `simplify`, `ornament`, `octave`, `rhythm`, `insertBars`, `other`; `technique.bars` are the place's bar numbers, from 1.
+- **`removed` and `added`** are what a take means: the rebuild reads only them, so a step means the same after the comparison's rules change. A take with `insert` puts the variant's bars in whole, in their own meter, and never fits them into the base's bars.
+- **`group` and `origin`** are as in a correction ("Note corrections"): `origin` is `player` (left out) or `assistant`.
+- **The structure is state, not steps**: adding, moving or removing a place or a variant, choosing the base, moving a variant to or from the shelf change `places` and `shelf`. Removing a variant removes the steps that name it; changing a place's base removes the steps of that place. The app lists them first.
+- Ids: `d_`, `pl_`, `v_` and `g_` followed by a random part, as every new entity's (0026, S3; the examples here are short); step numbers count up within the draft.
+
 ## Settings (`settings`)
 
 Only the per-piece overrides live in the file (prep item 5); the catalogue (`MotiffLab.MusicCore.Settings.SettingsCatalogue`) says which settings have the piece scope.
@@ -410,7 +482,11 @@ An added note's id is the first of `a1`, `a2`, … that no note of the piece or 
 
 ## Opening an older file
 
-Every version since 1 opens (`ProjectFile.Read`) and is converted to version 16 in memory, deterministically: the same file always gives the same project, and writing it gives the same bytes.
+Every version since 1 opens (`ProjectFile.Read`) and is converted to the current version in memory, deterministically: the same file always gives the same project, and writing it gives the same bytes.
+
+### From version 16 to 17
+
+Nothing is converted: a version 16 file has no drafts, and everything else reads as it is. Written again, it is a version 17 file.
 
 ### From version 15 (and earlier) to 16
 
@@ -452,7 +528,9 @@ The rules for the versions before 15, in addition to the earlier ones kept in `P
 
 Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](architecture/adr/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device.
 
-### Builds before 0.6
+### Older builds
+
+A build before drafts refuses a version 17 file the same way ([0034](architecture/adr/0034-drafts.md), section 7); the API needs no release for it.
 
 A build before 0.6 refuses a version 16 file with "This project was saved by a newer version of Motiff Lab", so the web, the iPad and the API are released together ([0026](architecture/adr/0026-project-continuity.md), section 3; 0030, section 7). The API checks only the envelope (`format`, `version`, `id`, size, quota; 0026 S2) and stores the bytes it was sent, so a later version needs no API release.
 
@@ -461,7 +539,7 @@ A build before 0.6 refuses a version 16 file with "This project was saved by a n
 A later build can add a value to an enum while the file keeps its version ([0026](architecture/adr/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
 
 - **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's own version. In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
-- **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`) and a Check flag (`check`), whatever the depth of the value inside it.
+- **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`), a Check flag (`check`) and a draft (`drafts`, version 17), whatever the depth of the value inside it.
 - **What goes with it.** A motif and its variations are kept or left unknown together. A bookmark in an unknown category is left unknown with it. A built-in category with an unknown ink stays unknown and is not taken by the built-in one.
 - **New ids** for bookmarks, categories, resume points, ideas, highlights and Notes pass the unknown ones by. An entity an app makes with the id of an unknown one (the facade's working motif `m_0001`) takes its place: the unknown one is not written, and neither is what went with it.
 - **Still damaged**: an unknown value in a note correction's values or hand, in the compared notes' `performance` or in the assembly, since keeping those aside would change the notes that sound (Andrei, #313); an unknown per-piece setting or variation operation; an unknown `Overlay` or Keep choice.
