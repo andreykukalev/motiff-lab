@@ -138,7 +138,7 @@ function listedFamilies() {
     const families = [
         ["term.lens.", "", csharpEnum("Analysis/MotifFact.cs", "FactLens")],
         ["term.certainty.", "", csharpEnum("Analysis/MotifFact.cs", "FactCertainty")],
-        // "none" names no function: the chord's name leaves it out (Dna.swift).
+        // "none" names no function: the chord's name leaves it out (DnaHarmony.swift).
         ["dna.fnName.", "", csharpEnum("Analysis/Harmony.Motion.cs", "HarmonicFunction").filter((one) => one !== "none")],
         ["settings.noteNaming.", "", choices("notes.naming")],
         ["settings.rollColour.", "", choices("roll.colour")],
