@@ -20,6 +20,8 @@ struct AddPieceSheet: View {
     @State private var choosingRecording = false
     @State private var progress: String?
     @State private var problem: String?
+    /// Why the picture picked with «Открыть файл» made no piece.
+    @State private var unopened: String?
 
     var body: some View {
         ScrollView {
@@ -40,8 +42,13 @@ struct AddPieceSheet: View {
                 .buttonStyle(.plain)
                 // On the button, not the sheet: the recording's chooser below has its own, and a second file importer on a
                 // view that holds another is not shown.
-                .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
-                    picked(result)
+                // A JPEG or PNG becomes a piece of one page here, as a photo of a page does, and opens as its project file.
+                .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable + PhotoPiece.images) { result in
+                    guard case .success(let url) = result, PhotoPiece.isImage(url) else { return picked(result) }
+                    Task { await openImage(url) }
+                }
+                if let unopened {
+                    problemLine(unopened)
                 }
                 if let folder {
                     fromFolder(folder)
@@ -114,11 +121,25 @@ struct AddPieceSheet: View {
                 Task { await hear(url) }
             }
             if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
+                problemLine(problem)
             }
+        }
+    }
+
+    /// Why a way in made no piece, under its card.
+    private func problemLine(_ words: String) -> some View {
+        Text(words)
+            .dsType(.caption)
+            .foregroundStyle(Color.ds("danger"))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// A JPEG or PNG made a piece of one page (`PhotoPiece.make(image:)`), opened as the project file it was saved to.
+    private func openImage(_ url: URL) async {
+        unopened = nil
+        switch await PhotoPiece.make(image: url, text: text) {
+        case .success(let project): picked(.success(project))
+        case .failure(let failure): unopened = failure.message
         }
     }
 

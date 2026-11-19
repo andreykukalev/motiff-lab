@@ -49,7 +49,7 @@
   "pdf.readLineHosted": "Recognise notes sends this PDF, up to 100 pages, to Motiff Lab's scan server, chosen in Settings, which deletes it once read. It stays here as it is.",
   "pdf.readSend": "Recognise notes",
   "pdf.readKeeps": "The notes go into this same piece, with the bars to check, and Original PDF | Notes switches between them. This PDF and your marks on it stay exactly as they are.",
-  "library.openFileHintHere": "MIDI, MusicXML or PDF, or a Motiff Lab project file, read on this device",
+  "library.openFileHintHere": "MIDI, MusicXML, PDF or a picture of a page (JPEG, PNG), or a Motiff Lab project file, read on this device",
   "photos.addTitle": "Photos of pages",
   "photos.addHint": "Photograph the pages in a row, or pick photos. They become a PDF piece on this iPad; its notes can then be recognised page by page.",
   "photos.title": "Photos of pages",

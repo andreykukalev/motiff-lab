@@ -282,4 +282,26 @@ enum PhotoPiece {
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return saved
     }
+
+    /// The pictures «Открыть файл» takes beside the files it opens (v1.1, finding 29): a JPEG or a PNG.
+    static let images: [UTType] = [.jpeg, .png]
+
+    /// Whether the file picked is one of `images`, by its name.
+    static func isImage(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else { return false }
+        return images.contains { type.conforms(to: $0) }
+    }
+
+    /// A JPEG or PNG picked with «Открыть файл» (v1.1, finding 29) made a piece of one page, as one photo of a page is:
+    /// the same PDF of images, titled by the file's name. The player's file is only read.
+    static func make(image url: URL, text: UIText) async -> Result<URL, ProjectError> {
+        let lent = url.startAccessingSecurityScopedResource()
+        let data = try? Data(contentsOf: url)
+        if lent { url.stopAccessingSecurityScopedResource() }
+        guard let data, let image = UIImage(data: data), let photo = PhotoImages.jpeg(image) else {
+            return .failure(ProjectError(message: text["originals.unreadable"]))
+        }
+        let pdf = await Task.detached(priority: .userInitiated) { PhotoImages.pdf([PhotoPage(photo: photo)]) }.value
+        return await make(pdf: pdf, pages: 1, title: ProjectFiles.title(of: url.lastPathComponent), language: text.language)
+    }
 }

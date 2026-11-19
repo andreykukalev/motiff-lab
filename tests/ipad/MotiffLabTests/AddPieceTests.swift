@@ -29,4 +29,38 @@ final class AddPieceTests: XCTestCase {
         XCTAssertEqual(card.line, "Where the sound goes")
         XCTAssertNil(AddRoute(icon: "file", title: "Open a file", hint: "MIDI, MusicXML or PDF").line)
     }
+
+    /// v1.1, finding 29: «Открыть файл» takes a JPEG or a PNG and makes the same piece of one page as one photo of a page,
+    /// a PDF of images with no notes, titled by the file's name.
+    func testAJpegOrPngOpenedMakesAPdfPieceOfOnePage() async throws {
+        let text = UIText(language: "en")
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 60, height: 80)).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 60, height: 80))
+        }
+        for (name, data) in [("Prelude page.png", image.pngData()), ("Prelude page.jpg", image.jpegData(compressionQuality: 0.9))] {
+            let picked = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: picked.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try XCTUnwrap(data).write(to: picked)
+            defer { try? FileManager.default.removeItem(at: picked.deletingLastPathComponent()) }
+            XCTAssertTrue(PhotoPiece.isImage(picked), name)
+
+            let project = try await PhotoPiece.make(image: picked, text: text).get()
+            defer { try? FileManager.default.removeItem(at: project) }
+            let summary = try await XCTUnwrap(PieceSummary.read(project), name)
+
+            XCTAssertTrue(summary.document, name)
+            XCTAssertFalse(summary.hasNotes, name)
+            XCTAssertEqual(summary.originals.map(\.kind), ["images"], name)
+            XCTAssertEqual(summary.originals.first?.pages, 1, name)
+            XCTAssertTrue(ProjectFiles.title(of: project.lastPathComponent).hasPrefix("Prelude page"), name)
+        }
+    }
+
+    func testOnlyAJpegOrPngIsMadeAPage() {
+        XCTAssertFalse(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.pdf")))
+        XCTAssertFalse(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.musicxml")))
+        XCTAssertFalse(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.heic")))
+        XCTAssertTrue(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.JPEG")))
+    }
 }
