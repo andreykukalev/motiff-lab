@@ -151,6 +151,30 @@ extension PenHolder {
         pen.setInk(ink)
         penOn = true
     }
+
+    /// A colour of the colour bars chosen in the pencil palette (finding 31): the tool stays, the Pen comes on, the
+    /// palette stays.
+    func chooseFromPalette(barColour: HighlightInk) {
+        pen.setBarColour(barColour)
+        penOn = true
+    }
+
+    /// A setting chosen in the pencil palette, whichever it is.
+    func chooseFromPalette(_ setting: PaletteSetting) {
+        switch setting {
+        case let .ink(ink): chooseFromPalette(ink: ink)
+        case let .barColour(colour): chooseFromPalette(barColour: colour)
+        case let .width(width): chooseFromPalette(width: width)
+        }
+    }
+}
+
+/// A setting of the active tool on the pencil palette's outer half circle (#495 UX-06): an ink of the pencil, a colour of
+/// the colour bars (finding 31) or a thickness.
+enum PaletteSetting: Hashable {
+    case ink(ScoreController.Ink)
+    case barColour(HighlightInk)
+    case width(Int)
 }
 
 /// Where the pencil palette's buttons go: the tools on an inner half circle, the active tool's settings on an outer
@@ -188,17 +212,29 @@ enum PaletteLayout {
     }
 
     /// The outer half circle's places (#495 UX-06): the pencil's four inks on the left, a gap, the three thicknesses on
-    /// the right. The thicknesses keep their places for the marker, which has no inks.
+    /// the right. The thicknesses keep their places for the marker, which has no inks; the colour bars' four colours take
+    /// the inks' places (finding 31).
     static let settingSlots = 8
 
-    /// The place on the outer half circle of an ink of the pencil.
-    static func slot(ink: ScoreController.Ink) -> Int {
-        ScoreController.Ink.allCases.firstIndex(of: ink) ?? 0
+    /// The settings shown for the pen's active tool: the pencil's inks, or the colour bars' colours, as the palette under
+    /// the bar has them; then the thicknesses of a tool that has them (not the colour bars or the eraser).
+    static func settings(of pen: PenState) -> [PaletteSetting] {
+        let colours: [PaletteSetting] = switch pen.active {
+        case .pencil: ScoreController.Ink.allCases.map(PaletteSetting.ink)
+        case .colour: HighlightInk.allCases.map(PaletteSetting.barColour)
+        case .marker, .eraser: []
+        }
+        let widths: [PaletteSetting] = pen.current == nil ? [] : PenSizes.pen.indices.map(PaletteSetting.width)
+        return colours + widths
     }
 
-    /// The place on the outer half circle of a thickness.
-    static func slot(width: Int) -> Int {
-        settingSlots - PenSizes.pen.count + width
+    /// The place on the outer half circle of a setting.
+    static func slot(_ setting: PaletteSetting) -> Int {
+        switch setting {
+        case let .ink(ink): ScoreController.Ink.allCases.firstIndex(of: ink) ?? 0
+        case let .barColour(colour): HighlightInk.allCases.firstIndex(of: colour) ?? 0
+        case let .width(width): settingSlots - PenSizes.pen.count + width
+        }
     }
 
     /// Whether a touch at `point`, from the palette's middle, is on the palette (#543 8): on one of its round buttons, each
@@ -280,16 +316,17 @@ final class OutsideTouchView: UIView, UIGestureRecognizerDelegate {
     }
 }
 
-/// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. Without the modes (a
-/// PDF's pages) the tools (the pencil, the marker, the eraser) on an inner half circle, exactly one
-/// chosen; the active tool's settings on an outer one (#495 UX-06): the pencil's inks and its thicknesses, the marker's
-/// thicknesses in the same places, nothing for the eraser; Undo in the middle; whatever is chosen turns the Pen on and
-/// leaves the palette open. On the score under the modes it is the stylus menu (#521 11): Navigate, Select and the Pen on
-/// the inner half circle, and above them, side by side, only the chosen tool's controls (Select: Undo, Redo, Clear
-/// selection; the Pen: Undo, Redo; Navigate: none). A tool chosen there changes the controls in place and the menu stays;
-/// Undo and Redo leave it open; Clear selection closes it, as an action. Either stays open while the player chooses tools
-/// and settings (#543 8); the first touch outside it, Pencil or finger, closes it and reaches the view under it as if it
-/// had not been there (PaletteOutside), so the chosen tool acts on that very touch.
+/// The pencil palette (#479 item 8): opened by a double tap or a squeeze of the Pencil, at the Pencil. Without the
+/// modes (a PDF's pages) the pen's tools on an inner half circle, exactly one chosen; the active tool's
+/// settings on an outer one (#495 UX-06): the pencil's inks and its thicknesses, the marker's thicknesses in the same
+/// places, the colour bars' four colours, where they are a tool, in the inks' places (finding 31), nothing for the
+/// eraser; Undo in the middle; whatever is chosen turns the Pen on and leaves the palette open. On the score under the
+/// modes it is the stylus menu (#521 11): Navigate, Select and the Pen on the inner half circle, and above them, side
+/// by side, only the chosen tool's controls (Select: Undo, Redo, Clear selection; the Pen: Undo, Redo; Navigate: none).
+/// A tool chosen there changes the controls in place and the menu stays; Undo and Redo leave it open; Clear selection
+/// closes it, as an action. Either stays open while the player chooses tools and settings (#543 8); the first touch
+/// outside it, Pencil or finger, closes it and reaches the view under it as if it had not been there (PaletteOutside),
+/// so the chosen tool acts on that very touch.
 struct PencilPalette<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let call: PencilPaletteCall
@@ -352,7 +389,7 @@ struct PencilPalette<Holder: PenHolder>: View {
             return places.tools + places.controls
         }
         let places = penPlaces(upward)
-        let settings = shownInks.map { places.slots[PaletteLayout.slot(ink: $0)] } + shownWidths.map { places.slots[PaletteLayout.slot(width: $0)] }
+        let settings = PaletteLayout.settings(of: holder.pen).map { places.slots[PaletteLayout.slot($0)] }
         // Undo in the middle.
         return places.tools + settings + [.zero]
     }
@@ -366,19 +403,9 @@ struct PencilPalette<Holder: PenHolder>: View {
 
     /// The pen palette's places: its tools on the inner half circle, the settings' slots on the outer one.
     private func penPlaces(_ upward: Bool) -> (tools: [CGPoint], slots: [CGPoint]) {
-        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
+        let tools = PaletteLayout.arc(count: holder.tools.count, radius: Self.inner, upward: upward)
         let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
         return (tools, slots)
-    }
-
-    /// The pencil's inks, shown while the pencil is the tool.
-    private var shownInks: [ScoreController.Ink] {
-        holder.pen.active == .pencil ? ScoreController.Ink.allCases : []
-    }
-
-    /// The thicknesses, shown for a tool that writes (not the eraser).
-    private var shownWidths: [Int] {
-        holder.pen.current != nil ? Array(PenSizes.pen.indices) : []
     }
 
     /// The stylus menu under the modes (#521 11): the tools, and the chosen one's controls together above them.
@@ -443,16 +470,12 @@ struct PencilPalette<Holder: PenHolder>: View {
     private func penRing(_ upward: Bool) -> some View {
         let (tools, slots) = penPlaces(upward)
         return ZStack {
-            ForEach(ActiveTool.allCases.indices, id: \.self) { index in
-                toolButton(ActiveTool.allCases[index]).offset(x: tools[index].x, y: tools[index].y)
+            ForEach(holder.tools.indices, id: \.self) { index in
+                toolButton(holder.tools[index]).offset(x: tools[index].x, y: tools[index].y)
             }
-            ForEach(shownInks, id: \.self) { ink in
-                let slot = slots[PaletteLayout.slot(ink: ink)]
-                inkButton(ink).offset(x: slot.x, y: slot.y)
-            }
-            ForEach(shownWidths, id: \.self) { width in
-                let slot = slots[PaletteLayout.slot(width: width)]
-                widthButton(width).offset(x: slot.x, y: slot.y)
+            ForEach(PaletteLayout.settings(of: holder.pen), id: \.self) { setting in
+                let slot = slots[PaletteLayout.slot(setting)]
+                settingButton(setting).offset(x: slot.x, y: slot.y)
             }
         }
     }
@@ -469,28 +492,31 @@ struct PencilPalette<Holder: PenHolder>: View {
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
-    private func inkButton(_ ink: ScoreController.Ink) -> some View {
-        let chosen = holder.pen.isChosen(ink: ink)
+    private func settingButton(_ setting: PaletteSetting) -> some View {
+        let pen = holder.pen
+        let shown: (chosen: Bool, label: String) = switch setting {
+        case let .ink(ink): (pen.isChosen(ink: ink), text[ink.labelKey])
+        case let .barColour(colour): (pen.isChosen(barColour: colour), text[colour.penLabelKey])
+        case let .width(width): (pen.isChosen(width: width), text[LineSample.labelKeys[width]])
+        }
+        let chosen = shown.chosen
         return Button {
-            holder.chooseFromPalette(ink: ink)
+            holder.chooseFromPalette(setting)
         } label: {
-            disc(chosen: chosen) { InkSwatch(ink: ink) }
+            disc(chosen: chosen) { settingSample(setting) }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(text[ink.labelKey])
+        .accessibilityLabel(shown.label)
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
-    private func widthButton(_ width: Int) -> some View {
-        let chosen = holder.pen.isChosen(width: width)
-        return Button {
-            holder.chooseFromPalette(width: width)
-        } label: {
-            disc(chosen: chosen) { LineSample(width: width, pen: holder.pen) }
+    /// A setting as the palette draws it: an ink's or a colour's disc, a thickness's line.
+    @ViewBuilder private func settingSample(_ setting: PaletteSetting) -> some View {
+        switch setting {
+        case let .ink(ink): InkSwatch(ink: ink)
+        case let .barColour(colour): InkSwatch(colour: colour.color)
+        case let .width(width): LineSample(width: width, pen: holder.pen)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(text[LineSample.labelKeys[width]])
-        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
     private var undoButton: some View {

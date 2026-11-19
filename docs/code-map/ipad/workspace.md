@@ -4,8 +4,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceFollowing`,
-`ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
+`PanelState`, `ScoreColouring`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`,
+`ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
   Settings, Reference and More is open, the places More opened, the drawer and the Contents kept for after Expand, what
@@ -32,8 +32,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `following`); `ScoreBar`, `Pill` (the transport, then the roll and the assistant), `SelectionMenu` (with the pill,
   `iconItem`), `FocusBar`.
 - `ScoreScreenViews.swift`: where the page is scrolled to (`viewPlace`, `showPlace`).
+- `ScoreColouring.swift` (v0.10 d-5, finding 31): `ScoreController`'s part of the pen's colour bars (`PenScore`'s
+  `colouringChanged`, `colourBars`, `uncolourBars`): the change `Marks/HighlightPaint` works out, sent to music-core and
+  drawn at its last call.
 - `ScoreController.swift`: the page (the menu's drag, marks, corrections, merge, Expand on the page); the
-  models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md).
+  models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
+  [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`).
 
 ## The contract others may rely on
 
@@ -72,7 +76,7 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: the page's marks, corrections; `mode` (never nil since v0.6.5);
+`ScoreController`: drawing the marks on the page, corrections; `mode` (never nil since v0.6.5);
 the models. `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and
 whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).

@@ -4,7 +4,18 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 ## Files
 
-`Bookmarks`, `Check`, `EditsLayer`, `Marks`, `SegmentedChoice` (`.swift`).
+`Bookmarks`, `Check`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `SegmentedChoice` (`.swift`).
+
+- `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as
+  `highlight.remove` and `highlight.add` (span and colour): a passage coloured lays it in its colour (other colours give
+  way there, the same colour joins it), one all that colour already loses it, the eraser takes the colour where it
+  passed. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`. The
+  selection menu's «Выделить цветом» (`HighlightRow`) is gone with it.
+
+- `MarksModel.swift` (S6, ADR 0031 section 3, v0.10 d-4): `MarksModel`, the marks' state and their own rules; it reads
+  `SelectionModel` and is given the device's settings resolved for a piece (`DeviceSettings.resolved`). The lists of
+  layers and of the kinds of extra information (`layers`, `extra`) are here, which `tests/shared/i18n.test.mjs` reads.
+  Tests: `MotiffLabTests/MarksModelTests`.
 
 - `SegmentedChoice.swift`: the choice of two or three (ds.css `.seg`: `SegmentedChoice`, `SegmentFill`,
   `SegmentedCapsule`), which other folders use too; out of `Bookmarks.swift` in S7b.
@@ -23,10 +34,16 @@ While «Мои правки» is off, `editsOn` is false: no Fix notes, no note 
 too). `NoteCorrections` and `EditsLayerState` hold only what music-core answered
 (`tests/contracts/facade-answers/corrections*.json`, decoded by `FacadeAnswerFixturesTests`). The rest: not recorded yet.
 
+`MarksModel`: `show` takes what a mark call answered, `keepBookmarks` the bookmarks the page draws; `showLayers`,
+`keepLevel`, `clearOverrides` change the piece's own settings at once, and `keepLayers`, `forgetOverrides` and
+`loadSettings` keep or read them through music-core (`settings.override`, `settings`). Changing a note or a highlight
+(drawn on the page), going to a bookmark or a note and what the page hides are `ScoreController`'s, which calls these.
+
 ## The state it owns
 
-`EditsLayerState`. The rest: not recorded yet.
+`EditsLayerState`. `MarksModel`: the marks (`MarksShelf`, `markCount`), the note being written (`noteDraft`), the
+layers hidden, the piece's own settings, the bookmarks as drawn and the one gone to. The rest: not recorded yet.
 
 ## Baseline entries that protect it
 
-UX baseline: not recorded yet. Quality ratchet: `Marks.swift` jscpd (same file); `Bookmarks.swift` file_length.
+UX baseline: not recorded yet. Quality ratchet: `Bookmarks.swift` file_length.

@@ -10,7 +10,7 @@ struct BookmarkCategory: Identifiable, Equatable, Sendable {
     var builtIn: Bool
 
     /// The ink's colour from the design kit.
-    var color: Color { ink == "amber" ? .ds("amber") : .ds("ink-\(ink)") }
+    var color: Color { HighlightInk.color(ink) }
 }
 
 /// A passage the player has named and filed (0018 section 5): its title, its category, where it is, and how many ideas
@@ -291,13 +291,11 @@ struct BookmarkCard: View {
     }
 }
 
-/// The Contents drawer (0018 section 5, design/kit/ds.css `.sheet.left`, `.entry`): over the left of the page in
-/// landscape and from the bottom in portrait. Contents lists the player's bookmarks by category, to search, sort, fold, go
-/// to, change or delete; Notes lists the margin notes, the highlights and the bars with ink; Pages shows the pages with the
-/// phrases that start on each and a tick for each bookmark.
-/// The Contents (testing item 21): one sheet read top to bottom, the pages, the detected structure, the bookmarks by
-/// category and the notes and marks, as the web app's Contents; the chips at the top scroll to a section rather than
-/// replace the sheet.
+/// The Contents drawer (0018 section 5, design/kit/ds.css `.sheet.left`, `.entry`; testing item 21): over the left of the
+/// page in landscape and from the bottom in portrait, one sheet read top to bottom as the web app's Contents: the pages
+/// with the phrases that start on each and a tick for each bookmark, the detected structure, the bookmarks by category to
+/// search, sort, fold, go to, change or delete, and the margin notes, the highlights and the bars with ink. The chips at
+/// the top scroll to a section rather than replace the sheet.
 struct ContentsDrawer: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
@@ -345,11 +343,11 @@ struct ContentsDrawer: View {
                             .id(Part.structure)
                         }
                         part(bookmarksTitle) {
-                            ContentsList(contents: contents, score: score, selectionModel: selectionModel, text: text, close: close)
+                            ContentsList(contents: contents, score: score, selectionModel: selectionModel, marksModel: score.marksModel, text: text, close: close)
                         }
                         .id(Part.bookmarks)
                         part(text["contents.notesHead"]) {
-                            NotesList(score: score, text: text)
+                            NotesList(score: score, marksModel: score.marksModel, text: text)
                         }
                         .id(Part.notes)
                     }
@@ -467,6 +465,8 @@ struct ContentsList: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
+    /// The bookmark gone to, which its entry shows.
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     let close: () -> Void
 
@@ -545,7 +545,7 @@ struct ContentsList: View {
 
     /// An entry (ds.css `.entry`): a tap goes there and selects it, a second tap focuses on it; the pen changes it.
     private func entry(_ bookmark: Bookmark) -> some View {
-        let on = score.isShown(bookmark.id)
+        let on = marksModel.isShown(bookmark.id)
         return HStack(spacing: CGFloat.ds("s-1")) {
             Button {
                 if score.goToBookmark(bookmark.id) { close() }

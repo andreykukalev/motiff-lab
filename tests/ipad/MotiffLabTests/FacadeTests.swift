@@ -227,7 +227,7 @@ final class FacadeTests: XCTestCase {
         // A layer hidden is kept with the piece as its own setting.
         let catalogue = try call("settings")
         let ids = (catalogue["settings"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
-        XCTAssertTrue(ScoreController.layers.allSatisfy { ids.contains("layers.\($0)") })
+        XCTAssertTrue(MarksModel.layers.allSatisfy { ids.contains("layers.\($0)") })
         let overrides = try call("settings.override", #"{"id": "layers.ink", "value": "off"}"#)
         XCTAssertEqual((overrides["overrides"] as? [String: Any])?["layers.ink"] as? String, "off")
     }

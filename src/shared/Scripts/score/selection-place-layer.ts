@@ -70,6 +70,8 @@ export interface PlaceHost {
      * without it, or while it gives none, the beats and the barlines while selecting by beats, else the barlines.
      */
     grid?(geometry: ScoreGeometry): readonly number[] | null;
+    /** Whether the layer draws the selection's edges; false for the pen's colour bars (colour-bars.ts), which has no selection. */
+    readonly edges?: boolean;
 }
 
 interface PlaceDrag {
@@ -164,9 +166,13 @@ export class PlaceLayer {
     /**
      * Draws the selection's edges over the band the selection layer drew: the band's full height at its start and its end
      * (where a press takes the edge), each with the kit's hollow handle at its middle (v0.6.4, Andrei's spec 6: the handles
-     * of before, score.css `.sel-edge`); none while the rule is off, or while a new passage is drawn.
+     * of before, score.css `.sel-edge`); none while the rule is off, or while a new passage is drawn, and never for a host
+     * without edges (the pen's colour bars).
      */
     decorate(): void {
+        if (this.host.edges === false) {
+            return;
+        }
         for (const old of this.root.querySelectorAll(`:scope > .${EDGE_CLASS}`)) {
             old.remove();
         }

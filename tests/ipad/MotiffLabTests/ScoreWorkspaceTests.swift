@@ -239,22 +239,22 @@ final class ScoreWorkspaceTests: XCTestCase {
     /// changes. A bookmark being changed in the Contents is not the selection's, and the note over this very span stays.
     func testWhatWasStartedOnASelectionGoesWithIt() {
         let workspace = make()
-        let note = ScoreController.NoteDraft(id: nil, onset: 0, end: 1920, firstBar: 1, lastBar: 1, text: "")
+        let note = MarksModel.NoteDraft(id: nil, onset: 0, end: 1920, firstBar: 1, lastBar: 1, text: "")
         workspace.contents.start(title: "Theme")
-        workspace.score.noteDraft = note
+        workspace.score.marksModel.noteDraft = note
         workspace.selectionChanged(ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1))
         XCTAssertNil(workspace.contents.draft)
-        XCTAssertEqual(workspace.score.noteDraft, note, "the note is over this very span")
+        XCTAssertEqual(workspace.score.marksModel.noteDraft, note, "the note is over this very span")
         workspace.contents.draft = ContentsController.Draft(id: "b1", title: "Coda", category: "practise")
         workspace.selectionChanged(ScoreSelection(onset: 0, end: 3840, firstBar: 1, lastBar: 2))
         XCTAssertNotNil(workspace.contents.draft, "a bookmark being changed in the drawer stays")
-        XCTAssertNil(workspace.score.noteDraft, "the same start, another end: another selection")
-        workspace.score.noteDraft = note
+        XCTAssertNil(workspace.score.marksModel.noteDraft, "the same start, another end: another selection")
+        workspace.score.marksModel.noteDraft = note
         workspace.selectionChanged(ScoreSelection(onset: 960, end: 1920, firstBar: 1, lastBar: 1))
-        XCTAssertNil(workspace.score.noteDraft, "another start, the same end: another selection")
-        workspace.score.noteDraft = note
+        XCTAssertNil(workspace.score.marksModel.noteDraft, "another start, the same end: another selection")
+        workspace.score.marksModel.noteDraft = note
         workspace.selectionChanged(nil)
-        XCTAssertNil(workspace.score.noteDraft, "no selection, no note over it")
+        XCTAssertNil(workspace.score.marksModel.noteDraft, "no selection, no note over it")
     }
 
     /// The roll's one web view is held where the roll is shown, and the roll edits notes only while the editor is open.
@@ -326,7 +326,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         let passage = try XCTUnwrap(workspace.score.focusModel.playRange?.range)
         workspace.player.hold(selection: passage)
         XCTAssertTrue(workspace.player.cycle, "a selection made where there was none turns Цикл on")
-        workspace.score.penOn = true
+        workspace.score.penModel.penOn = true
         workspace.placeTapped(passage.upperBound + 480..<passage.upperBound + 960)
         XCTAssertTrue(workspace.player.cycle, "the Pen's tap leaves Цикл on")
         XCTAssertTrue(workspace.player.leadIn, "Play plays from the tap into the selection")

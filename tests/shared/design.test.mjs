@@ -28,13 +28,14 @@ test("the iPad's asset catalogue is what the kit's icons.js gives (node tools/ic
 
 
 // #533 sections 5 and 9: an action has the icon that says it. Clear selection is the selection's frame with a cross in it, never
-// the cross that closes, in both apps; the pen's three tools are three different drawings, the same on the iPad.
+// the cross that closes, in both apps; the pen's tools are different drawings, the same on the iPad, the colour bars the
+// highlight the selection menu had (v0.10, finding 31).
 test("Clear selection and the pen's tools have icons of their own on the iPad", () => {
     const icons = readIcons();
-    for (const name of ["deselect", "pencil", "marker", "eraser"]) assert.ok(name in icons, name);
+    for (const name of ["deselect", "pencil", "marker", "highlight", "eraser"]) assert.ok(name in icons, name);
     assert.equal(new Set(["pencil", "marker", "eraser", "pen", "highlight"].map((name) => icons[name])).size, 5, "each tool its own drawing");
     const tools = read("src/ipad/App/MotiffLab/Ink/PenState.swift").toString();
-    assert.match(tools, /case \.pencil: "pencil"\s*case \.marker: "marker"\s*case \.eraser: "eraser"/);
+    assert.match(tools, /case \.pencil: "pencil"\s*case \.marker: "marker"\s*case \.colour: "highlight"\s*case \.eraser: "eraser"/);
     const selection = read("src/ipad/App/MotiffLab/Selection/SelectionTools.swift").toString();
     assert.match(selection, /case \.clearSelection: "deselect"/);
 });
