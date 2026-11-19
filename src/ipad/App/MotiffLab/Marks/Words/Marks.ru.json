@@ -38,6 +38,7 @@
   "bookmark.cancel": "Отмена",
   "bookmark.done": "Готово",
   "bookmark.delete": "Удалить",
+  "bookmark.label": "Закладка: {0}, {1}",
   "contents.tabPages": "Страницы",
   "contents.search": "Поиск закладок",
   "contents.order": "Порядок",

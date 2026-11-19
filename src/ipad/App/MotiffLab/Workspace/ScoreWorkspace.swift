@@ -237,7 +237,7 @@ extension ScoreWorkspace {
         score.penChanged = { [weak self] on in self?.penChanged(on) }
         score.rollEditing = { [weak self] in self?.rollEditing ?? false }
         score.toolChanged = { [weak self] mode, penOn in self?.toolChanged(mode, penOn: penOn) }
-        roll.barTool = RollInput.barTool(mode: score.mode, penOn: score.penOn)
+        roll.barTool = RollInput.barTool(mode: score.mode, penOn: score.penModel.penOn)
     }
 
     var rollByBeats: Bool { !score.beatLines.isEmpty }

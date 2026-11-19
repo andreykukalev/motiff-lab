@@ -38,6 +38,7 @@
   "bookmark.cancel": "Cancel",
   "bookmark.done": "Done",
   "bookmark.delete": "Delete",
+  "bookmark.label": "Bookmark: {0}, {1}",
   "contents.tabPages": "Pages",
   "contents.search": "Search titles and categories",
   "contents.order": "Order",

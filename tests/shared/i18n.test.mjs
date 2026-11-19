@@ -148,8 +148,8 @@ function listedFamilies() {
         ["roll.js.", "", swiftList("Roll/RollController.swift", "names")],
         ["settings.preset.", "", swiftList("Account/SettingsView.swift", "presets")],
         ["settings.presetHint.", "", swiftList("Account/SettingsView.swift", "presets")],
-        ["layers.", "", swiftList("Workspace/ScoreController.swift", "layers")],
-        ["extra.", "", swiftList("Workspace/ScoreController.swift", "extra")],
+        ["layers.", "", swiftList("Marks/MarksModel.swift", "layers")],
+        ["extra.", "", swiftList("Marks/MarksModel.swift", "extra")],
         ["modePad.", "Hint", swiftList("Ink/InteractionMode.swift", "inBar")],
     ];
     for (const file of swiftFiles) {
