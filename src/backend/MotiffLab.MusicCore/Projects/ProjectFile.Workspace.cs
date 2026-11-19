@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
@@ -10,6 +8,7 @@ using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
+using static MotiffLab.MusicCore.Projects.File.VariationCodec;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -70,83 +69,6 @@ public static partial class ProjectFile
 
         WriteUnknownFields(json, project.UnknownFieldsAt(WorkspacePath));
         json.WriteEndObject();
-    }
-
-    private static void WriteMotifsAndVariations(Utf8JsonWriter json, Project project)
-    {
-        List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
-        WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", motif.Id);
-            json.WriteString("name", motif.Name);
-            json.WriteString("kind", motif.Kind.ToString());
-            json.WriteString("mode", motif.Mode.ToString());
-            WriteRange(json, motif.Span, motif.Filter);
-            WriteNoteIds(json, motif.NoteIds);
-            if (motif.Notes is { } notes)
-            {
-                json.WriteString("notes", notes);
-            }
-
-            json.WriteEndObject();
-        });
-
-        WriteList(json, "variations", project.Variations, KeptUnknown(project.Unknown, "variations", project.Variations.Select(static variation => variation.Id), replacedMotifs, out _), variation =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", variation.Id);
-            json.WriteString("motifId", variation.MotifId);
-            WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
-            WriteKey(json, variation.Key);
-            json.WriteEndObject();
-        });
-    }
-
-    private static void WriteEdits(Utf8JsonWriter json, NoteEditLog edits)
-    {
-        json.WriteStartArray("edits");
-        foreach (NoteEdit edit in edits.Edits)
-        {
-            json.WriteStartObject();
-            json.WriteString("noteId", edit.NoteId);
-            if (edit.Before is { } before)
-            {
-                WriteValues(json, "before", before);
-            }
-            else
-            {
-                // A note the player added (version 14, testing item 15): its track and hand, then its values.
-                json.WriteStartObject("added");
-                json.WriteNumber("track", edit.Track);
-                if (edit.Hand is { } hand)
-                {
-                    json.WriteString("hand", hand.ToString());
-                }
-
-                json.WriteEndObject();
-            }
-
-            if (edit.After is { } after)
-            {
-                WriteValues(json, "after", after);
-            }
-
-            // Version 16: corrections accepted together, and who proposed one when it was not the player.
-            if (edit.Group is { } group)
-            {
-                json.WriteString("group", group);
-            }
-
-            if (edit.Origin is { } origin)
-            {
-                json.WriteString("origin", origin);
-            }
-
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
     }
 
     private static void WritePhrases(Utf8JsonWriter json, Project project)

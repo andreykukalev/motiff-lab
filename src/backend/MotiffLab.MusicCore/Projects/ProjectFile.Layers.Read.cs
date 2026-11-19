@@ -7,6 +7,7 @@ using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
+using static MotiffLab.MusicCore.Projects.File.EditsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.PerformanceCodec;
