@@ -171,17 +171,10 @@ extension DnaScreen {
             }
         }
         .overlay(alignment: .topLeading) {
-            // Where the music is while the map plays, across the lanes.
-            GeometryReader { proxy in
-                if playing, player.state != .stopped, map.end > map.start, player.tick >= map.start, player.tick <= map.end {
-                    let width = proxy.size.width - nameWidth
-                    Rectangle()
-                        .fill(Color.ds("accent"))
-                        .frame(width: 2)
-                        .offset(x: nameWidth + x(player.tick, width))
-                }
+            // Where the music is, across the lanes, dragged by its handle on top (Andrei, v0.8 finding 15).
+            if map.end > map.start {
+                DnaPlayhead(map: map, player: player, text: text, nameWidth: nameWidth, taken: playheadTaken)
             }
-            .allowsHitTesting(false)
         }
     }
 
@@ -235,9 +228,7 @@ extension DnaScreen {
 
     /// A tick as a distance along a track `width` wide.
     func x(_ tick: Double, _ width: CGFloat) -> CGFloat {
-        let length = map.end - map.start
-        guard length > 0 else { return 0 }
-        return CGFloat(min(max((tick - map.start) / length, 0), 1)) * width
+        CGFloat(map.fraction(of: tick)) * width
     }
 
     private func middle(_ section: DnaMap.Section) -> Double { (section.onset + section.end) / 2 }
