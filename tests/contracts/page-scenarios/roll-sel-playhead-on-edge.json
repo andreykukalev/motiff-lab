@@ -1,0 +1,183 @@
+{
+  "id": "roll-sel-playhead-on-edge",
+  "protects": [
+    "SEL-02"
+  ],
+  "says": "In the roll, with the playhead standing on the selection's start edge, the stylus on the playhead's handle in the strip takes the playhead first; the edge is dragged by its own round handle, as on the score.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 960,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "standing at the start of bar 3"
+    },
+    {
+      "wait": 100
+    },
+    {
+      "call": "selection",
+      "with": {
+        "selected": {
+          "start": 960,
+          "end": 2400,
+          "ids": []
+        },
+        "loop": {
+          "start": 960,
+          "end": 2400
+        }
+      },
+      "note": "bars 3 and 4 selected and looping: the playhead stands on the selection's start edge"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "tick": 1440,
+          "y": 0.7
+        }
+      ],
+      "note": "the stylus on the playhead's handle in the strip, dragged right"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "blue"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "blue",
+                  "tick": 1440
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "the playhead (the selection's, blue) is taken first, on to 1440 and let go; the edge does not move (Andrei, 2026-11-18 21:41 UTC, answer 3; until 0.9 the edge moved)"
+      }
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 960,
+        "playing": false,
+        "label": "",
+        "looping": false
+      },
+      "note": "the app's answer: the player stands at the selection's start again"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 960,
+          "y": 0.5
+        },
+        {
+          "tick": 720,
+          "y": 0.5
+        }
+      ],
+      "note": "the stylus on the start edge's own handle, halfway down the notes on the playhead's line, dragged left"
+    },
+    {
+      "expect": {
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "messages": []
+          },
+          {
+            "kinds": [
+              "span",
+              "notes",
+              "range"
+            ],
+            "messages": [
+              {
+                "span": {
+                  "start": 720,
+                  "end": 2400,
+                  "how": "edit"
+                }
+              }
+            ]
+          }
+        ],
+        "note": "the edge's handle moves the edge, on the sixteenth grid (SEL-04); the playhead is not taken"
+      }
+    }
+  ]
+}

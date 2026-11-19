@@ -1,0 +1,367 @@
+{
+  "id": "score-expand-tap",
+  "protects": [
+    "PLAY-01"
+  ],
+  "says": "In «Развернуть» a tap with the stylus or a finger on a bar of the card moves the playhead to the start of the beat tapped (PLAY-05), in the piece's ticks; its handle is dragged either way inside the passage; the card keeps the playhead in view, with room under its last system and about as much over its first.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3120,
+        "end": 14640,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "bars 5–20 selected (music-core's bars 5 to 20), drawn by the app"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3120,
+          "end": 14640
+        },
+        "loop": true
+      }
+    },
+    {
+      "call": "focus",
+      "with": {
+        "open": true,
+        "label": "Passage",
+        "back": "Back"
+      },
+      "note": "«Развернуть» (ScoreController.enterFocus): the page dimmed under an empty card"
+    },
+    {
+      "expect": {
+        "returned": {
+          "options": {
+            "pageWidth": 2295
+          }
+        },
+        "note": "the card is 964 px wide, the width fixture.mjs engraves the card's bars at (cardLayout(964))"
+      }
+    },
+    {
+      "wait": 640,
+      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms) before its bars come, as the app's engraving takes longer: the card reads where its bars are as they come (layoutCard), and read during the lift they are scaled"
+    },
+    {
+      "call": "card",
+      "with": {
+        "pages": "$fixture.card.pages",
+        "timemap": "$fixture.card.timemap",
+        "start": 3120,
+        "ossias": []
+      },
+      "note": "the passage's bars engraved at the card's width (ScoreController.engraveCard)"
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 3120,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the playhead at the passage's start"
+    },
+    {
+      "expect": {
+        "marks": {
+          "card": {
+            "left": 30,
+            "top": 444,
+            "right": 994,
+            "bottom": 914,
+            "inkTop": 82,
+            "inkBottom": 72,
+            "scroll": 0
+          },
+          "grips": [
+            {
+              "handle": "black",
+              "x": 107,
+              "y": 661
+            }
+          ]
+        },
+        "note": "the passage on two systems in the card; only the card's playhead shows, its dot under the first system"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "card": 3,
+          "x": 0.5,
+          "y": 0.5
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap in the middle of the card's third bar (bar 7), and its click"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank",
+            "drag"
+          ],
+          "messages": [
+            {
+              "place": {
+                "start": 4800,
+                "end": 5040
+              }
+            }
+          ]
+        },
+        "note": "once, at the start of the beat under the tap (bar 7's second), in the piece's ticks; nothing selected (finding 2 of the 0.8 test, Andrei's answer 4 of 2026-11-18)"
+      }
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "card": 16,
+          "x": 0.5,
+          "y": 0.5
+        }
+      ],
+      "click": true,
+      "note": "a finger's tap in the middle of the card's last bar (bar 20), on its second system, and its click"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank",
+            "drag"
+          ],
+          "messages": [
+            {
+              "place": {
+                "start": 13920,
+                "end": 14160
+              }
+            }
+          ]
+        },
+        "note": "a finger the same: the start of the beat under it (bar 20's first)"
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 14400,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the playhead in the last bar"
+    },
+    {
+      "expect": {
+        "marks": {
+          "card": {
+            "left": 30,
+            "top": 444,
+            "right": 994,
+            "bottom": 914,
+            "inkTop": 82,
+            "inkBottom": 72,
+            "scroll": 0
+          },
+          "grips": [
+            {
+              "handle": "black",
+              "x": 964,
+              "y": 879
+            }
+          ]
+        },
+        "note": "its dot under the last system stays in the card, which ends 35 px below it: the card keeps 72 px under the last bar's bottom line and 82 over the first bar's top line (finding 3 of the 0.8 test; until 0.9, 36 and 46, and the card ended at 878, above the dot)"
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 4560,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the playhead at bar 7"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "grip": "black",
+          "dx": 60
+        }
+      ],
+      "note": "the card's handle taken with the stylus and dragged right"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "drag",
+            "place"
+          ],
+          "includes": [
+            {
+              "drag": {
+                "phase": "grab",
+                "handle": "blue"
+              }
+            },
+            {
+              "drag": {
+                "phase": "move",
+                "handle": "blue",
+                "tick": 4920
+              }
+            },
+            {
+              "drag": {
+                "phase": "release",
+                "handle": "blue"
+              }
+            }
+          ]
+        },
+        "note": "the passage's playhead taken and moved on the sixteenth grid, in the piece's ticks"
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 4920,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the app's answer to the release: the player stands where it was let go"
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "grip": "black"
+        },
+        {
+          "grip": "black",
+          "dx": -400
+        }
+      ],
+      "note": "the card's handle taken with a finger and dragged left, past the passage's start"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "drag",
+            "place"
+          ],
+          "includes": [
+            {
+              "drag": {
+                "phase": "grab",
+                "handle": "blue"
+              }
+            },
+            {
+              "drag": {
+                "phase": "move",
+                "handle": "blue",
+                "tick": 3120
+              }
+            },
+            {
+              "drag": {
+                "phase": "release",
+                "handle": "blue"
+              }
+            }
+          ]
+        },
+        "note": "a finger the same, either way: held inside the passage, at its start"
+      }
+    }
+  ]
+}
