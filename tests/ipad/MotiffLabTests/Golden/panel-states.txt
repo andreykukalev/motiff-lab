@@ -1,6 +1,7 @@
 # The score screen's panels: what every action comes to, as the screen's reactions ran it before PanelState (v0.7, B2):
 # the present-behaviour table. PanelStateTests runs PanelState against every line; docs/code-map/ipad/workspace.md.
-# Changed since only by the lines that Andrei's answers 9 and 10 (2026-11-17, thread «Версия 0.7») fix.
+# Changed since only by the lines that Andrei's answers 9 and 10 (2026-11-17, thread «Версия 0.7») fix, and by the lines
+# of «Открыть в черновике» on Expand's bar, which left with the bar-by-bar merge (v1.1, ADR 0034 section 8).
 #
 # A section is a start state: its name, then the actions that reach it from a fresh screen, then `=` and the state.
 # A line is an action the screen offers there and the panels render by render: first as the action writes them, then
@@ -14,11 +15,10 @@
 # Actions: open, close; fromMore (Check, Sources or Settings pressed in More); backToMore ("‹ More"); expandFromDrawer
 # (Expand on the roll's drawer); enterFocus notes (Expand from the selection menu); enterFocus (focusRoll kept on) (the
 # same when the card was last shown as a roll); bookmark to Expand (a bookmark's entry in the Contents pressed again);
-# leaveFocus (Back to page, Collapse); focusRoll on, off (Notes | Piano roll on Expand's bar); openDraftFromFocus
-# («Открыть в черновике» on Expand's bar: leaves Expand and opens Sources in one step); backToMore dna (Piece DNA's
-# "‹ More"); assistant open, close.
+# leaveFocus (Back to page, Collapse); focusRoll on, off (Notes | Piano roll on Expand's bar); backToMore dna (Piece
+# DNA's "‹ More"); assistant open, close.
 #
-# 78 sections, 914 lines.
+# 78 sections, 880 lines.
 
 ### nothing: a fresh screen
   = nothing
@@ -604,7 +604,6 @@
   open check                     → check [Expand]
   leaveFocus                     → nothing
   focusRoll on                   → nothing [Expand roll]
-  openDraftFromFocus             → versions → versions {beforeSources=nothing}
   assistant open                 → nothing [Expand] (assistant open)
 
 ### Expand from the drawer: open roll, expandFromDrawer
@@ -612,8 +611,6 @@
   open check                     → check {rollBeforeFocus} [Expand roll]
   leaveFocus                     → nothing {rollBeforeFocus} → roll
   focusRoll off                  → nothing {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
 
 ### Expand from the drawer, as notes: open roll, expandFromDrawer, focusRoll off
@@ -621,8 +618,6 @@
   open check                     → check {rollBeforeFocus} [Expand]
   leaveFocus                     → nothing {rollBeforeFocus} → roll
   focusRoll on                   → nothing {rollBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → nothing {rollBeforeFocus} [Expand] (assistant open)
 
 ### contents, Expand: open contents, enterFocus notes
@@ -630,8 +625,6 @@
   open check                     → check {contentsBeforeFocus} [Expand]
   leaveFocus                     → nothing {contentsBeforeFocus} → contents
   focusRoll on                   → nothing {contentsBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {contentsBeforeFocus} → versions {beforeSources=contents}
   assistant open                 → nothing {contentsBeforeFocus} [Expand] (assistant open)
 
 ### contents, Expand, as a roll: open contents, enterFocus notes, focusRoll on
@@ -639,8 +632,6 @@
   open check                     → check {contentsBeforeFocus} [Expand roll]
   leaveFocus                     → nothing {contentsBeforeFocus} → contents
   focusRoll off                  → nothing {contentsBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {contentsBeforeFocus} → versions {beforeSources=contents}
   assistant open                 → nothing {contentsBeforeFocus} [Expand roll] (assistant open)
 
 ### contents, a bookmark to Expand: open contents, bookmark to Expand
@@ -649,7 +640,6 @@
   # A question for Andrei, kept as it is: the drawer closed itself first, so Back to page does not bring the Contents back.
   leaveFocus                     → nothing
   focusRoll on                   → nothing [Expand roll]
-  openDraftFromFocus             → versions → versions {beforeSources=nothing}
   assistant open                 → nothing [Expand] (assistant open)
 
 ### insights, Expand: open insights, enterFocus notes
@@ -658,7 +648,6 @@
   open check                     → insights+check [Expand] → check [Expand]
   leaveFocus                     → insights
   focusRoll on                   → insights [Expand roll]
-  openDraftFromFocus             → insights+versions → versions {beforeSources=insights}
   assistant open                 → insights [Expand] (assistant open) → nothing [Expand] (assistant open)
 
 ### check, Expand: open check, enterFocus notes
@@ -666,7 +655,6 @@
   open check                     → check [Expand]
   leaveFocus                     → nothing
   focusRoll on                   → nothing [Expand roll]
-  openDraftFromFocus             → versions → versions {beforeSources=nothing}
   assistant open                 → nothing [Expand] (assistant open)
 
 ### versions, Expand: open versions, enterFocus notes
@@ -674,7 +662,6 @@
   open check                     → check [Expand]
   leaveFocus                     → nothing
   focusRoll on                   → nothing [Expand roll]
-  openDraftFromFocus             → versions → versions {beforeSources=nothing}
   assistant open                 → nothing [Expand] (assistant open)
 
 ### settings, Expand: open settings, enterFocus notes
@@ -683,7 +670,6 @@
   close settings                 → nothing [Expand]
   leaveFocus                     → settings
   focusRoll on                   → settings [Expand roll]
-  openDraftFromFocus             → versions+settings → versions+settings {beforeSources=nothing}
   assistant open                 → settings [Expand] (assistant open)
 
 ### roll, Expand as notes: open roll, enterFocus notes
@@ -693,7 +679,6 @@
   expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll]
   leaveFocus                     → roll
   focusRoll on                   → roll [Expand roll] → nothing {rollBeforeFocus} [Expand roll]
-  openDraftFromFocus             → roll+versions → versions {beforeSources=roll}
   assistant open                 → roll [Expand] (assistant open)
 
 ### roll, Expand as a roll: open roll, enterFocus (focusRoll kept on)
@@ -701,8 +686,6 @@
   open check                     → check {rollBeforeFocus} [Expand roll]
   leaveFocus                     → nothing {rollBeforeFocus} → roll
   focusRoll off                  → nothing {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
 
 ### Expand from the drawer, check: open roll, expandFromDrawer, open check
@@ -711,8 +694,6 @@
   close check                    → nothing {rollBeforeFocus} [Expand roll]
   leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
   focusRoll off                  → check {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → check {rollBeforeFocus} [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
 
 ### Expand from the drawer, check from More before it: fromMore check, open roll, expandFromDrawer, open check
@@ -721,8 +702,6 @@
   close check                    → nothing {rollBeforeFocus} [Expand roll]
   leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
   focusRoll off                  → check {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → check {rollBeforeFocus} [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
 
 ### contents, Expand, check: open contents, enterFocus notes, open check
@@ -731,8 +710,6 @@
   close check                    → nothing {contentsBeforeFocus} [Expand]
   leaveFocus                     → check {contentsBeforeFocus} → contents+check → contents
   focusRoll on                   → check {contentsBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions {contentsBeforeFocus} → versions {beforeSources=contents}
   assistant open                 → check {contentsBeforeFocus} [Expand] (assistant open) → nothing {contentsBeforeFocus} [Expand] (assistant open)
 
 ### roll, Expand as notes, check: open roll, enterFocus notes, open check
@@ -741,7 +718,6 @@
   close check                    → nothing [Expand]
   leaveFocus                     → check
   focusRoll on                   → check [Expand roll]
-  openDraftFromFocus             → check+versions → versions {beforeSources=nothing}
   assistant open                 → check [Expand] (assistant open) → nothing [Expand] (assistant open)
 
 ### nothing (no Sources): a fresh screen
@@ -803,8 +779,6 @@
   open check                     → check {rollBeforeFocus} [Expand roll]
   leaveFocus                     → nothing {rollBeforeFocus} → roll
   focusRoll off                  → nothing {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → versions {rollBeforeFocus} → versions
   assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
 
 # Further start states, so that the table has every kind of change the reachable states have: which of the rules'
@@ -974,7 +948,6 @@
   close settings                 → insights [Expand roll]
   leaveFocus                     → insights+settings
   focusRoll off                  → insights+settings [Expand]
-  openDraftFromFocus             → insights+versions+settings → versions+settings {beforeSources=insights}
   assistant open                 → insights+settings [Expand roll] (assistant open) → settings [Expand roll] (assistant open)
 
 ### settings [Expand roll]: open settings, enterFocus (focusRoll kept on)
@@ -983,7 +956,6 @@
   close settings                 → nothing [Expand roll]
   leaveFocus                     → settings
   focusRoll off                  → settings [Expand]
-  openDraftFromFocus             → versions+settings → versions+settings {beforeSources=nothing}
   assistant open                 → settings [Expand roll] (assistant open)
 
 ### roll+settings [Expand]: open roll, open settings, enterFocus notes
@@ -994,7 +966,6 @@
   expandFromDrawer               → settings {rollBeforeFocus} [Expand roll]
   leaveFocus                     → roll+settings
   focusRoll on                   → roll+settings [Expand roll] → settings {rollBeforeFocus} [Expand roll]
-  openDraftFromFocus             → roll+versions+settings → versions+settings {beforeSources=roll}
   assistant open                 → roll+settings [Expand] (assistant open)
 
 ### roll [Expand] (assistant open): open roll, enterFocus notes, assistant open
@@ -1004,7 +975,6 @@
   expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll] (assistant open)
   leaveFocus                     → roll (assistant open)
   focusRoll on                   → roll [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
-  openDraftFromFocus             → roll+versions (assistant open) → versions {beforeSources=roll}
   assistant close                → roll [Expand]
 
 ### roll+settings [Expand] (assistant open): open roll, open settings, enterFocus notes, assistant open
@@ -1015,7 +985,6 @@
   expandFromDrawer               → settings {rollBeforeFocus} [Expand roll] (assistant open)
   leaveFocus                     → roll+settings (assistant open)
   focusRoll on                   → roll+settings [Expand roll] (assistant open) → settings {rollBeforeFocus} [Expand roll] (assistant open)
-  openDraftFromFocus             → roll+versions+settings (assistant open) → versions+settings {beforeSources=roll}
   assistant close                → roll+settings [Expand]
 
 ### insights [Expand roll]: open insights, enterFocus (focusRoll kept on)
@@ -1024,7 +993,6 @@
   open check                     → insights+check [Expand roll] → check [Expand roll]
   leaveFocus                     → insights
   focusRoll off                  → insights [Expand]
-  openDraftFromFocus             → insights+versions → versions {beforeSources=insights}
   assistant open                 → insights [Expand roll] (assistant open) → nothing [Expand roll] (assistant open)
 
 ### nothing [Expand] (assistant open): enterFocus notes, assistant open
@@ -1032,7 +1000,6 @@
   open check                     → check [Expand] (assistant open) → check [Expand]
   leaveFocus                     → nothing (assistant open)
   focusRoll on                   → nothing [Expand roll] (assistant open)
-  openDraftFromFocus             → versions (assistant open) → versions {beforeSources=nothing}
   assistant close                → nothing [Expand]
 
 ### nothing [Expand roll] (assistant open): enterFocus (focusRoll kept on), assistant open
@@ -1040,7 +1007,6 @@
   open check                     → check [Expand roll] (assistant open) → check [Expand roll]
   leaveFocus                     → nothing (assistant open)
   focusRoll off                  → nothing [Expand] (assistant open)
-  openDraftFromFocus             → versions (assistant open) → versions {beforeSources=nothing}
   assistant close                → nothing [Expand roll]
 
 ### versions+settings {fromMore=settings, beforeSources=roll}: open roll, open versions, fromMore settings
@@ -1097,7 +1063,6 @@
   close settings                 → insights [Expand]
   leaveFocus                     → insights+settings
   focusRoll on                   → insights+settings [Expand roll]
-  openDraftFromFocus             → insights+versions+settings → versions+settings {beforeSources=insights}
   assistant open                 → insights+settings [Expand] (assistant open) → settings [Expand] (assistant open)
 
 ### versions+settings {fromMore=settings, beforeSources=contents}: open contents, open versions, fromMore settings
@@ -1129,8 +1094,6 @@
   close check                    → nothing {contentsBeforeFocus} [Expand roll]
   leaveFocus                     → check {contentsBeforeFocus} → contents+check → contents
   focusRoll off                  → check {contentsBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions {contentsBeforeFocus} → versions {beforeSources=contents}
   assistant open                 → check {contentsBeforeFocus} [Expand roll] (assistant open) → nothing {contentsBeforeFocus} [Expand roll] (assistant open)
 
 ### settings [Expand] (assistant open): open settings, enterFocus notes, assistant open
@@ -1139,7 +1102,6 @@
   close settings                 → nothing [Expand] (assistant open)
   leaveFocus                     → settings (assistant open)
   focusRoll on                   → settings [Expand roll] (assistant open)
-  openDraftFromFocus             → versions+settings (assistant open) → versions+settings {beforeSources=nothing}
   assistant close                → settings [Expand]
 
 ### settings [Expand roll] (assistant open): open settings, enterFocus (focusRoll kept on), assistant open
@@ -1148,7 +1110,6 @@
   close settings                 → nothing [Expand roll] (assistant open)
   leaveFocus                     → settings (assistant open)
   focusRoll off                  → settings [Expand] (assistant open)
-  openDraftFromFocus             → versions+settings (assistant open) → versions+settings {beforeSources=nothing}
   assistant close                → settings [Expand roll]
 
 ### check+settings {rollBeforeFocus} [Expand roll]: open roll, open settings, expandFromDrawer, open check
@@ -1158,8 +1119,6 @@
   close settings                 → check {rollBeforeFocus} [Expand roll]
   leaveFocus                     → check+settings {rollBeforeFocus} → roll+check+settings → roll+settings
   focusRoll off                  → check+settings {rollBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions+settings {rollBeforeFocus} → versions+settings {beforeSources=roll}
   assistant open                 → check+settings {rollBeforeFocus} [Expand roll] (assistant open) → settings {rollBeforeFocus} [Expand roll] (assistant open)
 
 ### check {rollBeforeFocus} [Expand]: open roll, expandFromDrawer, open check, focusRoll off
@@ -1168,8 +1127,6 @@
   close check                    → nothing {rollBeforeFocus} [Expand]
   leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
   focusRoll on                   → check {rollBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
   assistant open                 → check {rollBeforeFocus} [Expand] (assistant open) → nothing {rollBeforeFocus} [Expand] (assistant open)
 
 ### check+settings {contentsBeforeFocus} [Expand]: open contents, open settings, enterFocus notes, open check
@@ -1179,8 +1136,6 @@
   close settings                 → check {contentsBeforeFocus} [Expand]
   leaveFocus                     → check+settings {contentsBeforeFocus} → contents+check+settings → contents+settings
   focusRoll on                   → check+settings {contentsBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions+settings {contentsBeforeFocus} → versions+settings {beforeSources=contents}
   assistant open                 → check+settings {contentsBeforeFocus} [Expand] (assistant open) → settings {contentsBeforeFocus} [Expand] (assistant open)
 
 ### check+settings {contentsBeforeFocus} [Expand roll]: open contents, open settings, enterFocus (focusRoll kept on), open check
@@ -1190,8 +1145,6 @@
   close settings                 → check {contentsBeforeFocus} [Expand roll]
   leaveFocus                     → check+settings {contentsBeforeFocus} → contents+check+settings → contents+settings
   focusRoll off                  → check+settings {contentsBeforeFocus} [Expand]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions+settings {contentsBeforeFocus} → versions+settings {beforeSources=contents}
   assistant open                 → check+settings {contentsBeforeFocus} [Expand roll] (assistant open) → settings {contentsBeforeFocus} [Expand roll] (assistant open)
 
 ### check+settings {rollBeforeFocus} [Expand]: open roll, open settings, expandFromDrawer, open check, focusRoll off
@@ -1201,6 +1154,4 @@
   close settings                 → check {rollBeforeFocus} [Expand]
   leaveFocus                     → check+settings {rollBeforeFocus} → roll+check+settings → roll+settings
   focusRoll on                   → check+settings {rollBeforeFocus} [Expand roll]
-  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
-  openDraftFromFocus             → check+versions+settings {rollBeforeFocus} → versions+settings {beforeSources=roll}
   assistant open                 → check+settings {rollBeforeFocus} [Expand] (assistant open) → settings {rollBeforeFocus} [Expand] (assistant open)

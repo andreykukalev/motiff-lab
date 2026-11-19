@@ -251,16 +251,33 @@ final class SourcesController: ObservableObject {
     /// back as it was.
     func remove(_ original: SourceLayers.Original, withNotes: Bool) async {
         guard let before = await snapshot() else { return }
+        let versions = versionIds
         guard await change("sources.original.remove", ["id": original.id, "withNotes": withNotes, "now": Self.now()]) != nil else { return }
         if performance == original.id { performance = nil }
-        toast = SourcesToast(text: text[withNotes ? "sources.sheet.toastGoneWith" : "sources.sheet.toastGone"], undo: .restore(before))
+        await removed(SourcesToast(text: text[withNotes ? "sources.sheet.toastGoneWith" : "sources.sheet.toastGone"], undo: .restore(before)), versions: versions)
     }
 
     /// «Удалить ноты…»: the Notes and their corrections; the original stays.
     func remove(_ notes: SourceLayers.Notes) async {
         guard let before = await snapshot() else { return }
+        let versions = versionIds
         guard await change("sources.notes.remove", ["id": notes.id]) != nil else { return }
-        toast = SourcesToast(text: text["sources.sheet.toastNotesGone"], undo: .restore(before))
+        await removed(SourcesToast(text: text["sources.sheet.toastNotesGone"], undo: .restore(before)), versions: versions)
+    }
+
+    /// The versions among the Notes, by id.
+    private var versionIds: Set<String> { Set(layers.notes.filter { $0.role == "version" }.map(\.id)) }
+
+    /// A removal done, its toast shown. When a version went with it (one of `versions`, the ones there were), its markers
+    /// and the bars taken from it leave the score, which music-core's open notes still hold: the piece opens again in its
+    /// place from the file just saved (`reopen`, as «Сделать рабочими»), the toast with its Undo on the next screen.
+    private func removed(_ done: SourcesToast, versions: Set<String>) async {
+        guard !versions.isSubset(of: versionIds), let file, let reopen else {
+            toast = done
+            return
+        }
+        SourcesHandover.give(done, to: file)
+        await reopen()
     }
 
     /// Whether the original can be recognised here, on a piece with working notes: a PDF or photos whose bytes are kept in

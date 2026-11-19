@@ -92,10 +92,6 @@ final class PanelStateTests: XCTestCase {
                 focusRoll = true
             case "focusRoll off":
                 focusRoll = false
-            case "openDraftFromFocus":
-                // ScoreController.openDraftFromFocus: leaveFocus(), then openDraft(at:), which asks for Sources.
-                focused = false
-                panels = panels.asked(.open(.versions))
             case "assistant open":
                 assistant = true
             case "assistant close":
@@ -200,7 +196,7 @@ final class PanelStateTests: XCTestCase {
                 lines += 1
             }
         }
-        XCTAssertEqual(lines, 914, "every line of the table is run")
+        XCTAssertEqual(lines, 880, "every line of the table is run")
     }
 
     func testAFreshScreenHasNothingOpen() {

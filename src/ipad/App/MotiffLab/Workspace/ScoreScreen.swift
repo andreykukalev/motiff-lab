@@ -77,9 +77,8 @@ struct ScoreScreenContent: View {
     @State private var dnaFromMore = false
     @ObservedObject private var originals: OriginalsController
     @ObservedObject private var sources: SourcesController
-    /// The other versions and the merge draft, which the score's marker, toast, switch, window and Sources show.
+    /// The other versions, which the score's marker and Sources show.
     @ObservedObject private var sourcesModel: SourcesModel
-    @ObservedObject private var mergeModel: MergeModel
     /// The selection and Expand, which the score's menu, pill, bars, reactions and assistant show.
     @ObservedObject private var selectionModel: SelectionModel
     @ObservedObject private var focusModel: FocusModel
@@ -103,7 +102,6 @@ struct ScoreScreenContent: View {
         _originals = ObservedObject(wrappedValue: workspace.originals)
         _sources = ObservedObject(wrappedValue: workspace.sources)
         _sourcesModel = ObservedObject(wrappedValue: workspace.score.sourcesModel)
-        _mergeModel = ObservedObject(wrappedValue: workspace.score.mergeModel)
         _selectionModel = ObservedObject(wrappedValue: workspace.score.selectionModel)
         _focusModel = ObservedObject(wrappedValue: workspace.score.focusModel)
         _penModel = ObservedObject(wrappedValue: workspace.score.penModel)
@@ -297,7 +295,7 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
                 // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
-                if let pick = mergeModel.markerPick, !focusModel.focused {
+                if let pick = sourcesModel.markerPick, !focusModel.focused {
                     GeometryReader { area in
                         ZStack(alignment: .topLeading) {
                             Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
@@ -314,18 +312,11 @@ struct ScoreScreenContent: View {
                         .padding(.bottom, pillBottom + 56)
                         .padding(.trailing, pillTrailing)
                         .transition(.opacity)
-                } else if let toast = mergeModel.toast {
-                    MergeToastView(score: score, text: text, toast: toast)
-                        .padding(.bottom, pillBottom + 56)
-                        .transition(.opacity)
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text, merging: mergeModel.draft != nil).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
-            }
-            .fullScreenCover(isPresented: Binding(get: { mergeModel.comparing }, set: { mergeModel.compare($0) })) {
-                CompareVersionsScreen(score: score, mergeModel: mergeModel, text: text)
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -351,10 +342,6 @@ struct ScoreScreenContent: View {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions, penOn: penModel.penOn,
                                     marksHidden: !marksModel.hiddenLayers.isDisjoint(with: MarksModel.layers))
-                    }
-                    if mergeModel.draft != nil && !focusModel.focused && !mergeModel.comparing {
-                        MergeShowSwitch(score: score, mergeModel: mergeModel, text: text)
-                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-4"))
@@ -551,7 +538,6 @@ extension ScoreScreenContent {
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
-            versionPage: SourcesSheet.versionPage(sourcesModel),
             versionStatus: sourcesModel.status
         )
     }
@@ -1301,11 +1287,6 @@ struct FocusBar: View {
             Spacer(minLength: CGFloat.ds("s-2"))
             if player.hasVariation, let variationRange {
                 HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? focusModel.version?.name : nil)
-            }
-            if focusModel.version != nil, !player.hasVariation || player.secondIsVersion {
-                // The way into the merge draft for this phrase (testing item 32); bars are no longer taken here.
-                Button(text["merge.openDraft"]) { score.openDraftFromFocus() }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
                 // The assistant's panel opens on the phrase in focus (#582 item 17.1).

@@ -67,7 +67,6 @@ const NOT_TEXT = [
     [/\.(?:json|musicxml)$/, "a file name"],
     [/^com\./, "a bundle or file provider id"],
     [/^harmony\.(?:chords|motion)$/, "a music-core fact id"],
-    [/^g\.note$/, "a selector in the score page's script"],
     [/^pdf\.screen$/, "a SwiftUI coordinate space"],
 ];
 /** An id listed as no text, unless the app also looks it up as a text (`lookedUp`), whatever else it coincides with. */
@@ -186,7 +185,7 @@ for (const file of swiftFiles) {
 
 test("every key-shaped literal of the iPad app is a text in English and in Russian, or an id listed as no text", () => {
     assert.ok(named.size > 1000, `only ${named.size} literals found: the pattern no longer matches`);
-    assert.ok(lookedUp.size > 1000, `only ${lookedUp.size} literals looked up as texts found: the pattern no longer matches`);
+    assert.ok(lookedUp.size > 900, `only ${lookedUp.size} literals looked up as texts found: the pattern no longer matches`);
     const missing = [...named].filter(([key]) => !isText(key) && !notText(key)).map(([key, file]) => `${key} (${file})`);
     assert.deepEqual(missing, [], "add these texts to <Folder>/Words/<Folder>.{en,ru}.json or wwwroot/i18n, or list the id in NOT_TEXT");
     // Every exception still names something, so the list does not keep ids the app no longer has.

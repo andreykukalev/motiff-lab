@@ -289,19 +289,17 @@ extension View {
 
 /// After a clear or a replace, «Выделение снято · Вернуть» for six seconds (#511 11): one tap brings the selection back,
 /// with any pointer; no Redo here. While a pointer that cannot scroll moves off the selection before the hold, the hint
-/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there but while a
-/// merge draft is open (`merging`): the draft has its own.
+/// to hold. Nothing when there is nothing to take back. It holds ⌘Z and ⇧⌘Z too, which are always there.
 struct SelectionToastView: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
     /// Whether Expand is open, from the screen that observes it (Selection may not name FocusModel): no toast then.
     let focused: Bool
     let text: UIText
-    let merging: Bool
 
     var body: some View {
         ZStack {
-            if !merging { UndoKeys(score: score) }
+            UndoKeys(score: score)
             if let notice = score.notice {
                 // A word of guidance, such as why Expand waits for a selection (#521 19.1).
                 Text(text[notice.key]).dsType(.label).foregroundStyle(Color.ds("ink")).modifier(ToastSurface())
