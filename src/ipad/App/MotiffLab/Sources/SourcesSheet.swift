@@ -8,7 +8,9 @@ import UniformTypeIdentifiers
 /// recognising it («+ Добавить», «+ Добавить ещё»: a PDF, photos, a recording, MIDI or MusicXML), recognised («Распознать»,
 /// «Распознать ещё раз») into new Notes beside the ones there are, and deleted with or without its notes, which the toast
 /// undoes; a deleted original stays as a row that takes the same file back. Other Notes become the working ones from ⋯.
-/// A version's «Открыть» shows its page here, as Other versions did (0022).
+/// A version's «Открыть» shows its page here, as Other versions did (0022). The rows are in `SourcesRows.swift`,
+/// «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this file is the sheet,
+/// its header and add menu, and picking files.
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
     /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
@@ -44,6 +46,7 @@ struct SourcesSheet: View {
     @State private var camera = false
     /// The original whose recognise panel is open.
     @State private var recognising: String?
+    /// Why an original was not recognised, by its id, under its row.
     @State private var problems: [String: String] = [:]
     @State private var deleting: SourceLayers.Original?
     @State private var deletingNotes: SourceLayers.Notes?
@@ -93,40 +96,7 @@ struct SourcesSheet: View {
             }
             .ignoresSafeArea()
         }
-        .sheet(item: $deleting) { original in
-            DeleteOriginalDialog(layers: layers, original: original, text: text) { withNotes in
-                deleting = nil
-                Task { await sources.remove(original, withNotes: withNotes) }
-            } cancel: {
-                deleting = nil
-            }
-            .fittedSheet()
-        }
-        .confirmationDialog(
-            deletingNotes.map { text.format("sources.sheet.deleteNotesTitle", layers.title(of: $0, text)) } ?? "",
-            isPresented: Binding(get: { deletingNotes != nil }, set: { if !$0 { deletingNotes = nil } }),
-            titleVisibility: .visible,
-            presenting: deletingNotes
-        ) { notes in
-            Button(text["sources.sheet.deleteNotesButton"], role: .destructive) { Task { await sources.remove(notes) } }
-            Button(text["common.cancel"], role: .cancel) {}
-        } message: { _ in
-            Text(text["sources.sheet.deleteNotesLine"])
-        }
-        .confirmationDialog(
-            text["originals.linkOrCopy"],
-            isPresented: Binding(get: { originals.choice != nil }, set: { if !$0 { originals.choice = nil } }),
-            titleVisibility: .visible,
-            presenting: originals.choice
-        ) { picked in
-            if picked.bookmark != nil {
-                Button(text["originals.keepWhere"]) { Task { await originals.keepLink(picked); await sources.refresh() } }
-            }
-            Button(text["originals.copyToIpad"]) { Task { await originals.keepCopy(picked); await sources.refresh() } }
-            Button(text["common.cancel"], role: .cancel) {}
-        } message: { _ in
-            Text(text["originals.linkOrCopyHint"])
-        }
+        .modifier(SourcesDialogs(sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes))
         .onAppear {
             versionName = versionPage?.name ?? ""
             Task {
@@ -209,258 +179,35 @@ struct SourcesSheet: View {
 
     @ViewBuilder private var list: some View {
         if let status = sources.status {
-            caption(status, colour: "danger").padding(.bottom, CGFloat.ds("s-2"))
+            SourcesCaption(words: status, colour: "danger").padding(.bottom, CGFloat.ds("s-2"))
         }
         sectionHead(text.format("sources.sheet.originalsCount", String(layers.liveCount)))
             .padding(.top, CGFloat.ds("s-2"))
             .padding(.bottom, CGFloat.ds("s-2"))
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            ForEach(layers.groups) { group in groupBox(group) }
+            ForEach(layers.groups) { group in
+                SourcesGroupCard(sources: sources, originals: originals, group: group, row: row, recognising: $recognising, problems: $problems)
+            }
         }
         if !layers.looseNotes.isEmpty {
             sectionHead(text.format("sources.sheet.looseNotesCount", String(layers.looseNotes.count)))
                 .padding(.top, CGFloat.ds("s-5"))
             ForEach(layers.looseNotes) { notes in
-                notesRow(notes)
+                SourcesNotesRow(sources: sources, notes: notes, row: row)
                 Divider().overlay(Color.ds("hairline"))
             }
         }
         if let status = versionStatus {
-            caption(status, colour: "ink-2").padding(.top, CGFloat.ds("s-3"))
+            SourcesCaption(words: status, colour: "ink-2").padding(.top, CGFloat.ds("s-3"))
         }
     }
 
-    private func view(_ id: String) -> SourceLayers.ViewEntry? { layers.views.first { $0.id == id } }
-
-    private func isCurrent(_ id: String) -> Bool { id == (current ?? layers.working) }
-
-    /// An original and the Notes made from it, together in one card, the Notes under it, set in (Andrei, v0.8 finding 19).
-    private func groupBox(_ group: SourceLayers.Group) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            originalRow(group.original)
-            ForEach(group.notes) { notes in
-                Divider().overlay(Color.ds("hairline"))
-                notesRow(notes, underOriginal: true).padding(.leading, CGFloat.ds("s-6"))
-            }
-        }
-        .padding(CGFloat.ds("s-1"))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: - An original's row
-
-    private func originalRow(_ original: SourceLayers.Original) -> some View {
-        let entry = originals.originals.first { $0.id == original.id }
-        let badge = entry.map { originals.badge($0) }
-        let shownView = original.isRemoved ? nil : view(original.id)
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            rowHead(
-                icon: SourceLayers.pictogram(kind: original.kind), iconLabel: nil, title: original.shown, removed: original.isRemoved,
-                eye: shownView.map { (id: $0.id, hidden: $0.hidden) }, opens: shownView.flatMap { isCurrent($0.id) ? nil : $0 },
-                menu: original.isRemoved ? nil : AnyView(originalMenu(original))
-            )
-            Text(SourceLayers.caption(of: original, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-            if original.isRemoved {
-                caption(text["sources.sheet.gone"], colour: "ink-3")
-                Button(text["sources.sheet.addSame"]) { pick(.same(original)) }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-            } else if badge == .changed {
-                caption(text["originals.changed"], colour: "warning")
-                relink(original)
-            } else if !original.isHere, let badge {
-                OriginalPlaceLabel(label: badge.text(text), badge: badge)
-                if entry?.isDocument == true { relink(original) }
-            } else if !original.isHere {
-                OriginalPlaceLabel(label: text["originals.nowhere"], badge: .nowhere)
-            }
-            if canRecognise(original) && original.notes.isEmpty && recognising != original.id {
-                Button { recognising = original.id } label: {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Text(text["sources.sheet.recognise"])
-                        if hosted { ProTag() }
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-            }
-            if recognising == original.id {
-                recognisePanel(original)
-            }
-            if let problem = problems[original.id] {
-                caption(problem, colour: "danger")
-            }
-        }
-        .padding(.vertical, CGFloat.ds("s-3"))
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .background(rowBackground(current: shownView.map { isCurrent($0.id) } ?? false, fresh: false))
-    }
-
-    /// The pages can go to the scan server: a PDF or photos whose bytes are kept in the piece here.
-    private func canRecognise(_ original: SourceLayers.Original) -> Bool {
-        original.isPages && original.isHere && original.kept == "file" && layers.working != nil
-    }
-
-    private func relink(_ original: SourceLayers.Original) -> some View {
-        Button(text["originals.relink"]) { pick(.relink(original.id)) }
-            .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-            .disabled(originals.loading != nil)
-            .accessibilityHint(text["originals.relinkHintIpad"])
-    }
-
-    /// ⋯ on an original: «Распознать ещё раз» (Pro), a divider, «Удалить…».
-    @ViewBuilder private func originalMenu(_ original: SourceLayers.Original) -> some View {
-        if canRecognise(original) && !original.notes.isEmpty {
-            Button { recognising = original.id } label: {
-                Label(hosted ? text["sources.sheet.recogniseAgain"] + " · Pro" : text["sources.sheet.recogniseAgain"], image: "ic-recheck")
-            }
-            Divider()
-        }
-        Button(role: .destructive) { deleting = original } label: {
-            Label(text["sources.sheet.delete"], image: "ic-trash")
-        }
-    }
-
-    // MARK: - Notes' row
-
-    private func notesRow(_ notes: SourceLayers.Notes, underOriginal: Bool = false) -> some View {
-        let shownView = view(notes.id)
-        let current = isCurrent(notes.id)
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            rowHead(
-                icon: SourceLayers.pictogram(op: notes.op), iconLabel: SourceLayers.operationName(notes.op, text),
-                title: layers.title(of: notes, text, underOriginal: underOriginal), removed: false,
-                eye: notes.isWorking ? nil : shownView.map { (id: $0.id, hidden: $0.hidden) },
-                opens: current ? nil : shownView,
-                menu: notes.isWorking ? nil : AnyView(notesMenu(notes))
-            )
-            HStack(spacing: CGFloat.ds("s-2")) {
-                if notes.isWorking { WorkingTag(text: text) }
-                Text(SourceLayers.caption(of: notes, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-            }
-            switch notes.state ?? "" {
-            case "fileChanged": caption(text["originals.changed"], colour: "warning")
-            case "removed": caption(text["sources.sheet.goneShort"], colour: "ink-2")
-            default: EmptyView()
-            }
-        }
-        .padding(.vertical, CGFloat.ds("s-3"))
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .background(rowBackground(current: current, fresh: sources.fresh == notes.id))
-    }
-
-    /// ⋯ on Notes: «Сделать рабочими», a divider, «Удалить ноты…».
-    @ViewBuilder private func notesMenu(_ notes: SourceLayers.Notes) -> some View {
-        if notes.canMakeWorking {
-            Button { Task { await sources.makeWorking(notes) } } label: {
-                Label(text["sources.sheet.makeWorking"], image: "ic-check")
-            }
-            Divider()
-        }
-        Button(role: .destructive) { deletingNotes = notes } label: {
-            Label(text["sources.sheet.deleteNotes"], image: "ic-trash")
-        }
-    }
-
-    // MARK: - Parts of a row
-
-    /// The title line: the pictogram, the name in Body-strong on as many lines as it takes, then the eye, «Открыть» and ⋯.
-    private func rowHead(icon: String, iconLabel: String?, title: String, removed: Bool, eye: (id: String, hidden: Bool)?, opens: SourceLayers.ViewEntry?, menu: AnyView?) -> some View {
-        HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
-            Image("ic-\(icon)")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: CGFloat.ds("icon-m"), height: CGFloat.ds("icon-m"))
-                .foregroundStyle(Color.ds(removed ? "ink-3" : "ink-2"))
-                .padding(.top, 2)
-                .accessibilityLabel(iconLabel ?? "")
-                .accessibilityHidden(iconLabel == nil)
-            Text(title)
-                .dsType(.bodyStrong)
-                .foregroundStyle(Color.ds(removed ? "ink-3" : "ink"))
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if let eye {
-                Button { Task { await sources.setHidden(eye.id, !eye.hidden) } } label: {
-                    Icon(name: eye.hidden ? "eyeoff" : "eye")
-                        .foregroundStyle(Color.ds(eye.hidden ? "ink-3" : "ink-2"))
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(BarActionStyle())
-                .accessibilityLabel(text["sources.sheet.showInSwitch"])
-                .accessibilityAddTraits(eye.hidden ? [] : .isSelected)
-            }
-            if let opens {
-                Button(text["home.open"]) { open(opens) }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-            }
-            if let menu {
-                Menu { menu } label: {
-                    Icon(name: "more").frame(width: 32, height: 32)
-                }
-                .buttonStyle(BarActionStyle())
-                .accessibilityLabel(text.format("sources.sheet.more", title))
-            }
-        }
-    }
-
-    private func rowBackground(current: Bool, fresh: Bool) -> some View {
-        RoundedRectangle(cornerRadius: CGFloat.ds("r-s"))
-            .fill(current ? Color.ds("accent-tint") : fresh ? Color.ds("surface-2") : Color.clear)
-            .overlay {
-                if fresh && !current { RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")) }
-            }
-    }
-
-    /// «Распознать ноты» under the row: where the pages go, then Send (the player's yes) and Cancel; recognised again,
-    /// the notes there are and their corrections stay beside.
-    private func recognisePanel(_ original: SourceLayers.Original) -> some View {
-        let pages = max(1, original.pages ?? 1)
-        let earlier = original.notes.compactMap { layers.notes($0) }.last
-        let busy = sources.reading == original.id
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Text(text[earlier == nil ? "sources.sheet.readHeading" : "sources.sheet.recogniseAgain"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
-                if hosted { ProTag() }
-            }
-            if let address = scanAddress {
-                if hosted && account.player == nil {
-                    caption(text["scan.signInPrompt"], colour: "ink-2")
-                } else if hosted && !account.allows(.scan) {
-                    caption(text["scan.proPrompt"], colour: "ink-2")
-                } else {
-                    caption(hosted
-                        ? SourceLayers.counted("sources.sheet.readHosted", pages, text: text)
-                        : SourceLayers.counted("sources.sheet.readOwn", pages, address.absoluteString, text: text), colour: "ink-2")
-                    if let earlier {
-                        caption(text.format("sources.sheet.readKeeps", earlier.at.map { SourceLayers.shortDate($0, text) } ?? "", text.count("sources.sheet.edits", earlier.edits)), colour: "ink-2")
-                    }
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Button(busy ? text["import.scanBusy"] : SourceLayers.counted("sources.sheet.send", pages, text: text)) {
-                            Task {
-                                problems[original.id] = nil
-                                if let problem = await sources.recognise(original, address: address, account: account) {
-                                    problems[original.id] = problem
-                                } else {
-                                    recognising = nil
-                                }
-                            }
-                        }
-                        .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-                        .disabled(busy)
-                        Button(text["common.cancel"]) { recognising = nil }
-                            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                            .disabled(busy)
-                    }
-                }
-            } else {
-                caption(text["pdf.readNone"], colour: "ink-2")
-            }
-        }
-        .padding(CGFloat.ds("s-3"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+    /// What the rows take from the sheet: the view shown now, where recognising goes, and their buttons' actions here.
+    private var row: SourcesRow {
+        SourcesRow(
+            text: text, current: current, address: scanAddress, hosted: hosted, open: open, pick: pick,
+            delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 }
+        )
     }
 
     /// «Оригиналы · 4», «Ноты без оригинала · 1»: the overline in the second ink, as the web's sheet has it.
@@ -471,13 +218,6 @@ struct SourcesSheet: View {
             .tracking(0.66)
             .foregroundStyle(Color.ds("ink-2"))
             .accessibilityAddTraits(.isHeader)
-    }
-
-    private func caption(_ words: String, colour: String) -> some View {
-        Text(words)
-            .dsType(.caption)
-            .foregroundStyle(Color.ds(colour))
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Picking files

@@ -73,6 +73,30 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(en[SourcesSheet.addWord(liveOriginals: 1)], "Add more")
     }
 
+    /// The Sources sheet offers «Распознать» for the pages kept in the piece here, on a piece with working notes: a PDF or
+    /// photos, never a recording, a linked or a deleted PDF, nor anything on a piece that is only its PDF (v0.10 s-1 pins
+    /// what the sheet's rule was before it moved to `SourcesController.canRecognise`).
+    @MainActor
+    func testOnlyPagesKeptInThePieceHereAreRecognised() {
+        func source(_ kind: String, state: String = "here", kept: String = "file") -> SourceLayers.Original {
+            SourceLayers.Original(
+                id: "src_\(kind)", kind: kind, shown: kind, fileName: kind, state: state, removedAt: nil, kept: kept,
+                pages: 2, durationMs: nil, hidden: false, notes: [], pageMarks: 0
+            )
+        }
+        var layers = SourceLayers()
+        layers.working = "n_1"
+        let sources = SourcesController(layers: layers)
+        XCTAssertTrue(sources.canRecognise(source("pdf")))
+        XCTAssertTrue(sources.canRecognise(source("images")))
+        XCTAssertFalse(sources.canRecognise(source("audio", kept: "device")), "a recording is not recognised yet")
+        XCTAssertFalse(sources.canRecognise(source("musicxml")))
+        XCTAssertFalse(sources.canRecognise(source("pdf", kept: "link")), "only bytes kept in the piece go")
+        XCTAssertFalse(sources.canRecognise(source("pdf", state: "onAnotherDevice")))
+        XCTAssertFalse(sources.canRecognise(source("pdf", state: "removed")))
+        XCTAssertFalse(SourcesController().canRecognise(source("pdf")), "a piece that is only its PDF has no notes to add to")
+    }
+
     func testTheLibraryLineNamesTheFirstOriginalNotHere() {
         let ru = UIText(language: "ru")
         let away = OriginalAway.of([original(held: ["web"])]) { _ in nil }
