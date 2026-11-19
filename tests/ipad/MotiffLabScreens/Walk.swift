@@ -171,9 +171,20 @@ final class Walk {
         app.buttons.matching(identifier: id).firstMatch
     }
 
-    /// More in the bar, on the score and on a PDF (the roll drawer's own More is `ml-screens-roll-more`).
+    /// More in the bar, on the score and on a PDF (the roll drawer's own More is `ml-screens-roll-more`, the pill's
+    /// «⋯» while it has no room `ml-pill-more`).
     var more: XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND identifier != 'ml-screens-roll-more'")).firstMatch
+        app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND NOT (identifier IN %@)", ["ml-screens-roll-more", "ml-pill-more"])).firstMatch
+    }
+
+    /// The piano roll in the pill: on it while it has room, else in its «⋯» (finding 22), which this opens.
+    func pillRoll() -> XCUIElement {
+        let roll = button("Фортепианный ролл")
+        let more = button(id: "ml-pill-more")
+        if !roll.exists && more.exists {
+            more.tap()
+        }
+        return roll
     }
 
     /// The piece's title in the bar, which opens the Contents.

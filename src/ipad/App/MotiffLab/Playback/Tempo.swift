@@ -93,11 +93,14 @@ struct TempoReading: Equatable, Sendable {
 
     /// The piece tempo (#521 section 12), the one source of truth the score's mark shows: "♩ = 92" from the notes, the
     /// player or the default, "♩ ≈ 92" from a recording, "♩ ?" for a recording's own clock. Playback pace never changes it.
-    var pieceText: String {
+    var pieceText: String { pieceText(beats: String(startBeats)) }
+
+    /// The piece tempo as `pieceText` writes it, with `beats` for its number: «888» for the widest it can read.
+    func pieceText(beats: String) -> String {
         switch source {
         case "assumed": return "\(note) ?"
-        case "inferred": return "\(note) ≈ \(startBeats)"
-        default: return "\(note) = \(startBeats)"
+        case "inferred": return "\(note) ≈ \(beats)"
+        default: return "\(note) = \(beats)"
         }
     }
 
@@ -187,7 +190,14 @@ struct TempoControl: View, Equatable {
         } label: {
             HStack(spacing: 6) {
                 Icon(name: "tempo")
-                Text(label).monospacedDigit()
+                // The widest it can read, «♩ = 888 · 888 %», holds the width, as the place's «888.88» does: a pace or a tempo
+                // set in its popover never changes the pill's size, so the pill keeps its room and the popover stays.
+                Text(verbatim: widest)
+                    .monospacedDigit()
+                    .hidden()
+                    .overlay(alignment: .leading) {
+                        Text(label).monospacedDigit()
+                    }
             }
         }
         .buttonStyle(DSItemStyle(on: open || tempo.percent != 100))
@@ -197,6 +207,11 @@ struct TempoControl: View, Equatable {
 
     private var label: String {
         tempo.reading?.pillText(at: tempo.percent, text) ?? "\(tempo.percent)%"
+    }
+
+    /// The widest `label` can be: three digits for the piece tempo and for the pace (TempoReading.canSet, percentRange).
+    private var widest: String {
+        tempo.reading.map { text.format("tempoControl.reading", $0.pieceText(beats: "888"), "888") } ?? "888%"
     }
 }
 

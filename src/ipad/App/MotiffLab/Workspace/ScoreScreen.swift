@@ -973,6 +973,8 @@ struct Pill: View {
         .menuStyle(.button)
         .buttonStyle(DSIconItemStyle(on: tempoFromMore))
         .accessibilityLabel(text["bar.more"])
+        // «Ещё» as the bar's More is: the walk tells them apart by this.
+        .accessibilityIdentifier("ml-pill-more")
         .help(text["bar.more"])
         .tempoPopover(isPresented: $tempoFromMore, tempo: player.tempo, text: text, setPiece: setPieceTempo)
         // With room again «⋯» goes, and its popover with it, not to come back when the room goes again.

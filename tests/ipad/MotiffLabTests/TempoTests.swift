@@ -85,6 +85,10 @@ final class TempoTests: XCTestCase {
         let inferred = TempoReading(perMinute: 88, source: "inferred", piecePerMinute: 88, pieceSource: "inferred", player: nil)
         XCTAssertEqual(inferred.pieceText, "♩ ≈ 88")
         XCTAssertEqual(inferred.heardText(at: 50), "♩ ≈ 44")
+        // The pill's widest reading, which holds its width (finding 22): the same words with another number.
+        XCTAssertEqual(byDefault.pieceText(beats: "888"), "♩ = 888")
+        XCTAssertEqual(inferred.pieceText(beats: "888"), "♩ ≈ 888")
+        XCTAssertEqual(clock.pieceText(beats: "888"), "♩ ?")
         XCTAssertTrue(TempoReading.canSet(92))
         XCTAssertFalse(TempoReading.canSet(301))
     }

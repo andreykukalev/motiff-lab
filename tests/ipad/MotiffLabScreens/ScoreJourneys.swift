@@ -76,7 +76,7 @@ extension Walk {
     /// probe does not say where.
     func rollAndExpand() throws {
         try choosePhrase()
-        try press(button("Фортепианный ролл"), "the piano roll in the pill")
+        try press(pillRoll(), "the piano roll in the pill")
         try until("the roll drawer open and drawn", timeout: 15) { $0["roll"] == "drawer" && $0["zoom"] != "none" }
         try need(button(beginning: "Потяните"), "the roll drawer's handle")
         let open = try settledZoom("the roll drawer's zoom")
