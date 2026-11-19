@@ -46,4 +46,29 @@ final class RecordingSeekTests: XCTestCase {
         listening.release()
         XCTAssertEqual(listening.heardAt, 500)
     }
+
+    /// v0.10, Andrei's finding 24: the sound goes on while a capsule shows it, also as the screen hands the piece over to
+    /// its other view, whichever capsule goes or comes first, and under a view shown over the piece; it stops once none
+    /// shows it.
+    func testTheRecordingGoesOnFromOneScreenToTheNext() throws {
+        let url = try silence()
+        let listening = RecordingListening()
+        listening.shown(url)
+        listening.toggle(url)
+        XCTAssertTrue(listening.playing)
+        listening.handOver()
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "handed over, the old screen's capsule leaves it on")
+        listening.shown(url)
+        XCTAssertTrue(listening.playing, "the next screen hears the same sound")
+        listening.handOver()
+        listening.shown(url)
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "the next screen's capsule came first")
+        listening.shown(url)
+        listening.hidden()
+        XCTAssertTrue(listening.playing, "a view shown over the piece goes, the screen's capsule stays")
+        listening.hidden()
+        XCTAssertFalse(listening.playing, "no capsule shows it: the sound stops")
+    }
 }

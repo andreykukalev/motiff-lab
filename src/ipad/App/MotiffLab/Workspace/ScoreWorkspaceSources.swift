@@ -31,21 +31,19 @@ extension ScoreWorkspace {
         }
     }
 
-    /// A view picked in the switch, its menu or the sheet's «Открыть».
+    /// A view picked in the switch or its menu. The recording heard over the views stays as it is (v0.10, finding 24).
     func pickView(_ view: SourceLayers.ViewEntry, switchView: ((Landing) async -> Void)?, text: UIText, show: @escaping (ScoreScreenContent.ShownView) -> Void) {
         switch view.kind {
         case "performance":
             if player.state == .playing { player.toggle() }
             sources.performance = view.id
         case "original":
-            sources.performance = nil
             if view.id == PdfScreen.documentView, let toPdf = self.toPdf(switchView) {
                 toPdf()
             } else {
                 Task { await showOriginal(view.id, show: show) }
             }
         default:
-            sources.performance = nil
             guard view.id != sources.layers.working else { return }
             if sources.layers.notes(view.id)?.role == "version", score.sourcesModel.versions.entries.contains(where: { $0.id == view.id }) {
                 change(.open(.versions))
@@ -61,7 +59,7 @@ extension ScoreWorkspace {
     func toPdf(_ switchView: ((Landing) async -> Void)?) -> (() -> Void)? {
         if switchView != nil, piece.other != nil || score.sourcesModel.info.document != nil {
             // The switch of all views goes with the piece to its PDF (SourcesHandover).
-            return { [self] in ProbeCounts.shared.begin(); if panels.sourcesOn { SourcesHandover.give(sources.layers, to: piece.other?.file ?? piece.file) }; Task { await showPdf(switchView) } }
+            return { [self] in ProbeCounts.shared.begin(); if panels.sourcesOn { sources.handOver(to: piece.other?.file ?? piece.file) }; Task { await showPdf(switchView) } }
         }
         guard originals.canOpenLinkedPdf else { return nil }
         return { [self] in

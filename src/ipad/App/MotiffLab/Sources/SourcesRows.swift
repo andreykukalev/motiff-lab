@@ -1,17 +1,16 @@
 import SwiftUI
 
 /// What the rows of the Sources sheet take from it (the rows moved out of `SourcesSheet.swift` in v0.10): the view shown
-/// now, where recognising goes, and what a row's buttons do in the sheet.
+/// now, where recognising goes, and what a row's buttons do in the sheet. A row itself does nothing when tapped: the
+/// views are picked in the switch in the bar (v0.10, Andrei's finding 25).
 struct SourcesRow {
     let text: UIText
-    /// The view shown now: its row is tinted and has no «Открыть».
+    /// The view shown now: its row is tinted.
     let current: String?
     /// Where an original's pages go to be recognised: the scan server chosen; nil when there is none.
     let address: URL?
     /// The scan server chosen is Motiff Lab's: recognising is Pro.
     let hosted: Bool
-    /// «Открыть» on a row: the screen shows that view.
-    let open: (SourceLayers.ViewEntry) -> Void
     /// A file to pick in Files for a row: the same file as a deleted original, or where a linked one lies.
     let pick: (SourcesSheet.Picking) -> Void
     /// ⋯ → «Удалить…» on an original: the warning before it goes.
@@ -51,7 +50,7 @@ struct SourcesGroupCard: View {
 
 // MARK: - An original's row
 
-/// An original's row: its pictogram, name, the eye, «Открыть» and ⋯, its caption, where its file is, and «Распознать».
+/// An original's row: its pictogram, name, the eye and ⋯, its caption, where its file is, and «Распознать».
 struct SourcesOriginalRow: View {
     @ObservedObject var sources: SourcesController
     @ObservedObject var originals: OriginalsController
@@ -70,7 +69,7 @@ struct SourcesOriginalRow: View {
             SourcesRowHead(
                 sources: sources, row: row,
                 icon: SourceLayers.pictogram(kind: original.kind), iconLabel: nil, title: original.shown, removed: original.isRemoved,
-                eye: shownView.map { (id: $0.id, hidden: $0.hidden) }, opens: shownView.flatMap { row.isCurrent($0.id, in: sources.layers) ? nil : $0 },
+                eye: shownView.map { (id: $0.id, hidden: $0.hidden) },
                 menu: original.isRemoved ? nil : AnyView(menu)
             )
             Text(SourceLayers.caption(of: original, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
@@ -109,11 +108,12 @@ struct SourcesOriginalRow: View {
             .accessibilityHint(text["originals.relinkHintIpad"])
     }
 
-    /// ⋯ on an original: «Распознать ещё раз» (Pro), a divider, «Удалить…».
+    /// ⋯ on an original: «Распознать» (Pro), a divider, «Удалить…». Recognised again, the word is the same: the row shows
+    /// its notes already (v0.10, Andrei's finding 27).
     @ViewBuilder private var menu: some View {
         if sources.canRecognise(original) && !original.notes.isEmpty {
             Button { recognising = original.id } label: {
-                Label(row.hosted ? text["sources.sheet.recogniseAgain"] + " · Pro" : text["sources.sheet.recogniseAgain"], image: "ic-recheck")
+                Label(row.hosted ? text["sources.sheet.recognise"] + " · Pro" : text["sources.sheet.recognise"], image: "ic-recheck")
             }
             Divider()
         }
@@ -144,7 +144,6 @@ struct SourcesNotesRow: View {
                 icon: SourceLayers.pictogram(op: notes.op), iconLabel: SourceLayers.operationName(notes.op, text),
                 title: layers.title(of: notes, text, underOriginal: underOriginal), removed: false,
                 eye: notes.isWorking ? nil : shownView.map { (id: $0.id, hidden: $0.hidden) },
-                opens: current ? nil : shownView,
                 menu: notes.isWorking ? nil : AnyView(menu)
             )
             HStack(spacing: CGFloat.ds("s-2")) {
@@ -178,7 +177,7 @@ struct SourcesNotesRow: View {
 
 // MARK: - Parts of a row
 
-/// The title line: the pictogram, the name in Body-strong on as many lines as it takes, then the eye, «Открыть» and ⋯.
+/// The title line: the pictogram, the name in Body-strong on as many lines as it takes, then the eye and ⋯.
 struct SourcesRowHead: View {
     let sources: SourcesController
     let row: SourcesRow
@@ -187,7 +186,6 @@ struct SourcesRowHead: View {
     let title: String
     let removed: Bool
     let eye: (id: String, hidden: Bool)?
-    let opens: SourceLayers.ViewEntry?
     let menu: AnyView?
 
     var body: some View {
@@ -215,10 +213,6 @@ struct SourcesRowHead: View {
                 .buttonStyle(BarActionStyle())
                 .accessibilityLabel(row.text["sources.sheet.showInSwitch"])
                 .accessibilityAddTraits(eye.hidden ? [] : .isSelected)
-            }
-            if let opens {
-                Button(row.text["home.open"]) { row.open(opens) }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
             }
             if let menu {
                 Menu { menu } label: {

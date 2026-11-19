@@ -16,4 +16,4 @@
   the recording heard: r1
 
 ## the working notes are picked
-  the recording heard: none
+  the recording heard: r1

@@ -1,5 +1,4 @@
 {
-  "home.open": "Open",
   "home.fromFile": "Open a file",
 
   "bars.one": "bar {0}",
@@ -106,7 +105,6 @@
 
   "pdf.unreadable": "This PDF could not be read. Try saving it again from the app it came from.",
   "sources.title": "Sources",
-  "sources.rolePlaying": "Performance",
   "metronome.label": "Metronome",
   "pdf.readNotes": "Recognise notes",
   "pdf.readNone": "The scan server read no notes from this PDF.",

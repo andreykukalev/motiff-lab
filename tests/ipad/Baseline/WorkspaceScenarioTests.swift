@@ -344,7 +344,7 @@ final class WorkspaceScenarioTests: XCTestCase {
     }
 
     /// The views of the switch: a version picked opens its page in Sources, a recording is heard from under the bar,
-    /// and the working notes are this screen.
+    /// and the working notes are this screen, the recording still heard over them (v0.10, Andrei's finding 24).
     func testAViewPickedInTheSwitch() async throws {
         let example = try XCTUnwrap(KitPiece.example)
         let session = await WorkspaceSession(piece: try await kit())

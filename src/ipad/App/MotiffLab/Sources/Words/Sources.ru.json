@@ -1,6 +1,7 @@
 {
   "sources.roleNotes": "Ноты",
   "sources.makeWorking": "Сделать рабочими",
+  "sources.rolePlaying": "Исполнение",
   "performance.close": "Закрыть другие версии",
   "performance.name": "Название",
   "performance.noMatch": "Версия не совпадает с этими нотами: ни одна нота не нашла пары. Это та же пьеса?",
@@ -158,7 +159,6 @@
   "sources.sheet.readOwn.many": "{0} страниц уйдут на ваш сервер распознавания {1}.",
   "sources.sheet.readOwn.one": "{0} страница уйдёт на ваш сервер распознавания {1}.",
   "sources.sheet.recognise": "Распознать",
-  "sources.sheet.recogniseAgain": "Распознать ещё раз",
   "sources.sheet.recording": "Запись",
   "sources.sheet.recordingLength": "Запись · {0}",
   "sources.sheet.send.few": "Отправить {0} страницы",

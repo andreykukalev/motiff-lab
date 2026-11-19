@@ -40,7 +40,7 @@ final class ScreensUITests: XCTestCase {
         Journey(name: "other-places", protects: [], start: .example, end: .library, picturesOnly: true,
                 run: { try $0.otherPlaces() }),
         Journey(name: "pdf-and-notes", protects: ["VIEW-01", "VIEW-04"], start: .notesAndPdf, run: { try $0.pdfAndNotes() }),
-        Journey(name: "sources-and-a-view", protects: [], start: .notesAndPdf, run: { try $0.sourcesAndAView() }),
+        Journey(name: "sources-sheet", protects: [], start: .notesAndPdf, run: { try $0.sourcesSheet() }),
         Journey(name: "pdf-piece", protects: [], start: .pdf, run: { try $0.pdfPiece() }),
     ]
 

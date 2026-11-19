@@ -5,6 +5,7 @@
   "home.delete": "Delete",
   "home.deleteForGood": "Delete for good",
   "home.keep": "Keep",
+  "home.open": "Open",
   "account.open": "Your account: {0}",
   "testLibrary.clearedElsewhere": "Everything was cleared from another device for a new testing cycle, so the test library here is cleared too.",
   "online.overQuota": "Pieces on this device only: {0}. A free account keeps {1} pieces online; the others stay here.",

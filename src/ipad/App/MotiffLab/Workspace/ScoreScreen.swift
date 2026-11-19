@@ -338,7 +338,7 @@ struct ScoreScreenContent: View {
                                  sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
-                    if sourcesOn && !focusModel.focused { recordingCapsule }
+                    if sourcesOn && !focusModel.focused { PerformanceCapsule(sources: sources, text: text) }
                     if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                         ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions)
@@ -542,21 +542,9 @@ extension ScoreScreenContent {
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
-            open: pickView,
             versionPage: SourcesSheet.versionPage(sourcesModel),
             versionStatus: sourcesModel.status
         )
-    }
-
-    /// «Исполнение»: the recording's sound kept on this iPad, heard from under the bar.
-    @ViewBuilder var recordingCapsule: some View {
-        if let id = sources.performance, let projectId = sources.projectId, let url = OriginalSounds.file(project: projectId, original: id) {
-            RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
-                sources.performance = nil
-            }
-            .id(id)
-            .transition(.opacity)
-        }
     }
 
     /// The views shown over the score, the sources read as the screen opens, and a variation only tried left before the
@@ -568,8 +556,8 @@ extension ScoreScreenContent {
             .onChange(of: panels[.versions]) { _, open in workspace.sourcesOpened(open) }
     }
 
-    /// The view shown now: the recording heard, else the working notes.
-    var currentView: String? { sources.performance ?? sources.layers.working }
+    /// The view shown now: the working notes (the recording heard is over the view, not one: v0.10, finding 24).
+    var currentView: String? { sources.layers.working }
 
     /// The views for the bar's switch, and what picking one does; nil while the switch is off.
     var switchLayers: SourceLayers? { sourcesOn ? sources.layers : nil }
@@ -578,13 +566,14 @@ extension ScoreScreenContent {
         return { view in pickView(view) }
     }
 
-    /// A view picked in the switch, its menu or the sheet's «Открыть» (ScoreWorkspace.pickView), with what only the screen
-    /// has: its way to the piece's other view, its texts and the cover a view is shown on.
+    /// A view picked in the switch or its menu (ScoreWorkspace.pickView), with what only the screen has: its way to the
+    /// piece's other view, its texts and the cover a view is shown on.
     func pickView(_ view: SourceLayers.ViewEntry) {
         workspace.pickView(view, switchView: switchView, text: text) { shownView = $0 }
     }
 
-    /// The screen of a view shown over the piece; its piece is closed in music-core once the screen has gone.
+    /// The screen of a view shown over the piece, with the recording heard under its bar (v0.10, finding 24); its piece is
+    /// closed in music-core once the screen has gone.
     func shownViewScreen(_ view: ShownView) -> some View {
         Group {
             if view.pdf {
@@ -592,6 +581,11 @@ extension ScoreScreenContent {
             } else {
                 ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"])
             }
+        }
+        .overlay(alignment: .topTrailing) {
+            PerformanceCapsule(sources: sources, text: text)
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
         }
         .environmentObject(account)
         .environmentObject(settings)

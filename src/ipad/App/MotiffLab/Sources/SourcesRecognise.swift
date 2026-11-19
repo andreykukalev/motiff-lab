@@ -19,8 +19,8 @@ struct SourcesRecogniseButton: View {
 }
 
 /// «Распознать ноты» under the row (moved out of `SourcesSheet.swift` in v0.10): where the pages go, then Send (the
-/// player's yes) and Cancel; recognised again, the notes there are and their corrections stay beside. Send is
-/// `SourcesController.recognise`, the one path of recognising an original.
+/// player's yes) and Cancel; recognised again (the same heading, v0.10 finding 27), the notes there are and their
+/// corrections stay beside. Send is `SourcesController.recognise`, the one path of recognising an original.
 struct SourcesRecognisePanel: View {
     @ObservedObject var sources: SourcesController
     let original: SourceLayers.Original
@@ -40,7 +40,7 @@ struct SourcesRecognisePanel: View {
         let hosted = row.hosted
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             HStack(spacing: CGFloat.ds("s-2")) {
-                Text(text[earlier == nil ? "sources.sheet.readHeading" : "sources.sheet.recogniseAgain"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+                Text(text["sources.sheet.readHeading"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
                 if hosted { ProTag() }
             }
             if let address = row.address {

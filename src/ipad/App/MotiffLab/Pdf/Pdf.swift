@@ -391,6 +391,8 @@ struct PdfScreen: View {
                         PdfPenPalette(pdf: pdf, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
+                    // The recording heard over the pages, as over the notes (v0.10, finding 24).
+                    if sourceLayers != nil { PerformanceCapsule(sources: sources, text: text) }
                 }
                 // Where the score's bar floats (ds.css `.bar`), so PDF | Notes leaves it in place (#479 item 13).
                 .padding(.horizontal, CGFloat.ds("s-4"))
@@ -726,7 +728,7 @@ struct PdfScreen: View {
         defer { handingOver = false }
         ProbeCounts.shared.begin()
         pdf.keepView()
-        if sourceLayers != nil { SourcesHandover.give(sources.layers, to: other.file) }
+        if sourceLayers != nil { sources.handOver(to: other.file) }
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         ProbeCounts.shared.mark("saved")
         await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
@@ -747,6 +749,8 @@ struct PdfScreen: View {
         guard !linked, toNotes != nil else {
             sourcesOn = false
             sourcesOpen = false
+            // No switch here, so no recording heard over the pages (v0.10, finding 24).
+            sources.stopHandedRecording(for: piece.file)
             return
         }
         // Only while the screen is there: switched away while its pages were read, the way back would hold it (#681).
@@ -767,11 +771,7 @@ struct PdfScreen: View {
             if sourcesOpen, sourceLayers != nil {
                 SourcesSheet(
                     sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
-                    close: { sourcesOpen = false },
-                    open: { view in
-                        sourcesOpen = false
-                        pickView(view)
-                    }
+                    close: { sourcesOpen = false }
                 )
                 .modifier(BottomPanel(height: height))
             }
@@ -787,9 +787,14 @@ struct PdfScreen: View {
         await openRead(file, .page(max(1, pdf.page)))
     }
 
-    /// A view picked in the switch: the notes' screen shows it once the piece opens there, as only it holds the notes.
+    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views the notes' screen
+    /// shows once the piece opens there, as only it holds the notes.
     private func pickView(_ view: SourceLayers.ViewEntry) {
         guard view.id != PdfScreen.documentView else { return }
+        if view.kind == "performance" {
+            sources.performance = view.id
+            return
+        }
         if view.id != sourceLayers?.working, let file = piece.other?.file ?? piece.file {
             SourcesHandover.show(view.id, on: file)
         }

@@ -144,6 +144,20 @@ final class ViewStatesTests: XCTestCase {
         XCTAssertEqual(SourcesController().layers, SourceLayers(), "a screen opened from the library reads its own")
     }
 
+    /// v0.10, Andrei's finding 24: the recording heard over the views goes with the switch to the next screen of the file,
+    /// read once there; nothing heard, nothing handed.
+    @MainActor
+    func testTheRecordingHeardIsHandedToTheNextScreenOfTheFile() {
+        let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("performance.motiff.json")
+        let sources = SourcesController()
+        sources.performance = "src_rec"
+        sources.handOver(to: file)
+        XCTAssertEqual(SourcesHandover.performance(for: URL(fileURLWithPath: file.path + "/../performance.motiff.json")), "src_rec")
+        XCTAssertNil(SourcesHandover.performance(for: file), "read once")
+        SourcesController().handOver(to: file)
+        XCTAssertNil(SourcesHandover.performance(for: file), "nothing heard, nothing handed")
+    }
+
     /// v0.6.4 spec section 13: the score's screen knows its model before its first frame: it opens in Navigate.
     @MainActor
     func testTheScoreOpensInItsModeBeforeItsFirstFrame() {
