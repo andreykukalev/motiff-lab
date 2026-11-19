@@ -11,7 +11,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Ink`.
   is for a PDF's pages), and `PenScore`, what it needs of the score (`ScoreController`): the page as it is now, the piece,
   `changeMarks` and `penTurned`. Tests: `MotiffLabTests/PenModelTests` (a fake score).
 
-- `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures.
+- `InkInput.swift`, `InputRules.swift`, `PencilPalette.swift`: who writes and who scrolls, Pencil gestures. With the colour
+  bars (v0.10 d-5, finding 31: `ActiveTool.colour`, `PenState.colouring` in a `HighlightInk` (Platform)) the pointers that take the Pen
+  colour through the page (`InputRules.colours`, the page's `input.colour`) and the pen's gesture takes none
+  (`InputRules.inks`); a PDF's pages offer no colour bars (`PenHolder.tools`, `ActiveTool.onPages`) and leave them for
+  the tool before (`PenState.leaveColourBars` in `PdfInk.attach`).
 - `InteractionMode.swift`: the modes in the bar; who writes, selects and scrolls in each mode is `InputRules`'.
 - `InkGeometry.swift`: `InkSplit`, the eraser's cut of a stroke, as `Scripts/score/pencil-marks.ts` does it.
 
@@ -21,7 +25,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Ink`.
 the eraser's points as it moves (`rub`) and, when it lifts, saves the press as one step (`rubEnd`, `ink.add` for the
 pieces left without drawing, then `ink.remove`); `undo` and `redo` go through `InkStep`; all of it in one queue
 (`InkQueue`). Setting `penOn` calls `PenScore.penTurned`, where the root applies the input rules, tells the roll, the
-page's `pen` and its mode, in that order. Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
+page's `pen` and its mode, in that order. A change of `PenState.colouring` calls `PenScore.colouringChanged`; `colour`
+(a passage the page coloured) and the eraser's `uncoloured` go through the queue to `PenScore.colourBars` and
+`uncolourBars`, none of them a step of the Pen's history. Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
 page stay the root's, which hands the points in in the page's pixels.
 
 ## The state it owns

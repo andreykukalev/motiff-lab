@@ -108,6 +108,33 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(InputRules(stylus: true, tool: .select).selectStart(.stylus), .now, "leaving the Pen restores Select")
     }
 
+    func testWithTheColourBarsThePointersThatTakeThePenColourThroughThePage() {
+        // Finding 31: the colour bars colour as Select selects, on the page; the pen's own gesture takes no stroke.
+        let stylus = InputRules(stylus: true, tool: .pen, colour: "forest")
+        XCTAssertTrue(stylus.colours(.stylus))
+        XCTAssertFalse(stylus.inks(.stylus), "no stroke is written")
+        XCTAssertFalse(stylus.colours(.finger), "a finger beside the Pencil scrolls")
+        XCTAssertTrue(stylus.scrolls(.finger))
+        XCTAssertFalse(stylus.taps(.stylus), "its tap colours and places no playhead")
+        XCTAssertFalse(stylus.inkTakes(.stylus, nearHandle: false))
+        let page = stylus.page
+        XCTAssertEqual(page["colour"] as? String, "forest")
+        XCTAssertEqual((page["pen"] as? [String: Any])?["colour"] as? Bool, true)
+        XCTAssertEqual((page["touch"] as? [String: Any])?["colour"] as? Bool, false)
+
+        let finger = InputRules(stylus: false, tool: .pen, colour: "amber")
+        XCTAssertTrue(finger.colours(.finger), "no stylus needed: one finger colours")
+        XCTAssertEqual(finger.scrollFingers, 2, "and two scroll")
+        XCTAssertFalse(finger.inks(.finger))
+
+        XCTAssertFalse(InputRules(stylus: true, tool: .select, colour: "amber").colours(.stylus), "only with the Pen on")
+        XCTAssertFalse(InputRules(stylus: true, tool: .pen, surface: .pdf, colour: "amber").colours(.stylus), "a PDF has no bars")
+        let pencil = InputRules(stylus: true, tool: .pen)
+        XCTAssertTrue(pencil.inks(.stylus), "the pencil writes as before")
+        XCTAssertNil(pencil.page["colour"])
+        XCTAssertEqual((pencil.page["pen"] as? [String: Any])?["colour"] as? Bool, false)
+    }
+
     func testOnlyTheToolDecidesWhatALongPressMeans() {
         // #543 2-4, the lead's decisions 1-3: in Navigate a long press of either pointer puts the black playhead and never
         // selects; with the Pen the finger beside the stylus does the same; in Select it selects.
@@ -319,6 +346,31 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(pdf.tool, .pen(.forest), "the eraser again goes back to the tool before, in the ink chosen last")
         pdf.pencilGesture(.previous, at: nil)
         XCTAssertEqual(pdf.tool, .eraser, "«switch to previous» goes to the tool before")
+    }
+
+    /// The palette shows the active tool's settings as the palette under the bar does (#495 UX-06), the colour bars' four
+    /// colours in the inks' places (finding 31); a colour chosen there keeps the tool and turns the Pen on.
+    @MainActor
+    func testThePaletteShowsTheActiveToolsSettingsAndTheColourBarsColours() {
+        let widths: [PaletteSetting] = [.width(0), .width(1), .width(2)]
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .pencil)), ScoreController.Ink.allCases.map(PaletteSetting.ink) + widths)
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .marker)), widths, "the marker draws in amber alone")
+        XCTAssertEqual(PaletteLayout.settings(of: PenState(active: .eraser)), [])
+        let colours = PaletteLayout.settings(of: PenState(active: .colour))
+        XCTAssertEqual(colours, HighlightInk.allCases.map(PaletteSetting.barColour), "the four colours, no thickness")
+        XCTAssertEqual(colours.map(PaletteLayout.slot), [0, 1, 2, 3], "in the inks' places")
+        XCTAssertEqual(widths.map(PaletteLayout.slot), [5, 6, 7], "the thicknesses on the right, after a gap")
+
+        let score = PenModel()
+        let saved = PenMemory.saved()
+        defer { PenMemory.keep(saved) }
+        score.pen = PenState(active: .colour, previous: .pencil)
+        score.chooseFromPalette(.barColour(.ochre))
+        XCTAssertEqual(score.pen.active, .colour, "a colour chosen there keeps the tool")
+        XCTAssertEqual(score.pen.colouring, .ochre)
+        XCTAssertTrue(score.penOn)
+        score.chooseFromPalette(.width(2))
+        XCTAssertEqual(score.pen.pencil.width, PenSizes.defaultWidth, "the colour bars have no thickness")
     }
 
     func testThePaletteSpreadsItsButtonsOverAHalfCircleAndKeepsInside() {

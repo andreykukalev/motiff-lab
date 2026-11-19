@@ -5,7 +5,7 @@ import XCTest
 /// PenModel (S6, ADR 0031 section 3) against a fake score: a stroke is anchored on the page and kept through music-core as
 /// one step of the Pen's history, Undo and Redo take it back and do it again, a press of the eraser is sent as it moves and
 /// saved as one step when it lifts, and the Pen turned on or off goes to the score. What ScoreController did before the
-/// move, call for call.
+/// move, call for call. Since finding 31 (v0.10) the colour bars colour through the score and the eraser takes the colour.
 @MainActor
 final class PenModelTests: XCTestCase {
     /// The score as the pen sees it: a page that answers `anchor` and `rubEnd`, and the changes asked of the marks.
@@ -47,6 +47,8 @@ final class PenModelTests: XCTestCase {
         var pieceId: Int32? = 7
         private(set) var changes: [Change] = []
         private(set) var turned: [Bool] = []
+        private(set) var colouringChanges = 0
+        private(set) var coloured: [String] = []
         var changed: (() -> Void)?
 
         func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool) async {
@@ -56,6 +58,20 @@ final class PenModelTests: XCTestCase {
 
         func penTurned(_ on: Bool) {
             turned.append(on)
+        }
+
+        func colouringChanged() {
+            colouringChanges += 1
+        }
+
+        func colourBars(_ span: Range<Double>, in colour: String) async {
+            coloured.append("\(colour) \(Int(span.lowerBound))-\(Int(span.upperBound))")
+            changed?()
+        }
+
+        func uncolourBars(_ spans: [Range<Double>]) async {
+            coloured.append("off " + spans.map { "\(Int($0.lowerBound))-\(Int($0.upperBound))" }.joined(separator: " "))
+            changed?()
         }
     }
 
@@ -76,6 +92,15 @@ final class PenModelTests: XCTestCase {
         model.score = score
         model.pen.choose(.pencil)
         return (model, score)
+    }
+
+    /// Waits until the score has been asked to colour or take the colour `count` times in all.
+    private func coloured(_ score: FakeScore, _ count: Int) async {
+        guard score.coloured.count < count else { return }
+        let done = expectation(description: "\(count) colourings")
+        score.changed = { if score.coloured.count == count { done.fulfill() } }
+        await fulfillment(of: [done], timeout: 5)
+        score.changed = nil
     }
 
     /// Waits until the score has been asked for `count` changes of the marks in all.
@@ -137,6 +162,41 @@ final class PenModelTests: XCTestCase {
             FakeScore.Change(piece: 7, call: "ink.remove", request: facadeRequest(["ids": ["a"]]), draws: true),
         ], "the pieces left, then the marks cut, drawn once both are done")
         XCTAssertTrue(model.canUndo)
+    }
+
+    func testTheColourBarsColourInTheirColourAndOnlyWhileTheyAreTheTool() async {
+        let (model, score) = made()
+        model.colour(0, 1920)
+        model.pen.choose(.colour)
+        model.pen.setBarColour(.forest)
+        model.colour(480, 960)
+        model.colour(960, 960)
+        await coloured(score, 1)
+        XCTAssertEqual(score.coloured, ["forest 480-960"], "nothing with the pencil, nor for a passage of no length")
+        XCTAssertEqual(score.changes, [], "the score keeps the highlights, the pen writes no stroke")
+        XCTAssertFalse(model.canUndo, "no step of the Pen's history")
+    }
+
+    func testTheScoreHearsWhenTheColourBarsComeOrGoOrChangeColour() {
+        let (model, score) = made()
+        let before = score.colouringChanges
+        model.pen.setWidth(2)
+        model.pen.setBarColour(.forest)
+        XCTAssertEqual(score.colouringChanges, before, "the pencil's thickness, or a colour while the pencil writes, colours nothing")
+        model.pen.choose(.colour)
+        model.pen.setBarColour(.ochre)
+        model.pen.choose(.eraser)
+        XCTAssertEqual(score.colouringChanges, before + 3)
+    }
+
+    func testTheEraserTakesTheColourItPassedOverWhenItLifts() async {
+        let (model, score) = made()
+        score.page.rubbed = ["uncoloured": [["start": 240, "end": 360], ["start": 480, "end": 480], ["start": 600, "end": 720]]]
+        model.rub([["x": 1, "y": 2]], lifted: true, in: 7)
+        await coloured(score, 1)
+        XCTAssertEqual(score.coloured, ["off 240-360 600-720"], "a stretch of no length is left out")
+        XCTAssertEqual(score.changes, [], "no ink was cut")
+        XCTAssertFalse(model.canUndo)
     }
 
     func testThePenTurnedOnOrOffGoesToTheScore() {

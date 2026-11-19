@@ -65,10 +65,11 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
         apply(rules)
     }
 
-    /// Takes the rules: the pen's gesture for the pointers that write, the pan for those that scroll.
+    /// Takes the rules: the pen's gesture for the pointers that write a stroke (the colour bars' colour through the page,
+    /// InputRules.inks), the pan for those that scroll.
     func apply(_ rules: InputRules) {
         self.rules = rules
-        let writers = InputRules.Pointer.allCases.filter { rules.writes($0) }
+        let writers = InputRules.Pointer.allCases.filter { rules.inks($0) }
         gesture.allowedTouchTypes = writers.flatMap(Self.touchTypes)
         gesture.isEnabled = !writers.isEmpty && !still
         guard let pan else { return }

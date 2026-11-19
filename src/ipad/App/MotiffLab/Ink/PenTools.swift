@@ -31,6 +31,8 @@ protocol PenHolder: ObservableObject {
     var pencilPalette: PencilPaletteCall? { get set }
     var canUndo: Bool { get }
     var canRedo: Bool { get }
+    /// The tools the palettes offer here: the score's all of them, a PDF's pages those without the colour bars.
+    var tools: [ActiveTool] { get }
     func undo()
     func redo()
 }
@@ -38,18 +40,21 @@ protocol PenHolder: ObservableObject {
 extension PenHolder {
     /// What a stroke written now is, read from the one active tool and its settings.
     var tool: ScoreController.Tool { pen.stroke }
+
+    /// The tools of a PDF's pages, which have no bars to colour (finding 31); the score's pen offers every one.
+    var tools: [ActiveTool] { ActiveTool.onPages }
 }
 
-/// The tools (ds.css `.seg`, #533 9): the pencil, the marker and the eraser, each its own kit icon at a fingertip's size,
-/// exactly one on the accent's strong tint; the word for VoiceOver and the pointer's hint. Choosing one keeps every tool's
-/// settings.
+/// The tools (ds.css `.seg`, #533 9): the pencil, the marker, on the score the colour bars (finding 31), and the eraser,
+/// each its own kit icon at a fingertip's size, exactly one on the accent's strong tint; the word for VoiceOver and the
+/// pointer's hint. Choosing one keeps every tool's settings.
 struct PenToolChoice<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let text: UIText
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(ActiveTool.allCases, id: \.self) { tool in
+            ForEach(holder.tools, id: \.self) { tool in
                 let on = holder.pen.active == tool
                 Button {
                     holder.pen.choose(tool)
@@ -96,8 +101,9 @@ struct PenHistory<Holder: PenHolder>: View {
 
 /// The chosen tool's settings (#533 9), grouped on the palette's second row: its colour (the pencil's four inks, the chosen
 /// one ringed; the marker's one amber) and its thickness (lines as thick as it draws, in proportion, in its colour); for the
-/// eraser, one line on what it does. The pencil's row, unseen, keeps the room of the widest, so the palette never changes
-/// size under the finger. A setting changes only its tool and never switches tools.
+/// colour bars their four colours alone (finding 31); for the eraser, one line on what it does. The pencil's row, unseen,
+/// keeps the room of the widest, so the palette never changes size under the finger. A setting changes only its tool and
+/// never switches tools.
 struct PenToolSettings<Holder: PenHolder>: View {
     @ObservedObject var holder: Holder
     let text: UIText
@@ -112,12 +118,37 @@ struct PenToolSettings<Holder: PenHolder>: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .padding(.leading, CGFloat.ds("s-2"))
                     .frame(minHeight: CGFloat.ds("h-touch"))
+            } else if pen.active == .colour {
+                barColours(pen)
             } else {
                 row(pen)
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text.format("pencil.settings", text[pen.active.labelKey]))
+    }
+
+    /// The colour bars' four colours, the chosen one ringed: a colour chosen keeps the tool.
+    private func barColours(_ pen: PenState) -> some View {
+        HStack(spacing: 0) {
+            ForEach(HighlightInk.allCases, id: \.self) { colour in
+                swatch(colour.color, chosen: pen.isChosen(barColour: colour), label: text[colour.penLabelKey]) { holder.pen.setBarColour(colour) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["pencil.ink"])
+    }
+
+    /// A colour of the tool as a disc at a fingertip's size, ringed while chosen.
+    private func swatch(_ colour: Color, chosen: Bool, label: String, choose: @escaping () -> Void) -> some View {
+        Button(action: choose) {
+            InkSwatch(colour: colour, chosen: chosen)
+                .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
     private func row(_ pen: PenState) -> some View {
@@ -130,17 +161,7 @@ struct PenToolSettings<Holder: PenHolder>: View {
                         .accessibilityLabel(text["pencil.markerColour"])
                 } else {
                     ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
-                        let chosen = pen.isChosen(ink: ink)
-                        Button {
-                            holder.pen.setInk(ink)
-                        } label: {
-                            InkSwatch(ink: ink, chosen: chosen)
-                                .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(text[ink.labelKey])
-                        .accessibilityAddTraits(chosen ? .isSelected : [])
+                        swatch(Color(uiColor: ink.color), chosen: pen.isChosen(ink: ink), label: text[ink.labelKey]) { holder.pen.setInk(ink) }
                     }
                 }
             }

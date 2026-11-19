@@ -1007,7 +1007,6 @@ struct SelectionMenu: View {
                     actions
                     if more {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-                        HighlightRow(score: score, selectionModel: selectionModel, marksModel: marksModel, text: text)
                         Button {
                             // The assistant opens at the selection, where the menu was (#582 item 17.2).
                             AssistantHereCard.open(assistant, score: score, settings: settings)
@@ -1082,7 +1081,7 @@ struct SelectionMenu: View {
             if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
                 iconItem("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
-            iconItem("more", text["menu.more"], on: more || marksModel.selectedHighlight != nil) { more.toggle() }
+            iconItem("more", text["menu.more"], on: more) { more.toggle() }
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
             iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
