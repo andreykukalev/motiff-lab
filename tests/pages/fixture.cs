@@ -3,10 +3,11 @@
 
 // What the iPad app gives its two pages for a piece, before Verovio engraves it: music-core's notation (MEI), the beat
 // lines of its playback score and the roll's payload, asked as the app asks for them (Engraver.engrave; Player.load,
-// whose beats ScoreScreen sends the score page; RollController.load).
+// whose beats ScoreScreen sends the score page; RollController.load), and the notation of bars 5–20 on their own, as
+// the app asks for Expand's card (Engraver.engraveCard).
 //   dotnet run tests/pages/fixture.cs -- <file.musicxml> <title>
-// prints {"mei": …, "beats": […], "roll": …} as JSON. fixture.mjs engraves the MEI with the app's A4 options and writes
-// the fixtures the page scenarios open (tests/contracts/page-scenarios/README.md).
+// prints {"mei": …, "card": …, "beats": […], "roll": …} as JSON. fixture.mjs engraves the MEI with the app's A4 options,
+// the card's with the card's, and writes the fixtures the page scenarios open (tests/contracts/page-scenarios/README.md).
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -20,5 +21,6 @@ int piece = JsonNode.Parse(opened)?["piece"]?.GetValue<int>() ?? throw new Inval
 JsonNode notation = JsonNode.Parse(facade.Call(piece, "notation", JsonSerializer.Serialize(new { title })))!;
 JsonNode playback = JsonNode.Parse(facade.Call(piece, "playback"))!;
 JsonNode roll = JsonNode.Parse(facade.Call(piece, "roll"))!;
+JsonNode card = JsonNode.Parse(facade.Call(piece, "notation", """{"bars": {"first": 5, "last": 20}}"""))!;
 var beats = new JsonArray([.. playback["beats"]!.AsArray().Select(beat => JsonValue.Create(beat!["at"]!.GetValue<double>()))]);
-Console.WriteLine(new JsonObject { ["mei"] = notation["mei"]?.GetValue<string>(), ["beats"] = beats, ["roll"] = roll }.ToJsonString());
+Console.WriteLine(new JsonObject { ["mei"] = notation["mei"]?.GetValue<string>(), ["card"] = card["mei"]?.GetValue<string>(), ["beats"] = beats, ["roll"] = roll }.ToJsonString());

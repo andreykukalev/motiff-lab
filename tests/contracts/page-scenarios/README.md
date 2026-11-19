@@ -78,6 +78,8 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
 - On the score:
   - `{"bar": n, "x": 0.3, "y": 0.4}` is a point in bar *n* (1-based, in the order of `motiff.frames()`). `x` and `y` are
     fractions of the bar's box, from its left to its right and from its top line to its bottom one.
+  - `{"card": n, "x": 0.5, "y": 0.5}` is a point in bar *n* of Expand's card (1-based, in time order), boxed as a bar of
+    the pages is, from the staff lines the card draws.
   - `{"edge": "start" | "end"}` is the centre of a drawn selection edge's handle.
   - `{"grip": "black" | "blue"}` is the centre of a drawn playhead handle.
   - Each point may add `dx` and `dy` in pixels.
@@ -113,6 +115,9 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
     - `grips`: `{handle: black|blue, x, y}`;
     - `paper`: `{pages: [{left, top, right, bottom, inkTop, inkBottom}], above, below}`, where `inkTop` and `inkBottom`
       are the room between the paper's edge and its first and last staff;
+    - `card`: Expand's card, `{left, top, right, bottom, inkTop, inkBottom, scroll}`: the box its notes scroll in, the
+      room in it above its first bar's top line and below its last bar's bottom line, and how far its notes are
+      scrolled; null when no card is open;
     - `scroll`: `{x, y}`.
   - roll:
     - `frame`: `{zoom, rowScale, scroll, pitchTop}`, with zoom and rowScale to 0.01;
@@ -127,7 +132,9 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
 `fixtures/` holds the input the app gives each page for *Für Elise* (`src/shared/Playback/FurElise.musicxml`):
 
 - `fur-elise-score.json`: the first A4 page as Verovio engraves it with the app's options (`A4_LAYOUT` and
-  `NOTE_SPACING` of `score-page.ts`), its timemap, and the piece's beat lines;
+  `NOTE_SPACING` of `score-page.ts`), its timemap, and the piece's beat lines; and under `card`, bars 5–20 as the app
+  engraves them for Expand's card (`Engraver.engraveCard`, with `cardLayout` of `phrase-card.ts` at the card's width on
+  a page of 1024 × 1366, 964 px), their pages and timemap;
 - `fur-elise-roll.json`: music-core's roll payload.
 
 They are made by music-core and Verovio. Remake them after a change to either, or to the engraving options, and review
