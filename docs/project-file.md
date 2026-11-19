@@ -486,7 +486,7 @@ Every version since 1 opens (`ProjectFile.Read`) and is converted to the current
 
 ### From version 16 to 17
 
-Nothing is converted: a version 16 file has no drafts and no piece that is only a recording, and everything else reads as it is. Written again, it is the same file with version 17. An unknown value in a version 16 file is damage, as in every file older than the reader ("Unknown values").
+Nothing is converted: a version 16 file has no drafts and no piece that is only a recording, and everything else reads as it is. Written again, it is the same file with version 17. An unknown value in a version 16 file is kept as in a version 17 file, as the builds that read version 16 kept it ("Unknown values").
 
 ### From version 15 (and earlier) to 16
 
@@ -538,7 +538,7 @@ A build before 0.6 refuses a version 16 file with "This project was saved by a n
 
 A later build can add a value to an enum while the file keeps its version ([0026](architecture/adr/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
 
-- **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's own version. In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
+- **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's layout (version 16 or 17, which share it). In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
 - **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`), a Check flag (`check`) and a draft (`drafts`, version 17), whatever the depth of the value inside it.
 - **What goes with it.** A motif and its variations are kept or left unknown together. A bookmark in an unknown category is left unknown with it. A built-in category with an unknown ink stays unknown and is not taken by the built-in one.
 - **New ids** for bookmarks, categories, resume points, ideas, highlights and Notes pass the unknown ones by. An entity an app makes with the id of an unknown one (the facade's working motif `m_0001`) takes its place: the unknown one is not written, and neither is what went with it.

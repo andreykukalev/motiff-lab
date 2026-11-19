@@ -396,18 +396,26 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// In a version 16 file, written by builds that know no value this one does not, an unknown value is damage, as in any
-    /// earlier file (docs/project-file.md, "Unknown values"): the tolerant reader keeps them only in a file of its own version.
+    /// A version 16 file, as builds 0.6 to 1.0 saved it, reads an unknown value as those builds did: the entity holding it
+    /// is kept as unknown and written back where it stood, the file written being the file read with version 17 and
+    /// nothing else changed (docs/project-file.md, "Unknown values").
     /// </summary>
-    [Fact]
-    public void An_unknown_value_in_a_version_16_file_makes_it_damaged()
+    [Theory]
+    [MemberData(nameof(KeptValues))]
+    public void An_unknown_value_in_a_version_16_file_is_kept_as_in_a_file_of_this_version(string type, string path)
     {
         JsonObject file = Node(File(Worked16));
-        Parent(file, "workspace/motifs/0/mode", out string last)[last] = UnknownValue;
+        Parent(file, path, out string last)[last] = UnknownValue;
+        (string list, int index) = EntityOf(path, out string entityPath);
 
-        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
+        Project project = ProjectFile.Read(Bytes(file));
+        JsonObject written = Node(ProjectFile.Write(project));
 
-        Assert.StartsWith("This project file is damaged", refused.Message);
+        UnknownEntity kept = Assert.Single(AllUnknown(project), entity => entity.Enum is not null);
+        Assert.Equal((list, index, type), (kept.List, kept.Index, kept.Enum));
+        Assert.True(JsonNode.DeepEquals(At(file, entityPath), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
+        file["version"] = ProjectFile.Version;
+        Assert.True(JsonNode.DeepEquals(file, written), "the file written back is the version 16 file read, with version 17");
     }
 
     /// <summary>

@@ -134,7 +134,9 @@ public static class ProjectFile
                 throw Damaged("version");
             }
 
-            var unknowns = new Unknowns(version == Version);
+            // Version 16 and 17 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an
+            // unknown value in either is read as in a file of today's version (0026 S6).
+            var unknowns = new Unknowns(version >= LayersVersion);
             Project project = version >= LayersVersion ? ReadLayers(root, version, unknowns) : ReadEarlier(root, version, unknowns);
             return unknowns.KeptIn(project).WithProvenanceKept().Described(version);
         }

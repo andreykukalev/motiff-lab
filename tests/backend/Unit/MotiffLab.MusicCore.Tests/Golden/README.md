@@ -64,11 +64,12 @@ kinds of piece; the Einaudi file holds a transcription.
   the version changed. **Version 17**: that file reads, opens (3 motifs, 11 variations) and is written back unchanged.
 - **The future file is refused** today, before any field is read: "This project was saved by a newer version of
   Motiff Lab." (council fact V3). Read-only opening, a later task, is meant to flip it.
-- **One unknown enum value** in a version 17 file (#313, flipping council fact V3): for 21 of the 24 enum types the file
+- **One unknown enum value** in a version 16 or 17 file (#313, flipping council fact V3): for 21 of the 24 enum types the file
   opens, the entity holding the value is kept as unknown and the file is written back unchanged. For PerformanceSource,
   MergeChoice and Provenance, and for Hand and KeyMode on a note correction, a compared Notes or the assembly, the file
-  is still "damaged": those change the notes that sound (Andrei's decision on #313, option A). In a version 15 or 16
-  file any unknown value is damage: the builds that wrote one knew no value this one does not.
+  is still "damaged": those change the notes that sound (Andrei's decision on #313, option A). A version 16 file is
+  written back as the same file with version 17. In a version 15 file any unknown value is damage: the builds that
+  wrote one knew no value this one does not.
 - **The future file with this version**: with version 17 and the three values on the notes that sound put back, it
   opens and is written back whole, its unknown fields included.
 - **An unknown field** in a version 17 file is kept at the top level, in the workspace, in a Notes, an original and a
