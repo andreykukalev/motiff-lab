@@ -86,7 +86,7 @@ const geometry = {
     },
 };
 
-function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true, view, grid } = {}) {
+function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true, view, grid, edges } = {}) {
     const root = new FakeRoot();
     const said = [];
     const drawBand = (range) => {
@@ -118,6 +118,7 @@ function page({ selection = { start: BAR, end: 2 * BAR, hand: null }, on = true,
         zoom: () => said.push({ zoom: true }),
         view: view === undefined ? undefined : () => view,
         grid: grid === undefined ? undefined : () => grid,
+        edges,
     });
     let time = 0;
     const event = (x, y, pointerType = "pen") => ({ pointerId: 1, pointerType, isPrimary: true, button: 0, clientX: x, clientY: y, target: null, timeStamp: (time += 100) });
@@ -189,6 +190,22 @@ test("taps: a bar outside selects it, a note head selects the note, the margin c
     const inside = page();
     inside.gesture([[400, 200]]);
     assert.equal(inside.said.some((step) => step.chosen || step.cleared || step.zoom), false);
+});
+
+test("the pen's colour bars (finding 31): with no selection and no edges every press is a new passage, as Select's", () => {
+    // A drag colours what its rectangle covers, a tap a bar or a note head; the selection's band keeps no edges of its own.
+    const drawn = page({ selection: null, edges: false });
+    drawn.gesture([[650, 140], [860, 260]]);
+    assert.deepEqual(drawn.said.find((step) => step.chosen), { chosen: { start: 2 * BAR, end: 4 * BAR, hand: null }, how: "create" });
+    const bar = page({ selection: null, edges: false });
+    bar.gesture([[750, 260]]);
+    assert.deepEqual(bar.said.find((step) => step.chosen), { chosen: { start: 3 * BAR, end: 4 * BAR, hand: null }, how: "create" });
+    const note = page({ selection: null, edges: false });
+    note.gesture([[152, 143]]);
+    assert.deepEqual(note.said.find((step) => step.picked), { picked: "n1", how: "create" });
+    const banded = page({ edges: false });
+    banded.layer.decorate();
+    assert.equal(banded.classes().some((name) => name.startsWith("sel-edge")), false, "no edges over a band it does not own");
 });
 
 test("a double tap inside zooms to the selection", () => {

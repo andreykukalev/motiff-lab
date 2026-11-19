@@ -256,7 +256,7 @@ struct SettingsSheet: View {
             }
             // Extra information (testing item 33): off by default, each kind with its own switch.
             switchRow("layers.extra", text["extra.title"])
-            ForEach(ScoreController.extra, id: \.self) { item in
+            ForEach(MarksModel.extra, id: \.self) { item in
                 switchRow("layers.\(item)", text["extra.\(item)"])
             }
         case .roll:
@@ -337,7 +337,7 @@ struct SettingsSheet: View {
         if id == "phrases.granularity" { return "\(text["phrases.levelTitle"]): \(text[Self.granularityKey(value)])" }
         if id.hasPrefix("layers.") {
             let layer = String(id.dropFirst("layers.".count))
-            let name = layer == "extra" ? text["extra.title"] : ScoreController.extra.contains(layer) ? text["extra.\(layer)"] : text[id]
+            let name = layer == "extra" ? text["extra.title"] : MarksModel.extra.contains(layer) ? text["extra.\(layer)"] : text[id]
             return "\(name): \(text[value == "off" ? "settings.hidden" : "settings.shown"])"
         }
         return id

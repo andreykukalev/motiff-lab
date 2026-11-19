@@ -54,7 +54,7 @@ extension ScoreWorkspace {
         roll.showSelection(selection, loop: player.loop)
         // A bookmark being made belongs to the selection it was started on, and so does a note.
         if let draft = contents.draft, draft.id == nil { contents.cancel() }
-        if let note = score.noteDraft, note.onset != selection?.onset || note.end != selection?.end { score.noteDraft = nil }
+        if let note = score.marksModel.noteDraft, note.onset != selection?.onset || note.end != selection?.end { score.marksModel.noteDraft = nil }
         // The stream follows the selection while it is open; a variation tried belongs to the passage it was
         // tried on, so it is left either way.
         if panels[.insights] {

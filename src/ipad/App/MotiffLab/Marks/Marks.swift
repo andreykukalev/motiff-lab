@@ -25,9 +25,6 @@ struct HighlightMark: Identifiable, Equatable, Sendable {
 /// What the piece's marks hold beyond the ink's strokes, as music-core answers every mark call: the margin notes in score
 /// order, the highlights, and the numbers of the bars that carry ink.
 struct MarksShelf: Equatable, Sendable {
-    /// The inks a highlight is laid in: the amber highlighter first, then the pencil inks, as on the web.
-    static let highlightInks = ["amber", "carmine", "forest", "ochre"]
-
     var notes: [MarginNote] = []
     var highlights: [HighlightMark] = []
     var inkBars: [Int] = []
@@ -82,11 +79,6 @@ struct MarksShelf: Equatable, Sendable {
         text.count <= length ? text : String(text.prefix(length)).trimmingCharacters(in: .whitespaces) + "…"
     }
 
-    /// The kit's colour for an ink.
-    static func color(_ ink: String) -> Color {
-        ink == "amber" ? .ds("amber") : .ds("ink-\(ink)")
-    }
-
     /// The ink's name: "carmine", "forest green".
     static func inkName(_ ink: String, _ text: UIText) -> String {
         text["ink.\(ink)"]
@@ -102,14 +94,15 @@ func barsText(_ first: Int, _ last: Int, _ text: UIText) -> String {
 /// a note already written. Emptying the words and choosing Done deletes the note.
 struct NoteCard: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     @FocusState private var focused: Bool
 
     var body: some View {
-        if let draft = score.noteDraft {
+        if let draft = marksModel.noteDraft {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                 Text(text.format("margin.about", barsText(draft.firstBar, draft.lastBar, text))).overline()
-                TextField(text["margin.placeholder"], text: Binding(get: { score.noteDraft?.text ?? "" }, set: { score.noteDraft?.text = $0 }), axis: .vertical)
+                TextField(text["margin.placeholder"], text: Binding(get: { marksModel.noteDraft?.text ?? "" }, set: { marksModel.noteDraft?.text = $0 }), axis: .vertical)
                     .lineLimit(3...6)
                     .focused($focused)
                     .dsType(.body)
@@ -132,7 +125,7 @@ struct NoteCard: View {
                         .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
                     }
                     Spacer(minLength: 0)
-                    Button(text["bookmark.cancel"]) { score.noteDraft = nil }
+                    Button(text["bookmark.cancel"]) { marksModel.noteDraft = nil }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     Button(text["bookmark.done"]) { score.saveNote() }
                         .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
@@ -145,53 +138,13 @@ struct NoteCard: View {
     }
 }
 
-/// Highlight, under the menu's More: the inks as swatches, the one over the selection marked, and Remove the highlight.
-struct HighlightRow: View {
-    @ObservedObject var score: ScoreController
-    @ObservedObject var selectionModel: SelectionModel
-    let text: UIText
-
-    var body: some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            HStack(spacing: 6) {
-                Icon(name: "highlight", size: CGFloat.ds("icon-s"))
-                Text(text["menu.highlight"]).dsType(.label)
-            }
-            .foregroundStyle(Color.ds("ink"))
-            .padding(.trailing, CGFloat.ds("s-2"))
-            ForEach(MarksShelf.highlightInks, id: \.self) { ink in
-                let on = score.selectedHighlight?.colour == ink
-                Button {
-                    score.highlightSelection(ink)
-                } label: {
-                    Circle()
-                        .fill(MarksShelf.color(ink))
-                        .frame(width: 18, height: 18)
-                        .frame(width: 32, height: 32)
-                        .background(on ? Color.ds("accent-tint") : .clear, in: Circle())
-                        .overlay(Circle().strokeBorder(on ? Color.ds("accent") : .clear))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(text.format("menu.highlightIn", MarksShelf.inkName(ink, text)))
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-            if let highlight = score.selectedHighlight {
-                Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-                Button(text["menu.removeHighlight"]) { score.removeHighlight(highlight.id) }
-                    .buttonStyle(DSItemStyle())
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["menu.highlight"])
-    }
-}
-
 /// Extra information and the player's marks (0018 section 5; testing item 33): what the app adds over the notes, off by
 /// default, each kind with its own switch, then the layers of the player's own marks, each hidden for a clean page or all
 /// at once; all kept with the piece.
 struct LayersList: View {
+    /// Shows and hides the layers, and whether Check has flags.
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     /// Whether the piece has other versions, a plain value from the screen that observes them (Marks may not read Sources).
     let hasVersions: Bool
@@ -199,19 +152,19 @@ struct LayersList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["extra.title"]).overline()
-            let extraOn = !score.hiddenLayers.contains("extra")
+            let extraOn = !marksModel.hiddenLayers.contains("extra")
             Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            let extra = score.pieceExtra(hasVersions: hasVersions)
+            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: score.check.hasFlags)
             if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
             }
             ForEach(extra, id: \.self) { item in
-                Toggle(score.layerName(item), isOn: Binding(get: { !score.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
+                Toggle(marksModel.layerName(item), isOn: Binding(get: { !marksModel.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
@@ -220,14 +173,14 @@ struct LayersList: View {
             }
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Text(text["extra.yours"]).overline()
-            ForEach(score.pieceLayers, id: \.self) { layer in
-                Toggle(score.layerName(layer), isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
+            ForEach(marksModel.pieceLayers, id: \.self) { layer in
+                Toggle(marksModel.layerName(layer), isOn: Binding(get: { !marksModel.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
             }
-            let layers = score.pieceLayers
-            let allHidden = layers.allSatisfy { score.hiddenLayers.contains($0) }
+            let layers = marksModel.pieceLayers
+            let allHidden = layers.allSatisfy { marksModel.hiddenLayers.contains($0) }
             Button(allHidden ? text["layers.showAll"] : text["layers.hideAll"]) {
                 score.showLayers(layers, allHidden)
             }
@@ -240,12 +193,13 @@ struct LayersList: View {
 /// bars with ink; a tap goes there and selects the bars, and a note opens to read or change.
 struct NotesList: View {
     @ObservedObject var score: ScoreController
+    @ObservedObject var marksModel: MarksModel
     let text: UIText
     @State private var filter: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            let marks = score.marks
+            let marks = marksModel.marks
             if marks.isEmpty {
                 Text(text["contents.notesEmpty"])
                     .dsType(.label)
@@ -262,12 +216,12 @@ struct NotesList: View {
             if !marks.highlights.isEmpty {
                 heading(text["contents.highlights"], marks.highlights.count, ink: "amber")
                 HStack(spacing: CGFloat.ds("s-1")) {
-                    ForEach(MarksShelf.highlightInks.filter { ink in marks.highlights.contains { $0.colour == ink } }, id: \.self) { ink in
+                    ForEach(HighlightInk.allCases.map(\.rawValue).filter { ink in marks.highlights.contains { $0.colour == ink } }, id: \.self) { ink in
                         let on = filter == ink
                         Button {
                             filter = on ? nil : ink
                         } label: {
-                            Circle().fill(MarksShelf.color(ink)).frame(width: 18, height: 18)
+                            Circle().fill(HighlightInk.color(ink)).frame(width: 18, height: 18)
                                 .frame(width: 32, height: 32)
                                 .background(on ? Color.ds("accent-tint") : .clear, in: Circle())
                                 .overlay(Circle().strokeBorder(on ? Color.ds("accent") : .clear))
@@ -300,7 +254,7 @@ struct NotesList: View {
 
     private func heading(_ name: String, _ count: Int, ink: String) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            Circle().fill(MarksShelf.color(ink)).frame(width: 10, height: 10)
+            Circle().fill(HighlightInk.color(ink)).frame(width: 10, height: 10)
             Text(text.format("contents.category", name, String(count)))
                 .dsType(.overline)
                 .textCase(.uppercase)
@@ -325,7 +279,7 @@ struct NotesList: View {
                             .accessibilityHidden(true)
                     }
                     if let ink {
-                        Circle().fill(MarksShelf.color(ink)).frame(width: 10, height: 10)
+                        Circle().fill(HighlightInk.color(ink)).frame(width: 10, height: 10)
                     }
                     Text(title)
                         .dsType(.body)

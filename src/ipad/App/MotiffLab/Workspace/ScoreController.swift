@@ -13,10 +13,12 @@ import WebKit
 /// the same place in the web app. Who writes, selects and scrolls with a finger or the Pencil is InputRules' (#479
 /// item 18): the stylus follows the tool, a finger moves around the music.
 @MainActor
-final class ScoreController: NSObject, ObservableObject, PenHolder {
+final class ScoreController: NSObject, ObservableObject, PenScore {
     enum Tool: Equatable {
         case pen(Ink)
         case highlighter
+        /// The colour bars (finding 31): they colour through the page as Select selects, so nothing is written.
+        case colour
         case eraser
     }
 
@@ -36,21 +38,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var color: UIColor { DesignTokens.color("ink-\(rawValue)") }
     }
 
-    /// The pen's one tool and each tool's settings (PenState, #495 UX-06), as last chosen on this device (PenMemory): the
-    /// same after PDF | Notes and when the piece opens again.
-    @Published var pen = PenMemory.saved() {
-        didSet { if pen != oldValue { PenMemory.keep(pen) } }
-    }
-    /// The bar's Pen (0018 section 5): while it is on, the Pencil writes; on an iPad without a stylus one finger writes
-    /// and two fingers scroll, so the score takes marks with or without a Pencil (InputRules).
-    @Published var penOn = false {
-        didSet {
-            applyInput()
-            penChanged?(penOn)
-            if shown { Task { await scorePage.send(.pen, penOn) } }
-            sendMode()
-        }
-    }
     /// The mode the bar chose (version 0.5; the only model since v0.6.5), other than the Pen.
     @Published var mode: InteractionMode {
         didSet {
@@ -80,6 +67,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     let sourcesModel: SourcesModel
     /// The merge draft, its change, view and hearing, Compare versions, the toast and the marker tapped (Sources/MergeModel.swift).
     let mergeModel: MergeModel
+    /// The pen, the bar's Pen, the pencil palette, the Pen's Undo and Redo, the eraser and the ink queue (Ink/PenModel.swift).
+    let penModel: PenModel
+    /// The marks, the note being written, the layers hidden, the piece's own settings and the bookmark gone to
+    /// (Marks/MarksModel.swift).
+    let marksModel: MarksModel
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -108,21 +100,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var ossia: String? {
         didSet { if oldValue != ossia, focusModel.focused { Task { await engraveCard() } } }
     }
-    @Published private(set) var markCount = 0
-    /// The margin notes, highlights and inked bars, as music-core answered the last mark call.
-    @Published private(set) var marks = MarksShelf()
-    /// The note being written over the selection, or opened from its marker or the Notes tab; nil while none is.
-    @Published var noteDraft: NoteDraft?
-    /// The layers of marks hidden on the page (0018 section 5), kept with the piece as `layers.*` settings.
-    @Published private(set) var hiddenLayers: Set<String> = []
-    /// The piece's own settings, by id, as the project keeps them: the Settings sheet lists them, to clear in one tap.
-    @Published private(set) var pieceOverrides: [String: String] = [:]
-    /// The layers of the player's marks (0018 section 5), which show as before.
-    static let layers = ["ink", "notes", "bookmarks", "analysis"]
-    /// Extra information (testing item 33): what the app adds over the notes, off by default behind the ⓘ button, each
-    /// kind with its own switch: differences from versions, the bars taken from a version, and the Check flags.
-    static let extra = ["performance", "taken", "check"]
-    private static let layerIds = layers + ["extra"] + extra
     /// Whether the Check drawer is open: its flags show then even with extra information off.
     var checkDrawerOpen = false {
         didSet {
@@ -148,46 +125,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
-    /// The layers of the player's marks.
-    var pieceLayers: [String] { Self.layers }
-
-    /// The kinds of extra information this piece has: the differences and taken bars with a version (`hasVersions`, from
-    /// the screen that observes SourcesModel), Check with flags.
-    func pieceExtra(hasVersions: Bool) -> [String] {
-        Self.extra.filter { item in
-            switch item {
-            case "check": check.hasFlags
-            default: hasVersions
-            }
-        }
-    }
-
-    func layerName(_ layer: String) -> String {
-        Self.extra.contains(layer) ? text["extra.\(layer)"] : text["layers.\(layer)"]
-    }
-
-    /// Whether a kind of extra information shows: extra information is on, and that kind is.
-    func extraShown(_ item: String) -> Bool {
-        !hiddenLayers.contains("extra") && !hiddenLayers.contains(item)
-    }
 
     /// The ⓘ button: extra information on or off, kept with the piece.
     func toggleExtra() {
-        showLayers(["extra"], hiddenLayers.contains("extra"))
+        showLayers(["extra"], marksModel.hiddenLayers.contains("extra"))
     }
 
-    /// A margin note being written: a new one (no id) or one already kept, over its bars.
-    struct NoteDraft: Equatable {
-        var id: String?
-        var onset: Double
-        var end: Double
-        var firstBar: Int
-        var lastBar: Int
-        var text: String
-    }
-    @Published private(set) var canUndo = false
-    /// Whether the Pen's Redo has a step (#521 9).
-    @Published private(set) var canRedo = false
     @Published private(set) var problem: String?
     /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
     @Published private(set) var noteEditor: NoteEditorState?
@@ -220,8 +163,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The render under way (`scheduleRender`), and whether another is wanted after it.
     private var rendering: Task<Void, Never>?
     private var renderAgain = false
-    /// The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8); nil while it is closed.
-    @Published var pencilPalette: PencilPaletteCall?
     /// The selection's handles, in the document's pixels, as the page last reported them: the Pencil does not write there.
     private var handleSpots: [CGPoint] = []
     /// The playheads' handles, in the document's pixels, as the page last reported them: a finger there takes the handle.
@@ -229,26 +170,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
-    /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, or a press of the eraser (BUG-05).
-    private var steps = InkHistory()
-    /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
-    private let inkQueue = InkQueue()
-    /// The eraser's points not yet sent to the page, in the page's pixels, and whether a send is waiting in the queue.
-    private var rubPoints: [[String: Double]] = []
-    private var rubQueued = false
     /// The places ringed for the fact chosen in Insights.
     private var ringed: [Fact.Place] = []
-    /// The bookmarks as the page draws them, and where each is, for a tap on its bracket or its entry in the Contents.
-    private var bookmarkItems: [[String: Any]] = []
-    private var bookmarkSpans: [String: Range<Double>] = [:]
-    /// The bookmark last gone to and the selection that gave: a second tap on it lifts the passage into focus.
-    @Published private(set) var shownBookmark: ShownBookmark?
-
-    struct ShownBookmark: Equatable {
-        var id: String
-        var selection: ScoreSelection
-    }
-
     /// A page as the Contents drawer's Pages tab shows it: its stretch of the piece in ticks and its picture.
     struct PageOutline: Identifiable {
         var page: Int
@@ -273,7 +196,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         focusModel = FocusModel(selection: selecting)
         sourcesModel = sourcing
         mergeModel = MergeModel(selection: selecting, sources: sourcing)
+        penModel = PenModel()
+        marksModel = MarksModel(selection: selecting) { DeviceSettings.shared.resolved(overrides: $0) }
         super.init()
+        penModel.score = self
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -282,7 +208,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.attach(to: webView, pan: webView.scrollView.panGestureRecognizer)
         ink.style = { [weak self] point in self?.liveStyle(at: point) }
         ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
-        ink.rubs = { [weak self] in self?.tool == .eraser }
+        ink.rubs = { [weak self] in self?.penModel.tool == .eraser }
         ink.rubbed = { [weak self] points, lifted in self?.rubbed(points, lifted: lifted) }
         ink.handles = { [weak self] in self.map { $0.inView($0.handleSpots) } ?? [] }
         ink.heads = { [weak self] in self.map { $0.inView($0.headSpots) } ?? [] }
@@ -349,34 +275,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 self.scheduleRender()
             }
         }
-    }
-
-    /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
-    /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05).
-    func undo() {
-        inkQueue.then { [weak self] in
-            guard let self, let piece = self.piece, let last = self.steps.undo() else { return }
-            self.inkStepsChanged()
-            await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
-                await self.change(piece.id, call, request, draws: draws)
-            }
-        }
-    }
-
-    /// Does the step undone last again (#521 9): a stroke comes back, a press of the eraser takes again what it took.
-    func redo() {
-        inkQueue.then { [weak self] in
-            guard let self, let piece = self.piece, let step = self.steps.redo() else { return }
-            self.inkStepsChanged()
-            await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
-                await self.change(piece.id, call, request, draws: draws)
-            }
-        }
-    }
-
-    private func inkStepsChanged() {
-        canUndo = steps.canUndo
-        canRedo = steps.canRedo
     }
 
     // MARK: - The page
@@ -477,6 +375,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         case .cardLayout(let options):
             focusModel.takeCardOptions(facadeRequest(options))
             Task { await engraveCard() }
+        case let .coloured(start, end):
+            penModel.colour(start, end)
         default:
             break
         }
@@ -489,7 +389,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func showLevel(_ level: String) {
         selectionModel.hidePhrases(false)
         guard let piece, level != selectionModel.phrases?.level else { return }
-        pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
+        marksModel.keepLevel(level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases")
         Task {
             await selectionModel.showLevel(level, in: piece.id)
             await showSelection()
@@ -570,42 +470,30 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Draws the bookmarks as brackets in their categories' inks above the top staff (0018 section 5).
     func showBookmarks(_ shelf: BookmarkShelf?) {
-        let bookmarks = shelf?.bookmarks ?? []
-        bookmarkSpans = Dictionary(bookmarks.map { ($0.id, $0.onset..<max($0.end, $0.onset + 1)) }, uniquingKeysWith: { first, _ in first })
-        bookmarkItems = bookmarks.map { bookmark in
-            [
-                "id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title,
-                "ink": shelf?.category(of: bookmark)?.ink ?? "graphite", "label": text.format("bookmark.label", bookmark.title, bookmark.bars(text)),
-            ] as [String: Any]
-        }
+        marksModel.keepBookmarks(shelf)
         guard shown else { return }
         Task { await drawBookmarks() }
     }
 
     private func drawBookmarks() async {
-        await scorePage.send(.bookmarks, ["items": bookmarkItems])
+        await scorePage.send(.bookmarks, ["items": marksModel.bookmarkItems])
     }
 
     /// A bookmark gone to from its bracket or its entry: the score selects it and brings it into view; gone to again with
     /// the selection as it left it, the passage lifts into focus. True when it lifted.
     @discardableResult
     func goToBookmark(_ id: String) -> Bool {
-        guard let span = bookmarkSpans[id] else { return false }
-        if let shownBookmark, shownBookmark.id == id, shownBookmark.selection == selectionModel.selection, !penOn {
+        guard let span = marksModel.span(ofBookmark: id) else { return false }
+        if let shownBookmark = marksModel.shownBookmark, shownBookmark.id == id, shownBookmark.selection == selectionModel.selection, !penModel.penOn {
             enterFocus()
             return true
         }
         Task {
             await select(span.lowerBound, span.upperBound)
-            if let selection = selectionModel.selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
+            marksModel.wentTo(bookmark: id)
             await scorePage.send(.reveal, ["start": span.lowerBound])
         }
         return false
-    }
-
-    /// Whether the selection is the bookmark last gone to: its entry in the Contents shows it.
-    func isShown(_ id: String) -> Bool {
-        shownBookmark?.id == id && shownBookmark?.selection == selectionModel.selection
     }
 
     /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
@@ -674,108 +562,63 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { await scorePage.send(.showPage, ["page": page]) }
     }
 
-    // MARK: - Margin notes, highlights and layers
-
-    /// Starts a note over the selection.
-    func startNote() {
-        guard let selection = selectionModel.selection else { return }
-        noteDraft = NoteDraft(id: nil, onset: selection.onset, end: selection.end, firstBar: selection.firstBar, lastBar: selection.lastBar, text: "")
-    }
+    // MARK: - Margin notes and layers
 
     /// Opens a note to read or change: its bars are selected and the card shows its words.
     func openNote(_ id: String) {
-        guard let note = marks.notes.first(where: { $0.id == id }) else { return }
-        let draft = NoteDraft(id: id, onset: note.onset, end: note.end, firstBar: note.firstBar, lastBar: note.lastBar, text: note.text)
+        guard let note = marksModel.marks.notes.first(where: { $0.id == id }) else { return }
+        let draft = MarksModel.NoteDraft(id: id, onset: note.onset, end: note.end, firstBar: note.firstBar, lastBar: note.lastBar, text: note.text)
         Task {
             if selectionModel.selection?.onset != note.onset || selectionModel.selection?.end != note.end {
                 await select(note.onset, note.end)
                 await scorePage.send(.reveal, ["start": note.onset])
             }
-            noteDraft = draft
+            marksModel.noteDraft = draft
         }
     }
 
     /// Done on the note card: a new note is kept when it has words; a kept one changes, or goes when emptied.
     func saveNote() {
-        guard let draft = noteDraft, let piece else { return }
-        noteDraft = nil
+        guard let draft = marksModel.noteDraft, let piece else { return }
+        marksModel.noteDraft = nil
         let words = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
         Task {
             if let id = draft.id {
                 if words.isEmpty {
-                    await change(piece.id, "note.remove", ["id": id])
+                    await changeMarks(piece.id, "note.remove", ["id": id])
                 } else {
-                    await change(piece.id, "note.change", ["id": id, "text": words])
+                    await changeMarks(piece.id, "note.change", ["id": id, "text": words])
                 }
             } else if !words.isEmpty {
                 let span = ["onset": Int(draft.onset), "end": Int(draft.end)]
-                await change(piece.id, "note.add", ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
+                await changeMarks(piece.id, "note.add", ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
             }
         }
     }
 
     func deleteNote(_ id: String) {
         guard let piece else { return }
-        noteDraft = nil
-        Task { await change(piece.id, "note.remove", ["id": id]) }
-    }
-
-    /// The highlight laid exactly over the selection, the newest when there are more.
-    var selectedHighlight: HighlightMark? {
-        guard let selection = selectionModel.selection else { return nil }
-        return marks.highlights.last { $0.onset == selection.onset && $0.end == selection.end }
-    }
-
-    /// Lays the selection in an ink; the highlight already over it gives way to the new one.
-    func highlightSelection(_ ink: String) {
-        guard let piece, let selection = selectionModel.selection else { return }
-        let existing = selectedHighlight
-        guard existing?.colour != ink else { return }
-        Task {
-            if let existing { await change(piece.id, "highlight.remove", ["id": existing.id]) }
-            await change(piece.id, "highlight.add", ["span": ["onset": Int(selection.onset), "end": Int(selection.end)], "colour": ink])
-        }
-    }
-
-    func removeHighlight(_ id: String) {
-        guard let piece else { return }
-        Task { await change(piece.id, "highlight.remove", ["id": id]) }
+        marksModel.noteDraft = nil
+        Task { await changeMarks(piece.id, "note.remove", ["id": id]) }
     }
 
     /// Shows or hides layers of marks, kept with the piece.
     func showLayers(_ layers: [String], _ on: Bool) {
         guard let piece else { return }
-        for layer in layers { pieceOverrides["layers.\(layer)"] = on ? "on" : "off" }
-        hiddenLayers = layersHidden()
+        marksModel.showLayers(layers, on)
         let id = piece.id
         Task {
-            for layer in layers {
-                let request = facadeRequest(["id": "layers.\(layer)", "value": on ? "on" : "off"])
-                _ = await MusicCore.run { MusicCore.call(piece: id, "settings.override", request) }
-            }
+            await marksModel.keepLayers(layers, on, in: id)
             await applyLayers()
             await drawVersions()
         }
     }
 
-    /// The piece's own choices (`settings` on the piece): its layers and its level.
-    private func loadPieceSettings(_ piece: OpenPiece) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "settings") }
-        pieceOverrides = facadeObject(answer)?["overrides"] as? [String: String] ?? [:]
-        hiddenLayers = layersHidden()
-    }
-
-    /// The layers hidden: the piece's own choice, else the device's (0018 section 10).
-    private func layersHidden() -> Set<String> {
-        let values = DeviceSettings.shared.resolved(overrides: pieceOverrides)
-        return Set(Self.layerIds.filter { values["layers.\($0)"] == "off" })
-    }
-
     /// What the page hides: the layers hidden, and Check while neither extra information nor the Check drawer shows it.
     private func applyLayers() async {
         guard shown else { return }
-        var hidden = Self.layers.filter(hiddenLayers.contains)
-        if !extraShown("check") && !checkDrawerOpen { hidden.append("check") }
+        var hidden = MarksModel.layers.filter(marksModel.hiddenLayers.contains)
+        if !marksModel.extraShown("check") && !checkDrawerOpen { hidden.append("check") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
         await scorePage.send(.layers, ["hidden": hidden, "slate": slate])
     }
@@ -783,8 +626,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The level a piece opens in (the setting "phrases.granularity"), shown without becoming the piece's own; a piece that
     /// has its own keeps it.
     private func applyLevel() async {
-        guard let piece, pieceOverrides[Self.granularity] == nil, let shownLevel = selectionModel.phrases?.level else { return }
-        let level = switch DeviceSettings.shared[Self.granularity] {
+        guard let piece, marksModel.pieceOverrides[MarksModel.granularity] == nil, let shownLevel = selectionModel.phrases?.level else { return }
+        let level = switch DeviceSettings.shared[MarksModel.granularity] {
         case "short": "short"
         case "sentences": "sentence"
         default: "phrase"
@@ -795,11 +638,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         focusModel.updatePlayRange()
     }
 
-    private static let granularity = "phrases.granularity"
-
     /// The device's settings changed in the sheet: the page follows at once.
     func settingsChanged() {
-        hiddenLayers = layersHidden()
+        marksModel.deviceSettingsChanged()
         Task {
             await applyLayers()
             await applyLevel()
@@ -810,13 +651,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// "Use these settings for this piece": the piece's own choices go, and the device's hold for it too.
     func clearPieceOverrides() {
         guard let piece else { return }
-        let ids = Array(pieceOverrides.keys)
-        pieceOverrides = [:]
+        let ids = marksModel.clearOverrides()
         Task {
-            for id in ids {
-                let request = facadeRequest(["id": id, "value": NSNull()])
-                _ = await MusicCore.run { MusicCore.call(piece: piece.id, "settings.override", request) }
-            }
+            await marksModel.forgetOverrides(ids, in: piece.id)
             settingsChanged()
         }
     }
@@ -1253,7 +1090,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await readSources()
         guard shown else { return }
         let name = sourcesModel.versions.shown?.name ?? ""
-        let differing = extraShown("performance") ? sourcesModel.versions.differing : []
+        let differing = marksModel.extraShown("performance") ? sourcesModel.versions.differing : []
         let markers: [[String: Any]] = differing.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
@@ -1263,7 +1100,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let data: [String: Any] = [
             "markers": markers, "unheard": viewed ? [] : differing.flatMap(\.notHeard),
             "added": viewed ? engraved.added : [], "artefacts": [String](), "own": viewed ? engraved.own : [],
-            "taken": extraShown("taken") && !viewed ? sourcesModel.versions.taken.compactMap { $0.span?.lowerBound } : [],
+            "taken": marksModel.extraShown("taken") && !viewed ? sourcesModel.versions.taken.compactMap { $0.span?.lowerBound } : [],
         ]
         await scorePage.send(.performance, data)
         await updateFocusVersion()
@@ -1541,7 +1378,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Lifts the selection into focus (Expand, #521 19): the page dims, the card shows the selection's bars on their own, and
     /// the page neither scrolls nor takes the Pencil until the way back, which `entry` names (#521 17).
     func enterFocus(from entry: ExpandEntry = .notes) {
-        guard shown, ExpandRules.opens(selected: selectionModel.selection != nil, penOn: penOn), !focusModel.focused else { return }
+        guard shown, ExpandRules.opens(selected: selectionModel.selection != nil, penOn: penModel.penOn), !focusModel.focused else { return }
         focusModel.open(from: entry)
         setPageStill(true)
         let label = text.format("focus.cardLabel", focusModel.position(in: text))
@@ -1781,7 +1618,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 await scorePage.send(.showTick, ["tick": tick, "instant": true])
             }
             if Landing.notesShowOnRender(piece.landing) { land() }
-            await scorePage.send(.pen, penOn)
+            await scorePage.send(.pen, penModel.penOn)
             applyInput()
             await sendModeNow()
             await sendPlayheadsNow()
@@ -1792,7 +1629,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
-            await loadPieceSettings(piece)
+            await marksModel.loadSettings(of: piece.id)
             await applyLayers()
             await applyLevel()
             await loadVersions(piece)
@@ -1820,9 +1657,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             return
         }
         let ink = object["ink"] as? [Any] ?? []
-        markCount = ink.count
         let shelf = MarksShelf(object: object)
-        marks = shelf
+        marksModel.show(shelf, inkCount: ink.count)
         await scorePage.send(.draw, ["marks": ink])
         let notes: [[String: Any]] = shelf.notes.map { note in
             let label = text.format("margin.markerLabel", String(shelf.number(of: note)), barsText(note.firstBar, note.lastBar, text), MarksShelf.firstWords(note.text))
@@ -1834,7 +1670,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
     /// that make one change, so the page never shows it half done.
-    private func change(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
+    func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
         let text = facadeRequest(request)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
         if draws { await draw(answer) }
@@ -1857,20 +1693,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             point["pressure"] = sample.pressure
             return point
         }
-        let pen = pen
-        inkQueue.then { [weak self] in
-            guard let self else { return }
-            switch pen.stroke {
-            case .pen(let colour):
-                await self.add(piece.id, points, tool: "pen", colour: colour.rawValue, width: pen.pencil.width)
-            case .highlighter:
-                await self.add(piece.id, points, tool: "highlighter", colour: "amber", width: pen.marker.width)
-            case .eraser:
-                // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
-                break
-            }
-            self.ink.live.dropOldest()
-        }
+        penModel.keep(points, in: piece.id) { [weak self] in self?.ink.live.dropOldest() }
     }
 
     /// A point of the web view in the page's pixels, as the page measures its bars and marks.
@@ -1880,64 +1703,29 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return ["x": inPage.x / zoom, "y": inPage.y / zoom]
     }
 
-    /// The eraser moved (InkInput, BUG-05): the page takes the marks under it at once (`motiff.rub`), cutting them where
-    /// it passes (#479 item 7), with nothing drawn for the eraser itself; when it lifts, the press is saved as one step.
-    /// Points that come while the page is still busy go together in the next send, so a fast eraser never queues up.
+    /// The eraser moved (InkInput, BUG-05): its points go to the pen in the page's pixels (PenModel.rub).
     private func rubbed(_ points: [CGPoint], lifted: Bool) {
-        rubPoints += points.map(pagePoint)
-        if !rubQueued, !rubPoints.isEmpty {
-            rubQueued = true
-            inkQueue.then { [weak self] in await self?.sendRub() }
-        }
-        if lifted {
-            let piece = piece?.id
-            inkQueue.then { [weak self] in await self?.endRub(piece) }
-        }
-    }
-
-    private func sendRub() async {
-        rubQueued = false
-        let points = rubPoints
-        rubPoints = []
-        guard !points.isEmpty else { return }
-        await scorePage.send(.rub, ["points": points])
-    }
-
-    /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
-    /// marks it cut, drawn once both are done), and Undo puts it back whole.
-    private func endRub(_ piece: Int32?) async {
-        guard let cut = try? await scorePage.call(.rubEnd) as? [String: Any],
-              let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty, let piece
-        else { return }
-        let pieces = cut["added"] as? [[String: Any]] ?? []
-        if !pieces.isEmpty {
-            await change(piece, "ink.add", ["strokes": pieces], draws: false)
-        }
-        await change(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }])
-        steps.record(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces))
-        inkStepsChanged()
-    }
-
-    /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
-    private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String, width: Int) async {
-        let request: [String: Any] = ["points": points, "tool": tool, "colour": colour, "width": width]
-        guard let mark = try? await scorePage.call(.anchor, request) as? [String: Any],
-              let id = mark["id"] as? String
-        else { return }
-        steps.record(InkStep(added: [id], strokes: [mark]))
-        inkStepsChanged()
-        await change(piece, "ink.add", ["strokes": [mark]])
+        penModel.rub(points.map(pagePoint), lifted: lifted, in: piece?.id)
     }
 
     /// Who writes, selects and scrolls (InputRules, #479 item 18): the pen's gesture and the scroll view take the
     /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
     /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penOn))
+        let tool = InputRules.Tool(mode: mode, penOn: penModel.penOn)
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: tool, colour: penModel.pen.colouring?.rawValue)
         ink.apply(rules)
-        toolChanged?(mode, penOn)
+        toolChanged?(mode, penModel.penOn)
         guard shown else { return }
         Task { await scorePage.send(.input, rules.page) }
+    }
+
+    /// The bar's Pen turned on or off (PenModel.penOn): who writes and scrolls, the roll's rules and the page follow.
+    func penTurned(_ on: Bool) {
+        applyInput()
+        penChanged?(on)
+        if shown { Task { await scorePage.send(.pen, on) } }
+        sendMode()
     }
 
     /// Where the Pencil hovers over the window, for the stylus menu's place over the roll and the rest of the screen (#521 7).
@@ -1965,7 +1753,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     private func sendModeNow() async {
-        let data: [String: Any] = ["name": penOn ? InteractionMode.pen.rawValue : mode.rawValue]
+        let data: [String: Any] = ["name": penModel.penOn ? InteractionMode.pen.rawValue : mode.rawValue]
         await scorePage.send(.mode, data)
     }
 
@@ -1985,29 +1773,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await scorePage.send(.playheads, value)
     }
 
-    /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the
-    /// pencil in its ink with the page's grain from the page's top left corner, the highlighter opaque on a layer as
-    /// translucent as the page's. The eraser draws nothing: what it takes goes from the page as it moves (BUG-05).
+    /// How the stroke beginning now looks while it is written, at the page's zoom and in its appearance (PenModel.liveStyle).
     private func liveStyle(at point: CGPoint) -> LiveInkView.Style? {
-        let zoom = webView.scrollView.zoomScale
-        let theme = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
-        let space = Double(staffSpace * zoom)
-        switch tool {
-        case .pen(let colour):
-            let origin = webView.scrollView.convert(CGPoint.zero, to: webView)
-            return LiveInkView.Style(
-                colour: DesignTokens.dynamicColor("ink-\(colour.rawValue)").resolvedColor(with: theme),
-                radius: PenSizes.pen[pen.pencil.width] * space / 2, followsPressure: true,
-                grain: (origin: origin, tile: InkPaint.tile * zoom)
-            )
-        case .highlighter:
-            return LiveInkView.Style(
-                colour: DesignTokens.dynamicColor("amber").resolvedColor(with: theme),
-                radius: PenSizes.highlighter[pen.marker.width] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
-            )
-        case .eraser:
-            return nil
-        }
+        penModel.liveStyle(
+            zoom: webView.scrollView.zoomScale, staffSpace: staffSpace, dark: dark,
+            origin: webView.scrollView.convert(CGPoint.zero, to: webView)
+        )
     }
 }
 
