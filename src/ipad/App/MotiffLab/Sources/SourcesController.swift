@@ -179,38 +179,73 @@ final class SourcesController: ObservableObject {
         toast = SourcesToast(text: text["sources.sheet.toastNotesGone"], undo: .restore(before))
     }
 
-    /// «Распознать» or «Распознать ещё раз»: the original's pages go to the scan server chosen (the player's yes is the
-    /// panel's Send), and the notes it reads become new Notes beside the ones there are, which keep their corrections.
-    /// Answers why not, or nil once done.
+    /// Whether the original can be recognised here: the pages can go to the scan server, a PDF or photos whose bytes are
+    /// kept in the piece here, on a piece with working notes.
+    func canRecognise(_ original: SourceLayers.Original) -> Bool {
+        original.isPages && original.isHere && original.kept == "file" && layers.working != nil
+    }
+
+    /// «Распознать» or «Распознать ещё раз», the one path of recognising an original: what it is read from goes to the
+    /// scan server chosen (the player's yes is the panel's Send), and the notes it reads become new Notes of that original
+    /// beside the ones there are, which keep their corrections (`keepRecognised`). Answers why not, or nil once done.
     func recognise(_ original: SourceLayers.Original, address: URL, account: Account) async -> String? {
         reading = original.id
         defer { reading = nil }
+        switch await readPages(original, address: address, account: account) {
+        case .failure(let refusal): return refusal.words
+        case .success(let read): return await keepRecognised("sources.notes.recognise", read)
+        }
+    }
+
+    /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
+    /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
+    private struct Recognised {
+        var fields: [String: Any]
+        var dropped: String?
+        var toast: String
+    }
+
+    /// Why an original was not recognised, in the player's words.
+    private struct Refusal: Error {
+        let words: String
+    }
+
+    /// The original's pages, as kept in the piece, read by the scan server, for `sources.notes.recognise`.
+    private func readPages(_ original: SourceLayers.Original, address: URL, account: Account) async -> Result<Recognised, Refusal> {
         let kept = await call("sources.pdf", ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
-            return facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
+            return .failure(Refusal(words: facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]))
         }
         let result: ScanResult
         switch await ScanServer.recognise(fileName: object["fileName"] as? String ?? original.fileName, data: data, address: address, account: account) {
-        case .failure(let problem): return problem.text(text)
+        case .failure(let problem): return .failure(Refusal(words: problem.text(text)))
         case .success(let read): result = read
         }
         let pages = max(1, original.pages ?? result.pages)
         var fields: [String: Any] = ["original": original.id, "musicXml": result.musicXml.base64EncodedString(), "engine": result.engine, "pages": pages, "now": Self.now()]
         if let reports = result.reports { fields["reports"] = reports }
-        var answer = await call("sources.notes.recognise", fields)
-        if result.reports != nil, facadeObject(answer)?["error"] as? String == "badRequest" {
-            // The reports did not match the pages read: the notes are kept without them.
-            fields["reports"] = nil
-            answer = await call("sources.notes.recognise", fields)
+        // The reports may not match the pages read: then the notes are kept without them.
+        let dropped: String? = result.reports == nil ? nil : "reports"
+        return .success(Recognised(fields: fields, dropped: dropped, toast: text.count("sources.sheet.toastRead", pages)))
+    }
+
+    /// The notes recognised kept by music-core (`name`, the call of the kind of original read) as new Notes of their
+    /// original, shown fresh once, saved, and told in the toast. Answers why not, or nil once kept.
+    private func keepRecognised(_ name: String, _ read: Recognised) async -> String? {
+        var fields = read.fields
+        var answer = await call(name, fields)
+        if let dropped = read.dropped, facadeObject(answer)?["error"] as? String == "badRequest" {
+            fields[dropped] = nil
+            answer = await call(name, fields)
         }
-        guard let read = SourceLayers(answer: answer), let id = facadeObject(answer)?["id"] as? String else {
+        guard let kept = SourceLayers(answer: answer), let id = facadeObject(answer)?["id"] as? String else {
             return facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]
         }
-        layers = read
+        layers = kept
         fresh = id
         status = nil
         await save()
-        toast = SourcesToast(text: text.count("sources.sheet.toastRead", pages))
+        toast = SourcesToast(text: read.toast)
         return nil
     }
 

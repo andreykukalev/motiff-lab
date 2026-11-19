@@ -5,16 +5,31 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 ## Files
 
 `DeleteOriginalDialog`, `KeptCopies`, `Merge`, `MergeModel`, `OriginalSounds`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `SourceLayers`, `SourcesController`, `SourcesModel`, `SourcesSheet`, `SourcesSwitch`, `Versions`
-(`.swift`).
+`OriginalsViews`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`, `SourcesRecognise`, `SourcesRows`,
+`SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).
 - `SourceLayers.swift`: the sources by the layers of 0030 as the app shows them, built from `SourceLayersAnswer`
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
   original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
+- `SourcesSheet.swift`: the Sources sheet (`SourcesSheet`, called by `Workspace/ScoreScreen` and `Pdf/Pdf`): its header,
+  the add menu, the list of groups and loose Notes, picking files (`Picking`, `take`) and the camera; it owns the view state
+  the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.
+- `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (what a row takes from the sheet: the view shown now, the scan server's
+  address and whether it is hosted, the buttons' actions), `SourcesGroupCard` (an original with its Notes),
+  `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯ menus, `SourcesRowHead`, `SourcesRowBackground`, `SourcesCaption`.
+- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted) and
+  `SourcesRecognisePanel` (where it goes, Send, Cancel), whose Send is `SourcesController.recognise`.
+- `SourcesDialogs.swift` (v0.10 s-1): `SourcesDialogs`, the sheet's three dialogs as one modifier: deleting an original
+  (`DeleteOriginalDialog`), deleting Notes, an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
+  Recognising an original is one path: `canRecognise` (today the pages kept in the piece here, on a piece with working
+  notes), then `recognise` reads the original into a `Recognised` (its fields, the field dropped on a "badRequest", the
+  toast; `readPages` for the pages) and `keepRecognised` keeps it under the call name `recognise` gives it as a literal
+  (`sources.notes.recognise`; the facade-calls contract test reads it there): layers, `fresh`, save, toast. A
+  recording's branch (`sources.notes.hear`, v0.10 s-3) adds one reader beside `readPages`.
 - `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
   span heard, ‹ ›, the bars Compare versions shows, one `performance.merge` call). Tests: `MotiffLabTests/MergeDraftTests`.
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a
@@ -40,4 +55,5 @@ S7c. `SourcesController`: the layers of 0030.
 
 ## Baseline entries that protect it
 
-UX baseline: not recorded yet. Quality ratchet: `Versions.swift` file_length.
+UX baseline: not recorded yet. Tests: `MotiffLabTests/OriginalsTests` (`addWord`, `canRecognise`). Quality ratchet:
+`Versions.swift` file_length.
