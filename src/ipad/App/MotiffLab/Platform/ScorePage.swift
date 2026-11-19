@@ -80,6 +80,7 @@ enum PageEvent {
     enum Kind: String, CaseIterable {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
         case noteMarker, handles, playheadAway, checkFlag, performanceBar, place, heads, drag, blank, leave, cardLayout
+        case coloured
     }
 
     case pages(first: Int, last: Int, count: Int)
@@ -105,6 +106,8 @@ enum PageEvent {
     case blank
     case leave
     case cardLayout([String: Any])
+    /// A passage the pen's colour bars coloured (finding 31), as Select would have selected it; the selection stays.
+    case coloured(start: Double, end: Double)
 
     /// The events of one message, in the order of `Kind`; what does not decode is left out.
     static func events(in message: [String: Any]) -> [PageEvent] {
@@ -172,6 +175,8 @@ enum PageEvent {
             return .leave
         case .cardLayout:
             return fields.map { .cardLayout($0) }
+        case .coloured:
+            return span(fields).map { .coloured(start: $0.start, end: $0.end) }
         default:
             return nil
         }

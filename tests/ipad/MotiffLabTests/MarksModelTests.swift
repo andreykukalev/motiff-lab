@@ -59,20 +59,16 @@ final class MarksModelTests: XCTestCase {
         XCTAssertEqual(model.pieceOverrides[MarksModel.granularity], "sentences")
     }
 
-    func testTheHighlightOverTheSelectionIsTheNewestLaidExactlyOverIt() {
-        let (model, selection) = made()
-        let span: [String: Any] = ["onset": 0, "end": 1920]
+    func testTheMarksShownAreWhatMusicCoreAnswered() {
+        let (model, _) = made()
         let highlights: [[String: Any]] = [
-            ["id": "h1", "span": span, "colour": "amber"],
+            ["id": "h1", "span": ["onset": 0, "end": 1920], "colour": "amber"],
             ["id": "h2", "span": ["onset": 0, "end": 960], "colour": "forest"],
-            ["id": "h3", "span": span, "colour": "carmine"],
         ]
-        let shelf = MarksShelf(object: ["highlights": highlights])
-        model.show(shelf, inkCount: 4)
+        model.show(MarksShelf(object: ["highlights": highlights]), inkCount: 4)
         XCTAssertEqual(model.markCount, 4)
-        XCTAssertNil(model.selectedHighlight, "no selection, no highlight over it")
-        selection.answered(bars)
-        XCTAssertEqual(model.selectedHighlight?.id, "h3")
+        XCTAssertEqual(model.marks.highlights.map(\.id), ["h1", "h2"])
+        XCTAssertEqual(model.marks.highlights.map(\.colour), ["amber", "forest"])
     }
 
     func testABookmarkGoneToIsShownWhileTheSelectionIsWhatItGave() throws {

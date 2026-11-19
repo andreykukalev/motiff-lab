@@ -35,6 +35,12 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([start, end], [1920, 3840])
     }
 
+    func testAPassageColouredIsItsSpan() {
+        let events = PageEvent.events(in: ["coloured": ["start": 480, "end": 1440]])
+        guard case let .coloured(start, end)? = events.first else { return XCTFail("a passage coloured: \(events)") }
+        XCTAssertEqual([start, end], [480, 1440])
+    }
+
     func testAVersionMarkerCarriesItsPlace() {
         let events = PageEvent.events(in: ["performanceBar": 12, "left": 40.5, "bottom": 300])
         XCTAssertEqual(events.count, 1, "left and bottom belong to the marker")

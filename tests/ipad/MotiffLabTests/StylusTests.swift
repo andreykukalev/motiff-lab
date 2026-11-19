@@ -108,6 +108,33 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(InputRules(stylus: true, tool: .select).selectStart(.stylus), .now, "leaving the Pen restores Select")
     }
 
+    func testWithTheColourBarsThePointersThatTakeThePenColourThroughThePage() {
+        // Finding 31: the colour bars colour as Select selects, on the page; the pen's own gesture takes no stroke.
+        let stylus = InputRules(stylus: true, tool: .pen, colour: "forest")
+        XCTAssertTrue(stylus.colours(.stylus))
+        XCTAssertFalse(stylus.inks(.stylus), "no stroke is written")
+        XCTAssertFalse(stylus.colours(.finger), "a finger beside the Pencil scrolls")
+        XCTAssertTrue(stylus.scrolls(.finger))
+        XCTAssertFalse(stylus.taps(.stylus), "its tap colours and places no playhead")
+        XCTAssertFalse(stylus.inkTakes(.stylus, nearHandle: false))
+        let page = stylus.page
+        XCTAssertEqual(page["colour"] as? String, "forest")
+        XCTAssertEqual((page["pen"] as? [String: Any])?["colour"] as? Bool, true)
+        XCTAssertEqual((page["touch"] as? [String: Any])?["colour"] as? Bool, false)
+
+        let finger = InputRules(stylus: false, tool: .pen, colour: "amber")
+        XCTAssertTrue(finger.colours(.finger), "no stylus needed: one finger colours")
+        XCTAssertEqual(finger.scrollFingers, 2, "and two scroll")
+        XCTAssertFalse(finger.inks(.finger))
+
+        XCTAssertFalse(InputRules(stylus: true, tool: .select, colour: "amber").colours(.stylus), "only with the Pen on")
+        XCTAssertFalse(InputRules(stylus: true, tool: .pen, surface: .pdf, colour: "amber").colours(.stylus), "a PDF has no bars")
+        let pencil = InputRules(stylus: true, tool: .pen)
+        XCTAssertTrue(pencil.inks(.stylus), "the pencil writes as before")
+        XCTAssertNil(pencil.page["colour"])
+        XCTAssertEqual((pencil.page["pen"] as? [String: Any])?["colour"] as? Bool, false)
+    }
+
     func testOnlyTheToolDecidesWhatALongPressMeans() {
         // #543 2-4, the lead's decisions 1-3: in Navigate a long press of either pointer puts the black playhead and never
         // selects; with the Pen the finger beside the stylus does the same; in Select it selects.

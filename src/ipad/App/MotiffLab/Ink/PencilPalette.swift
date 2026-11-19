@@ -366,7 +366,7 @@ struct PencilPalette<Holder: PenHolder>: View {
 
     /// The pen palette's places: its tools on the inner half circle, the settings' slots on the outer one.
     private func penPlaces(_ upward: Bool) -> (tools: [CGPoint], slots: [CGPoint]) {
-        let tools = PaletteLayout.arc(count: ActiveTool.allCases.count, radius: Self.inner, upward: upward)
+        let tools = PaletteLayout.arc(count: holder.tools.count, radius: Self.inner, upward: upward)
         let slots = PaletteLayout.arc(count: PaletteLayout.settingSlots, radius: Self.outer, upward: upward)
         return (tools, slots)
     }
@@ -443,8 +443,8 @@ struct PencilPalette<Holder: PenHolder>: View {
     private func penRing(_ upward: Bool) -> some View {
         let (tools, slots) = penPlaces(upward)
         return ZStack {
-            ForEach(ActiveTool.allCases.indices, id: \.self) { index in
-                toolButton(ActiveTool.allCases[index]).offset(x: tools[index].x, y: tools[index].y)
+            ForEach(holder.tools.indices, id: \.self) { index in
+                toolButton(holder.tools[index]).offset(x: tools[index].x, y: tools[index].y)
             }
             ForEach(shownInks, id: \.self) { ink in
                 let slot = slots[PaletteLayout.slot(ink: ink)]

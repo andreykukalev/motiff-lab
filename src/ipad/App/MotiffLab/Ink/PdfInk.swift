@@ -219,9 +219,11 @@ extension PdfController {
     /// The pen's default size in the page's spaces (the web app's PEN_SIZE); the sizes of every thickness are PenSizes.
     static let penSize = PenSizes.pen[PenSizes.defaultWidth]
 
-    /// The pen over the pages (InkInput): it writes, and the PDF view's scroll view scrolls, as InputRules say.
+    /// The pen over the pages (InkInput): it writes, and the PDF view's scroll view scrolls, as InputRules say. The pages
+    /// have no bars to colour, so a pen kept with the colour bars writes here with the tool before them.
     func attach(to view: PDFView) {
         guard inkable else { return }
+        pen.leaveColourBars()
         ink.attach(to: view, pan: scroll?.panGestureRecognizer)
         ink.style = { [weak self] point in self?.liveStyle(at: point) }
         ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
@@ -305,7 +307,7 @@ extension PdfController {
                 radius: PenSizes.highlighter[pen.marker.width] * on.space / 2 * scale, followsPressure: false,
                 alpha: PenSizes.highlighterAlpha
             )
-        case .eraser:
+        case .colour, .eraser:
             return nil
         }
     }
@@ -328,8 +330,9 @@ extension PdfController {
                 await self.keep(onPage, tool: "pen", colour: colour.rawValue, size: PenSizes.pen[pen.pencil.width], page: number, box: box)
             case .highlighter:
                 await self.keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[pen.marker.width], page: number, box: box)
-            case .eraser:
-                // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
+            case .colour, .eraser:
+                // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept, nor one
+                // of the colour bars, which a PDF's pages never have (`leaveColourBars`).
                 break
             }
             self.ink.live.dropOldest()

@@ -51,6 +51,9 @@ struct InputRules: Equatable, Sendable {
     var stylus: Bool
     var tool: Tool
     var surface: Surface = .notes
+    /// The colour the Pen's colour bars lay ("amber", …) while they are its tool (finding 31); nil for any other tool. The
+    /// pointers that take the Pen then colour through the page, as Select selects, instead of writing a stroke.
+    var colour: String?
 
     /// The tool as this surface has it: a PDF has no bars to select or notes to edit, so there they move the pages.
     var effectiveTool: Tool {
@@ -66,6 +69,16 @@ struct InputRules: Equatable, Sendable {
     func writes(_ pointer: Pointer) -> Bool {
         guard effectiveTool == .pen else { return false }
         return stylus ? pointer == .stylus : true
+    }
+
+    /// Whether the pointer colours bars (finding 31): one that takes the Pen while its tool is the colour bars, on the notes.
+    func colours(_ pointer: Pointer) -> Bool {
+        colour != nil && surface == .notes && writes(pointer)
+    }
+
+    /// Whether the pen's own gesture (InkInput) takes the pointer: one that writes, unless it colours through the page.
+    func inks(_ pointer: Pointer) -> Bool {
+        writes(pointer) && !colours(pointer)
     }
 
     /// Whether the pointer scrolls the music (with as many fingers as `scrollFingers` asks).
@@ -120,21 +133,24 @@ struct InputRules: Equatable, Sendable {
     }
 
     /// Whether the pen's gesture takes a touch of the pointer at a point `nearHandle` (a selection's handle) or
-    /// `nearPlayhead` (a playhead's handle), within `handleReach`, or not: only a pointer that writes reaches the gesture,
+    /// `nearPlayhead` (a playhead's handle), within `handleReach`, or not: only a pointer that inks reaches the gesture,
     /// and it leaves the handles to the pointers that take them.
     func inkTakes(_ pointer: Pointer, nearHandle: Bool, nearPlayhead: Bool = false) -> Bool {
-        writes(pointer) && !(nearHandle && takesHandles(pointer)) && !(nearPlayhead && takesPlayheads(pointer))
+        inks(pointer) && !(nearHandle && takesHandles(pointer)) && !(nearPlayhead && takesPlayheads(pointer))
     }
 
     /// What the score page is told (`motiff.input`): for "touch" and "pen", how a press selects, whether a tap acts, whether
-    /// a press on a selection handle takes it and whether a long press puts the black playhead (`hold`).
+    /// a press on a selection handle takes it, whether a long press puts the black playhead (`hold`) and whether it colours
+    /// bars (`colour`), and the colour they are coloured in (`colour`) while a pointer does.
     var page: [String: Any] {
         var rules: [String: Any] = [:]
         for pointer in Pointer.allCases {
             rules[pointer.pageName] = [
                 "select": selectStart(pointer).rawValue, "tap": taps(pointer), "handles": takesHandles(pointer), "hold": holdsPlayhead(pointer),
+                "colour": colours(pointer),
             ] as [String: Any]
         }
+        if let colour, Pointer.allCases.contains(where: colours) { rules["colour"] = colour }
         // Selection by the place of the touch (v0.6.2, #601; Select's only way since v0.6.3): the page decides by where a
         // press lands in Select, never by how long it is held (Scripts/score/selection-places.ts).
         rules["places"] = surface == .notes

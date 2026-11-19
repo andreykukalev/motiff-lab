@@ -24,6 +24,12 @@ engraving options (`score-page.ts`) fails the run's fixture check until the fixt
   ghost, addition, targets, `.sel-trace`; posts `chosen`, `picked`, `cleared`, `zoomSelection`; autoscroll in `view()`;
   prevents the stylus' touches while on; `handleAt` (only an edge's handle beats a playhead's, 0.9: `onEdgeHandle`); a span let go is read as the selection
   until `settle()` (score.js `select`). Handles: score.css `.sel-edge` (ds `.handle` at the edge's middle). `decorate()` from `placeMenu`.
+- `colour-bars.ts` (v0.10 d-5, finding 31): the pen's colour bars. score.js builds a second `PlaceLayer` for them
+  (`colouring`: no selection, `edges: false`, on while `input.colour` names the colour, the pointer's `input.<pointer>.colour`),
+  so they colour exactly as Select selects: the rectangle on the grid, a bar tapped, a note head's beats (`noteUnit`); it
+  posts `coloured` {start, end} and never changes the selection; the preview is `.hl.hl-preview`. The eraser takes the
+  colour from the grid's cells under it on a highlight's band (`rubbedColour`, `mergedSpans`), handed back by `rubEnd` as
+  `uncoloured`. Highlights draw cut where they start and end inside a bar (`highlightRuns`, `ScoreBeats.cutEdges`). Pure.
 - `selection-boxes.ts`: `bandBoxes`, `setBox`, `ordered`, `handStaves`/`handRuns` (a hand's staff), `onMusic` (margin).
 - `selection-layer.ts` (near 600 lines: add modules): band, dot handles, v0.6.1 gesture, menu place.
   Also `selection-handles.ts`, `selection-beats.ts`, `selection-menu.ts`, `menu-drag.ts`.

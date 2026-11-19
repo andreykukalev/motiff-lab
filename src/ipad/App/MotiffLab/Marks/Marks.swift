@@ -146,49 +146,6 @@ struct NoteCard: View {
     }
 }
 
-/// Highlight, under the menu's More: the inks as swatches, the one over the selection marked, and Remove the highlight.
-struct HighlightRow: View {
-    @ObservedObject var score: ScoreController
-    @ObservedObject var selectionModel: SelectionModel
-    @ObservedObject var marksModel: MarksModel
-    let text: UIText
-
-    var body: some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            HStack(spacing: 6) {
-                Icon(name: "highlight", size: CGFloat.ds("icon-s"))
-                Text(text["menu.highlight"]).dsType(.label)
-            }
-            .foregroundStyle(Color.ds("ink"))
-            .padding(.trailing, CGFloat.ds("s-2"))
-            ForEach(MarksShelf.highlightInks, id: \.self) { ink in
-                let on = marksModel.selectedHighlight?.colour == ink
-                Button {
-                    score.highlightSelection(ink)
-                } label: {
-                    Circle()
-                        .fill(MarksShelf.color(ink))
-                        .frame(width: 18, height: 18)
-                        .frame(width: 32, height: 32)
-                        .background(on ? Color.ds("accent-tint") : .clear, in: Circle())
-                        .overlay(Circle().strokeBorder(on ? Color.ds("accent") : .clear))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(text.format("menu.highlightIn", MarksShelf.inkName(ink, text)))
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-            if let highlight = marksModel.selectedHighlight {
-                Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-                Button(text["menu.removeHighlight"]) { score.removeHighlight(highlight.id) }
-                    .buttonStyle(DSItemStyle())
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["menu.highlight"])
-    }
-}
-
 /// Extra information and the player's marks (0018 section 5; testing item 33): what the app adds over the notes, off by
 /// default, each kind with its own switch, then the layers of the player's own marks, each hidden for a clean page or all
 /// at once; all kept with the piece.

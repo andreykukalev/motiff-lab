@@ -15,6 +15,14 @@ protocol PenScore: AnyObject {
     func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool) async
     /// The Pen was turned on or off (`PenModel.penOn`).
     func penTurned(_ on: Bool)
+    /// The pen's tool became or stopped being the colour bars, or their colour changed (`PenState.colouring`): who
+    /// writes and who colours through the page follow.
+    func colouringChanged()
+    /// Colours a passage in a colour of the bars (finding 31): the highlights there become that colour, or, where it was
+    /// all that colour already, the colour goes.
+    func colourBars(_ span: Range<Double>, in colour: String) async
+    /// Takes the colour from these stretches, whatever it is (the eraser over highlights).
+    func uncolourBars(_ spans: [Range<Double>]) async
 }
 
 /// The score's pen (ADR 0031 section 3, S6): the pen's state as last chosen on this device, the bar's Pen, the pencil
@@ -28,7 +36,11 @@ final class PenModel: ObservableObject, PenHolder {
     /// The pen's one tool and each tool's settings (PenState, #495 UX-06), as last chosen on this device (PenMemory): the
     /// same after PDF | Notes and when the piece opens again.
     @Published var pen = PenMemory.saved() {
-        didSet { if pen != oldValue { PenMemory.keep(pen) } }
+        didSet {
+            guard pen != oldValue else { return }
+            PenMemory.keep(pen)
+            if pen.colouring != oldValue.colouring { score?.colouringChanged() }
+        }
     }
     /// The bar's Pen (0018 section 5): while it is on, the Pencil writes; on an iPad without a stylus one finger writes
     /// and two fingers scroll, so the score takes marks with or without a Pencil (InputRules).
@@ -44,6 +56,8 @@ final class PenModel: ObservableObject, PenHolder {
 
     /// The score the pen writes on, set by the root once it is made.
     weak var score: PenScore?
+    /// The score has bars to colour: every tool.
+    var tools: [ActiveTool] { ActiveTool.allCases }
     /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, or a press of the eraser (BUG-05).
     private var steps = InkHistory()
     /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
@@ -93,12 +107,20 @@ final class PenModel: ObservableObject, PenHolder {
                 await self.add(piece, points, tool: "pen", colour: colour.rawValue, width: pen.pencil.width)
             case .highlighter:
                 await self.add(piece, points, tool: "highlighter", colour: "amber", width: pen.marker.width)
-            case .eraser:
-                // The eraser rubs out as it moves (`rub`); a stroke written before it was chosen is not kept.
+            case .colour, .eraser:
+                // The eraser rubs out as it moves (`rub`) and the colour bars colour through the page (`colour`); a stroke
+                // written before either was chosen is not kept.
                 break
             }
             kept()
         }
+    }
+
+    /// A passage the colour bars coloured on the page (finding 31), in ticks, in the colour chosen, in the queue's turn so
+    /// it meets the marks as the change before left them; nothing while the colour bars are not the tool.
+    func colour(_ start: Double, _ end: Double) {
+        guard let colour = pen.colouring, end > start else { return }
+        inkQueue.then { [weak self] in await self?.score?.colourBars(start..<end, in: colour.rawValue) }
     }
 
     /// The eraser moved (InkInput, BUG-05), its points in the page's pixels: the page takes the marks under it at once
@@ -125,12 +147,22 @@ final class PenModel: ObservableObject, PenHolder {
     }
 
     /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
-    /// marks it cut, drawn once both are done), and Undo puts it back whole.
+    /// marks it cut, drawn once both are done), and Undo puts it back whole. The colour it passed over goes too (finding
+    /// 31: the page's `uncoloured`, in ticks), which is no step of the Pen's history.
     private func endRub(_ piece: Int32?) async {
-        guard let score,
-              let cut = try? await score.scorePage.call(.rubEnd) as? [String: Any],
-              let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty, let piece
-        else { return }
+        // The page's press ends even with no piece to save it in.
+        guard let score, let cut = try? await score.scorePage.call(.rubEnd) as? [String: Any], let piece else { return }
+        await saveRub(cut, in: piece)
+        let uncoloured = (cut["uncoloured"] as? [[String: Any]] ?? []).compactMap { span -> Range<Double>? in
+            guard let start = (span["start"] as? NSNumber)?.doubleValue, let end = (span["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
+            return start..<end
+        }
+        if !uncoloured.isEmpty { await score.uncolourBars(uncoloured) }
+    }
+
+    /// The marks a press of the eraser cut and the pieces it left, saved as one step.
+    private func saveRub(_ cut: [String: Any], in piece: Int32) async {
+        guard let score, let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty else { return }
         let pieces = cut["added"] as? [[String: Any]] ?? []
         if !pieces.isEmpty {
             await score.changeMarks(piece, "ink.add", ["strokes": pieces], draws: false)
@@ -171,7 +203,7 @@ final class PenModel: ObservableObject, PenHolder {
                 colour: DesignTokens.dynamicColor("amber").resolvedColor(with: theme),
                 radius: PenSizes.highlighter[pen.marker.width] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
             )
-        case .eraser:
+        case .colour, .eraser:
             return nil
         }
     }
