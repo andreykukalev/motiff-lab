@@ -7,6 +7,7 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
@@ -163,121 +164,6 @@ public static partial class ProjectFile
         json.WriteEndObject();
         json.WriteEndObject();
     }
-
-    private static void WriteMarks(Utf8JsonWriter json, Marks marks)
-    {
-        json.WriteStartObject("marks");
-        WriteList(json, "ink", marks.Ink, KeptUnknown(marks.Unknown, "marks.ink", marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
-        json.WriteStartArray("notes");
-        foreach (MarginNote note in marks.Notes)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", note.Id);
-            WriteSpan(json, note.Span);
-            json.WriteString("text", note.Text);
-            json.WriteString("createdAt", note.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-        WriteList(json, "highlights", marks.Highlights, KeptUnknown(marks.Unknown, "marks.highlights", marks.Highlights.Select(static highlight => highlight.Id), null, out _), highlight =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", highlight.Id);
-            WriteSpan(json, highlight.Span);
-            WriteNoteIds(json, highlight.NoteIds);
-            json.WriteString("colour", highlight.Colour.ToString());
-            json.WriteEndObject();
-        });
-        WriteFingering(json, marks.Fingering);
-        json.WriteEndObject();
-    }
-
-    /// <summary>"fingering": each note's finger, as the file and the facade's marks answer both write it.</summary>
-    internal static void WriteFingering(Utf8JsonWriter json, IEnumerable<Fingering> fingering)
-    {
-        ArgumentNullException.ThrowIfNull(json);
-        json.WriteStartArray("fingering");
-        foreach (Fingering finger in fingering)
-        {
-            json.WriteStartObject();
-            json.WriteString("noteId", finger.NoteId);
-            json.WriteNumber("finger", finger.Finger);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-    }
-
-    private static void WriteBookmarks(Utf8JsonWriter json, Project project)
-    {
-        json.WriteStartObject("bookmarks");
-        List<UnknownEntity> unknownCategories = KeptUnknown(project.Unknown, "bookmarks.categories", project.Categories.Select(static category => category.Id), null, out HashSet<string> replacedCategories);
-        WriteList(json, "categories", project.Categories, unknownCategories, category =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", category.Id);
-            if (category.Name is { } categoryName)
-            {
-                json.WriteString("name", categoryName);
-            }
-
-            json.WriteString("ink", category.Ink.ToString());
-            json.WriteEndObject();
-        });
-
-        WriteList(json, "items", project.Bookmarks, KeptUnknown(project.Unknown, "bookmarks.items", project.Bookmarks.Select(static bookmark => bookmark.Id), replacedCategories, out _), bookmark =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", bookmark.Id);
-            json.WriteString("title", bookmark.Title);
-            json.WriteString("category", bookmark.CategoryId);
-            WriteSpan(json, bookmark.Span);
-            json.WriteBoolean("fromPhrase", bookmark.FromPhrase);
-            json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteEndObject();
-        });
-
-        json.WriteEndObject();
-    }
-
-    private static void WriteResumePoints(Utf8JsonWriter json, Project project) =>
-        WriteList(json, "resumePoints", project.ResumePoints, KeptUnknown(project.Unknown, "resumePoints", project.ResumePoints.Select(static point => point.Id), null, out _), point =>
-        {
-            json.WriteStartObject();
-            json.WriteString("id", point.Id);
-            if (point.Name is { } pointName)
-            {
-                json.WriteString("name", pointName);
-            }
-
-            json.WriteNumber("at", point.At.Value);
-            if (point.Passage is { } passage)
-            {
-                json.WriteStartObject("passage");
-                WriteRange(json, passage.Span, passage.Filter);
-                json.WriteEndObject();
-            }
-
-            json.WriteBoolean("focused", point.Focused);
-            json.WriteStartArray("overlays");
-            foreach (Overlay overlay in point.Overlays)
-            {
-                json.WriteStringValue(overlay.ToString());
-            }
-
-            json.WriteEndArray();
-            json.WriteNumber("tempoPercent", point.TempoPercent);
-            if (point.Hands is { } hands)
-            {
-                json.WriteString("hands", hands.ToString());
-            }
-
-            json.WriteBoolean("loop", point.Loop);
-            json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteEndObject();
-        });
 
     /// <summary>"hiddenViews": the ids of the views hidden from the switch, each a text that is not blank.</summary>
     private static List<string> ReadHiddenViews(JsonElement hidden)

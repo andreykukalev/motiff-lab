@@ -3,7 +3,6 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Import.Scan;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -122,16 +121,4 @@ public static partial class ProjectFile
             throw Damaged("scan pages");
         }
     }
-
-    /// <summary>"margin" on a stroke: "left" or "right", only for a stroke begun in a line's margin.</summary>
-    private static void WriteMargin(Utf8JsonWriter json, StrokeMargin? margin)
-    {
-        if (margin is { } side)
-        {
-            json.WriteString("margin", Lower(side));
-        }
-    }
-
-    private static StrokeMargin? ReadMargin(JsonElement stroke) =>
-        stroke.TryGetProperty("margin", out _) ? LowerName<StrokeMargin>(stroke, "margin") : null;
 }

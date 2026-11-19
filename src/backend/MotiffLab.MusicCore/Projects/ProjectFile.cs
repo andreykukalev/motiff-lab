@@ -13,7 +13,7 @@ using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
@@ -245,57 +245,11 @@ public static partial class ProjectFile
         }
     }
 
-    private static void WriteStroke(Utf8JsonWriter json, InkStroke stroke)
-    {
-        json.WriteStartObject();
-        json.WriteString("id", stroke.Id);
-        json.WriteString("tool", Lower(stroke.Tool));
-        json.WriteString("colour", Lower(stroke.Colour));
-        json.WriteNumber("size", stroke.Size);
-        json.WriteNumber("bar", stroke.Bar.Value);
-        json.WriteNumber("u", stroke.U);
-        json.WriteNumber("v", stroke.V);
-        json.WriteStartArray("points");
-        foreach (double value in stroke.Points)
-        {
-            json.WriteNumberValue(value);
-        }
+    /// <summary>One stroke in the pencil layer's shape (<see cref="MarksCodec.ReadStroke"/>): the facade (0020) reads a request's strokes with it.</summary>
+    internal static InkStroke ReadStroke(JsonElement stroke) => MarksCodec.ReadStroke(stroke);
 
-        json.WriteEndArray();
-        json.WriteNumber("pressure", stroke.Pressure);
-        WriteMargin(json, stroke.Margin);
-        json.WriteEndObject();
-    }
-
-    /// <summary>One stroke in the pencil layer's shape; the facade (0020) reads a request's strokes with it.</summary>
-    internal static InkStroke ReadStroke(JsonElement stroke)
-    {
-        Expect(stroke, JsonValueKind.Object, "ink");
-        long bar = Long(stroke, "bar");
-        double[] points = [.. Property(stroke, "points", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(value => value.ValueKind == JsonValueKind.Number ? value.GetDouble() : throw Damaged("ink points"))];
-        try
-        {
-            return new InkStroke(
-                Text(stroke, "id"),
-                LowerName<InkTool>(stroke, "tool"),
-                LowerName<InkColour>(stroke, "colour"),
-                Number(stroke, "size"),
-                bar >= 0 ? new Tick(bar) : throw Damaged("ink bar"),
-                Number(stroke, "u"),
-                Number(stroke, "v"),
-                points,
-                Number(stroke, "pressure"))
-            {
-                Margin = ReadMargin(stroke),
-            };
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("ink");
-        }
-    }
+    /// <summary>"fingering" as the file writes it (<see cref="MarksCodec.WriteFingering"/>): the facade's marks answer writes it too.</summary>
+    internal static void WriteFingering(Utf8JsonWriter json, IEnumerable<Fingering> fingering) => MarksCodec.WriteFingering(json, fingering);
 
     /// <summary>Where each page of a recognised PDF starts in its notes (0023): ticks from page 1, which starts at 0.</summary>
     private static PageMap ReadDocumentPages(JsonElement pages, byte[]? pdf, byte[] source) =>
@@ -333,212 +287,6 @@ public static partial class ProjectFile
         }
     }
 
-    /// <summary>The marks on a PDF's pages (0023): {"ink": [stroke, …], "bookmarks": [{"id", "page", "name"?, "createdAt"}]}.</summary>
-    private static void WriteDocumentMarks(Utf8JsonWriter json, string field, DocumentMarks marks)
-    {
-        json.WriteStartObject(field);
-        WriteList(json, "ink", marks.Ink, KeptUnknown(marks.Unknown, "documentMarks.ink", marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
-        json.WriteStartArray("bookmarks");
-        foreach (PageBookmark bookmark in marks.Bookmarks)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", bookmark.Id);
-            json.WriteNumber("page", bookmark.Page);
-            if (bookmark.Name is { } name)
-            {
-                json.WriteString("name", name);
-            }
-
-            json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-        json.WriteEndObject();
-    }
-
-    private static DocumentMarks ReadDocumentMarks(JsonElement marks, Unknowns unknowns)
-    {
-        Expect(marks, JsonValueKind.Object, "documentMarks");
-        List<InkStroke> ink = ReadList(Property(marks, "ink", JsonValueKind.Array), "documentMarks.ink", ReadStroke, unknowns);
-        List<PageBookmark> bookmarks = [];
-        foreach (JsonElement bookmark in Property(marks, "bookmarks", JsonValueKind.Array).EnumerateArray())
-        {
-            Expect(bookmark, JsonValueKind.Object, "documentMarks");
-            string? name = bookmark.TryGetProperty("name", out JsonElement nameElement)
-                ? nameElement.ValueKind == JsonValueKind.String ? nameElement.GetString() : throw Damaged("documentMarks")
-                : null;
-            try
-            {
-                bookmarks.Add(new PageBookmark(Text(bookmark, "id"), Integer(bookmark, "page"), name, JsonRead.Time(bookmark, "createdAt")));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("documentMarks");
-            }
-        }
-
-        try
-        {
-            return bookmarks.Select(static bookmark => bookmark.Page).Distinct().Count() == bookmarks.Count
-                && bookmarks.Select(static bookmark => bookmark.Id).Distinct(StringComparer.Ordinal).Count() == bookmarks.Count
-                ? DocumentMarks.Empty.WithInk(ink) with { Bookmarks = [.. bookmarks.OrderBy(static bookmark => bookmark.Page)] }
-                : throw Damaged("documentMarks");
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("documentMarks");
-        }
-    }
-
-    private static Marks ReadMarks(JsonElement marks, Unknowns unknowns)
-    {
-        List<InkStroke> ink = ReadList(Property(marks, "ink", JsonValueKind.Array), "marks.ink", ReadStroke, unknowns);
-        List<MarginNote> notes = [];
-        foreach (JsonElement note in Property(marks, "notes", JsonValueKind.Array).EnumerateArray())
-        {
-            Expect(note, JsonValueKind.Object, "notes");
-            try
-            {
-                notes.Add(new MarginNote(Text(note, "id"), ReadSpan(note, "note"), Text(note, "text"), JsonRead.Time(note, "createdAt")));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("notes");
-            }
-        }
-
-        List<Highlight> highlights = ReadList(Property(marks, "highlights", JsonValueKind.Array), "marks.highlights", highlight =>
-        {
-            Expect(highlight, JsonValueKind.Object, "highlights");
-            try
-            {
-                return new Highlight(Text(highlight, "id"), ReadSpan(highlight, "highlight"), ReadNoteIds(highlight, "highlight notes"), Name<InkColour>(highlight, "colour"));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("highlights");
-            }
-        }, unknowns);
-
-        List<Fingering> fingering = [];
-        foreach (JsonElement finger in Property(marks, "fingering", JsonValueKind.Array).EnumerateArray())
-        {
-            Expect(finger, JsonValueKind.Object, "fingering");
-            int digit = Integer(finger, "finger");
-            fingering.Add(digit is >= 1 and <= 5 ? new Fingering(Text(finger, "noteId"), digit) : throw Damaged("fingering"));
-        }
-
-        try
-        {
-            Marks read = Marks.Empty.WithInkAsWritten(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
-            return notes.Select(static note => note.Id).Concat(highlights.Select(static highlight => highlight.Id)).Distinct(StringComparer.Ordinal).Count() == notes.Count + highlights.Count
-                && fingering.Select(static finger => finger.NoteId).Distinct(StringComparer.Ordinal).Count() == fingering.Count
-                ? read
-                : throw Damaged("marks");
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("marks");
-        }
-    }
-
-    private static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks, Unknowns unknowns)
-    {
-        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", category =>
-        {
-            Expect(category, JsonValueKind.Object, "bookmark categories");
-            try
-            {
-                return new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, Name<InkColour>(category, "ink"));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("bookmark categories");
-            }
-        }, unknowns);
-
-        // The four built-in categories are always there, under their own name when the file does not name them; one the file
-        // holds with an ink this build does not know stays unknown, written back as it was, rather than taken by the built-in.
-        HashSet<string> unknownCategories = [.. Project.UnknownIds(unknowns.Kept, "bookmarks.categories")];
-        for (int i = 0; i < BookmarkCategory.BuiltIn.Count; i++)
-        {
-            BookmarkCategory builtIn = BookmarkCategory.BuiltIn[i];
-            if (categories.All(category => category.Id != builtIn.Id) && !unknownCategories.Contains(builtIn.Id))
-            {
-                categories.Insert(Math.Min(i, categories.Count), builtIn);
-            }
-        }
-
-        if (categories.Select(static category => category.Id).Distinct(StringComparer.Ordinal).Count() != categories.Count)
-        {
-            throw Damaged("bookmark categories");
-        }
-
-        // A bookmark in an unknown category is left unknown with it: an app could not show it in its category.
-        List<Bookmark> items = Known(
-            ReadEntries(Property(bookmarks, "items", JsonValueKind.Array), "bookmarks.items", ReadBookmark, unknowns, "category"),
-            "bookmarks.items",
-            static bookmark => bookmark.CategoryId,
-            unknownCategories,
-            "category",
-            unknowns);
-
-        return items.Select(static bookmark => bookmark.Id).Distinct(StringComparer.Ordinal).Count() == items.Count
-            && items.All(bookmark => categories.Any(category => category.Id == bookmark.CategoryId))
-            ? (categories, items)
-            : throw Damaged("bookmarks");
-    }
-
-    private static Bookmark ReadBookmark(JsonElement bookmark)
-    {
-        Expect(bookmark, JsonValueKind.Object, "bookmarks");
-        try
-        {
-            return new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), JsonRead.Time(bookmark, "createdAt"));
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("bookmarks");
-        }
-    }
-
-    private static ResumePoint ReadResumePoint(JsonElement point)
-    {
-        Expect(point, JsonValueKind.Object, "resume points");
-        SavedPassage? passage = null;
-        if (point.TryGetProperty("passage", out _))
-        {
-            (TickSpan span, SelectionFilter filter) = ReadRange(Property(point, "passage", JsonValueKind.Object), "resume point passage");
-            passage = new SavedPassage(span, filter);
-        }
-
-        long at = Long(point, "at");
-        List<Overlay> overlays = Property(point, "overlays", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(overlay => overlay.ValueKind == JsonValueKind.String && TryName(overlay.GetString(), out Overlay value) ? value : throw Damaged("resume point overlays"))
-            .ToList();
-        try
-        {
-            return new ResumePoint(
-                Text(point, "id"),
-                point.TryGetProperty("name", out _) ? Text(point, "name") : null,
-                at >= 0 ? new Tick(at) : throw Damaged("resume point"),
-                passage,
-                Boolean(point, "focused"),
-                overlays,
-                Integer(point, "tempoPercent"),
-                point.TryGetProperty("hands", out _) ? Name<Hand>(point, "hands") : null,
-                Boolean(point, "loop"),
-                JsonRead.Time(point, "createdAt"),
-                JsonRead.Time(point, "lastActive"));
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("resume point");
-        }
-    }
-
     /// <summary>A session of versions 8 to 11 as a resume point: its task is the name, its passage the place, "s_0001" becomes "r_0001".</summary>
     private static ResumePoint ReadSessionAsResumePoint(JsonElement session)
     {
@@ -561,26 +309,6 @@ public static partial class ProjectFile
         {
             throw Damaged("session");
         }
-    }
-
-    private static IReadOnlyList<CheckFlag>? ReadCheck(JsonElement root, Unknowns unknowns)
-    {
-        if (!root.TryGetProperty("check", out JsonElement check) || check.ValueKind is not (JsonValueKind.Null or JsonValueKind.Array))
-        {
-            throw Damaged("check");
-        }
-
-        if (check.ValueKind == JsonValueKind.Null)
-        {
-            return null;
-        }
-
-        return ReadList(check, "check", flag =>
-        {
-            Expect(flag, JsonValueKind.Object, "check");
-            int bar = Integer(flag, "bar");
-            return bar >= 0 ? new CheckFlag(bar, Name<CheckSource>(flag, "source"), Name<CheckReason>(flag, "reason"), Boolean(flag, "resolved")) : throw Damaged("check");
-        }, unknowns);
     }
 
     /// <summary>

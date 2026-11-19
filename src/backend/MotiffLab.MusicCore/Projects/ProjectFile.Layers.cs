@@ -7,6 +7,7 @@ using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 
 using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -141,25 +142,6 @@ public static partial class ProjectFile
         {
             WriteHeard(json, heard);
         }
-    }
-
-    private static void WriteCheck(Utf8JsonWriter json, IReadOnlyList<CheckFlag>? check, List<UnknownEntity> unknownFlags)
-    {
-        if (check is null && unknownFlags.Count == 0)
-        {
-            json.WriteNull("check");
-            return;
-        }
-
-        WriteList(json, "check", check ?? [], unknownFlags, flag =>
-        {
-            json.WriteStartObject();
-            json.WriteNumber("bar", flag.Bar);
-            json.WriteString("source", flag.Source.ToString());
-            json.WriteString("reason", flag.Reason.ToString());
-            json.WriteBoolean("resolved", flag.Resolved);
-            json.WriteEndObject();
-        });
     }
 
     /// <summary>"transcription": the bars and tempo worked out, the seams and where the stretch sent started (0016; version 0.5).</summary>
