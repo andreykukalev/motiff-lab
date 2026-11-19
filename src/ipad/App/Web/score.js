@@ -37,9 +37,8 @@
 // Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
 // bookmarks' level and before any Check flag or note on the bar, and tints the printed notes it does not have
 // (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift with where the label is. These
-// show only with Extra information on (testing item 33). While a merge draft shows the version or the result, the notes from
-// the version are plum and the player's own amber; a thin plum line runs under each bar taken from a version. Above the
-// phrase on the card in focus, the version's added notes are plum.
+// show only with Extra information on (testing item 33), with a thin plum line under each bar taken from a version. Above
+// the phrase on the card in focus, the version's added notes are plum.
 //
 // While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), a cobalt line
 // stands at the sounding moment with a wash over its bar (testing item 4, the web app's score view), and the page
@@ -102,7 +101,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], painted: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], painted: [], checks: [], performance: [], unheard: new Set(), artefacts: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
@@ -291,17 +290,14 @@ function checks({ flags }) {
 
 /**
  * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars, and the ids of
- * the printed notes it does not have, tinted in place (0022, section 4); the ids of notes from a version (`added`, plum) and
- * of the player's own (`own`, amber) on the score a merge draft shows, and the ticks of the bars `taken` from versions, a
- * thin plum line under each; empty lists draw none. Given to Swift as `performance`; named otherwise here, where
+ * the printed notes it does not have, tinted in place (0022, section 4), and the ticks of the bars `taken` from versions,
+ * a thin plum line under each; empty lists draw none. Given to Swift as `performance`; named otherwise here, where
  * `performance` is the clock.
  */
-function showVersion({ markers, unheard, added, artefacts, own, taken }) {
+function showVersion({ markers, unheard, artefacts, taken }) {
     state.performance = markers ?? [];
     state.unheard = new Set(unheard ?? []);
-    state.added = new Set(added ?? []);
     state.artefacts = new Set(artefacts ?? []);
-    state.own = new Set(own ?? []);
     state.taken = taken ?? [];
     placeNotes();
     tintUnheard();
@@ -309,15 +305,13 @@ function showVersion({ markers, unheard, added, artefacts, own, taken }) {
 }
 
 /**
- * The printed notes the other version does not have in the warning colour, and on its layer the notes it adds in plum and
- * its likely artefacts in grey, wherever the page draws them.
+ * The printed notes the other version does not have in the warning colour, and its likely artefacts in grey, wherever the
+ * page draws them.
  */
 function tintUnheard() {
     const host = document.getElementById("pages");
     tint(host, state.timeline, state.unheard, "not-heard");
-    tint(host, state.timeline, state.added, "version-added");
     tint(host, state.timeline, state.artefacts, "version-artefact");
-    tint(host, state.timeline, state.own, "own-note");
 }
 
 /** Gives the notes engraved in `root` with these ids, or a later piece of one tied over ("…-2"), the class; none lose it. */

@@ -4,8 +4,9 @@ import XCTest
 
 /// SourcesModel (S4, ADR 0031 section 3) on the kit's piece open in music-core: a version added is the one shown and
 /// says how it lines up, the list and a version are read through music-core, a version that is not there leaves its
-/// words, and another piece starts with none of the last one's versions, words, page, engraved view or sources; the
-/// piece's sources are kept as read.
+/// words, and another piece starts with none of the last one's versions, words, marker or sources, engraved as the device
+/// engraves now; the piece's sources are kept as read. A version is renamed from its row in Sources and stays the one shown,
+/// and removing it opens the piece again so the score loses its markers and the bars taken from it at once.
 @MainActor
 final class SourcesModelTests: XCTestCase {
     private let text = UIText(language: "en")
@@ -57,13 +58,70 @@ final class SourcesModelTests: XCTestCase {
         let model = SourcesModel(evenBars: false)
         _ = try withVersion(model)
         model.say("Bar 12 is now as in Official")
-        model.showPage(model.versions.shownId)
-        model.keepEngraved(SourcesModel.Engraved(view: "result", even: false, added: ["n_0001"], own: []))
+        model.pickMarker(SourcesModel.MarkerPick(bar: 5, left: 10, bottom: 20))
+        model.keepEngraved(SourcesModel.Engraved(even: false))
         model.open(evenBars: true)
         XCTAssertTrue(model.versions.entries.isEmpty)
         XCTAssertNil(model.status)
-        XCTAssertNil(model.page)
-        XCTAssertEqual(model.engraved, SourcesModel.Engraved(view: nil, even: true), "the player's notes, as the device engraves them now")
+        XCTAssertNil(model.markerPick, "no marker of the last piece's")
+        XCTAssertEqual(model.engraved, SourcesModel.Engraved(even: true), "as the device engraves now")
+    }
+
+    /// A version's marker tapped on the score is picked with its place; «Источники» on its popover puts the popover away
+    /// and asks the screen for Sources by the marker's bar (VIEW-06's way from a marker, since «Открыть в черновике» left
+    /// with the merge in v1.1); a tap elsewhere only puts it away.
+    func testAMarkersPopoverOpensSourcesAndGoes() {
+        let score = ScoreController()
+        var asked: [Int] = []
+        score.versionPicked = { asked.append($0) }
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300))
+        XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 40.5, bottom: 300))
+        score.openSourcesFromMarker()
+        XCTAssertNil(score.sourcesModel.markerPick)
+        XCTAssertEqual(asked, [12])
+        score.openSourcesFromMarker()
+        XCTAssertEqual(asked, [12], "no marker picked, nothing asked")
+        score.handle(.performanceBar(3, left: 0, bottom: 0))
+        score.closeMarker()
+        XCTAssertNil(score.sourcesModel.markerPick)
+        XCTAssertEqual(asked, [12])
+    }
+
+    /// «Переименовать…» on a version's row: music-core keeps the new name, the list shows it and the version shown stays the
+    /// one shown; a blank name sends nothing and a refusal says why.
+    func testAVersionIsRenamedAndStaysShown() async throws {
+        let model = SourcesModel(evenBars: false)
+        let piece = try withVersion(model)
+        let id = try XCTUnwrap(model.versions.shownId)
+        await model.rename(id, to: "  Cover  ", in: piece)
+        XCTAssertEqual(model.versions.entries.map(\.name), ["Cover"])
+        XCTAssertEqual(model.versions.shownId, id)
+        XCTAssertNil(model.status)
+        await model.rename(id, to: " ", in: piece)
+        XCTAssertEqual(model.versions.shown?.name, "Cover", "a blank name is not a name")
+        await model.rename("missing", to: "Other", in: piece)
+        XCTAssertNotNil(model.status, "why the version could not be renamed")
+        let layers = try XCTUnwrap(SourceLayers(answer: MusicCore.call(piece: piece, "sources.layers")))
+        XCTAssertEqual(layers.notes.first { $0.id == id }?.name, "Cover", "the row in Sources takes the new name")
+    }
+
+    /// A version removed with «Удалить ноты…» opens the piece again in its place from the file just saved, as «Сделать
+    /// рабочими» does: the score drops its markers and the bars taken from it at once, which music-core's open notes still
+    /// hold, and the toast with its Undo is on the next screen.
+    func testRemovingAVersionOpensThePieceAgain() async throws {
+        let piece = try withVersion(SourcesModel(evenBars: false))
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).motiff.json")
+        addTeardownBlock { try? FileManager.default.removeItem(at: file) }
+        let sources = SourcesController()
+        await sources.load(piece: piece, file: file)
+        var reopened = 0
+        sources.reopen = { reopened += 1 }
+        let version = try XCTUnwrap(sources.layers.notes.first { $0.role == "version" })
+        await sources.remove(version)
+        XCTAssertEqual(reopened, 1, "the piece opens again without the version")
+        XCTAssertFalse(sources.layers.notes.contains { $0.id == version.id })
+        XCTAssertNil(sources.toast, "the toast goes to the next screen")
+        guard case .restore(_)? = SourcesHandover.toast(for: file)?.undo else { return XCTFail("its Undo writes the file back") }
     }
 
     func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {

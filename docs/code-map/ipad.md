@@ -27,7 +27,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Roll/` | [roll](ipad/roll.md) | the piano roll in the drawer |
 | `Ink/` | [ink](ipad/ink.md) | the stylus, the pen, input rules, the modes |
 | `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
-| `Sources/` | [sources](ipad/sources.md) | sources, versions, merging, originals |
+| `Sources/` | [sources](ipad/sources.md) | sources, versions, originals |
 | `Pdf/` | [pdf](ipad/pdf.md) | the PDF view, its notes, its parts |
 | `Library/` | [library](ipad/library.md) | the library screen and its shelf |
 | `Import/` | [import](ipad/import.md) | Add piece, folders, scans, photos, recordings, recognition |

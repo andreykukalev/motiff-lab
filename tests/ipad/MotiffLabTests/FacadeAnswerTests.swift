@@ -3,7 +3,7 @@ import XCTest
 @testable import MotiffLab
 
 /// Step A7 (loud failures): the hot answers the score's screen reads (`select`, the playback score, the roll's payload,
-/// `sources.layers`, `corrections.*`, `performance.merge`) are read through `FacadeAnswer.decode`. Each reader reads
+/// `sources.layers`, `corrections.*`) are read through `FacadeAnswer.decode`. Each reader reads
 /// music-core's real answer cleanly; the same answer with a field music-core always writes renamed, as a rename in C#
 /// would send it, is a broken contract the reader reports and does not read, instead of an empty panel. A refusal is
 /// neither read as a success nor reported. In the app `broken` asserts; here it collects what it is told.
@@ -138,41 +138,11 @@ final class FacadeAnswerTests: XCTestCase {
         XCTAssertEqual(reported, [], "a refusal is not read as an empty bar")
     }
 
-    func testTheMergeDraft() throws {
-        let example = try XCTUnwrap(KitPiece.example)
-        let request = facadeRequest(["name": "Official", "file": example.data.base64EncodedString(), "fileName": example.fileName])
-        var shelf = VersionShelf()
-        XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.add", request)))
-        let id = try XCTUnwrap(shelf.shownId)
-
-        let answer = MusicCore.call(piece: piece, "performance.merge.open", facadeRequest(["id": id, "start": "all"]))
-        let merge = try XCTUnwrap(mergeAnswer(answer)?.merge.map(MergeInfo.init))
-        XCTAssertEqual(merge.id, id)
-        XCTAssertNotNil(PlaybackScore.read(MusicCore.call(piece: piece, "performance.merge.playback", #"{"view": "result"}"#)))
-        XCTAssertEqual(reported, [])
-
-        // A bar's "choice" is pinned on the fixture's draft (FacadeAnswerFixturesTests): this one, of the piece's own
-        // notes, has no bar.
-        expectBroken("taking") { mergeAnswer(renamed(answer, "taking")) }
-        expectBroken("merge") { mergeAnswer(renamed(answer, "merge")) }
-
-        let none = try XCTUnwrap(mergeAnswer(MusicCore.call(piece: piece, "performance.merge.cancel")))
-        XCTAssertNil(none.merge)
-        XCTAssertEqual(reported, [], "none open is music-core's answer, not a broken one")
-        XCTAssertNil(mergeAnswer(MusicCore.call(piece: piece, "performance.merge.undo")), "with none open, a refusal")
-        XCTAssertEqual(reported, [])
-    }
-
     // MARK: - Helpers
 
     /// The roll's payload read as `PieceCore.roll` reads it.
     private func rollAnswer(_ answer: String) -> RollAnswer? {
         FacadeAnswer.decode(RollAnswer.self, answer, of: "roll")
-    }
-
-    /// A merge draft's answer read as `PieceCore.merge` reads it.
-    private func mergeAnswer(_ answer: String) -> MergeAnswer? {
-        FacadeAnswer.decode(MergeAnswer.self, answer, of: "performance.merge")
     }
 
     /// A corrections answer read as `PieceCore.corrections` reads it.
