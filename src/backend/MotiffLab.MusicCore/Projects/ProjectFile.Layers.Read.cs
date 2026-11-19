@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -385,18 +386,6 @@ public static partial class ProjectFile
         catch (OverflowException)
         {
             throw Damaged("provenance");
-        }
-    }
-
-    private static List<UnknownField> UnknownFieldsOf(JsonElement element, IReadOnlySet<string> known) =>
-        [.. element.EnumerateObject().Where(field => !known.Contains(field.Name)).Select(static field => new UnknownField(field.Name, field.Value.GetRawText()))];
-
-    private static void KeepFields(Dictionary<string, IReadOnlyList<UnknownField>> fields, string path, JsonElement element, IReadOnlySet<string> known)
-    {
-        List<UnknownField> unknown = UnknownFieldsOf(element, known);
-        if (unknown.Count > 0)
-        {
-            fields[path] = unknown;
         }
     }
 }

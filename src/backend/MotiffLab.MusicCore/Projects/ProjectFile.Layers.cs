@@ -7,6 +7,7 @@ using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 
 using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -277,16 +278,5 @@ public static partial class ProjectFile
         }
 
         json.WriteEndObject();
-    }
-
-    /// <summary>The fields kept unknown, each written back as the file held it, after the fields this build writes.</summary>
-    private static void WriteUnknownFields(Utf8JsonWriter json, IReadOnlyList<UnknownField> fields)
-    {
-        foreach (UnknownField field in fields)
-        {
-            json.WritePropertyName(field.Name);
-            using JsonDocument kept = JsonDocument.Parse(field.Json);
-            kept.RootElement.WriteTo(json);
-        }
     }
 }

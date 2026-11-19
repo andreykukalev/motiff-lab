@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
+using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects;
 
