@@ -37,6 +37,8 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 17 lets a piece with no notes be only its recording, kept on the device (version 1.1, finding 29; a file of an
+    /// earlier version with no notes and no PDF stays damaged), and adds the piece's drafts (0034, the drafts step);
     /// 16 lays the file out in the three layers of decision record 0030: the originals (with the PDF's bytes and page marks,
     /// and the tombstones of removed ones), the Notes (each with its provenance, music, corrections and Check flags, and the
     /// compared ones with their comparison) and the workspace (the working notes and the player's work), keeping the fields
@@ -64,7 +66,10 @@ public static class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 16;
+    public const int Version = 17;
+
+    /// <summary>The first version laid out in the three layers of decision record 0030; every later one keeps the layout.</summary>
+    private const int LayersVersion = 16;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -75,8 +80,9 @@ public static class ProjectFile
     private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
-    /// The project as a version 16 file (decision record 0030): its originals, its Notes and its workspace, each with the
-    /// fields this build did not know when it read them (0026 S6). The same project always gives the same bytes.
+    /// The project as a file of <see cref="Version"/> in the layers of decision record 0030: its originals, its Notes and
+    /// its workspace, each with the fields this build did not know when it read them (0026 S6). The same project always
+    /// gives the same bytes.
     /// </summary>
     public static byte[] Write(Project project)
     {
@@ -104,8 +110,8 @@ public static class ProjectFile
     }
 
     /// <summary>
-    /// The project a file holds, of any version from 1 to <see cref="Version"/>, converted to version 16 in memory: the
-    /// same file always gives the same project. A file of a later version is refused before any field is read.
+    /// The project a file holds, of any version from 1 to <see cref="Version"/>, converted to <see cref="Version"/> in
+    /// memory: the same file always gives the same project. A file of a later version is refused before any field is read.
     /// </summary>
     public static Project Read(ReadOnlySpan<byte> data)
     {
@@ -128,20 +134,22 @@ public static class ProjectFile
                 throw Damaged("version");
             }
 
-            var unknowns = new Unknowns(version == Version);
-            Project project = version == Version ? ReadLayers(root, unknowns) : ReadEarlier(root, version, unknowns);
-            return unknowns.KeptIn(project).WithProvenanceKept().Described();
+            // Version 16 and 17 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an
+            // unknown value in either is read as in a file of today's version (0026 S6).
+            var unknowns = new Unknowns(version >= LayersVersion);
+            Project project = version >= LayersVersion ? ReadLayers(root, version, unknowns) : ReadEarlier(root, version, unknowns);
+            return unknowns.KeptIn(project).WithProvenanceKept().Described(version);
         }
     }
 
-    private static Project ReadLayers(JsonElement root, Unknowns unknowns)
+    private static Project ReadLayers(JsonElement root, int version, Unknowns unknowns)
     {
         JsonElement workspace = Property(root, WorkspacePath, JsonValueKind.Object);
         string? working = workspace.TryGetProperty("working", out _) ? Text(workspace, "working") : null;
         Dictionary<string, IReadOnlyList<UnknownField>> fields = new(StringComparer.Ordinal);
         KeepFields(fields, "", root, s_rootFields);
         KeepFields(fields, WorkspacePath, workspace, s_workspaceFields);
-        Project project = ReadWork(root, workspace, Version, unknowns);
+        Project project = ReadWork(root, workspace, version, unknowns);
         (project, List<PieceOriginal> described) = ReadOriginalsLayer(project, Property(root, OriginalsList, JsonValueKind.Array), unknowns, fields);
         project = ReadNotesLayer(project, Property(root, NotesList, JsonValueKind.Array), working, unknowns, fields);
         // The descriptions the piece's own data shows are worked out again, as for every earlier file, so they follow it.
@@ -178,7 +186,7 @@ public static class ProjectFile
             throw Damaged("version");
         }
 
-        JsonElement work = version >= Version && root.TryGetProperty("workspace", out JsonElement workspace) && workspace.ValueKind == JsonValueKind.Object ? workspace : root;
+        JsonElement work = version >= LayersVersion && root.TryGetProperty("workspace", out JsonElement workspace) && workspace.ValueKind == JsonValueKind.Object ? workspace : root;
         return new ProjectEnvelope(Text(root, "id"), version, Text(root, "fileName"), JsonRead.Time(root, "lastOpened"))
         {
             MotifCount = Count(work, "motifs"),

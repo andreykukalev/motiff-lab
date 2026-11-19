@@ -18,10 +18,13 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class PdfPiecesOnlineTests
 {
-    private const string Golden = "v16-pdf-online.motiff.json";
+    private const string Golden = "v17-pdf-online.motiff.json";
 
     /// <summary>The same online copy as version 0.5 wrote it, in version 15.</summary>
     private const string Earlier = "v15-pdf-online.motiff.json";
+
+    /// <summary>What versions 0.6 to 1.0 wrote of the same project, in version 16.</summary>
+    private const string Version16 = "v16-pdf-online.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 18, 30, 0, TimeSpan.Zero);
 
@@ -44,7 +47,7 @@ public class PdfPiecesOnlineTests
     [Fact]
     public void The_online_copy_of_a_pdf_piece_is_the_golden_and_reads_back_unchanged()
     {
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!), Earlier);
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!), [Earlier, Version16]);
     }
 
     [Fact]

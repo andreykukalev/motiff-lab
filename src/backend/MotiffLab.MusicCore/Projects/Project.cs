@@ -338,7 +338,7 @@ public sealed partial record Project(
     /// <summary>The row on the projects screen (N1).</summary>
     public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count)
     {
-        Origin = !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
+        Origin = IsOnlyRecording ? PieceOrigin.Audio : !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         ReadFrom = ReadFrom?.ProjectId,
         Details = Details,
@@ -877,17 +877,6 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 /// cut by bars, whose place the format has no value for.
 /// </summary>
 public sealed record PartSummary(PieceOriginal Original, PartOf? Place);
-
-/// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>
-public enum PieceOrigin
-{
-    File,
-    Scan,
-    Recording,
-
-    /// <summary>A PDF added to read as it is, with no notes (0023).</summary>
-    Pdf,
-}
 
 /// <summary>A resume point as its piece's card shows it: its name, the position and passage in ticks, and when it was last active.</summary>
 public sealed record ResumeSummary(string Id, string? Name, long At, long? From, long? To, DateTimeOffset LastActive);

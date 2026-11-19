@@ -73,6 +73,12 @@ public sealed class MusicCoreFacade
     /// the sheet's calls too, and document, document.marks, ink.* and bookmark.* take an "original" (the first PDF when
     /// left out), so each PDF or photos original keeps its own page marks. The answer of sources and every other answer
     /// stay as they were, calls added.
+    /// Also within 12 (version 1.1, finding 29, project file version 17): open takes "recording" and makes a piece that is
+    /// only that recording, kept on the device, which opens, as the project file of one does, without notes, as a PDF piece
+    /// does (its answer has "recording", the original's "id", "fileName" and "durationMs", in place of "document"), where
+    /// before no file had such a piece; that piece and a PDF piece answer sources (the project's id among it, its "base"
+    /// "audio" for a recording) and sources.notes.hear, whose notes become the working notes of a piece with none; the
+    /// project summary's originals tell the recording; a field, a value and calls added.
     /// Also within 12 (version 0.6.4, #614 item 4, the iPad's selection of time): select takes "empty": true, and a span or
     /// bars with no notes in them are then selected as they are, noteIds empty; understand, circle and try answer
     /// "unavailable" for such a selection, project.save keeps it as no selection, a field added.
@@ -137,6 +143,9 @@ public sealed class MusicCoreFacade
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
     /// the recording's notes, worked out as the web app works them out (0014, 0016). For a project file, "edits" ("on" or
     /// "off", version 0.5) lays the corrections over the notes one by one or leaves them out; without it they must all fit.
+    /// With "recording" ({"durationMs", "sha256"}, version 1.1, finding 29) the file is a recording the player added as it
+    /// is, the data its sound (or nothing): the new piece is only that recording, with no notes, and opens as a PDF piece
+    /// does, its answer naming the "recording" in place of "document"; so does the project file of such a piece.
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -165,9 +174,12 @@ public sealed class MusicCoreFacade
 
             // A piece with notes and a PDF (testing item 16) opens as notes, or in its "PDF" view when "view" is "pdf".
             bool asPdf = fields.Text("view") == "pdf";
-            if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes, asPdf) is not null))
+            bool recording = fields.Has("recording");
+            if (recording || IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadWithoutNotes(bytes, asPdf) is not null))
             {
-                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos")) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
+                OpenDocument document = recording ? OpenDocument.CreateRecording(id, fileName, data, fields, now)
+                    : IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos"))
+                    : OpenDocument.Open(ReadWithoutNotes(bytes, asPdf)!);
                 _documents[number] = document;
                 _next++;
                 return Answer.Write(json =>
@@ -444,12 +456,15 @@ public sealed class MusicCoreFacade
     private static bool IsPdf(string fileName, byte[] data) =>
         PdfDocument.IsPdf(data) || (fileName.EndsWith(PdfDocument.Extension, StringComparison.OrdinalIgnoreCase) && !IsProjectFile(fileName, data));
 
-    /// <summary>The project in a project file when it is a PDF piece (a document and no notes); null for a piece with notes.</summary>
-    private static Project? ReadDocument(byte[] projectFile, bool asPdf)
+    /// <summary>
+    /// The project in a project file when it opens without its notes: a PDF piece (a document and no notes, or with notes
+    /// and <paramref name="asPdf"/>), or (version 17) a piece that is only its recording; null otherwise.
+    /// </summary>
+    private static Project? ReadWithoutNotes(byte[] projectFile, bool asPdf)
     {
         try
         {
-            return ProjectFile.Read(projectFile) is { Document: not null } project && (asPdf || !project.HasNotes) ? project : null;
+            return ProjectFile.Read(projectFile) is var project && ((project.Document is not null && (asPdf || !project.HasNotes)) || project.IsOnlyRecording) ? project : null;
         }
         catch (ProjectFileException)
         {
@@ -465,7 +480,7 @@ public sealed class MusicCoreFacade
     {
         try
         {
-            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: null };
+            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: null, DescribesDocument: true };
         }
         catch (ProjectFileException)
         {

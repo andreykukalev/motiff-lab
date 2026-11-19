@@ -98,6 +98,9 @@ public sealed record PieceOriginal(string Id, OriginalKind Kind, string FileName
     /// <summary>The id of the MIDI or MusicXML file the piece's notes were imported from.</summary>
     public const string SourceFileId = "src_file";
 
+    /// <summary>The id of the first recording added to a piece as it is (version 0.6); the next ones take a number ("src_rec_2").</summary>
+    public const string RecordingId = "src_rec";
+
     public string Id { get; } = !string.IsNullOrWhiteSpace(Id) ? Id : throw new ArgumentException("An original needs an id.", nameof(Id));
 
     public string FileName { get; } = !string.IsNullOrWhiteSpace(FileName) ? FileName : throw new ArgumentException("An original needs a file name.", nameof(FileName));

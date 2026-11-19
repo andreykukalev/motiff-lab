@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
@@ -10,7 +11,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// The Sources sheet's calls that need no notes open (version 0.6; 0030, section 4), the same on a piece with notes and
 /// on a piece that is only its PDF: the layers, hiding a view, adding and removing an original, removing Notes. Each
-/// answers the layers (<see cref="Answer.SourceLayers"/>).
+/// answers the layers (<see cref="Answer.SourceLayers"/>). Since version 1.1 (finding 29) also the sources answer
+/// (<see cref="Sources"/>) and «Распознать» on a recording (<see cref="Hear"/>), on a piece with notes and on one without
+/// (a PDF or a recording).
 /// </summary>
 internal static class SourceRequest
 {
@@ -25,6 +28,68 @@ internal static class SourceRequest
         "sources.original.add" => AddOriginal(request, get, set, evenPages),
         _ => null,
     };
+
+    /// <summary>
+    /// The base and its name, the summary line for the Sources sheet («Основа — ноты из файла · взято 12 тактов · 9 правок»),
+    /// the PDF kept in the piece with its pages, the other versions, the bars taken and the corrections, and the originals
+    /// with where their bytes are and the project's id (version 0.3), on a piece with notes and, since version 1.1, on one
+    /// without (a PDF or a recording, finding 29); <paramref name="more"/> writes what a call adds first.
+    /// </summary>
+    public static string Sources(Project project, Words words, Action<Utf8JsonWriter>? more = null)
+    {
+        PieceSources sources = PieceSources.Of(project);
+        return Answer.Write(json =>
+        {
+            more?.Invoke(json);
+            json.WriteString("base", sources.Base.ToString().ToLowerInvariant());
+            json.WriteString("baseName", sources.BaseName(words));
+            json.WriteString("summary", sources.Summary(words));
+            if (project.Document is not null)
+            {
+                json.WriteStartObject("document");
+                json.WriteString("fileName", project.DocumentFileName);
+                json.WriteNumber("pages", project.DocumentPages?.Pages ?? 0);
+                json.WriteBoolean("readFrom", sources.ReadFromDocument);
+                json.WriteStartArray("starts");
+                foreach (Time.Tick start in project.DocumentPages?.Starts ?? [])
+                {
+                    json.WriteNumberValue(start.Value);
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+            else
+            {
+                json.WriteNull("document");
+            }
+
+            Answer.Performances(json, project);
+            json.WriteNumber("taken", sources.TakenBars);
+            json.WriteNumber("edits", sources.Edits);
+            // Version 0.3: the originals, and the project's id, which the iPad keys its links to files in Files by.
+            json.WriteString("projectId", project.Id);
+            Answer.Originals(json, project);
+        });
+    }
+
+    /// <summary>
+    /// «Распознать» on a recording already added: "original" (the recording's id) and the notes the transcription heard in
+    /// the stretch sent («Что распознать»), as for transcribe ("milliseconds", "parts", "levels", "engine", "sentFromMs",
+    /// "tempo"), with "now". Other Notes beside the working ones, their provenance naming the stretch
+    /// ("sentFromMs" to "sentFromMs" + "milliseconds"); on a piece with no notes (version 1.1, a PDF or a recording,
+    /// finding 29), the working notes, so the app opens the piece again as notes from the file it saves. Answers the
+    /// sources with their "id".
+    /// </summary>
+    public static string Hear(Request request, Func<Project> get, Action<Project> set, Words words)
+    {
+        Project project = get();
+        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = OpenPiece.Heard(Path.ChangeExtension(project.FileName, ".mid"), request, words);
+        long from = request.Long("sentFromMs") ?? 0;
+        (long, long) stretch = (from, from + request.Long("milliseconds")!.Value);
+        string id = project.HasNotes ? project.NextNotesId() : project.NotesId;
+        return Changed(request, get, set, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, Now(request), stretch), json => json.WriteString("id", id));
+    }
 
     /// <summary>
     /// The sources (<see cref="Answer.SourceLayers"/>) as "device" ("ipad", the default, or "web") sees them, with "here",
@@ -102,7 +167,7 @@ internal static class SourceRequest
         {
             OriginalKind.Pdf => PieceOriginal.DocumentId,
             OriginalKind.Images => "src_photos",
-            OriginalKind.Audio => "src_rec",
+            OriginalKind.Audio => PieceOriginal.RecordingId,
             OriginalKind.Midi => "src_midi",
             _ => "src_score",
         };

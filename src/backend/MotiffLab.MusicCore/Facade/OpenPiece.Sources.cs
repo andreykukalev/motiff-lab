@@ -26,48 +26,8 @@ internal sealed partial class OpenPiece
         _ => CallOnSourceLayers(name, request) ?? throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
-    /// <summary>
-    /// The base and its name, the summary line for the Sources sheet («Основа — ноты из файла · взято 12 тактов · 9 правок»),
-    /// the PDF kept in the piece with its pages, the other versions, the bars taken and the corrections, and the originals
-    /// with where their bytes are (version 0.3); <paramref name="more"/> writes what a call adds first.
-    /// </summary>
-    private string SourcesAnswer(Action<Utf8JsonWriter>? more = null)
-    {
-        PieceSources sources = PieceSources.Of(Project);
-        return Answer.Write(json =>
-        {
-            more?.Invoke(json);
-            json.WriteString("base", sources.Base.ToString().ToLowerInvariant());
-            json.WriteString("baseName", sources.BaseName(Words));
-            json.WriteString("summary", sources.Summary(Words));
-            if (Project.Document is not null)
-            {
-                json.WriteStartObject("document");
-                json.WriteString("fileName", Project.DocumentFileName);
-                json.WriteNumber("pages", Project.DocumentPages?.Pages ?? 0);
-                json.WriteBoolean("readFrom", sources.ReadFromDocument);
-                json.WriteStartArray("starts");
-                foreach (Time.Tick start in Project.DocumentPages?.Starts ?? [])
-                {
-                    json.WriteNumberValue(start.Value);
-                }
-
-                json.WriteEndArray();
-                json.WriteEndObject();
-            }
-            else
-            {
-                json.WriteNull("document");
-            }
-
-            Answer.Performances(json, Project);
-            json.WriteNumber("taken", sources.TakenBars);
-            json.WriteNumber("edits", sources.Edits);
-            // Version 0.3: the originals, and the project's id, which the iPad keys its links to files in Files by.
-            json.WriteString("projectId", Project.Id);
-            Answer.Originals(json, Project);
-        });
-    }
+    /// <summary>The sources answer (<see cref="SourceRequest.Sources"/>) of this piece; <paramref name="more"/> writes what a call adds first.</summary>
+    private string SourcesAnswer(Action<Utf8JsonWriter>? more = null) => SourceRequest.Sources(Project, Words, more);
 
     /// <summary>The PDF kept in the piece, to send to the scan server: "fileName" and "pdf" (base64, the bytes as added).</summary>
     private string DocumentBytes()

@@ -202,8 +202,8 @@ public partial class ProjectIdTests
     {
         byte[] file = Worked(FurElise, $$"""{"id": "{{id}}", "now": "2026-11-01T10:00:00Z"}""", "2026-11-01T11:00:00Z");
         JsonElement root = Json(Encoding.UTF8.GetString(file));
-        Assert.Equal(16, ProjectFile.Version);
-        Assert.Equal(16, root.GetProperty("version").GetInt32());
+        Assert.Equal(17, ProjectFile.Version);
+        Assert.Equal(17, root.GetProperty("version").GetInt32());
         Assert.Equal(id, root.GetProperty("id").GetString());
 
         var facade = new MusicCoreFacade();

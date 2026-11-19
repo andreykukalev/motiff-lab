@@ -25,18 +25,24 @@ public class ProjectFileGoldenTests
     /// <summary>The worked file as version 0.5 wrote it, in version 15: an input, never rewritten.</summary>
     private const string Worked15 = "v15-worked.motiff.json";
 
-    /// <summary>What today's writer makes of <see cref="Worked15"/>, in version 16.</summary>
-    private const string Worked = "v16-worked.motiff.json";
+    /// <summary>What versions 0.6 to 1.0 made of <see cref="Worked15"/>, in version 16: an input since version 17, never rewritten.</summary>
+    private const string Worked16 = "v16-worked.motiff.json";
+
+    /// <summary>What today's writer makes of <see cref="Worked15"/> and <see cref="Worked16"/>, in version 17.</summary>
+    private const string Worked = "v17-worked.motiff.json";
 
     /// <summary>The future file made while version 15 was today's: the version 15 file with version 16.</summary>
     private const string Future15 = "v16-future.motiff.json";
 
-    /// <summary>The future file of today: the version 16 file with version 17.</summary>
-    private const string Future = "v17-future.motiff.json";
+    /// <summary>The future file made while version 16 was today's: the version 16 file with version 17.</summary>
+    private const string Future16 = "v17-future.motiff.json";
+
+    /// <summary>The future file of today: the version 17 file with version 18.</summary>
+    private const string Future = "v18-future.motiff.json";
 
     /// <summary>
     /// Where the future file puts an unknown value of each enum type the reader names (council fact V28: 24 types then;
-    /// today 31 types behind the 36 uses of Name and LowerName in Projects/File/), as a path into the version 16 file:
+    /// today 31 types behind the 36 uses of Name and LowerName in Projects/File/), as a path into the version 16 and 17 files:
     /// the working notes are the first Notes, the compared ones the second.
     /// </summary>
     public static TheoryData<string, string> EnumValues => new()
@@ -182,7 +188,7 @@ public class ProjectFileGoldenTests
     [Theory]
     [InlineData(Paterlini)]
     [InlineData(Einaudi)]
-    public void A_version_12_file_opens_and_is_written_as_version_16_with_nothing_else_changed(string name)
+    public void A_version_12_file_opens_and_is_written_as_this_version_with_nothing_else_changed(string name)
     {
         byte[] original = File($"{name}.motiff.json");
 
@@ -195,7 +201,7 @@ public class ProjectFileGoldenTests
         Assert.Equal(12, before["version"]!.GetValue<int>());
         Assert.Equal(ProjectFile.Version, Node(written)["version"]!.GetValue<int>());
         // Laid out at the top level again: version 13 added the performances and version 15 the originals' descriptions,
-        // which version 16 writes for every original; nothing else of a version 12 file changes on the way through.
+        // which versions 16 and 17 write for every original; nothing else of a version 12 file changes on the way through.
         JsonObject after = Node(Projects.LegacyFile.Bytes(written, 12));
         Assert.Equal("[]", after["performances"]!.ToJsonString());
         Assert.Equal(project.Originals.Select(original => original.Id), after["originals"]!.AsArray().Select(original => original!["id"]!.GetValue<string>()));
@@ -239,11 +245,11 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// The version 15 file is written as version 16, and laid out at the top level again it is the version 15 file, every
+    /// The version 15 file is written as this version, and laid out at the top level again it is the version 15 file, every
     /// field in the order the version 15 writer wrote them: the conversion moves every field and loses none.
     /// </summary>
     [Fact]
-    public void The_version_15_file_reads_and_is_written_as_the_version_16_file_that_is_it_laid_out_anew()
+    public void The_version_15_file_reads_and_is_written_as_the_file_of_this_version_that_is_it_laid_out_anew()
     {
         byte[] earlier = File(Worked15);
 
@@ -256,12 +262,30 @@ public class ProjectFileGoldenTests
         Assert.False(Node(earlier).ContainsKey("originals"));
         Assert.Equal(ProjectFile.Read(earlier).Originals.Select(original => original.Id), flat["originals"]!.AsArray().Select(original => original!["id"]!.GetValue<string>()));
         flat.Remove("originals");
-        Assert.True(JsonNode.DeepEquals(Node(earlier), flat), "the version 16 file laid out at the top level is the version 15 file");
+        Assert.True(JsonNode.DeepEquals(Node(earlier), flat), "the file of this version laid out at the top level is the version 15 file");
         Assert.Equal(Node(earlier).Select(field => field.Key), flat.Select(field => field.Key));
     }
 
+    /// <summary>
+    /// Version 17 keeps the layout of version 16 (a piece may be only its recording, and the drafts come with their step):
+    /// the version 16 file reads and is written as the version 17 file, which is it with the version raised and nothing else.
+    /// </summary>
     [Fact]
-    public void The_version_16_file_reads_opens_and_is_written_back_unchanged()
+    public void The_version_16_file_reads_and_is_written_as_the_version_17_file_with_only_the_version_changed()
+    {
+        byte[] earlier = File(Worked16);
+
+        byte[] written = ProjectFile.Write(ProjectFile.Read(earlier));
+
+        AssertWritten(written, Worked);
+        JsonObject raised = Node(earlier);
+        Assert.Equal(16, raised["version"]!.GetValue<int>());
+        raised["version"] = 17;
+        Assert.True(JsonNode.DeepEquals(raised, Node(written)), "the version 17 file is the version 16 file with version 17");
+    }
+
+    [Fact]
+    public void The_version_17_file_reads_opens_and_is_written_back_unchanged()
     {
         byte[] golden = File(Worked);
 
@@ -283,7 +307,7 @@ public class ProjectFileGoldenTests
 
     [Theory]
     [MemberData(nameof(EnumValues))]
-    public void The_version_16_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
+    public void The_version_17_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
     {
         Type found = Assert.Single(typeof(ProjectFile).Assembly.GetTypes(), candidate => candidate.IsEnum && candidate.Name == type);
         string value = Parent(Node(File(Worked)), path, out string last)[last]!.GetValue<string>();
@@ -293,13 +317,18 @@ public class ProjectFileGoldenTests
     }
 
     [Fact]
-    public void The_future_file_is_the_version_16_file_with_version_17_three_unknown_fields_and_an_unknown_value_of_each_enum_type()
+    public void The_future_file_is_the_version_17_file_with_version_18_three_unknown_fields_and_an_unknown_value_of_each_enum_type()
     {
         Assert.Equal(24, EnumValues.Count);
         Assert.Equal(24, EnumValues.Select(row => (string)row[0]).Distinct().Count());
 
-        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked)), 17, path => path), Node(File(Future))), "the future file is the version 16 file with exactly these changes");
+        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked)), 18, path => path), Node(File(Future))), "the future file is the version 17 file with exactly these changes");
     }
+
+    /// <summary>The future file made while version 16 was today's is the version 16 file with the same changes.</summary>
+    [Fact]
+    public void The_future_file_of_version_16_is_the_version_16_file_with_version_17_three_unknown_fields_and_an_unknown_value_of_each_enum_type() =>
+        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked16)), 17, path => path), Node(File(Future16))), "the future file of version 16 is the version 16 file with exactly these changes");
 
     /// <summary>The future file made while version 15 was today's is the version 15 file with the same changes in its places.</summary>
     [Fact]
@@ -343,15 +372,50 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// The earlier future file has today's version and the layout of version 15, which no build of version 16 writes: it is
-    /// damaged, for want of its workspace, rather than read as something it is not.
+    /// The earlier future file has a version laid out in the three layers and the layout of version 15, which no build of
+    /// version 16 or later writes: it is damaged, for want of its workspace, rather than read as something it is not.
     /// </summary>
     [Fact]
-    public void The_earlier_future_file_now_has_this_version_in_another_layout_and_is_damaged()
+    public void The_earlier_future_file_now_has_a_version_of_the_layers_in_another_layout_and_is_damaged()
     {
         ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(File(Future15)));
 
         Assert.StartsWith("This project file is damaged", refused.Message);
+    }
+
+    /// <summary>
+    /// The future file of version 16 now has this version: its unknown values on the notes that sound make it damaged, as
+    /// any file of this version with them (Andrei's decision on #313, option A).
+    /// </summary>
+    [Fact]
+    public void The_future_file_of_version_16_now_has_this_version_and_is_damaged_by_its_values_on_the_notes_that_sound()
+    {
+        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(File(Future16)));
+
+        Assert.StartsWith("This project file is damaged", refused.Message);
+    }
+
+    /// <summary>
+    /// A version 16 file, as builds 0.6 to 1.0 saved it, reads an unknown value as those builds did: the entity holding it
+    /// is kept as unknown and written back where it stood, the file written being the file read with version 17 and
+    /// nothing else changed (docs/project-file.md, "Unknown values").
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(KeptValues))]
+    public void An_unknown_value_in_a_version_16_file_is_kept_as_in_a_file_of_this_version(string type, string path)
+    {
+        JsonObject file = Node(File(Worked16));
+        Parent(file, path, out string last)[last] = UnknownValue;
+        (string list, int index) = EntityOf(path, out string entityPath);
+
+        Project project = ProjectFile.Read(Bytes(file));
+        JsonObject written = Node(ProjectFile.Write(project));
+
+        UnknownEntity kept = Assert.Single(AllUnknown(project), entity => entity.Enum is not null);
+        Assert.Equal((list, index, type), (kept.List, kept.Index, kept.Enum));
+        Assert.True(JsonNode.DeepEquals(At(file, entityPath), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
+        file["version"] = ProjectFile.Version;
+        Assert.True(JsonNode.DeepEquals(file, written), "the file written back is the version 16 file read, with version 17");
     }
 
     /// <summary>
@@ -381,18 +445,23 @@ public class ProjectFileGoldenTests
 
     /// <summary>
     /// What stays as it was (Andrei's decision on #313, option A): an unknown value on a note correction, a performance or
-    /// the assembly changes the notes that sound, so the file is still refused as damaged; read-only opening takes it up.
+    /// the assembly changes the notes that sound, so the file is still refused as damaged, in a version 16 file as in a
+    /// version 17 one; read-only opening takes it up.
     /// </summary>
     [Theory]
     [MemberData(nameof(RefusedValues))]
     public void An_unknown_value_on_the_notes_that_sound_still_makes_the_file_damaged(string type, string path)
     {
-        JsonObject file = Node(File(Worked));
-        Parent(file, path, out string last)[last] = UnknownValue;
+        foreach (string golden in (string[])[Worked16, Worked])
+        {
+            JsonObject file = Node(File(golden));
+            Parent(file, path, out string last)[last] = UnknownValue;
 
-        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
+            ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
 
-        Assert.StartsWith("This project file is damaged", refused.Message);
+            Assert.StartsWith("This project file is damaged", refused.Message);
+        }
+
         Assert.NotEmpty(type);
     }
 
@@ -416,7 +485,7 @@ public class ProjectFileGoldenTests
     /// <summary>
     /// The future file with the version this build reads (criterion 3 of #313, as option A amends it), and the three values
     /// on the notes that sound put back: every other unknown value opens and is written back, and so are the unknown fields
-    /// at the top level and in the workspace (S6, version 16).
+    /// at the top level and in the workspace (S6, version 16 on).
     /// </summary>
     [Fact]
     public void The_future_file_opens_with_this_version_and_is_written_back_whole()
@@ -452,11 +521,14 @@ public class ProjectFileGoldenTests
     /// Basis rule S6, flipping council fact V2 in version 16: an unknown field at the top level, in the workspace, in a Notes,
     /// an original or a provenance is kept and written back after the known ones; one inside a known entity is still lost.
     /// A version 15 file's unknown field is lost as before, since no build that wrote one knew a field this one does not.
+    /// A version 16 file keeps them as a version 17 one does, written back with version 17.
     /// </summary>
-    [Fact]
-    public void An_unknown_field_in_a_version_16_file_is_kept_where_the_layers_keep_them()
+    [Theory]
+    [InlineData(Worked16)]
+    [InlineData(Worked)]
+    public void An_unknown_field_in_a_file_of_the_layers_is_kept_where_the_layers_keep_them(string golden)
     {
-        JsonObject file = Node(File(Worked));
+        JsonObject file = Node(File(golden));
         file["future"] = new JsonObject { ["note"] = "A field a later version adds." };
         file["workspace"]!["future"] = 1;
         file["notes"]![0]!["future"] = 2;
@@ -468,6 +540,7 @@ public class ProjectFileGoldenTests
         JsonObject written = Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))));
 
         _ = file["workspace"]!["motifs"]![0]!.AsObject().Remove("future");
+        file["version"] = ProjectFile.Version;
         Assert.True(JsonNode.DeepEquals(file, written), "every unknown field but the motif's is written back");
 
         JsonObject earlier = Node(File(Worked15));

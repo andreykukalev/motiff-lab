@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 
 /// <summary>
 /// The tolerant reader for enum values (decision record 0026, S6; #313): what is kept as unknown, what goes with it, what
-/// is still damage, and how an app's changes meet the entities it never sees. The file is the version 16 golden; a path
+/// is still damage, and how an app's changes meet the entities it never sees. The file is the version 17 golden; a path
 /// that starts with a field of the workspace is a path into the workspace.
 /// </summary>
 public class UnknownValueTests
@@ -20,7 +20,7 @@ public class UnknownValueTests
     private static readonly HashSet<string> s_inWorkspace = ["motifs", "variations", "observations", "marks", "bookmarks", "resumePoints", "settings"];
 
     private static JsonObject Worked() =>
-        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v16-worked.motiff.json")))!.AsObject();
+        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
 
     private static JsonObject Worked15() =>
         JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
