@@ -1,8 +1,9 @@
 // The one icon set of both apps (0018 section 14): design/kit/icons.js, Andrei's, is the source. This writes
-//   src/MotiffLab.Web/wwwroot/img/icons.svg       a sprite of <symbol id="ic-NAME">, drawn by the web app's Icon component
-//   ipad/App/MotiffLab/Icons.xcassets/ic-NAME     one vector image per icon, a template the iPad app tints
+//   archive/web/src/MotiffLab.Web/wwwroot/img/icons.svg       a sprite of <symbol id="ic-NAME">, drawn by the web app's Icon component
+//   src/ipad/App/MotiffLab/Icons.xcassets/ic-NAME     one vector image per icon, a template the iPad app tints
 // Run after changing the kit's icons:   node tools/icons/build.mjs
-// tests/web/icons.test.mjs fails when the written files are not what the kit gives.
+// tests/shared/design.test.mjs fails when the catalogue is not what the kit gives (the archived sprite's test is in
+// archive/web/tests/web/design-web.test.mjs and does not run).
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -11,8 +12,8 @@ import vm from "node:vm";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
-export const SPRITE = "src/MotiffLab.Web/wwwroot/img/icons.svg";
-export const CATALOGUE = "ipad/App/MotiffLab/Icons.xcassets";
+export const SPRITE = "archive/web/src/MotiffLab.Web/wwwroot/img/icons.svg";
+export const CATALOGUE = "src/ipad/App/MotiffLab/Icons.xcassets";
 
 /** The kit's icons: name → the SVG body on the 20 px grid. */
 export function readIcons(path = `${root}design/kit/icons.js`) {

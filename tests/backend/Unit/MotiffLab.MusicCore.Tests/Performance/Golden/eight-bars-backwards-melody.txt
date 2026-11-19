@@ -1,0 +1,9 @@
+matched 61, anchors 30
+bar 1 aligned None 100% «» «» | matched [lh00a=p_lh00a+15 lh00b=p_lh00b+4 rh00=p_rh00+0 rh01=p_rh01+0 lh02a=p_lh02a+11 lh02b=p_lh02b+0 rh02=p_rh02+15 rh03=p_rh03+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 2 aligned None 83% «» «» | matched [lh10a=p_lh10a+0 lh10b=p_lh10b+8 rh04=p_rh04+4 rh05=p_rh05+0 lh12a=p_lh12a+0 lh12b=p_lh12b+7 rh06=p_rh06+4 rh07=p_rh07+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 3 aligned Rhythm 83% «rhythm» «ритм» | matched [lh20a=p_lh20a+0 lh20b=p_lh20b+7 lh22a=p_lh22a+11 lh22b=p_lh22b+0] | not heard [rh08 rh09 rh10 rh11] | probably not heard [] | not printed [p_rh11:72@3847v70 p_rh10:74@4318v70 p_rh09:76@4807v70 p_rh08:77@5282v70] | artefacts []
+bar 4 aligned None 83% «» «» | matched [lh30a=p_lh30a+10 lh30b=p_lh30b+0 rh12=p_rh12+14 rh13=p_rh13+0 lh32a=p_lh32a+0 lh32b=p_lh32b+7 rh14=p_rh14+3 rh15=p_rh15+0] | not heard [] | probably not heard [] | not printed [] | artefacts [quiet:90@6243v10]
+bar 5 aligned None 100% «» «» | matched [lh40a=p_lh40a+0 lh40b=p_lh40b+6 rh16=p_rh16+3 rh17=p_rh17+0 lh42a=p_lh42a+0 lh42b=p_lh42b+6 rh18=p_rh18+3 rh19=p_rh19+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 6 aligned None 100% «» «» | matched [low=p_low+9 lh50a=p_lh50a+13 lh50b=p_lh50b+3 rh20=p_rh20+0 rh21=p_rh21+0 lh52a=p_lh52a+10 lh52b=p_lh52b+0 rh22=p_rh22+13 rh23=p_rh23+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 7 aligned None 100% «» «» | matched [lh60a=p_lh60a+0 lh60b=p_lh60b+6 rh24=p_rh24+3 rh25=p_rh25+0 lh62a=p_lh62a+0 lh62b=p_lh62b+6 rh26=p_rh26+3 rh27=p_rh27+0] | not heard [] | probably not heard [] | not printed [] | artefacts []
+bar 8 aligned None 100% «» «» | matched [lh70a=p_lh70a+0 lh70b=p_lh70b+6 rh28=p_rh28+3 rh29=p_rh29+0 lh72a=p_lh72a+12 lh72b=p_lh72b+3 rh30=p_rh30+0 rh31=p_rh31+0] | not heard [] | probably not heard [] | not printed [] | artefacts []

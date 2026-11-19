@@ -14,6 +14,7 @@ const ICONS = {
   pages: '<rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/>',
   check: '<path d="M4 10.5l4 4 8-9"/>',
   note: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V13"/>',
+  memo: '<path d="M4.5 4h11a.5.5 0 0 1 .5.5V12l-4 4H4.5a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5z"/><path d="M16 12h-3.5a.5.5 0 0 0-.5.5V16"/><path d="M7 7.5h6M7 10.5h3.5"/>',
   tag: '<path d="M3.5 4.5v5l7.5 7.5 6.5-6.5L10 3H5a1.5 1.5 0 0 0-1.5 1.5z"/><circle cx="7" cy="7" r="1"/>',
   highlight: '<path d="M5 15l-2 2h4l1-1M5 15l7-7 3 3-7 7"/><path d="M12 8l2-2 3 3-2 2"/>',
   back: '<path d="M12.5 4.5L7 10l5.5 5.5"/>',

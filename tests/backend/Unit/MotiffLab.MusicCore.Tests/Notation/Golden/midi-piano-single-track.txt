@@ -1,0 +1,28 @@
+notes: 55
+approximated: 0
+shortened: 0
+lengthened: 0
+cut: 0
+graces: 0
+as heard: False
+accents: 0
+dynamics: 0
+tempo words: 0
+hairpins: 0
+fermatas: 0
+tempo marks: 1
+triplets: 0
+slurs: 0
+pedals: 0
+excerpt: 
+staff: NotationStaff { Number = 1, Track = 0, Clef = Treble, Hand = Right, IsSplitInferred = False }
+staff: NotationStaff { Number = 2, Track = 0, Clef = Bass, Hand = Left, IsSplitInferred = False }
+mei: <?xml version="1.0" encoding="UTF-8"?><mei meiversion="5.1" xmlns="http://www.music-encoding.org/ns/mei"><meiHead><fileDesc><titleStmt><title>piano-single-track.mid</title></titleStmt><pubStmt /></fileDesc></meiHead><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4" keysig="0"><staffGrp><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" lines="5" clef.shape="G" clef.line="2" /><staffDef n="2" lines="5" clef.shape="F" clef.line="4" /></staffGrp></staffGrp></scoreDef><section>
+<measure n="1"><staff n="1"><layer n="1"><note xml:id="n_0002" dur="2" pname="c" oct="5" /><note xml:id="n_0005" dur="4" pname="d" oct="5" /><note xml:id="n_0007" dur="4" pname="e" oct="5" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0003" dur="4" pname="e" oct="3" /><note xml:id="n_0004" dur="4" pname="g" oct="3" /><note xml:id="n_0006" dur="4" pname="e" oct="4" /></layer><layer n="2"><note xml:id="n_0001" dur="1" pname="c" oct="2" /></layer></staff><tempo staff="1" place="above" tstamp="0" mm="84" mm.unit="4" midi.bpm="84"><rend fontsize="x-small" glyph.auth="smufl"></rend> = 84</tempo></measure>
+<measure n="2"><staff n="1"><layer n="1"><note xml:id="n_0009" dur="4" dots="1" pname="f" oct="5" /><note xml:id="n_0011" dur="8" pname="e" oct="5" /><note xml:id="n_0013" dur="2" pname="d" oct="5" /></layer><layer n="2"><space dur="2" dots="1" /><note xml:id="n_0014" dur="4" pname="a" oct="4" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0010" dur="4" pname="a" oct="3" /><note xml:id="n_0012" dur="4" pname="c" oct="4" /><rest dur="4" /></layer><layer n="2"><note xml:id="n_0008" dur="1" pname="f" oct="2" /></layer></staff></measure>
+<measure n="3"><staff n="1"><layer n="1"><note xml:id="n_0016" dur="4" pname="c" oct="5" /><note xml:id="n_0018" dur="4" pname="b" oct="4" /><note xml:id="n_0020" dur="4" pname="a" oct="4" /><note xml:id="n_0022" dur="4" pname="g" oct="4" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0017" dur="4" pname="f" oct="3" /><note xml:id="n_0019" dur="4" pname="a" oct="3" /><note xml:id="n_0021" dur="4" pname="f" oct="4" /></layer><layer n="2"><note xml:id="n_0015" dur="1" pname="d" oct="2" /></layer></staff></measure>
+<measure n="4"><staff n="1"><layer n="1"><note xml:id="n_0024" dur="1" pname="d" oct="5" /></layer><layer n="2"><space dur="2" dots="1" /><note xml:id="n_0027" dur="4" pname="b" oct="4" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0025" dur="4" pname="b" oct="3" /><note xml:id="n_0026" dur="4" pname="d" oct="4" /><rest dur="4" /></layer><layer n="2"><note xml:id="n_0023" dur="1" pname="g" oct="2" /></layer></staff></measure>
+<measure n="5"><staff n="1"><layer n="1"><note xml:id="n_0029" dur="4" pname="e" oct="4" /><note xml:id="n_0031" dur="4" pname="f" oct="4" /><note xml:id="n_0033" dur="2" pname="g" oct="4" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0030" dur="4" pname="c" oct="4" /><note xml:id="n_0032" dur="4" pname="e" oct="4" /><note xml:id="n_0034" dur="4" pname="c" oct="4" /></layer><layer n="2"><note xml:id="n_0028" dur="1" pname="a" oct="2" /></layer></staff></measure>
+<measure n="6"><staff n="1"><layer n="1"><note xml:id="n_0036" dur="4" pname="f" oct="4" /><note xml:id="n_0038" dur="4" pname="e" oct="4" /><note xml:id="n_0040" dur="4" pname="f" oct="4" /><note xml:id="n_0042" dur="4" pname="e" oct="4" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0037" dur="4" pname="b" oct="3" /><note xml:id="n_0039" dur="4" pname="d" oct="4" /><note xml:id="n_0041" dur="4" pname="b" oct="3" /></layer><layer n="2"><note xml:id="n_0035" dur="1" pname="g" oct="2" /></layer></staff></measure>
+<measure n="7"><staff n="1"><layer n="1"><note xml:id="n_0044" dur="4" pname="g" oct="4" /><note xml:id="n_0046" dur="4" pname="c" oct="5" /><note xml:id="n_0048" dur="4" pname="b" oct="4" /><note xml:id="n_0050" dur="4" pname="d" oct="5" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0045" dur="4" pname="a" oct="3" /><note xml:id="n_0047" dur="4" pname="c" oct="4" /><note xml:id="n_0049" dur="4" pname="a" oct="3" /></layer><layer n="2"><note xml:id="n_0043" dur="1" pname="f" oct="2" /></layer></staff></measure>
+<measure n="8"><staff n="1"><layer n="1"><note xml:id="n_0052" dur="1" pname="c" oct="5" /></layer></staff><staff n="2"><layer n="1"><rest dur="4" /><note xml:id="n_0053" dur="4" pname="g" oct="3" /><note xml:id="n_0054" dur="4" pname="e" oct="4" /><note xml:id="n_0055" dur="4" pname="g" oct="3" /></layer><layer n="2"><note xml:id="n_0051" dur="1" pname="c" oct="2" /></layer></staff></measure></section></score></mdiv></body></music></mei>

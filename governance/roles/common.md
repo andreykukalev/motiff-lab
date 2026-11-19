@@ -5,7 +5,8 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 ## Working
 
 - Do the work yourself. Split it or start another agent only when it truly needs it (team mode, a second Developer on
-  files that do not overlap); never a thread or sub-agent for a routine step.
+  files that do not overlap, an `Explore` survey, below); never a thread or sub-agent for a
+  routine step.
 - Act; do not ask Andrei to confirm intermediate steps. Ask only about the six decisions in `governance/README.md`, or
   when a request can be read in ways that lead to different products. Every question names the task in a few words,
   links the exact place, restates the question with your recommendation and says how to answer.
@@ -30,36 +31,55 @@ Read `governance/README.md` (the process) first, then this file, then your role'
   `/mnt/project-files/scratch/<date>-<topic>/`, one folder per task, never elsewhere. It is a cache: never cited as
   current, may be cleared.
 
-## Context and tokens
+## Context and completeness
 
-Every step resends the whole context, so what you read once is paid again on every later step; the context is
-compacted automatically at about 200K tokens.
+Understanding the code comes before saving tokens (Andrei, 2026-11-16): a missed dependency costs more than a long
+context. The context is compacted automatically at about 400K tokens (the environment's
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, 500K, at 80 %).
 
-- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 2 KB):
-  goal, decisions with reasons, root causes found, the files and line ranges that matter, done and next, open
+- Read the files you change whole, and every place that uses what they export: find the users by name across `src/`
+  and `tests/` (`git grep -n -w <symbol> -- src tests`), including the score page's messages (`src/ipad/App/Web`,
+  `src/shared/Scripts`) and the facade's request names, which are strings. Read the decision records and the design
+  note the task follows before the code.
+- Start `Explore` sub-agents for a survey that spans more than a few files: who calls what, which state is written
+  where, which tests cover it. Give each a narrow question and the paths; it returns the map, not the file contents.
+  Write what they found into the track note and the area's code map.
+- Keep a track note (the path your brief names, else `/mnt/project-files/product/notes/<branch>.md`, under 4 KB):
+  goal, decisions with reasons, root causes found, the files and dependencies that matter, done and next, open
   questions. Write it after you have studied the code, after each pull request and before any long step, so that a
-  compaction loses nothing you need. After a compaction read the note first, then only the ranges you need.
-- Read code and documents in ranges (`grep -n`, then `sed -n a,b`), not whole files and never several files in one
-  `cat`; print only the tail of build, test and CI output.
+  compaction loses nothing you need. After a compaction read the note first, then read again what the next step
+  touches.
+- Print the tail of build, test and CI output first, and the whole of a failing test's output.
 - A lead keeps the same kind of note in the version's state file.
 
 ## Platform focus
 
-- Every track in a version plan has an area: iPad, web, core or shared. Without Andrei's explicit word it is the focus
-  in `governance/README.md`; «shared» only when he asks for both platforms at once.
-- An iPad track reads and changes `ipad/`, `src/MotiffLab.MusicCore` and the score and roll modules the iPad page runs
-  (`Scripts/score`, `Scripts/roll`, checked by node tests); it does not read or change the web pages and components or
-  run the web Playwright suites. A web track mirrors this.
-- A change with a counterpart on the other platform is not ported: append one line to
-  `/mnt/project-files/product/web-backlog.md` (or `ipad-backlog.md`): what changed, the pull request, the shared code
-  touched. A porting version is planned from that list.
+- The web app is archived (`docs/architecture/adr/0032-ipad-first-web-archived.md`): every track's area is iPad, core or the
+  backend (API, scan server). There are no web tracks until Andrei reactivates the web.
+- A track reads and changes `src/ipad/`, `src/backend/` and `src/shared/` (the modules, words, piano and example piece
+  the iPad bundles; `docs/repository-structure.md`), with their tests in `tests/`. It does not read, change or test
+  anything in `archive/` (the frozen web: pages, components, services, web-only scripts, Playwright suites), and
+  neither the iPad nor `src/shared` imports archived code. Archived code never enters an agent's context: no Read,
+  search, `cat` or `grep` there, no citing it as how something works, and no subagent sent to look at it. What the web
+  did is in `docs/web-archive.md` and the tag `v0.6.5`. Search tools skip `archive/` (`.ignore`), and on a computer
+  `.claude/hooks/archive-guard.mjs` asks before any use of it; only a task whose `allowed_paths` name `archive/`
+  (reactivation, Andrei's decision) opens it.
+- The one move into the archive Andrei decided (`docs/REFACTORING_AUDIT.md` section 6, decision 1; the v0.7 blueprint's
+  decision 5): the W0.6 / A6 task may `git mv` the 16 web-only shared modules, the parts of the node tests that read
+  them and the unused interface texts from `src/shared` and `tests/shared` into `archive/web`, reading nothing there
+  and writing nothing else there, and updates `docs/web-archive.md`.
+- A change to a live shared module that alters what the web would show is not ported: append one line to
+  `/mnt/project-files/product/web-backlog.md`: what changed, the pull request, the shared code touched. It is the
+  porting list for the web's reactivation.
 
 ## Code maps and tracks
 
-- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, web), under 3 KB: which files do what, the
-  key functions with line ranges, the rules not to break. Read your area's map before the code. A pull request that
+- Each code area has a map, `docs/code-map/<area>.md` (ipad, core, score, roll; the archived web has
+  `docs/web-archive.md` instead), under 6 KB: which files do what, the key functions, what depends on what (the module's
+  callers and the modules it calls, the state it owns), the rules not to break. Read your area's map before the code. A pull request that
   adds, moves or splits structure updates the map in the same pull request; the first agent in an area with no map
-  writes it from what it studied, in its first pull request.
+  writes it from what it studied, in its first pull request (before its first change, so the map
+  is the survey).
 - A lead splits a version into tracks by code area, not by spec item: items that touch the same files go to one agent
   in sequence (up to about three pull requests, the track note between them); parallel agents only on files that do
   not overlap.
@@ -78,9 +98,28 @@ compacted automatically at about 200K tokens.
 
 - `build-test` runs on every pull request and stays quick (a few minutes): whitespace, build, unit, TypeScript, guard
   tests, code quality.
-- The iPad macOS tests and the browser tests run on every version tag (`v*`), by hand, or by label (`ipad-tests`,
-  `browser-tests`) when a change needs them before a version. For `ipad/App`, fix the expectations in
-  `ipad/App/MotiffLabTests` in the same commit.
+- A pull request that touches what the iPad app is built from (`src/ipad`, `tests/ipad`, `src/shared`, music-core,
+  `design/kit`, `tests/contracts`, `tests/pages`, `global.json`, `Directory.Build.props`) runs the Swift tests in the
+  iPad simulator and compiles the walk of the screens (`tests/ipad/MotiffLabScreens`) on every push (the `iPad` workflow, about 4 minutes on Andrei's Mac); no label is needed. Its job `ipad-gate` reports on
+  every pull request (passed when the iPad run was not needed) and is required on `develop` with `build-test`: a red or
+  cancelled iPad run blocks the merge. After a merge that touches those inputs, `develop` only builds the app for a
+  real iPad and music-core's cache (the pull request ran the tests on its merge commit); the tests run on
+  every version tag (`v*`, with the asserting walk of the screens) and by hand; the walk and the switch tests also run
+  nightly on `develop` when it changed, once that schedule is on `main`. A failing walk fails its run. By hand, tick
+  Walk for the asserting walk (a few minutes); Screenshots, the pictures for the mockups, holds the only Mac for about
+  half an hour and every pull request's iPad run queues behind it, so start it only when the pictures are needed. For
+  `src/ipad/App`, fix the expectations in `tests/ipad/MotiffLabTests` in the same commit.
+- When Andrei's Mac is off, iPad runs wait for it in the queue, and so do the pull requests that need them: Andrei
+  deletes the repository variable `IPAD_RUNNER` (Settings → Secrets and variables → Actions → Variables), cancels the
+  waiting runs and starts them again (a re-run or a new push), and they run on GitHub's macOS (10–20 minutes);
+  `infra/github/mac-runner.sh` sets the variable again. Agents tell the lead; they never change it.
+- Andrei's Mac is the only machine for iPad runs, and there will be no other (Andrei, 2026-11-18). A longer queue
+  makes nothing faster: every run that lands wakes an agent, which reads its whole context again, and every merge
+  makes the waiting pull requests build again on the new `develop`. So a lead runs at most two tracks whose pull
+  requests need the iPad run: one pull request on the Mac, the next reviewed before its push. The reviewer reads the
+  developer's committed, unpushed worktree; the developer pushes once after APPROVE. Small follow-ups ride in the next
+  real pull request, never one of their own.
+- The browser tests belong to the archived web and run only by hand.
 
 ## Never
 

@@ -1,0 +1,37 @@
+import Foundation
+
+/// The modes of version 0.5 (product spec
+/// interaction-modes, «Правила выделения по режимам»): one group in the bar, as on the web, without Edit notes on the iPad
+/// (`inBar`, #479 item 23). Who writes, selects and scrolls on the iPad in each mode is InputRules' (#479 item 18). The
+/// Pen is the bar's Pen being on (`PenModel.penOn`).
+enum InteractionMode: String, CaseIterable, Sendable {
+    case navigate, select, edit, pen
+
+    /// The kit's icon (design/kit/icons.js): the page with arrows (#479 item 21), select, edit notes and the pen.
+    var icon: String {
+        switch self {
+        case .navigate: "scroll"
+        case .select: "select"
+        case .edit: "editnote"
+        case .pen: "pen"
+        }
+    }
+
+    /// The key that chooses it on a keyboard, as on the web: H, S, E and P.
+    var key: Character {
+        switch self {
+        case .navigate: "h"
+        case .select: "s"
+        case .edit: "e"
+        case .pen: "p"
+        }
+    }
+
+    /// Its name and its hint in the web app's words.
+    var label: String { "mode.\(rawValue)" }
+    var hint: String { "mode.\(rawValue)Hint" }
+
+    /// The modes in the iPad's bar: Edit notes is not one of them, as notes are edited only in the piano roll, which has
+    /// its own Navigate and Edit notes (RollMode, #479 item 23). The web keeps all four.
+    static let inBar: [InteractionMode] = [.navigate, .select, .pen]
+}

@@ -11,8 +11,9 @@
     2. two rulesets, "main" on the default branch and "develop" on develop, each with an empty bypass list, so they hold
        for everyone, the owner and the agents that act with the owner's token included: changes only through a pull
        request (0 approvals, because the agents open pull requests as the owner and an author cannot approve their
-       own), the CI check build-test must pass (pinned to the app that reports it, GitHub Actions), no force push, no
-       deletion. The old required check aom-verdicts is dropped;
+       own), the CI check build-test must pass, and on develop also ipad-gate, the iPad workflow's gate (both pinned to
+       the app that reports them, GitHub Actions), no force push, no deletion. The old required check aom-verdicts is
+       dropped;
     3. the Environment production: the owner is its required reviewer and only main may deploy to it;
     4. the labels the process uses (agent, bug, blocker, protected-scenarios-ok).
   It changes no workflow, variable, secret or setting beyond these. To switch the rulesets off for a while, run it
@@ -24,8 +25,14 @@
   .\infra\github\protect.ps1 -DryRun            # shows what it would write, writes nothing
 .EXAMPLE
   .\infra\github\protect.ps1 -Enforcement disabled
+.EXAMPLE
+  .\infra\github\protect.ps1 -SkipEnvironment -SkipLabels   # only the branch develop and the two rulesets
 .PARAMETER CheckName
   The required check: the CI job's name (.github/workflows/ci.yml, job build-test).
+.PARAMETER DevelopChecks
+  The checks develop's ruleset requires besides CheckName: the iPad workflow's gate (.github/workflows/ipad.yml, job
+  ipad-gate), which reports on every pull request and passes when the pull request touches nothing the iPad app is
+  built from, otherwise only when the Swift tests passed. main's ruleset does not require it.
 .PARAMETER Reviewer
   The GitHub login that approves deploys to Azure.
 #>
@@ -35,6 +42,7 @@ param(
   [string]$Reviewer = 'andreykukalev',
   [string]$DevelopBranch = 'develop',
   [string]$CheckName = 'build-test',
+  [string[]]$DevelopChecks = @('ipad-gate'),
   [string]$EnvironmentName = 'production',
   [ValidateSet('active', 'disabled')][string]$Enforcement = 'active',
   [switch]$SkipRuleset,
@@ -134,7 +142,8 @@ if (-not $SkipRuleset) {
     }
   }
 
-  # The required check is pinned to the app that reports it, so a check of the same name from elsewhere does not count.
+  # The required checks are pinned to the app that reports them, so a check of the same name from elsewhere does not
+  # count. All are GitHub Actions jobs: the app that reports build-test reports the others too.
   $appId = $null
   $runs = Test-Gh @('api', "repos/$Repository/commits/$defaultBranch/check-runs?check_name=$CheckName&per_page=1")
   if ($runs) {
@@ -142,10 +151,11 @@ if (-not $SkipRuleset) {
     if ($run) { $appId = [int]$run.app.id; Write-Info "Check $CheckName is reported by $($run.app.name) (app id $appId)." }
   }
   if (-not $appId) { $appId = $GitHubActionsAppId; Write-Warn "No $CheckName run on $defaultBranch to read its app from; using GitHub Actions ($appId)." }
-  $requiredChecks = @([ordered]@{ context = $CheckName; integration_id = $appId })
+  $checkNames = @{ 'main' = @($CheckName); $DevelopBranch = @(@($CheckName) + @($DevelopChecks)) }
 
   foreach ($target in @(@('main', '~DEFAULT_BRANCH'), @($DevelopBranch, "refs/heads/$DevelopBranch"))) {
     $name = $target[0]
+    $requiredChecks = @($checkNames[$name] | ForEach-Object { [ordered]@{ context = $_; integration_id = $appId } })
     Write-Step "Ruleset '$name' on $($target[1])"
     $existing = $rulesets | Where-Object { $_.name -eq $name } | Select-Object -First 1
     $ruleset = [ordered]@{
@@ -176,7 +186,7 @@ if (-not $SkipRuleset) {
         }
       )
     }
-    Write-Info "Rules: pull request (0 approvals), check $CheckName must pass, no force push, no deletion; bypass list empty; enforcement $Enforcement"
+    Write-Info "Rules: pull request (0 approvals), checks $($checkNames[$name] -join ', ') must pass, no force push, no deletion; bypass list empty; enforcement $Enforcement"
     if ($DryRun) {
       Write-Host ($ruleset | ConvertTo-Json -Depth 10)
       continue
@@ -229,7 +239,7 @@ if (-not $SkipLabels) {
     @('agent', '5319e7', 'Opened or changed by an agent (soft mode: the identity is the owner)'),
     @('bug', 'd73a4a', 'Something in a version does not work as it should'),
     @('blocker', 'b60205', 'A bug that blocks testing a version: a same-day version is needed'),
-    @('protected-scenarios-ok', '0e8a16', 'Andrei approves a change to tests/acceptance; only Andrei sets it')
+    @('protected-scenarios-ok', '0e8a16', 'Andrei approves a change to tests/backend/Acceptance/MotiffLab.Acceptance.Tests; only Andrei sets it')
   )
   foreach ($label in $labels) {
     if ($DryRun) { Write-Info "label $($label[0])"; continue }
@@ -240,4 +250,4 @@ if (-not $SkipLabels) {
 
 Write-Step 'Done'
 if ($DryRun) { Write-Info 'Dry run: nothing was written.' }
-Write-Info 'Check: a pull request to main or develop cannot merge while build-test is red, and a push to either is refused.'
+Write-Info "Check: a pull request to main or develop cannot merge while build-test is red (to develop: or $($DevelopChecks -join ', ')), and a push to either is refused."

@@ -2,16 +2,16 @@
 // staves. The notes come from the Mutopia Project's edition (Mutopia-2015/08/18-931, typeset in LilyPond
 // by Stelios Samelis and placed in the public domain by him): its MIDI file, mutopia-931.mid beside
 // this script, is read and written out as MusicXML with the edition's pickup, repeats and endings.
-//   src/MotiffLab.Web/Playback/FurElise.musicxml   embedded in the web app, bundled in the iPad app
+//   src/shared/Playback/FurElise.musicxml   embedded in the web app, bundled in the iPad app
 // Run after changing this script:   node tools/fur-elise/build.mjs
-// tests/web/fur-elise.test.mjs fails when the written file is not what this script gives.
+// tests/shared/fur-elise.test.mjs fails when the written file is not what this script gives.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
-export const OUTPUT = "src/MotiffLab.Web/Playback/FurElise.musicxml";
+export const OUTPUT = "src/shared/Playback/FurElise.musicxml";
 
 /** Ticks of the MIDI file and of the MusicXML: a quarter note. */
 const QUARTER = 384;

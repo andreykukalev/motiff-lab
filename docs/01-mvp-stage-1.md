@@ -2,6 +2,8 @@
 
 # MVP · Stage 1: Notation-Based Motif Exploration
 
+**Platform (2026-11-16):** Stage 1 is now built on the iPad app only; the web app this spec describes as the platform is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md), [web-archive.md](web-archive.md)). Requirements stay valid as product intent; "in the browser" reads "on the device".
+
 ## Stage 1 at a glance
 
 The first release of Motiff Lab works on structured music, not audio. Players import a MIDI or MusicXML file, explore the piece and its motifs, restore the rhythm of a played performance, and transform a motif through controlled, explained variations. A deterministic music engine computes every note, timing, analysis and transformation. Optional AI assistance, hosted on Azure AI Foundry, explains those results in plain words and suggests what to try next. Stage 1 is the first implementation milestone of the full vision, not a replacement for it.
@@ -15,7 +17,7 @@ The first release of Motiff Lab works on structured music, not audio. Players im
 | Central feature | The variation engine, with explicit Keep choices and an explanation built from the actual change |
 | AI role | Interprets engine results, asks questions, gives hints and suggests goals and parameters. It never produces the notes, the timing or the analysis |
 | Learning | Discovery, Guided and Analysis modes; the player tries first and help comes on request |
-| Platform | Desktop and tablet browser (Blazor WebAssembly PWA). The core journey works offline and without AI |
+| Platform | Desktop and tablet browser (Blazor WebAssembly PWA), archived since 2026-11-16; now the native iPad app (0019, 0032). The core journey works offline and without AI |
 | Cloud | Static hosting, an anonymous analytics endpoint and a thin AI gateway (Azure Functions). Imported files never leave the device |
 | Output | Saved variations in the project; MIDI export |
 | Not in Stage 1 | Audio import or transcription, audio-based rhythm restoration, MIDI keyboard input or MIDI output to instruments, sync with other devices or apps, reconstruction attempts with hints, PDF or image scores, reharmonisation |
@@ -121,7 +123,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 
 ## Functional requirements
 
-These requirements cover everything in Stage 1 except rhythm restoration, the variation engine, learning modes and AI assistance, which follow in their own sections. Where a Stage 1 requirement matches one in the PRD, it is noted so later stages reuse it. Musical time follows decision record 0002 (`docs/decisions/0002-canonical-time.md`).
+These requirements cover everything in Stage 1 except rhythm restoration, the variation engine, learning modes and AI assistance, which follow in their own sections. Where a Stage 1 requirement matches one in the PRD, it is noted so later stages reuse it. Musical time follows decision record 0002 (`docs/architecture/adr/0002-canonical-time.md`).
 
 ### Import
 
@@ -229,7 +231,7 @@ V6 is a Should for Stage 1. V5 (harmonic colour) waits for Stage 4. Accompanimen
 
 V2 is built ahead of chord detection for the Explore experiments (2026-10-25): it replays the pitches each bar's accompaniment already has (held chord, repeated chord, arpeggio up or down, up-down, Alberti; 8ths, triplets, 16ths), so the harmony is the source's own and no chord has to be detected.
 
-Chord detection (S1-A3, #46) shipped on 2026-11-01 with redesign package 3 ([0018](decisions/0018-redesign.md)), with V7, V12 and two operations the redesign adds, V14 Ornament and V15 Reharmonise. The harmony finder reads one window per beat (a dotted quarter in compound meters), scores every root and quality in whole numbers, and joins a beat to the chord before it when it fits; a stretch where only the melody sounds holds no chord. Every chord carries its inversion, a confidence and the near readings, and the harmony facts are inferred, or uncertain when a chord has a near rival. V15 is a simple, explainable reharmonisation (relative and parallel chords); V5 harmonic colour still waits for Stage 4. V8 Accent shift (velocities only, around the passage's median) and V11 Passing and neighbour notes followed on 2026-11-01, with grace notes in V14. V3 Voicing and register (inversions, close or open spacing, octave shifts, a chord tone to the right hand) and V6 Simplify (level 1 keeps melody and bass, level 2 plays chord roots in the bass, level 3 also rounds the rhythm to eighths and folds melody leaps wider than an octave) completed the catalogue on 2026-11-01, so every Try chip now opens a built operation.
+Chord detection (S1-A3, #46) shipped on 2026-11-01 with redesign package 3 ([0018](architecture/adr/0018-redesign.md)), with V7, V12 and two operations the redesign adds, V14 Ornament and V15 Reharmonise. The harmony finder reads one window per beat (a dotted quarter in compound meters), scores every root and quality in whole numbers, and joins a beat to the chord before it when it fits; a stretch where only the melody sounds holds no chord. Every chord carries its inversion, a confidence and the near readings, and the harmony facts are inferred, or uncertain when a chord has a near rival. V15 is a simple, explainable reharmonisation (relative and parallel chords); V5 harmonic colour still waits for Stage 4. V8 Accent shift (velocities only, around the passage's median) and V11 Passing and neighbour notes followed on 2026-11-01, with grace notes in V14. V3 Voicing and register (inversions, close or open spacing, octave shifts, a chord tone to the right hand) and V6 Simplify (level 1 keeps melody and bass, level 2 plays chord roots in the bass, level 3 also rounds the rhythm to eighths and folds melody leaps wider than an octave) completed the catalogue on 2026-11-01, so every Try chip now opens a built operation.
 
 V13, V2, V4, V9 and V10 are in the playback lab's Selection tab, and V13, V2, V9 and V10 also run from the Explore card. V13 Articulation was added on 2026-10-25 for the Explore experiments. It changes only lengths, so Keep rhythm (onsets and lengths) rules it out even though every onset stays. V1 and V13 can be limited to the melody, the accompaniment or the bass of the selection, as read by the shared texture; operations that pick their own notes (V4, V9, V10, hand edits) always use the whole selection.
 
@@ -345,7 +347,7 @@ Motiff Lab does not store prompts or answers on the server; the gateway logs onl
 
 ### Integration
 
-Integration follows decision record 0003 (`docs/decisions/0003-ai-integration.md`):
+Integration follows decision record 0003 (`docs/architecture/adr/0003-ai-integration.md`):
 
 - The browser never holds a model key. It calls a thin gateway built as Azure Functions (.NET isolated) behind Azure Static Web Apps.
 - The gateway validates the request against a schema and size limit, applies rate limits per installation and a global daily budget, and calls the Foundry deployment through one replaceable adapter.

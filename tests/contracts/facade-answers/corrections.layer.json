@@ -1,0 +1,888 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "corrections",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 100,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0013",
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 6,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "on",
+    "editsOff": false,
+    "applied": 2,
+    "moved": [
+     {
+      "noteId": "n_9998",
+      "to": "n_0014",
+      "bar": 2
+     }
+    ],
+    "unfit": [
+     {
+      "noteId": "n_9999",
+      "bar": 2,
+      "reason": "missing",
+      "text": "The note is not there"
+     },
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "call": "corrections.drop",
+   "request": {
+    "bar": 2,
+    "noteIds": [
+     "n_9999"
+    ]
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 100,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0013",
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 5,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "on",
+    "editsOff": false,
+    "applied": 2,
+    "moved": [
+     {
+      "noteId": "n_9998",
+      "to": "n_0014",
+      "bar": 2
+     }
+    ],
+    "unfit": [
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "call": "corrections.layer",
+   "request": {
+    "on": false,
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 5,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "off",
+    "editsOff": true,
+    "applied": 2,
+    "moved": [
+     {
+      "noteId": "n_9998",
+      "to": "n_0014",
+      "bar": 2
+     }
+    ],
+    "unfit": [
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "call": "corrections",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 5,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "off",
+    "editsOff": true,
+    "applied": 2,
+    "moved": [
+     {
+      "noteId": "n_9998",
+      "to": "n_0014",
+      "bar": 2
+     }
+    ],
+    "unfit": [
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "call": "corrections.layer",
+   "request": {
+    "on": true,
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 100,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0013",
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 5,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "on",
+    "editsOff": false,
+    "applied": 2,
+    "moved": [
+     {
+      "noteId": "n_9998",
+      "to": "n_0014",
+      "bar": 2
+     }
+    ],
+    "unfit": [
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "call": "corrections.revert",
+   "request": {
+    "bar": 2,
+    "id": "n_0014"
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0013",
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 4,
+    "editing": false,
+    "canUndo": true,
+    "changed": false,
+    "layer": "on",
+    "editsOff": false,
+    "applied": 2,
+    "moved": [],
+    "unfit": [
+     {
+      "noteId": "n_0012",
+      "bar": 2,
+      "reason": "changed",
+      "text": "The note is different now"
+     },
+     {
+      "noteId": "n_0015",
+      "bar": 2,
+      "reason": "idTaken",
+      "text": "A note with this id is already there"
+     }
+    ],
+    "hidden": []
+   }
+  }
+ ]
+}

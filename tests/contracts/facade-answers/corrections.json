@@ -1,0 +1,2368 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "corrections",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": false,
+    "canUndo": false,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.change",
+   "request": {
+    "bar": 2,
+    "id": "n_0010",
+    "pitch": 1,
+    "onset": 0,
+    "length": 0,
+    "velocity": 0
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 1,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.remove",
+   "request": {
+    "bar": 2,
+    "id": "n_0013"
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0013",
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 2,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.undo",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 70,
+      "name": "A♯4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 1,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.revert",
+   "request": {
+    "bar": 2,
+    "id": "n_0010"
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": false,
+    "canUndo": false,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.begin",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": true,
+    "canUndo": false,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.add",
+   "request": {
+    "bar": 2,
+    "onset": 1260,
+    "pitch": 62,
+    "length": 120
+   },
+   "answer": {
+    "added": "a1",
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "a1",
+      "pitch": 62,
+      "name": "D4",
+      "onset": 1260,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 thirty-second",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 1,
+    "editing": true,
+    "canUndo": true,
+    "changed": true
+   }
+  },
+  {
+   "call": "corrections.set",
+   "request": {
+    "bar": 2,
+    "id": "a1",
+    "onset": 1380,
+    "pitch": 62,
+    "length": 60
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "a1",
+      "pitch": 62,
+      "name": "D4",
+      "onset": 1380,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "3 thirty-seconds",
+      "length": "1 thirty-second",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 2,
+    "editing": true,
+    "canUndo": true,
+    "changed": true
+   }
+  },
+  {
+   "call": "corrections.remove",
+   "request": {
+    "bar": 2,
+    "id": "n_0011"
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "a1",
+      "pitch": 62,
+      "name": "D4",
+      "onset": 1380,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "3 thirty-seconds",
+      "length": "1 thirty-second",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0011",
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth"
+     }
+    ],
+    "count": 3,
+    "editing": true,
+    "canUndo": true,
+    "changed": true
+   }
+  },
+  {
+   "call": "corrections.undo",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "a1",
+      "pitch": 62,
+      "name": "D4",
+      "onset": 1380,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "3 thirty-seconds",
+      "length": "1 thirty-second",
+      "velocity": 80,
+      "edited": true,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 2,
+    "editing": true,
+    "canUndo": true,
+    "changed": true
+   }
+  },
+  {
+   "call": "corrections.reset",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": true,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.discard",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": false,
+    "canUndo": false,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.begin",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [],
+    "count": 0,
+    "editing": true,
+    "canUndo": false,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.remove",
+   "request": {
+    "bar": 2,
+    "id": "n_0012"
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0012",
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null
+     }
+    ],
+    "count": 1,
+    "editing": true,
+    "canUndo": true,
+    "changed": true
+   }
+  },
+  {
+   "call": "corrections.save",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0012",
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null
+     }
+    ],
+    "count": 1,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.acceptDraft",
+   "request": {
+    "bar": 2,
+    "tool": "notes.edit",
+    "parameters": {
+     "bars": {
+      "from": 2,
+      "to": 2
+     },
+     "edits": [
+      {
+       "kind": "remove",
+       "address": "2.R.1",
+       "bar": null,
+       "hand": null,
+       "start": null,
+       "length": null,
+       "pitch": null,
+       "velocity": null
+      }
+     ]
+    },
+    "index": 0
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0010",
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null
+     },
+     {
+      "id": "n_0012",
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null
+     }
+    ],
+    "count": 2,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "corrections.undoDraft",
+   "request": {
+    "bar": 2
+   },
+   "answer": {
+    "bar": 2,
+    "span": {
+     "onset": 960,
+     "end": 1680
+    },
+    "notes": [
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "name": "A2",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 960,
+      "atBar": 2,
+      "beat": 1,
+      "offset": null,
+      "length": "1 eighth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": true
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "name": "E3",
+      "onset": 1080,
+      "atBar": 2,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "name": "C4",
+      "onset": 1320,
+      "atBar": 2,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "name": "E4",
+      "onset": 1440,
+      "atBar": 2,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "name": "A4",
+      "onset": 1560,
+      "atBar": 2,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0012",
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null
+     }
+    ],
+    "count": 1,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  },
+  {
+   "call": "performance.add",
+   "request": {
+    "name": "Live",
+    "midi": "<played>",
+    "now": "2026-11-15T13:00:00Z"
+   },
+   "answer": null
+  },
+  {
+   "call": "performance.take",
+   "request": {
+    "id": "perf_1",
+    "bars": [
+     5
+    ]
+   },
+   "answer": null
+  },
+  {
+   "call": "corrections",
+   "request": {
+    "bar": 5
+   },
+   "answer": {
+    "bar": 5,
+    "span": {
+     "onset": 3120,
+     "end": 3840
+    },
+    "notes": [
+     {
+      "id": "n_0030",
+      "pitch": 76,
+      "name": "E5",
+      "onset": 3120,
+      "atBar": 5,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0031",
+      "pitch": 75,
+      "name": "D♯5",
+      "onset": 3240,
+      "atBar": 5,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0032",
+      "pitch": 76,
+      "name": "E5",
+      "onset": 3360,
+      "atBar": 5,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0033",
+      "pitch": 71,
+      "name": "B4",
+      "onset": 3480,
+      "atBar": 5,
+      "beat": 2,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0034",
+      "pitch": 74,
+      "name": "D5",
+      "onset": 3600,
+      "atBar": 5,
+      "beat": 3,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "n_0035",
+      "pitch": 72,
+      "name": "C5",
+      "onset": 3720,
+      "atBar": 5,
+      "beat": 3,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": false,
+      "canEarlier": true,
+      "canShorter": false
+     },
+     {
+      "id": "perf-perf_1-n_0030",
+      "pitch": 73,
+      "name": "C♯5",
+      "onset": 3120,
+      "atBar": 5,
+      "beat": 1,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": true,
+      "canEarlier": false,
+      "canShorter": false
+     },
+     {
+      "id": "perf-perf_1-n_0033",
+      "pitch": 86,
+      "name": "D6",
+      "onset": 3240,
+      "atBar": 5,
+      "beat": 1,
+      "offset": "1 sixteenth",
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": true,
+      "canEarlier": false,
+      "canShorter": false
+     },
+     {
+      "id": "perf-perf_1-n_0035",
+      "pitch": 80,
+      "name": "G♯5",
+      "onset": 3360,
+      "atBar": 5,
+      "beat": 2,
+      "offset": null,
+      "length": "1 sixteenth",
+      "velocity": 80,
+      "edited": false,
+      "taken": true,
+      "canEarlier": false,
+      "canShorter": false
+     }
+    ],
+    "removed": [
+     {
+      "id": "n_0012",
+      "name": "A3",
+      "onset": 1200,
+      "atBar": 2,
+      "beat": 2,
+      "offset": null
+     }
+    ],
+    "count": 1,
+    "editing": false,
+    "canUndo": true,
+    "changed": false
+   }
+  }
+ ]
+}

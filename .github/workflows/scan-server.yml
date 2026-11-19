@@ -1,6 +1,7 @@
 name: Scan server
+run-name: ${{ format('Deploy scan server · {0} to {1}', github.event_name == 'workflow_dispatch' && 'by hand' || 'push', github.ref_name) }}
 
-# Publishes the scan server's image (services/omr) to GitHub's container registry and deploys it to
+# Publishes the scan server's image (src/backend/omr) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/scan.bicep, decision record 0014). Its own workflow, not a CI step:
 # the image is about 2 GB and takes longer to build than CI's 5 minutes. CI still runs its tests.
 # The services live in rg-motifflab next to their database and the web app, and sign in as the CI identity
@@ -12,7 +13,7 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - services/omr/**
+      - src/backend/omr/**
       - infra/scan.bicep
       - .github/workflows/scan-server.yml
   workflow_dispatch:
@@ -97,7 +98,7 @@ jobs:
       # for both branches: each image is tagged by its commit, and the newest also as latest (main) or develop.
       - uses: docker/build-push-action@v6
         with:
-          context: services/omr
+          context: src/backend/omr
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}

@@ -1,15 +1,13 @@
 <Solution>
-  <Folder Name="/ipad/">
-    <Project Path="ipad/Core/MotiffLab.NativeCore.csproj" />
-  </Folder>
   <Folder Name="/src/">
-    <Project Path="src/MotiffLab.Api/MotiffLab.Api.csproj" />
-    <Project Path="src/MotiffLab.MusicCore/MotiffLab.MusicCore.csproj" />
-    <Project Path="src/MotiffLab.Web/MotiffLab.Web.csproj" />
+    <Project Path="src/backend/MotiffLab.Api/MotiffLab.Api.csproj" />
+    <Project Path="src/backend/MotiffLab.MusicCore/MotiffLab.MusicCore.csproj" />
+    <Project Path="src/ipad/Core/MotiffLab.NativeCore.csproj" />
+    <Project Path="src/shared/MotiffLab.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/acceptance/MotiffLab.Acceptance.Tests.csproj" />
-    <Project Path="tests/MotiffLab.Api.Tests/MotiffLab.Api.Tests.csproj" />
-    <Project Path="tests/MotiffLab.MusicCore.Tests/MotiffLab.MusicCore.Tests.csproj" />
+    <Project Path="tests/backend/Acceptance/MotiffLab.Acceptance.Tests/MotiffLab.Acceptance.Tests.csproj" />
+    <Project Path="tests/backend/Integration/MotiffLab.Api.Tests/MotiffLab.Api.Tests.csproj" />
+    <Project Path="tests/backend/Unit/MotiffLab.MusicCore.Tests/MotiffLab.MusicCore.Tests.csproj" />
   </Folder>
 </Solution>

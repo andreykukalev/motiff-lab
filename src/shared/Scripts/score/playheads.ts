@@ -1,0 +1,327 @@
+// The playheads of version 0.5 on the score (once the experiment Two playheads and modes, Settings · Experimental; product spec
+// two-playheads, as the mockup v0.5.2 settled it, #479 item 19). The place in the piece is variant A: a short track under
+// the system that plays, only as wide as the bar, filled up to the place, with a dot on it, in the notation's dark ink;
+// the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The
+// selection's playhead is a cobalt line with a knob inside the selection's band: cobalt is the selection's colour only.
+// Both apps draw both playheads of the playback model (v0.5.2, #495 UX-10, Scripts/playback/playback-model.ts, viewOf and
+// playheadsOf), from the model the player holds: the black track at the position, always,
+// and with a selection the cobalt line at the position held to it, standing at the selection's end once playback passed it.
+// In both apps the black dot and the cobalt knob are handles the pen, a finger or the mouse drags (#495 UX-08,
+// playhead-grab.ts). The line spans the staves; the stylesheet reaches it beyond them, its knob clear of the top staff line
+// (#495 UX-07).
+
+import type { Handle } from "../playback/playback-model.js";
+import { token } from "../layout/tokens.js";
+import type { Playhead, Rect, ScoreBar, ScoreGeometry } from "./score-geometry.js";
+import type { ScoreBeats } from "./selection-beats.js";
+import { type BandHand, handStaves } from "./selection-boxes.js";
+
+/** Where each playhead goes this frame, in ticks; null hides it. */
+export interface PlayheadPlaces {
+    global: number | null;
+    selection: number | null;
+    /** Whether the piece plays from the global place: its dot is solid. */
+    globalPlays: boolean;
+    /** Whether the selection's playhead stands at the selection's end: it is drawn at the band's right edge (edgeOf). */
+    selectionAtEnd?: boolean;
+    /** The playhead the score follows and reports out of sight; by default the one that plays. */
+    follow?: "global" | "selection";
+    /**
+     * Whether the player holds the black playhead (its dot, or a long press on the notes): then a black line stands across
+     * the staves at its place, and fades when it is let go (v0.5.7, #543 5, the lead's decision 4).
+     */
+    held?: boolean;
+    /**
+     * The selection's band as it is drawn, system by system (the iPad's page, v0.6.3, #608 item 3): the blue playhead is
+     * drawn inside it, never beside it. Without it the blue playhead goes where its tick lies, as before.
+     */
+    band?: readonly BandRun[];
+}
+
+/** What the selection's band covers on one system: across, its drawn edges; down, the staves it covers. */
+export interface BandRun extends Rect {
+    system: number;
+}
+
+/** A stretch of ticks [start, end). */
+export interface TickSpan {
+    start: number;
+    end: number;
+}
+
+/** What playheadsOf reads from the playback model's view (playback-model.ts, viewOf). */
+export interface ModelPlaces {
+    black: number;
+    blue: number | null;
+    playing: boolean;
+}
+
+/**
+ * The two playheads of the playback model (version 0.5.2, #495 UX-10): the black track at the position, always, its dot solid
+ * while it plays; with a selection the cobalt line at the blue place, at the band's right edge when it stands at the end.
+ * The score follows the black one, which is where the music is.
+ */
+export function playheadsOf(view: ModelPlaces, selection: TickSpan | null): PlayheadPlaces {
+    return {
+        global: view.black,
+        selection: view.blue,
+        globalPlays: view.playing,
+        selectionAtEnd: selection !== null && view.blue === selection.end,
+        follow: "global",
+    };
+}
+
+/**
+ * Where a playhead standing at the selection's end goes: where the end lies in its bar, or, when the end is a bar line, at
+ * the right edge of the bar before it, as the band ends there (the next bar may start another line). `atEnd` and
+ * `beforeEnd` are the places of the end and of the tick before it.
+ */
+export function edgeOf(atEnd: Playhead | undefined, beforeEnd: Playhead | undefined, end: number): Playhead | undefined {
+    if (atEnd !== undefined && atEnd.bar.tick !== end) {
+        return atEnd;
+    }
+    return beforeEnd === undefined ? atEnd : { ...beforeEnd, x: beforeEnd.bar.right };
+}
+
+/**
+ * The blue playhead inside the selection's band (v0.6.3, #608 item 3): on a system the band covers it never stands left or
+ * right of the band (a band by beats ends just before the notes of the beat after it, where the end's place lies), and it
+ * spans only the staves the band covers (one hand's staff for a selection of one hand). On another system it is as it was.
+ */
+export function inBand(at: Playhead | undefined, band: readonly BandRun[]): Playhead | undefined {
+    const run = at === undefined ? undefined : band.find((candidate) => candidate.system === at.bar.system);
+    if (at === undefined || run === undefined) {
+        return at;
+    }
+    return { ...at, x: Math.min(Math.max(at.x, run.left), run.right), top: run.top, bottom: run.bottom };
+}
+
+/**
+ * The selection's band as the page draws it (selection-layer.ts, draw), without its padding: on each system it touches, over
+ * the staves of its hand, its ends cut to the beats while the score selects by beats. What the blue playhead keeps to.
+ */
+export function bandOf(geometry: ScoreGeometry, beats: Pick<ScoreBeats, "cutEdges">, selection: TickSpan & { hand?: BandHand }): BandRun[] {
+    const runs = geometry.runs(selection.start, selection.end, handStaves(geometry, selection.start, selection.hand));
+    beats.cutEdges(geometry, runs, selection.start, selection.end);
+    return runs;
+}
+
+/** The black line across the staves while the black playhead is held, and its class while it shows. */
+export const CURSOR_CLASS = "ph-held";
+export const HELD_CLASS = "held";
+
+/** The track keeps this far from the bar lines at each side, in pixels. */
+const TRACK_INSET = 3;
+
+/**
+ * Where the track goes for a place: across its bar, `gap` pixels under the lowest ink of its system (the token
+ * --playhead-gap, far enough that it never reads as another staff line, #582 item 11), and how far it is filled.
+ */
+export function trackOf(at: Playhead, lineBottom: number, gap: number): { left: number; top: number; width: number; filled: number } {
+    const left = at.bar.left + TRACK_INSET;
+    const width = Math.max(0, at.bar.right - at.bar.left - 2 * TRACK_INSET);
+    const top = Math.max(at.bottom, lineBottom) + gap;
+    return { left, top, width, filled: Math.min(width, Math.max(0, at.x - left)) };
+}
+
+/** What the playheads need from the score view. */
+export interface PlayheadsHost {
+    /** Where a tick sounds on screen: across its bar and the system's staves. */
+    at(tick: number): Playhead | undefined;
+    /** The lowest ink of the system a bar is on, so the track runs under every note of the line. */
+    lineBottom(bar: ScoreBar): number;
+    /** A press on a playhead's handle (the black dot, the cobalt knob); without it the handles take no press. */
+    grab?(handle: Handle, event: PointerEvent): void;
+}
+
+/** A playhead's handle where it is on screen: its centre in the client's pixels. */
+export interface Grip {
+    handle: Handle;
+    x: number;
+    y: number;
+}
+
+/** The playheads drawn over one score. */
+export class ScorePlayheadMarks {
+    private track: { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } | null = null;
+    private line: HTMLElement | null = null;
+    /** The black line across the staves while the black playhead is held. */
+    private cursor: HTMLElement | null = null;
+    /** How far the track runs under its line (--playhead-gap), read once it is first drawn. */
+    private gap: number | null = null;
+
+    constructor(
+        private readonly host: HTMLElement,
+        private readonly owner: PlayheadsHost,
+    ) {}
+
+    /** Draws the playheads; returns where the one that plays is, for the score to follow and to say when it is out of sight. */
+    place(places: PlayheadPlaces): Playhead | undefined {
+        const global = places.global === null ? undefined : this.owner.at(places.global);
+        const selection = this.selectionAt(places);
+        this.placeGlobal(global, places.globalPlays);
+        this.placeCursor(global, places.held === true);
+        this.placeSelection(selection);
+        const follow = places.follow ?? (places.globalPlays || places.selection === null ? "global" : "selection");
+        return follow === "global" ? global : selection;
+    }
+
+    private selectionAt(places: PlayheadPlaces): Playhead | undefined {
+        const tick = places.selection;
+        if (tick === null) {
+            return undefined;
+        }
+        const at = places.selectionAtEnd === true ? edgeOf(this.owner.at(tick), this.owner.at(tick - 1), tick) : this.owner.at(tick);
+        return places.band === undefined ? at : inBand(at, places.band);
+    }
+
+    hide(): void {
+        this.cursor?.classList.remove(HELD_CLASS);
+        hideAll(this.track?.element ?? null, this.line, this.cursor);
+    }
+
+    /** The handles shown, with their centres in the client's pixels, for the iPad to leave a touch there to them. */
+    grips(): Grip[] {
+        const shown: [Handle, Element | null | undefined, HTMLElement | null][] = [
+            ["black", this.track?.dot, this.track?.element ?? null],
+            ["blue", this.line?.firstElementChild, this.line],
+        ];
+        const grips: Grip[] = [];
+        for (const [handle, element, mark] of shown) {
+            if (element !== null && element !== undefined && mark !== null && !mark.hidden && mark.isConnected) {
+                const box = element.getBoundingClientRect();
+                grips.push({ handle, x: box.left + box.width / 2, y: box.top + box.height / 2 });
+            }
+        }
+        return grips;
+    }
+
+    dispose(): void {
+        this.hide();
+        this.track?.element.remove();
+        this.line?.remove();
+        this.cursor?.remove();
+    }
+
+    private placeGlobal(at: Playhead | undefined, plays: boolean): void {
+        if (at === undefined) {
+            hideAll(this.track?.element ?? null);
+            return;
+        }
+        const track = (this.track ??= trackMark(this.grabber("black")));
+        this.gap ??= Number.parseFloat(token("playhead-gap")) || 0;
+        const place = trackOf(at, this.owner.lineBottom(at.bar), this.gap);
+        show(this.host, track.element);
+        transform(track.element, place.left, place.top);
+        size(track.element, place.width, null);
+        size(track.fill, place.filled, null);
+        transform(track.dot, place.filled, 0);
+        track.element.classList.toggle("stop", !plays);
+    }
+
+    /** The held black playhead's line follows its place; let go, it stays where it was and fades (the stylesheet's --t-fast). */
+    private placeCursor(at: Playhead | undefined, held: boolean): void {
+        if (!held || at === undefined) {
+            this.cursor?.classList.remove(HELD_CLASS);
+            return;
+        }
+        const cursor = (this.cursor ??= mark(CURSOR_CLASS));
+        show(this.host, cursor);
+        transform(cursor, at.x - 1, at.top);
+        size(cursor, null, at.bottom - at.top);
+        cursor.classList.add(HELD_CLASS);
+    }
+
+    private placeSelection(at: Playhead | undefined): void {
+        if (at === undefined) {
+            hideAll(this.line);
+            return;
+        }
+        const line = (this.line ??= lineMark(this.grabber("blue")));
+        show(this.host, line);
+        transform(line, at.x - 1, at.top);
+        size(line, null, at.bottom - at.top);
+    }
+
+    /** What a press on a handle does: the host's grab, or nothing when the host takes none. */
+    private grabber(handle: Handle): ((event: PointerEvent) => void) | null {
+        const owner = this.owner;
+        return owner.grab === undefined ? null : (event) => owner.grab?.(handle, event);
+    }
+}
+
+/** The track with its fill and its dot, the dot a handle when the host grabs. */
+function trackMark(grab: ((event: PointerEvent) => void) | null): { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } {
+    const element = mark("gtrack");
+    const fill = mark("fill");
+    const dot = mark("dot");
+    fill.hidden = false;
+    dot.hidden = false;
+    grip(dot, grab);
+    element.append(fill, dot);
+    return { element, fill, dot };
+}
+
+/** Makes a mark a handle that takes a press; the iPad's score.css gives it a touch target and keeps the page still there. */
+function grip(element: HTMLElement, grab: ((event: PointerEvent) => void) | null): void {
+    if (grab !== null) {
+        element.classList.add("grip");
+        element.addEventListener("pointerdown", grab);
+    }
+}
+
+/** An overlay over the score that takes no taps and is not read out. */
+function mark(className: string): HTMLElement {
+    const element = document.createElement("span");
+    element.className = className;
+    element.setAttribute("aria-hidden", "true");
+    element.hidden = true;
+    return element;
+}
+
+function lineMark(grab: ((event: PointerEvent) => void) | null): HTMLElement {
+    const line = mark("ph-sel");
+    const knob = mark("knob");
+    knob.hidden = false;
+    grip(knob, grab);
+    line.append(knob);
+    return line;
+}
+
+function show(host: HTMLElement, element: HTMLElement): void {
+    if (element.parentElement !== host) {
+        host.append(element);
+    }
+    element.hidden = false;
+}
+
+function hideAll(...elements: (HTMLElement | null)[]): void {
+    for (const element of elements) {
+        if (element !== null) {
+            element.hidden = true;
+        }
+    }
+}
+
+/** Moved by a transform on a layer of its own, so the page under it is not painted again on every frame (testing item 31). */
+function transform(element: HTMLElement, x: number, y: number): void {
+    const value = `translate(${x}px, ${y}px)`;
+    if (element.style.transform !== value) {
+        element.style.transform = value;
+    }
+}
+
+function size(element: HTMLElement, width: number | null, height: number | null): void {
+    if (width !== null) {
+        const w = `${width}px`;
+        if (element.style.width !== w) {
+            element.style.width = w;
+        }
+    }
+    if (height !== null) {
+        const h = `${height}px`;
+        if (element.style.height !== h) {
+            element.style.height = h;
+        }
+    }
+}

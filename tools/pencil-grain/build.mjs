@@ -1,4 +1,4 @@
-// The grain of the pencil on the iPad (#479 item 7): one tile, ipad/App/Web/grain.png, that the score page tiles over its
+// The grain of the pencil on the iPad (#479 item 7): one tile, src/ipad/App/Web/grain.png, that the score page tiles over its
 // pencil marks (Web/score.html) and Swift over the stroke being written and the marks on a PDF's pages (InkInput.swift,
 // InkPaint), so a stroke shows the same grain before and after the Pencil lifts.
 //   96 x 96 pixels, drawn as 48 page pixels: white, its alpha the grain (1 where the graphite covers, lower in the
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
 export const SIZE = 96;
-export const FILE = "ipad/App/Web/grain.png";
+export const FILE = "src/ipad/App/Web/grain.png";
 
 /** A small seeded generator (mulberry32): the same numbers on every run. */
 function generator(seed) {

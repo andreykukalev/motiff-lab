@@ -3,13 +3,14 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { globMatch, splitCommands } from '../../.claude/hooks/guard-common.mjs';
 import { check } from '../../.claude/hooks/push-guard.mjs';
+import { decideArchive } from '../../.claude/hooks/archive-guard.mjs';
 import { bashTargets, decideBash, decideFile } from '../../.claude/hooks/scope-guard.mjs';
 
 const hooks = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '.claude', 'hooks');
@@ -69,20 +70,22 @@ test('curl writes to the GitHub API and the Azure CLI are refused', () => {
 
 test('environment files ask outside an environment task, and pass in one', () => {
   const plain = { envTask: false, scope: null, scopeExists: false };
-  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/acceptance/a.md']) {
+  for (const file of ['.claude/settings.json', 'governance/roles/common.md', '.github/workflows/ci.yml', 'CLAUDE.md', 'tests/backend/Acceptance/MotiffLab.Acceptance.Tests/a.md',
+    'docs/ux-baseline.md', 'tests/ipad/Baseline/SelectionTests.swift', 'tests/contracts/page-scenarios/sel-grid.json']) {
     assert.equal(decideFile(file, plain).decision, 'ask', file);
     assert.equal(decideFile(file, { ...plain, envTask: true }).decision, 'allow', file);
   }
-  assert.equal(decideFile('src/MotiffLab.Web/Pages/Library.razor', plain).decision, 'allow');
+  assert.equal(decideFile('src/ipad/App/MotiffLab/LibraryView.swift', plain).decision, 'allow');
+  assert.equal(decideFile('docs/ui-conventions.md', plain).decision, 'allow');
   assert.equal(decideFile(null, plain).decision, 'allow');
 });
 
 test('allowed_paths: a file outside the task asks, and so does changing the scope', () => {
-  const scope = { task: 12, allowed_paths: ['src/MotiffLab.Web/Pages/Library*', 'tests/web/**'] };
+  const scope = { task: 12, allowed_paths: ['src/ipad/App/MotiffLab/Library*', 'tests/shared/**'] };
   const context = { envTask: false, scope, scopeExists: true };
-  assert.equal(decideFile('src/MotiffLab.Web/Pages/Library.razor', context).decision, 'allow');
-  assert.equal(decideFile('tests/web/library/empty.test.mjs', context).decision, 'allow');
-  assert.equal(decideFile('src/MotiffLab.MusicCore/Facade/Facade.cs', context).decision, 'ask');
+  assert.equal(decideFile('src/ipad/App/MotiffLab/LibraryView.swift', context).decision, 'allow');
+  assert.equal(decideFile('tests/shared/library/empty.test.mjs', context).decision, 'allow');
+  assert.equal(decideFile('src/backend/MotiffLab.MusicCore/Facade/Facade.cs', context).decision, 'ask');
   assert.equal(decideFile('.aom/task.json', context).decision, 'ask');
   assert.equal(decideFile('.aom/task.json', { envTask: false, scope: null, scopeExists: false }).decision, 'allow');
 });
@@ -93,7 +96,7 @@ test('shell writes to environment files ask, reads and other writes do not', () 
   assert.equal(decideBash("sed -i 's/a/b/' .github/workflows/ci.yml", '/repo', '/repo', context).decision, 'ask');
   assert.equal(decideBash('rm -rf governance', '/repo', '/repo', context).decision, 'ask');
   assert.equal(decideBash('rm -rf tests', '/repo', '/repo', context).decision, 'ask');
-  assert.equal(decideBash('rm -rf src/MotiffLab.Web/bin', '/repo', '/repo', context).decision, 'allow');
+  assert.equal(decideBash('rm -rf src/shared/bin', '/repo', '/repo', context).decision, 'allow');
   assert.equal(decideBash('cat .github/workflows/ci.yml 2>/dev/null | head', '/repo', '/repo', context).decision, 'allow');
   assert.equal(decideBash('echo hi > notes.txt', '/repo', '/repo', context).decision, 'allow');
 });
@@ -123,3 +126,31 @@ test('the hooks answer the platform in its format, end to end', () => {
   const asked = JSON.parse(run('scope-guard.mjs', { tool_name: 'Edit', tool_input: { file_path: path.join(repo, '.claude', 'settings.json') } }));
   assert.equal(asked.hookSpecificOutput.permissionDecision, 'ask');
 });
+
+test('the archive stays out of the agents\' context: reads, searches and changes there ask', () => {
+  const archive = (tool, input, scope = null) => decideArchive(tool, input, '/repo', '/repo', scope).decision;
+  assert.equal(archive('Read', { file_path: '/repo/archive/web/src/MotiffLab.Web/Pages/PlaybackLab.razor' }), 'ask');
+  assert.equal(archive('Edit', { file_path: 'archive/web/README.md' }), 'ask');
+  assert.equal(archive('Grep', { pattern: 'Playback', path: '/repo/archive' }), 'ask');
+  assert.equal(archive('Grep', { pattern: 'Playback', glob: 'archive/**/*.cs' }), 'ask');
+  assert.equal(archive('Glob', { pattern: 'archive/web/**/*.razor' }), 'ask');
+  assert.equal(archive('Bash', { command: 'cat archive/web/src/MotiffLab.Web/Program.cs | head' }), 'ask');
+  assert.equal(archive('Bash', { command: 'grep -rn Playback ./archive/web' }), 'ask');
+  for (const [tool, input] of [
+    ['Read', { file_path: '/repo/src/shared/Scripts/score/score-page.ts' }],
+    ['Read', { file_path: '/repo/docs/web-archive.md' }],
+    ['Grep', { pattern: 'archive', path: '/repo/src' }],
+    ['Glob', { pattern: '**/*.ts', path: '/repo/src/shared' }],
+    ['Bash', { command: "git grep -n score -- ':(exclude)archive/**'" }],
+    ['Bash', { command: 'cat /tmp/archive/notes.txt' }],
+  ]) assert.equal(archive(tool, input), 'allow', JSON.stringify(input));
+  // A reactivation task, whose allowed_paths Andrei set to name the archive, opens it.
+  assert.equal(archive('Read', { file_path: 'archive/web/README.md' }, { task: 9, allowed_paths: ['archive/web/**', 'src/web/**'] }), 'allow');
+  assert.equal(archive('Read', { file_path: 'archive/web/README.md' }, { task: 9, allowed_paths: ['src/ipad/**'] }), 'ask');
+});
+
+test('search tools skip the archive by .ignore', () => {
+  const ignore = readFileSync(new URL('../../.ignore', import.meta.url), 'utf8').split('\n').map((line) => line.trim());
+  assert.ok(ignore.includes('archive/'));
+});
+

@@ -1,8 +1,9 @@
 # How Motiff Lab is developed
 
 Agreed with Andrei on 2026-11-11. It replaces the Agent Operating Model (Task Records, per-PR Reviewer and QA,
-councils). The product is steered by **working versions**: agents prepare a version, Andrei installs it on his iPad and
-opens the web test site, tries it at the instrument, and his feedback becomes the next version. Documents serve the
+councils). The product is steered by **working versions**: agents prepare a version, Andrei installs it on his iPad,
+tries it at the instrument, and his feedback becomes the next version (the web app is archived:
+`docs/architecture/adr/0032-ipad-first-web-archived.md`). Documents serve the
 versions, not the other way round.
 
 Every agent reads this file, `roles/common.md` and its role's file before it starts. `CLAUDE.md` holds the product and
@@ -15,7 +16,8 @@ code rules.
 3. A change of the saved data format that affects projects already saved (project file, facade contract, HTTP API).
 4. Anything that costs money or adds an external service.
 5. A release to `main` (his «в стабильную» in a version thread, or «ок» for a hotfix).
-6. The agents' own rules: `CLAUDE.md`, `governance/`, `.claude/`, `.github/`, `tests/acceptance/`. A pull request that
+6. The agents' own rules: `CLAUDE.md`, `governance/`, `.claude/`, `.github/`, `tests/backend/Acceptance/`, and the UX
+   baseline (`docs/ux-baseline.md`, `tests/ipad/Baseline/`, `tests/contracts/page-scenarios/`). A pull request that
    changes them is merged by Andrei.
 
 Everything else agents decide themselves, openly: each such decision is one line in the decision log (what, why, how
@@ -25,7 +27,8 @@ to undo it), and each version note lists them under «Решено без вас
 
 - `main`: stable versions only. Moves by a release (Andrei's decision 5) or a hotfix. Agents never push or merge to it.
 - `develop`: the line of development. Always builds, always green. Agents open pull requests to it and merge them
-  themselves when `build-test` (with the code-quality checks) is green. Every push deploys the web test site.
+  themselves when `build-test` (with the code-quality checks) is green. While the web is archived (0032), no web is
+  deployed (the API and scan server deploy as before).
 - Task branches: short, one per change, `claude/*`. Parallel agents work on branches whose files do not overlap.
 - `hotfix/<version>`: from the last stable tag, for an urgent fix of a stable version.
 
@@ -45,8 +48,8 @@ to undo it), and each version note lists them under «Решено без вас
   piece that will not open) gets a same-day version `v0.<n>.1`; in a stable version, a hotfix.
 - **Rollback** of a broken version: Andrei installs the previous tag (iPad) or the release is reverted on `main`.
 - Where to see a version: the iPad app is built by Andrei on his Mac from the tag with one command
-  (`ipad/build-version.sh`, no paid developer account, 7-day signing); the web test site is the Static Web App's
-  environment `develop`; the main web address changes only from `main`.
+  (`src/ipad/build-version.sh`, no paid developer account, 7-day signing). The web test site and the main web address
+  stay frozen at their last deploy while the web is archived (`docs/web-archive.md`).
 
 ## Experiments
 
@@ -56,6 +59,14 @@ the same switch, so `develop` always builds. Only an experiment Andrei tried and
 finished UX, tests, switch removed, concept and decision log updated. «Убрать» removes its code from `develop` and work
 continues from the present state; the ideas bank keeps "tried, rejected, because …". No exceptions: no new idea goes
 straight into the product.
+
+Switches: the iPad has none since v0.6.5 (Andrei, 2026-11-16). When an experiment brings one back:
+
+- A switch chooses between two implementations at one seam in the composition, never by an `if` inside a shared path.
+- An approved behaviour (`docs/ux-baseline.md`) never depends on a switch being on.
+- The protected scenarios run with the defaults of a fresh install; the version note states every non-default state
+  Andrei is expected to set.
+- A switch not called «оставить» within two versions is removed with its code.
 
 An idea that needs a shared change (saved data format, Music Core structure model) cannot hide behind a switch: it goes
 to Andrei (decision 3) and the architect first, and its first version is built without the format change where possible.
@@ -88,7 +99,9 @@ checked in the code. At each stable version the lead tidies `concept.md` and `id
 
 ## Platform focus
 
-Now: **iPad**. The web follows later. Only Andrei changes this line; the lead edits it on his word.
+Now: **iPad only** (0032, 2026-11-16). The web app is archived: no web tracks, no ports, no browser tests, no deploys;
+it comes back only as a separate initiative Andrei starts (`docs/web-archive.md`, "Reactivation"). Only Andrei changes
+this line; the lead edits it on his word.
 How tracks use it: `roles/common.md`, "Platform focus".
 
 ## Agents and models
@@ -102,6 +115,7 @@ Sonnet is not used. `model` and `effort` are set at the start of each thread by 
 | Ideas partner | `roles/ideas-partner.md` | When Andrei brings an idea or asks | Opus high |
 | Architect | `roles/architect.md` | A change touches Music Core, both apps or saved data | Opus high |
 | Developer | `roles/developer.md` | One per change | Opus high (features, Music Core, iPad, data); Opus medium (small UI, texts, a bug with a clear cause) |
+| Pull request reviewer | `roles/pr-reviewer.md` | Every pull request to `develop`, on green `build-test`; at most two rounds | Opus high |
 | Version mechanics | `roles/product-lead.md` | Tag, note, thread | Opus medium |
 | Release reviewer | `roles/release-reviewer.md` | Before a release to `main` | Opus high |
 
@@ -111,7 +125,8 @@ circles). The lead picks the class when it starts a task and steps up (medium �
 harder.
 
 One Developer by default; a second in parallel only when the tasks share no files and the limits allow. No threads or
-sub-agents for routine steps.
+sub-agents for routine steps; `Explore` sub-agents for a survey of the code (`roles/common.md`, "Context and
+completeness").
 
 ## Team mode
 
@@ -135,11 +150,13 @@ Soft mode: all agents act under Andrei's GitHub identity, so the guards catch mi
 
 | Guard | Where | What it does |
 | --- | --- | --- |
-| Rulesets `main` and `develop` | GitHub (`infra/github/protect.ps1`, run by Andrei) | Pull requests only, `build-test` must pass, no force push, no deletion |
+| Rulesets `main` and `develop` | GitHub (`infra/github/protect.ps1`, run by Andrei) | Pull requests only, `build-test` must pass (on `develop` also `ipad-gate`), no force push, no deletion |
+| `ipad-gate` | `iPad` workflow (`.github/workflows/ipad.yml`), required on `develop` | Reports on every pull request: passes when nothing the iPad app is built from changed, otherwise only when the Swift tests in the simulator and the walk's compile passed; a red or cancelled iPad run blocks the merge |
 | Environment `production` | GitHub | Deploys of the API and the scan server from `main` wait for Andrei; `develop`'s go to `rg-motifflab-dev` (test data only) by themselves |
 | Deny rules and hooks | `.claude/settings.json`, `.claude/hooks/` | On Andrei's computer only (a claude.ai cloud thread does not load them): refuse merges, workflow runs, settings, Azure, force push, pushes to other branches |
 | `env-scope` | CI | Marks a pull request that changes the agents' rules (decision 6) |
-| Protected scenarios | CI, label `protected-scenarios-ok` | A change to `tests/acceptance/` needs Andrei's label |
+| Protected scenarios | CI, label `protected-scenarios-ok` | A change to `tests/backend/Acceptance/`, `docs/ux-baseline.md`, `tests/ipad/Baseline/` or `tests/contracts/page-scenarios/` needs Andrei's label |
+| UX baseline | CI, `governance/tests/baseline.test.mjs` | Every entry of `docs/ux-baseline.md` has an id, a status and a protection that exists; every baseline scenario names an entry |
 
 `risk-paths.yml`, `metrics/` and `tests/` are kept from the previous process: the guards' tests and the acceptance
 check still use them.

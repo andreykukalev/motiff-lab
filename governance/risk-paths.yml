@@ -10,28 +10,30 @@ guardrail:
   - .claude/**
   - CLAUDE.md
   # The protected acceptance scenarios (#310): CI fails a pull request that changes them without protected-scenarios-ok.
-  - tests/acceptance/**
+  - tests/backend/Acceptance/**
+  # The UX baseline and its scenarios (docs/ux-baseline.md): the same label guards them.
+  - docs/ux-baseline.md
+  - tests/ipad/Baseline/**
+  - tests/contracts/page-scenarios/**
 high:
-  - src/MotiffLab.MusicCore/Facade/**
-  - src/MotiffLab.MusicCore/Projects/**
-  - ipad/Core/**
+  - src/backend/MotiffLab.MusicCore/Facade/**
+  - src/backend/MotiffLab.MusicCore/Projects/**
+  - src/ipad/Core/**
   - docs/project-file.md
   # High while api.yml deploys the API on every change here; standard once that deploy waits for approval in the
   # Environment production and Andrei lowers it.
-  - src/MotiffLab.MusicCore/**
-  - src/MotiffLab.Api/**
-  - services/omr/**
-  - src/MotiffLab.Web/Scripts/**
-  - src/MotiffLab.Web/wwwroot/i18n/**
-  - src/MotiffLab.Web/wwwroot/audio/**
-  - src/MotiffLab.Web/wwwroot/css/**
-  - src/MotiffLab.Web/Pages/PlaybackLab*
+  - src/backend/MotiffLab.MusicCore/**
+  - src/backend/MotiffLab.Api/**
+  - src/backend/omr/**
+  # The score, roll, storage and playback scripts, words and piano the iPad bundles (docs/repository-structure.md).
+  - src/shared/**
 standard:
   - tests/**
-  - ipad/App/**
-  - src/MotiffLab.Web/**
+  - src/ipad/App/**
   - design/kit/**
-  - docs/decisions/**
+  - docs/architecture/adr/**
 low:
+  # Archived code is not built, tested or deployed (docs/web-archive.md).
+  - archive/**
   - docs/**
   - README.md

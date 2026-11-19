@@ -1,4 +1,4 @@
-// Motiff Lab hosting: one Azure Static Web App on the Free plan (docs/decisions/0001-stack.md).
+// Motiff Lab hosting: one Azure Static Web App on the Free plan (docs/architecture/adr/0001-stack.md).
 // Stage 1 runs fully in the browser, so there are no Functions, storage or AI resources yet.
 
 targetScope = 'resourceGroup'

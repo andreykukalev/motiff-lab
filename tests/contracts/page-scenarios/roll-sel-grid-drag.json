@@ -1,0 +1,146 @@
+{
+  "id": "roll-sel-grid-drag",
+  "protects": [
+    "SEL-01"
+  ],
+  "says": "In Select a stylus drag on the roll chooses the span of time its rectangle covers on the same sixteenth grid as the score, whether there are notes under it or not; never whole bars.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "viewport": {
+    "width": 1024,
+    "height": 420
+  },
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 0,
+        "playing": false,
+        "label": "",
+        "looping": false
+      }
+    },
+    {
+      "wait": 100
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 1100,
+          "y": 0.4
+        },
+        {
+          "tick": 2050,
+          "y": 0.6
+        }
+      ],
+      "note": "from inside bar 3 to inside bar 4"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "span",
+            "notes",
+            "range"
+          ],
+          "messages": [
+            {
+              "span": {
+                "start": 1080,
+                "end": 2160,
+                "how": "create"
+              }
+            }
+          ]
+        },
+        "note": "the sixteenths round the rectangle, as on the score; bar 3 starts at 960, bar 4 ends at 2400"
+      }
+    },
+    {
+      "call": "selection",
+      "with": {
+        "selected": {
+          "start": 1080,
+          "end": 2160,
+          "ids": []
+        },
+        "loop": null
+      },
+      "note": "the app selects the span (music-core select) and shows it on the roll"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 3200,
+          "y": 0.05
+        },
+        {
+          "tick": 3500,
+          "y": 0.1
+        }
+      ],
+      "note": "inside bar 6, above every note"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "span",
+            "notes",
+            "range"
+          ],
+          "messages": [
+            {
+              "span": {
+                "start": 3120,
+                "end": 3600,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "a time span with no notes in it, part of bar 6 (3120 to 3840)"
+      }
+    }
+  ]
+}

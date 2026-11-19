@@ -6,13 +6,14 @@
 //   node tools/quality/quality.mjs                    all checks (CA rules need a quality build: about a minute)
 //   node tools/quality/quality.mjs --only eslint,jscpd
 //   node tools/quality/quality.mjs --update-baseline  drop fixed entries, add new ones with an empty "why"
-//   node tools/quality/quality.mjs --write-config     rewrite CodeMetricsConfig.txt and ipad/.swiftlint.yml
+//   node tools/quality/quality.mjs --write-config     rewrite CodeMetricsConfig.txt and src/ipad/.swiftlint.yml
 //
 // CI (.github/workflows/ci.yml) passes --ci, the log of its own build (--dotnet-log) and the pull request's base
 // (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd,
-// suppressions (an inline or configured way to hide a violation from the others is itself a violation).
+// suppressions (an inline or configured way to hide a violation from the others is itself a violation),
+// dependencies (which module may use which: tools/quality/dependencies.mjs).
 // In soft mode the command reports and exits 0; in blocking mode it exits 1 on a violation not in the baseline,
-// a baseline entry no longer needed, an entry without a reason, or a check that could not run.
+// a baselined file or function that got worse, a baseline entry no longer needed, an entry without a reason, or a check that could not run.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -30,9 +31,13 @@ import {
   updateBaseline,
   valueIn,
 } from './ratchet.mjs';
+import {
+  CORE, IPAD_FOLDERS, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreNamespaceViolations, coreViolations, ipadFolderViolations,
+  ipadPageViolations,
+} from './dependencies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const WEB = join(ROOT, 'src', 'MotiffLab.Web');
+const SHARED = join(ROOT, 'src', 'shared');
 const SETTINGS_PATH = join(ROOT, 'governance', 'quality', 'settings.json');
 const BASELINE_PATH = join(ROOT, 'tools', 'quality', 'baseline.json');
 const OUT = join(ROOT, 'artifacts', 'quality');
@@ -41,7 +46,7 @@ const SWIFTLINT_IMAGE =
 const BASELINE_NOTE =
   'Known violations of the code-quality thresholds (governance/quality/README.md). Only shrinks: fixing code '
   + 'removes its entry; a new entry needs a reason in "why" and an explanation in the pull request.';
-const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd', 'suppressions'];
+const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd', 'suppressions', 'dependencies'];
 
 const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf8'));
 const limits = settings.thresholds;
@@ -99,12 +104,22 @@ function toRepoPath(path) {
   return relativePath(ROOT, absolute).split('\\').join('/');
 }
 
+/**
+ * The repository's files matching the patterns, without archive/: archived code is not checked
+ * (docs/repository-structure.md). archive/ is left out here, not by an exclude pathspec: git 2.43 lists no file at all
+ * for `src/backend/MotiffLab.MusicCore/*.cs` with `:(exclude)archive/**` (#694). Every check expects files, so none
+ * found is an error, never a clean pass.
+ */
 function gitFiles(...patterns) {
   const result = run('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...patterns]);
   if (result.status !== 0) {
     throw new Error(`git ls-files failed: ${result.stderr}`);
   }
-  return result.stdout.split('\0').filter(Boolean);
+  const files = result.stdout.split('\0').filter((file) => file && !file.startsWith('archive/'));
+  if (files.length === 0) {
+    throw new Error(`git ls-files found no file for ${patterns.join(' ')}: a check of no files would pass on nothing`);
+  }
+  return files;
 }
 
 function lineCount(text) {
@@ -149,6 +164,7 @@ only_rules:
   - nesting
 included:
   - App
+  - ../../tests/ipad
 excluded:
   - App/Web
 cyclomatic_complexity:
@@ -175,7 +191,7 @@ nesting:
 
 const GENERATED = [
   { path: 'CodeMetricsConfig.txt', content: codeMetricsConfig },
-  { path: 'ipad/.swiftlint.yml', content: swiftlintConfig },
+  { path: 'src/ipad/.swiftlint.yml', content: swiftlintConfig },
 ];
 
 function checkConfig(write) {
@@ -239,22 +255,22 @@ function csharpCheck() {
 }
 
 function ensureNodeTools(ci) {
-  if (existsSync(join(WEB, 'node_modules', 'eslint')) && existsSync(join(WEB, 'node_modules', 'jscpd'))) {
+  if (existsSync(join(SHARED, 'node_modules', 'eslint')) && existsSync(join(SHARED, 'node_modules', 'jscpd'))) {
     return;
   }
   if (ci) {
-    throw new Error('The quality tools are not installed: npm ci --prefix src/MotiffLab.Web');
+    throw new Error('The quality tools are not installed: npm ci --prefix src/shared');
   }
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const result = run(npm, ['ci', '--no-audit', '--no-fund'], { cwd: WEB, shell: process.platform === 'win32' });
+  const result = run(npm, ['ci', '--no-audit', '--no-fund'], { cwd: SHARED, shell: process.platform === 'win32' });
   if (result.status !== 0) {
-    throw new Error(`npm ci in src/MotiffLab.Web failed:\n${result.stderr}`);
+    throw new Error(`npm ci in src/shared failed:\n${result.stderr}`);
   }
 }
 
 /** The names of the functions around a position, outermost first, from the TypeScript syntax tree. */
 function tsSymbolFinder() {
-  const ts = createRequire(join(WEB, 'package.json'))('typescript');
+  const ts = createRequire(join(SHARED, 'package.json'))('typescript');
   const trees = new Map();
   const nameOf = (node, sf) => {
     const named = node.name && (ts.isIdentifier(node.name) || ts.isPrivateIdentifier(node.name)
@@ -297,8 +313,8 @@ function tsSymbolFinder() {
 
 function eslintCheck(args) {
   ensureNodeTools(args.ci);
-  const result = run(process.execPath, [join(WEB, 'node_modules', 'eslint', 'bin', 'eslint.js'), '--format', 'json',
-    'Scripts'], { cwd: WEB });
+  const result = run(process.execPath, [join(SHARED, 'node_modules', 'eslint', 'bin', 'eslint.js'), '--format', 'json',
+    'Scripts'], { cwd: SHARED });
   if (result.status !== 0 && result.status !== 1) {
     throw new Error(`eslint failed:\n${result.stderr || result.stdout}`);
   }
@@ -328,7 +344,7 @@ function swiftlintCheck(args) {
     }
     throw new Skipped('Docker is not running here; CI runs SwiftLint.');
   }
-  const result = run('docker', ['run', '--rm', '-v', `${join(ROOT, 'ipad')}:/work`, '-w', '/work', SWIFTLINT_IMAGE,
+  const result = run('docker', ['run', '--rm', '-v', `${ROOT}:/work`, '-w', '/work/src/ipad', SWIFTLINT_IMAGE,
     'swiftlint', 'lint', '--quiet', '--no-cache', '--reporter', 'json', '--config', '.swiftlint.yml']);
   if (!result.stdout.trim().startsWith('[')) {
     throw new Error(`SwiftLint failed (exit ${result.status}):\n${result.stderr.slice(-4000)}`);
@@ -336,7 +352,7 @@ function swiftlintCheck(args) {
   const seen = new Set();
   const out = [];
   for (const m of JSON.parse(result.stdout)) {
-    const file = toRepoPath(join(ROOT, 'ipad', relativePath('/work', m.file)));
+    const file = toRepoPath(join(ROOT, relativePath('/work', m.file)));
     const id = `${file}:${m.line}:${m.rule_id}:${m.reason}`;
     if (seen.has(id)) {
       continue; // SwiftLint 0.62 on Linux reports each violation more than once
@@ -351,7 +367,7 @@ function swiftlintCheck(args) {
 function jscpdCheck(args) {
   ensureNodeTools(args.ci);
   mkdirSync(OUT, { recursive: true });
-  const result = run(process.execPath, [join(WEB, 'node_modules', 'jscpd', 'run-jscpd.js'), '--config', '.jscpd.json',
+  const result = run(process.execPath, [join(SHARED, 'node_modules', 'jscpd', 'run-jscpd.js'), '--config', '.jscpd.json',
     '--min-lines', String(limits.duplicateLines), '--reporters', 'json,silent', '--output', OUT, '--no-tips', '.']);
   const report = join(OUT, 'jscpd-report.json');
   if (result.status !== 0 || !existsSync(report)) {
@@ -386,6 +402,19 @@ function suppressionsCheck() {
   return out;
 }
 
+/** Which module may use which, where the build would not notice (tools/quality/dependencies.mjs). */
+function dependenciesCheck() {
+  const read = (file) => readFileSync(join(ROOT, file), 'utf8');
+  const exists = (file) => existsSync(join(ROOT, file));
+  const pages = gitFiles(`${IPAD_PAGES}/*.js`);
+  return [
+    ...coreViolations(gitFiles(`${CORE}/*.cs`, `${CORE}/*.csproj`), read),
+    ...coreNamespaceViolations(gitFiles(`${CORE}/*.cs`), read),
+    ...ipadPageViolations(pages, read, exists, bundledFolders(read(IPAD_PROJECT))),
+    ...ipadFolderViolations(gitFiles(`${IPAD_FOLDERS}/*.swift`), read),
+  ];
+}
+
 const RUNNERS = {
   dotnet: dotnetCheck,
   csharp: csharpCheck,
@@ -393,6 +422,7 @@ const RUNNERS = {
   swiftlint: swiftlintCheck,
   jscpd: jscpdCheck,
   suppressions: suppressionsCheck,
+  dependencies: dependenciesCheck,
 };
 
 // ---- Report -------------------------------------------------------------------------------------------------
@@ -417,7 +447,7 @@ function where(v) {
 
 function report({ mode, results, outcome, configProblems, prAdded, elapsed }) {
   const { added, stale, grew, unjustified } = outcome;
-  const failing = added.length + stale.length + unjustified.length + configProblems.length
+  const failing = added.length + grew.length + stale.length + unjustified.length + configProblems.length
     + results.filter((r) => r.error).length;
   const md = [];
   md.push(`### Code quality (${mode} mode): ${failing === 0 ? 'clean against the baseline' : `${failing} to fix`}`);
@@ -466,7 +496,7 @@ function report({ mode, results, outcome, configProblems, prAdded, elapsed }) {
     section('Baseline entries this pull request adds (the Reviewer checks each reason)', prAdded,
       '| File | Rule | Symbol | Why |', (e) => `| ${cell(e.file)} | ${e.tool} ${e.rule} | ${cell(e.symbol)} | ${cell(e.why)} |`);
   }
-  section('Got worse but still in the baseline (does not fail)', grew, '| Where | Rule | Symbol | Was | Now |',
+  section('To fix: got worse than its baseline entry (split or simplify, never raise the entry)', grew, '| Where | Rule | Symbol | Was | Now |',
     ({ violation: v, entry: e }) => `| ${cell(where(v))} | ${v.tool} ${v.rule} | ${cell(v.symbol)} | ${e.value} | ${v.value} |`);
   md.push(`Total ${elapsed}s.`);
   return { markdown: md.join('\n') + '\n', failing };

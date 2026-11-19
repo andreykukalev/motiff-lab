@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Import\Midi\Fixtures\*.mid" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\Midi\Fixtures\*.hands.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\MusicXml\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\MusicXml\Fixtures\*.mxl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\Scan\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\Vector\Fixtures\*.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\Transcription\Fixtures\*.mid" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Experiments\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Analysis\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Project files of earlier, current and later versions and what today's writer makes of them (Golden/README.md). -->
+    <None Include="Golden\*.motiff.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The notation written for real pieces (Notation/NotationGoldenTests.cs). -->
+    <None Include="Notation\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- What the MusicXML importer reads from real scores (Import/MusicXml/MusicXmlImportGoldenTests.cs). -->
+    <None Include="Import\MusicXml\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- How every step is explained (Variations/ExplanationGoldenTests.cs). -->
+    <None Include="Variations\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The print and a performance compared bar by bar (Performance/PerformanceComparisonTests.cs). -->
+    <None Include="Performance\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The phrases, form and Piece DNA golden the iPad tests assert under NativeAOT too, and the kit's piece it is made from. -->
+    <None Include="..\..\..\ipad\MotiffLabTests\Golden\*.json" Link="Golden\Analysis\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\design\kit\elise.musicxml" Link="Golden\Analysis\elise.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The facade's call names (FacadeCallsContractTests), which tests/shared/facade-calls-contract.test.mjs reads too. -->
+    <None Include="..\..\..\contracts\facade-calls.json" Link="Contracts\facade-calls.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The facade's answers the iPad decodes into its typed answers (FacadeAnswersContractTests, FacadeAnswerFixturesTests.swift). -->
+    <None Include="..\..\..\contracts\facade-answers\*.json" Link="Contracts\facade-answers\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The example piece of both apps (tools/fur-elise/build.mjs). -->
+    <None Include="..\..\..\..\src\shared\Playback\FurElise.musicxml" Link="Import\MusicXml\Fixtures\FurElise.musicxml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\backend\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+  </ItemGroup>
+
+</Project>

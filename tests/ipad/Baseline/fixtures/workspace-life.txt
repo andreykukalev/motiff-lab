@@ -1,0 +1,119 @@
+# The first visit
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen appears
+  page bookmarks: 0
+  page playheads: selection none, cycle on
+
+## the piece's first notes are selected
+  player selection: 0–1200
+  player loops: 0–1200
+  page playheads: selection 0–1200, cycle on
+
+## the app is no longer in front
+  project file: not written
+  resume point: none
+  view kept: none
+
+## the app goes to the background
+  page placeAt
+  roll frame: none, the roll never drew
+  project file: written
+  resume point: kept
+  view kept: selection 0–1200, cycle on, roll closed, its frame none
+
+## the app comes back
+
+## the piece changes in its originals
+  score reads its sources
+
+## the Sources sheet opens the piece again in its place
+  page firstTickOn: page 1
+  player shut down
+  page placeAt
+  roll frame: none, the roll never drew
+  the library opens the piece again at tick 0
+
+## the screen goes
+  metronome stopped
+  player shut down
+  the Sources sheet's way back: let go
+  page placeAt
+  roll frame: none, the roll never drew
+
+# The second visit, where the first was left
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen appears
+  page bookmarks: 0
+  page playheads: selection none, cycle on
+  player loops: 0–1200
+  player selection: 0–1200
+  page playheads: selection 0–1200, cycle on
+
+## bars 5–6 are selected
+  player selection: 3120–4560
+  player loops: 3120–4560
+  page playheads: selection 3120–4560, cycle on
+
+## the roll's drawer opens
+  panels: roll
+  roll load: a first load, frame none
+  roll lanes: on
+  roll selection: 3120–4560, loops 3120–4560
+
+## PDF in the bar
+  page firstTickOn: page 1
+  player shut down
+  page placeAt
+  roll frame: given
+  the library opens the PDF at page 1
+  project file: written again
+
+## the screen goes
+  player shut down
+  project file: written
+  resume point: kept
+  view kept: selection 3120–4560, cycle on, roll open, its frame kept
+
+# The third visit, back from the PDF
+## the score's page is drawn
+  page playheads: selection none, cycle off
+  page bookmarks: 0
+
+## the screen appears, back from the PDF
+  the file's resume point: 3120–4560
+  page bookmarks: 0
+  page playheads: selection none, cycle on
+  player selection: 3120–4560
+  player loops: 3120–4560
+  panels: roll
+  page playheads: selection 3120–4560, cycle on
+  roll load: a first load, frame given
+  roll lanes: on
+  roll selection: 3120–4560, loops 3120–4560
+
+## the selection is cleared
+  player selection: none
+  player loops: none
+  roll selection: none, loops 3120–4560
+  page playheads: selection none, cycle on
+  roll position: 0 standing, looping no
+  roll selection: none, loops none
+  roll position: 0 standing, looping no
+
+## the interface's language changes
+  page firstTickOn: page 1
+  player shut down
+  page placeAt
+  roll frame: given
+  page firstTickOn: page 1
+  metronome stopped
+  the piece is to open again at tick 0
+
+## the screen goes
+  player shut down

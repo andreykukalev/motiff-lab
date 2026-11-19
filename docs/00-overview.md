@@ -210,6 +210,8 @@ Cost per analysed piece is the number that decides the free allowance. Measure i
 
 ## Roadmap
 
+**Platform (2026-11-16):** development is iPad-first; the web app is archived until Andrei reactivates it as a separate initiative ([0032](architecture/adr/0032-ipad-first-web-archived.md)).
+
 Four phases over about 22 weeks of part-time work, each started only when the previous gate is passed. The browser prototype is cheap to build and answers the two biggest questions: does guided reconstruction help players learn, and is the analysis accurate enough?
 
 ![roadmap · 4 phases, 3 gates](images/roadmap.png)

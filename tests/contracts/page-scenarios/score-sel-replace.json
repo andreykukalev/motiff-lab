@@ -1,0 +1,257 @@
+{
+  "id": "score-sel-replace",
+  "protects": [
+    "SEL-02",
+    "SEL-03"
+  ],
+  "says": "With a selection on the score, a new one is started anywhere outside it, by the stylus at once and by a finger after a long press, from the sixteenth under it as the stylus does, and replaces it; a finger's stroke within one staff selects that hand, as the stylus's does.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 960,
+        "end": 2400,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "bars 3 and 4 are selected"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 960,
+          "end": 2400
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "bar": 6,
+          "x": 0.2,
+          "y": 0.4
+        },
+        {
+          "bar": 7,
+          "x": 0.7,
+          "y": 0.6
+        }
+      ],
+      "note": "a stylus drag over bars 6 and 7"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 3120,
+                "end": 4440,
+                "hand": null,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "marks": {
+          "band": [
+            {
+              "left": 689,
+              "top": 227,
+              "right": 905,
+              "bottom": 358
+            }
+          ]
+        },
+        "note": "the new span replaces bars 3 and 4, shown at once"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3120,
+        "end": 4440,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "the app selects what the page chose (music-core select) and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3120,
+          "end": 4440
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "touch",
+      "hold": 900,
+      "path": [
+        {
+          "bar": 9,
+          "x": 0.5,
+          "y": 0.5
+        },
+        {
+          "bar": 10,
+          "x": 0.5,
+          "y": 0.5
+        }
+      ],
+      "note": "a finger held on bar 9, then moved on to bar 10; held 900 ms on the page's clock, twice the page's hold (HOLD_MS, 450 ms)"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 5400,
+                "end": 6120,
+                "hand": null,
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "from the sixteenth under the held finger (5400), as the stylus pressed there starts, not from bar 9's start (5280), then on to the middle of bar 10 (SEL-02, Andrei, 2026-11-17)"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 5400,
+        "end": 6120,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "the app selects what the page chose and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 5400,
+          "end": 6120
+        },
+        "loop": false
+      }
+    },
+    {
+      "pointer": "touch",
+      "hold": 900,
+      "path": [
+        {
+          "bar": 11,
+          "x": 0.3,
+          "y": 0.15
+        },
+        {
+          "bar": 12,
+          "x": 0.5,
+          "y": 0.2
+        }
+      ],
+      "note": "a finger held on bar 11 in the upper staff, then moved on to bar 12 within it; held 900 ms on the page's clock, twice the page's hold (HOLD_MS, 450 ms)"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 6600,
+                "end": 7560,
+                "hand": "right",
+                "how": "replace"
+              }
+            }
+          ]
+        },
+        "note": "a finger stroke that stays in the upper staff selects that hand only, from the sixteenth under the held finger to the middle of bar 12, as the stylus's does (SEL-02, Andrei, 2026-11-17 11:49 UTC: the finger follows the stylus fully)"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1206 @@
+# The score screen's panels: what every action comes to, as the screen's reactions ran it before PanelState (v0.7, B2):
+# the present-behaviour table. PanelStateTests runs PanelState against every line; docs/code-map/ipad/workspace.md.
+# Changed since only by the lines that Andrei's answers 9 and 10 (2026-11-17, thread «Версия 0.7») fix.
+#
+# A section is a start state: its name, then the actions that reach it from a fresh screen, then `=` and the state.
+# A line is an action the screen offers there and the panels render by render: first as the action writes them, then
+# after each render's reactions, until nothing changes. The last is what the action comes to.
+#
+# A state is the panels open, joined by + (nothing for none), then {what is remembered}: fromMore (the place shows
+# "‹ More"; fromMore=… where a place open was not opened from More: the places that were, the others show none),
+# rollBeforeFocus and contentsBeforeFocus (given back after Expand), beforeSources=… (given back as Sources
+# closes); then [Expand] or [Expand roll] (the card as a roll), and (assistant open).
+#
+# Actions: open, close; fromMore (Check, Sources or Settings pressed in More); backToMore ("‹ More"); expandFromDrawer
+# (Expand on the roll's drawer); enterFocus notes (Expand from the selection menu); enterFocus (focusRoll kept on) (the
+# same when the card was last shown as a roll); bookmark to Expand (a bookmark's entry in the Contents pressed again);
+# leaveFocus (Back to page, Collapse); focusRoll on, off (Notes | Piano roll on Expand's bar); openDraftFromFocus
+# («Открыть в черновике» on Expand's bar: leaves Expand and opens Sources in one step); backToMore dna (Piece DNA's
+# "‹ More"); assistant open, close.
+#
+# 78 sections, 914 lines.
+
+### nothing: a fresh screen
+  = nothing
+  open more                      → more
+  open roll                      → roll
+  open insights                  → insights
+  open contents                  → contents
+  open check                     → check
+  open versions                  → versions → versions {beforeSources=nothing}
+  open settings                  → settings
+  open reference                 → reference
+  fromMore check                 → check {fromMore}
+  fromMore versions              → versions {fromMore} → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → settings {fromMore}
+  enterFocus notes               → nothing [Expand]
+  enterFocus (focusRoll kept on) → nothing [Expand roll]
+  assistant open                 → nothing (assistant open)
+
+### roll: open roll
+  = roll
+  open more                      → roll+more
+  open roll                      → roll
+  close roll                     → nothing
+  open insights                  → roll+insights → insights
+  open contents                  → roll+contents → contents
+  open check                     → roll+check → check
+  open versions                  → roll+versions → versions {beforeSources=roll}
+  open settings                  → roll+settings
+  open reference                 → roll+reference
+  fromMore check                 → roll+check {fromMore} → check {fromMore}
+  fromMore versions              → roll+versions {fromMore} → versions {fromMore, beforeSources=roll}
+  fromMore settings              → roll+settings {fromMore}
+  expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll]
+  enterFocus notes               → roll [Expand]
+  enterFocus (focusRoll kept on) → roll [Expand roll] → nothing {rollBeforeFocus} [Expand roll]
+  assistant open                 → roll (assistant open)
+
+### insights: open insights
+  = insights
+  open more                      → insights+more
+  open roll                      → roll+insights → roll
+  open insights                  → insights
+  close insights                 → nothing
+  open contents                  → insights+contents → contents
+  open check                     → insights+check → check
+  open versions                  → insights+versions → versions {beforeSources=insights}
+  open settings                  → insights+settings
+  open reference                 → insights+reference
+  fromMore check                 → insights+check {fromMore} → check {fromMore}
+  fromMore versions              → insights+versions {fromMore} → versions {fromMore, beforeSources=insights}
+  fromMore settings              → insights+settings {fromMore}
+  enterFocus notes               → insights [Expand]
+  enterFocus (focusRoll kept on) → insights [Expand roll]
+  assistant open                 → insights (assistant open) → nothing (assistant open)
+
+### contents: open contents
+  = contents
+  open more                      → contents+more
+  open roll                      → roll+contents → roll
+  open insights                  → insights+contents → insights
+  open contents                  → contents
+  close contents                 → nothing
+  open check                     → contents+check → check
+  open versions                  → contents+versions → versions {beforeSources=contents}
+  open settings                  → contents+settings
+  open reference                 → contents+reference
+  fromMore check                 → contents+check {fromMore} → check {fromMore}
+  fromMore versions              → contents+versions {fromMore} → versions {fromMore, beforeSources=contents}
+  fromMore settings              → contents+settings {fromMore}
+  enterFocus notes               → contents [Expand] → nothing {contentsBeforeFocus} [Expand]
+  enterFocus (focusRoll kept on) → contents [Expand roll] → nothing {contentsBeforeFocus} [Expand roll]
+  bookmark to Expand             → nothing [Expand]
+  assistant open                 → contents (assistant open)
+
+### check: open check
+  = check
+  open more                      → check+more
+  open roll                      → roll+check → roll
+  open insights                  → insights+check → insights
+  open contents                  → contents+check → contents
+  open check                     → check
+  close check                    → nothing
+  open versions                  → check+versions → versions {beforeSources=nothing}
+  open settings                  → check+settings
+  open reference                 → check+reference
+  fromMore check                 → check {fromMore}
+  fromMore versions              → check+versions {fromMore=versions} → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → check+settings {fromMore=settings}
+  enterFocus notes               → check [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → check [Expand roll] → nothing [Expand roll]
+  assistant open                 → check (assistant open) → nothing (assistant open)
+
+### versions: open versions
+  = versions {beforeSources=nothing}
+  open more                      → versions+more {beforeSources=nothing}
+  open roll                      → roll+versions {beforeSources=nothing} → roll {beforeSources=nothing} → roll
+  open insights                  → insights+versions {beforeSources=nothing} → insights {beforeSources=nothing} → insights
+  open contents                  → contents+versions {beforeSources=nothing} → contents {beforeSources=nothing} → contents
+  open check                     → check+versions {beforeSources=nothing} → check {beforeSources=nothing} → check
+  open versions                  → versions {beforeSources=nothing}
+  close versions                 → nothing {beforeSources=nothing} → nothing
+  open settings                  → versions+settings {beforeSources=nothing}
+  open reference                 → versions+reference {beforeSources=nothing}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=nothing} → check {fromMore, beforeSources=nothing} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=nothing}
+  enterFocus notes               → versions {beforeSources=nothing} [Expand] → nothing {beforeSources=nothing} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {beforeSources=nothing} [Expand roll] → nothing {beforeSources=nothing} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {beforeSources=nothing} (assistant open) → nothing {beforeSources=nothing} (assistant open) → nothing (assistant open)
+
+### settings: open settings
+  = settings
+  open more                      → settings+more
+  open roll                      → roll+settings
+  open insights                  → insights+settings
+  open contents                  → contents+settings
+  open check                     → check+settings
+  open versions                  → versions+settings → versions+settings {beforeSources=nothing}
+  open settings                  → settings
+  close settings                 → nothing
+  open reference                 → settings+reference
+  fromMore check                 → check+settings {fromMore=check}
+  fromMore versions              → versions+settings {fromMore=versions} → versions+settings {fromMore=versions, beforeSources=nothing}
+  fromMore settings              → settings {fromMore}
+  enterFocus notes               → settings [Expand]
+  enterFocus (focusRoll kept on) → settings [Expand roll]
+  assistant open                 → settings (assistant open)
+
+### reference: open reference
+  = reference
+  open more                      → reference+more
+  open roll                      → roll+reference
+  open insights                  → insights+reference
+  open contents                  → contents+reference
+  open check                     → check+reference
+  open versions                  → versions+reference → versions+reference {beforeSources=nothing}
+  open settings                  → settings+reference
+  open reference                 → reference
+  close reference                → nothing
+  fromMore check                 → check+reference {fromMore}
+  fromMore versions              → versions+reference {fromMore} → versions+reference {fromMore, beforeSources=nothing}
+  fromMore settings              → settings+reference {fromMore}
+  enterFocus notes               → reference [Expand]
+  enterFocus (focusRoll kept on) → reference [Expand roll]
+  assistant open                 → reference (assistant open)
+
+### more: open more
+  = more
+  open more                      → more
+  close more                     → nothing
+  open roll                      → roll+more
+  open insights                  → insights+more
+  open contents                  → contents+more
+  open check                     → check+more
+  open versions                  → versions+more → versions+more {beforeSources=nothing}
+  open settings                  → settings+more
+  open reference                 → reference+more
+  fromMore check                 → check {fromMore}
+  fromMore versions              → versions {fromMore} → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → settings {fromMore}
+  enterFocus notes               → more [Expand]
+  enterFocus (focusRoll kept on) → more [Expand roll]
+  assistant open                 → more (assistant open)
+
+### check from More: fromMore check
+  = check {fromMore}
+  open more                      → check+more {fromMore}
+  open roll                      → roll+check {fromMore} → roll {fromMore} → roll
+  open insights                  → insights+check {fromMore} → insights {fromMore} → insights
+  open contents                  → contents+check {fromMore} → contents {fromMore} → contents
+  open check                     → check {fromMore}
+  close check                    → nothing {fromMore} → nothing
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open versions                  → check+versions {fromMore=check} → versions {fromMore=check, beforeSources=nothing}
+  open settings                  → check+settings {fromMore=check}
+  open reference                 → check+reference {fromMore}
+  fromMore check                 → check {fromMore}
+  backToMore check               → nothing
+  fromMore versions              → check+versions {fromMore} → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → check+settings {fromMore}
+  backToMore dna                 → check
+  enterFocus notes               → check {fromMore} [Expand] → nothing {fromMore} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → check {fromMore} [Expand roll] → nothing {fromMore} [Expand roll] → nothing [Expand roll]
+  assistant open                 → check {fromMore} (assistant open) → nothing {fromMore} (assistant open) → nothing (assistant open)
+
+### versions from More: fromMore versions
+  = versions {fromMore, beforeSources=nothing}
+  open more                      → versions+more {fromMore, beforeSources=nothing}
+  open roll                      → roll+versions {fromMore, beforeSources=nothing} → roll {fromMore, beforeSources=nothing} → roll
+  open insights                  → insights+versions {fromMore, beforeSources=nothing} → insights {fromMore, beforeSources=nothing} → insights
+  open contents                  → contents+versions {fromMore, beforeSources=nothing} → contents {fromMore, beforeSources=nothing} → contents
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions {fromMore=versions, beforeSources=nothing} → check {fromMore=versions, beforeSources=nothing} → check {fromMore=versions}
+  open versions                  → versions {fromMore, beforeSources=nothing}
+  close versions                 → nothing {fromMore, beforeSources=nothing} → nothing
+  open settings                  → versions+settings {fromMore=versions, beforeSources=nothing}
+  open reference                 → versions+reference {fromMore, beforeSources=nothing}
+  fromMore check                 → check+versions {fromMore, beforeSources=nothing} → check {fromMore, beforeSources=nothing} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=nothing}
+  backToMore versions            → nothing {beforeSources=nothing} → nothing
+  fromMore settings              → versions+settings {fromMore, beforeSources=nothing}
+  backToMore dna                 → versions {beforeSources=nothing}
+  enterFocus notes               → versions {fromMore, beforeSources=nothing} [Expand] → nothing {fromMore, beforeSources=nothing} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {fromMore, beforeSources=nothing} [Expand roll] → nothing {fromMore, beforeSources=nothing} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {fromMore, beforeSources=nothing} (assistant open) → nothing {fromMore, beforeSources=nothing} (assistant open) → nothing (assistant open)
+
+### settings from More: fromMore settings
+  = settings {fromMore}
+  open more                      → settings+more {fromMore}
+  open roll                      → roll+settings {fromMore}
+  open insights                  → insights+settings {fromMore}
+  open contents                  → contents+settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+settings {fromMore=settings}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open versions                  → versions+settings {fromMore=settings} → versions+settings {fromMore=settings, beforeSources=nothing}
+  open settings                  → settings {fromMore}
+  close settings                 → nothing {fromMore} → nothing
+  open reference                 → settings+reference {fromMore}
+  fromMore check                 → check+settings {fromMore}
+  fromMore versions              → versions+settings {fromMore} → versions+settings {fromMore, beforeSources=nothing}
+  fromMore settings              → settings {fromMore}
+  backToMore settings            → nothing
+  backToMore dna                 → settings
+  enterFocus notes               → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → settings {fromMore} [Expand roll]
+  assistant open                 → settings {fromMore} (assistant open)
+
+### versions over roll: open roll, open versions
+  = versions {beforeSources=roll}
+  open more                      → versions+more {beforeSources=roll}
+  open roll                      → roll+versions {beforeSources=roll} → roll {beforeSources=roll} → roll
+  open insights                  → insights+versions {beforeSources=roll} → insights {beforeSources=roll} → insights
+  open contents                  → contents+versions {beforeSources=roll} → contents {beforeSources=roll} → contents
+  open check                     → check+versions {beforeSources=roll} → check {beforeSources=roll} → check
+  open versions                  → versions {beforeSources=roll}
+  close versions                 → nothing {beforeSources=roll} → roll
+  open settings                  → versions+settings {beforeSources=roll}
+  open reference                 → versions+reference {beforeSources=roll}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=roll} → check {fromMore, beforeSources=roll} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=roll}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=roll}
+  enterFocus notes               → versions {beforeSources=roll} [Expand] → nothing {beforeSources=roll} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {beforeSources=roll} [Expand roll] → nothing {beforeSources=roll} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {beforeSources=roll} (assistant open) → nothing {beforeSources=roll} (assistant open) → roll (assistant open)
+
+### versions over insights: open insights, open versions
+  = versions {beforeSources=insights}
+  open more                      → versions+more {beforeSources=insights}
+  open roll                      → roll+versions {beforeSources=insights} → roll {beforeSources=insights} → roll
+  open insights                  → insights+versions {beforeSources=insights} → insights {beforeSources=insights} → insights
+  open contents                  → contents+versions {beforeSources=insights} → contents {beforeSources=insights} → contents
+  open check                     → check+versions {beforeSources=insights} → check {beforeSources=insights} → check
+  open versions                  → versions {beforeSources=insights}
+  close versions                 → nothing {beforeSources=insights} → insights
+  open settings                  → versions+settings {beforeSources=insights}
+  open reference                 → versions+reference {beforeSources=insights}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=insights} → check {fromMore, beforeSources=insights} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=insights}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=insights}
+  enterFocus notes               → versions {beforeSources=insights} [Expand] → nothing {beforeSources=insights} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {beforeSources=insights} [Expand roll] → nothing {beforeSources=insights} [Expand roll] → nothing [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions {beforeSources=insights} (assistant open) → nothing {beforeSources=nothing} (assistant open) → nothing (assistant open)
+
+### versions over contents: open contents, open versions
+  = versions {beforeSources=contents}
+  open more                      → versions+more {beforeSources=contents}
+  open roll                      → roll+versions {beforeSources=contents} → roll {beforeSources=contents} → roll
+  open insights                  → insights+versions {beforeSources=contents} → insights {beforeSources=contents} → insights
+  open contents                  → contents+versions {beforeSources=contents} → contents {beforeSources=contents} → contents
+  open check                     → check+versions {beforeSources=contents} → check {beforeSources=contents} → check
+  open versions                  → versions {beforeSources=contents}
+  close versions                 → nothing {beforeSources=contents} → contents
+  open settings                  → versions+settings {beforeSources=contents}
+  open reference                 → versions+reference {beforeSources=contents}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=contents} → check {fromMore, beforeSources=contents} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=contents}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=contents}
+  enterFocus notes               → versions {beforeSources=contents} [Expand] → nothing {beforeSources=contents} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {beforeSources=contents} [Expand roll] → nothing {beforeSources=contents} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {beforeSources=contents} (assistant open) → nothing {beforeSources=contents} (assistant open) → contents (assistant open)
+
+### versions from More over roll: open roll, fromMore versions
+  = versions {fromMore, beforeSources=roll}
+  open more                      → versions+more {fromMore, beforeSources=roll}
+  open roll                      → roll+versions {fromMore, beforeSources=roll} → roll {fromMore, beforeSources=roll} → roll
+  open insights                  → insights+versions {fromMore, beforeSources=roll} → insights {fromMore, beforeSources=roll} → insights
+  open contents                  → contents+versions {fromMore, beforeSources=roll} → contents {fromMore, beforeSources=roll} → contents
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions {fromMore=versions, beforeSources=roll} → check {fromMore=versions, beforeSources=roll} → check {fromMore=versions}
+  open versions                  → versions {fromMore, beforeSources=roll}
+  close versions                 → nothing {fromMore, beforeSources=roll} → roll
+  open settings                  → versions+settings {fromMore=versions, beforeSources=roll}
+  open reference                 → versions+reference {fromMore, beforeSources=roll}
+  fromMore check                 → check+versions {fromMore, beforeSources=roll} → check {fromMore, beforeSources=roll} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=roll}
+  backToMore versions            → nothing {beforeSources=roll} → roll
+  fromMore settings              → versions+settings {fromMore, beforeSources=roll}
+  backToMore dna                 → versions {beforeSources=roll}
+  enterFocus notes               → versions {fromMore, beforeSources=roll} [Expand] → nothing {fromMore, beforeSources=roll} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {fromMore, beforeSources=roll} [Expand roll] → nothing {fromMore, beforeSources=roll} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {fromMore, beforeSources=roll} (assistant open) → nothing {fromMore, beforeSources=roll} (assistant open) → roll (assistant open)
+
+### versions from More over insights: open insights, fromMore versions
+  = versions {fromMore, beforeSources=insights}
+  open more                      → versions+more {fromMore, beforeSources=insights}
+  open roll                      → roll+versions {fromMore, beforeSources=insights} → roll {fromMore, beforeSources=insights} → roll
+  open insights                  → insights+versions {fromMore, beforeSources=insights} → insights {fromMore, beforeSources=insights} → insights
+  open contents                  → contents+versions {fromMore, beforeSources=insights} → contents {fromMore, beforeSources=insights} → contents
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions {fromMore=versions, beforeSources=insights} → check {fromMore=versions, beforeSources=insights} → check {fromMore=versions}
+  open versions                  → versions {fromMore, beforeSources=insights}
+  close versions                 → nothing {fromMore, beforeSources=insights} → insights
+  open settings                  → versions+settings {fromMore=versions, beforeSources=insights}
+  open reference                 → versions+reference {fromMore, beforeSources=insights}
+  fromMore check                 → check+versions {fromMore, beforeSources=insights} → check {fromMore, beforeSources=insights} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=insights}
+  backToMore versions            → nothing {beforeSources=insights} → insights
+  fromMore settings              → versions+settings {fromMore, beforeSources=insights}
+  backToMore dna                 → versions {beforeSources=insights}
+  enterFocus notes               → versions {fromMore, beforeSources=insights} [Expand] → nothing {fromMore, beforeSources=insights} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {fromMore, beforeSources=insights} [Expand roll] → nothing {fromMore, beforeSources=insights} [Expand roll] → nothing [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions {fromMore, beforeSources=insights} (assistant open) → nothing {fromMore, beforeSources=nothing} (assistant open) → nothing (assistant open)
+
+### versions from More over contents: open contents, fromMore versions
+  = versions {fromMore, beforeSources=contents}
+  open more                      → versions+more {fromMore, beforeSources=contents}
+  open roll                      → roll+versions {fromMore, beforeSources=contents} → roll {fromMore, beforeSources=contents} → roll
+  open insights                  → insights+versions {fromMore, beforeSources=contents} → insights {fromMore, beforeSources=contents} → insights
+  open contents                  → contents+versions {fromMore, beforeSources=contents} → contents {fromMore, beforeSources=contents} → contents
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions {fromMore=versions, beforeSources=contents} → check {fromMore=versions, beforeSources=contents} → check {fromMore=versions}
+  open versions                  → versions {fromMore, beforeSources=contents}
+  close versions                 → nothing {fromMore, beforeSources=contents} → contents
+  open settings                  → versions+settings {fromMore=versions, beforeSources=contents}
+  open reference                 → versions+reference {fromMore, beforeSources=contents}
+  fromMore check                 → check+versions {fromMore, beforeSources=contents} → check {fromMore, beforeSources=contents} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=contents}
+  backToMore versions            → nothing {beforeSources=contents} → contents
+  fromMore settings              → versions+settings {fromMore, beforeSources=contents}
+  backToMore dna                 → versions {beforeSources=contents}
+  enterFocus notes               → versions {fromMore, beforeSources=contents} [Expand] → nothing {fromMore, beforeSources=contents} [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions {fromMore, beforeSources=contents} [Expand roll] → nothing {fromMore, beforeSources=contents} [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions {fromMore, beforeSources=contents} (assistant open) → nothing {fromMore, beforeSources=contents} (assistant open) → contents (assistant open)
+
+### versions over roll, settings over it: open roll, open versions, open settings
+  = versions+settings {beforeSources=roll}
+  open more                      → versions+settings+more {beforeSources=roll}
+  open roll                      → roll+versions+settings {beforeSources=roll} → roll+settings {beforeSources=roll} → roll+settings
+  open insights                  → insights+versions+settings {beforeSources=roll} → insights+settings {beforeSources=roll} → insights+settings
+  open contents                  → contents+versions+settings {beforeSources=roll} → contents+settings {beforeSources=roll} → contents+settings
+  open check                     → check+versions+settings {beforeSources=roll} → check+settings {beforeSources=roll} → check+settings
+  open versions                  → versions+settings {beforeSources=roll}
+  close versions                 → settings {beforeSources=roll} → roll+settings
+  open settings                  → versions+settings {beforeSources=roll}
+  close settings                 → versions {beforeSources=roll}
+  open reference                 → versions+settings+reference {beforeSources=roll}
+  fromMore check                 → check+versions+settings {fromMore=check, beforeSources=roll} → check+settings {fromMore=check, beforeSources=roll} → check+settings {fromMore=check}
+  fromMore versions              → versions+settings {fromMore=versions, beforeSources=roll}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=roll}
+  enterFocus notes               → versions+settings {beforeSources=roll} [Expand] → settings {beforeSources=roll} [Expand] → settings [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {beforeSources=roll} [Expand roll] → settings {beforeSources=roll} [Expand roll] → settings [Expand roll]
+  assistant open                 → versions+settings {beforeSources=roll} (assistant open) → settings {beforeSources=roll} (assistant open) → roll+settings (assistant open)
+
+### versions over roll, reference over it: open roll, open versions, open reference
+  = versions+reference {beforeSources=roll}
+  open more                      → versions+reference+more {beforeSources=roll}
+  open roll                      → roll+versions+reference {beforeSources=roll} → roll+reference {beforeSources=roll} → roll+reference
+  open insights                  → insights+versions+reference {beforeSources=roll} → insights+reference {beforeSources=roll} → insights+reference
+  open contents                  → contents+versions+reference {beforeSources=roll} → contents+reference {beforeSources=roll} → contents+reference
+  open check                     → check+versions+reference {beforeSources=roll} → check+reference {beforeSources=roll} → check+reference
+  open versions                  → versions+reference {beforeSources=roll}
+  close versions                 → reference {beforeSources=roll} → roll+reference
+  open settings                  → versions+settings+reference {beforeSources=roll}
+  open reference                 → versions+reference {beforeSources=roll}
+  close reference                → versions {beforeSources=roll}
+  fromMore check                 → check+versions+reference {fromMore=check, beforeSources=roll} → check+reference {fromMore, beforeSources=roll} → check+reference {fromMore}
+  fromMore versions              → versions+reference {fromMore, beforeSources=roll}
+  fromMore settings              → versions+settings+reference {fromMore=settings, beforeSources=roll}
+  enterFocus notes               → versions+reference {beforeSources=roll} [Expand] → reference {beforeSources=roll} [Expand] → reference [Expand]
+  enterFocus (focusRoll kept on) → versions+reference {beforeSources=roll} [Expand roll] → reference {beforeSources=roll} [Expand roll] → reference [Expand roll]
+  assistant open                 → versions+reference {beforeSources=roll} (assistant open) → reference {beforeSources=roll} (assistant open) → roll+reference (assistant open)
+
+### versions over roll, more over it: open roll, open versions, open more
+  = versions+more {beforeSources=roll}
+  open more                      → versions+more {beforeSources=roll}
+  close more                     → versions {beforeSources=roll}
+  open roll                      → roll+versions+more {beforeSources=roll} → roll+more {beforeSources=roll} → roll+more
+  open insights                  → insights+versions+more {beforeSources=roll} → insights+more {beforeSources=roll} → insights+more
+  open contents                  → contents+versions+more {beforeSources=roll} → contents+more {beforeSources=roll} → contents+more
+  open check                     → check+versions+more {beforeSources=roll} → check+more {beforeSources=roll} → check+more
+  open versions                  → versions+more {beforeSources=roll}
+  close versions                 → more {beforeSources=roll} → roll+more
+  open settings                  → versions+settings+more {beforeSources=roll}
+  open reference                 → versions+reference+more {beforeSources=roll}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=roll} → check {fromMore, beforeSources=roll} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=roll}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=roll}
+  enterFocus notes               → versions+more {beforeSources=roll} [Expand] → more {beforeSources=roll} [Expand] → more [Expand]
+  enterFocus (focusRoll kept on) → versions+more {beforeSources=roll} [Expand roll] → more {beforeSources=roll} [Expand roll] → more [Expand roll]
+  assistant open                 → versions+more {beforeSources=roll} (assistant open) → more {beforeSources=roll} (assistant open) → roll+more (assistant open)
+
+### versions over insights, settings over it: open insights, open versions, open settings
+  = versions+settings {beforeSources=insights}
+  open more                      → versions+settings+more {beforeSources=insights}
+  open roll                      → roll+versions+settings {beforeSources=insights} → roll+settings {beforeSources=insights} → roll+settings
+  open insights                  → insights+versions+settings {beforeSources=insights} → insights+settings {beforeSources=insights} → insights+settings
+  open contents                  → contents+versions+settings {beforeSources=insights} → contents+settings {beforeSources=insights} → contents+settings
+  open check                     → check+versions+settings {beforeSources=insights} → check+settings {beforeSources=insights} → check+settings
+  open versions                  → versions+settings {beforeSources=insights}
+  close versions                 → settings {beforeSources=insights} → insights+settings
+  open settings                  → versions+settings {beforeSources=insights}
+  close settings                 → versions {beforeSources=insights}
+  open reference                 → versions+settings+reference {beforeSources=insights}
+  fromMore check                 → check+versions+settings {fromMore=check, beforeSources=insights} → check+settings {fromMore=check, beforeSources=insights} → check+settings {fromMore=check}
+  fromMore versions              → versions+settings {fromMore=versions, beforeSources=insights}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=insights}
+  enterFocus notes               → versions+settings {beforeSources=insights} [Expand] → settings {beforeSources=insights} [Expand] → settings [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {beforeSources=insights} [Expand roll] → settings {beforeSources=insights} [Expand roll] → settings [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions+settings {beforeSources=insights} (assistant open) → settings {beforeSources=nothing} (assistant open) → settings (assistant open)
+
+### versions over insights, reference over it: open insights, open versions, open reference
+  = versions+reference {beforeSources=insights}
+  open more                      → versions+reference+more {beforeSources=insights}
+  open roll                      → roll+versions+reference {beforeSources=insights} → roll+reference {beforeSources=insights} → roll+reference
+  open insights                  → insights+versions+reference {beforeSources=insights} → insights+reference {beforeSources=insights} → insights+reference
+  open contents                  → contents+versions+reference {beforeSources=insights} → contents+reference {beforeSources=insights} → contents+reference
+  open check                     → check+versions+reference {beforeSources=insights} → check+reference {beforeSources=insights} → check+reference
+  open versions                  → versions+reference {beforeSources=insights}
+  close versions                 → reference {beforeSources=insights} → insights+reference
+  open settings                  → versions+settings+reference {beforeSources=insights}
+  open reference                 → versions+reference {beforeSources=insights}
+  close reference                → versions {beforeSources=insights}
+  fromMore check                 → check+versions+reference {fromMore=check, beforeSources=insights} → check+reference {fromMore, beforeSources=insights} → check+reference {fromMore}
+  fromMore versions              → versions+reference {fromMore, beforeSources=insights}
+  fromMore settings              → versions+settings+reference {fromMore=settings, beforeSources=insights}
+  enterFocus notes               → versions+reference {beforeSources=insights} [Expand] → reference {beforeSources=insights} [Expand] → reference [Expand]
+  enterFocus (focusRoll kept on) → versions+reference {beforeSources=insights} [Expand roll] → reference {beforeSources=insights} [Expand roll] → reference [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions+reference {beforeSources=insights} (assistant open) → reference {beforeSources=nothing} (assistant open) → reference (assistant open)
+
+### versions over insights, more over it: open insights, open versions, open more
+  = versions+more {beforeSources=insights}
+  open more                      → versions+more {beforeSources=insights}
+  close more                     → versions {beforeSources=insights}
+  open roll                      → roll+versions+more {beforeSources=insights} → roll+more {beforeSources=insights} → roll+more
+  open insights                  → insights+versions+more {beforeSources=insights} → insights+more {beforeSources=insights} → insights+more
+  open contents                  → contents+versions+more {beforeSources=insights} → contents+more {beforeSources=insights} → contents+more
+  open check                     → check+versions+more {beforeSources=insights} → check+more {beforeSources=insights} → check+more
+  open versions                  → versions+more {beforeSources=insights}
+  close versions                 → more {beforeSources=insights} → insights+more
+  open settings                  → versions+settings+more {beforeSources=insights}
+  open reference                 → versions+reference+more {beforeSources=insights}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=insights} → check {fromMore, beforeSources=insights} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=insights}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=insights}
+  enterFocus notes               → versions+more {beforeSources=insights} [Expand] → more {beforeSources=insights} [Expand] → more [Expand]
+  enterFocus (focusRoll kept on) → versions+more {beforeSources=insights} [Expand roll] → more {beforeSources=insights} [Expand roll] → more [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions+more {beforeSources=insights} (assistant open) → more {beforeSources=nothing} (assistant open) → more (assistant open)
+
+### versions over contents, settings over it: open contents, open versions, open settings
+  = versions+settings {beforeSources=contents}
+  open more                      → versions+settings+more {beforeSources=contents}
+  open roll                      → roll+versions+settings {beforeSources=contents} → roll+settings {beforeSources=contents} → roll+settings
+  open insights                  → insights+versions+settings {beforeSources=contents} → insights+settings {beforeSources=contents} → insights+settings
+  open contents                  → contents+versions+settings {beforeSources=contents} → contents+settings {beforeSources=contents} → contents+settings
+  open check                     → check+versions+settings {beforeSources=contents} → check+settings {beforeSources=contents} → check+settings
+  open versions                  → versions+settings {beforeSources=contents}
+  close versions                 → settings {beforeSources=contents} → contents+settings
+  open settings                  → versions+settings {beforeSources=contents}
+  close settings                 → versions {beforeSources=contents}
+  open reference                 → versions+settings+reference {beforeSources=contents}
+  fromMore check                 → check+versions+settings {fromMore=check, beforeSources=contents} → check+settings {fromMore=check, beforeSources=contents} → check+settings {fromMore=check}
+  fromMore versions              → versions+settings {fromMore=versions, beforeSources=contents}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=contents}
+  enterFocus notes               → versions+settings {beforeSources=contents} [Expand] → settings {beforeSources=contents} [Expand] → settings [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {beforeSources=contents} [Expand roll] → settings {beforeSources=contents} [Expand roll] → settings [Expand roll]
+  assistant open                 → versions+settings {beforeSources=contents} (assistant open) → settings {beforeSources=contents} (assistant open) → contents+settings (assistant open)
+
+### versions over contents, reference over it: open contents, open versions, open reference
+  = versions+reference {beforeSources=contents}
+  open more                      → versions+reference+more {beforeSources=contents}
+  open roll                      → roll+versions+reference {beforeSources=contents} → roll+reference {beforeSources=contents} → roll+reference
+  open insights                  → insights+versions+reference {beforeSources=contents} → insights+reference {beforeSources=contents} → insights+reference
+  open contents                  → contents+versions+reference {beforeSources=contents} → contents+reference {beforeSources=contents} → contents+reference
+  open check                     → check+versions+reference {beforeSources=contents} → check+reference {beforeSources=contents} → check+reference
+  open versions                  → versions+reference {beforeSources=contents}
+  close versions                 → reference {beforeSources=contents} → contents+reference
+  open settings                  → versions+settings+reference {beforeSources=contents}
+  open reference                 → versions+reference {beforeSources=contents}
+  close reference                → versions {beforeSources=contents}
+  fromMore check                 → check+versions+reference {fromMore=check, beforeSources=contents} → check+reference {fromMore, beforeSources=contents} → check+reference {fromMore}
+  fromMore versions              → versions+reference {fromMore, beforeSources=contents}
+  fromMore settings              → versions+settings+reference {fromMore=settings, beforeSources=contents}
+  enterFocus notes               → versions+reference {beforeSources=contents} [Expand] → reference {beforeSources=contents} [Expand] → reference [Expand]
+  enterFocus (focusRoll kept on) → versions+reference {beforeSources=contents} [Expand roll] → reference {beforeSources=contents} [Expand roll] → reference [Expand roll]
+  assistant open                 → versions+reference {beforeSources=contents} (assistant open) → reference {beforeSources=contents} (assistant open) → contents+reference (assistant open)
+
+### versions over contents, more over it: open contents, open versions, open more
+  = versions+more {beforeSources=contents}
+  open more                      → versions+more {beforeSources=contents}
+  close more                     → versions {beforeSources=contents}
+  open roll                      → roll+versions+more {beforeSources=contents} → roll+more {beforeSources=contents} → roll+more
+  open insights                  → insights+versions+more {beforeSources=contents} → insights+more {beforeSources=contents} → insights+more
+  open contents                  → contents+versions+more {beforeSources=contents} → contents+more {beforeSources=contents} → contents+more
+  open check                     → check+versions+more {beforeSources=contents} → check+more {beforeSources=contents} → check+more
+  open versions                  → versions+more {beforeSources=contents}
+  close versions                 → more {beforeSources=contents} → contents+more
+  open settings                  → versions+settings+more {beforeSources=contents}
+  open reference                 → versions+reference+more {beforeSources=contents}
+  fromMore check                 → check+versions {fromMore=check, beforeSources=contents} → check {fromMore, beforeSources=contents} → check {fromMore}
+  fromMore versions              → versions {fromMore, beforeSources=contents}
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=contents}
+  enterFocus notes               → versions+more {beforeSources=contents} [Expand] → more {beforeSources=contents} [Expand] → more [Expand]
+  enterFocus (focusRoll kept on) → versions+more {beforeSources=contents} [Expand roll] → more {beforeSources=contents} [Expand roll] → more [Expand roll]
+  assistant open                 → versions+more {beforeSources=contents} (assistant open) → more {beforeSources=contents} (assistant open) → contents+more (assistant open)
+
+### check from More, settings from More over it: fromMore check, fromMore settings
+  = check+settings {fromMore}
+  open more                      → check+settings+more {fromMore}
+  open roll                      → roll+check+settings {fromMore} → roll+settings {fromMore}
+  open insights                  → insights+check+settings {fromMore} → insights+settings {fromMore}
+  open contents                  → contents+check+settings {fromMore} → contents+settings {fromMore}
+  open check                     → check+settings {fromMore}
+  close check                    → settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open versions                  → check+versions+settings {fromMore=check+settings} → versions+settings {fromMore=check+settings, beforeSources=nothing}
+  open settings                  → check+settings {fromMore}
+  close settings                 → check {fromMore}
+  open reference                 → check+settings+reference {fromMore}
+  fromMore check                 → check+settings {fromMore}
+  backToMore check               → settings
+  fromMore versions              → check+versions+settings {fromMore} → versions+settings {fromMore, beforeSources=nothing}
+  fromMore settings              → check+settings {fromMore}
+  backToMore settings            → check
+  backToMore dna                 → check+settings
+  enterFocus notes               → check+settings {fromMore} [Expand] → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → check+settings {fromMore} [Expand roll] → settings {fromMore} [Expand roll]
+  assistant open                 → check+settings {fromMore} (assistant open) → settings {fromMore} (assistant open)
+
+### the assistant's panel: assistant open
+  = nothing (assistant open)
+  open more                      → more (assistant open)
+  open roll                      → roll (assistant open)
+  open insights                  → insights (assistant open) → insights
+  open contents                  → contents (assistant open)
+  open check                     → check (assistant open) → check
+  open versions                  → versions (assistant open) → versions {beforeSources=nothing}
+  open settings                  → settings (assistant open)
+  open reference                 → reference (assistant open)
+  fromMore check                 → check {fromMore} (assistant open) → check {fromMore}
+  fromMore versions              → versions {fromMore} (assistant open) → versions {fromMore, beforeSources=nothing}
+  fromMore settings              → settings {fromMore} (assistant open)
+  enterFocus notes               → nothing [Expand] (assistant open)
+  enterFocus (focusRoll kept on) → nothing [Expand roll] (assistant open)
+  assistant close                → nothing
+
+### roll, the assistant's panel: open roll, assistant open
+  = roll (assistant open)
+  open more                      → roll+more (assistant open)
+  open roll                      → roll (assistant open)
+  close roll                     → nothing (assistant open)
+  open insights                  → roll+insights (assistant open) → insights
+  open contents                  → roll+contents (assistant open) → contents (assistant open)
+  open check                     → roll+check (assistant open) → check
+  open versions                  → roll+versions (assistant open) → versions {beforeSources=roll}
+  open settings                  → roll+settings (assistant open)
+  open reference                 → roll+reference (assistant open)
+  fromMore check                 → roll+check {fromMore} (assistant open) → check {fromMore}
+  fromMore versions              → roll+versions {fromMore} (assistant open) → versions {fromMore, beforeSources=roll}
+  fromMore settings              → roll+settings {fromMore} (assistant open)
+  expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+  enterFocus notes               → roll [Expand] (assistant open)
+  enterFocus (focusRoll kept on) → roll [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+  assistant close                → roll
+
+### Expand: enterFocus notes
+  = nothing [Expand]
+  open check                     → check [Expand]
+  leaveFocus                     → nothing
+  focusRoll on                   → nothing [Expand roll]
+  openDraftFromFocus             → versions → versions {beforeSources=nothing}
+  assistant open                 → nothing [Expand] (assistant open)
+
+### Expand from the drawer: open roll, expandFromDrawer
+  = nothing {rollBeforeFocus} [Expand roll]
+  open check                     → check {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → nothing {rollBeforeFocus} → roll
+  focusRoll off                  → nothing {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+
+### Expand from the drawer, as notes: open roll, expandFromDrawer, focusRoll off
+  = nothing {rollBeforeFocus} [Expand]
+  open check                     → check {rollBeforeFocus} [Expand]
+  leaveFocus                     → nothing {rollBeforeFocus} → roll
+  focusRoll on                   → nothing {rollBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → nothing {rollBeforeFocus} [Expand] (assistant open)
+
+### contents, Expand: open contents, enterFocus notes
+  = nothing {contentsBeforeFocus} [Expand]
+  open check                     → check {contentsBeforeFocus} [Expand]
+  leaveFocus                     → nothing {contentsBeforeFocus} → contents
+  focusRoll on                   → nothing {contentsBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {contentsBeforeFocus} → versions {beforeSources=contents}
+  assistant open                 → nothing {contentsBeforeFocus} [Expand] (assistant open)
+
+### contents, Expand, as a roll: open contents, enterFocus notes, focusRoll on
+  = nothing {contentsBeforeFocus} [Expand roll]
+  open check                     → check {contentsBeforeFocus} [Expand roll]
+  leaveFocus                     → nothing {contentsBeforeFocus} → contents
+  focusRoll off                  → nothing {contentsBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {contentsBeforeFocus} → versions {beforeSources=contents}
+  assistant open                 → nothing {contentsBeforeFocus} [Expand roll] (assistant open)
+
+### contents, a bookmark to Expand: open contents, bookmark to Expand
+  = nothing [Expand]
+  open check                     → check [Expand]
+  # A question for Andrei, kept as it is: the drawer closed itself first, so Back to page does not bring the Contents back.
+  leaveFocus                     → nothing
+  focusRoll on                   → nothing [Expand roll]
+  openDraftFromFocus             → versions → versions {beforeSources=nothing}
+  assistant open                 → nothing [Expand] (assistant open)
+
+### insights, Expand: open insights, enterFocus notes
+  = insights [Expand]
+  close insights                 → nothing [Expand]
+  open check                     → insights+check [Expand] → check [Expand]
+  leaveFocus                     → insights
+  focusRoll on                   → insights [Expand roll]
+  openDraftFromFocus             → insights+versions → versions {beforeSources=insights}
+  assistant open                 → insights [Expand] (assistant open) → nothing [Expand] (assistant open)
+
+### check, Expand: open check, enterFocus notes
+  = nothing [Expand]
+  open check                     → check [Expand]
+  leaveFocus                     → nothing
+  focusRoll on                   → nothing [Expand roll]
+  openDraftFromFocus             → versions → versions {beforeSources=nothing}
+  assistant open                 → nothing [Expand] (assistant open)
+
+### versions, Expand: open versions, enterFocus notes
+  = nothing [Expand]
+  open check                     → check [Expand]
+  leaveFocus                     → nothing
+  focusRoll on                   → nothing [Expand roll]
+  openDraftFromFocus             → versions → versions {beforeSources=nothing}
+  assistant open                 → nothing [Expand] (assistant open)
+
+### settings, Expand: open settings, enterFocus notes
+  = settings [Expand]
+  open check                     → check+settings [Expand]
+  close settings                 → nothing [Expand]
+  leaveFocus                     → settings
+  focusRoll on                   → settings [Expand roll]
+  openDraftFromFocus             → versions+settings → versions+settings {beforeSources=nothing}
+  assistant open                 → settings [Expand] (assistant open)
+
+### roll, Expand as notes: open roll, enterFocus notes
+  = roll [Expand]
+  close roll                     → nothing [Expand]
+  open check                     → roll+check [Expand] → check [Expand]
+  expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → roll
+  focusRoll on                   → roll [Expand roll] → nothing {rollBeforeFocus} [Expand roll]
+  openDraftFromFocus             → roll+versions → versions {beforeSources=roll}
+  assistant open                 → roll [Expand] (assistant open)
+
+### roll, Expand as a roll: open roll, enterFocus (focusRoll kept on)
+  = nothing {rollBeforeFocus} [Expand roll]
+  open check                     → check {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → nothing {rollBeforeFocus} → roll
+  focusRoll off                  → nothing {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+
+### Expand from the drawer, check: open roll, expandFromDrawer, open check
+  = check {rollBeforeFocus} [Expand roll]
+  open check                     → check {rollBeforeFocus} [Expand roll]
+  close check                    → nothing {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
+  focusRoll off                  → check {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → check {rollBeforeFocus} [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+
+### Expand from the drawer, check from More before it: fromMore check, open roll, expandFromDrawer, open check
+  = check {rollBeforeFocus} [Expand roll]
+  open check                     → check {rollBeforeFocus} [Expand roll]
+  close check                    → nothing {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
+  focusRoll off                  → check {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → check {rollBeforeFocus} [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+
+### contents, Expand, check: open contents, enterFocus notes, open check
+  = check {contentsBeforeFocus} [Expand]
+  open check                     → check {contentsBeforeFocus} [Expand]
+  close check                    → nothing {contentsBeforeFocus} [Expand]
+  leaveFocus                     → check {contentsBeforeFocus} → contents+check → contents
+  focusRoll on                   → check {contentsBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions {contentsBeforeFocus} → versions {beforeSources=contents}
+  assistant open                 → check {contentsBeforeFocus} [Expand] (assistant open) → nothing {contentsBeforeFocus} [Expand] (assistant open)
+
+### roll, Expand as notes, check: open roll, enterFocus notes, open check
+  = check [Expand]
+  open check                     → check [Expand]
+  close check                    → nothing [Expand]
+  leaveFocus                     → check
+  focusRoll on                   → check [Expand roll]
+  openDraftFromFocus             → check+versions → versions {beforeSources=nothing}
+  assistant open                 → check [Expand] (assistant open) → nothing [Expand] (assistant open)
+
+### nothing (no Sources): a fresh screen
+  = nothing
+  open more                      → more
+  open roll                      → roll
+  open insights                  → insights
+  open contents                  → contents
+  open check                     → check
+  open versions                  → versions
+  open settings                  → settings
+  open reference                 → reference
+  fromMore check                 → check {fromMore}
+  fromMore versions              → versions {fromMore}
+  fromMore settings              → settings {fromMore}
+  enterFocus notes               → nothing [Expand]
+  enterFocus (focusRoll kept on) → nothing [Expand roll]
+  assistant open                 → nothing (assistant open)
+
+### roll (no Sources): open roll
+  = roll
+  open more                      → roll+more
+  open roll                      → roll
+  close roll                     → nothing
+  open insights                  → roll+insights → insights
+  open contents                  → roll+contents → contents
+  open check                     → roll+check → check
+  open versions                  → roll+versions → versions
+  open settings                  → roll+settings
+  open reference                 → roll+reference
+  fromMore check                 → roll+check {fromMore} → check {fromMore}
+  fromMore versions              → roll+versions {fromMore} → versions {fromMore}
+  fromMore settings              → roll+settings {fromMore}
+  expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll]
+  enterFocus notes               → roll [Expand]
+  enterFocus (focusRoll kept on) → roll [Expand roll] → nothing {rollBeforeFocus} [Expand roll]
+  assistant open                 → roll (assistant open)
+
+### versions (no Sources): open roll, open versions
+  = versions
+  open more                      → versions+more
+  open roll                      → roll+versions → roll
+  open insights                  → insights+versions → insights
+  open contents                  → contents+versions → contents
+  open check                     → check+versions → check
+  open versions                  → versions
+  close versions                 → nothing
+  open settings                  → versions+settings
+  open reference                 → versions+reference
+  fromMore check                 → check+versions {fromMore=check} → check {fromMore}
+  fromMore versions              → versions {fromMore}
+  fromMore settings              → versions+settings {fromMore=settings}
+  enterFocus notes               → versions [Expand] → nothing [Expand]
+  enterFocus (focusRoll kept on) → versions [Expand roll] → nothing [Expand roll]
+  assistant open                 → versions (assistant open) → nothing (assistant open)
+
+### Expand from the drawer (no Sources): open roll, expandFromDrawer
+  = nothing {rollBeforeFocus} [Expand roll]
+  open check                     → check {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → nothing {rollBeforeFocus} → roll
+  focusRoll off                  → nothing {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → versions {rollBeforeFocus} → versions
+  assistant open                 → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+
+# Further start states, so that the table has every kind of change the reachable states have: which of the rules'
+# reactions fire, and how often, for which action.
+
+### contents (assistant open): open contents, enterFocus (focusRoll kept on), leaveFocus, assistant open
+  = contents (assistant open)
+  open more                      → contents+more (assistant open)
+  open roll                      → roll+contents (assistant open) → roll (assistant open)
+  open insights                  → insights+contents (assistant open) → insights
+  open contents                  → contents (assistant open)
+  close contents                 → nothing (assistant open)
+  open check                     → contents+check (assistant open) → check
+  open versions                  → contents+versions (assistant open) → versions {beforeSources=contents}
+  open settings                  → contents+settings (assistant open)
+  open reference                 → contents+reference (assistant open)
+  fromMore check                 → contents+check {fromMore} (assistant open) → check {fromMore}
+  fromMore versions              → contents+versions {fromMore} (assistant open) → versions {fromMore, beforeSources=contents}
+  fromMore settings              → contents+settings {fromMore} (assistant open)
+  bookmark to Expand             → nothing [Expand roll] (assistant open)
+  assistant close                → contents
+
+### roll+settings: open roll, open settings
+  = roll+settings
+  open more                      → roll+settings+more
+  open roll                      → roll+settings
+  close roll                     → settings
+  open insights                  → roll+insights+settings → insights+settings
+  open contents                  → roll+contents+settings → contents+settings
+  open check                     → roll+check+settings → check+settings
+  open versions                  → roll+versions+settings → versions+settings {beforeSources=roll}
+  open settings                  → roll+settings
+  close settings                 → roll
+  open reference                 → roll+settings+reference
+  fromMore check                 → roll+check+settings {fromMore=check} → check+settings {fromMore=check}
+  fromMore versions              → roll+versions+settings {fromMore=versions} → versions+settings {fromMore=versions, beforeSources=roll}
+  fromMore settings              → roll+settings {fromMore}
+  expandFromDrawer               → settings {rollBeforeFocus} [Expand roll]
+  enterFocus notes               → roll+settings [Expand]
+  enterFocus (focusRoll kept on) → roll+settings [Expand roll] → settings {rollBeforeFocus} [Expand roll]
+  assistant open                 → roll+settings (assistant open)
+
+### insights+settings: open insights, open settings
+  = insights+settings
+  open more                      → insights+settings+more
+  open roll                      → roll+insights+settings → roll+settings
+  open insights                  → insights+settings
+  close insights                 → settings
+  open contents                  → insights+contents+settings → contents+settings
+  open check                     → insights+check+settings → check+settings
+  open versions                  → insights+versions+settings → versions+settings {beforeSources=insights}
+  open settings                  → insights+settings
+  close settings                 → insights
+  open reference                 → insights+settings+reference
+  fromMore check                 → insights+check+settings {fromMore=check} → check+settings {fromMore=check}
+  fromMore versions              → insights+versions+settings {fromMore=versions} → versions+settings {fromMore=versions, beforeSources=insights}
+  fromMore settings              → insights+settings {fromMore}
+  enterFocus notes               → insights+settings [Expand]
+  enterFocus (focusRoll kept on) → insights+settings [Expand roll]
+  assistant open                 → insights+settings (assistant open) → settings (assistant open)
+
+### contents+settings: open contents, open settings
+  = contents+settings
+  open more                      → contents+settings+more
+  open roll                      → roll+contents+settings → roll+settings
+  open insights                  → insights+contents+settings → insights+settings
+  open contents                  → contents+settings
+  close contents                 → settings
+  open check                     → contents+check+settings → check+settings
+  open versions                  → contents+versions+settings → versions+settings {beforeSources=contents}
+  open settings                  → contents+settings
+  close settings                 → contents
+  open reference                 → contents+settings+reference
+  fromMore check                 → contents+check+settings {fromMore=check} → check+settings {fromMore=check}
+  fromMore versions              → contents+versions+settings {fromMore=versions} → versions+settings {fromMore=versions, beforeSources=contents}
+  fromMore settings              → contents+settings {fromMore}
+  enterFocus notes               → contents+settings [Expand] → settings {contentsBeforeFocus} [Expand]
+  enterFocus (focusRoll kept on) → contents+settings [Expand roll] → settings {contentsBeforeFocus} [Expand roll]
+  bookmark to Expand             → settings [Expand]
+  assistant open                 → contents+settings (assistant open)
+
+### settings (assistant open): open settings, assistant open
+  = settings (assistant open)
+  open more                      → settings+more (assistant open)
+  open roll                      → roll+settings (assistant open)
+  open insights                  → insights+settings (assistant open) → insights+settings
+  open contents                  → contents+settings (assistant open)
+  open check                     → check+settings (assistant open) → check+settings
+  open versions                  → versions+settings (assistant open) → versions+settings {beforeSources=nothing}
+  open settings                  → settings (assistant open)
+  close settings                 → nothing (assistant open)
+  open reference                 → settings+reference (assistant open)
+  fromMore check                 → check+settings {fromMore=check} (assistant open) → check+settings {fromMore=check}
+  fromMore versions              → versions+settings {fromMore=versions} (assistant open) → versions+settings {fromMore=versions, beforeSources=nothing}
+  fromMore settings              → settings {fromMore} (assistant open)
+  enterFocus notes               → settings [Expand] (assistant open)
+  enterFocus (focusRoll kept on) → settings [Expand roll] (assistant open)
+  assistant close                → settings
+
+### roll+settings (assistant open): open roll, open settings, assistant open
+  = roll+settings (assistant open)
+  open more                      → roll+settings+more (assistant open)
+  open roll                      → roll+settings (assistant open)
+  close roll                     → settings (assistant open)
+  open insights                  → roll+insights+settings (assistant open) → insights+settings
+  open contents                  → roll+contents+settings (assistant open) → contents+settings (assistant open)
+  open check                     → roll+check+settings (assistant open) → check+settings
+  open versions                  → roll+versions+settings (assistant open) → versions+settings {beforeSources=roll}
+  open settings                  → roll+settings (assistant open)
+  close settings                 → roll (assistant open)
+  open reference                 → roll+settings+reference (assistant open)
+  fromMore check                 → roll+check+settings {fromMore=check} (assistant open) → check+settings {fromMore=check}
+  fromMore versions              → roll+versions+settings {fromMore=versions} (assistant open) → versions+settings {fromMore=versions, beforeSources=roll}
+  fromMore settings              → roll+settings {fromMore} (assistant open)
+  expandFromDrawer               → settings {rollBeforeFocus} [Expand roll] (assistant open)
+  enterFocus notes               → roll+settings [Expand] (assistant open)
+  enterFocus (focusRoll kept on) → roll+settings [Expand roll] (assistant open) → settings {rollBeforeFocus} [Expand roll] (assistant open)
+  assistant close                → roll+settings
+
+### contents+settings (assistant open): open contents, open settings, assistant open
+  = contents+settings (assistant open)
+  open more                      → contents+settings+more (assistant open)
+  open roll                      → roll+contents+settings (assistant open) → roll+settings (assistant open)
+  open insights                  → insights+contents+settings (assistant open) → insights+settings
+  open contents                  → contents+settings (assistant open)
+  close contents                 → settings (assistant open)
+  open check                     → contents+check+settings (assistant open) → check+settings
+  open versions                  → contents+versions+settings (assistant open) → versions+settings {beforeSources=contents}
+  open settings                  → contents+settings (assistant open)
+  close settings                 → contents (assistant open)
+  open reference                 → contents+settings+reference (assistant open)
+  fromMore check                 → contents+check+settings {fromMore=check} (assistant open) → check+settings {fromMore=check}
+  fromMore versions              → contents+versions+settings {fromMore=versions} (assistant open) → versions+settings {fromMore=versions, beforeSources=contents}
+  fromMore settings              → contents+settings {fromMore} (assistant open)
+  enterFocus notes               → contents+settings [Expand] (assistant open) → settings {contentsBeforeFocus} [Expand] (assistant open)
+  enterFocus (focusRoll kept on) → contents+settings [Expand roll] (assistant open) → settings {contentsBeforeFocus} [Expand roll] (assistant open)
+  bookmark to Expand             → settings [Expand] (assistant open)
+  assistant close                → contents+settings
+
+### versions+settings {fromMore=settings, beforeSources=nothing}: open versions, fromMore settings
+  = versions+settings {fromMore=settings, beforeSources=nothing}
+  open more                      → versions+settings+more {fromMore=settings, beforeSources=nothing}
+  open roll                      → roll+versions+settings {fromMore=settings, beforeSources=nothing} → roll+settings {fromMore, beforeSources=nothing} → roll+settings {fromMore}
+  open insights                  → insights+versions+settings {fromMore=settings, beforeSources=nothing} → insights+settings {fromMore, beforeSources=nothing} → insights+settings {fromMore}
+  open contents                  → contents+versions+settings {fromMore=settings, beforeSources=nothing} → contents+settings {fromMore, beforeSources=nothing} → contents+settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions+settings {fromMore=settings, beforeSources=nothing} → check+settings {fromMore=settings, beforeSources=nothing} → check+settings {fromMore=settings}
+  open versions                  → versions+settings {fromMore=settings, beforeSources=nothing}
+  close versions                 → settings {fromMore, beforeSources=nothing} → settings {fromMore}
+  open settings                  → versions+settings {fromMore=settings, beforeSources=nothing}
+  close settings                 → versions {fromMore=settings, beforeSources=nothing}
+  open reference                 → versions+settings+reference {fromMore=settings, beforeSources=nothing}
+  fromMore check                 → check+versions+settings {fromMore=check+settings, beforeSources=nothing} → check+settings {fromMore, beforeSources=nothing} → check+settings {fromMore}
+  fromMore versions              → versions+settings {fromMore, beforeSources=nothing}
+  backToMore versions            → settings {beforeSources=nothing} → settings
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=nothing}
+  backToMore settings            → versions {beforeSources=nothing}
+  backToMore dna                 → versions+settings {beforeSources=nothing}
+  enterFocus notes               → versions+settings {fromMore=settings, beforeSources=nothing} [Expand] → settings {fromMore, beforeSources=nothing} [Expand] → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {fromMore=settings, beforeSources=nothing} [Expand roll] → settings {fromMore, beforeSources=nothing} [Expand roll] → settings {fromMore} [Expand roll]
+  assistant open                 → versions+settings {fromMore=settings, beforeSources=nothing} (assistant open) → settings {fromMore, beforeSources=nothing} (assistant open) → settings {fromMore} (assistant open)
+
+### insights+settings [Expand roll]: open insights, open settings, enterFocus (focusRoll kept on)
+  = insights+settings [Expand roll]
+  close insights                 → settings [Expand roll]
+  open check                     → insights+check+settings [Expand roll] → check+settings [Expand roll]
+  close settings                 → insights [Expand roll]
+  leaveFocus                     → insights+settings
+  focusRoll off                  → insights+settings [Expand]
+  openDraftFromFocus             → insights+versions+settings → versions+settings {beforeSources=insights}
+  assistant open                 → insights+settings [Expand roll] (assistant open) → settings [Expand roll] (assistant open)
+
+### settings [Expand roll]: open settings, enterFocus (focusRoll kept on)
+  = settings [Expand roll]
+  open check                     → check+settings [Expand roll]
+  close settings                 → nothing [Expand roll]
+  leaveFocus                     → settings
+  focusRoll off                  → settings [Expand]
+  openDraftFromFocus             → versions+settings → versions+settings {beforeSources=nothing}
+  assistant open                 → settings [Expand roll] (assistant open)
+
+### roll+settings [Expand]: open roll, open settings, enterFocus notes
+  = roll+settings [Expand]
+  close roll                     → settings [Expand]
+  open check                     → roll+check+settings [Expand] → check+settings [Expand]
+  close settings                 → roll [Expand]
+  expandFromDrawer               → settings {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → roll+settings
+  focusRoll on                   → roll+settings [Expand roll] → settings {rollBeforeFocus} [Expand roll]
+  openDraftFromFocus             → roll+versions+settings → versions+settings {beforeSources=roll}
+  assistant open                 → roll+settings [Expand] (assistant open)
+
+### roll [Expand] (assistant open): open roll, enterFocus notes, assistant open
+  = roll [Expand] (assistant open)
+  close roll                     → nothing [Expand] (assistant open)
+  open check                     → roll+check [Expand] (assistant open) → check [Expand]
+  expandFromDrawer               → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+  leaveFocus                     → roll (assistant open)
+  focusRoll on                   → roll [Expand roll] (assistant open) → nothing {rollBeforeFocus} [Expand roll] (assistant open)
+  openDraftFromFocus             → roll+versions (assistant open) → versions {beforeSources=roll}
+  assistant close                → roll [Expand]
+
+### roll+settings [Expand] (assistant open): open roll, open settings, enterFocus notes, assistant open
+  = roll+settings [Expand] (assistant open)
+  close roll                     → settings [Expand] (assistant open)
+  open check                     → roll+check+settings [Expand] (assistant open) → check+settings [Expand]
+  close settings                 → roll [Expand] (assistant open)
+  expandFromDrawer               → settings {rollBeforeFocus} [Expand roll] (assistant open)
+  leaveFocus                     → roll+settings (assistant open)
+  focusRoll on                   → roll+settings [Expand roll] (assistant open) → settings {rollBeforeFocus} [Expand roll] (assistant open)
+  openDraftFromFocus             → roll+versions+settings (assistant open) → versions+settings {beforeSources=roll}
+  assistant close                → roll+settings [Expand]
+
+### insights [Expand roll]: open insights, enterFocus (focusRoll kept on)
+  = insights [Expand roll]
+  close insights                 → nothing [Expand roll]
+  open check                     → insights+check [Expand roll] → check [Expand roll]
+  leaveFocus                     → insights
+  focusRoll off                  → insights [Expand]
+  openDraftFromFocus             → insights+versions → versions {beforeSources=insights}
+  assistant open                 → insights [Expand roll] (assistant open) → nothing [Expand roll] (assistant open)
+
+### nothing [Expand] (assistant open): enterFocus notes, assistant open
+  = nothing [Expand] (assistant open)
+  open check                     → check [Expand] (assistant open) → check [Expand]
+  leaveFocus                     → nothing (assistant open)
+  focusRoll on                   → nothing [Expand roll] (assistant open)
+  openDraftFromFocus             → versions (assistant open) → versions {beforeSources=nothing}
+  assistant close                → nothing [Expand]
+
+### nothing [Expand roll] (assistant open): enterFocus (focusRoll kept on), assistant open
+  = nothing [Expand roll] (assistant open)
+  open check                     → check [Expand roll] (assistant open) → check [Expand roll]
+  leaveFocus                     → nothing (assistant open)
+  focusRoll off                  → nothing [Expand] (assistant open)
+  openDraftFromFocus             → versions (assistant open) → versions {beforeSources=nothing}
+  assistant close                → nothing [Expand roll]
+
+### versions+settings {fromMore=settings, beforeSources=roll}: open roll, open versions, fromMore settings
+  = versions+settings {fromMore=settings, beforeSources=roll}
+  open more                      → versions+settings+more {fromMore=settings, beforeSources=roll}
+  open roll                      → roll+versions+settings {fromMore=settings, beforeSources=roll} → roll+settings {fromMore, beforeSources=roll} → roll+settings {fromMore}
+  open insights                  → insights+versions+settings {fromMore=settings, beforeSources=roll} → insights+settings {fromMore, beforeSources=roll} → insights+settings {fromMore}
+  open contents                  → contents+versions+settings {fromMore=settings, beforeSources=roll} → contents+settings {fromMore, beforeSources=roll} → contents+settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions+settings {fromMore=settings, beforeSources=roll} → check+settings {fromMore=settings, beforeSources=roll} → check+settings {fromMore=settings}
+  open versions                  → versions+settings {fromMore=settings, beforeSources=roll}
+  close versions                 → settings {fromMore, beforeSources=roll} → roll+settings {fromMore}
+  open settings                  → versions+settings {fromMore=settings, beforeSources=roll}
+  close settings                 → versions {fromMore=settings, beforeSources=roll}
+  open reference                 → versions+settings+reference {fromMore=settings, beforeSources=roll}
+  fromMore check                 → check+versions+settings {fromMore=check+settings, beforeSources=roll} → check+settings {fromMore, beforeSources=roll} → check+settings {fromMore}
+  fromMore versions              → versions+settings {fromMore, beforeSources=roll}
+  backToMore versions            → settings {beforeSources=roll} → roll+settings
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=roll}
+  backToMore settings            → versions {beforeSources=roll}
+  backToMore dna                 → versions+settings {beforeSources=roll}
+  enterFocus notes               → versions+settings {fromMore=settings, beforeSources=roll} [Expand] → settings {fromMore, beforeSources=roll} [Expand] → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {fromMore=settings, beforeSources=roll} [Expand roll] → settings {fromMore, beforeSources=roll} [Expand roll] → settings {fromMore} [Expand roll]
+  assistant open                 → versions+settings {fromMore=settings, beforeSources=roll} (assistant open) → settings {fromMore, beforeSources=roll} (assistant open) → roll+settings {fromMore} (assistant open)
+
+### versions+settings {fromMore=settings, beforeSources=insights}: open insights, open versions, fromMore settings
+  = versions+settings {fromMore=settings, beforeSources=insights}
+  open more                      → versions+settings+more {fromMore=settings, beforeSources=insights}
+  open roll                      → roll+versions+settings {fromMore=settings, beforeSources=insights} → roll+settings {fromMore, beforeSources=insights} → roll+settings {fromMore}
+  open insights                  → insights+versions+settings {fromMore=settings, beforeSources=insights} → insights+settings {fromMore, beforeSources=insights} → insights+settings {fromMore}
+  open contents                  → contents+versions+settings {fromMore=settings, beforeSources=insights} → contents+settings {fromMore, beforeSources=insights} → contents+settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions+settings {fromMore=settings, beforeSources=insights} → check+settings {fromMore=settings, beforeSources=insights} → check+settings {fromMore=settings}
+  open versions                  → versions+settings {fromMore=settings, beforeSources=insights}
+  close versions                 → settings {fromMore, beforeSources=insights} → insights+settings {fromMore}
+  open settings                  → versions+settings {fromMore=settings, beforeSources=insights}
+  close settings                 → versions {fromMore=settings, beforeSources=insights}
+  open reference                 → versions+settings+reference {fromMore=settings, beforeSources=insights}
+  fromMore check                 → check+versions+settings {fromMore=check+settings, beforeSources=insights} → check+settings {fromMore, beforeSources=insights} → check+settings {fromMore}
+  fromMore versions              → versions+settings {fromMore, beforeSources=insights}
+  backToMore versions            → settings {beforeSources=insights} → insights+settings
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=insights}
+  backToMore settings            → versions {beforeSources=insights}
+  backToMore dna                 → versions+settings {beforeSources=insights}
+  enterFocus notes               → versions+settings {fromMore=settings, beforeSources=insights} [Expand] → settings {fromMore, beforeSources=insights} [Expand] → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {fromMore=settings, beforeSources=insights} [Expand roll] → settings {fromMore, beforeSources=insights} [Expand roll] → settings {fromMore} [Expand roll]
+  # Andrei's answer 9 (2026-11-17): the assistant's panel stays and Sources closes; Insights does not come back.
+  assistant open                 → versions+settings {fromMore=settings, beforeSources=insights} (assistant open) → settings {fromMore, beforeSources=nothing} (assistant open) → settings {fromMore} (assistant open)
+
+### insights+settings [Expand]: open insights, open settings, enterFocus notes
+  = insights+settings [Expand]
+  close insights                 → settings [Expand]
+  open check                     → insights+check+settings [Expand] → check+settings [Expand]
+  close settings                 → insights [Expand]
+  leaveFocus                     → insights+settings
+  focusRoll on                   → insights+settings [Expand roll]
+  openDraftFromFocus             → insights+versions+settings → versions+settings {beforeSources=insights}
+  assistant open                 → insights+settings [Expand] (assistant open) → settings [Expand] (assistant open)
+
+### versions+settings {fromMore=settings, beforeSources=contents}: open contents, open versions, fromMore settings
+  = versions+settings {fromMore=settings, beforeSources=contents}
+  open more                      → versions+settings+more {fromMore=settings, beforeSources=contents}
+  open roll                      → roll+versions+settings {fromMore=settings, beforeSources=contents} → roll+settings {fromMore, beforeSources=contents} → roll+settings {fromMore}
+  open insights                  → insights+versions+settings {fromMore=settings, beforeSources=contents} → insights+settings {fromMore, beforeSources=contents} → insights+settings {fromMore}
+  open contents                  → contents+versions+settings {fromMore=settings, beforeSources=contents} → contents+settings {fromMore, beforeSources=contents} → contents+settings {fromMore}
+  # Andrei's answer 10 (2026-11-17): "‹ More" only on the place opened from More.
+  open check                     → check+versions+settings {fromMore=settings, beforeSources=contents} → check+settings {fromMore=settings, beforeSources=contents} → check+settings {fromMore=settings}
+  open versions                  → versions+settings {fromMore=settings, beforeSources=contents}
+  close versions                 → settings {fromMore, beforeSources=contents} → contents+settings {fromMore}
+  open settings                  → versions+settings {fromMore=settings, beforeSources=contents}
+  close settings                 → versions {fromMore=settings, beforeSources=contents}
+  open reference                 → versions+settings+reference {fromMore=settings, beforeSources=contents}
+  fromMore check                 → check+versions+settings {fromMore=check+settings, beforeSources=contents} → check+settings {fromMore, beforeSources=contents} → check+settings {fromMore}
+  fromMore versions              → versions+settings {fromMore, beforeSources=contents}
+  backToMore versions            → settings {beforeSources=contents} → contents+settings
+  fromMore settings              → versions+settings {fromMore=settings, beforeSources=contents}
+  backToMore settings            → versions {beforeSources=contents}
+  backToMore dna                 → versions+settings {beforeSources=contents}
+  enterFocus notes               → versions+settings {fromMore=settings, beforeSources=contents} [Expand] → settings {fromMore, beforeSources=contents} [Expand] → settings {fromMore} [Expand]
+  enterFocus (focusRoll kept on) → versions+settings {fromMore=settings, beforeSources=contents} [Expand roll] → settings {fromMore, beforeSources=contents} [Expand roll] → settings {fromMore} [Expand roll]
+  assistant open                 → versions+settings {fromMore=settings, beforeSources=contents} (assistant open) → settings {fromMore, beforeSources=contents} (assistant open) → contents+settings {fromMore} (assistant open)
+
+### check {contentsBeforeFocus} [Expand roll]: open contents, enterFocus (focusRoll kept on), open check
+  = check {contentsBeforeFocus} [Expand roll]
+  open check                     → check {contentsBeforeFocus} [Expand roll]
+  close check                    → nothing {contentsBeforeFocus} [Expand roll]
+  leaveFocus                     → check {contentsBeforeFocus} → contents+check → contents
+  focusRoll off                  → check {contentsBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions {contentsBeforeFocus} → versions {beforeSources=contents}
+  assistant open                 → check {contentsBeforeFocus} [Expand roll] (assistant open) → nothing {contentsBeforeFocus} [Expand roll] (assistant open)
+
+### settings [Expand] (assistant open): open settings, enterFocus notes, assistant open
+  = settings [Expand] (assistant open)
+  open check                     → check+settings [Expand] (assistant open) → check+settings [Expand]
+  close settings                 → nothing [Expand] (assistant open)
+  leaveFocus                     → settings (assistant open)
+  focusRoll on                   → settings [Expand roll] (assistant open)
+  openDraftFromFocus             → versions+settings (assistant open) → versions+settings {beforeSources=nothing}
+  assistant close                → settings [Expand]
+
+### settings [Expand roll] (assistant open): open settings, enterFocus (focusRoll kept on), assistant open
+  = settings [Expand roll] (assistant open)
+  open check                     → check+settings [Expand roll] (assistant open) → check+settings [Expand roll]
+  close settings                 → nothing [Expand roll] (assistant open)
+  leaveFocus                     → settings (assistant open)
+  focusRoll off                  → settings [Expand] (assistant open)
+  openDraftFromFocus             → versions+settings (assistant open) → versions+settings {beforeSources=nothing}
+  assistant close                → settings [Expand roll]
+
+### check+settings {rollBeforeFocus} [Expand roll]: open roll, open settings, expandFromDrawer, open check
+  = check+settings {rollBeforeFocus} [Expand roll]
+  open check                     → check+settings {rollBeforeFocus} [Expand roll]
+  close check                    → settings {rollBeforeFocus} [Expand roll]
+  close settings                 → check {rollBeforeFocus} [Expand roll]
+  leaveFocus                     → check+settings {rollBeforeFocus} → roll+check+settings → roll+settings
+  focusRoll off                  → check+settings {rollBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions+settings {rollBeforeFocus} → versions+settings {beforeSources=roll}
+  assistant open                 → check+settings {rollBeforeFocus} [Expand roll] (assistant open) → settings {rollBeforeFocus} [Expand roll] (assistant open)
+
+### check {rollBeforeFocus} [Expand]: open roll, expandFromDrawer, open check, focusRoll off
+  = check {rollBeforeFocus} [Expand]
+  open check                     → check {rollBeforeFocus} [Expand]
+  close check                    → nothing {rollBeforeFocus} [Expand]
+  leaveFocus                     → check {rollBeforeFocus} → roll+check → roll
+  focusRoll on                   → check {rollBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions {rollBeforeFocus} → versions {beforeSources=roll}
+  assistant open                 → check {rollBeforeFocus} [Expand] (assistant open) → nothing {rollBeforeFocus} [Expand] (assistant open)
+
+### check+settings {contentsBeforeFocus} [Expand]: open contents, open settings, enterFocus notes, open check
+  = check+settings {contentsBeforeFocus} [Expand]
+  open check                     → check+settings {contentsBeforeFocus} [Expand]
+  close check                    → settings {contentsBeforeFocus} [Expand]
+  close settings                 → check {contentsBeforeFocus} [Expand]
+  leaveFocus                     → check+settings {contentsBeforeFocus} → contents+check+settings → contents+settings
+  focusRoll on                   → check+settings {contentsBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions+settings {contentsBeforeFocus} → versions+settings {beforeSources=contents}
+  assistant open                 → check+settings {contentsBeforeFocus} [Expand] (assistant open) → settings {contentsBeforeFocus} [Expand] (assistant open)
+
+### check+settings {contentsBeforeFocus} [Expand roll]: open contents, open settings, enterFocus (focusRoll kept on), open check
+  = check+settings {contentsBeforeFocus} [Expand roll]
+  open check                     → check+settings {contentsBeforeFocus} [Expand roll]
+  close check                    → settings {contentsBeforeFocus} [Expand roll]
+  close settings                 → check {contentsBeforeFocus} [Expand roll]
+  leaveFocus                     → check+settings {contentsBeforeFocus} → contents+check+settings → contents+settings
+  focusRoll off                  → check+settings {contentsBeforeFocus} [Expand]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions+settings {contentsBeforeFocus} → versions+settings {beforeSources=contents}
+  assistant open                 → check+settings {contentsBeforeFocus} [Expand roll] (assistant open) → settings {contentsBeforeFocus} [Expand roll] (assistant open)
+
+### check+settings {rollBeforeFocus} [Expand]: open roll, open settings, expandFromDrawer, open check, focusRoll off
+  = check+settings {rollBeforeFocus} [Expand]
+  open check                     → check+settings {rollBeforeFocus} [Expand]
+  close check                    → settings {rollBeforeFocus} [Expand]
+  close settings                 → check {rollBeforeFocus} [Expand]
+  leaveFocus                     → check+settings {rollBeforeFocus} → roll+check+settings → roll+settings
+  focusRoll on                   → check+settings {rollBeforeFocus} [Expand roll]
+  # A question for Andrei, kept as it is: it depended on the order SwiftUI ran two reactions of one render in; this is the declared order (in the other, Sources does not open).
+  openDraftFromFocus             → check+versions+settings {rollBeforeFocus} → versions+settings {beforeSources=roll}
+  assistant open                 → check+settings {rollBeforeFocus} [Expand] (assistant open) → settings {rollBeforeFocus} [Expand] (assistant open)

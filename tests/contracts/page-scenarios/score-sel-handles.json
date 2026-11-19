@@ -1,0 +1,264 @@
+{
+  "id": "score-sel-handles",
+  "protects": [
+    "SEL-04"
+  ],
+  "says": "The selection's handles are hollow circles at the middle of its start and end edges, the band's full height, also when it runs over two systems; each moves its own edge.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3840,
+        "end": 5760,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "bar 7, the last of the first system, to bar 9 on the second"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3840,
+          "end": 5760
+        },
+        "loop": false
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "band": [
+            {
+              "left": 815,
+              "top": 227,
+              "right": 924,
+              "bottom": 358
+            },
+            {
+              "left": 101,
+              "top": 461,
+              "right": 307,
+              "bottom": 607
+            }
+          ],
+          "edges": [
+            {
+              "edge": "start",
+              "x": 815,
+              "top": 227,
+              "bottom": 358,
+              "handle": {
+                "x": 815,
+                "y": 292
+              }
+            },
+            {
+              "edge": "end",
+              "x": 307,
+              "top": 461,
+              "bottom": 607,
+              "handle": {
+                "x": 307,
+                "y": 534
+              }
+            }
+          ]
+        },
+        "note": "the start edge at the left of the band's first run, its handle halfway down it; the end edge at the right of the last run, its handle halfway down that"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "edge": "end"
+        },
+        {
+          "edge": "end",
+          "dx": 60
+        }
+      ],
+      "note": "the end's handle moved right"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 3840,
+                "end": 6240,
+                "how": "edit"
+              }
+            }
+          ]
+        },
+        "note": "the end alone moved"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3840,
+        "end": 6240,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "the app selects what the page chose (music-core select) and draws it"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3840,
+          "end": 6240
+        },
+        "loop": false
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "band": [
+            {
+              "left": 815,
+              "top": 227,
+              "right": 924,
+              "bottom": 358
+            },
+            {
+              "left": 101,
+              "top": 461,
+              "right": 373,
+              "bottom": 607
+            }
+          ],
+          "edges": [
+            {
+              "edge": "start",
+              "x": 815,
+              "top": 227,
+              "bottom": 358,
+              "handle": {
+                "x": 815,
+                "y": 292
+              }
+            },
+            {
+              "edge": "end",
+              "x": 373,
+              "top": 461,
+              "bottom": 607,
+              "handle": {
+                "x": 373,
+                "y": 534
+              }
+            }
+          ]
+        },
+        "note": "the end's edge and handle went with the band, on the nearest sixteenth: the pen let go 60 px right of the end, and the end is drawn 66 px right (SEL-04, Andrei, 2026-11-17)"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "edge": "start"
+        },
+        {
+          "edge": "start",
+          "dx": -50
+        }
+      ],
+      "note": "the start's handle moved left"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "chosen",
+            "picked",
+            "cleared"
+          ],
+          "messages": [
+            {
+              "chosen": {
+                "start": 3600,
+                "end": 6240,
+                "how": "edit"
+              }
+            }
+          ]
+        },
+        "note": "the start alone moved"
+      }
+    }
+  ]
+}

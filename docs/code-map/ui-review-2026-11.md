@@ -3,7 +3,7 @@
 Scope: the iPad app's screens around PDF | Notes (`LibraryView`, `PdfScreen`, `ScoreScreen` and their controllers), their
 lifecycle, state and resources. Method: the code paths read end to end; music-core's calls of one switch timed in a loop
 on a project of 12 MB (a 6-page scanned PDF and Für Elise, `scratch/2026-11-15-v064-freeze/switchbench`); and a UI test
-that switches PDF ↔ Notes again and again in the iPad simulator (`MotiffLabScreens/SwitchUITests.swift`) with a
+that switches PDF ↔ Notes again and again in the iPad simulator (`tests/ipad/MotiffLabScreens/SwitchUITests.swift`) with a
 Debug-only probe in the app (`ScreensHook.swift`: the screen ready, the controllers alive, the score's renders,
 music-core's longest call, the app's memory). Numbers: see "Evidence".
 
@@ -48,14 +48,14 @@ music-core's longest call, the app's memory). Numbers: see "Evidence".
 | A piece left by Back is never closed in music-core | `LibraryView` (only `show()` closes the piece it replaces) | every piece opened from the library stays in the facade's memory, its PDF bytes included, until the app quits | close it once its screen's last save has run (needs the ordered queue above) |
 | The PDF's JSON parsed on the main thread | `PdfController.load` (`document` answer with the PDF as base64), `facadeObject` | ~10 MB JSON and base64 decode on the main thread at every switch to the PDF | parse in the core's task, hand back `Data` |
 | Three guards for one switch | `PdfScreen.handingOver`, `ScoreScreen.handingOver`, `LibraryView.opening` and the `piece?.id == current.id` check | each fixed one double open (#582 item 2); none says the whole order | one switch owner in the library: save, open, close, swap, as one function |
-| Sources read twice per screen in two models | `ScoreController.sources` (`SourcesInfo`, call `sources`) and `SourcesController.layers` (`sources.layers`) | two calls and two states for the same file | `SourcesInfo` from `sources.layers` once the experiment is permanent |
+| Sources read twice per screen in two models | `SourcesModel.info` (`SourcesInfo`, call `sources`) and `SourcesController.layers` (`sources.layers`) | two calls and two states for the same file | `SourcesInfo` from `sources.layers` once the experiment is permanent |
 | Views shown over the score closed 2 s after they go | `ScoreScreen.shownViewScreen` `onDisappear` | a time guess instead of an order | close after the screen's own last call, with the ordered queue |
-| A hover recogniser added to the window per score | `PencilPalette.watch` | moved, not added, as long as one controller lives; leaked controllers left theirs | none now that the screens are freed (item 5 above) |
+| A hover recogniser added to the window per score | `PencilPalette.watch` | each score's screen added its own and none took it off, freed or not: the window kept one more per visit | done: one per window, `WindowHover` (#681) |
 | The kept "Notes" view waits for the sound | `ScoreScreen.wire` awaits `player.load` before `returnToNotesView`, which lands the pages | the notes are drawn ~2.2 s after the press in the simulator and shown at ~5 s (Evidence) | restore the view and land, then give the player its place once the sound is in (track P owns the transport) |
 | Every screen makes its own web view and loads the score page again | `ScoreController.init` (score), `RollController` (roll) | a WebContent process and the page's scripts per switch: ~1.5 s of the notes' time in the simulator | keep the score's web view between the screens of one piece |
 | The kept view waits 10 s for the render, then gives up | `ScoreController.whenRendered` (100 × 0.1 s), `returnToNotesView` | when the web page is slow (once in 96 switches, Evidence) the pages show from the top, blank until drawn, and the kept place is lost | land on the render's own end (`rendered`), not after a time guess |
 | The piano's samples decoded again for every screen | `Player.load` → `Piano.load` per `Player` | the files read and decoded at every switch to the notes | decode once per app (owner of `Player`) |
-| `docs/code-map/ipad.md` over its 3 KB | — | — | split the map by area when it next grows |
+| `docs/code-map/ipad.md` over its 3 KB | — | — | done: one map per feature folder, `docs/code-map/ipad/` (#659) |
 
 ## Lifecycle and ownership: PDF | Notes now
 

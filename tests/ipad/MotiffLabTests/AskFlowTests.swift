@@ -1,0 +1,185 @@
+import CoreGraphics
+import XCTest
+
+@testable import MotiffLab
+
+/// The chat's interaction model on the iPad (#582 item 16, AskFlow in AskField.swift): open → focus → keyboard → type →
+/// hide the keyboard → go on using the chat, the same with the Pencil and with a finger, on every surface.
+final class AskFlowTests: XCTestCase {
+    func testTheWholeSequenceKeepsTheChatAndItsControls() {
+        var flow = AskFlow(surface: .popover)
+        flow.apply(.open)
+        XCTAssertTrue(flow.controlsShown)
+        XCTAssertFalse(flow.focused, "the field waits to be pressed: no keyboard comes up on its own")
+        XCTAssertFalse(flow.canSend)
+
+        // A press on the field (the Pencil's, Scribble declined, or a finger's) focuses it; the keyboard comes.
+        flow.apply(.focus)
+        flow.apply(.keyboard(true))
+        XCTAssertTrue(flow.focused)
+        XCTAssertTrue(flow.controlsShown, "the keyboard never takes the chat's controls")
+
+        flow.apply(.type("  Where does this return?  "))
+        XCTAssertTrue(flow.canSend)
+        XCTAssertEqual(flow.apply(.send), "Where does this return?")
+        XCTAssertEqual(flow.draft, "")
+        XCTAssertTrue(flow.focused, "after Send the field keeps the focus for the next question")
+
+        // The keyboard's hide key: the field lets go, the chat stays open with its controls.
+        flow.apply(.type("And the left hand?"))
+        flow.apply(.keyboard(false))
+        flow.apply(.blur)
+        XCTAssertTrue(flow.isOpen)
+        XCTAssertTrue(flow.controlsShown)
+        XCTAssertFalse(flow.focused)
+        XCTAssertEqual(flow.draft, "And the left hand?", "the text typed stays")
+
+        // And the chat goes on: pressed again, the field takes the focus and Send asks.
+        flow.apply(.focus)
+        XCTAssertEqual(flow.apply(.send), "And the left hand?")
+    }
+
+    func testTheKeyboardGoingAloneChangesNothingButItself() {
+        var flow = AskFlow(surface: .contextual)
+        flow.apply(.open)
+        flow.apply(.focus)
+        flow.apply(.keyboard(true))
+        flow.apply(.type("Remove the stray note"))
+        flow.apply(.keyboard(false))
+        XCTAssertTrue(flow.isOpen)
+        XCTAssertTrue(flow.focused, "a hardware keyboard's bar going leaves the field focused")
+        XCTAssertEqual(flow.draft, "Remove the stray note")
+    }
+
+    func testAPressOutsideWhileTypingOnlyPutsTheKeyboardAway() {
+        for surface in [AskFlow.Surface.popover, .contextual, .panel] {
+            var flow = AskFlow(surface: surface)
+            flow.apply(.open)
+            flow.apply(.focus)
+            flow.apply(.type("Why here?"))
+            XCTAssertFalse(flow.closesOnOutsidePress)
+            flow.apply(.pressOutside)
+            XCTAssertTrue(flow.isOpen, "\(surface): hiding the keyboard never closes the chat")
+            XCTAssertFalse(flow.focused)
+            XCTAssertEqual(flow.draft, "Why here?")
+        }
+    }
+
+    func testOnlyTheTemporaryChatsCloseFromOutsideOnceNothingIsTyped() {
+        var popover = AskFlow(surface: .popover)
+        popover.apply(.open)
+        XCTAssertTrue(popover.closesOnOutsidePress)
+        popover.apply(.pressOutside)
+        XCTAssertFalse(popover.isOpen)
+
+        var contextual = AskFlow(surface: .contextual)
+        contextual.apply(.open)
+        contextual.apply(.pressOutside)
+        XCTAssertFalse(contextual.isOpen)
+
+        var panel = AskFlow(surface: .panel)
+        panel.apply(.open)
+        XCTAssertFalse(panel.closesOnOutsidePress)
+        panel.apply(.pressOutside)
+        XCTAssertTrue(panel.isOpen, "the full assistant's panel closes only by its own button")
+    }
+
+    func testCloseForgetsTheDraftAndOpeningAgainWaitsForAPress() {
+        var flow = AskFlow(surface: .panel)
+        flow.apply(.open)
+        flow.apply(.focus)
+        flow.apply(.type("Half typed"))
+        flow.apply(.close)
+        XCTAssertEqual(flow, AskFlow(surface: .panel))
+        flow.apply(.open)
+        XCTAssertFalse(flow.focused)
+        XCTAssertEqual(flow.draft, "")
+    }
+
+    func testNothingIsSentEmptyOrWhileClosed() {
+        var flow = AskFlow(surface: .popover)
+        flow.apply(.type("ignored"))
+        flow.apply(.focus)
+        XCTAssertFalse(flow.focused, "a closed chat takes no focus")
+        XCTAssertNil(flow.apply(.send))
+        flow.apply(.open)
+        flow.apply(.type("   "))
+        XCTAssertNil(flow.apply(.send))
+    }
+
+    /// Andrei, 2026-11-18: the field starts at one line, a fingertip's height, grows with the question and stops at
+    /// `AskField.lines` lines, beyond which it scrolls inside.
+    @MainActor func testTheFieldGrowsWithTheQuestionUpToItsLines() {
+        let line: CGFloat = 20
+        let insets = AskField.inset * 2
+        let most = line * CGFloat(AskField.lines) + insets
+        XCTAssertEqual(AskField.height(fitted: 0, line: line), CGFloat.ds("h-touch"), "empty: one fingertip's line")
+        XCTAssertEqual(AskField.height(fitted: line + insets, line: line), max(CGFloat.ds("h-touch"), line + insets))
+        XCTAssertEqual(AskField.height(fitted: line * 3 + insets, line: line), line * 3 + insets, "three lines: three lines tall")
+        XCTAssertEqual(AskField.height(fitted: line * 12 + insets, line: line), most, "a long question scrolls inside")
+    }
+
+    /// Andrei, 2026-11-18 14:11 UTC: in the chat at the selection a new answer shows from its start, the player scrolling
+    /// down for the rest; end-following would put its last line in view and the question out of it.
+    func testTheChatAtTheSelectionShowsANewAnswerFromItsStart() {
+        var follow = ChatFollow()
+        XCTAssertEqual(follow.measured(rows: 600, end: 600, height: 200, newest: "a1", asked: false), .start("a1"))
+        XCTAssertFalse(follow.following, "the answer's end below: reading, not following")
+        // A card grows (a draft decided) with the scroll where it was, at the answer's start: no jump to the end.
+        XCTAssertEqual(follow.measured(rows: 640, end: 640, height: 200, newest: "a1", asked: false), .none, "a draft decided while reading")
+        var short = ChatFollow()
+        XCTAssertEqual(short.measured(rows: 150, end: 150, height: 200, newest: "a1", asked: false), .start("a1"))
+        XCTAssertTrue(short.following, "an answer that fits: its end is in view")
+    }
+
+    /// The review of #701: the view's height may arrive after the rows' first measure. A short answer measured first
+    /// counts as followed once the height comes, so a card growing under it keeps the end in view.
+    func testAShortAnswerMeasuredBeforeTheViewsHeightIsFollowed() {
+        var follow = ChatFollow()
+        XCTAssertEqual(follow.measured(rows: 150, end: 150, height: 0, newest: "a1", asked: false), .start("a1"))
+        XCTAssertFalse(follow.following, "no height yet")
+        follow.viewed(height: 200)
+        XCTAssertTrue(follow.following, "the answer fits the view")
+        XCTAssertEqual(follow.measured(rows: 190, end: 190, height: 200, newest: "a1", asked: false), .end, "a card grew under it")
+        var long = ChatFollow()
+        _ = long.measured(rows: 600, end: 600, height: 0, newest: "a1", asked: false)
+        long.viewed(height: 200)
+        XCTAssertFalse(long.following, "a long answer read from its start")
+    }
+
+    /// The panel, as the chat at the selection (Andrei, 2026-11-18 16:47 UTC, «да, как рекомендуешь»): a new answer shows
+    /// from its start; the player's own question always comes into view; other growth at the end is followed while the
+    /// player is at the end, and once they have scrolled up nothing pulls them back (the review of #696).
+    func testThePanelShowsANewAnswerFromItsStartAndNeverYanksAScrolledUpPlayer() {
+        var follow = ChatFollow()
+        XCTAssertEqual(follow.measured(rows: 150, end: 150, height: 200, newest: nil, asked: false), .end)
+        XCTAssertEqual(follow.measured(rows: 300, end: 300, height: 200, newest: "pending", asked: true), .end, "the question asked")
+        XCTAssertEqual(follow.measured(rows: 300, end: 200, height: 200, newest: "pending", asked: true), .none, "scrolled to the end")
+        XCTAssertEqual(follow.measured(rows: 500, end: 400, height: 200, newest: "a1", asked: false), .start("a1"), "the answer from its start")
+        XCTAssertFalse(follow.following, "its end below: reading")
+        XCTAssertEqual(follow.measured(rows: 500, end: 200, height: 200, newest: "a1", asked: false), .none, "read down to the end")
+        XCTAssertTrue(follow.following)
+        // The review's case: at the end, the content changes at the same height (a draft accepted), then the player
+        // scrolls up: nothing pulls them back.
+        XCTAssertEqual(follow.measured(rows: 500, end: 200, height: 200, newest: "a1", asked: false), .none)
+        XCTAssertEqual(follow.measured(rows: 500, end: 450, height: 200, newest: "a1", asked: false), .none, "the player scrolled up")
+        XCTAssertFalse(follow.following)
+        XCTAssertEqual(follow.measured(rows: 560, end: 510, height: 200, newest: "a1", asked: false), .none, "grown while scrolled up")
+        XCTAssertEqual(follow.measured(rows: 800, end: 750, height: 200, newest: "a2", asked: false), .none, "a new answer while scrolled up")
+        XCTAssertEqual(follow.measured(rows: 800, end: 200, height: 200, newest: "a2", asked: false), .none, "back at the end")
+        XCTAssertTrue(follow.following)
+        XCTAssertEqual(follow.measured(rows: 900, end: 300, height: 200, newest: "a2", asked: false), .end, "a card grew at the end: followed")
+    }
+
+    func testTheKeyboardsOverlapIsWhatItCoversFromBelow() {
+        let sheet = CGRect(x: 600, y: 80, width: 380, height: 640)
+        XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: nil), 0)
+        // A docked keyboard over the lower part of the sheet.
+        XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: CGRect(x: 0, y: 420, width: 1024, height: 348)), 300)
+        // A keyboard below the sheet, or floating beside it, covers nothing.
+        XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: CGRect(x: 0, y: 730, width: 1024, height: 38)), 0)
+        XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: CGRect(x: 40, y: 300, width: 320, height: 250)), 0)
+        // Never more than the sheet's own height.
+        XCTAssertEqual(KeyboardRoom.overlap(of: sheet, keyboard: CGRect(x: 0, y: 0, width: 1024, height: 768)), 640)
+    }
+}

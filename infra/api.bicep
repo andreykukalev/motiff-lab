@@ -1,4 +1,4 @@
-// The Motiff Lab API (src/MotiffLab.Api, decision record 0014): a signed-in player's projects in Cosmos DB.
+// The Motiff Lab API (src/backend/MotiffLab.Api, decision record 0014): a signed-in player's projects in Cosmos DB.
 // Deployed by .github/workflows/api.yml after it publishes the image, into the environment of scan.bicep.
 // It reaches Cosmos DB as id-motifflab-api, which infra/azure/setup.ps1 allows into the motifflab
 // database only; no account key is used.
@@ -32,7 +32,7 @@ param branch string = 'main'
 @description('Host name of the web app: swa-motifflab\'s default host name.')
 param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
 
-// The assistant's relay (decision record 0028, src/MotiffLab.Api/Assistant). All empty by default: the API then answers
+// The assistant's relay (decision record 0028, src/backend/MotiffLab.Api/Assistant). All empty by default: the API then answers
 // "not configured" and calls no model. The key is a Container App secret, never a plain setting.
 @description('The model provider whose adapter the API uses (Assistant:Provider); empty for none.')
 param assistantProvider string = ''

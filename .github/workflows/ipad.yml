@@ -1,44 +1,137 @@
 # The iPad app (decision record 0019): builds music-core with NativeAOT and Verovio from source as frameworks,
 # generates the Xcode project, runs the Swift tests in the iPad simulator and builds for a real iPad (unsigned).
-# macOS runners are scarce and slow, so it never runs by itself: only on a pull request with the label `ipad-tests`,
-# by hand from the Actions tab (on main, which also refreshes the Verovio cache every pull request reads), and for an
-# iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode. Run by hand with
-# "Screenshots" ticked, or for a release tag, it also photographs the app's screens for the mockups (the Screens scheme).
+# When it runs (architecture blueprint A1, version 0.7):
+# - Every pull request starts it. The job `changes` (Linux, seconds) decides whether the pull request touches what the
+#   app is built from (its list); only then does the job `ipad` build the app and run the Swift tests in the simulator,
+#   on every push. The job `gate` (check `ipad-gate`) reports on every pull request, so the develop ruleset can require it
+#   (infra/github/protect.ps1): it passes when nothing of the app changed, and otherwise only when `ipad` passed.
+# - Every push to develop (a merge) that touches the same inputs: the build for a real iPad, and the core's framework,
+#   built there on a change, is the cache that pull requests to develop read. The Swift tests and the walk's compile do
+#   not run again there: the pull request ran them on its merge commit (Andrei, 2026-11-18: fewer Mac runs); two pull
+#   requests green apart and red together show in the next run by hand (the lead's daily walk and switch test on
+#   develop), on the tag, and nightly once the schedule is on main.
+# - Every version tag (version.yml starts it by hand on the tag) and by hand from the Actions tab: everything, with the
+#   walk of the screens' journeys (on a tag, or with Walk ticked: asserting, one appearance, a few minutes), the
+#   pictures for the mockups (only with Screenshots ticked: every appearance, about half an hour, during which the Mac
+#   takes no other run and pull requests queue behind it) and the switch test (ticked).
+# - Nightly, once per new commit of develop: the job `nightly` starts this workflow by hand on develop with the walk and
+#   the switch test, without pictures. A schedule runs the default branch's (main's) copy of this file, so that job only dispatches
+#   develop's own copy; it starts working once this file is released to main.
+# The runner is Andrei's Mac when the repository variable IPAD_RUNNER names it; deleting the variable moves every run
+# to GitHub's macOS (docs/repository-structure.md, "iPad builds"). Releases are built by Andrei in Xcode.
 name: iPad
+# The run's title in the Actions list says what it is, where and what it adds.
+run-name: >-
+  ${{ format('iPad tests{0} · {1}{2}{3}',
+  inputs.nightly && ' nightly' || '',
+  github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title)
+  || github.event_name == 'schedule' && 'start the nightly run of develop'
+  || startsWith(github.ref, 'refs/tags/') && format('tag {0}', github.ref_name)
+  || github.event_name == 'push' && format('push to {0} (build only, no tests)', github.ref_name)
+  || format('by hand on {0}', github.ref_name),
+  format('{0}{1}', inputs.walk && ' + walk' || '', inputs.screenshots && ' + screenshots' || ''),
+  inputs.switch_test && ' + switch test' || '') }}
 
 on:
   workflow_dispatch:
     inputs:
+      walk:
+        description: Walk the screens' journeys, asserting, without pictures (landscape and light, a few minutes)
+        type: boolean
+        default: false
       screenshots:
-        description: Photograph the app's screens (Russian, landscape and portrait, light and dark)
+        description: Walk and photograph the screens (Russian, landscape and portrait, light and dark; ~30 min, other runs wait)
         type: boolean
         default: false
       switch_test:
-        description: Switch PDF | Notes 40 times and measure each switch and the memory (MotiffLabScreens/SwitchUITests.swift, ~30 min)
+        description: Switch PDF | Notes 40 times and measure each switch and the memory (tests/ipad/MotiffLabScreens/SwitchUITests.swift, ~30 min)
         type: boolean
         default: false
-  # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
+      nightly:
+        description: Set by the nightly schedule; it only names the run
+        type: boolean
+        default: false
+  # A merge to develop, every version tag (governance/README.md, "Versions") and the old iPad release tags. Not filtered
+  # by paths: the job `changes` decides for develop as for a pull request.
   push:
+    branches: [develop]
     tags: ['v*', 'ipad-v*']
+  # Every pull request, whatever it touches, so that ipad-gate always reports: a required check that never reports
+  # blocks the merge, and a workflow filtered by paths would not start at all. Adding a label starts nothing: a label
+  # run would report ipad-gate again for the same commit, and one that tested nothing would hide a red run of it.
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
+  # 02:00 UTC; the job `nightly` (main's copy of this file runs it).
+  schedule:
+    - cron: '0 2 * * *'
 
 permissions:
   contents: read
 
-# A pull request without the label gets a group of its own, so pushing to it does not cancel a run under way.
+# A newer push cancels the run under way on the same pull request; its ipad-gate then fails for the superseded commit
+# (see the job), never passes. Every other run (develop, a tag, by hand, nightly) gets a group of its own: in a shared
+# group GitHub keeps at most one pending run and cancels it when a newer one arrives, even without cancel-in-progress,
+# so of three quick merges the middle one would never be tested on develop. They wait for the runner instead.
 concurrency:
-  group: ipad-${{ github.ref }}${{ (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ipad-tests') || github.event.action == 'labeled' && github.event.label.name != 'ipad-tests') && format('-{0}', github.run_id) || '' }}
-  cancel-in-progress: true
+  group: ipad-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Whether the app's inputs changed. A pull request: its merge commit against that commit's first parent, the base it
+  # merges into; a push to develop: against the commit before the push. A tag or a run by hand: always. Any doubt (no
+  # merge commit, a commit that cannot be fetched) runs the tests. --no-renames lists a file moved out of an input
+  # under its old path too.
+  changes:
+    name: changes
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Did the app's inputs change?
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base=
+          if [[ "$EVENT" == pull_request ]]; then
+            if [[ "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 3 ]]; then base="$(git rev-parse HEAD^1)"; fi
+          elif [[ "$EVENT" == push && "$REF" == refs/heads/* && -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]] \
+            && git fetch --depth=1 --no-tags origin "$BEFORE" 2>/dev/null; then
+            base="$BEFORE"
+          fi
+          run=true
+          if [[ -n "$base" ]] && changed="$(git diff --name-only --no-renames "$base" HEAD)"; then
+            run=false
+            # What the app is built from: src/ipad/App/project.yml reads src/shared, design/kit, tests/ipad and
+            # tests/contracts; src/ipad/Core builds music-core; the Swift tests replay tests/contracts/page-scenarios
+            # with tests/pages (PageScenarioTests.swift).
+            while IFS= read -r f; do
+              case "$f" in
+                src/ipad/*|tests/ipad/*|src/shared/*|src/backend/MotiffLab.MusicCore/*|design/kit/*|tests/contracts/*|tests/pages/*|global.json|Directory.Build.props|.github/workflows/ipad.yml)
+                  echo "An input of the app: $f"
+                  run=true ;;
+              esac
+            done <<< "$changed"
+            [[ "$run" == true ]] || echo "Nothing the app is built from changed against ${base::7}."
+          else
+            echo "$EVENT on $REF: the tests run."
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   ipad:
-    # A pull request runs it only with the label ipad-tests; of labels, only adding that one starts a run.
-    if: >-
-      github.event_name != 'pull_request' ||
-      (contains(github.event.pull_request.labels.*.name, 'ipad-tests') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'ipad-tests'))
-    runs-on: macos-15
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    # Andrei's Mac as a self-hosted runner when the repository variable IPAD_RUNNER names its label (motiff-mac);
+    # GitHub's macOS otherwise, and always for a pull request from a fork (docs/repository-structure.md, "iPad builds").
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'macos-15' || vars.IPAD_RUNNER || 'macos-15' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -49,12 +142,15 @@ jobs:
 
       - name: Tools
         run: |
-          brew install xcodegen
+          # A self-hosted Mac has it already and its runner account cannot write to /opt/homebrew.
+          command -v xcodegen >/dev/null || brew install xcodegen
           xcodebuild -version
           dotnet --version
 
-      # The simulator boots while the frameworks build, instead of inside the test step.
+      # The simulator boots while the frameworks build, instead of inside the test step. Not on a push to develop: no
+      # test runs there (the header).
       - name: Start the iPad simulator
+        if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
         run: |
           id=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -65,45 +161,70 @@ jobs:
           echo "SIMULATOR=$id" >> "$GITHUB_ENV"
           xcrun simctl boot "$id" || true
 
+      # The core changes in few pull requests, and its three NativeAOT builds take 8-10 minutes: a build of the same
+      # sources is taken from the cache, and its check with it. The run on develop after a merge saves it there, where
+      # every pull request to develop reads it.
+      - uses: actions/cache/restore@v4
+        id: core
+        with:
+          path: src/ipad/build/MotiffLabCore.xcframework
+          key: core-ios-${{ hashFiles('src/backend/MotiffLab.MusicCore/**', 'src/ipad/Core/**', 'global.json', 'Directory.Build.props') }}
+
+      - uses: actions/cache@v4
+        if: steps.core.outputs.cache-hit != 'true'
+        with:
+          path: ~/.nuget/packages
+          key: nuget-macos-${{ hashFiles('src/backend/MotiffLab.MusicCore/*.csproj', 'src/ipad/Core/*.csproj', 'Directory.Build.props', 'global.json') }}
+          restore-keys: nuget-macos-
+
       - name: Build MotiffLabCore.xcframework
-        run: ipad/Core/build.sh | tee core.log
+        if: steps.core.outputs.cache-hit != 'true'
+        run: src/ipad/Core/build.sh | tee core.log
 
       # The core as a macOS library, called through its C functions as the app calls it.
       - name: Check the core's C functions
+        if: steps.core.outputs.cache-hit != 'true'
         run: |
-          dotnet publish ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
-          python3 ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
+          dotnet publish src/ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
+          python3 src/ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
+
+      # Saved only once the check passed, so a broken core is never reused.
+      - uses: actions/cache/save@v4
+        if: steps.core.outputs.cache-hit != 'true'
+        with:
+          path: src/ipad/build/MotiffLabCore.xcframework
+          key: ${{ steps.core.outputs.cache-primary-key }}
 
       # Verovio takes several minutes to compile; its build changes only with the script and the patch.
       - uses: actions/cache/restore@v4
         id: verovio
         with:
           path: |
-            ipad/build/Verovio.xcframework
-            ipad/build/verovio-data
-          key: verovio-ios-${{ hashFiles('ipad/Verovio/build.sh', 'ipad/Verovio/verovio-classic-locale.patch') }}
+            src/ipad/build/Verovio.xcframework
+            src/ipad/build/verovio-data
+          key: verovio-ios-${{ hashFiles('src/ipad/Verovio/build.sh', 'src/ipad/Verovio/verovio-classic-locale.patch') }}
 
       - name: Build Verovio.xcframework
         if: steps.verovio.outputs.cache-hit != 'true'
-        run: ipad/Verovio/build.sh | tee verovio.log
+        run: src/ipad/Verovio/build.sh | tee verovio.log
 
       # Saved straight after the build, so a failing test later does not throw the build away.
       - uses: actions/cache/save@v4
         if: steps.verovio.outputs.cache-hit != 'true'
         with:
           path: |
-            ipad/build/Verovio.xcframework
-            ipad/build/verovio-data
+            src/ipad/build/Verovio.xcframework
+            src/ipad/build/verovio-data
           key: ${{ steps.verovio.outputs.cache-primary-key }}
 
-      # The score's scripts are the web app's (Scripts/score, compiled to wwwroot/js/score): the iPad's web view runs
-      # the same score geometry and pencil marks (0019 section 1.4).
-      - name: Compile the web app's score scripts
-        run: dotnet build src/MotiffLab.Web -c Release -warnaserror | tail -3
+      # The score's scripts are the shared layer's (src/shared/Scripts, compiled to wwwroot/js): the iPad's web view runs
+      # the score geometry and pencil marks there (0019 section 1.4).
+      - name: Compile the shared score scripts
+        run: dotnet build src/shared -c Release -warnaserror | tail -3
 
       # Xcode in the IDE refuses a project that xcodebuild only warns about (a file in two groups), so the warning fails here.
       - name: Generate the Xcode project
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           xcodegen
           xcodebuild -list -project MotiffLab.xcodeproj 2>&1 | tee list.log
@@ -112,11 +233,12 @@ jobs:
       # The Swift packages (MSAL) are fetched once per project.yml, not on every run.
       - uses: actions/cache@v4
         with:
-          path: ipad/build/packages
-          key: ipad-packages-${{ hashFiles('ipad/App/project.yml') }}
+          path: src/ipad/build/packages
+          key: ipad-packages-${{ hashFiles('src/ipad/App/project.yml') }}
 
       - name: Test in the iPad simulator
-        working-directory: ipad/App
+        if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) }}
+        working-directory: src/ipad/App
         run: |
           xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
           set -o pipefail
@@ -124,11 +246,25 @@ jobs:
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
+      # The walk's Swift (tests/ipad/MotiffLabScreens, the Screens scheme) is in no target of the MotiffLab scheme: on a
+      # pull request it is compiled here, not run, so a walk that no longer compiles shows before the merge.
+      # Same destination and derived data as the tests above, so only the UI-test bundle is built.
+      - name: Compile the walk
+        if: github.event_name == 'pull_request'
+        working-directory: src/ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee walk-build.log | grep -E "error:|\*\* TEST BUILD" || true
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" walk-build.log
+
       # PDF | Notes switched again and again (v0.6.4, #614 section 11): each switch timed on the app's clock and the memory
-      # logged; only by hand, as it takes about half an hour.
+      # logged; by hand and nightly, as it takes about half an hour (25 and 27 minutes on GitHub's macOS, runs
+      # 43778911858 and 43767801585). A stuck switch stops at the step's limit instead of holding the only Mac.
       - name: Switch PDF | Notes repeatedly
         if: inputs.switch_test
-        working-directory: ipad/App
+        timeout-minutes: 40
+        working-directory: src/ipad/App
         run: |
           set -o pipefail
           TEST_RUNNER_SWITCH_TEST=1 xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
@@ -136,31 +272,96 @@ jobs:
             -only-testing:MotiffLabScreens/SwitchUITests | tee switch.log | grep -E "SWITCH|Test Case|error:|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" switch.log
 
-      # The screens as a player sees them (MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
-      # walk cannot reach is listed as SCREEN-MISS and costs that picture only.
+      # The journeys of the walk (tests/ipad/MotiffLabScreens/ScreensUITests.swift) without pictures: without SCREENS_DIR
+      # the walk asserts in one appearance, a few minutes. On every tag (version.yml starts the tag's run by hand, so the
+      # ref decides, not the event), nightly and when ticked; not when the pictures are asked for, which walk as well.
+      # The switch test runs only when asked (above, and by its own variable). A stuck walk stops at the step's limit
+      # instead of holding the only Mac for the job's hour; a failed run keeps walk.log in the ipad-test-log artifact.
+      - name: Walk the screens
+        if: (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots
+        timeout-minutes: 10
+        working-directory: src/ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild test -project MotiffLab.xcodeproj -scheme Screens -destination "id=$SIMULATOR" \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO -skip-testing:MotiffLabScreens/SwitchUITests \
+            | tee walk.log | grep -E "SCREEN|Test Case|error:|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" walk.log
+
+      # SwiftUI's runtime warning «Publishing changes from within view updates» is the walked app's console, which
+      # xcodebuild does not print (walk.log has the test runner's output only): read from the simulator's log for the
+      # app's process since the walk began (walk.log's creation) and counted per launch of the app (pid), with the first
+      # and last time and the count per 10 s, for a reviewer to see. A log that cannot be read says so; never fails the run.
+      - name: SwiftUI warnings during the walk
+        if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/') || inputs.walk) && !inputs.screenshots }}
+        timeout-minutes: 5
+        continue-on-error: true
+        working-directory: src/ipad/App
+        run: |
+          [[ -f walk.log ]] || { echo "The walk did not start."; exit 0; }
+          start="$(stat -f %SB -t '%Y-%m-%d %H:%M:%S' walk.log)"
+          warning='Publishing changes from within view updates'
+          status=0
+          xcrun simctl spawn "$SIMULATOR" log show --start "$start" --predicate 'process == "MotiffLab"' --style compact \
+            > "$RUNNER_TEMP/app.log" || status=$?
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning::The app's log could not be read from the simulator (log show exit $status): the SwiftUI warnings are unknown."
+            exit 0
+          fi
+          count="$(grep -c "$warning" "$RUNNER_TEMP/app.log" || true)"
+          if [[ "$count" -eq 0 ]]; then
+            echo "No «$warning» in the app's log since $start."
+            exit 0
+          fi
+          echo "$count «$warning» in the app's log since $start, per launch of the app:"
+          grep "$warning" "$RUNNER_TEMP/app.log" | awk '
+            match($0, /\[[0-9]+:/) {
+              pid = substr($0, RSTART + 1, RLENGTH - 2); t = substr($2, 1, 7) "0"
+              if (!(pid in n)) { order[++k] = pid; first[pid] = $2 }
+              n[pid]++; last[pid] = $2
+              if (!((pid, t) in per)) times[pid, ++m[pid]] = t
+              per[pid, t]++
+            }
+            END {
+              for (i = 1; i <= k; i++) {
+                p = order[i]; line = ""
+                for (j = 1; j <= m[p]; j++) line = line " " times[p, j] "=" per[p, times[p, j]]
+                printf "pid %s: %d, %s to %s; per 10 s:%s\n", p, n[p], substr(first[p], 1, 8), substr(last[p], 1, 8), line
+              }
+            }'
+
+      # The screens as a player sees them, for the redesign's mockups: the same walk in every appearance, only when
+      # ticked (about half an hour; the Mac takes no other run meanwhile). A failing walk fails the run; the pictures it
+      # took and its log are kept either way.
       - name: Photograph the screens
-        if: github.event_name == 'push' || inputs.screenshots
-        working-directory: ipad/App
+        if: inputs.screenshots
+        timeout-minutes: 30
+        working-directory: src/ipad/App
         run: |
           mkdir -p "$RUNNER_TEMP/screens"
+          status=0
           TEST_RUNNER_SCREENS_DIR="$RUNNER_TEMP/screens" xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
             -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
-            > screens.log 2>&1 || echo "::warning::The screenshot walk did not finish cleanly; see screens.log"
+            -skip-testing:MotiffLabScreens/SwitchUITests > screens.log 2>&1 || status=$?
           grep -E "SCREEN|error:|\*\* TEST" screens.log || true
-          echo "SCREENS=$(ls "$RUNNER_TEMP/screens" | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+          echo "SCREENS=$(find "$RUNNER_TEMP/screens" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
           cp screens.log "$RUNNER_TEMP/screens/"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error::The screenshot walk failed (xcodebuild exit $status); see screens.log in the ipad-screens artifact"
+            exit "$status"
+          fi
 
       - uses: actions/upload-artifact@v4
-        if: always() && (github.event_name == 'push' || inputs.screenshots)
+        if: always() && inputs.screenshots
         with:
           name: ipad-screens
           path: ${{ runner.temp }}/screens
           if-no-files-found: ignore
 
-      # On main and by hand: a pull request's Swift is already compiled by the tests.
+      # Not on a pull request: its Swift is already compiled for the simulator.
       - name: Build for a real iPad (unsigned)
         if: github.event_name != 'pull_request'
-        working-directory: ipad/App
+        working-directory: src/ipad/App
         run: |
           set -o pipefail
           xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
@@ -176,18 +377,97 @@ jobs:
             echo "## iPad app"
             echo
             echo '```'
-            grep -E '^ios|^iossim' core.log || true
+            grep -E '^ios|^iossim' core.log 2>/dev/null || echo "core: from the cache"
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
-            echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
+            echo "Device app (Release, unsigned): ${APP_SIZE:-not built}"
             echo "Screenshots: ${SCREENS:-not taken}"
-            grep -h 'OPEN-AND-ENGRAVE' ipad/App/test.log 2>/dev/null || true
-            grep -hE "Executed [0-9]+ tests" ipad/App/test.log 2>/dev/null | tail -1 || true
+            grep -h 'OPEN-AND-ENGRAVE' src/ipad/App/test.log 2>/dev/null || true
+            grep -hE "Executed [0-9]+ tests" src/ipad/App/test.log 2>/dev/null | tail -1 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # A failed run keeps the logs of the steps that ran: the Swift tests, the walk's compile, the switch test and the walk.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ipad-test-log
-          path: ipad/App/test.log
+          path: |
+            src/ipad/App/test.log
+            src/ipad/App/walk-build.log
+            src/ipad/App/switch.log
+            src/ipad/App/walk.log
           if-no-files-found: ignore
+          retention-days: 7
+
+  # The required check (the develop ruleset, infra/github/protect.ps1): fixed name on a pull request, and it reports in
+  # every pull request run and in no other. A run on develop, a tag or by hand shows its result in `ipad` itself; a gate
+  # there would report for the same commit as a pull request's head, and a green run by hand on the branch (the head
+  # alone, not the merge commit) could cover the pull request's red one. Outside a pull request the job is skipped, and
+  # a skipped job still leaves a check run on the commit, which GitHub would count as a passed ipad-gate on a pull
+  # request's head (a run by hand on its branch): there it is named «ipad-gate (pull requests only)», which no ruleset
+  # requires (and its job id is `gate`, so no fallback to the id gives the required name). Nothing needs this job.
+  # GitHub counts a skipped required check as passed, so it is never skipped on a pull request: always(), not
+  # !cancelled(), which would skip it in a cancelled run. It passes only when `changes` succeeded and either said no
+  # input changed or `ipad` succeeded; a failed, timed-out or cancelled `ipad` (a newer push cancels the run) fails it.
+  # A pull request from a fork runs on GitHub's machines like any other; until Andrei approves an outside contributor's
+  # run, nothing reports and the pull request waits.
+  gate:
+    name: ${{ github.event_name == 'pull_request' && 'ipad-gate' || 'ipad-gate (pull requests only)' }}
+    needs: [changes, ipad]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the iPad run
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          NEEDED: ${{ needs.changes.outputs.run }}
+          IPAD: ${{ needs.ipad.result }}
+        run: |
+          if [[ "$CHANGES" != success ]]; then
+            echo "::error::Could not tell whether the app's inputs changed (changes: $CHANGES)."
+            exit 1
+          fi
+          case "$NEEDED" in
+            false)
+              echo "Nothing the iPad app is built from changed: no iPad run needed."
+              echo "### ipad-gate: no iPad run needed" >> "$GITHUB_STEP_SUMMARY" ;;
+            true)
+              if [[ "$IPAD" != success ]]; then
+                echo "::error::The iPad build and Swift tests did not pass (ipad: $IPAD)."
+                exit 1
+              fi
+              echo "The iPad build and Swift tests passed."
+              echo "### ipad-gate: the iPad build and Swift tests passed" >> "$GITHUB_STEP_SUMMARY" ;;
+            *)
+              echo "::error::changes gave no answer ('$NEEDED')."
+              exit 1 ;;
+          esac
+
+  # Blueprint 6.3: the walk and the switch tests nightly on develop when it changed. This job runs in main's copy of the
+  # file (a schedule runs the default branch's) and starts develop's own copy by hand, once per commit of develop: a
+  # commit that already had a nightly run, passed, failed or still under way, gets no second one; a cancelled one is
+  # tried again. A workflow_dispatch with the workflow's token does start a run.
+  nightly:
+    name: nightly
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Start the walk and the switch test on develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          sha="$(gh api "repos/$GH_REPO/commits/develop" --jq .sha)"
+          before="$(gh api "repos/$GH_REPO/actions/workflows/ipad.yml/runs?event=workflow_dispatch&branch=develop&head_sha=$sha&per_page=100" \
+            --jq '[.workflow_runs[] | select((.display_title | startswith("iPad tests nightly")) and .conclusion != "cancelled")] | length')"
+          if (( before > 0 )); then
+            echo "develop at ${sha::7} had its nightly run already."
+            exit 0
+          fi
+          gh workflow run ipad.yml --ref develop -f nightly=true -f walk=true -f switch_test=true
+          echo "### Nightly run of develop at ${sha::7} started" >> "$GITHUB_STEP_SUMMARY"

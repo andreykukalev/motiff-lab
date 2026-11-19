@@ -1,6 +1,7 @@
 name: API
+run-name: ${{ format('Deploy API · {0} to {1}', github.event_name == 'workflow_dispatch' && 'by hand' || 'push', github.ref_name) }}
 
-# Publishes the Motiff Lab API's image (src/MotiffLab.Api) to GitHub's container registry and deploys it to
+# Publishes the Motiff Lab API's image (src/backend/MotiffLab.Api) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/api.bicep, decision record 0014), next to the scan server. CI runs its tests.
 # The deploy waits until the services and sign-in are set up: the repository variables AZURE_SERVICES_*,
 # COSMOS_ENDPOINT, AUTH_AUTHORITY and AUTH_AUDIENCE, all set by infra/azure/setup.ps1 (infra/README.md).
@@ -11,8 +12,8 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - src/MotiffLab.Api/**
-      - src/MotiffLab.MusicCore/**
+      - src/backend/MotiffLab.Api/**
+      - src/backend/MotiffLab.MusicCore/**
       - infra/api.bicep
       - .github/workflows/api.yml
   workflow_dispatch:
@@ -101,7 +102,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: src/MotiffLab.Api/Dockerfile
+          file: src/backend/MotiffLab.Api/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}

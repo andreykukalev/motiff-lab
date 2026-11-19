@@ -41,7 +41,8 @@ function byWorst(rule) {
  * Returns:
  * - added: violations whose key is not in the baseline, or is there fewer times;
  * - stale: baseline entries no violation matches any more (the code was fixed, moved or renamed);
- * - grew: matched violations whose value got worse than the baseline's (reported, never failing);
+ * - grew: matched violations whose value got worse than the baseline's (fails in blocking mode: a file or function
+ *   already over a limit may shrink, never grow);
  * - unjustified: baseline entries without a reason in `why`.
  * Baseline entries of tools that did not run are neither matched nor stale.
  */

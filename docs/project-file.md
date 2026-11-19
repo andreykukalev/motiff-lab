@@ -1,8 +1,10 @@
 # The project file (`.motiff.json`), version 16
 
-The project file is what a player keeps of a piece. Since version 16 ([0030](decisions/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
+**Status (2026-11-16):** the web app is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); the file stays the contract between the iPad app, the API and the web when it returns. While the web is frozen, a new version ships with the iPad alone, and the frozen web refuses files newer than it knows.
 
-Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`) unless a section says lower case; the facade answers them in lower camel case.
+The project file is what a player keeps of a piece. Since version 16 ([0030](architecture/adr/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](architecture/adr/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
+
+Ticks are integers at 480 per quarter ([0002](architecture/adr/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`) unless a section says lower case; the facade answers them in lower camel case.
 
 ## The document
 
@@ -50,7 +52,7 @@ Every original of the piece, in order: the first PDF (`src_pdf`), the file the n
 - **`held`** is bookkeeping that only its own device writes: a pull takes this device's mark from its own copy and every other device's from the online copy. The iPad marks the PDF it keeps when it sends the copy online (`project.online`).
 - **`folder`**: each name between the `/` is non-empty and not `.` or `..`, with no `\`; anything else is damage. A fresh look at the folder finds each file at its place and links again the ones moved or renamed (`LibraryRelink`).
 - **`data`** of a PDF or photos must start with `%PDF-`; of another original (a second PDF, a MIDI or MusicXML file added without being imported, version 0.6) it is any bytes, never empty. Only the first PDF is in memory as `Project.Document`; the others' bytes are `Project.Sources.Data`. No `data` goes online: the online copy (`Project.ForOnline`) leaves it out and the page map with it (see "The PDF online"), and a pull keeps this device's bytes.
-- **`marks`**: the player's marks on the PDF's pages ([0023](decisions/0023-pdf-pieces.md)), apart from the marks on the notes, so the PDF view and the Notes view each keep their own: `ink` holds strokes in the shape of `workspace.marks.ink`, except that `bar` is the number of the page the stroke starts on (from 1), `u` its place across the page (0 to 1) and `v` its distance below the page's top edge in the page's own spaces (a hundred and twentieth of its width); `bookmarks` holds `{ "id": "pb_0001", "page": 3, "name"?: "Coda", "createdAt" }`, at most one per page, in page order. Left out when there are none. Every PDF or photos original carries its own marks (`Project.PageMarksOf`; `src_pdf`'s are `Project.DocumentMarks`), so a second PDF takes the pen apart from the first; a pull never clears the marks of an original the online copy does not describe.
+- **`marks`**: the player's marks on the PDF's pages ([0023](architecture/adr/0023-pdf-pieces.md)), apart from the marks on the notes, so the PDF view and the Notes view each keep their own: `ink` holds strokes in the shape of `workspace.marks.ink`, except that `bar` is the number of the page the stroke starts on (from 1), `u` its place across the page (0 to 1) and `v` its distance below the page's top edge in the page's own spaces (a hundred and twentieth of its width); `bookmarks` holds `{ "id": "pb_0001", "page": 3, "name"?: "Coda", "createdAt" }`, at most one per page, in page order. Left out when there are none. Every PDF or photos original carries its own marks (`Project.PageMarksOf`; `src_pdf`'s are `Project.DocumentMarks`), so a second PDF takes the pen apart from the first; a pull never clears the marks of an original the online copy does not describe.
 - **`removed`**: a tombstone. The bytes left this device (a linked file was only unlinked), the description and the page marks stay, so the Notes made from it keep their provenance and the state "removed", and adding the same file again (the same `sha256`) revives the original with its marks. A tombstone has no `data` and no `held`.
 - An unknown `kind`, `kept` or `device` keeps the description whole as an unknown entity (S6).
 
@@ -62,7 +64,7 @@ Since version 0.5 (Andrei, 2026-11-12, 17:45 UTC, amending 0026 C3) a piece that
 
 ## Notes (`notes`)
 
-Every Notes of the piece: the working notes first, then the other Notes (read again from a PDF, or the working notes until other Notes were made the working ones) in the order they were added, then the ones compared with them (the versions of [0022](decisions/0022-score-and-performance.md)) in the order they were added. A Notes keeps its own music, so it stays valid when its original is removed.
+Every Notes of the piece: the working notes first, then the other Notes (read again from a PDF, or the working notes until other Notes were made the working ones) in the order they were added, then the ones compared with them (the versions of [0022](architecture/adr/0022-score-and-performance.md)) in the order they were added. A Notes keeps its own music, so it stays valid when its original is removed.
 
 ```jsonc
 "notes": [
@@ -88,14 +90,14 @@ Every Notes of the piece: the working notes first, then the other Notes (read ag
 - **The working notes** are the Notes `workspace.working` names; they carry `edits` and `check`, and never `performance`. A piece with no notes yet (a PDF to read as it is) has no working notes and an empty `notes`.
 - **`music`**: the working notes' bytes are read by the piece's `fileName`, as before: MusicXML (`.musicxml`, `.xml`, `.mxl`) or MIDI (`.mid`, `.midi`); a scan's notes are its MusicXML, a transcription's the engine's MIDI. A compared Notes' music is MIDI: the engine's MIDI, the player's MIDI file as it was, or a score written out as MIDI. The imported file of a piece imported from a file is the working notes' music byte for byte, so its original (`src_file`, kept `file`) has no `data` of its own.
 - **`scan`** (with `"op": "pdfRecognition"`): the bars the player checked and said look right (`confirmedBars`), and the raw numbers of the scan server's report on each page (`pages`, version 0.4): `{ "page", "rotation", "sharpness", "contrast", "staves", "noteheads", "barLines", "spacePx", "measures" }`, never the music. A page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration; a field a report lacks reads as 0; `page` is the page's place in the notes, from 1. On open the bars of a weak page are less sure (0.5) and those of a poor page flagged `PageQuality`. `pages` is left out when there are no reports.
-- **`transcription`** (with `"op": "audioRecognition"`): the bars and tempo worked out for the notes heard ([0016](decisions/0016-bars-for-transcribed-notes.md)), `null` to keep the engine's 120 BPM and 4/4: `{ "origin", "sixteenthMicroseconds", "signature", "barStarts", "stepsPerBeat", "beats", "meters"? }`. `meters` (version 0.5) says where the bars change signature: each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; any other change is damage. `seams` (when a long recording went in parts): where each part after the first takes over, in milliseconds from the start of the stretch sent, ascending; the Check layer flags the bars on either side (`PartSeam`); left out for one part. `sentFromMs` (version 0.5): where, in the recording file, the stretch sent started, 0 or more; the workspace's `partOf.ms` counts from it, so another device that has the file (the same `sha256`) finds the piece's sound there; left out when not kept.
+- **`transcription`** (with `"op": "audioRecognition"`): the bars and tempo worked out for the notes heard ([0016](architecture/adr/0016-bars-for-transcribed-notes.md)), `null` to keep the engine's 120 BPM and 4/4: `{ "origin", "sixteenthMicroseconds", "signature", "barStarts", "stepsPerBeat", "beats", "meters"? }`. `meters` (version 0.5) says where the bars change signature: each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; any other change is damage. `seams` (when a long recording went in parts): where each part after the first takes over, in milliseconds from the start of the stretch sent, ascending; the Check layer flags the bars on either side (`PartSeam`); left out for one part. `sentFromMs` (version 0.5): where, in the recording file, the stretch sent started, 0 or more; the workspace's `partOf.ms` counts from it, so another device that has the file (the same `sha256`) finds the piece's sound there; left out when not kept.
 - **`pageMap`**: the rough link the PDF and Notes views switch by: where each page of `original` starts in these notes, in ticks, page 1 at 0, each page after the one before. A page starts at the first bar the scan server marked with `<print new-page="yes"/>`, or, without such marks, the bars are shared evenly between the pages. With `"project": "p_…"` the PDF is in another piece: notes read from a PDF piece into a project of their own between 2026-11-05 and 2026-11-07 (0023); no build writes such notes any more. Without `project`, the original must be this piece's PDF and the map is written only while the PDF's bytes are here.
 - **Other Notes** (version 0.6) carry everything the working notes do, and `fileName`, so they can be made the working notes with nothing lost (`SourceOperations.MakeWorking`, «Сделать рабочими»; Andrei, 2026-11-14, amending 0030 section 1). Made working, the piece keeps its own `fileName` with the extension of theirs, and the working notes until then become other Notes under their id with the piece's `fileName`. Motifs, their variations and kept variations made on the notes until then wait with them: a motif and an idea name them (`notes`), they stay in the file and are left out on opening until those notes are working again. The marks on the score (`workspace.marks`) stay with the notes they were drawn on: the notes until then take them as their `marks`, and the Notes made working bring theirs (sources sheet, 2026-11-14). Phrases, bookmarks, resume points and ideas without a variation stay in the piece's ticks. Refused while bars are taken from versions or an assembly is applied.
 - An entry with `edits` or `check` and no `fileName` that is not the working notes, or one that is neither the working notes nor other Notes nor has `performance`, comes from a later build: it is kept whole as an unknown entity and written back where it stood.
 
 ### Provenance
 
-One shape for every Notes ([0030](decisions/0030-originals-notes-piece.md), section 2), and for a kept variation ("Ideas"):
+One shape for every Notes ([0030](architecture/adr/0030-originals-notes-piece.md), section 2), and for a kept variation ("Ideas"):
 
 ```jsonc
 "provenance": {
@@ -179,7 +181,7 @@ The online copy is the file without the bytes of originals (0026 C3, as amended)
 
 ## Marks (`marks`)
 
-Everything the player writes on the score, kept with the piece ([0018](decisions/0018-redesign.md), prep item 1). The pencil layer and the project file share one shape for strokes, so the web app and the iPad app pass them through unchanged (`ProjectFile.WriteInk` / `ReadInk` give the layer's own document, `{"version": 2, "marks": [stroke, …]}`).
+Everything the player writes on the score, kept with the piece ([0018](architecture/adr/0018-redesign.md), prep item 1). The pencil layer and the project file share one shape for strokes, so the web app and the iPad app pass them through unchanged (`ProjectFile.WriteInk` / `ReadInk` give the layer's own document, `{"version": 2, "marks": [stroke, …]}`).
 
 ```jsonc
 "marks": {
@@ -252,7 +254,7 @@ Where the player can come back to (prep item 3). One is made when a piece is ope
 
 ## Ideas (`observations`)
 
-An idea is an observation kept on a passage ([0009](decisions/0009-exploration-layer-and-notebook.md)): a variation, the steps that made it, a note, and the fact it came from (0018, prep item 4).
+An idea is an observation kept on a passage ([0009](architecture/adr/0009-exploration-layer-and-notebook.md)): a variation, the steps that made it, a note, and the fact it came from (0018, prep item 4).
 
 ```jsonc
 "observations": [
@@ -319,11 +321,11 @@ What the scan server, the transcription or a performance left for the player to 
 
 A transcription's flags (prep item 12) are worked out from the notes the engine heard and the bars worked out for them: `PartSeam` for the bars on either side of a seam; `TempoUncertain` for a bar where at least half of four or more onsets sit more than 30 ticks off both the 16th and the triplet-8th grids; `DenseCluster` for a bar with four onsets within a 16th or a chord of three or more notes a second apart; `HandsGuessed` for a bar with two or more notes whose hand was guessed with confidence below 0.6. A reason other than `PartSeam` that would flag more than a quarter of the bars is left out, since it then says more about the recording than about a bar. Resolving a flag on a scanned piece also confirms the bar in `scan.confirmedBars`, so older readers see the same thing.
 
-A performance added to a scanned piece raises its own flags (source `Performance`, [0022](decisions/0022-score-and-performance.md), section 6): `RecordingOctave` where at least three quarters of a hand's notes are played 12 semitones from the scan for two bars or more, and `RecordingBarLength` where the scan flagged a bar too long or too short and the performance measures it at the meter's length at the neighbouring bars' tempo. Removing the last performance drops them.
+A performance added to a scanned piece raises its own flags (source `Performance`, [0022](architecture/adr/0022-score-and-performance.md), section 6): `RecordingOctave` where at least three quarters of a hand's notes are played 12 semitones from the scan for two bars or more, and `RecordingBarLength` where the scan flagged a bar too long or too short and the performance measures it at the meter's length at the neighbouring bars' tempo. Removing the last performance drops them.
 
 ## Compared notes (`performance`)
 
-Notes compared with the working notes ([0022](decisions/0022-score-and-performance.md), section 8): the anchors that line them up with the working notes, the bars the player said are not a difference, and the bars taken into the working notes. A recording's sound is never in the file; it stays on the device under the Notes' id.
+Notes compared with the working notes ([0022](architecture/adr/0022-score-and-performance.md), section 8): the anchors that line them up with the working notes, the bars the player said are not a difference, and the bars taken into the working notes. A recording's sound is never in the file; it stays on the device under the Notes' id.
 
 ```jsonc
 { "id": "perf_1", "name": "Live at the National Gallery",
@@ -352,9 +354,9 @@ The working notes a project opens with are their music, then their corrections, 
 
 ## Assembly (`assembly`)
 
-The assembly of the player's own version from the piece's sources (version 15, [0024](decisions/0024-assembling-a-version.md), section 7): the journal the player's notes are rebuilt by, and after «Сделать нотами» the notes the piece plays since then and the notes before the first apply. Left out while the piece has none.
+The assembly of the player's own version from the piece's sources (version 15, [0024](architecture/adr/0024-assembling-a-version.md), section 7): the journal the player's notes are rebuilt by, and after «Сделать нотами» the notes the piece plays since then and the notes before the first apply. Left out while the piece has none.
 
-In the model of [0030](decisions/0030-originals-notes-piece.md) the applied notes are Notes made by `"op": "assembly"` from the compared Notes they carry; in version 16 they stay here, in the workspace beside their journal, until the assembly is reworked (0028).
+In the model of [0030](architecture/adr/0030-originals-notes-piece.md) the applied notes are Notes made by `"op": "assembly"` from the compared Notes they carry; in version 16 they stay here, in the workspace beside their journal, until the assembly is reworked (0028).
 
 ```jsonc
 "assembly": {
@@ -444,19 +446,19 @@ The rules for the versions before 15, in addition to the earlier ones kept in `P
 | < 13 | No performances; no `Performance` flags. |
 | 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
-| 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](decisions/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |
+| 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](architecture/adr/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
 
-Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](decisions/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device.
+Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](architecture/adr/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device.
 
 ### Builds before 0.6
 
-A build before 0.6 refuses a version 16 file with "This project was saved by a newer version of Motiff Lab", so the web, the iPad and the API are released together ([0026](decisions/0026-project-continuity.md), section 3; 0030, section 7). The API checks only the envelope (`format`, `version`, `id`, size, quota; 0026 S2) and stores the bytes it was sent, so a later version needs no API release.
+A build before 0.6 refuses a version 16 file with "This project was saved by a newer version of Motiff Lab", so the web, the iPad and the API are released together ([0026](architecture/adr/0026-project-continuity.md), section 3; 0030, section 7). The API checks only the envelope (`format`, `version`, `id`, size, quota; 0026 S2) and stores the bytes it was sent, so a later version needs no API release.
 
 ## Unknown values
 
-A later build can add a value to an enum while the file keeps its version ([0026](decisions/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
+A later build can add a value to an enum while the file keeps its version ([0026](architecture/adr/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
 
 - **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's own version. In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
 - **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`) and a Check flag (`check`), whatever the depth of the value inside it.

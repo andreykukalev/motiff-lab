@@ -1,0 +1,110 @@
+{
+  "id": "roll-sel-replace",
+  "protects": [
+    "SEL-03"
+  ],
+  "says": "With a selection on the roll, a stylus drag outside it starts a new one at once, which replaces it.",
+  "page": "roll",
+  "fixture": "fur-elise-roll.json",
+  "viewport": {
+    "width": 1024,
+    "height": 420
+  },
+  "steps": [
+    {
+      "call": "load",
+      "with": {
+        "roll": "$fixture.roll",
+        "labels": {},
+        "noteNames": false,
+        "dark": false,
+        "colourBy": "hand",
+        "keep": false
+      },
+      "note": "the drawer's roll opens on the piece (RollController.load)"
+    },
+    {
+      "call": "lanes",
+      "with": true,
+      "note": "the lanes, on outside Expand (ScoreScreen.syncPlayheads)"
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": false,
+        "pen": false,
+        "scrollFingers": 1,
+        "penSelects": true,
+        "mode": "select",
+        "place": true,
+        "stylus": true
+      },
+      "note": "RollInput.page with RollPlaceInput in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "shape",
+      "with": "box"
+    },
+    {
+      "call": "position",
+      "with": {
+        "tick": 0,
+        "playing": false,
+        "label": "",
+        "looping": false
+      }
+    },
+    {
+      "wait": 100
+    },
+    {
+      "call": "selection",
+      "with": {
+        "selected": {
+          "start": 960,
+          "end": 2400,
+          "ids": []
+        },
+        "loop": null
+      },
+      "note": "bars 3 and 4 are selected"
+    },
+    {
+      "wait": 50
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "tick": 3300,
+          "y": 0.4
+        },
+        {
+          "tick": 4400,
+          "y": 0.6
+        }
+      ],
+      "note": "a stylus drag over bars 6 and 7"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "span",
+            "notes",
+            "range"
+          ],
+          "messages": [
+            {
+              "span": {
+                "start": 3240,
+                "end": 4440,
+                "how": "replace"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
