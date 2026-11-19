@@ -430,7 +430,6 @@ struct PerformanceAnswer: Decodable, Sendable {
         let aligned: Bool?
         let kind: String?
         let marker: String?
-        let confidence: Int?
         let dismissed: Bool?
         let taken: Bool?
         let notHeard: [String]?
@@ -452,7 +451,6 @@ struct PerformancesAnswer: Decodable, Sendable {
 struct VersionHead: Decodable, Sendable {
     let id: String?
     let name: String?
-    let takenBars: Int?
 }
 
 /// A span in ticks (`Answer.Span`), each end read as none when missing.

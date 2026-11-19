@@ -237,14 +237,14 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         var shelf = VersionShelf()
         XCTAssertTrue(shelf.read(performance: applied[0]))
         XCTAssertEqual(shelf.shownId, "perf_1")
-        XCTAssertEqual(shelf.shown?.takenBars, 1)
+        XCTAssertEqual(shelf.taken.map(\.bar), [5], "the bar taken, drawn as a taken-bar line")
         XCTAssertEqual(shelf.matched, shelf.printed)
         let bar5 = try XCTUnwrap(shelf.bars.first { $0.bar == 5 })
         XCTAssertTrue(bar5.taken && bar5.differs)
         XCTAssertEqual(bar5.played, 3)
         XCTAssertNotNil(bar5.span)
         XCTAssertTrue(shelf.read(performance: applied[1]))
-        XCTAssertEqual(shelf.shown?.takenBars, 0)
+        XCTAssertEqual(shelf.taken.count, 0, "undone, no bar is taken")
         XCTAssertEqual(shelf.entries.count, 1)
     }
 

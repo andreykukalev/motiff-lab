@@ -11,7 +11,6 @@ struct VersionBar: Identifiable, Equatable, Sendable {
     var kind: String
     /// The label above the bar, in the piece's language: "+3 · added notes".
     var marker: String
-    var confidence: Int
     var dismissed: Bool
     var taken: Bool
     /// The printed notes the version does not have, tinted on the score.
@@ -29,7 +28,6 @@ struct VersionBar: Identifiable, Equatable, Sendable {
 struct VersionEntry: Identifiable, Equatable, Sendable {
     var id: String
     var name: String
-    var takenBars: Int
 
     /// A time music-core writes (.NET's round trip, seven digits of fraction).
     static func date(_ text: String?) -> Date? {
@@ -43,7 +41,7 @@ extension VersionEntry {
     /// A version as music-core writes its head (`VersionHead`); nil without its id.
     init?(_ head: VersionHead) {
         guard let id = head.id else { return nil }
-        self.init(id: id, name: head.name ?? "", takenBars: head.takenBars ?? 0)
+        self.init(id: id, name: head.name ?? "")
     }
 }
 
@@ -128,7 +126,7 @@ struct VersionShelf: Equatable, Sendable {
             let span = bar.span.flatMap { span in span.onset.flatMap { onset in span.end.map { onset..<max($0, onset + 1) } } }
             return VersionBar(
                 bar: number, span: span, aligned: bar.aligned ?? false, kind: bar.kind ?? "none",
-                marker: bar.marker ?? "", confidence: bar.confidence ?? 0,
+                marker: bar.marker ?? "",
                 dismissed: bar.dismissed ?? false, taken: bar.taken ?? false,
                 notHeard: bar.notHeard ?? [], played: bar.played?.count ?? 0,
                 artefacts: bar.artefacts?.count ?? 0
