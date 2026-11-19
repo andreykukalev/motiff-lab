@@ -6,6 +6,8 @@ using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>
@@ -187,17 +189,6 @@ public static partial class ProjectFile
 
         WriteSentFrom(json, heard);
         json.WriteEndObject();
-    }
-
-    private static void WriteNumbers(Utf8JsonWriter json, string name, IEnumerable<long> numbers)
-    {
-        json.WriteStartArray(name);
-        foreach (long number in numbers)
-        {
-            json.WriteNumberValue(number);
-        }
-
-        json.WriteEndArray();
     }
 
     /// <summary>"pageMap": where each page of the piece's PDF starts in the working notes, or of another piece's PDF they were read from (0023).</summary>

@@ -4,7 +4,12 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects.File;
 using MotiffLab.MusicCore.Time;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -64,7 +69,7 @@ public static partial class ProjectFile
             {
                 Applied = assembly.TryGetProperty("applied", out JsonElement applied) ? ReadMusic(applied) : null,
                 Before = assembly.TryGetProperty("before", out JsonElement before) ? ReadMusic(before) : null,
-                AppliedAt = assembly.TryGetProperty("appliedAt", out _) ? Time(assembly, "appliedAt") : null,
+                AppliedAt = assembly.TryGetProperty("appliedAt", out _) ? JsonRead.Time(assembly, "appliedAt") : null,
             };
         }
         catch (Exception exception) when (exception is ArgumentException or FormatException or InvalidOperationException)
@@ -123,7 +128,7 @@ public static partial class ProjectFile
     {
         Expect(step, JsonValueKind.Object, "assembly");
         int number = Integer(step, "number");
-        DateTimeOffset at = Time(step, "at");
+        DateTimeOffset at = JsonRead.Time(step, "at");
         return Text(step, "kind") switch
         {
             "carry" => new CarryStep(number, at, Text(step, "source"), ReadSpan(Property(step, "from", JsonValueKind.Object), "assembly"), ReadPlace(Property(step, "to", JsonValueKind.Object)), Integer(step, "transpose"),

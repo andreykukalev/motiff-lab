@@ -4,6 +4,10 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects.File;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -308,7 +312,7 @@ public static partial class ProjectFile
         (IReadOnlyList<BookmarkCategory> categories, IReadOnlyList<Bookmark> bookmarks) = version >= 12
             ? ReadBookmarks(Property(work, "bookmarks", JsonValueKind.Object), unknowns)
             : (BookmarkCategory.BuiltIn, []);
-        return new Project(Text(root, "id"), Text(root, "fileName"), [], Time(root, "createdAt"), Time(root, "lastOpened"), motifs, variations)
+        return new Project(Text(root, "id"), Text(root, "fileName"), [], JsonRead.Time(root, "createdAt"), JsonRead.Time(root, "lastOpened"), motifs, variations)
         {
             Phrases = version >= 5 ? ReadPhrases(Property(work, "phrases", JsonValueKind.Object)) : PhraseEdits.None,
             ShortPhrases = version >= 12 ? ReadPhraseLevel(Property(work, "phrases", JsonValueKind.Object), "short") : PhraseEdits.None,

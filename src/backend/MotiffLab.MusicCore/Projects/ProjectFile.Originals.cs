@@ -2,6 +2,9 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects.File;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -84,7 +87,7 @@ public static partial class ProjectFile
         Expect(original, JsonValueKind.Object, OriginalsList);
         try
         {
-            return new PieceOriginal(Text(original, "id"), LowerName<OriginalKind>(original, "kind"), Text(original, "fileName"), LowerName<OriginalKept>(original, "kept"), Time(original, "addedAt"))
+            return new PieceOriginal(Text(original, "id"), LowerName<OriginalKind>(original, "kind"), Text(original, "fileName"), LowerName<OriginalKept>(original, "kept"), JsonRead.Time(original, "addedAt"))
             {
                 Name = original.TryGetProperty("name", out _) ? Text(original, "name") : null,
                 Folder = original.TryGetProperty("folder", out JsonElement folder) ? FolderOf(folder) : null,
@@ -96,7 +99,7 @@ public static partial class ProjectFile
                     ? [.. Elements(held, "originals held").Select(mark =>
                     {
                         Expect(mark, JsonValueKind.Object, "originals held");
-                        return new OriginalHeld(LowerName<HoldingDevice>(mark, "device"), Time(mark, "at"));
+                        return new OriginalHeld(LowerName<HoldingDevice>(mark, "device"), JsonRead.Time(mark, "at"));
                     })]
                     : [],
             };
@@ -121,11 +124,5 @@ public static partial class ProjectFile
     /// <summary>"from" and "at" on a scan, a transcription or a performance of a file before version 16 (version 0.3): the original the notes were made from, and when.</summary>
     private static (string? From, DateTimeOffset? At) ReadMadeFrom(JsonElement element) => (
         element.TryGetProperty("from", out _) ? Text(element, "from") : null,
-        element.TryGetProperty("at", out _) ? Time(element, "at") : null);
-
-    private static JsonElement.ArrayEnumerator Elements(JsonElement array, string what)
-    {
-        Expect(array, JsonValueKind.Array, what);
-        return array.EnumerateArray();
-    }
+        element.TryGetProperty("at", out _) ? JsonRead.Time(element, "at") : null);
 }

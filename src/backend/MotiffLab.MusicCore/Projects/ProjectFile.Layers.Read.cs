@@ -5,6 +5,9 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects.File;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -91,7 +94,7 @@ public static partial class ProjectFile
             }
 
             Expect(tombstone, JsonValueKind.Object, OriginalsList);
-            removed.Add(new RemovedOriginal(original, Time(tombstone, "at")) { Marks = element.TryGetProperty("marks", out JsonElement apart) ? ReadMarksApart(apart) : DocumentMarks.Empty });
+            removed.Add(new RemovedOriginal(original, JsonRead.Time(tombstone, "at")) { Marks = element.TryGetProperty("marks", out JsonElement apart) ? ReadMarksApart(apart) : DocumentMarks.Empty });
         }
 
         return (project with { Sources = project.Sources with { Removed = removed, Data = kept, Marks = pageMarks } }, described);
@@ -340,12 +343,6 @@ public static partial class ProjectFile
 
     private static string EngineOf(NotesProvenance provenance) => provenance.Engine ?? throw Damaged("engine");
 
-    private static JsonElement Expected(JsonElement element, string what)
-    {
-        Expect(element, JsonValueKind.Object, what);
-        return element;
-    }
-
     /// <summary>A provenance (0030, section 2); an operation this build does not know is read in the same shape and kept.</summary>
     private static NotesProvenance ReadProvenance(JsonElement provenance)
     {
@@ -360,7 +357,7 @@ public static partial class ProjectFile
                     : [],
                 Engine = provenance.TryGetProperty("engine", out _) ? Text(provenance, "engine") : null,
                 ParamsJson = provenance.TryGetProperty("params", out JsonElement parameters) ? Expected(parameters, "provenance").GetRawText() : null,
-                At = provenance.TryGetProperty("at", out _) ? Time(provenance, "at") : null,
+                At = provenance.TryGetProperty("at", out _) ? JsonRead.Time(provenance, "at") : null,
                 Unknown = UnknownFieldsOf(provenance, s_provenanceFields),
             };
         }

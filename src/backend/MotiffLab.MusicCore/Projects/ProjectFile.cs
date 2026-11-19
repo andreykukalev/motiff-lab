@@ -7,9 +7,14 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects.File;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -185,18 +190,6 @@ public static partial class ProjectFile
 
     private static List<SavedPerformance> DistinctPerformances(List<SavedPerformance> performances) =>
         performances.Select(static performance => performance.Id).Distinct(StringComparer.Ordinal).Count() == performances.Count ? performances : throw Damaged("performances");
-
-    private static JsonDocument Parse(ReadOnlySpan<byte> data)
-    {
-        try
-        {
-            return JsonDocument.Parse(data.ToArray());
-        }
-        catch (JsonException)
-        {
-            throw new ProjectFileException("This is not a Motiff Lab project file: it is not valid JSON.");
-        }
-    }
 
     /// <summary>
     /// The ink strokes as the pencil layer saves and reads them: {"version": 2, "marks": [stroke, …]}, each stroke in the
@@ -376,7 +369,7 @@ public static partial class ProjectFile
                 : null;
             try
             {
-                bookmarks.Add(new PageBookmark(Text(bookmark, "id"), Integer(bookmark, "page"), name, Time(bookmark, "createdAt")));
+                bookmarks.Add(new PageBookmark(Text(bookmark, "id"), Integer(bookmark, "page"), name, JsonRead.Time(bookmark, "createdAt")));
             }
             catch (ArgumentException)
             {
@@ -406,7 +399,7 @@ public static partial class ProjectFile
             Expect(note, JsonValueKind.Object, "notes");
             try
             {
-                notes.Add(new MarginNote(Text(note, "id"), ReadSpan(note, "note"), Text(note, "text"), Time(note, "createdAt")));
+                notes.Add(new MarginNote(Text(note, "id"), ReadSpan(note, "note"), Text(note, "text"), JsonRead.Time(note, "createdAt")));
             }
             catch (ArgumentException)
             {
@@ -501,7 +494,7 @@ public static partial class ProjectFile
         Expect(bookmark, JsonValueKind.Object, "bookmarks");
         try
         {
-            return new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), Time(bookmark, "createdAt"));
+            return new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), JsonRead.Time(bookmark, "createdAt"));
         }
         catch (ArgumentException)
         {
@@ -536,8 +529,8 @@ public static partial class ProjectFile
                 Integer(point, "tempoPercent"),
                 point.TryGetProperty("hands", out _) ? Name<Hand>(point, "hands") : null,
                 Boolean(point, "loop"),
-                Time(point, "createdAt"),
-                Time(point, "lastActive"));
+                JsonRead.Time(point, "createdAt"),
+                JsonRead.Time(point, "lastActive"));
         }
         catch (ArgumentException)
         {
@@ -560,8 +553,8 @@ public static partial class ProjectFile
         string? task = session.TryGetProperty("task", out _) ? Text(session, "task") : null;
         try
         {
-            return ResumePoint.Start(id.StartsWith("s_", StringComparison.Ordinal) ? "r_" + id[2..] : id, Time(session, "startedAt"), task)
-                .Touch(passage, Time(session, "lastActive"));
+            return ResumePoint.Start(id.StartsWith("s_", StringComparison.Ordinal) ? "r_" + id[2..] : id, JsonRead.Time(session, "startedAt"), task)
+                .Touch(passage, JsonRead.Time(session, "lastActive"));
         }
         catch (ArgumentException)
         {
@@ -739,7 +732,7 @@ public static partial class ProjectFile
                     MergeChoice choice = Name<MergeChoice>(decision, "choice");
                     return new MergeDecision(Integer(decision, "bar"), choice, decision.TryGetProperty("own", out JsonElement own) ? ReadTakenBar(own) : null);
                 })],
-                kept.TryGetProperty("appliedAt", out _) ? Time(kept, "appliedAt") : null);
+                kept.TryGetProperty("appliedAt", out _) ? JsonRead.Time(kept, "appliedAt") : null);
         }
 
         return new SavedPerformance(id, name, Name<PerformanceSource>(comparison, "source"), midi, Long(comparison, "recordingStart"), PerformanceAlignment.FromAnchors(anchors).Anchors)
@@ -787,19 +780,6 @@ public static partial class ProjectFile
         return overrides;
     }
 
-    private static void WriteSpan(Utf8JsonWriter json, TickSpan span)
-    {
-        json.WriteNumber("onset", span.Onset.Value);
-        json.WriteNumber("duration", span.Duration);
-    }
-
-    private static TickSpan ReadSpan(JsonElement parent, string what)
-    {
-        long onset = Long(parent, "onset");
-        long duration = Long(parent, "duration");
-        return onset >= 0 && duration > 0 ? new TickSpan(new Tick(onset), duration) : throw Damaged($"{what} range");
-    }
-
     private static SavedMotif ReadMotif(JsonElement motif)
     {
         Expect(motif, JsonValueKind.Object, "motifs");
@@ -836,82 +816,6 @@ public static partial class ProjectFile
         HashSet<string> unknown = [.. Project.UnknownIds(unknowns.Kept, "motifs"), .. unknowns.Kept.Where(static entity => entity.List == "variations" && entity.Owner is not null).Select(static entity => entity.Owner!)];
         variations = Known(read, "variations", static variation => variation.MotifId, unknown, "motifId", unknowns);
         return Known(motifs, "motifs", static motif => motif.Id, unknown, null, unknowns);
-    }
-
-    private static void WriteTicks(Utf8JsonWriter json, string name, IEnumerable<Tick> ticks)
-    {
-        json.WriteStartArray(name);
-        foreach (Tick tick in ticks)
-        {
-            json.WriteNumberValue(tick.Value);
-        }
-
-        json.WriteEndArray();
-    }
-
-    private static void WriteRange(Utf8JsonWriter json, TickSpan span, SelectionFilter filter)
-    {
-        json.WriteNumber("onset", span.Onset.Value);
-        json.WriteNumber("duration", span.Duration);
-        json.WriteStartObject("filter");
-        if (filter.Hand is Hand hand)
-        {
-            json.WriteString("hand", hand.ToString());
-        }
-
-        if (filter.Track is int track)
-        {
-            json.WriteNumber("track", track);
-        }
-
-        if (filter.Voice is int voice)
-        {
-            json.WriteNumber("voice", voice);
-        }
-
-        json.WriteEndObject();
-    }
-
-    /// <summary>A range and its filter, written by <see cref="WriteRange"/>; <paramref name="what"/> names it in a damaged file's reason.</summary>
-    private static (TickSpan Span, SelectionFilter Filter) ReadRange(JsonElement parent, string what)
-    {
-        long onset = Long(parent, "onset");
-        long duration = Long(parent, "duration");
-        if (onset < 0 || duration <= 0)
-        {
-            throw Damaged($"{what} range");
-        }
-
-        JsonElement filter = Property(parent, "filter", JsonValueKind.Object);
-        Hand? hand = filter.TryGetProperty("hand", out _) ? Name<Hand>(filter, "hand") : null;
-        int? track = filter.TryGetProperty("track", out _) ? Integer(filter, "track") : null;
-        int? voice = filter.TryGetProperty("voice", out _) ? Integer(filter, "voice") : null;
-        try
-        {
-            return (new TickSpan(new Tick(onset), duration), (hand, track, voice) switch
-            {
-                (null, null, null) => SelectionFilter.All,
-                ({ } h, null, null) => SelectionFilter.ForHand(h),
-                (null, { } t, null) => SelectionFilter.ForTrack(t),
-                (null, { } t, { } v) => SelectionFilter.ForVoice(t, v),
-                _ => throw Damaged($"{what} filter"),
-            });
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            throw Damaged($"{what} filter");
-        }
-    }
-
-    private static void WriteNoteIds(Utf8JsonWriter json, IReadOnlyList<string> noteIds)
-    {
-        json.WriteStartArray("noteIds");
-        foreach (string id in noteIds)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
     }
 
     private static PhraseEdits ReadPhrases(JsonElement phrases)
@@ -1041,12 +945,6 @@ public static partial class ProjectFile
         }
     }
 
-    private static List<string> ReadNoteIds(JsonElement parent, string what) =>
-        Property(parent, "noteIds", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged(what))
-            .ToList();
-
     /// <summary>A chain's steps, the pending one and the Keep choices, as a variation and a kept variation save them.</summary>
     private static void WriteChain(Utf8JsonWriter json, IReadOnlyList<SavedStep> steps, SavedStep? pending, IReadOnlyList<KeepProperty> keep)
     {
@@ -1150,7 +1048,7 @@ public static partial class ProjectFile
         string? note = observation.TryGetProperty("note", out _) ? Text(observation, "note") : null;
         string id = Text(observation, "id");
         string name = Text(observation, "name");
-        DateTimeOffset createdAt = Time(observation, "createdAt");
+        DateTimeOffset createdAt = JsonRead.Time(observation, "createdAt");
         // Before version 12 an observation named the session it was kept in; sessions are gone, so the name is dropped.
         string? factId = version >= 12 && observation.TryGetProperty("factId", out _) ? Text(observation, "factId") : null;
         try
@@ -1416,7 +1314,7 @@ public static partial class ProjectFile
             HandEdit.OperationId => ReadHandEdit(parameters),
             RhythmReshape.OperationId => ReadRhythmReshape(parameters),
             Articulation.OperationId => new ArticulationParameters(Name<ArticulationKind>(parameters, "kind")),
-            AccompanimentPattern.OperationId => new AccompanimentPatternParameters(Name<AccompanimentPatternKind>(parameters, "kind"), Name<PatternUnit>(parameters, "unit")),
+            AccompanimentPattern.OperationId => ReadAccompanimentPattern(parameters),
             MelodicSequence.OperationId => ReadMelodicSequence(parameters),
             IntervalReshape.OperationId => ReadIntervalReshape(parameters),
             ChangeDirection.OperationId => new ChangeDirectionParameters(Boolean(parameters, "diatonic"), ReadIntervals(parameters)),
@@ -1459,6 +1357,9 @@ public static partial class ProjectFile
             ? new AccentShiftParameters(pattern, onsets)
             : throw Damaged("variation parameters");
     }
+
+    private static AccompanimentPatternParameters ReadAccompanimentPattern(JsonElement parameters) =>
+        new(Name<AccompanimentPatternKind>(parameters, "kind"), Name<PatternUnit>(parameters, "unit"));
 
     private static DensityParameters ReadDensity(JsonElement parameters)
     {
@@ -1506,99 +1407,6 @@ public static partial class ProjectFile
             .Select(index => index.ValueKind == JsonValueKind.Number && index.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("variation parameters"))];
         return indices.Length > 0 ? new IntervalSet(indices) : throw Damaged("variation parameters");
     }
-
-    private static JsonElement Property(JsonElement parent, string name, JsonValueKind kind)
-    {
-        if (!parent.TryGetProperty(name, out JsonElement value) || value.ValueKind != kind)
-        {
-            throw Damaged(name);
-        }
-
-        return value;
-    }
-
-    private static void Expect(JsonElement element, JsonValueKind kind, string what)
-    {
-        if (element.ValueKind != kind)
-        {
-            throw Damaged(what);
-        }
-    }
-
-    private static string Text(JsonElement parent, string name)
-    {
-        string value = Property(parent, name, JsonValueKind.String).GetString()!;
-        return value.Length > 0 ? value : throw Damaged(name);
-    }
-
-    private static bool Boolean(JsonElement parent, string name) =>
-        parent.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
-            ? value.GetBoolean()
-            : throw Damaged(name);
-
-    private static int Integer(JsonElement parent, string name) =>
-        Property(parent, name, JsonValueKind.Number).TryGetInt32(out int value) ? value : throw Damaged(name);
-
-    private static double Number(JsonElement parent, string name) =>
-        Property(parent, name, JsonValueKind.Number).TryGetDouble(out double value) && double.IsFinite(value) ? value : throw Damaged(name);
-
-    /// <summary>An enum in lower camel case, as the pencil layer writes a stroke's tool and colour.</summary>
-    private static string Lower<T>(T value)
-        where T : struct, Enum
-    {
-        string name = value.ToString();
-        return char.ToLowerInvariant(name[0]) + name[1..];
-    }
-
-    private static T LowerName<T>(JsonElement parent, string name)
-        where T : struct, Enum
-    {
-        string text = Text(parent, name);
-        return Enum.GetNames<T>().FirstOrDefault(known => string.Equals(known, text, StringComparison.OrdinalIgnoreCase)) is { } match ? Enum.Parse<T>(match) : throw Unknown<T>(name, text);
-    }
-
-    private static long Long(JsonElement parent, string name) =>
-        Property(parent, name, JsonValueKind.Number).TryGetInt64(out long value) ? value : throw Damaged(name);
-
-    private static DateTimeOffset Time(JsonElement parent, string name) =>
-        DateTimeOffset.TryParseExact(Text(parent, name), "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTimeOffset value)
-            ? value
-            : throw Damaged(name);
-
-    private static T Name<T>(JsonElement parent, string name)
-        where T : struct, Enum
-    {
-        string text = Text(parent, name);
-        return TryName(text, out T value) ? value : throw Unknown<T>(name, text);
-    }
-
-    /// <summary>
-    /// The reason for a value that is none of the enum's names: "damaged", as for any field, marked with the enum's type
-    /// name when the value is itself a name (ASCII letters and digits, from a letter), so a tolerant read can keep the
-    /// entity that holds it (S6). Where no list keeps it, the file is refused as before.
-    /// </summary>
-    private static ProjectFileException Unknown<T>(string name, string text)
-        where T : struct, Enum
-    {
-        ProjectFileException damaged = Damaged(name);
-        if (char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit))
-        {
-            damaged.Data[UnknownEnumKey] = typeof(T).Name;
-        }
-
-        return damaged;
-    }
-
-    /// <summary>An enum by its exact name; numbers are not names.</summary>
-    private static bool TryName<T>(string? text, out T value)
-        where T : struct, Enum
-    {
-        value = default;
-        return text is not null && Enum.GetNames<T>().Contains(text, StringComparer.Ordinal) && Enum.TryParse(text, out value);
-    }
-
-    /// <summary>The key under which a "damaged" reason names the enum whose value this build does not know.</summary>
-    private const string UnknownEnumKey = "MotiffLab.UnknownEnum";
 
     /// <summary>
     /// The entities of one array of the file with their places. In a tolerant read an entity whose only fault is a value
@@ -1739,7 +1547,4 @@ public static partial class ProjectFile
         private static List<UnknownEntity> InOrder(IEnumerable<UnknownEntity> entities) =>
             [.. entities.OrderBy(static entity => entity.List, StringComparer.Ordinal).ThenBy(static entity => entity.Index)];
     }
-
-    private static ProjectFileException Damaged(string what) =>
-        new($"This project file is damaged: its {what} cannot be read.");
 }

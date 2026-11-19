@@ -1,5 +1,9 @@
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Projects.File;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>
@@ -47,7 +51,7 @@ public static partial class ProjectFile
         }
 
         JsonElement work = version >= Version && root.TryGetProperty("workspace", out JsonElement workspace) && workspace.ValueKind == JsonValueKind.Object ? workspace : root;
-        return new ProjectEnvelope(Text(root, "id"), version, Text(root, "fileName"), Time(root, "lastOpened"))
+        return new ProjectEnvelope(Text(root, "id"), version, Text(root, "fileName"), JsonRead.Time(root, "lastOpened"))
         {
             MotifCount = Count(work, "motifs"),
             VariationCount = Count(work, "variations"),

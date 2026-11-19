@@ -2,6 +2,9 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Import.Scan;
 
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>
@@ -74,14 +77,6 @@ public static partial class ProjectFile
             throw Damaged("partOf");
         }
     }
-
-    /// <summary>Two whole numbers, as "pages" and "ms" hold them.</summary>
-    private static (long First, long Last) Pair(JsonElement pair) =>
-        pair.ValueKind == JsonValueKind.Array && pair.GetArrayLength() == 2
-        && pair[0].ValueKind == JsonValueKind.Number && pair[0].TryGetInt64(out long first)
-        && pair[1].ValueKind == JsonValueKind.Number && pair[1].TryGetInt64(out long last)
-            ? (first, last)
-            : throw Damaged("partOf");
 
     /// <summary>"pages" in "scan": each page's report as the scan server sent it, numbers only; left out when there are none.</summary>
     private static void WriteScanPages(Utf8JsonWriter json, IReadOnlyList<PageReport> pages)
