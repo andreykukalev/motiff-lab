@@ -4,13 +4,13 @@ using MotiffLab.MusicCore.Pieces;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 
-namespace MotiffLab.MusicCore.Projects;
+namespace MotiffLab.MusicCore.Projects.File;
 
 /// <summary>The piece's title, composer, tags and playlists as the player set them in the library (version 0.2, within version 15).</summary>
-public static partial class ProjectFile
+internal static class MetadataCodec
 {
     /// <summary>"metadata": {"title", "composer", "tags", "playlists"}, each only when set; nothing at all while none is.</summary>
-    private static void WriteMetadata(Utf8JsonWriter json, PieceMetadata metadata)
+    internal static void WriteMetadata(Utf8JsonWriter json, PieceMetadata metadata)
     {
         if (metadata.IsEmpty)
         {
@@ -50,7 +50,7 @@ public static partial class ProjectFile
     }
 
     /// <summary>The metadata a file keeps; none when it has no "metadata", as every file written before it was kept.</summary>
-    private static PieceMetadata ReadMetadata(JsonElement root)
+    internal static PieceMetadata ReadMetadata(JsonElement root)
     {
         if (!root.TryGetProperty("metadata", out JsonElement metadata))
         {

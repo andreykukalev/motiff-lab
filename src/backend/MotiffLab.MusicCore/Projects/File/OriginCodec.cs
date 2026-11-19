@@ -1,0 +1,275 @@
+using System.Globalization;
+using System.Text.Json;
+
+using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Transcription;
+using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Time;
+
+using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
+
+namespace MotiffLab.MusicCore.Projects.File;
+
+/// <summary>
+/// How a Notes was made, when it was recognised: from a PDF or photos ("scan": the bars the player checked and what the
+/// scan server saw of each page, version 0.4) or heard in a recording ("transcription": the bars and tempo worked out
+/// (0016), where they change signature, the seams and where the stretch sent started, version 0.5).
+/// </summary>
+internal static class OriginCodec
+{
+    internal static void WriteOrigin(Utf8JsonWriter json, ScanOrigin? scan, TranscriptionOrigin? heard)
+    {
+        if (scan is not null)
+        {
+            json.WriteStartObject("scan");
+            json.WriteStartArray("confirmedBars");
+            foreach (int bar in scan.ConfirmedBars)
+            {
+                json.WriteNumberValue(bar);
+            }
+
+            json.WriteEndArray();
+            WriteScanPages(json, scan.Pages);
+            json.WriteEndObject();
+        }
+
+        if (heard is not null)
+        {
+            WriteHeard(json, heard);
+        }
+    }
+
+    /// <summary>"transcription": the bars and tempo worked out, the seams and where the stretch sent started (0016; version 0.5).</summary>
+    private static void WriteHeard(Utf8JsonWriter json, TranscriptionOrigin heard)
+    {
+        json.WriteStartObject("transcription");
+        if (heard.Bars is { } bars)
+        {
+            json.WriteStartObject("bars");
+            json.WriteNumber("origin", bars.Origin.Value);
+            json.WriteNumber("sixteenthMicroseconds", bars.SixteenthMicroseconds);
+            json.WriteString("signature", bars.Signature.ToString());
+            WriteNumbers(json, "barStarts", bars.BarStarts.Select(static start => (long)start));
+            json.WriteNumber("stepsPerBeat", bars.StepsPerBeat);
+            WriteNumbers(json, "beats", bars.Beats);
+            WriteMeters(json, bars);
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("bars");
+        }
+
+        if (heard.Seams.Count > 0)
+        {
+            WriteNumbers(json, "seams", heard.Seams);
+        }
+
+        WriteSentFrom(json, heard);
+        json.WriteEndObject();
+    }
+
+    /// <summary>"pages" in "scan": each page's report as the scan server sent it, numbers only; left out when there are none.</summary>
+    private static void WriteScanPages(Utf8JsonWriter json, IReadOnlyList<PageReport> pages)
+    {
+        if (pages.Count == 0)
+        {
+            return;
+        }
+
+        json.WriteStartArray("pages");
+        foreach (PageReport page in pages)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("page", page.Page);
+            json.WriteNumber("rotation", page.Rotation);
+            json.WriteNumber("sharpness", page.Sharpness);
+            json.WriteNumber("contrast", page.Contrast);
+            json.WriteNumber("staves", page.Staves);
+            json.WriteNumber("noteheads", page.Noteheads);
+            json.WriteNumber("barLines", page.BarLines);
+            json.WriteNumber("spacePx", page.SpacePx);
+            json.WriteNumber("measures", page.Measures);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>"sentFromMs" in "transcription": where in the recording file the stretch heard started; left out when not kept.</summary>
+    private static void WriteSentFrom(Utf8JsonWriter json, TranscriptionOrigin transcription)
+    {
+        if (transcription.SentFromMilliseconds is { } from)
+        {
+            json.WriteNumber("sentFromMs", from);
+        }
+    }
+
+    /// <summary>"meters": [{"at": 16th, "signature": "7/8"}] in a grid's "bars"; left out without a change of signature.</summary>
+    private static void WriteMeters(Utf8JsonWriter json, BarGrid bars)
+    {
+        if (bars.Meters.Count == 0)
+        {
+            return;
+        }
+
+        json.WriteStartArray("meters");
+        foreach (GridMeter meter in bars.Meters)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("at", meter.At);
+            json.WriteString("signature", meter.Signature.ToString());
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>A scan's checked bars and page reports, with the engine, original and time its provenance names.</summary>
+    internal static ScanOrigin ReadScanBlock(JsonElement scan, string engine, string? from, DateTimeOffset? at)
+    {
+        int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
+        return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
+    }
+
+    /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>
+    internal static Import.Transcription.TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
+    {
+        if (string.IsNullOrWhiteSpace(engine))
+        {
+            throw Damaged("engine");
+        }
+
+        // Seams came within version 12 (0018, preparation item 12): a file without them was heard in one part, or before they were kept.
+        long[] seams = [];
+        if (transcription.TryGetProperty("seams", out JsonElement saved))
+        {
+            seams = saved.ValueKind == JsonValueKind.Array
+                ? [.. saved.EnumerateArray().Select(seam => seam.ValueKind == JsonValueKind.Number && seam.TryGetInt64(out long value) && value > 0 ? value : throw Damaged("seams"))]
+                : throw Damaged("seams");
+        }
+
+        try
+        {
+            return new Import.Transcription.TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("seams");
+        }
+    }
+
+    /// <summary>The scan's page reports, read as the scan server's header is (<see cref="PageReport.Of"/>); none without "pages".</summary>
+    private static IReadOnlyList<PageReport> ReadScanPages(JsonElement scan)
+    {
+        if (!scan.TryGetProperty("pages", out JsonElement pages))
+        {
+            return [];
+        }
+
+        try
+        {
+            return pages.ValueKind == JsonValueKind.Array ? PageReport.Of(pages) : throw Damaged("scan pages");
+        }
+        catch (FormatException)
+        {
+            throw Damaged("scan pages");
+        }
+    }
+
+    private static BarGrid? ReadBars(JsonElement transcription, int version)
+    {
+        if (!transcription.TryGetProperty("bars", out JsonElement bars) || bars.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
+        {
+            throw Damaged("bars");
+        }
+
+        if (bars.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        string[] signature = Text(bars, "signature").Split('/');
+        TimeSignature? meter = signature.Length == 2 && int.TryParse(signature[0], NumberStyles.None, CultureInfo.InvariantCulture, out int numerator)
+            && int.TryParse(signature[1], NumberStyles.None, CultureInfo.InvariantCulture, out int denominator)
+            ? BarGrid.Signatures.FirstOrDefault(offered => offered.Numerator == numerator && offered.Denominator == denominator)
+            : null;
+        int[] starts = [.. Property(bars, "barStarts", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt32(out int value) ? value : throw Damaged("bars"))];
+        long origin = Long(bars, "origin");
+        long[] beats = version >= 11
+            ? [.. Property(bars, "beats", JsonValueKind.Array)
+                .EnumerateArray()
+                .Select(beat => beat.ValueKind == JsonValueKind.Number && beat.TryGetInt64(out long value) ? value : throw Damaged("bars"))]
+            : [];
+        int perBeat = version >= 11 ? Integer(bars, "stepsPerBeat") : 2;
+        if (meter is not { } chosen || !BarGrid.Signatures.Contains(chosen) || origin < 0)
+        {
+            throw Damaged("bars");
+        }
+
+        try
+        {
+            return WithMetersIn(new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat), bars);
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("bars");
+        }
+    }
+
+    /// <summary>The grid with the changes of signature its "bars" keep; a change that is not well formed is damage.</summary>
+    private static BarGrid WithMetersIn(BarGrid grid, JsonElement bars)
+    {
+        if (!bars.TryGetProperty("meters", out JsonElement meters))
+        {
+            return grid;
+        }
+
+        Expect(meters, JsonValueKind.Array, "bars");
+        GridMeter[] read = [.. meters.EnumerateArray().Select(meter =>
+        {
+            Expect(meter, JsonValueKind.Object, "bars");
+            return new GridMeter(Integer(meter, "at"), SignatureOf(Text(meter, "signature")) ?? throw Damaged("bars"));
+        })];
+        try
+        {
+            return grid with { Meters = read };
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("bars");
+        }
+    }
+
+    /// <summary>A signature written as "7/8": any whole numbers a time signature can have; null otherwise.</summary>
+    private static TimeSignature? SignatureOf(string text)
+    {
+        string[] parts = text.Split('/');
+        if (parts.Length != 2
+            || !int.TryParse(parts[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int numerator)
+            || !int.TryParse(parts[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int denominator))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new TimeSignature(numerator, denominator);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The "sentFromMs" of a "transcription", null when left out; a value that is not a whole number of 0 or more is damage.</summary>
+    private static long? SentFromIn(JsonElement transcription) =>
+        !transcription.TryGetProperty("sentFromMs", out JsonElement from) ? null
+            : from.ValueKind == JsonValueKind.Number && from.TryGetInt64(out long value) && value >= 0 ? value
+            : throw Damaged("sentFromMs");
+}

@@ -10,9 +10,11 @@ using static MotiffLab.MusicCore.Projects.File.EditsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierOrigins;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
+using static MotiffLab.MusicCore.Projects.File.NotesCodec;
+using static MotiffLab.MusicCore.Projects.File.OriginalsCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
-using static MotiffLab.MusicCore.Projects.ProjectFile;
+using static MotiffLab.MusicCore.Projects.File.WorkspaceCodec;
 
 namespace MotiffLab.MusicCore.Projects.File.Legacy;
 

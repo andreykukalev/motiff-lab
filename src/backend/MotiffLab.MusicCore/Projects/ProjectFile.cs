@@ -1,21 +1,16 @@
 using System.Globalization;
 using System.Text.Json;
 
-using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
-using MotiffLab.MusicCore.Settings;
-using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierFile;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
-using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
-using static MotiffLab.MusicCore.Projects.File.SpanCodec;
+using static MotiffLab.MusicCore.Projects.File.NotesCodec;
+using static MotiffLab.MusicCore.Projects.File.OriginalsCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
-using static MotiffLab.MusicCore.Projects.File.VariationCodec;
+using static MotiffLab.MusicCore.Projects.File.WorkspaceCodec;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -30,8 +25,14 @@ namespace MotiffLab.MusicCore.Projects;
 /// tolerant reader (decision record 0026, S6): in a file of this version, an entity of a list that holds a value a later
 /// build added to an enum is kept whole as an <see cref="UnknownEntity"/> and written back unchanged where it stood
 /// (docs/project-file.md, "Unknown enum values").
+/// <para>
+/// This class holds the document's top level and the version switch; each part of the file has its codec in
+/// <c>Projects.File</c> (the originals, the Notes, the workspace, the marks, the variations, ...) and
+/// <c>Projects.File.Legacy</c> reads the versions before 16. Nothing outside <c>Projects</c> uses them: the facade reads
+/// and writes a stroke, the fingering and a variation step in the file's shape through this class.
+/// </para>
 /// </remarks>
-public static partial class ProjectFile
+public static class ProjectFile
 {
     public const string FormatName = "motiff-lab-project";
 
@@ -67,6 +68,11 @@ public static partial class ProjectFile
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
+
+    /// <summary>Where the unknown fields of a Notes stand in <see cref="Project.UnknownFields"/>: this and the Notes' id.</summary>
+    internal const string NotesPath = "notes/";
+
+    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
     /// The project as a version 16 file (decision record 0030): its originals, its Notes and its workspace, each with the
@@ -128,21 +134,62 @@ public static partial class ProjectFile
         }
     }
 
-    /// <summary>A PDF's bytes in base64, as "document" and an original's "data" hold them; anything else is damage.</summary>
-    internal static byte[] ReadPdf(JsonElement element, string what)
+    private static Project ReadLayers(JsonElement root, Unknowns unknowns)
     {
-        byte[] pdf;
-        try
+        JsonElement workspace = Property(root, WorkspacePath, JsonValueKind.Object);
+        string? working = workspace.TryGetProperty("working", out _) ? Text(workspace, "working") : null;
+        Dictionary<string, IReadOnlyList<UnknownField>> fields = new(StringComparer.Ordinal);
+        KeepFields(fields, "", root, s_rootFields);
+        KeepFields(fields, WorkspacePath, workspace, s_workspaceFields);
+        Project project = ReadWork(root, workspace, Version, unknowns);
+        (project, List<PieceOriginal> described) = ReadOriginalsLayer(project, Property(root, OriginalsList, JsonValueKind.Array), unknowns, fields);
+        project = ReadNotesLayer(project, Property(root, NotesList, JsonValueKind.Array), working, unknowns, fields);
+        // The descriptions the piece's own data shows are worked out again, as for every earlier file, so they follow it.
+        IReadOnlyList<PieceOriginal> derived = PieceOriginals.Derived(project);
+        return project with
         {
-            pdf = element.ValueKind == JsonValueKind.String ? element.GetBytesFromBase64() : throw Damaged(what);
-        }
-        catch (FormatException)
+            KeptOriginals = [.. described.Where(original => !derived.Contains(original))],
+            // An idea or a motif built on the working notes says nothing more in memory, as one of an earlier file.
+            Observations = [.. project.Observations.Select(observation => observation.Notes == working ? observation with { Notes = null } : observation)],
+            Motifs = [.. project.Motifs.Select(motif => motif.Notes == working ? motif with { Notes = null } : motif)],
+            UnknownFields = fields,
+        };
+    }
+
+    /// <summary>
+    /// The envelope of a project file (0026 S2): the format's name, a version of 1 or more (a later one too), the id and
+    /// file name, a time it was last opened, and how many motifs, variations, resume points and ideas it keeps (the
+    /// workspace's from version 16, the top level's before; none where a list is not there). Nothing else is read, so a file
+    /// with a value this build does not know, or of a later version, passes.
+    /// </summary>
+    /// <exception cref="ProjectFileException">Not JSON, not a project file, or its envelope is damaged.</exception>
+    public static ProjectEnvelope ReadEnvelope(ReadOnlySpan<byte> data)
+    {
+        using JsonDocument document = Parse(data);
+        JsonElement root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out JsonElement format) || format.ValueKind != JsonValueKind.String || format.GetString() != FormatName)
         {
-            throw Damaged(what);
+            throw new ProjectFileException("This is not a Motiff Lab project file.");
         }
 
-        return PdfDocument.IsPdf(pdf) ? pdf : throw Damaged(what);
+        int version = Integer(root, "version");
+        if (version < 1)
+        {
+            throw Damaged("version");
+        }
+
+        JsonElement work = version >= Version && root.TryGetProperty("workspace", out JsonElement workspace) && workspace.ValueKind == JsonValueKind.Object ? workspace : root;
+        return new ProjectEnvelope(Text(root, "id"), version, Text(root, "fileName"), JsonRead.Time(root, "lastOpened"))
+        {
+            MotifCount = Count(work, "motifs"),
+            VariationCount = Count(work, "variations"),
+            ResumeCount = Count(work, "resumePoints"),
+            IdeaCount = Count(work, "observations"),
+        };
     }
+
+    private static int Count(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out JsonElement list) && list.ValueKind == JsonValueKind.Array ? list.GetArrayLength() : 0;
 
     /// <summary>
     /// The ink strokes as the pencil layer saves and reads them: {"version": 2, "marks": [stroke, …]}, each stroke in the
@@ -205,221 +252,4 @@ public static partial class ProjectFile
 
     /// <summary>One variation step as the file writes it (<see cref="VariationCodec.WriteStep"/>): the facade (0020) uses the same shape.</summary>
     internal static void WriteStep(Utf8JsonWriter json, SavedStep step) => VariationCodec.WriteStep(json, step);
-
-    internal static PageMap ReadPageMap(JsonElement pages, string field)
-    {
-        if (pages.ValueKind != JsonValueKind.Array)
-        {
-            throw Damaged(field);
-        }
-
-        try
-        {
-            return new PageMap([.. pages.EnumerateArray().Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt64(out long value) && value >= 0
-                ? new Tick(value)
-                : throw Damaged(field))]);
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged(field);
-        }
-    }
-
-    private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings)
-    {
-        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (JsonProperty property in settings.EnumerateObject())
-        {
-            Setting setting = SettingsCatalogue.Find(property.Name) ?? throw Damaged("settings");
-            string value = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString()! : throw Damaged("settings");
-            if (setting.Scope != SettingScope.Piece || !setting.Allows(value))
-            {
-                throw Damaged("settings");
-            }
-
-            overrides[property.Name] = value;
-        }
-
-        return overrides;
-    }
-
-    private static PhraseEdits ReadPhrases(JsonElement phrases)
-    {
-        Tick[] Ticks(string name)
-        {
-            Tick[] ticks = [.. Property(phrases, name, JsonValueKind.Array)
-                .EnumerateArray()
-                .Select(tick => tick.ValueKind == JsonValueKind.Number && tick.TryGetInt64(out long value) && value > 0 ? new Tick(value) : throw Damaged("phrase boundaries"))];
-            return ticks.Distinct().Order().SequenceEqual(ticks) ? ticks : throw Damaged("phrase boundaries");
-        }
-
-        return new PhraseEdits(Ticks("added"), Ticks("removed"));
-    }
-
-    /// <summary>The edits of the Short or the Sentence level inside "phrases" (0018; written since the engine package, read as none when absent).</summary>
-    private static PhraseEdits ReadPhraseLevel(JsonElement phrases, string name) =>
-        phrases.TryGetProperty(name, out JsonElement level) && level.ValueKind == JsonValueKind.Object ? ReadPhrases(level) : PhraseEdits.None;
-
-    /// <summary>A scan's checked bars and page reports, with the engine, original and time its provenance names.</summary>
-    internal static ScanOrigin ReadScanBlock(JsonElement scan, string engine, string? from, DateTimeOffset? at)
-    {
-        int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
-    }
-
-    /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>
-    internal static Import.Transcription.TranscriptionOrigin ReadHeard(JsonElement transcription, int version, string engine, string? from, DateTimeOffset? at)
-    {
-        if (string.IsNullOrWhiteSpace(engine))
-        {
-            throw Damaged("engine");
-        }
-
-        // Seams came within version 12 (0018, preparation item 12): a file without them was heard in one part, or before they were kept.
-        long[] seams = [];
-        if (transcription.TryGetProperty("seams", out JsonElement saved))
-        {
-            seams = saved.ValueKind == JsonValueKind.Array
-                ? [.. saved.EnumerateArray().Select(seam => seam.ValueKind == JsonValueKind.Number && seam.TryGetInt64(out long value) && value > 0 ? value : throw Damaged("seams"))]
-                : throw Damaged("seams");
-        }
-
-        try
-        {
-            return new Import.Transcription.TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("seams");
-        }
-    }
-
-    private static BarGrid? ReadBars(JsonElement transcription, int version)
-    {
-        if (!transcription.TryGetProperty("bars", out JsonElement bars) || bars.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
-        {
-            throw Damaged("bars");
-        }
-
-        if (bars.ValueKind == JsonValueKind.Null)
-        {
-            return null;
-        }
-
-        string[] signature = Text(bars, "signature").Split('/');
-        TimeSignature? meter = signature.Length == 2 && int.TryParse(signature[0], NumberStyles.None, CultureInfo.InvariantCulture, out int numerator)
-            && int.TryParse(signature[1], NumberStyles.None, CultureInfo.InvariantCulture, out int denominator)
-            ? BarGrid.Signatures.FirstOrDefault(offered => offered.Numerator == numerator && offered.Denominator == denominator)
-            : null;
-        int[] starts = [.. Property(bars, "barStarts", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt32(out int value) ? value : throw Damaged("bars"))];
-        long origin = Long(bars, "origin");
-        long[] beats = version >= 11
-            ? [.. Property(bars, "beats", JsonValueKind.Array)
-                .EnumerateArray()
-                .Select(beat => beat.ValueKind == JsonValueKind.Number && beat.TryGetInt64(out long value) ? value : throw Damaged("bars"))]
-            : [];
-        int perBeat = version >= 11 ? Integer(bars, "stepsPerBeat") : 2;
-        if (meter is not { } chosen || !BarGrid.Signatures.Contains(chosen) || origin < 0)
-        {
-            throw Damaged("bars");
-        }
-
-        try
-        {
-            return WithMetersIn(new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat), bars);
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("bars");
-        }
-    }
-
-    /// <summary>An idea; with a variation, the Notes it was built on (version 16): its own, else <paramref name="working"/>.</summary>
-    private static void WriteObservation(Utf8JsonWriter json, Observation observation, string? working)
-    {
-        json.WriteStartObject();
-        json.WriteString("id", observation.Id);
-        json.WriteString("name", observation.Name);
-        if (observation.FactId is { } factId)
-        {
-            json.WriteString("factId", factId);
-        }
-
-        if (observation.Note is { } note)
-        {
-            json.WriteString("note", note);
-        }
-
-        json.WriteString("createdAt", observation.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
-        json.WriteStartObject("phrase");
-        WriteRange(json, observation.Phrase.Span, observation.Phrase.Filter);
-        json.WriteEndObject();
-        if (observation is { ExperimentId: { } experiment, Alternative: { } alternative })
-        {
-            json.WriteStartObject("experiment");
-            json.WriteString("id", experiment);
-            json.WriteNumber("alternative", alternative);
-            json.WriteEndObject();
-        }
-
-        if (observation.Variation is { } variation)
-        {
-            json.WriteStartObject("variation");
-            WriteRange(json, variation.Passage.Span, variation.Passage.Filter);
-            WriteNoteIds(json, variation.NoteIds);
-            WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
-            WriteKey(json, variation.Key);
-
-            json.WriteEndObject();
-            if ((observation.Notes ?? working) is { } notes)
-            {
-                json.WriteString("notes", notes);
-            }
-        }
-
-        if (observation.Provenance is { } provenance)
-        {
-            WriteProvenance(json, provenance);
-        }
-
-        json.WriteEndObject();
-    }
-
-    private static Observation ReadObservation(JsonElement observation, int version)
-    {
-        Expect(observation, JsonValueKind.Object, "observations");
-        (TickSpan phrase, SelectionFilter phraseFilter) = ReadRange(Property(observation, "phrase", JsonValueKind.Object), "observation phrase");
-        (string Id, int Alternative)? experiment = null;
-        if (observation.TryGetProperty("experiment", out _))
-        {
-            JsonElement tried = Property(observation, "experiment", JsonValueKind.Object);
-            int alternative = Integer(tried, "alternative");
-            experiment = alternative >= 0 ? (Text(tried, "id"), alternative) : throw Damaged("observation experiment");
-        }
-
-        KeptVariation? variation = observation.TryGetProperty("variation", out _) ? ReadKeptVariation(Property(observation, "variation", JsonValueKind.Object)) : null;
-        string? note = observation.TryGetProperty("note", out _) ? Text(observation, "note") : null;
-        string id = Text(observation, "id");
-        string name = Text(observation, "name");
-        DateTimeOffset createdAt = JsonRead.Time(observation, "createdAt");
-        // Before version 12 an observation named the session it was kept in; sessions are gone, so the name is dropped.
-        string? factId = version >= 12 && observation.TryGetProperty("factId", out _) ? Text(observation, "factId") : null;
-        try
-        {
-            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with
-            {
-                FactId = factId,
-                Notes = version >= 16 && variation is not null && observation.TryGetProperty("notes", out _) ? Text(observation, "notes") : null,
-                Provenance = version >= 16 && observation.TryGetProperty("provenance", out JsonElement provenance) ? ReadProvenance(provenance) : null,
-            };
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("observation");
-        }
-    }
 }

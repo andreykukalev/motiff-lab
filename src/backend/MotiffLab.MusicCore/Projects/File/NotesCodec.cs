@@ -5,129 +5,121 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
-using MotiffLab.MusicCore.Projects.File;
+using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.EditsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
+using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
+using static MotiffLab.MusicCore.Projects.File.OriginalsCodec;
+using static MotiffLab.MusicCore.Projects.File.OriginCodec;
 using static MotiffLab.MusicCore.Projects.File.PerformanceCodec;
 using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
-namespace MotiffLab.MusicCore.Projects;
+namespace MotiffLab.MusicCore.Projects.File;
 
-/// <summary>Reading a version 16 file (decision record 0030): the originals, the Notes and the workspace into the shape both apps use.</summary>
-public static partial class ProjectFile
+/// <summary>
+/// The Notes layer (decision record 0030; docs/project-file.md, "Notes"): the working notes first, then the other Notes
+/// and the compared ones, each with its provenance, music, corrections, Check flags and page map; a Notes of a later
+/// build is kept whole as unknown where it stood.
+/// </summary>
+internal static class NotesCodec
 {
-    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
+    internal const string NotesList = "notes";
 
     private static readonly HashSet<string> s_notesFields = new(StringComparer.Ordinal) { "id", "name", "fileName", "provenance", "music", "edits", "check", "scan", "transcription", "pageMap", "performance" };
 
-    private static readonly HashSet<string> s_originalFields = new(StringComparer.Ordinal)
+    /// <summary>
+    /// The working notes first, when the piece has notes, then the other Notes and the compared ones, each in the order
+    /// they were added.
+    /// </summary>
+    internal static void WriteNotesLayer(Utf8JsonWriter json, Project project)
     {
-        "id", "kind", "name", "fileName", "folder", "sha256", "bytes", "pages", "durationMs", "addedAt", "kept", "held", "removed",
-    };
-
-    private static readonly HashSet<string> s_pdfFields = new([.. s_originalFields, "data", "marks"], StringComparer.Ordinal);
-
-    private static readonly HashSet<string> s_removedFields = new([.. s_originalFields, "marks"], StringComparer.Ordinal);
-
-    private static Project ReadLayers(JsonElement root, Unknowns unknowns)
-    {
-        JsonElement workspace = Property(root, WorkspacePath, JsonValueKind.Object);
-        string? working = workspace.TryGetProperty("working", out _) ? Text(workspace, "working") : null;
-        Dictionary<string, IReadOnlyList<UnknownField>> fields = new(StringComparer.Ordinal);
-        KeepFields(fields, "", root, s_rootFields);
-        KeepFields(fields, WorkspacePath, workspace, s_workspaceFields);
-        Project project = ReadWork(root, workspace, Version, unknowns);
-        (project, List<PieceOriginal> described) = ReadOriginalsLayer(project, Property(root, OriginalsList, JsonValueKind.Array), unknowns, fields);
-        project = ReadNotesLayer(project, Property(root, NotesList, JsonValueKind.Array), working, unknowns, fields);
-        // The descriptions the piece's own data shows are worked out again, as for every earlier file, so they follow it.
-        IReadOnlyList<PieceOriginal> derived = PieceOriginals.Derived(project);
-        return project with
+        List<object> entries = [.. project.HasNotes ? [project] : Array.Empty<object>(), .. project.Sources.Notes, .. project.Performances];
+        IEnumerable<string> ids = entries.Select(entry => entry switch { OtherNotes other => other.Id, SavedPerformance performance => performance.Id, _ => project.NotesId });
+        WriteList(json, NotesList, entries, KeptUnknown(project.Unknown, NotesList, ids, null, out _), entry =>
         {
-            KeptOriginals = [.. described.Where(original => !derived.Contains(original))],
-            // An idea or a motif built on the working notes says nothing more in memory, as one of an earlier file.
-            Observations = [.. project.Observations.Select(observation => observation.Notes == working ? observation with { Notes = null } : observation)],
-            Motifs = [.. project.Motifs.Select(motif => motif.Notes == working ? motif with { Notes = null } : motif)],
-            UnknownFields = fields,
-        };
-    }
-
-    private static (Project Project, List<PieceOriginal> Described) ReadOriginalsLayer(Project project, JsonElement originals, Unknowns unknowns, Dictionary<string, IReadOnlyList<UnknownField>> fields)
-    {
-        List<(PieceOriginal Original, JsonElement Element)> read = [.. ReadEntries(originals, OriginalsList, ReadOriginal, unknowns).Select(static entry => (entry.Value, entry.Element))];
-        if (read.Select(static entry => entry.Original.Id).Distinct(StringComparer.Ordinal).Count() != read.Count)
-        {
-            throw Damaged(OriginalsList);
-        }
-
-        List<PieceOriginal> described = [];
-        List<RemovedOriginal> removed = [];
-        Dictionary<string, byte[]> kept = new(StringComparer.Ordinal);
-        Dictionary<string, DocumentMarks> pageMarks = new(StringComparer.Ordinal);
-        foreach ((PieceOriginal original, JsonElement element) in read)
-        {
-            bool live = !element.TryGetProperty("removed", out JsonElement tombstone);
-            bool pdf = live && original.Id == PieceOriginal.DocumentId;
-            KeepFields(fields, OriginalsPath + original.Id, element, live ? s_pdfFields : s_removedFields);
-            if (pdf)
+            switch (entry)
             {
-                project = project with
-                {
-                    Document = element.TryGetProperty("data", out JsonElement data) ? ReadPdf(data, "original data") : null,
-                    DocumentMarks = element.TryGetProperty("marks", out JsonElement marks) ? ReadDocumentMarks(marks, unknowns) : DocumentMarks.Empty,
-                };
+                case OtherNotes other:
+                    WriteOtherNotes(json, project, other);
+                    break;
+                case SavedPerformance performance:
+                    WritePerformanceNotes(json, project, performance);
+                    break;
+                default:
+                    WriteWorkingNotes(json, project);
+                    break;
             }
-
-            if (live)
-            {
-                if (!pdf && element.TryGetProperty("data", out JsonElement bytes))
-                {
-                    kept[original.Id] = original.Kind is OriginalKind.Pdf or OriginalKind.Images ? ReadPdf(bytes, "original data") : ReadBytes(bytes, "original data");
-                }
-
-                if (!pdf && element.TryGetProperty("marks", out JsonElement own))
-                {
-                    pageMarks[original.Id] = ReadMarksApart(own);
-                }
-
-                described.Add(original);
-                continue;
-            }
-
-            Expect(tombstone, JsonValueKind.Object, OriginalsList);
-            removed.Add(new RemovedOriginal(original, JsonRead.Time(tombstone, "at")) { Marks = element.TryGetProperty("marks", out JsonElement apart) ? ReadMarksApart(apart) : DocumentMarks.Empty });
-        }
-
-        return (project with { Sources = project.Sources with { Removed = removed, Data = kept, Marks = pageMarks } }, described);
+        });
     }
 
-    private static byte[] ReadBytes(JsonElement element, string what)
+    private static void WriteWorkingNotes(Utf8JsonWriter json, Project project)
     {
-        try
-        {
-            return element.ValueKind == JsonValueKind.String && element.GetBytesFromBase64() is { Length: > 0 } bytes ? bytes : throw Damaged(what);
-        }
-        catch (FormatException)
-        {
-            throw Damaged(what);
-        }
+        json.WriteStartObject();
+        json.WriteString("id", project.NotesId);
+        WriteProvenance(json, project.WorkingProvenance);
+        json.WriteBase64String("music", project.Source);
+        WriteEdits(json, project.Edits);
+        WriteCheck(json, project.Check, KeptUnknown(project.Unknown, "check", [], null, out _));
+        WriteOrigin(json, project.Scan, project.Transcription);
+        WritePageMap(json, project.ReadFrom, project.DocumentPages);
+        WriteUnknownFields(json, project.UnknownFieldsAt(ProjectFile.NotesPath + project.NotesId));
+        json.WriteEndObject();
     }
 
-    /// <summary>A tombstone's page marks, with their own unknown strokes, apart from the marks the piece shows.</summary>
-    private static DocumentMarks ReadMarksApart(JsonElement marks)
+    /// <summary>Other Notes: the working notes' fields, with their name and the file name their music is read by.</summary>
+    private static void WriteOtherNotes(Utf8JsonWriter json, Project project, OtherNotes notes)
     {
-        var apart = new Unknowns(tolerant: true);
-        DocumentMarks read = ReadDocumentMarks(marks, apart);
-        return read with { Unknown = [.. apart.Kept.OrderBy(static entity => entity.Index)] };
+        json.WriteStartObject();
+        json.WriteString("id", notes.Id);
+        if (notes.Name is { } name)
+        {
+            json.WriteString("name", name);
+        }
+
+        json.WriteString("fileName", notes.FileName);
+        WriteProvenance(json, notes.Provenance);
+        json.WriteBase64String("music", notes.Music);
+        WriteEdits(json, notes.Edits);
+        WriteCheck(json, notes.Check, []);
+        WriteOrigin(json, notes.Scan, notes.Transcription);
+        WritePageMap(json, notes.ReadFrom, notes.Pages);
+        if (!notes.Marks.IsEmpty || notes.Marks.Unknown.Count > 0)
+        {
+            WriteMarks(json, notes.Marks);
+        }
+
+        WriteUnknownFields(json, project.UnknownFieldsAt(ProjectFile.NotesPath + notes.Id));
+        json.WriteEndObject();
+    }
+
+    /// <summary>"pageMap": where each page of the piece's PDF starts in the working notes, or of another piece's PDF they were read from (0023).</summary>
+    private static void WritePageMap(Utf8JsonWriter json, ReadFromPdf? readFrom, PageMap? documentPages)
+    {
+        (PageMap? pages, string? other) = readFrom is { } read ? (read.Pages, read.ProjectId) : (documentPages, null);
+        if (pages is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("pageMap");
+        json.WriteString("original", PieceOriginal.DocumentId);
+        if (other is not null)
+        {
+            json.WriteString("project", other);
+        }
+
+        WriteNumbers(json, "starts", pages.Starts.Select(static start => start.Value));
+        json.WriteEndObject();
     }
 
     /// <summary>
     /// The Notes: the working ones into the piece's notes, the compared ones into its performances, and any other (a later
     /// build's) kept whole as unknown where it stood.
     /// </summary>
-    private static Project ReadNotesLayer(Project project, JsonElement notes, string? working, Unknowns unknowns, Dictionary<string, IReadOnlyList<UnknownField>> fields)
+    internal static Project ReadNotesLayer(Project project, JsonElement notes, string? working, Unknowns unknowns, Dictionary<string, IReadOnlyList<UnknownField>> fields)
     {
         List<SavedPerformance> performances = [];
         List<OtherNotes> others = [];
@@ -143,7 +135,7 @@ public static partial class ProjectFile
                 throw Damaged(NotesList);
             }
 
-            KeepFields(fields, NotesPath + id, entry, s_notesFields);
+            KeepFields(fields, ProjectFile.NotesPath + id, entry, s_notesFields);
             if (id == working)
             {
                 project = ReadWorkingNotes(project, entry, unknowns, fields);
@@ -228,7 +220,7 @@ public static partial class ProjectFile
             Transcription = body.Heard,
             Pages = pages,
             ReadFrom = readFrom,
-            Marks = OwnMarks(entry, NotesPath + id, fields),
+            Marks = OwnMarks(entry, ProjectFile.NotesPath + id, fields),
         };
     }
 
@@ -274,7 +266,7 @@ public static partial class ProjectFile
             ? ReadScanBlock(Expected(read, "scan"), EngineOf(provenance), from, provenance.At)
             : null;
         TranscriptionOrigin? heard = entry.TryGetProperty("transcription", out JsonElement transcription)
-            ? ReadHeard(Expected(transcription, "transcription"), Version, EngineOf(provenance), from, provenance.At)
+            ? ReadHeard(Expected(transcription, "transcription"), ProjectFile.Version, EngineOf(provenance), from, provenance.At)
             : null;
         if (music.Length == 0 || (scan is not null && heard is not null))
         {
@@ -320,10 +312,29 @@ public static partial class ProjectFile
             throw Damaged("pageMap");
         }
 
-        string path = NotesPath + id;
+        string path = ProjectFile.NotesPath + id;
         fields[path] = [new UnknownField("pageMap", pageMap.GetRawText()), .. fields.GetValueOrDefault(path) ?? []];
         return (null, null);
     }
 
     private static string EngineOf(NotesProvenance provenance) => provenance.Engine ?? throw Damaged("engine");
+
+    internal static PageMap ReadPageMap(JsonElement pages, string field)
+    {
+        if (pages.ValueKind != JsonValueKind.Array)
+        {
+            throw Damaged(field);
+        }
+
+        try
+        {
+            return new PageMap([.. pages.EnumerateArray().Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt64(out long value) && value >= 0
+                ? new Tick(value)
+                : throw Damaged(field))]);
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged(field);
+        }
+    }
 }
