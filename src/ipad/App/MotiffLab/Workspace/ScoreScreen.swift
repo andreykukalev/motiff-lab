@@ -852,7 +852,8 @@ struct ScoreBar: View {
 /// The pill (ds.css `.pill`): play, the tempo and the metronome, floating at the bottom of the score, then the piano roll
 /// and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8). Its controls show their icons
 /// alone, their words for VoiceOver and the pointer's tip, so it fits beside the assistant (v0.10, finding 22); what shows a
-/// value keeps it: the place, Цикл's span, the tempo and the hands, which say the mode.
+/// value keeps it: the place, Цикл's span, the tempo and the hands, which say the mode. Where even so it has no room, the
+/// tempo, the metronome and the roll go into «⋯» (Andrei's answer A).
 struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
@@ -867,18 +868,16 @@ struct Pill: View {
     @EnvironmentObject private var settings: DeviceSettings
     @EnvironmentObject private var assistant: AssistantController
 
+    /// The tempo's popover opened from «⋯» while the pill has no room for the tempo (finding 22).
+    @State private var tempoFromMore = false
+
     var body: some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            playback.disabled(!player.ready)
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            // The roll in its drawer (finding 7); in Expand the bar's Notes | Piano roll shows the passage as a roll.
-            if !focusModel.focused {
-                iconItem("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
-            }
-            // The assistant (finding 8, Andrei's card of 2026-11-18 21:49 UTC): its panel with the last conversation, or
-            // closed; an Ask elsewhere opens it empty.
-            iconItem("note", text["pill.assistant"], on: assistant.panelOpen, action: assistantPressed)
-                .accessibilityHint(text["pill.assistantHint"])
+        // As built while it fits; with no room (portrait beside the assistant, say), the tempo, the metronome and the roll go
+        // into «⋯» and play, the place, Цикл and the hands stay (finding 22, Andrei's answer A of 2026-11-19 09:55 UTC).
+        // SwiftUI measures: the first that fits the width the pill is given, else the second.
+        ViewThatFits(in: .horizontal) {
+            items(roomy: true)
+            items(roomy: false)
         }
         .padding(.leading, 6)
         .padding(.trailing, CGFloat.ds("s-2"))
@@ -888,24 +887,77 @@ struct Pill: View {
         .accessibilityLabel(text["transport.label"])
     }
 
-    /// Play, the tempo, the hands and the metronome: they wait for the player.
-    private var playback: some View {
+    private func items(roomy: Bool) -> some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            playback(roomy: roomy).disabled(!player.ready)
+            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            if roomy {
+                // The roll in its drawer (finding 7); in Expand the bar's Notes | Piano roll shows the passage as a roll.
+                if !focusModel.focused {
+                    iconItem("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
+                }
+            } else {
+                more
+            }
+            // The assistant (finding 8, Andrei's card of 2026-11-18 21:49 UTC): its panel with the last conversation, or
+            // closed; an Ask elsewhere opens it empty.
+            iconItem("note", text["pill.assistant"], on: assistant.panelOpen, action: assistantPressed)
+                .accessibilityHint(text["pill.assistantHint"])
+        }
+    }
+
+    /// Play, the tempo, the hands and the metronome: they wait for the player. Without room, play and the hands alone.
+    private func playback(roomy: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // The playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span; in
             // Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
             PositionTransport(player: player, passage: score.expandPassage, text: text)
-            // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
-            TempoControl(tempo: player.tempo, text: text) { [weak score] perMinute in
-                Task { await score?.setPieceTempo(perMinute) }
+            if roomy {
+                // The tempo observes only itself (#511 section 17), so it opens and changes while playing.
+                TempoControl(tempo: player.tempo, text: text, setPiece: setPieceTempo)
+                    .equatable()
             }
-            .equatable()
             handsControls
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). Its icon
-            // alone, as the roll's and the assistant's, so the pill fits beside the assistant (finding 22).
-            iconItem("metronome", text["transport.metronome"], on: metronome.running) { metronome.toggle() }
-                .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
+            if roomy {
+                Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+                // The metronome clicks at once, with or without Play; held, a slide sets its tempo (#521 section 15). Its icon
+                // alone, as the roll's and the assistant's, so the pill fits beside the assistant (finding 22).
+                iconItem("metronome", text["transport.metronome"], on: metronome.running) { metronome.toggle() }
+                    .modifier(MetronomeHold(metronome: metronome, text: text) { metronome.toggle() })
+            }
         }
+    }
+
+    /// «⋯» with what the pill had no room for, by their words, in the pill's order: the tempo, whose item opens its popover
+    /// here; the metronome on or off; the roll's drawer, not in Expand. The tempo and the metronome wait for the player.
+    private var more: some View {
+        Menu {
+            TempoMenuItem(tempo: player.tempo, text: text) { tempoFromMore = true }
+                .disabled(!player.ready)
+            Toggle(isOn: Binding(get: { metronome.running }, set: { _ in metronome.toggle() })) {
+                Label(text["transport.metronome"], image: "ic-metronome")
+            }
+            .disabled(!player.ready)
+            if !focusModel.focused {
+                Toggle(isOn: $rollOpen) {
+                    Label(text["bar.roll"], image: "ic-roll")
+                }
+            }
+        } label: {
+            Icon(name: "more")
+        }
+        .menuStyle(.button)
+        .buttonStyle(DSIconItemStyle(on: tempoFromMore))
+        .accessibilityLabel(text["bar.more"])
+        .help(text["bar.more"])
+        .tempoPopover(isPresented: $tempoFromMore, tempo: player.tempo, text: text, setPiece: setPieceTempo)
+        // With room again «⋯» goes, and its popover with it, not to come back when the room goes again.
+        .onDisappear { tempoFromMore = false }
+    }
+
+    /// The piece tempo the player typed, kept with the piece (ScoreController.setPieceTempo).
+    private func setPieceTempo(_ perMinute: Int?) {
+        Task { [weak score] in await score?.setPieceTempo(perMinute) }
     }
 
     /// Hands separately at the instrument (#328): both, right or left, two touches away, and the

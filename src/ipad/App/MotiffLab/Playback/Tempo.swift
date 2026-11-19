@@ -191,17 +191,46 @@ struct TempoControl: View, Equatable {
             }
         }
         .buttonStyle(DSItemStyle(on: open || tempo.percent != 100))
-        .accessibilityLabel(text.format("pill.tempoLabel", tempo.reading?.pieceText ?? "", String(tempo.percent)))
-        .popover(isPresented: $open) {
-            TempoPanel(tempo: tempo, text: text, setPiece: setPiece) { open = false }
-                .padding(CGFloat.ds("s-4"))
-                .frame(width: 420, alignment: .leading)
-                .presentationCompactAdaptation(.popover)
-        }
+        .accessibilityLabel(tempo.spoken(text))
+        .tempoPopover(isPresented: $open, tempo: tempo, text: text, setPiece: setPiece)
     }
 
     private var label: String {
         tempo.reading?.pillText(at: tempo.percent, text) ?? "\(tempo.percent)%"
+    }
+}
+
+/// The tempo as an item of the pill's «⋯» while the pill has no room for it (finding 22): its words with the piece tempo
+/// and the pace; a press opens the tempo's popover at «⋯».
+struct TempoMenuItem: View {
+    @ObservedObject var tempo: TempoSetting
+    let text: UIText
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            Label(tempo.spoken(text), image: "ic-tempo")
+        }
+    }
+}
+
+extension TempoSetting {
+    /// "Tempo ♩ = 92, playback pace 80%": the pill's tempo for VoiceOver, and its item in «⋯».
+    func spoken(_ text: UIText) -> String {
+        text.format("pill.tempoLabel", reading?.pieceText ?? "", String(percent))
+    }
+}
+
+extension View {
+    /// The tempo's popover under this view: the pill's tempo, or its «⋯» while the tempo is in it (finding 22). It closes
+    /// with its ✕ or a tap on the notes.
+    func tempoPopover(isPresented: Binding<Bool>, tempo: TempoSetting, text: UIText, setPiece: @escaping (Int?) -> Void) -> some View {
+        popover(isPresented: isPresented) {
+            TempoPanel(tempo: tempo, text: text, setPiece: setPiece) { isPresented.wrappedValue = false }
+                .padding(CGFloat.ds("s-4"))
+                .frame(width: 420, alignment: .leading)
+                .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
