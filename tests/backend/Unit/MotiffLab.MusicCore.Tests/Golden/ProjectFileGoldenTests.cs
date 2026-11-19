@@ -445,18 +445,23 @@ public class ProjectFileGoldenTests
 
     /// <summary>
     /// What stays as it was (Andrei's decision on #313, option A): an unknown value on a note correction, a performance or
-    /// the assembly changes the notes that sound, so the file is still refused as damaged; read-only opening takes it up.
+    /// the assembly changes the notes that sound, so the file is still refused as damaged, in a version 16 file as in a
+    /// version 17 one; read-only opening takes it up.
     /// </summary>
     [Theory]
     [MemberData(nameof(RefusedValues))]
     public void An_unknown_value_on_the_notes_that_sound_still_makes_the_file_damaged(string type, string path)
     {
-        JsonObject file = Node(File(Worked));
-        Parent(file, path, out string last)[last] = UnknownValue;
+        foreach (string golden in (string[])[Worked16, Worked])
+        {
+            JsonObject file = Node(File(golden));
+            Parent(file, path, out string last)[last] = UnknownValue;
 
-        ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
+            ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file)));
 
-        Assert.StartsWith("This project file is damaged", refused.Message);
+            Assert.StartsWith("This project file is damaged", refused.Message);
+        }
+
         Assert.NotEmpty(type);
     }
 
@@ -516,11 +521,14 @@ public class ProjectFileGoldenTests
     /// Basis rule S6, flipping council fact V2 in version 16: an unknown field at the top level, in the workspace, in a Notes,
     /// an original or a provenance is kept and written back after the known ones; one inside a known entity is still lost.
     /// A version 15 file's unknown field is lost as before, since no build that wrote one knew a field this one does not.
+    /// A version 16 file keeps them as a version 17 one does, written back with version 17.
     /// </summary>
-    [Fact]
-    public void An_unknown_field_in_a_file_of_this_version_is_kept_where_the_layers_keep_them()
+    [Theory]
+    [InlineData(Worked16)]
+    [InlineData(Worked)]
+    public void An_unknown_field_in_a_file_of_the_layers_is_kept_where_the_layers_keep_them(string golden)
     {
-        JsonObject file = Node(File(Worked));
+        JsonObject file = Node(File(golden));
         file["future"] = new JsonObject { ["note"] = "A field a later version adds." };
         file["workspace"]!["future"] = 1;
         file["notes"]![0]!["future"] = 2;
@@ -532,6 +540,7 @@ public class ProjectFileGoldenTests
         JsonObject written = Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))));
 
         _ = file["workspace"]!["motifs"]![0]!.AsObject().Remove("future");
+        file["version"] = ProjectFile.Version;
         Assert.True(JsonNode.DeepEquals(file, written), "every unknown field but the motif's is written back");
 
         JsonObject earlier = Node(File(Worked15));

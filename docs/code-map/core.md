@@ -30,13 +30,14 @@ through the facade; the API references it.
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (the playing's marks per bar, `ControlEvents`, from
   `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
   `LayoutElements`), and `MeiWriter`.
-- `Projects`: `Project` (`Project.Recording`: a recording only, v17), sources, originals (`PieceOriginals`, also
-  the provenance a piece's data shows), parts, `ProjectSync`, `PieceDetails`, `BookmarkCategory`; `ProjectFile`
-  (`Read`, `Write`, `ReadEnvelope`, `Version`) over `Projects.File` (a `*Codec` per part, `UnknownEntities`, `Legacy`).
+- `Projects`: `Project` (`Project.Recording`: a recording only, v17; `PieceOrigin`), sources, originals
+  (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `BookmarkCategory`;
+  `ProjectFile` (`Read`, `Write`, `ReadEnvelope`, `Version`) over `Projects.File` (a `*Codec` per part,
+  `UnknownEntities`, `Legacy`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `OpenPiece*` and `OpenDocument` (a piece without notes: a PDF or a recording) hold an open piece;
+  `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   `Request` reads a call's JSON; `Answer*` write the answers by hand (for NativeAOT).
 
 ## The native build (`src/ipad/Core`)

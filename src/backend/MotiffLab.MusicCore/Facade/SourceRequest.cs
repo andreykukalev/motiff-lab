@@ -11,7 +11,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// The Sources sheet's calls that need no notes open (version 0.6; 0030, section 4), the same on a piece with notes and
 /// on a piece that is only its PDF: the layers, hiding a view, adding and removing an original, removing Notes. Each
-/// answers the layers (<see cref="Answer.SourceLayers"/>).
+/// answers the layers (<see cref="Answer.SourceLayers"/>). Since version 1.1 (finding 29) also the sources answer
+/// (<see cref="Sources"/>) and «Распознать» on a recording (<see cref="Hear"/>), on a piece with notes and on one without
+/// (a PDF or a recording).
 /// </summary>
 internal static class SourceRequest
 {

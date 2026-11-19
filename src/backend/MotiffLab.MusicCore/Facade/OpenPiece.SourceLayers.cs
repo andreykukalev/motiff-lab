@@ -2,7 +2,6 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
-using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
