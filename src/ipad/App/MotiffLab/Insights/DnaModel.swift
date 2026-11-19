@@ -107,6 +107,19 @@ struct DnaMap: Sendable {
     var start: Double { barStarts.first ?? 0 }
     var end: Double { barStarts.last ?? 0 }
 
+    /// Where a tick lies along the map, from 0 at its start to 1 at its end.
+    func fraction(of tick: Double) -> Double {
+        let length = end - start
+        guard length > 0 else { return 0 }
+        return min(max((tick - start) / length, 0), 1)
+    }
+
+    /// The whole tick at a place along the map (0 its start, 1 its end), inside the piece: where the playhead is let go.
+    func tick(at fraction: Double) -> Double {
+        let tick = (start + min(max(fraction, 0), 1) * (end - start)).rounded()
+        return min(tick, max(start, end - 1))
+    }
+
     /// Where a bar starts and ends, in ticks.
     func bar(_ number: Int) -> Range<Double>? {
         let index = number - firstBar

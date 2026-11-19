@@ -52,11 +52,14 @@ struct DnaScreen: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: wordsWidth, alignment: .leading)
                 }
+                if let status { // what the header's last action did, at the top of the map, under the header
+                    Text(status).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: wordsWidth, alignment: .leading)
+                }
                 lanes
                 if !map.ideas.isEmpty {
                     cards
                 }
-                actions
             }
             .padding(.horizontal, CGFloat.ds("s-4"))
             .padding(.top, CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
@@ -70,6 +73,9 @@ struct DnaScreen: View {
         .onDisappear { stop() }
     }
 
+    /// The header, as the score's bar (Andrei, v0.8 finding 14): Back and the title at the left, the counts, then the map's
+    /// own actions at the right by their icons, their words for VoiceOver and the pointer: Play or Stop from the playhead,
+    /// Add Structure bookmarks, Ask about the piece. The counts give way first where the bar is short.
     private var bar: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Button {
@@ -87,14 +93,48 @@ struct DnaScreen: View {
             // The title as the score's bar shows it, in its face, size and place (Andrei, v0.8 finding 11).
             Text(title).barTitle().padding(.horizontal, CGFloat.ds("s-2"))
             Text(text["dna.title"]).dsType(.label).foregroundStyle(Color.ds("ink-2"))
-            Spacer()
-            Text(counts).dsType(.label).foregroundStyle(Color.ds("ink-2")).lineLimit(1)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Spacer(minLength: CGFloat.ds("s-2"))
+                    Text(counts).dsType(.label).foregroundStyle(Color.ds("ink-2")).lineLimit(1).fixedSize()
+                    barActions
+                }
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Spacer(minLength: CGFloat.ds("s-2"))
+                    barActions
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
         .padding(.horizontal, CGFloat.ds("s-4"))
         .padding(.top, CGFloat.ds("s-3"))
+    }
+
+    @ViewBuilder private var barActions: some View {
+        let stops = DnaPlaying.map(playing: playing, card: cardHeard, state: player.state)
+        barButton(stops ? "pause" : "play", text[stops ? "dna.stop" : "dna.play"], action: playFromPlayhead)
+        if !map.form.isEmpty {
+            barButton("bookmark", text["dna.addBookmarks"]) {
+                Task { status = DnaBookmarks.said(added: await addBookmarks(), text) }
+            }
+        }
+        barButton("insight", text["ask.aboutPiece"]) {
+            stop()
+            ask()
+        }
+    }
+
+    /// An action of the header by its icon, as the score's bar has them.
+    private func barButton(_ icon: String, _ words: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(name: icon, size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle())
+        .accessibilityLabel(words)
+        .help(words)
     }
 
     /// "106 bars · 4 ideas · A minor".
