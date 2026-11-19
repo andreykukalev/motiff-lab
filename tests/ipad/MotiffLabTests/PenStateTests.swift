@@ -127,8 +127,9 @@ final class PenStateTests: XCTestCase {
     }
 
     func testEachToolHasItsOwnIconAndTheSamplesKeepTheTrueProportions() {
-        // #533 9: three drawings of their own, never the bar's Pen or the selection's Highlight.
-        XCTAssertEqual(ActiveTool.allCases.map(\.icon), ["pencil", "marker", "eraser"])
+        // #533 9: drawings of their own, never the bar's Pen; the colour bars the highlight the selection menu had (finding 31).
+        XCTAssertEqual(ActiveTool.allCases.map(\.icon), ["pencil", "marker", "highlight", "eraser"])
+        XCTAssertEqual(ActiveTool.onPages, [.pencil, .marker, .eraser], "a PDF's pages have no bars to colour")
         // The thickness samples: each a share of the tool's thickest, in the order of the sizes.
         let pen = PenSizes.shares(PenSizes.pen)
         XCTAssertEqual(pen.last, 1)
@@ -138,6 +139,49 @@ final class PenStateTests: XCTestCase {
         XCTAssertEqual(PenSizes.shares(PenSizes.highlighter)[1], 2.2 / 3.2, accuracy: 1e-9)
         XCTAssertEqual(PenSizes.shares([]), [])
         XCTAssertEqual(PenSizes.shares([0, 0]), [0, 0])
+    }
+
+    /// Finding 31 (v0.10): the colour bars are a tool of their own, with one of the four colours a highlight has, chosen
+    /// only while they are the tool; kept on the device like the rest; and never the pen of a PDF's pages.
+    func testTheColourBarsAreAToolWithTheirOwnColour() throws {
+        var pen = PenState()
+        XCTAssertNil(pen.colouring, "the pencil colours nothing")
+        pen.setBarColour(.carmine)
+        XCTAssertEqual(pen.active, .pencil, "a colour never switches the tool")
+        XCTAssertFalse(HighlightInk.allCases.contains { pen.isChosen(barColour: $0) })
+        pen.choose(.colour)
+        XCTAssertEqual(pen.colouring, .carmine)
+        XCTAssertEqual(HighlightInk.allCases.filter { pen.isChosen(barColour: $0) }, [.carmine])
+        XCTAssertEqual(pen.stroke, .colour)
+        XCTAssertNil(pen.current, "no thickness")
+        pen.setWidth(0)
+        XCTAssertEqual(pen.pencil.width, PenSizes.defaultWidth, "a thickness chosen there changes no tool's")
+        XCTAssertEqual(pen.marker.width, PenSizes.defaultWidth)
+        XCTAssertFalse(ScoreController.Ink.allCases.contains { pen.isChosen(ink: $0) })
+        XCTAssertEqual(HighlightInk.allCases.map(\.rawValue), ["amber", "carmine", "forest", "ochre"], "the four a highlight has")
+        pen.toggleEraser()
+        XCTAssertEqual(pen.active, .eraser)
+        pen.toggleEraser()
+        XCTAssertEqual(pen.active, .colour, "the Pencil's double tap goes to the eraser and back to the colour bars")
+
+        let suite = "motiff.tests.pen.colour"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        PenMemory.keep(pen, in: defaults)
+        XCTAssertEqual(PenMemory.saved(in: defaults), pen)
+
+        var pages = pen
+        pages.leaveColourBars()
+        XCTAssertEqual(pages.active, .eraser, "on a PDF's pages the tool before the colour bars")
+        XCTAssertEqual(pages.previous, .pencil, "and the colour bars are no way back")
+        var fresh = PenState(active: .colour, previous: .colour)
+        fresh.leaveColourBars()
+        XCTAssertEqual(fresh.active, .pencil)
+        XCTAssertEqual(fresh.previous, .eraser)
+        var writing = PenState(active: .marker, previous: .eraser)
+        writing.leaveColourBars()
+        XCTAssertEqual(writing, PenState(active: .marker, previous: .eraser), "a pen without the colour bars stays as it is")
     }
 
     func testThePdfsPagesUndoAndRedoAsTheScoreDoes() {

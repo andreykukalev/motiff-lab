@@ -4,7 +4,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 ## Files
 
-`Bookmarks`, `Check`, `EditsLayer`, `Marks`, `MarksModel`, `SegmentedChoice` (`.swift`).
+`Bookmarks`, `Check`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `SegmentedChoice` (`.swift`).
+
+- `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as
+  `highlight.remove` and `highlight.add` (span and colour): a passage coloured lays it in its colour (other colours give
+  way there, the same colour joins it), one all that colour already loses it, the eraser takes the colour where it
+  passed. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`. The
+  selection menu's «Выделить цветом» (`HighlightRow`) is gone with it.
 
 - `MarksModel.swift` (S6, ADR 0031 section 3, v0.10 d-4): `MarksModel`, the marks' state and their own rules; it reads
   `SelectionModel` and is given the device's settings resolved for a piece (`DeviceSettings.resolved`). The lists of
@@ -40,4 +46,4 @@ layers hidden, the piece's own settings, the bookmarks as drawn and the one gone
 
 ## Baseline entries that protect it
 
-UX baseline: not recorded yet. Quality ratchet: `Marks.swift` jscpd (same file); `Bookmarks.swift` file_length.
+UX baseline: not recorded yet. Quality ratchet: `Bookmarks.swift` file_length.

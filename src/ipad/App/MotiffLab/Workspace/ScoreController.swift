@@ -17,6 +17,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     enum Tool: Equatable {
         case pen(Ink)
         case highlighter
+        /// The colour bars (finding 31): they colour through the page as Select selects, so nothing is written.
+        case colour
         case eraser
     }
 
@@ -373,6 +375,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         case .cardLayout(let options):
             focusModel.takeCardOptions(facadeRequest(options))
             Task { await engraveCard() }
+        case let .coloured(start, end):
+            penModel.colour(start, end)
         default:
             break
         }
@@ -558,7 +562,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         Task { await scorePage.send(.showPage, ["page": page]) }
     }
 
-    // MARK: - Margin notes, highlights and layers
+    // MARK: - Margin notes and layers
 
     /// Opens a note to read or change: its bars are selected and the card shows its words.
     func openNote(_ id: String) {
@@ -596,22 +600,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         marksModel.noteDraft = nil
         Task { await changeMarks(piece.id, "note.remove", ["id": id]) }
-    }
-
-    /// Lays the selection in an ink; the highlight already over it gives way to the new one.
-    func highlightSelection(_ ink: String) {
-        guard let piece, let selection = selectionModel.selection else { return }
-        let existing = marksModel.selectedHighlight
-        guard existing?.colour != ink else { return }
-        Task {
-            if let existing { await changeMarks(piece.id, "highlight.remove", ["id": existing.id]) }
-            await changeMarks(piece.id, "highlight.add", ["span": ["onset": Int(selection.onset), "end": Int(selection.end)], "colour": ink])
-        }
-    }
-
-    func removeHighlight(_ id: String) {
-        guard let piece else { return }
-        Task { await changeMarks(piece.id, "highlight.remove", ["id": id]) }
     }
 
     /// Shows or hides layers of marks, kept with the piece.
@@ -1724,7 +1712,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// pointers the rules give them, and the page is told how a finger and the Pencil select and tap. Again when the app
     /// comes back, as the iPad's setting «Only draw with Apple Pencil» may have changed.
     func applyInput() {
-        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: InputRules.Tool(mode: mode, penOn: penModel.penOn))
+        let tool = InputRules.Tool(mode: mode, penOn: penModel.penOn)
+        let rules = InputRules(stylus: InkInput.stylusPreferred, tool: tool, colour: penModel.pen.colouring?.rawValue)
         ink.apply(rules)
         toolChanged?(mode, penModel.penOn)
         guard shown else { return }

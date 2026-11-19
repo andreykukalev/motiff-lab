@@ -29,7 +29,8 @@
 // page or a bookmark chosen there is brought into view (`showPage`, `reveal`).
 //
 // Margin notes are numbered amber markers at the top right of their first bar, and highlights translucent bands in an
-// ink behind the staves (`notes`), as the web app's score view draws them; a tap on a marker gives the note to Swift.
+// ink behind the staves (`notes`), cut where they start and end inside a bar; a tap on a marker gives the note to Swift.
+// The pen's colour bars (finding 31) colour passages exactly as Select selects them, and give each to Swift (`coloured`).
 // The bars a scan or a transcription is unsure of carry an amber "?" at their top right (`checks`), the notes on the same
 // bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
 //
@@ -56,7 +57,8 @@ import { PlaceLayer } from "../score/selection-place-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
-import { ScoreBeats } from "../score/selection-beats.js";
+import { ScoreBeats, keyLines } from "../score/selection-beats.js";
+import { mergedSpans, noteUnit, rubbedColour } from "../score/colour-bars.js";
 import { gridLines, tupletBlocks } from "../score/selection-grid.js";
 import { ScorePlayheadMarks, bandOf, playheadsOf } from "../score/playheads.js";
 import { ScoreGrab, ScorePress } from "../score/playhead-grab.js";
@@ -100,10 +102,12 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], painted: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), chosen: null, beats: null, tuplets: [], mode: null, heads: null, input: null, practice: false, selectionControls: true };
 let nextId = 0;
 /** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
 let rubbing = NO_RUBBING;
+/** What the eraser took the colour from since it pressed (colour-bars.ts rubbedColour), for `rubEnd`. */
+let uncolouring = [];
 
 /** The kind of pointer that pressed last ("touch" for a finger, "pen" for the Pencil), for the tap that follows. */
 let lastPointer = "touch";
@@ -331,6 +335,29 @@ function tint(root, timeline, ids, name) {
     }
 }
 
+/**
+ * A highlight's band: the staves of the bars it lies in, cut where it starts and ends inside a bar, as the selection's band
+ * is (ScoreBeats.cutEdges), since the pen's colour bars colour beats and sixteenths too (finding 31).
+ */
+function highlightRuns(geometry, start, end) {
+    const runs = geometry.band(start, end, 2);
+    selection.beats.cutEdges(geometry, runs, start, end);
+    return runs;
+}
+
+/** A band of a highlight over the page, in the classes given. */
+function highlightBand(run, className) {
+    const band = document.createElement("div");
+    band.className = className;
+    band.setAttribute("aria-hidden", "true");
+    band.style.left = `${run.left}px`;
+    band.style.top = `${run.top}px`;
+    band.style.width = `${run.right - run.left}px`;
+    band.style.height = `${run.bottom - run.top}px`;
+    document.body.append(band);
+    return band;
+}
+
 function placeNotes() {
     for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag, body > .perf-marker, body > .taken-bar")) {
         old.remove();
@@ -352,19 +379,12 @@ function placeNotes() {
         line.style.width = `${bar.right - bar.left}px`;
         document.body.append(line);
     }
-    for (const highlight of state.highlights) {
-        for (const run of geometry.band(highlight.start, highlight.end, 2)) {
-            const band = document.createElement("div");
-            band.className = `hl ink-${highlight.ink}`;
-            band.dataset.highlight = highlight.id;
-            band.setAttribute("aria-hidden", "true");
-            band.style.left = `${run.left}px`;
-            band.style.top = `${run.top}px`;
-            band.style.width = `${run.right - run.left}px`;
-            band.style.height = `${run.bottom - run.top}px`;
-            document.body.append(band);
+    state.painted = state.highlights.map((highlight) => ({ start: highlight.start, end: highlight.end, runs: highlightRuns(geometry, highlight.start, highlight.end) }));
+    state.highlights.forEach((highlight, index) => {
+        for (const run of state.painted[index].runs) {
+            highlightBand(run, `hl ink-${highlight.ink}`).dataset.highlight = highlight.id;
         }
-    }
+    });
     // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
     const onBar = new Map();
     for (const check of state.checks) {
@@ -558,6 +578,69 @@ const places = new PlaceLayer(document.body, {
     view: () => scoreView(),
     grid: (geometry) => selectionGrid(geometry),
 });
+
+/**
+ * The pen's colour bars (finding 31, Scripts/score/colour-bars.ts): while Swift's rules name the ink they colour in
+ * (`input.colour`), the pointers that take the pen (`input.<pointer>.colour`) colour exactly as Select selects, by the same
+ * place rule with no selection, so every press is a new passage: a drag draws the dashed rectangle and colours what it
+ * covers on the selection's grid, a tap colours the bar under it or the beats round a note head. What it colours goes to
+ * Swift as `coloured`, which keeps it as music-core's highlights; the selection never changes.
+ */
+const colouring = new PlaceLayer(document.body, {
+    geometry: () => state.geometry,
+    beats: selection.beats,
+    on: () => typeof state.input?.colour === "string" && !state.focus,
+    rule: (pointerType) => (state.input?.[pointerType]?.colour === true ? "now" : "none"),
+    selection: () => null,
+    show: (range) => showColouring(range),
+    chosen: (range) => coloured(range),
+    picked: (id) => colourNote(id),
+    cleared: () => {},
+    zoom: () => {},
+    view: () => scoreView(),
+    grid: (geometry) => selectionGrid(geometry),
+    edges: false,
+});
+
+/** A passage coloured: to Swift, and the next press reads no passage as there (the layer has no selection). */
+function coloured(range) {
+    colouring.settle();
+    post({ coloured: { start: range.start, end: range.end } });
+}
+
+/** A note head tapped with the colour bars: the beats round the note, as Select's tap on a note takes them. */
+function colourNote(id) {
+    const geometry = state.geometry;
+    const spans = state.timeline?.spans ?? [];
+    const note = spans.find((span) => span.id === noteIdOf(id)) ?? spans.find((span) => span.id === id);
+    if (geometry === null || note === undefined) {
+        return;
+    }
+    const unit = noteUnit(note.onset, note.end, state.beats !== null ? keyLines(state.beats, geometry.bars) : selectionGrid(geometry));
+    if (unit !== undefined) {
+        coloured(unit);
+    }
+}
+
+/** What a colouring gesture would colour, in the ink chosen, while it is drawn; null for nothing. */
+function showColouring(range) {
+    for (const old of document.querySelectorAll("body > .hl-preview")) {
+        old.remove();
+    }
+    const ink = state.input?.colour;
+    if (range === null || state.geometry === null || typeof ink !== "string") {
+        return;
+    }
+    for (const run of highlightRuns(state.geometry, range.start, range.end)) {
+        highlightBand(run, `hl hl-preview ink-${ink}`);
+    }
+}
+
+/** The cell of the selection's grid under a point, on the bar nearest it, where the eraser takes colour. */
+function gridCell({ x, y }) {
+    const geometry = state.geometry;
+    return geometry === null ? undefined : selection.beats.near(geometry, selectionGrid(geometry), x, y);
+}
 
 /** The bars' starts in time order: the lines a band is cut at while Swift has sent no beats. */
 function barStarts() {
@@ -885,7 +968,8 @@ document.body.addEventListener("click", (event) => {
     // The release of a long press that put the playhead is no tap on a beat (#543 3.1).
     const pressed = press.swallowsClick();
     const placed = places.swallowsClick();
-    if (selection.swallowsClick() || pressed || placed || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
+    const painted = colouring.swallowsClick();
+    if (selection.swallowsClick() || pressed || placed || painted || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
         return;
     }
     if (state.mode !== null) {
@@ -935,6 +1019,10 @@ function rubOn(from, points) {
  * marks the page shows.
  */
 function rub({ points }) {
+    // The colour under it goes when it lifts, in the cells of the grid it passed (colour-bars.ts), but not where it is hidden.
+    if (!document.body.classList.contains("hide-notes")) {
+        uncolouring.push(...rubbedColour(points ?? [], state.painted, gridCell));
+    }
     const moved = rubOn(rubbing, points ?? []);
     rubbing = moved.rubbing;
     if (moved.cut) {
@@ -945,13 +1033,16 @@ function rub({ points }) {
 
 /**
  * The eraser lifted: what the press did, for Swift to save as one step: the saved marks it cut, whole (for Undo), and the
- * pieces left of them, each kept against its bar. The page keeps showing them so until music-core's answer is drawn.
+ * pieces left of them, each kept against its bar. The page keeps showing them so until music-core's answer is drawn. With
+ * them the stretches of highlights it took the colour from (`uncoloured`, merged, in ticks), which stay until Swift's answer.
  */
 function rubEnd() {
     const done = rubbing;
+    const uncoloured = mergedSpans(uncolouring);
     rubbing = NO_RUBBING;
+    uncolouring = [];
     state.marks = rubbedMarks(done, state.marks);
-    return { removed: done.removed, added: done.pieces };
+    return { removed: done.removed, added: done.pieces, uncoloured };
 }
 
 /**

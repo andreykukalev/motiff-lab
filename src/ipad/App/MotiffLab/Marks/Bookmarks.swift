@@ -10,7 +10,7 @@ struct BookmarkCategory: Identifiable, Equatable, Sendable {
     var builtIn: Bool
 
     /// The ink's colour from the design kit.
-    var color: Color { ink == "amber" ? .ds("amber") : .ds("ink-\(ink)") }
+    var color: Color { HighlightInk.color(ink) }
 }
 
 /// A passage the player has named and filed (0018 section 5): its title, its category, where it is, and how many ideas

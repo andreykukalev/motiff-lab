@@ -3,8 +3,7 @@ import SwiftUI
 /// The player's marks on the score (ADR 0031 section 3, S6): the margin notes, highlights and inked bars as music-core
 /// answered the last mark call, the note being written, the layers of marks hidden and the piece's own settings they are
 /// kept in, and the bookmarks as the page draws them with the one last gone to. It owns this state and the rules of its
-/// own that need only the selection (SelectionModel, which it reads): the highlight over the selection, whether the
-/// selection is the bookmark gone to, the layers and the kinds of extra information a piece has, and reading and keeping
+/// own that need only the selection (SelectionModel, which it reads): whether the selection is the bookmark gone to, the layers and the kinds of extra information a piece has, and reading and keeping
 /// the piece's settings through music-core. Changing a mark (the answer drawn on the page), going to a bookmark or a note
 /// and what the page hides are ScoreController's, the composition root, which hands in what music-core answers (`show`)
 /// and the bookmarks (`keepBookmarks`); the views observe this model.
@@ -68,18 +67,12 @@ final class MarksModel: ObservableObject {
         marks = shelf
     }
 
-    // MARK: - Margin notes and highlights
+    // MARK: - Margin notes
 
     /// Starts a note over the selection.
     func startNote() {
         guard let selection = selection.selection else { return }
         noteDraft = NoteDraft(id: nil, onset: selection.onset, end: selection.end, firstBar: selection.firstBar, lastBar: selection.lastBar, text: "")
-    }
-
-    /// The highlight laid exactly over the selection, the newest when there are more.
-    var selectedHighlight: HighlightMark? {
-        guard let selection = selection.selection else { return nil }
-        return marks.highlights.last { $0.onset == selection.onset && $0.end == selection.end }
     }
 
     // MARK: - Bookmarks
