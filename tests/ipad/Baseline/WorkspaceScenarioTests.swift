@@ -8,10 +8,11 @@ import XCTest
 /// the reactions between features, as far as the workspace decides it: PLAY-03 and PLAY-04 (Expand's passage, the loop
 /// rule), ROLL-01 (nothing the app sends changes the roll's zoom), VIEW-05 and VIEW-06 (the panels through the
 /// workspace and the assistant), VIEW-02 (nothing keeps a visited screen's workspace), of PLAY-02 the pages' playhead
-/// gestures reaching the player, and of PLAY-02 and PLAY-04 what the player's model decides while it plays. The
-/// screen's life and the views of the switch are no entry of the baseline: their transcripts are kept here as the
-/// workspace's own. What a page, a gesture or the sound decides stays with the page scenarios, the walk and the device.
-/// A transcript is what the app does today: a line in it is not thereby approved.
+/// gestures reaching the player, of PLAY-01 a tap on Expand's card leaving the selection and Цикл as they were, and of
+/// PLAY-02 and PLAY-04 what the player's model decides while it plays. The screen's life and the views of the switch are
+/// no entry of the baseline: their transcripts are kept here as the workspace's own. What a page, a gesture or the sound
+/// decides stays with the page scenarios, the walk and the device. A transcript is what the app does today: a line in it
+/// is not thereby approved.
 @MainActor
 final class WorkspaceScenarioTests: XCTestCase {
     /// The pieces opened in music-core for a test, and what it left on the device.
@@ -181,6 +182,31 @@ final class WorkspaceScenarioTests: XCTestCase {
         let holding = PlaybackModel.next(playing, .select(240..<2400))
         XCTAssertEqual(holding.steps, [.loop(240..<2400)])
         XCTAssertEqual(holding.state, PlaybackModel.State(selection: 240..<2400, loop: true, tick: 600, transport: .playing))
+    }
+
+    /// PLAY-01, the workspace's part (the page's is score-expand-tap.json): in Expand a tap on a beat of the card, as the
+    /// page posts it (`place`), also one past the passage, makes no lead-in out of the passage, and the page's selection,
+    /// Цикл and Expand's passage stay as they were. Where the playhead goes and that nothing starts playing are the
+    /// engine's, heard on the device (no sound is loaded here).
+    func testPLAY01ATapOnExpandsCardLeavesTheSelectionAndCycleAsTheyWere() async throws {
+        let session = await WorkspaceSession(piece: try await kit())
+        let workspace = session.workspace
+        let score = workspace.score
+        await session.step("the screen opens, its sound not loaded") {
+            workspace.wire()
+            session.appear()
+            workspace.applyModel()
+        }
+        await session.step("bars 5–6 are selected where nothing was") { await score.select(request: Self.bars(5, 6), step: false) }
+        await session.step("Expand from the selection's menu") { score.enterFocus() }
+        let passage = try XCTUnwrap(score.expandPassage, "Expand opens on the selection")
+        XCTAssertEqual(passage, 3120..<4560)
+        await session.step("a beat of the card is tapped") { score.placeTapped?(3840..<4080) }
+        await session.step("a beat past the passage is tapped") { score.placeTapped?(4800..<5040) }
+        XCTAssertFalse(workspace.player.leadIn, "no lead-in out of the passage")
+        XCTAssertTrue(workspace.player.cycle, "Цикл as it was")
+        XCTAssertEqual(workspace.player.selection, passage, "the page's selection as it was")
+        XCTAssertEqual(score.expandPassage, passage, "Expand still on its passage")
     }
 
     // MARK: - The panels
