@@ -3,11 +3,11 @@ import XCTest
 @testable import MotiffLab
 
 /// VIEW-07 (docs/ux-baseline.md, Andrei's «Оставить и беречь» in the test of 0.8): a recording added in Sources is kept
-/// as an original of the piece without being recognised, beside its notes, as a view of its own («Исполнение», which
-/// plays it from its own player), and it stays until the player deletes it. Taken through the Sources sheet's controller
-/// as the sheet takes it («Добавить ещё» → a recording: `addRecording`; «Удалить только оригинал»: `remove`), over the
-/// real music-core, with the piece saved to its project file and opened again from it as the library opens it. The
-/// sound itself is the device's.
+/// as an original of the piece, adding it starts no recognition, it is listed in the switch («Исполнение»), heard from
+/// its own player, and it stays until the player deletes it. Taken through the Sources sheet's controller as the sheet
+/// takes it («Добавить ещё» → a recording: `addRecording`; «Удалить только оригинал»: `remove`), over the real
+/// music-core, with the piece saved to its project file and opened again from it as the library opens it. The sound
+/// itself is the device's.
 @MainActor
 final class SourcesBaselineTests: XCTestCase {
     /// The pieces opened in music-core for a test, and what it left on the device.
@@ -57,11 +57,11 @@ final class SourcesBaselineTests: XCTestCase {
         let added = try XCTUnwrap(sources.layers.originals.first { $0.isRecording && !$0.isRemoved }, "kept as an original of the piece")
         XCTAssertEqual(added.kept, "device", "its sound kept on this iPad, beside the project file")
         XCTAssertTrue(added.isHere)
-        XCTAssertEqual(added.notes, [], "not recognised: no notes are made from it")
+        XCTAssertEqual(added.notes, [], "adding it starts no recognition: no notes are made from it")
         XCTAssertEqual(sources.layers.notes.map(\.id), notes, "the piece's notes as they were")
         XCTAssertEqual(sources.layers.working, working, "the working notes as they were")
         XCTAssertTrue(sources.layers.shownViews.contains { $0.id == added.id && $0.kind == "performance" },
-                      "a view of its own, «Исполнение», heard from its own player")
+                      "listed in the switch («Исполнение»), heard from its own player")
         let project = try XCTUnwrap(sources.projectId)
         XCTAssertNotNil(OriginalSounds.file(project: project, original: added.id), "its sound is kept")
 
@@ -71,7 +71,7 @@ final class SourcesBaselineTests: XCTestCase {
         let kept = try XCTUnwrap(again.layers.original(added.id), "the recording stays in the piece")
         XCTAssertTrue(kept.isHere && kept.isRecording)
         XCTAssertEqual(kept.notes, [], "still not recognised")
-        XCTAssertTrue(again.layers.shownViews.contains { $0.id == added.id && $0.kind == "performance" }, "and still heard as «Исполнение»")
+        XCTAssertTrue(again.layers.shownViews.contains { $0.id == added.id && $0.kind == "performance" }, "and still listed in the switch")
 
         // Until the player deletes it.
         await again.remove(kept, withNotes: false)

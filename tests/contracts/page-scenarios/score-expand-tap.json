@@ -3,7 +3,7 @@
   "protects": [
     "PLAY-01"
   ],
-  "says": "In «Развернуть» a tap with the stylus or a finger on a bar of the card moves the playhead to the start of the beat tapped (PLAY-05), in the piece's ticks; its handle is dragged either way inside the passage; the card keeps the playhead in view, with room under its last system and about as much over its first.",
+  "says": "In «Развернуть» a tap with the stylus or a finger on a bar of the card moves the playhead to the start of the beat tapped (PLAY-05), in the piece's ticks; its handle is dragged either way inside the passage; the card keeps the playhead in view, with about the same margin above and below: room under its last system and about as much over its first.",
   "page": "score",
   "fixture": "fur-elise-score.json",
   "steps": [
@@ -107,7 +107,7 @@
     },
     {
       "wait": 640,
-      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms) before its bars come, as the app's engraving takes longer: the card reads where its bars are as they come (layoutCard), and read during the lift they are scaled"
+      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms) before its bars come: the card reads where its bars are as they come (layoutCard), and read during the lift they are scaled, so the dot and the beat a tap finds are off by up to 4% (issue #729); this scenario checks the card once it stands still"
     },
     {
       "call": "card",
@@ -279,34 +279,41 @@
     },
     {
       "expect": {
-        "posted": {
-          "kinds": [
-            "drag",
-            "place"
-          ],
-          "includes": [
-            {
-              "drag": {
-                "phase": "grab",
-                "handle": "blue"
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "blue"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "blue",
+                  "tick": 4920
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "blue"
+                }
               }
-            },
-            {
-              "drag": {
-                "phase": "move",
-                "handle": "blue",
-                "tick": 4920
-              }
-            },
-            {
-              "drag": {
-                "phase": "release",
-                "handle": "blue"
-              }
-            }
-          ]
-        },
-        "note": "the passage's playhead taken and moved on the sixteenth grid, in the piece's ticks"
+            ]
+          },
+          {
+            "kinds": [
+              "place"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "the passage's playhead taken and moved on the sixteenth grid, in the piece's ticks; no place is posted while it is dragged"
       }
     },
     {
@@ -333,34 +340,41 @@
     },
     {
       "expect": {
-        "posted": {
-          "kinds": [
-            "drag",
-            "place"
-          ],
-          "includes": [
-            {
-              "drag": {
-                "phase": "grab",
-                "handle": "blue"
+        "posted": [
+          {
+            "kinds": [
+              "drag"
+            ],
+            "includes": [
+              {
+                "drag": {
+                  "phase": "grab",
+                  "handle": "blue"
+                }
+              },
+              {
+                "drag": {
+                  "phase": "move",
+                  "handle": "blue",
+                  "tick": 3120
+                }
+              },
+              {
+                "drag": {
+                  "phase": "release",
+                  "handle": "blue"
+                }
               }
-            },
-            {
-              "drag": {
-                "phase": "move",
-                "handle": "blue",
-                "tick": 3120
-              }
-            },
-            {
-              "drag": {
-                "phase": "release",
-                "handle": "blue"
-              }
-            }
-          ]
-        },
-        "note": "a finger the same, either way: held inside the passage, at its start"
+            ]
+          },
+          {
+            "kinds": [
+              "place"
+            ],
+            "messages": []
+          }
+        ],
+        "note": "a finger the same, either way: held inside the passage, at its start; no place is posted while it is dragged"
       }
     }
   ]

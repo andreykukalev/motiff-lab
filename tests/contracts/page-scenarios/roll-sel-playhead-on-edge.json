@@ -52,9 +52,6 @@
       "note": "standing at the start of bar 3"
     },
     {
-      "wait": 100
-    },
-    {
       "call": "selection",
       "with": {
         "selected": {
@@ -68,9 +65,6 @@
         }
       },
       "note": "bars 3 and 4 selected and looping: the playhead stands on the selection's start edge"
-    },
-    {
-      "wait": 50
     },
     {
       "pointer": "pen",
