@@ -115,6 +115,49 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNil(sources.progress)
     }
 
+    /// v0.10 s-3: the fields `sources.notes.hear` gets for a recording kept in the piece, as the facade takes them: the
+    /// transcription's with the live tempo, the original, the time, and the working notes' metre and tempo as "hint".
+    func testTheRecordingHeardIsSentWithTheFieldsTheFacadeTakes() throws {
+        let heard = HeardRecording(name: "Live", engine: "basic-pitch", milliseconds: 60_000, parts: [(index: 0, midi: Data([1, 2]))], levels: [3, 4])
+        let hint: [String: Any] = ["signature": "3/4", "quarterNotesPerMinute": 92]
+        let fields = SourcesController.hearFields(heard, original: "src_rec", hint: hint, now: "2026-11-19T10:00:00Z")
+        XCTAssertEqual(Set(fields.keys), ["engine", "milliseconds", "levels", "parts", "tempo", "original", "now", "hint"])
+        XCTAssertEqual(fields["tempo"] as? String, "live")
+        XCTAssertEqual(fields["original"] as? String, "src_rec")
+        XCTAssertEqual(fields["now"] as? String, "2026-11-19T10:00:00Z")
+        XCTAssertEqual(fields["milliseconds"] as? Int64, 60_000)
+        XCTAssertEqual(fields["engine"] as? String, "basic-pitch")
+        let parts = try XCTUnwrap(fields["parts"] as? [[String: Any]])
+        XCTAssertEqual(parts.first?["midi"] as? String, Data([1, 2]).base64EncodedString())
+        XCTAssertEqual((fields["hint"] as? [String: Any])?["signature"] as? String, "3/4")
+        XCTAssertNil(SourcesController.hearFields(heard, original: "src_rec", hint: nil, now: "").index(forKey: "hint"), "no hint, no field")
+    }
+
+    /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set
+    /// or the notes state; never the default tempo, and none without bars or for a beat no signature counts in.
+    func testTheHintIsTheWorkingNotesMetreAndTempo() throws {
+        func playback(beatTicks: Int, beats: Int, tempo: String) throws -> PlaybackAnswer {
+            let json = """
+            {"end": 1920, "notes": [], "tempos": [], "beats": [],
+             "bars": [{"number": 1, "onset": 0, "beatTicks": \(beatTicks), "beatsPerBar": \(beats)}], \(tempo)}
+            """
+            return try JSONDecoder().decode(PlaybackAnswer.self, from: Data(json.utf8))
+        }
+        let notated = #""tempo": {"perMinute": 92, "source": "notated", "piece": {"perMinute": 92, "source": "notated"}, "player": null}"#
+        let waltz = SourcesController.hint(try playback(beatTicks: 480, beats: 3, tempo: notated))
+        XCTAssertEqual(waltz?["signature"] as? String, "3/4")
+        XCTAssertEqual(waltz?["quarterNotesPerMinute"] as? Int, 92)
+        let set = #""tempo": {"perMinute": 70, "source": "player", "piece": {"perMinute": 92, "source": "notated"}, "player": 70}"#
+        XCTAssertEqual(SourcesController.hint(try playback(beatTicks: 240, beats: 6, tempo: set))?["signature"] as? String, "6/8")
+        XCTAssertEqual(SourcesController.hint(try playback(beatTicks: 240, beats: 6, tempo: set))?["quarterNotesPerMinute"] as? Int, 70, "the player's")
+        let unstated = #""tempo": {"perMinute": 80, "source": "default", "piece": {"perMinute": 80, "source": "default"}, "player": null}"#
+        let plain = SourcesController.hint(try playback(beatTicks: 480, beats: 4, tempo: unstated))
+        XCTAssertEqual(plain?["signature"] as? String, "4/4")
+        XCTAssertNil(plain?["quarterNotesPerMinute"], "the default tempo is no hint")
+        XCTAssertNil(SourcesController.hint(try playback(beatTicks: 700, beats: 2, tempo: notated)), "no signature counts that beat")
+        XCTAssertNil(SourcesController.hint(nil))
+    }
+
     func testTheLibraryLineNamesTheFirstOriginalNotHere() {
         let ru = UIText(language: "ru")
         let away = OriginalAway.of([original(held: ["web"])]) { _ in nil }

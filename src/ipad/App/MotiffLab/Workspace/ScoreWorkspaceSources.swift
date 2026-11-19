@@ -59,7 +59,7 @@ extension ScoreWorkspace {
     func toPdf(_ switchView: ((Landing) async -> Void)?) -> (() -> Void)? {
         if switchView != nil, piece.other != nil || score.sourcesModel.info.document != nil {
             // The switch of all views goes with the piece to its PDF (SourcesHandover).
-            return { [self] in ProbeCounts.shared.begin(); if panels.sourcesOn { sources.handOver(to: piece.other?.file ?? piece.file) }; Task { await showPdf(switchView) } }
+            return { [self] in ProbeCounts.shared.begin(); if panels.sourcesOn { sources.handOver(to: piece.other?.file ?? piece.file) }; Task { await showPdf(switchView); sources.switchReturned() } }
         }
         guard originals.canOpenLinkedPdf else { return nil }
         return { [self] in

@@ -13,7 +13,7 @@ struct PerformanceCapsule: View {
     var body: some View {
         if let id = sources.performance, let projectId = sources.projectId, let url = OriginalSounds.file(project: projectId, original: id) {
             RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
-                sources.performance = nil
+                sources.putAway()
             }
             .id(id)
             .transition(.opacity)

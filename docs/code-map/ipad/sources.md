@@ -21,8 +21,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   capsules showing it (`shown`, `hidden`) and stops at none, letting the file go (`end`), unless the screen handed the
   piece over (`handOver`, from `SourcesController.handOver`). `SourcesController.load` takes the recording handed
   (`takeHanded`) or stops it (not read, not shown, or the screen gone meanwhile); a screen that goes without handing
-  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`). Picking a view never closes
-  it; ✕ does, and silences it.
+  over calls `SourcesController.leave`, which withdraws both hand-overs (`cancelHandOver`); a switch that never ran
+  takes it back (`switchReturned`: the piece not in `ClosedPieces`, `handedAway` once it ran). Picking a view never
+  closes it; ✕ does (`putAway`), silences it and withdraws its hand-over.
 - `SourcesSheet.swift`: the Sources sheet (`SourcesSheet`, called by `Workspace/ScoreScreen` and `Pdf/Pdf`): its header,
   the add menu, the list of groups and loose Notes, picking files (`Picking`, `take`) and the camera; it owns the view state
   the rows share (`recognising`, `problems`, `deleting`, `deletingNotes`) and hands it to them as bindings and `SourcesRow`.
@@ -40,7 +41,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   Recognising an original is one path: `canRecognise` (the pages kept in the piece here, or a recording whose sound is
   here, on a piece with working notes), then `recognise` reads the original into a `Recognised` (its fields, the field
   dropped on a "badRequest", the toast): `readPages` for the pages, `hearRecording` for a recording
-  (`OriginalSounds.file` → `RecordingHearing.hear`, Motiff Lab's server, "tempo": "live", `progress` meanwhile, s-3);
+  (`OriginalSounds.file` → `RecordingHearing.hear`, Motiff Lab's server, `progress` meanwhile, s-3; its fields built by
+  `hearFields`: "tempo": "live" and the working notes' metre and tempo as "hint", `hint` from `playback`, sent again
+  without it when refused);
   `keepRecognised` keeps it under the call name `recognise` gives it as a literal (`sources.notes.recognise`,
   `sources.notes.hear`; the facade-calls contract test reads them there): layers, `fresh`, save, toast. The new Notes go
   under their original; the working notes change only by «Сделать рабочими».

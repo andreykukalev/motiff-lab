@@ -146,11 +146,34 @@ final class SourcesController: ObservableObject {
     /// the recording handed to it or by it is heard no more once no capsule shows it (v0.10 s-2 review).
     func leave(_ file: URL?) {
         _ = SourcesHandover.performance(for: file)
-        if let handedTo {
-            _ = SourcesHandover.performance(for: handedTo)
-            self.handedTo = nil
-        }
+        withdrawHandOver()
         listening.cancelHandOver()
+    }
+
+    /// The switch to the piece's other view came back (`handOver` before it). When it never ran, the piece is still open
+    /// here: the hand-over is withdrawn, so this screen's capsule going (focus, ✕, Back) stops the sound as before, and a
+    /// later switch finds no recording left waiting for it (v0.10 s-2 review, round 2).
+    func switchReturned() {
+        guard handedTo != nil, !ClosedPieces.isClosed(piece) else { return }
+        withdrawHandOver()
+        listening.cancelHandOver()
+    }
+
+    /// The screen went, the piece handed over (its piece closed): the hand-over went through, nothing is withdrawn.
+    func handedAway() {
+        handedTo = nil
+    }
+
+    /// ✕ on the capsule: the recording is put away, and no screen it was handed to hears it later.
+    func putAway() {
+        performance = nil
+        withdrawHandOver()
+    }
+
+    private func withdrawHandOver() {
+        guard let handedTo else { return }
+        _ = SourcesHandover.performance(for: handedTo)
+        self.handedTo = nil
     }
 
     /// The screen hands the piece over to its other view, the screen of `file` (the PDF or the notes of the same project
@@ -312,11 +335,38 @@ final class SourcesController: ObservableObject {
         case .failure(let problem):
             return .failure(Refusal(words: problem.message))
         case .success(let heard):
-            var fields = heard.transcription
-            fields["original"] = original.id
-            fields["now"] = Self.now()
-            return .success(Recognised(fields: fields, dropped: nil, toast: text["sources.sheet.toastHeard"]))
+            let hint = Self.hint(await PieceCore(piece: piece).playback().value)
+            let fields = Self.hearFields(heard, original: original.id, hint: hint, now: Self.now())
+            // A metre music-core offers no grid for is refused: the notes heard are sent again without the hint.
+            return .success(Recognised(fields: fields, dropped: hint == nil ? nil : "hint", toast: text["sources.sheet.toastHeard"]))
         }
+    }
+
+    /// The fields of `sources.notes.hear` for the whole recording heard: the transcription's ("tempo": "live"), the
+    /// original's id, the time and, when there is one, the working notes' metre and tempo as the grid's "hint", so the
+    /// recording's bars come out in the piece's metre (v0.10 s-3).
+    nonisolated static func hearFields(_ heard: HeardRecording, original: String, hint: [String: Any]?, now: String) -> [String: Any] {
+        var fields = heard.transcription
+        fields["original"] = original
+        fields["now"] = now
+        if let hint { fields["hint"] = hint }
+        return fields
+    }
+
+    /// The working notes' metre and tempo as music-core's grid hint ({"signature": "3/4", "quarterNotesPerMinute"}): the
+    /// signature of their first bar, and the tempo the player set for the piece, else the one its notes state or
+    /// music-core inferred; no tempo when nothing states one (the default, or a recording's clock); nil without bars.
+    nonisolated static func hint(_ playback: PlaybackAnswer?) -> [String: Any]? {
+        // A whole note in music-core's ticks (480 a quarter): the beat's note value is counted from it.
+        let wholeNote = 1920.0
+        guard let bar = playback?.bars.first, bar.beatTicks > 0, bar.beatsPerBar >= 1,
+              wholeNote.truncatingRemainder(dividingBy: bar.beatTicks) == 0 else { return nil }
+        var hint: [String: Any] = ["signature": "\(Int(bar.beatsPerBar))/\(Int(wholeNote / bar.beatTicks))"]
+        let stated = playback?.tempo?.piece.flatMap { ["notated", "inferred"].contains($0.source ?? "") ? $0.perMinute : nil }
+        if let perMinute = playback?.tempo?.player ?? stated {
+            hint["quarterNotesPerMinute"] = perMinute
+        }
+        return hint
     }
 
     /// The notes recognised kept by music-core (`name`, the call of the kind of original read) as new Notes of their
