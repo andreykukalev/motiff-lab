@@ -66,5 +66,6 @@ S7c. `SourcesController`: the layers of 0030.
 
 ## Baseline entries that protect it
 
-UX baseline: not recorded yet. Tests: `MotiffLabTests/OriginalsTests` (`addWord`, `canRecognise`). Quality ratchet:
+UX baseline: `VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`). Tests:
+`MotiffLabTests/OriginalsTests` (`addWord`, `canRecognise`). Quality ratchet:
 `Versions.swift` file_length.

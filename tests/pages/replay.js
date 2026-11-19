@@ -163,11 +163,33 @@
     // ---- Where a step presses ----------------------------------------------------------------------------------------
 
     /**
-     * A point on the score, in window pixels: the nth bar on the pages (from 1), `x` across it and `y` down its ink, from 0
-     * to 1 (below 0 or past 1 is beside it); or the handle of the selection's `edge` ("start" or "end"), or of a playhead
-     * (`grip`: "black" or "blue"), as the page draws it, moved by `dx` and `dy` pixels.
+     * The bars of Expand's card, in window pixels and in time order: each bar's staff lines as the card draws them, from
+     * its left to its right and from its top line to its bottom one, as `motiff.frames()` boxes the bars of the pages.
+     */
+    function cardBars() {
+        return [...document.querySelectorAll("#focus .card-score g.measure")].map((measure) => {
+            const lines = [...measure.querySelectorAll(":scope > g.staff > path")].map((line) => line.getBoundingClientRect());
+            return {
+                left: Math.min(...lines.map((line) => line.left)), top: Math.min(...lines.map((line) => line.top)),
+                right: Math.max(...lines.map((line) => line.right)), bottom: Math.max(...lines.map((line) => line.bottom)),
+            };
+        });
+    }
+
+    /**
+     * A point on the score, in window pixels: the nth bar on the pages (from 1), or with `card` the nth bar of Expand's
+     * card, `x` across it and `y` down its ink, from 0 to 1 (below 0 or past 1 is beside it); or the handle of the
+     * selection's `edge` ("start" or "end"), or of a playhead (`grip`: "black" or "blue"), as the page draws it, moved by
+     * `dx` and `dy` pixels.
      */
     function scorePoint(point) {
+        if ("card" in point) {
+            const bar = cardBars()[point.card - 1];
+            if (bar === undefined) {
+                throw new Error(`There is no bar ${point.card} on Expand's card.`);
+            }
+            return { x: bar.left + (bar.right - bar.left) * point.x + (point.dx ?? 0), y: bar.top + (bar.bottom - bar.top) * point.y + (point.dy ?? 0) };
+        }
         if ("edge" in point || "grip" in point) {
             const drawn = "edge" in point
                 ? scoreMarks.edges().filter((each) => each.edge === point.edge).map((each) => each.handle)
@@ -264,6 +286,25 @@
         return { pages: sheets, above: pages[0]?.top ?? 0, below: height - (pages.at(-1)?.bottom ?? 0) };
     }
 
+    /**
+     * Expand's card as it shows the passage: the box its notes scroll in, the room in it above its first bar's top line
+     * and below its last bar's bottom line, and how far its notes are scrolled; null when no card is open.
+     */
+    function card() {
+        const score = document.querySelector("#focus .card-score");
+        if (score === null || !shown(score)) {
+            return null;
+        }
+        const box = boxOf(score);
+        const bars = cardBars().map((bar) => ({ top: bar.top + window.scrollY, bottom: bar.bottom + window.scrollY }));
+        return {
+            ...box,
+            inkTop: round(Math.min(...bars.map((bar) => bar.top)) - box.top),
+            inkBottom: round(box.bottom - Math.max(...bars.map((bar) => bar.bottom))),
+            scroll: round(score.scrollTop),
+        };
+    }
+
     /** The centre of an element's pseudo-element as drawn, in the document's pixels: its place, its size and its transform. */
     function drawnCentre(element, pseudo) {
         const style = getComputedStyle(element, pseudo);
@@ -294,6 +335,7 @@
             return { handle, x: round((box.left + box.right) / 2), y: round((box.top + box.bottom) / 2) };
         })),
         paper,
+        card,
         scroll: () => ({ x: round(window.scrollX), y: round(window.scrollY) }),
     };
 
