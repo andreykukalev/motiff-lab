@@ -27,9 +27,10 @@ extension DnaScreen {
         player.setLoop(range, from: range.lowerBound, once: true)
     }
 
-    /// Plays the piece from its start with the map following; pressed again, it stops. A card's passage has its own
-    /// Stop, so while one sounds this starts the map in its place.
-    func playMap() {
+    /// The header's Play (Andrei, v0.8 finding 14): plays the piece from the map's playhead, where the player is, with the
+    /// map following; pressed again, it stops. A card's passage has its own Stop, so while one sounds this plays the piece
+    /// on from there in its place.
+    func playFromPlayhead() {
         if DnaPlaying.map(playing: playing, card: cardHeard, state: player.state) {
             stop()
             return
@@ -37,7 +38,16 @@ extension DnaScreen {
         player.setLoop(nil)
         cardHeard = nil
         playing = true
-        player.play(from: map.start)
+        if player.state == .stopped { player.toggle() }
+    }
+
+    /// The playhead's handle taken (finding 15): a mark's, a section's or a card's passage the map plays gives way to the
+    /// piece, so the sound goes on from where the playhead is let go, as the roll's does.
+    func playheadTaken() {
+        guard playing, player.loop != nil else { return }
+        heard = nil
+        cardHeard = nil
+        player.setLoop(nil)
     }
 
     func stop() {
