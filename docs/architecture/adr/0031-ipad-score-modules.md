@@ -247,3 +247,15 @@ through `read(sources:)` and emptied with the rest of the last piece in `open(ev
 moved from 200) change as Andrei approved on 2026-11-18 at 16:55Z, and no assertion or kept transcript changes. A view
 in a folder that may not name `FocusModel` gets Expand as a plain value (`SelectionToastView`'s `focused`); the
 practice button and ✕ observe the model. `ScoreController` keeps no relay and no forwarder of a model.
+
+## Note (S6, v0.10)
+
+`PenModel` (`Ink/PenModel.swift`) owns the score's pen: the pen, `penOn`, the pencil palette, the Pen's history with
+Undo and Redo, the eraser's points, the ink queue and the live style; it reaches the page, the piece and the marks'
+change through `PenScore`, which the root adopts. `MarksModel` (`Marks/MarksModel.swift`, reading `SelectionModel`)
+owns the marks and their count, the note being written, the layers hidden, the piece's own settings, the bookmarks as
+drawn and the one gone to, and the lists of layers. The views observe the two models. Who writes and scrolls
+(`InkInput`, the input rules), where a point is on the page, what follows turning the pen (`penTurned`), changing a note
+or a highlight, going to a bookmark or a note and what the page hides stay in the root, with its page calls, until step
+9. The risk under Consequences holds: SwiftUI's update timing of the views that now observe these models is checked on
+the device at the next version.
