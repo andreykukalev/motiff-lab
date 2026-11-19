@@ -28,7 +28,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   Recognising an original is one path: `canRecognise` (today the pages kept in the piece here, on a piece with working
   notes), then `recognise` reads the original into a `Recognised` (its fields, the field dropped on a "badRequest", the
   toast; `readPages` for the pages) and `keepRecognised` keeps it under the call name `recognise` gives it as a literal
-  (`sources.notes.recognise`; the facade-calls contract test reads it there): layers, `fresh`, save, toast. A recording's branch (`sources.notes.hear`, v0.10 s-3) adds one reader beside `readPages`.
+  (`sources.notes.recognise`; the facade-calls contract test reads it there): layers, `fresh`, save, toast. A
+  recording's branch (`sources.notes.hear`, v0.10 s-3) adds one reader beside `readPages`.
 - `MergeModel.swift` (S4b, ADR 0031 section 3): the merge draft's state and its rules (the bars a choice goes for, the
   span heard, ‹ ›, the bars Compare versions shows, one `performance.merge` call). Tests: `MotiffLabTests/MergeDraftTests`.
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words and page, the score as last engraved; reads a
