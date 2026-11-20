@@ -14,58 +14,11 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    /// <summary>The piece setting that remembered the level shown (0018, section 3); written by phrases.level, no longer read when a piece opens.</summary>
-    public const string GranularitySetting = "phrases.granularity";
-
     /// <summary>The level a request names in "level", or null when it names none.</summary>
     private static PhraseLevel? LevelOf(Request request) =>
         request.Text("level") is { } name
             ? PhraseLevels.Parse(name) ?? throw FacadeException.BadRequest("\"level\" is \"short\", \"phrase\" or \"sentence\".")
             : null;
-
-    /// <summary>
-    /// Shows another level and remembers it with the piece (0018, section 3), unless "remember" is false: the level
-    /// the player's device opens pieces in is shown without becoming the piece's own. The selection moves to the unit
-    /// that is, encloses or starts it at the new level; the answer is the phrases with the selection as it now is.
-    /// </summary>
-    private string ChangeLevel(Request request)
-    {
-        PhraseLevel level = LevelOf(request) ?? throw FacadeException.BadRequest("Send \"level\": \"short\", \"phrase\" or \"sentence\".");
-        Level = level;
-        if (request.Bool("remember") ?? true)
-        {
-            Project = Project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
-        }
-
-        if (Selection is { } selection && _selectionKind == MotifSelectionKind.Range)
-        {
-            TickSpan mapped = Levels.Selectable(Levels.Map(selection.Span, level));
-            if (mapped != selection.Span)
-            {
-                MotifSelection moved = MotifSelector.Select(Notes, Piece.Meter, mapped, selection.Filter, MotifSelection.MaxStructureBars);
-                if (moved.NoteIds.Count > 0)
-                {
-                    Selection = moved;
-                    _understood = null;
-                    _chip = null;
-                    Chain = null;
-                }
-            }
-        }
-
-        return Answer.Write(json =>
-        {
-            Answer.Phrases(json, Levels, Structure.Sections, Level, Words, Piece.Meter);
-            if (Selection is { } now)
-            {
-                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset), Piece.Meter);
-            }
-            else
-            {
-                json.WriteNull("selection");
-            }
-        });
-    }
 
     /// <summary>
     /// An edit of the boundaries, one step for Undo: at a level (the one shown unless "level" says otherwise) Make phrase,

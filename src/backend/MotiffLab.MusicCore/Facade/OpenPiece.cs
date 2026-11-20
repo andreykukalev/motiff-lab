@@ -65,10 +65,10 @@ internal sealed partial class OpenPiece
     public PhraseLevels Levels => Structure.Levels;
 
     /// <summary>
-    /// The level the phrases answer shows: the phrases when the piece opens (the phrases spec: the iPad shows phrases and the
-    /// sections of the form, no level), another while phrases.level shows one.
+    /// The level the phrases answer shows: the phrases (the phrases spec: the iPad shows phrases and the sections of the
+    /// form, no level).
     /// </summary>
-    public PhraseLevel Level { get; private set; } = PhraseLevel.Phrase;
+    public PhraseLevel Level { get; } = PhraseLevel.Phrase;
 
     public PhraseMap Phrases => Levels.Phrases;
 
@@ -185,7 +185,6 @@ internal sealed partial class OpenPiece
         "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true, Words)),
         "language" => Language(request),
         "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, Structure.Sections, LevelOf(request) ?? Level, Words, Piece.Meter)),
-        "phrases.level" => ChangeLevel(request),
         "phrases.edit" => EditPhrases(request),
         "select" => Select(request),
         "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),

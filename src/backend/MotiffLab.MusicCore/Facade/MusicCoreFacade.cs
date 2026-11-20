@@ -22,7 +22,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// </remarks>
 public sealed partial class MusicCoreFacade
 {
-    /// <summary>
+    /// <summary>14 removes phrases.level and its "remember" (version 1.2), answering unknownCall; "levels" and phrases.granularity stay.
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
     /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
     /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they
@@ -145,7 +145,7 @@ public sealed partial class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 13;
+    public const int Contract = 14;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

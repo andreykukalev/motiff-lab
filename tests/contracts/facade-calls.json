@@ -102,7 +102,6 @@
     { "name": "performances", "on": ["piece"] },
     { "name": "phrases", "on": ["piece"] },
     { "name": "phrases.edit", "on": ["piece"] },
-    { "name": "phrases.level", "on": ["piece"] },
     { "name": "piece", "on": ["piece"] },
     { "name": "pieces.find", "on": ["piece"] },
     { "name": "pieces.save", "on": ["piece"] },
