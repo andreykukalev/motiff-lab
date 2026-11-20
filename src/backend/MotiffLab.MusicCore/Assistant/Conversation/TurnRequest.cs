@@ -169,7 +169,8 @@ public sealed record TurnRequest(AssistantRole Role, string Language, JsonElemen
         return request.ToolCallsInQuestion > AssistantRoles.MostToolCalls ? $"A question takes at most {AssistantRoles.MostToolCalls} tool calls." : null;
     }
 
-    internal static int LastQuestion(IReadOnlyList<TurnEntry> history)
+    /// <summary>Where the last question stands in <paramref name="history"/>; 0 when it holds none.</summary>
+    public static int LastQuestion(IReadOnlyList<TurnEntry> history)
     {
         for (int index = history.Count - 1; index >= 0; index--)
         {

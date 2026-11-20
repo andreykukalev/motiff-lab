@@ -126,7 +126,7 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
         _api.Model.Script(asked, new ModelReply([new ToolCall("c1", "notes.edit", JsonDocument.Parse("{}").RootElement.Clone())], null));
         Assert.True((await JsonOf(await client.PostAsync("/assistant/turn", Body(Turn(asked))))).GetProperty("fallback").GetBoolean());
 
-        _api.Model.Script(asked, null);
+        _api.Model.Script(asked, (ModelReply?)null);
         Assert.True((await JsonOf(await client.PostAsync("/assistant/turn", Body(Turn(asked))))).GetProperty("fallback").GetBoolean());
     }
 
@@ -193,25 +193,44 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
         Assert.DoesNotContain(lines, line => line.Contains(Question, StringComparison.Ordinal) || line.Contains("6.R.1", StringComparison.Ordinal) || line.Contains("A minor", StringComparison.Ordinal));
     }
 
-    /// <summary>A model that answers what each test scripts for its question (the turn's last question), and remembers what it was given.</summary>
+    /// <summary>
+    /// A model that answers what each test scripts for the player's question (the one the context stands beside, so a retry
+    /// the relay adds is answered from the same script): the replies in turn, the last one again once they run out, each
+    /// after the scripted delay; a null reply is the provider's error. It remembers every turn it was given.
+    /// </summary>
     public sealed class FakeAssistantModel : IAssistantModel
     {
-        private readonly ConcurrentDictionary<string, ModelReply?> _next = new(StringComparer.Ordinal);
-        private readonly ConcurrentDictionary<string, ModelTurn> _seen = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, (TimeSpan Delay, ConcurrentQueue<ModelReply?> Replies)> _next = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, ConcurrentQueue<ModelTurn>> _seen = new(StringComparer.Ordinal);
 
         public string Name => "fake/model";
 
-        public void Script(string question, ModelReply? reply) => _next[question] = reply;
+        public void Script(string question, params ModelReply?[] replies) => Script(question, TimeSpan.Zero, replies);
 
-        public ModelTurn Seen(string question) => _seen[question];
-
-        public Task<ModelReply> NextAsync(ModelTurn turn, CancellationToken cancel)
+        public void Script(string question, TimeSpan delay, params ModelReply?[] replies)
         {
-            string question = turn.History.Last(entry => entry.Kind == TurnEntryKind.Question).Text!;
-            _seen[question] = turn;
-            return _next.TryGetValue(question, out ModelReply? reply) && reply is not null
-                ? Task.FromResult(reply)
-                : throw new HttpRequestException("The fake provider is down.");
+            _next[question] = (delay, new ConcurrentQueue<ModelReply?>(replies));
+            _seen[question] = new ConcurrentQueue<ModelTurn>();
+        }
+
+        /// <summary>The last turn given for <paramref name="question"/>.</summary>
+        public ModelTurn Seen(string question) => _seen[question].Last();
+
+        /// <summary>Every turn given for <paramref name="question"/> since it was scripted.</summary>
+        public IReadOnlyList<ModelTurn> Turns(string question) => [.. _seen[question]];
+
+        public async Task<ModelReply> NextAsync(ModelTurn turn, CancellationToken cancel)
+        {
+            string question = turn.History[turn.ContextAt].Text!;
+            _seen.GetOrAdd(question, static _ => new ConcurrentQueue<ModelTurn>()).Enqueue(turn);
+            if (!_next.TryGetValue(question, out var script))
+            {
+                throw new HttpRequestException("The fake provider is down.");
+            }
+
+            ModelReply? reply = script.Replies.Count > 1 && script.Replies.TryDequeue(out ModelReply? next) ? next : script.Replies.LastOrDefault();
+            await Task.Delay(script.Delay, cancel);
+            return reply ?? throw new HttpRequestException("The fake provider is down.");
         }
     }
 
@@ -224,7 +243,8 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
 
         public ConcurrentQueue<string> Logs { get; } = new();
 
-        protected virtual bool HasModel => true;
+        /// <summary>The model the API is given: the fake; null leaves the one the settings choose (<see cref="AssistantModels"/>).</summary>
+        protected virtual AssistantModelChoice? Choice => new(Model);
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -232,16 +252,16 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
             builder.UseSetting("Assistant:Allowed", "allowed-1, allowed-2, allowed-3, allowed-4, allowed-5, allowed-6, allowed-free");
             builder.UseSetting("Assistant:DailyRequests", DailyRequests.ToString(System.Globalization.CultureInfo.InvariantCulture));
             builder.ConfigureLogging(logging => logging.AddProvider(new ListLogger(Logs)));
-            builder.ConfigureTestServices(services =>
+            if (Choice is { } choice)
             {
-                services.AddSingleton(new AssistantModelChoice(HasModel ? Model : null));
-            });
+                builder.ConfigureTestServices(services => services.AddSingleton(choice));
+            }
         }
     }
 
     public sealed class WithoutModel : WithModel
     {
-        protected override bool HasModel => false;
+        protected override AssistantModelChoice? Choice => new(null);
     }
 
     private sealed class ListLogger(ConcurrentQueue<string> lines) : ILoggerProvider, ILogger

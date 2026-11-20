@@ -26,6 +26,13 @@ public sealed record TurnReply(TurnReplyKind Kind)
     /// <summary>True when the model's answer failed the check and <see cref="Text"/> is the engine's template instead.</summary>
     public bool Fallback { get; init; }
 
+    /// <summary>
+    /// Why the answer is the template, with <see cref="Fallback"/>; null otherwise. The answer's check (<see cref="AnswerCheck"/>):
+    /// empty, tooLong, noCitation, unknownFact; the relay: timeout, modelError, toolNotAllowed, badArguments, tooManyCalls.
+    /// Written as "reason" beside "fallback" (added in version 1.2; a device that does not read it shows the template as before).
+    /// </summary>
+    public string? Reason { get; init; }
+
     public static TurnReply NotConfigured { get; } = new(TurnReplyKind.NotConfigured);
 
     public static TurnReply Called(IReadOnlyList<ToolCall> calls) => new(TurnReplyKind.ToolCalls) { Calls = calls };
@@ -33,7 +40,7 @@ public sealed record TurnReply(TurnReplyKind Kind)
     public static TurnReply Answered(CheckedAnswer answer)
     {
         ArgumentNullException.ThrowIfNull(answer);
-        return new(TurnReplyKind.Answer) { Text = answer.Text, Fallback = answer.FellBack };
+        return new(TurnReplyKind.Answer) { Text = answer.Text, Fallback = answer.FellBack, Reason = answer.FellBack ? answer.Reason : null };
     }
 
     public void Write(Utf8JsonWriter json)
@@ -50,6 +57,10 @@ public sealed record TurnReply(TurnReplyKind Kind)
         {
             json.WriteString("text", Text);
             json.WriteBoolean("fallback", Fallback);
+            if (Fallback && Reason is not null)
+            {
+                json.WriteString("reason", Reason);
+            }
         }
 
         json.WriteEndObject();
@@ -67,7 +78,12 @@ public sealed record TurnReply(TurnReplyKind Kind)
         {
             "notConfigured" => NotConfigured,
             "answer" when json.TryGetProperty("text", out JsonElement text) && text.ValueKind == JsonValueKind.String =>
-                new TurnReply(TurnReplyKind.Answer) { Text = text.GetString(), Fallback = json.TryGetProperty("fallback", out JsonElement fallback) && fallback.ValueKind == JsonValueKind.True },
+                new TurnReply(TurnReplyKind.Answer)
+                {
+                    Text = text.GetString(),
+                    Fallback = json.TryGetProperty("fallback", out JsonElement fallback) && fallback.ValueKind == JsonValueKind.True,
+                    Reason = json.TryGetProperty("reason", out JsonElement reason) && reason.ValueKind == JsonValueKind.String ? reason.GetString() : null,
+                },
             "toolCalls" when json.TryGetProperty("entry", out JsonElement entry) && TurnEntry.Read(entry) is { Kind: TurnEntryKind.ToolCalls } called => Called(called.Calls),
             _ => null,
         };

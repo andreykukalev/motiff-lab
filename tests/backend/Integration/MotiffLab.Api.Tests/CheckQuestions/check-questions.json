@@ -1,0 +1,29 @@
+{
+  "piece": "FurElise.musicxml",
+  "questions": [
+    { "id": "learn.en", "language": "en", "kind": "general", "bars": null, "question": "How should I learn this piece?", "near": ["form.", "density.", "new.", "range.", "piece.tempo."] },
+    { "id": "learn.ru", "language": "ru", "kind": "general", "bars": null, "question": "Как разучить эту пьесу?", "near": ["form.", "density.", "new.", "range.", "piece.tempo."] },
+    { "id": "hardest.en", "language": "en", "kind": "general", "bars": null, "question": "Which bars are the hardest, and how do I practise them?", "near": ["density."] },
+    { "id": "hardest.ru", "language": "ru", "kind": "general", "bars": null, "question": "Какие такты самые трудные и как их учить?", "near": ["density."] },
+    { "id": "tempo.en", "language": "en", "kind": "general", "bars": null, "question": "What tempo should I practise at?", "near": ["piece.tempo."] },
+    { "id": "tempo.ru", "language": "ru", "kind": "general", "bars": null, "question": "В каком темпе заниматься?", "near": ["piece.tempo."] },
+    { "id": "repeats.en", "language": "en", "kind": "general", "bars": null, "question": "What repeats in this piece, so I only learn it once?", "near": ["form."] },
+    { "id": "repeats.ru", "language": "ru", "kind": "general", "bars": null, "question": "Что в пьесе повторяется, чтобы учить это один раз?", "near": ["form."] },
+    { "id": "hands.en", "language": "en", "kind": "general", "bars": null, "question": "What do the hands have to cover?", "near": ["range."] },
+    { "id": "hands.ru", "language": "ru", "kind": "general", "bars": null, "question": "Какой диапазон у каждой руки?", "near": ["range."] },
+    { "id": "phrases.en", "language": "en", "kind": "general", "bars": null, "question": "How should I shape the phrases?", "near": ["phrase."] },
+    { "id": "phrases.ru", "language": "ru", "kind": "general", "bars": null, "question": "Как вести фразы?", "near": ["phrase."] },
+    { "id": "section.en", "language": "en", "kind": "specific", "bars": null, "question": "How do I play section C?", "near": ["form.section_3", "chords.section_3", "sentence.3"] },
+    { "id": "section.ru", "language": "ru", "kind": "specific", "bars": null, "question": "Как играть часть B?", "near": ["form.section_2", "chords.section_2", "sentence.2"] },
+    { "id": "bar.en", "language": "en", "kind": "specific", "bars": null, "question": "Why is bar 32 so hard?", "near": ["density.32"] },
+    { "id": "bar.ru", "language": "ru", "kind": "specific", "bars": null, "question": "Что происходит в тактах 24–31?", "near": ["phrase.6", "density.24", "new.24"] },
+    { "id": "here.learn.en", "language": "en", "kind": "specific", "bars": { "from": 32, "to": 35 }, "question": "How do I practise these bars?", "near": ["range."] },
+    { "id": "here.learn.ru", "language": "ru", "kind": "specific", "bars": { "from": 32, "to": 35 }, "question": "Как разучить эти такты?", "near": ["range."] },
+    { "id": "here.chords.en", "language": "en", "kind": "specific", "bars": { "from": 1, "to": 8 }, "question": "What chords are here?", "near": ["chord."] },
+    { "id": "here.chords.ru", "language": "ru", "kind": "specific", "bars": { "from": 1, "to": 8 }, "question": "Какие здесь аккорды?", "near": ["chord."] },
+    { "id": "here.left.en", "language": "en", "kind": "specific", "bars": { "from": 9, "to": 12 }, "question": "How should the left hand play here?", "near": ["range.L"] },
+    { "id": "here.left.ru", "language": "ru", "kind": "specific", "bars": { "from": 9, "to": 12 }, "question": "Как здесь играть левой рукой?", "near": ["range.L"] },
+    { "id": "here.tempo.en", "language": "en", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "At what tempo should I start these bars?", "near": [] },
+    { "id": "here.tempo.ru", "language": "ru", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "С какого темпа начать эти такты?", "near": [] }
+  ]
+}
