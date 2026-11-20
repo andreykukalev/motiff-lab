@@ -94,6 +94,55 @@ public class DraftSeamsTests
         Assert.Equal(PlaybackTempo.PieceDefaultPerMinute, seam.Tempo);
     }
 
+    [Theory]
+    [InlineData(-5, 1, -6, -5)]
+    [InlineData(-6, 0, -6, -6)]
+    [InlineData(6, 0, 6, 6)]
+    public void A_tritone_goes_the_way_that_writes_the_place_in_the_key_signature_before_the_seam(int before, int after, int semitones, int moved)
+    {
+        Draft draft = Draft.Start("d_1", "x", At, "pl_1", Variant("v_1", Score(fifths: before), 1, 4))
+            .With(Variant("v_2", Score(fifths: after, prefix: "o"), 1, 4), DraftDrop.Place, "pl_2");
+        DraftSeam seam = DraftSeams.Of(draft)[0];
+
+        Assert.Equal((semitones, moved), (seam.Semitones, seam.Transposed!.Fifths));
+        Assert.False(DraftSeams.Of(DraftSeams.Transpose(draft, "pl_2", semitones, At))[0].KeyChanges);
+    }
+
+    [Fact]
+    public void The_key_before_the_seam_is_the_one_in_force_at_the_end_of_its_place()
+    {
+        SourceMusic modulating = Score() with { Keys = [.. Score().Keys, Score(fifths: 2).Keys[0] with { At = new Tick(2 * BarLength) }] };
+        Draft draft = Draft.Start("d_1", "x", At, "pl_1", Variant("v_1", modulating, 1, 4))
+            .With(Variant("v_2", Score(fifths: 2, prefix: "o"), 1, 4), DraftDrop.Place, "pl_2");
+
+        DraftSeam seam = DraftSeams.Of(draft)[0];
+
+        Assert.Equal((2, false, null), (seam.Before.Key!.Fifths, seam.KeyChanges, seam.Semitones));
+    }
+
+    [Fact]
+    public void A_place_that_states_no_key_after_one_that_does_states_none_at_its_end()
+    {
+        Draft draft = Draft.Start("d_1", "x", At, "pl_1", Variant("v_1", Score(fifths: 3), 1, 4))
+            .With(Variant("v_2", Score(prefix: "o") with { Keys = [] }, 1, 4), DraftDrop.Place, "pl_2")
+            .With(Variant("v_3", Score(fifths: 1, prefix: "p"), 1, 4), DraftDrop.Place, "pl_3");
+
+        DraftSeam seam = DraftSeams.Of(draft)[1];
+
+        Assert.Equal((null, 1), (seam.Before.Key, seam.After.Key!.Fifths));
+        Assert.Null(seam.Semitones);
+    }
+
+    [Fact]
+    public void A_key_with_no_mode_is_named_by_its_signature_and_offered_as_the_key_before()
+    {
+        var sharp = Score(fifths: 1).Keys[0] with { Mode = null };
+
+        Assert.Equal(("1 диез", "1 sharp"), (DraftLabels.Key(sharp, Words.Russian), DraftLabels.Key(sharp, Words.English)));
+        Assert.Equal(("② в тональность ①", "② into ①'s key"), (DraftLabels.Transpose(1, sharp, Words.Russian), DraftLabels.Transpose(1, sharp, Words.English)));
+        Assert.Equal("② в соль мажор", DraftLabels.Transpose(1, sharp with { Mode = KeyMode.Major }, Words.Russian));
+    }
+
     [Fact]
     public void A_draft_of_one_place_has_no_seam_and_a_transposition_of_none_is_refused()
     {

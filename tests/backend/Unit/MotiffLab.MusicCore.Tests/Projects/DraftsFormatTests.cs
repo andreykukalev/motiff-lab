@@ -130,6 +130,17 @@ public class DraftsFormatTests
         Assert.Empty(ProjectFile.Read(Bytes(file)).Drafts);
     }
 
+    [Fact]
+    public void The_assemblys_applied_notes_read_their_tempos_as_before_a_source_there_not_read()
+    {
+        JsonObject file = Node(GoldenFiles.Kept("v15-worked.motiff.json"));
+        Set(file, "assembly/applied/tempos/0/source", "FutureValue");
+
+        Project read = ProjectFile.Read(Bytes(file));
+
+        Assert.Equal(TempoSource.Assumed, Assert.Single(read.Assembly.Applied!.Tempos).Source);
+    }
+
     [Theory]
     [InlineData("drafts/0/steps/0/technique/kind")]
     [InlineData("drafts/0/steps/1/kind")]

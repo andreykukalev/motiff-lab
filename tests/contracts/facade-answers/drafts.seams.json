@@ -205,6 +205,8 @@
         "tempo": {
          "perMinute": 72,
          "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
          "mark": "= 72"
         }
        },
@@ -226,6 +228,8 @@
         "tempo": {
          "perMinute": 72,
          "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
          "mark": "= 72"
         }
        }
@@ -437,6 +441,8 @@
         "tempo": {
          "perMinute": 72,
          "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
          "mark": "= 72"
         }
        },
@@ -458,6 +464,8 @@
         "tempo": {
          "perMinute": 60,
          "source": "player",
+         "beat": "quarter",
+         "beatsPerMinute": 60,
          "mark": "= 60"
         }
        }
@@ -601,6 +609,8 @@
         "tempo": {
          "perMinute": 72,
          "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
          "mark": "= 72"
         }
        },
@@ -622,6 +632,8 @@
         "tempo": {
          "perMinute": 60,
          "source": "player",
+         "beat": "quarter",
+         "beatsPerMinute": 60,
          "mark": "= 60"
         }
        }

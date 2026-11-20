@@ -82,6 +82,10 @@ public class TranspositionTests
     [InlineData(1, 6, 7)]
     [InlineData(5, 4, -3)]
     [InlineData(0, -2, -2)]
+    [InlineData(0, 6, 6)]
+    [InlineData(0, -6, -6)]
+    [InlineData(1, -6, -5)]
+    [InlineData(2, 6, -4)]
     public void A_key_signature_moves_by_the_fifths_of_the_interval_written_with_seven_sharps_or_flats_at_most(int fifths, int semitones, int moved)
     {
         Assert.Equal(moved, Transposition.Moved(fifths, semitones));

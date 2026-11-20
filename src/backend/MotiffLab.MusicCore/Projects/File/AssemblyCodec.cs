@@ -258,8 +258,11 @@ internal static class AssemblyCodec
         json.WriteEndArray();
     }
 
-    /// <summary>The music <see cref="WriteMusic"/> wrote, a tempo with no "source" assumed; <paramref name="what"/> names the part of the file a fault is in.</summary>
-    internal static SourceMusic ReadMusic(JsonElement music, string what)
+    /// <summary>
+    /// The music <see cref="WriteMusic"/> wrote; <paramref name="what"/> names the part of the file a fault is in. With
+    /// <paramref name="tempoSources"/> (a draft's variant) a tempo's "source" is read, assumed when left out; else every tempo is assumed, as before.
+    /// </summary>
+    internal static SourceMusic ReadMusic(JsonElement music, string what, bool tempoSources = false)
     {
         Expect(music, JsonValueKind.Object, what);
         List<Note> notes = [.. Property(music, "notes", JsonValueKind.Array).EnumerateArray().Select(note =>
@@ -297,7 +300,7 @@ internal static class AssemblyCodec
         }
 
         List<PlaybackTempo> tempos = [.. Property(music, "tempos", JsonValueKind.Array).EnumerateArray().Select(tempo =>
-            new PlaybackTempo(new Tick(Long(tempo, "at")), Integer(tempo, "microsecondsPerQuarter"), tempo.TryGetProperty("source", out _) ? LowerName<TempoSource>(tempo, "source") : TempoSource.Assumed))];
+            new PlaybackTempo(new Tick(Long(tempo, "at")), Integer(tempo, "microsecondsPerQuarter"), tempoSources && tempo.TryGetProperty("source", out _) ? LowerName<TempoSource>(tempo, "source") : TempoSource.Assumed))];
         List<KeySignature> keys = [.. Property(music, "keys", JsonValueKind.Array).EnumerateArray().Select(key =>
             new KeySignature(new Tick(Long(key, "at")), Integer(key, "fifths"), key.TryGetProperty("mode", out _) ? LowerName<KeyMode>(key, "mode") : null))];
         return new SourceMusic(notes, bars, tempos, keys);

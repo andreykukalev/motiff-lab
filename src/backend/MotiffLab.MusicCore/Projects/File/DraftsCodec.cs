@@ -304,7 +304,7 @@ internal static class DraftsCodec
             Milliseconds = from.TryGetProperty("ms", out JsonElement ms) ? Pair(ms) : null,
             Part = LowerName<DraftPart>(from, "part"),
         };
-        return new DraftVariant(Text(variant, "id"), JsonRead.Time(variant, "addedAt"), source, ReadProvenance(Property(variant, "provenance", JsonValueKind.Object)), ReadMusic(Property(variant, "music", JsonValueKind.Object), What))
+        return new DraftVariant(Text(variant, "id"), JsonRead.Time(variant, "addedAt"), source, ReadProvenance(Property(variant, "provenance", JsonValueKind.Object)), ReadMusic(Property(variant, "music", JsonValueKind.Object), What, tempoSources: true))
         {
             Anchors = variant.TryGetProperty("anchors", out JsonElement anchors)
                 ? [.. Elements(anchors, What).Select(static anchor => new DraftAnchor(new Tick(Long(anchor, "place")), new Tick(Long(anchor, "variant"))))]

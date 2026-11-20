@@ -1,5 +1,4 @@
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
@@ -8,9 +7,9 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>
-/// One side of a seam as its place's result has it there: the key its source states (null when it states none, never one
-/// worked out), the meter of the bar at the seam and the tempo in force there with its source as saved; a place with no
-/// tempo there plays at the piece's default (<see cref="TempoSource.Default"/>). Where the base was copied from is its provenance.
+/// One side of a seam as the draft's score has it there (<see cref="DraftMusic"/>): the key its place's source states (null
+/// when it states none, never one worked out), the meter of the bar at the seam and the tempo in force there with its source
+/// as saved, the piece's default where the place states none. Where the base was copied from is its provenance.
 /// </summary>
 /// <param name="Index">The place's position in the draft, from 0.</param>
 public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySignature? Key, TimeSignature Meter, PlaybackTempo Tempo)
@@ -27,7 +26,9 @@ public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySig
 /// <param name="At">The tick of the draft where the place after it starts.</param>
 /// <param name="Listen">«▶ Послушать стык»: the draft's last bar before the seam and its first bar after it.</param>
 /// <param name="Left">Whether the player kept the seam as it is: a <see cref="DraftLeave"/> with <see cref="DraftLeave.Seam"/> of the place after it.</param>
-public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpan Listen, bool Left)
+/// <param name="LastBar">The draft's number of the last bar before the seam.</param>
+/// <param name="FirstBar">The draft's number of the first bar after it.</param>
+public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpan Listen, bool Left, int LastBar, int FirstBar)
 {
     /// <summary>Whether the keys differ; false when a side states none, since then nothing tells.</summary>
     public bool KeyChanges => Before.Key is { } before && After.Key is { } after
@@ -39,12 +40,23 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
 
     /// <summary>
     /// «② в соль мажор»: the semitones that move the place after the seam to the key signature before it, the nearer way
-    /// (−6 to +5, <see cref="Transposition.Semitones"/>), its mode kept; null when a side states no key or the signatures are the same.
+    /// (−6 to +5, <see cref="Transposition.Semitones"/>), a tritone the way that writes it as before the seam (G major next to
+    /// D♭ major down, to five flats; C major next to F♯ major up), its mode kept; null when a side states no key or the
+    /// signatures are the same.
     /// </summary>
-    public int? Semitones => Before.Key is { } before && After.Key is { } after
-        && Transposition.Semitones(new MusicalKey(after.Fifths, KeyMode.Major), new MusicalKey(before.Fifths, KeyMode.Major)) is var semitones and not 0
-            ? semitones
-            : null;
+    public int? Semitones
+    {
+        get
+        {
+            if (Before.Key is not { } before || After.Key is not { } after
+                || Transposition.Semitones(new MusicalKey(after.Fifths, KeyMode.Major), new MusicalKey(before.Fifths, KeyMode.Major)) is not (not 0 and var semitones))
+            {
+                return null;
+            }
+
+            return semitones == -6 && Transposition.Moved(after.Fifths, -6) != before.Fifths ? 6 : semitones;
+        }
+    }
 
     /// <summary>The key the place after the seam would be in, moved by <see cref="Semitones"/>; null when none is offered.</summary>
     public KeySignature? Transposed => Semitones is { } semitones ? After.Key! with { Fifths = Transposition.Moved(After.Key!.Fifths, semitones) } : null;
@@ -60,7 +72,7 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
 /// </summary>
 public static class DraftSeams
 {
-    /// <summary>The draft's seams in order, worked out from its places' results as its steps left them.</summary>
+    /// <summary>The draft's seams in order, worked out from its score (<see cref="DraftMusic"/>), each place's result built once.</summary>
     public static IReadOnlyList<DraftSeam> Of(Draft draft)
     {
         ArgumentNullException.ThrowIfNull(draft);
@@ -70,9 +82,8 @@ public static class DraftSeams
         {
             Tick at = score.Places[index].Span.Onset;
             TickSpan listen = TickSpan.FromBounds(score.Music.BarAt(new Tick(at.Value - 1)).Bar.Span.Onset, score.Music.BarAt(at).Bar.Span.End);
-            DraftPlace after = draft.Places[index];
-            bool left = draft.StepsOf(after.Id).OfType<DraftLeave>().Any(static leave => leave.Seam);
-            seams.Add(new DraftSeam(Side(draft, index - 1, atEnd: true), Side(draft, index, atEnd: false), at, listen, left));
+            bool left = draft.StepsOf(draft.Places[index].Id).OfType<DraftLeave>().Any(static leave => leave.Seam);
+            seams.Add(new DraftSeam(Side(draft, score, index - 1, atEnd: true), Side(draft, score, index, atEnd: false), at, listen, left, score.Places[index - 1].LastBar, score.Places[index].FirstBar));
         }
 
         return seams;
@@ -120,14 +131,20 @@ public static class DraftSeams
 
     private static DraftPlace Place(Draft draft, string placeId) => draft.FindPlace(placeId) ?? throw new KeyNotFoundException($"The draft has no place {placeId}.");
 
-    /// <summary>The place at <paramref name="index"/> at its end (the seam after it) or at its start (the seam before it).</summary>
-    private static SeamSide Side(Draft draft, int index, bool atEnd)
+    /// <summary>
+    /// The place at <paramref name="index"/> at its end (the seam after it) or at its start (the seam before it), as the score
+    /// has it. At its end its key is the one in force there only when the place's source states it: the score cancels a key
+    /// that would run on from an earlier place at the start of a place that states none.
+    /// </summary>
+    private static SeamSide Side(Draft draft, DraftMusic score, int index, bool atEnd)
     {
         DraftPlace place = draft.Places[index];
-        SourceMusic music = draft.ResultOf(place.Id).Music;
-        Tick tick = atEnd ? new Tick(Math.Max(0, music.End.Value - 1)) : Tick.Zero;
-        PlaybackTempo[] before = [.. music.Tempos.Where(each => each.At <= tick)];
-        PlaybackTempo tempo = before.Length > 0 ? before.MaxBy(static each => each.At) : new PlaybackTempo(Tick.Zero, PlaybackTempo.PieceDefaultMicrosecondsPerQuarter, TempoSource.Default);
-        return new SeamSide(place.Id, index, place.BaseVariant, KeySignature.InForce(music.Keys, tick), music.BarAt(tick).Bar.Signature, tempo);
+        DraftPlaceSpan span = score.Places[index];
+        Tick tick = atEnd ? new Tick(span.Span.End.Value - 1) : span.Span.Onset;
+        KeySignature? key = !atEnd ? span.Key
+            : KeySignature.InForce(score.Music.Keys, tick) is { } inForce && (inForce.At > span.Span.Onset || (inForce.At == span.Span.Onset && span.Key is not null)) ? inForce
+            : null;
+        PlaybackTempo tempo = score.Music.Tempos.Last(each => each.At <= tick);
+        return new SeamSide(place.Id, index, place.BaseVariant, key, score.Music.BarAt(tick).Bar.Signature, tempo);
     }
 }

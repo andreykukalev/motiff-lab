@@ -26,7 +26,8 @@ public enum TempoSource
     /// <summary>
     /// Nothing states the piece's tempo, neither the file, the scan nor a recording, so it plays at the piece's default of
     /// <see cref="PlaybackTempo.PieceDefaultPerMinute"/> quarter notes a minute (Andrei, version 0.5.5, #521 section 12),
-    /// which the score marks "♩ = 80" like any piece tempo until the player sets one. The project file does not keep it.
+    /// which the score marks "♩ = 80" like any piece tempo until the player sets one. The workspace's "tempo" does not keep
+    /// it; a draft's variant copied from such a piece keeps it as its tempo's "source", "default" (version 17).
     /// </summary>
     Default,
 }

@@ -55,6 +55,9 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
         private IReadOnlyList<PlaybackTempo> _tempos = place.BaseVariant.Music.Tempos;
         private IReadOnlyList<KeySignature> _keys = place.BaseVariant.Music.Keys;
 
+        /// <summary>How far the steps so far transposed the place: a variant's notes put in after them come in the place's key.</summary>
+        private int _semitones;
+
         public void Apply(DraftStep step)
         {
             string? lost = step switch
@@ -94,7 +97,7 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             {
                 Note note = theirs[id];
                 Tick at = AfterInserts(_inserted, DraftAlignment.InBase(alignment, note.Span.Onset));
-                _notes.Add(note with { Id = id, Span = new TickSpan(at, note.Span.Duration) });
+                _notes.Add(note with { Id = id, Pitch = Transposition.Moved(note.Pitch, _semitones), Span = new TickSpan(at, note.Span.Duration) });
                 _origins[id] = variant.Id;
             }
 
@@ -119,7 +122,7 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             foreach (Note note in variant.Music.NotesIn(insert.Span.Onset, insert.Span.End))
             {
                 string id = variant.NoteId(note.Id);
-                _notes.Add(note with { Id = id, Span = new TickSpan(note.Span.Onset.Offset(shift), note.Span.Duration) });
+                _notes.Add(note with { Id = id, Pitch = Transposition.Moved(note.Pitch, _semitones), Span = new TickSpan(note.Span.Onset.Offset(shift), note.Span.Duration) });
                 _origins[id] = variant.Id;
             }
 
@@ -129,11 +132,16 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             return null;
         }
 
-        /// <summary>The place's notes moved by <paramref name="semitones"/>, and its keys with them (<see cref="Transposition.Moved"/>); a place whose source states no key still states none.</summary>
+        /// <summary>
+        /// The place's notes moved by <paramref name="semitones"/>, and its keys with them, by the one rule of
+        /// <see cref="Transposition"/>; a place whose source states no key still states none. Notes a later step puts in
+        /// move by as much.
+        /// </summary>
         private string? Transpose(int semitones)
         {
-            _notes = [.. _notes.Select(note => note with { Pitch = new Pitch(Math.Clamp(note.Pitch.MidiNumber + semitones, 0, Pitch.MaxMidiNumber)) })];
+            _notes = [.. _notes.Select(note => note with { Pitch = Transposition.Moved(note.Pitch, semitones) })];
             _keys = [.. _keys.Select(key => key with { Fifths = Transposition.Moved(key.Fifths, semitones) })];
+            _semitones += semitones;
             return null;
         }
 

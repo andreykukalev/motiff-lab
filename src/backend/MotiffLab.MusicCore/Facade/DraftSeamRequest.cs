@@ -21,22 +21,22 @@ internal static class DraftSeamRequest
     /// "changes" (of key, meter, tempo: what differs), "sides" [before, after] each {"place", "number" (from 1), "variant"
     /// (its base), "source" (pdfNotes, fileNotes, recording, otherPiece), "key" ({"fifths", "mode" (major, minor or null),
     /// "name"}, null when its source states none), "meter" {"beats", "beatType", "label"}, "tempo"
-    /// {"perMinute", "source" (notated, inferred, player, default or assumed, as saved), "mark" ("= 92", "≈ 92" when
-    /// inferred, null when assumed, as the score marks it)}}, and "offers" [{"kind"
+    /// {"perMinute" (quarters), "source" (notated, inferred, player, default or assumed, as saved), "beat" (quarter or
+    /// dottedQuarter, the meter's) and "beatsPerMinute" as playback's "tempo" answers them, "mark" ("= 92", "≈ 92" when
+    /// inferred, "= 60" of dotted quarters in 6/8, null when assumed, as the score marks it)}}, and "offers" [{"kind"
     /// (transpose, tempo), "place", "semitones" or "quarterNotesPerMinute", "label"}] for the place after the seam}] in order.
     /// </summary>
     public static string Seams(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
         Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
-        IReadOnlyList<DraftPlaceSpan> spans = DraftMusic.Of(draft).Places;
         return Answer.Write(json =>
         {
             json.WriteString("draft", draft.Id);
             json.WriteStartArray("seams");
             foreach (DraftSeam seam in DraftSeams.Of(draft))
             {
-                Seam(json, seam, spans, owner.Words);
+                Seam(json, seam, owner.Words);
             }
 
             json.WriteEndArray();
@@ -55,14 +55,14 @@ internal static class DraftSeamRequest
     public static string Leave(OpenPiece owner, Request request) =>
         DraftTakeRequest.Stepped(owner, request, (draft, place, now) => DraftSeams.Leave(draft, place, now));
 
-    private static void Seam(Utf8JsonWriter json, DraftSeam seam, IReadOnlyList<DraftPlaceSpan> spans, Words words)
+    private static void Seam(Utf8JsonWriter json, DraftSeam seam, Words words)
     {
         json.WriteStartObject();
         json.WriteString("before", seam.Before.Place);
         json.WriteString("after", seam.After.Place);
         json.WriteNumber("at", seam.At.Value);
-        json.WriteNumber("lastBar", spans[seam.Before.Index].LastBar);
-        json.WriteNumber("firstBar", spans[seam.After.Index].FirstBar);
+        json.WriteNumber("lastBar", seam.LastBar);
+        json.WriteNumber("firstBar", seam.FirstBar);
         json.WriteStartObject("listen");
         json.WriteNumber("onset", seam.Listen.Onset.Value);
         json.WriteNumber("end", seam.Listen.End.Value);
@@ -140,16 +140,19 @@ internal static class DraftSeamRequest
         json.WriteNumber("beatType", side.Meter.Denominator);
         json.WriteString("label", side.Meter.ToString());
         json.WriteEndObject();
+        TempoBeat beat = TempoBeats.Of(side.Meter);
         json.WriteStartObject("tempo");
         json.WriteNumber("perMinute", side.PerMinute);
         json.WriteString("source", side.Tempo.Source.Name());
-        if (side.Tempo.Source == TempoSource.Assumed)
+        json.WriteString("beat", beat.Name());
+        json.WriteNumber("beatsPerMinute", beat.PerMinute(side.Tempo.MicrosecondsPerQuarter));
+        if (TempoMarks.AtStart(side.Tempo, beat) is { } mark)
         {
-            json.WriteNull("mark");
+            json.WriteString("mark", mark.Text);
         }
         else
         {
-            json.WriteString("mark", new TempoMark(Tick.Zero, side.PerMinute, side.Tempo.Source == TempoSource.Inferred).Text);
+            json.WriteNull("mark");
         }
 
         json.WriteEndObject();
