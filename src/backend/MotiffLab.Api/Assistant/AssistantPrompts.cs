@@ -11,7 +11,7 @@ internal static class AssistantPrompts
     public const string Version = "mentor-v2";
 
     /// <summary>The version of the proposer's instructions.</summary>
-    public const string ProposerVersion = "proposer-v1";
+    public const string ProposerVersion = "proposer-v2";
 
     private static readonly Lazy<string> s_mentor = new(() => Load($"{Version}.md"));
 

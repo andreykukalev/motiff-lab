@@ -16,7 +16,7 @@ namespace MotiffLab.MusicCore.Assistant;
 /// (<see cref="Unknown"/> says which it cites wrongly); everything else it says is interpretation. The digest repeats what
 /// the analysers found and adds nothing: no notes, no timing beyond bars and places, no analysis of its own.
 /// </summary>
-public sealed class FactsDigest
+public sealed partial class FactsDigest
 {
     /// <summary>The most facts a range's digest lists, the strongest first (<see cref="FactRanking"/>).</summary>
     public const int MaxFacts = 10;
@@ -46,7 +46,7 @@ public sealed class FactsDigest
     /// <summary>The hand the range was read in, or null for both.</summary>
     public Hand? Hand { get; }
 
-    /// <summary>The digest's plain fields (meter, key, summary) in order.</summary>
+    /// <summary>The digest's plain fields (meter, key) in order.</summary>
     public IReadOnlyList<(string Name, string Value)> Header { get; }
 
     /// <summary>Every id the digest lists, in its order: the only ids an answer may cite.</summary>
@@ -62,7 +62,7 @@ public sealed class FactsDigest
 
     /// <summary>
     /// The digest of bars <paramref name="from"/> to <paramref name="to"/> (in one hand, or both): the meter and key, the
-    /// strongest facts with their places, the chords, the Check flags and each hand's range.
+    /// strongest facts with their places, the chords, the Check flags, each hand's range and the tempo of those bars.
     /// </summary>
     public static FactsDigest OfRange(AssistantPiece piece, int from, int to, Hand? hand = null)
     {
@@ -82,39 +82,8 @@ public sealed class FactsDigest
         items.AddRange(reading.Harmony.Chords.Select(chord => ChordItem(chord, piece, reading, ids)));
         items.AddRange(ChecksIn(piece, from, to, ids, openOnly: false));
         items.AddRange(Lines(reading.NotesOf(piece.Notes), ids, w));
+        items.AddRange(TempoItems(piece, ids, TickSpan.FromBounds(piece.Meter.GetBar(from).Span.Onset, piece.Meter.GetBar(to).Span.End)));
         return new FactsDigest("selection", from, to, hand, items, header);
-    }
-
-    /// <summary>The digest of the whole piece: its bars and meters, the map's summary line, the keys, the form, the closes and the open Check flags.</summary>
-    public static FactsDigest OfPiece(AssistantPiece piece)
-    {
-        ArgumentNullException.ThrowIfNull(piece);
-        Words w = piece.Words;
-        PieceDna dna = piece.Doubt.On(PieceDna.Build(piece.Notes, piece.Meter, piece.Piece.Keys, piece.Piece.End, null, null, w, piece.Structure));
-        var header = new List<(string, string)> { ("meter", Meters(piece.Meter, piece.FirstBar, piece.LastBar)) };
-        if (dna.Summary.Length > 0)
-        {
-            header.Add(("summary", dna.Summary));
-        }
-
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        var items = new List<DigestItem>();
-        items.AddRange(dna.Keys.Select((key, index) => new DigestItem(
-            Unique($"key.{index + 1}", ids),
-            "key",
-            key.KeyInferred || key.ModeInferred ? "inferred" : "detected",
-            $"{key.Key.NameIn(w)}, {Bars(key.FirstBar, key.LastBar, w)}")
-        { Bars = (key.FirstBar, key.LastBar) }));
-        items.AddRange(dna.Form.Select(section => new DigestItem(Unique($"form.{section.Id}", ids), "form", "inferred", $"{section.Label}, {Bars(section.FirstBar, section.LastBar, w)}")
-        { Bars = (section.FirstBar, section.LastBar) }));
-        items.AddRange(dna.Cadences.Select(cadence => new DigestItem(
-            Unique(string.Create(CultureInfo.InvariantCulture, $"cadence.{cadence.Bar}"), ids),
-            "cadence",
-            "inferred",
-            cadence.Kind == CloseKind.Full ? w.T($"full close in bar {cadence.Bar}", $"полная каденция в такте {cadence.Bar}") : w.T($"half close in bar {cadence.Bar}", $"половинная каденция в такте {cadence.Bar}"))
-        { Bars = (cadence.Bar, cadence.Bar) }));
-        items.AddRange(ChecksIn(piece, piece.FirstBar, piece.LastBar, ids, openOnly: true));
-        return new FactsDigest("piece", piece.FirstBar, piece.LastBar, null, items, header);
     }
 
     /// <summary>Writes the digest as one JSON object: scope, bars, the header fields, the items by kind and "ids".</summary>
@@ -226,7 +195,10 @@ public sealed class FactsDigest
 /// <summary>A place an item names: its label and up to <see cref="FactsDigest.MaxPlaceNotes"/> note addresses.</summary>
 public sealed record DigestPlace(string Label, IReadOnlyList<string> Notes);
 
-/// <summary>One item of a digest: its id, kind (a fact's lens, "chord", "check", "range", "key", "form", "cadence"), how sure it is and its line.</summary>
+/// <summary>
+/// One item of a digest: its id, kind (a fact's lens, "chord", "check", "range"; of the piece also "summary", "key", "form",
+/// "tempo", "density", "newMaterial", "phrase", "sentence", "chords", "cadence"), how sure it is and its line.
+/// </summary>
 public sealed record DigestItem(string Id, string Kind, string Certainty, string Text)
 {
     /// <summary>"Rests on recognised notes still to check in bar 5." when it does (#352).</summary>
@@ -237,6 +209,9 @@ public sealed record DigestItem(string Id, string Kind, string Certainty, string
     /// <summary>The bars the item is about, when it names bars rather than notes (a key, a section, a close, a chord, a flag); null otherwise.</summary>
     public (int From, int To)? Bars { get; init; }
 
+    /// <summary>A section's letter ("A′"), so a question that names the section finds it; null for other items.</summary>
+    public string? Label { get; init; }
+
     internal void Write(Utf8JsonWriter json)
     {
         json.WriteStartObject();
@@ -244,6 +219,11 @@ public sealed record DigestItem(string Id, string Kind, string Certainty, string
         json.WriteString("kind", Kind);
         json.WriteString("certainty", Certainty);
         json.WriteString("text", Text);
+        if (Label is not null)
+        {
+            json.WriteString("label", Label);
+        }
+
         if (Doubt is not null)
         {
             json.WriteString("doubt", Doubt);

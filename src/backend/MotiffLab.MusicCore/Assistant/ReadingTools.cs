@@ -21,7 +21,7 @@ internal static class ReadingTools
         yield return new AssistantTool(
             "piece.describe",
             ToolKind.Read,
-            "The digest of the whole piece: its bars and meters, the map's summary, the keys, the form, the closes and the open Check flags, each with an id to cite.",
+            "The digest of the whole piece, each fact with an id to cite: its bars and meters, the keys, the map's summary, the sections and what they share, the tempo, each hand's range, the densest bars, the bars of new material, the phrases and sentences, the chords of each section, the closes and the open Check flags.",
             ToolSchema.Object(),
             static (piece, _) => ToolResult.Read(json => FactsDigest.OfPiece(piece).Write(json)));
         yield return new AssistantTool(

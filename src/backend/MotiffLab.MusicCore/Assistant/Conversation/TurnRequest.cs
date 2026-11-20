@@ -26,6 +26,9 @@ public sealed record TurnRequest(AssistantRole Role, string Language, JsonElemen
     /// <summary>The tool calls made since the last question.</summary>
     public int ToolCallsInQuestion => CallsSinceQuestion(History);
 
+    /// <summary>The player's last question, which the engine's template answers; null before any.</summary>
+    public string? Question => History.LastOrDefault(static entry => entry.Kind == TurnEntryKind.Question)?.Text;
+
     /// <summary>Whether a tool made a draft since the last question: then the answer is about the draft, whose explanation is the engine's, and need cite no fact.</summary>
     public bool Drafted => AnswerCheck.Drafted(History.Skip(LastQuestion(History)).SelectMany(static entry => entry.Results));
 
@@ -166,7 +169,8 @@ public sealed record TurnRequest(AssistantRole Role, string Language, JsonElemen
         return request.ToolCallsInQuestion > AssistantRoles.MostToolCalls ? $"A question takes at most {AssistantRoles.MostToolCalls} tool calls." : null;
     }
 
-    internal static int LastQuestion(IReadOnlyList<TurnEntry> history)
+    /// <summary>Where the last question stands in <paramref name="history"/>; 0 when it holds none.</summary>
+    public static int LastQuestion(IReadOnlyList<TurnEntry> history)
     {
         for (int index = history.Count - 1; index >= 0; index--)
         {

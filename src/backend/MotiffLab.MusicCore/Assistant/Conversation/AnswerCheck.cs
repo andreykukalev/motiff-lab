@@ -20,8 +20,8 @@ public sealed record CheckedAnswer(IReadOnlyList<AnswerPart> Parts, bool FellBac
 /// output cites fact ids from the digest, else template text): the answer cites its facts as [[id]]; it must cite at least
 /// one, every id it cites must be one the turn gave it (the digest's or a tool result's, the same rule as
 /// <see cref="FactsDigest.Unknown"/>), and it must be no longer than <see cref="MaxLength"/>. An answer that fails is
-/// replaced by the engine's template: the digest's first facts in the engine's own words, each cited. Pure; the server and
-/// the device check the same way.
+/// replaced by the engine's template: the digest's facts nearest to the question (<see cref="NearestFacts"/>) in the
+/// engine's own words, each cited. Pure; the server and the device check the same way.
 /// </summary>
 public static partial class AnswerCheck
 {
@@ -30,6 +30,37 @@ public static partial class AnswerCheck
 
     /// <summary>How many facts the template lists.</summary>
     public const int TemplateFacts = 4;
+
+    // Why an answer is the template (CheckedAnswer.Reason, the reply's "reason"): first the check's own reasons ...
+
+    /// <summary>The answer has no text: the model declined, or was cut off by its token limit.</summary>
+    public const string Empty = "empty";
+
+    /// <summary>The answer is longer than <see cref="MaxLength"/>.</summary>
+    public const string TooLong = "tooLong";
+
+    /// <summary>The answer cites no fact.</summary>
+    public const string NoCitation = "noCitation";
+
+    /// <summary>The answer cites an id the turn did not give.</summary>
+    public const string UnknownFact = "unknownFact";
+
+    // ... then the relay's: the model gave no answer it may pass on.
+
+    /// <summary>The model did not answer within the turn's time.</summary>
+    public const string Timeout = "timeout";
+
+    /// <summary>The model's provider failed the turn.</summary>
+    public const string ModelError = "modelError";
+
+    /// <summary>The model called a tool its role lacks.</summary>
+    public const string ToolNotAllowed = "toolNotAllowed";
+
+    /// <summary>The model called a tool with arguments its schema refuses.</summary>
+    public const string BadArguments = "badArguments";
+
+    /// <summary>The model called more tools than a question may take.</summary>
+    public const string TooManyCalls = "tooManyCalls";
 
     /// <summary>The ids an answer cites, in order, each once.</summary>
     public static IReadOnlyList<string> Cited(string text) =>
@@ -61,27 +92,29 @@ public static partial class AnswerCheck
     /// The answer as the player may see it: the model's words when they pass, else the template, with the reason. With
     /// <paramref name="drafted"/> (a tool made a draft for this question), an answer may cite no fact: it says what the
     /// player asked for, and what changed is the draft's explanation, written by the engine; a fact it cites must still be known.
+    /// The template answers <paramref name="question"/>, the player's last question.
     /// </summary>
-    public static CheckedAnswer Check(string? text, IReadOnlySet<string> known, JsonElement context, Words words, bool drafted = false)
+    public static CheckedAnswer Check(string? text, IReadOnlySet<string> known, JsonElement context, Words words, bool drafted = false, string? question = null)
     {
         ArgumentNullException.ThrowIfNull(known);
         string answer = (text ?? "").Trim();
         IReadOnlyList<string> cited = Cited(answer);
-        string? reason = answer.Length == 0 ? "empty"
-            : answer.Length > MaxLength ? "tooLong"
-            : cited.Count == 0 && !drafted ? "noCitation"
-            : cited.Any(id => !known.Contains(id)) ? "unknownFact"
+        string? reason = answer.Length == 0 ? Empty
+            : answer.Length > MaxLength ? TooLong
+            : cited.Count == 0 && !drafted ? NoCitation
+            : cited.Any(id => !known.Contains(id)) ? UnknownFact
             : null;
-        return reason is null ? new CheckedAnswer(Parts(answer), false, null) : Template(context, words, reason);
+        return reason is null ? new CheckedAnswer(Parts(answer), false, null) : Template(context, words, reason, question);
     }
 
-    /// <summary>The engine's template: a line that says the answer could not be checked, then the digest's first facts, each cited.</summary>
-    public static CheckedAnswer Template(JsonElement context, Words words, string reason)
+    /// <summary>The engine's template: a line that says the answer could not be checked, then the digest's facts nearest to <paramref name="question"/>, each cited.</summary>
+    public static CheckedAnswer Template(JsonElement context, Words words, string reason, string? question = null)
     {
         var text = new StringBuilder(words.T(
             "The assistant's answer could not be checked against the engine's facts, so here is what the engine found:",
             "Ответ ассистента не удалось сверить с фактами движка, поэтому вот что нашёл движок:"));
-        foreach ((string id, string line) in Facts(context).Take(TemplateFacts))
+        JsonElement digest = context.ValueKind == JsonValueKind.Object && context.TryGetProperty("digest", out JsonElement found) ? found : default;
+        foreach ((string id, string line) in NearestFacts.Of(digest, question).Take(TemplateFacts))
         {
             text.Append('\n').Append("· ").Append(line).Append(" [[").Append(id).Append("]]");
         }
@@ -112,13 +145,6 @@ public static partial class AnswerCheck
 
         return parts;
     }
-
-    private static IEnumerable<(string Id, string Line)> Facts(JsonElement context) =>
-        context.ValueKind == JsonValueKind.Object && context.TryGetProperty("digest", out JsonElement digest) && digest.TryGetProperty("items", out JsonElement items) && items.ValueKind == JsonValueKind.Array
-            ? items.EnumerateArray()
-                .Where(static item => item.TryGetProperty("id", out _) && item.TryGetProperty("text", out _))
-                .Select(static item => (item.GetProperty("id").GetString() ?? "", item.GetProperty("text").GetString() ?? ""))
-            : [];
 
     private static void Collect(JsonElement json, HashSet<string> known)
     {

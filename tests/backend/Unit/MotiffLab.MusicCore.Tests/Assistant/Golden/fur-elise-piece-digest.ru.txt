@@ -1,0 +1,64 @@
+key.1 | key | detected | ля минор, такты 0–105 | 0–105
+summary | summary | inferred | Форма A B C A′ · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32
+form.section_1 | form | inferred | A, такты 0–8, общий материал с A′ (такты 78–105) | 0–8
+form.section_2 | form | inferred | B, такты 9–23 | 9–23
+form.section_3 | form | inferred | C, такты 24–77 | 24–77
+form.section_4 | form | inferred | A′, такты 78–105, общий материал с A (такты 0–8) | 78–105
+piece.tempo.profile | tempo | detected | Темп: четверть 72 BPM на всём протяжении.
+range.L | range | detected | L: 388 нот, от A1 до E5
+range.R | range | detected | R: 514 нот, от A3 до E7
+density.32 | density | detected | Такт 32, самый плотный: 7 нот на долю | 32–32
+density.34 | density | detected | Такт 34, среди 5 самых плотных: 6,7 ноты на долю | 34–34
+density.33 | density | detected | Такт 33, среди 5 самых плотных: 6,3 ноты на долю | 33–33
+density.35 | density | detected | Такт 35, среди 5 самых плотных: 6,3 ноты на долю | 35–35
+density.24 | density | detected | Такт 24, среди 5 самых плотных: 6 нот на долю | 24–24
+new.0 | newMaterial | inferred | новый материал: такты 0–4 | 0–4
+new.7 | newMaterial | inferred | новый материал: такты 7–15 | 7–15
+new.24 | newMaterial | inferred | новый материал: такты 24–33 | 24–33
+new.36 | newMaterial | inferred | новый материал: такты 36–37 | 36–37
+new.61 | newMaterial | inferred | новый материал: такты 61–68 | 61–68
+new.74 | newMaterial | inferred | новый материал: такты 74–79 | 74–79
+new.82 | newMaterial | inferred | новый материал: такт 82 | 82–82
+phrase.1 | phrase | detected | Фраза 1, такты 0–4, начало: такт 0, доля 3 | 0–4
+phrase.2 | phrase | inferred | Фраза 2, такты 4–8, начало: такт 4, доля 3 | 4–8
+phrase.3 | phrase | detected | Фраза 3, такты 9–15, начало: такт 9, доля 1 | 9–15
+phrase.4 | phrase | inferred | Фраза 4, такты 15–19, начало: такт 15, доля 3 | 15–19
+phrase.5 | phrase | inferred | Фраза 5, такты 19–23, начало: такт 19, доля 3 | 19–23
+phrase.6 | phrase | detected | Фраза 6, такты 24–31, начало: такт 24, доля 1 | 24–31
+phrase.7 | phrase | inferred | Фраза 7, такты 32–35, начало: такт 32, доля 1 | 32–35
+phrase.8 | phrase | inferred | Фраза 8, такты 36–39, начало: такт 36, доля 1 | 36–39
+phrase.9 | phrase | inferred | Фраза 9, такты 39–43, начало: такт 39, доля 3 | 39–43
+phrase.10 | phrase | inferred | Фраза 10, такты 43–46, начало: такт 43, доля 3 | 43–46
+phrase.11 | phrase | inferred | Фраза 11, такты 47–53, начало: такт 47, доля 1 | 47–53
+phrase.12 | phrase | inferred | Фраза 12, такты 53–57, начало: такт 53, доля 3 | 53–57
+phrase.13 | phrase | inferred | Фраза 13, такты 57–60, начало: такт 57, доля 3 | 57–60
+phrase.14 | phrase | inferred | Фраза 14, такты 61–68, начало: такт 61, доля 1 | 61–68
+phrase.15 | phrase | inferred | Фраза 15, такты 69–77, начало: такт 69, доля 1 | 69–77
+phrase.16 | phrase | inferred | Фраза 16, такты 78–83, начало: такт 78, доля 1 | 78–83
+phrase.17 | phrase | inferred | Фраза 17, такты 84–87, начало: такт 84, доля 1 | 84–87
+phrase.18 | phrase | inferred | Фраза 18, такты 87–90, начало: такт 87, доля 3 | 87–90
+phrase.19 | phrase | inferred | Фраза 19, такты 91–97, начало: такт 91, доля 1 | 91–97
+phrase.20 | phrase | inferred | Фраза 20, такты 97–101, начало: такт 97, доля 3 | 97–101
+phrase.21 | phrase | inferred | Фраза 21, такты 101–105, начало: такт 101, доля 3 | 101–105
+sentence.1 | sentence | inferred | Предложение 1, такты 0–8: фразы 1–2 | 0–8
+sentence.2 | sentence | inferred | Предложение 2, такты 9–23: фразы 3–5 | 9–23
+sentence.3 | sentence | inferred | Предложение 3, такты 24–77: фразы 6–15 | 24–77
+sentence.4 | sentence | inferred | Предложение 4, такты 78–105: фразы 16–21 | 78–105
+chords.section_1 | chords | inferred | Аккорды части A (такты 0–8), тактов у каждого: Am (i) 4, E (V) 2 | 0–8
+chords.section_2 | chords | inferred | Аккорды части B (такты 9–23), тактов у каждого: Am (i) 6, E (V) 3, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 9–23
+chords.section_3 | chords | inferred | Аккорды части C (такты 24–77), тактов у каждого: Am (i) 11, E (V) 5, Dm/A (iv) 4, C (III) 3, Emaj7 (Vmaj7) 3, F (VI) 2 и ещё 16 | 24–77
+chords.section_4 | chords | inferred | Аккорды части A′ (такты 78–105), тактов у каждого: Am (i) 12, E (V) 6, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 78–105
+cadence.4 | cadence | inferred | половинная каденция в такте 4 | 4–4
+cadence.8 | cadence | inferred | полная каденция в такте 8 | 8–8
+cadence.19 | cadence | inferred | половинная каденция в такте 19 | 19–19
+cadence.31 | cadence | inferred | половинная каденция в такте 31 | 31–31
+cadence.43 | cadence | inferred | половинная каденция в такте 43 | 43–43
+cadence.46 | cadence | inferred | половинная каденция в такте 46 | 46–46
+cadence.57 | cadence | inferred | половинная каденция в такте 57 | 57–57
+cadence.60 | cadence | inferred | половинная каденция в такте 60 | 60–60
+cadence.68 | cadence | inferred | половинная каденция в такте 68 | 68–68
+cadence.77 | cadence | inferred | полная каденция в такте 77 | 77–77
+cadence.87 | cadence | inferred | половинная каденция в такте 87 | 87–87
+cadence.90 | cadence | inferred | половинная каденция в такте 90 | 90–90
+cadence.101 | cadence | inferred | половинная каденция в такте 101 | 101–101
+cadence.105 | cadence | inferred | полная каденция в такте 105 | 105–105

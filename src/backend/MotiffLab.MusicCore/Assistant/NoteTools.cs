@@ -264,7 +264,9 @@ internal static class NoteTools
         json.WriteNumber("tempo", tempo);
         json.WriteBoolean("loop", loop);
         json.WriteEndObject();
-        json.WriteString("label", $"{(loop ? w.T("Loop", "Цикл") : w.T("Play", "Играть"))} {bars} · {tempo} % · {hands}");
+        json.WriteString("label", loop
+            ? w.T($"Loop {bars} at {tempo} % tempo · {hands}", $"Зациклить {bars} в темпе {tempo} % · {hands}")
+            : w.T($"Play {bars} at {tempo} % tempo · {hands}", $"Сыграть {bars} в темпе {tempo} % · {hands}"));
         json.WriteEndObject();
     }
 }

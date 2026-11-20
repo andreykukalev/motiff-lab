@@ -400,7 +400,7 @@ public static class StructureAnalyzer
         (bars.Count == 1 ? w.T("in bar ", "в такте ") : w.T("in bars ", "в тактах ")) + w.Joined([.. Runs(bars).Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
 
     /// <summary>Runs of consecutive bars, in order.</summary>
-    private static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
+    internal static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
     {
         var runs = new List<(int First, int Last)>();
         for (int i = 0; i < bars.Count;)

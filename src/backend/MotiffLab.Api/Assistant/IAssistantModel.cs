@@ -27,24 +27,13 @@ public interface IAssistantModel
 public sealed record ModelTurn(string Instructions, string Language, JsonElement Tools, JsonElement Context, IReadOnlyList<TurnEntry> History)
 {
     /// <summary>
-    /// Where the context goes among the history's entries: just before the question it belongs to, the last one, so earlier
-    /// questions about other bars come before it and the bars the player selected now stand beside the question about them.
+    /// Where the context goes among the history's entries: just before the question it belongs to, the player's last one, so
+    /// earlier questions about other bars come before it and the bars the player selected now stand beside the question about
+    /// them. Fixed when the turn is made, from the history it is made with: a turn extended by <c>with { History = … }</c>
+    /// keeps it (as <see cref="AnswerRetry"/> wants: its note is not the player's question), so a copy whose history holds
+    /// another player's question must set it again, <c>ContextAt = TurnRequest.LastQuestion(history)</c>.
     /// </summary>
-    public int ContextAt
-    {
-        get
-        {
-            for (int index = History.Count - 1; index >= 0; index--)
-            {
-                if (History[index].Kind == TurnEntryKind.Question)
-                {
-                    return index;
-                }
-            }
-
-            return 0;
-        }
-    }
+    public int ContextAt { get; init; } = TurnRequest.LastQuestion(History);
 
     /// <summary>The context as the model reads it: what the question is about (the bars selected, or the whole piece), then music-core's JSON.</summary>
     public string ContextText
