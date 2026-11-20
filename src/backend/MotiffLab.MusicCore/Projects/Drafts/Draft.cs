@@ -130,8 +130,14 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>The приёмы of the place <paramref name="placeId"/>'s variants against its base, decided as its steps left them (<see cref="PlaceTechniques.Of"/>).</summary>
     public IReadOnlyList<PlaceTechnique> TechniquesOf(string placeId) => PlaceTechniques.Of(Place(placeId), StepsOf(placeId));
 
+    /// <summary>The приёмы of all its places, how many are taken of how many (<see cref="PlaceTechniques.Tally"/>), for the Sources caption.</summary>
+    public (int Taken, int Total) Tally() => PlaceTechniques.Tally([.. Places.SelectMany(place => TechniquesOf(place.Id))]);
+
     /// <summary>The ids of every place and variant, for a new one never to take one.</summary>
-    public IEnumerable<string> Ids => [.. Places.Select(static place => place.Id), .. Places.SelectMany(static place => place.Variants).Concat(Shelf).Select(static variant => variant.Id)];
+    public IEnumerable<string> Ids => [.. Places.Select(static place => place.Id), .. Variants.Select(static variant => variant.Id)];
+
+    /// <summary>Every variant of the draft: its places' in order, then the shelf's.</summary>
+    public IEnumerable<DraftVariant> Variants => Places.SelectMany(static place => place.Variants).Concat(Shelf);
 
     /// <summary>The id a new place takes: <c>pl_</c> and the next number in the draft.</summary>
     public string NextPlaceId() => Project.NextId("pl_", Ids);

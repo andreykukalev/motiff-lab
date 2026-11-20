@@ -65,8 +65,9 @@ internal static partial class Answer
     }
 
     /// <summary>
-    /// "drafts": [{"id", "name", "caption" («из нот с PDF и записи»), "createdAt", "places", "shelf"}] in the order they were
-    /// made, for the Sources group «Черновики» (0034, spec «Экран (iPad)»).
+    /// "drafts": [{"id", "name", "caption" («из нот с PDF и записи»), "createdAt", "places", "shelf", and since version 1.1
+    /// step 6 "techniques" {"taken", "total"}, the приёмы of all its places (<see cref="Draft.Tally"/>: «взято 3 приёма из
+    /// 4»)}] in the order they were made, for the Sources group «Черновики» (0034, spec «Экран (iPad)»).
     /// </summary>
     private static void Drafts(Utf8JsonWriter json, Project project, Words words)
     {
@@ -80,6 +81,11 @@ internal static partial class Answer
             json.WriteString("createdAt", draft.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteNumber("places", draft.Places.Count);
             json.WriteNumber("shelf", draft.Shelf.Count);
+            (int taken, int total) = draft.Tally();
+            json.WriteStartObject("techniques");
+            json.WriteNumber("taken", taken);
+            json.WriteNumber("total", total);
+            json.WriteEndObject();
             json.WriteEndObject();
         }
 

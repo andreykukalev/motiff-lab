@@ -101,7 +101,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
      }
     ]
    }
@@ -225,7 +229,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 2,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
      }
     ]
    }
@@ -309,7 +317,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 2,
-      "shelf": 1
+      "shelf": 1,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
      }
     ]
    }
@@ -510,7 +522,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 2,
-      "shelf": 1
+      "shelf": 1,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
      }
     ]
    }
