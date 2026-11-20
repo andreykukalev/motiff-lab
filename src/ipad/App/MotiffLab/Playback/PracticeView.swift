@@ -172,7 +172,7 @@ extension ScoreController {
         }
     }
 
-    /// Tells the page whether practice view is on: it hides the blue playhead and stops offering it to the Pencil (score.js).
+    /// Tells the page whether practice view is on: it hides the blue playhead and stops offering it to the Pencil (its page).
     /// ScoreScreen calls it whenever `practicing` changes, Expand entered or left included.
     func sendPractice() {
         Task { await sendVisibilities() }
@@ -187,7 +187,7 @@ extension ScoreController {
     }
 
     /// Tells the page whether the selection controls show (#582 item 10): hidden, the selection's handles go with the menu
-    /// and the Pencil writes where they were (score.js). ScoreScreen calls it whenever `selectionControlsShown` changes.
+    /// and the Pencil writes where they were (its page). ScoreScreen calls it whenever `selectionControlsShown` changes.
     func sendSelectionControls(_ shown: Bool) {
         Task { await scorePage.send(.selectionControls, shown) }
     }

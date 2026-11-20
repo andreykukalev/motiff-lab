@@ -9,7 +9,7 @@ struct PlayheadDrag: Equatable {
     var last: Double
 }
 
-/// What the score (score.js) and the roll (roll.js) report of a playhead's handle: `{ drag: { phase, handle, tick } }`. The
+/// What the score (its page) and the roll (roll.js) report of a playhead's handle: `{ drag: { phase, handle, tick } }`. The
 /// page puts the place on the sixteenth grid or a note's start and in its bar or the selection
 /// (Scripts/playback/playhead-drag.ts) and sends it at most once a frame; a long press puts the playhead down first
 /// (`place`).

@@ -5,7 +5,8 @@ SwiftUI over the one C# music-core (NativeAOT framework, `src/ipad/Core`). The a
 new file needs no project edit. `Account.json` and the asset catalogues (`AppIcon.xcassets`, `Icons.xcassets`, written by
 `tools/icons/build.mjs`) stay at its top. A folder's own interface texts are `<Folder>/Words/<Folder>.{en,ru}.json`;
 what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
-are the shared TS modules in a WKWebView (`Web/score.js`, `src/shared/Scripts/score`, `roll`: `score.md`, `roll.md`).
+are the shared TS modules in a WKWebView (`Web/score.html` over `src/shared/Scripts/score/ipad-page`; `src/shared/Scripts/score`,
+`roll`: `score.md`, `roll.md`).
 Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI), with the UX baseline's cases
 in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label). There too, the workspace's scenarios
 (blueprint 5.3 step 3): `WorkspaceSession` takes a `ScoreWorkspace` over the real music-core and controllers through a
