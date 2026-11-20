@@ -31,6 +31,37 @@ public static partial class AnswerCheck
     /// <summary>How many facts the template lists.</summary>
     public const int TemplateFacts = 4;
 
+    // Why an answer is the template (CheckedAnswer.Reason, the reply's "reason"): first the check's own reasons ...
+
+    /// <summary>The answer has no text: the model declined, or was cut off by its token limit.</summary>
+    public const string Empty = "empty";
+
+    /// <summary>The answer is longer than <see cref="MaxLength"/>.</summary>
+    public const string TooLong = "tooLong";
+
+    /// <summary>The answer cites no fact.</summary>
+    public const string NoCitation = "noCitation";
+
+    /// <summary>The answer cites an id the turn did not give.</summary>
+    public const string UnknownFact = "unknownFact";
+
+    // ... then the relay's: the model gave no answer it may pass on.
+
+    /// <summary>The model did not answer within the turn's time.</summary>
+    public const string Timeout = "timeout";
+
+    /// <summary>The model's provider failed the turn.</summary>
+    public const string ModelError = "modelError";
+
+    /// <summary>The model called a tool its role lacks.</summary>
+    public const string ToolNotAllowed = "toolNotAllowed";
+
+    /// <summary>The model called a tool with arguments its schema refuses.</summary>
+    public const string BadArguments = "badArguments";
+
+    /// <summary>The model called more tools than a question may take.</summary>
+    public const string TooManyCalls = "tooManyCalls";
+
     /// <summary>The ids an answer cites, in order, each once.</summary>
     public static IReadOnlyList<string> Cited(string text) =>
         [.. CitationPattern().Matches(text ?? "").Select(static match => match.Groups[1].Value).Distinct(StringComparer.Ordinal)];
@@ -68,10 +99,10 @@ public static partial class AnswerCheck
         ArgumentNullException.ThrowIfNull(known);
         string answer = (text ?? "").Trim();
         IReadOnlyList<string> cited = Cited(answer);
-        string? reason = answer.Length == 0 ? "empty"
-            : answer.Length > MaxLength ? "tooLong"
-            : cited.Count == 0 && !drafted ? "noCitation"
-            : cited.Any(id => !known.Contains(id)) ? "unknownFact"
+        string? reason = answer.Length == 0 ? Empty
+            : answer.Length > MaxLength ? TooLong
+            : cited.Count == 0 && !drafted ? NoCitation
+            : cited.Any(id => !known.Contains(id)) ? UnknownFact
             : null;
         return reason is null ? new CheckedAnswer(Parts(answer), false, null) : Template(context, words, reason, question);
     }

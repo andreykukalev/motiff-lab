@@ -98,20 +98,27 @@ public sealed partial class FactsDigest
         };
     }
 
-    /// <summary>The tempo facts the Insights stream shows (<see cref="TempoProfile.Facts"/>): the usual tempo and range, then each change.</summary>
-    private static IEnumerable<DigestItem> TempoItems(AssistantPiece piece, HashSet<string> ids)
+    /// <summary>
+    /// The tempo facts the Insights stream shows (<see cref="TempoProfile.Facts"/>): the usual tempo and range, then each
+    /// change; of the whole piece (piece.tempo.*), or of the bars starting within <paramref name="within"/>, a selection's
+    /// (here.tempo.*, so an answer about the selection does not read as about the piece).
+    /// </summary>
+    private static IEnumerable<DigestItem> TempoItems(AssistantPiece piece, HashSet<string> ids, TickSpan? within = null)
     {
-        if (TempoProfile.OfPiece(piece.Piece) is not { } profile)
+        if (TempoProfile.OfPiece(piece.Piece, within) is not { } profile)
         {
             return [];
         }
 
         IReadOnlyList<MotifFact> facts = profile.Facts(piece.Words);
-        return facts.Select((fact, index) => new DigestItem(Unique(fact.Id, ids), "tempo", ToolSchema.Camel(fact.Certainty.ToString()), fact.Text)
+        return facts.Select((fact, index) => new DigestItem(Unique(within is null ? fact.Id : SelectionTempoId(fact.Id), ids), "tempo", ToolSchema.Camel(fact.Certainty.ToString()), fact.Text)
         {
             Bars = index == 0 ? null : (profile.Changes[index - 1].FirstBar, profile.Changes[index - 1].LastBar),
         });
     }
+
+    /// <summary>piece.tempo.profile as a selection's here.tempo.profile, piece.tempo.change.N as here.tempo.change.N.</summary>
+    private static string SelectionTempoId(string id) => $"here.{id["piece.".Length..]}";
 
     /// <summary>The <see cref="MaxDenseBars"/> bars with the most notes starting per beat, the densest first (the map's density lane).</summary>
     private static IEnumerable<DigestItem> DenseItems(IReadOnlyList<DnaBarLevel> density, HashSet<string> ids, Words w)

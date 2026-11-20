@@ -188,8 +188,11 @@ public class ConversationTests
 
         TurnReply read = TurnReply.Read(Json(Written(TurnReply.Answered(answer).Write)))!;
 
-        Assert.Equal((TurnReplyKind.Answer, true), (read.Kind, read.Fallback));
+        Assert.Equal((TurnReplyKind.Answer, true, "unknownFact"), (read.Kind, read.Fallback, read.Reason));
         Assert.EndsWith("· A fact [[x.1]]", read.Text, StringComparison.Ordinal);
+        string passed = Written(TurnReply.Answered(AnswerCheck.Check("A fact [[x.1]].", new HashSet<string> { "x.1" }, default, Words.English)).Write);
+        Assert.DoesNotContain("reason", passed, StringComparison.Ordinal);
+        Assert.Null(TurnReply.Read(Json(passed))!.Reason);
         Assert.Equal(TurnReplyKind.NotConfigured, TurnReply.Read(Json("""{"kind": "notConfigured"}"""))!.Kind);
         Assert.Null(TurnReply.Read(Json("""{"kind": "toolCalls"}""")));
     }

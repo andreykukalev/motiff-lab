@@ -40,8 +40,27 @@ public class FactsDigestTests
         Assert.Contains("check.3.barTooLong", digest.Ids);
         Assert.Contains("range.R", digest.Ids);
         Assert.Contains(digest.Ids, id => id.StartsWith("chord.", StringComparison.Ordinal));
-        Assert.InRange(digest.Ids.Count(id => id.Contains('.', StringComparison.Ordinal) && !id.StartsWith("chord.", StringComparison.Ordinal) && !id.StartsWith("check.", StringComparison.Ordinal) && !id.StartsWith("range.", StringComparison.Ordinal)), 1, FactsDigest.MaxFacts);
+        Assert.InRange(digest.Ids.Count(id => id.Contains('.', StringComparison.Ordinal) && !id.StartsWith("chord.", StringComparison.Ordinal) && !id.StartsWith("check.", StringComparison.Ordinal) && !id.StartsWith("range.", StringComparison.Ordinal) && !id.StartsWith("here.tempo.", StringComparison.Ordinal)), 1, FactsDigest.MaxFacts);
         Assert.Equal("3/8", digest.Header.Single(field => field.Name == "meter").Value);
+    }
+
+    [Fact]
+    public void A_range_digest_gives_the_tempo_of_its_bars_under_ids_of_the_selection()
+    {
+        // Two bars of 3/4 at 60 BPM, then two at 120: bars 3-4 alone play at 120 throughout, bars 1-4 change.
+        static string Tempo(int bpm) => $"<direction placement=\"above\"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute></metronome></direction-type><sound tempo=\"{bpm}\"/></direction>";
+        string bar = Note("C", 5, 6);
+        AssistantPiece piece = Open(Score(Tempo(60) + bar, bar, Tempo(120) + bar, bar), words: Words.Russian);
+
+        FactsDigest later = FactsDigest.OfRange(piece, 3, 4);
+        FactsDigest whole = FactsDigest.OfRange(piece, 1, 4);
+
+        JsonElement tempo = Json(Written(later)).GetProperty("items").EnumerateArray().Single(item => item.GetProperty("kind").GetString() == "tempo");
+        Assert.Equal("here.tempo.profile", tempo.GetProperty("id").GetString());
+        Assert.Equal("Темп: четверть 120 BPM на всём протяжении.", tempo.GetProperty("text").GetString());
+        Assert.Contains("here.tempo.change.1", whole.Ids);
+        Assert.DoesNotContain(whole.Ids, static id => id.StartsWith("piece.", StringComparison.Ordinal) || id.StartsWith("density.", StringComparison.Ordinal));
+        Assert.Contains("piece.tempo.profile", FactsDigest.OfPiece(piece).Ids);
     }
 
     [Fact]

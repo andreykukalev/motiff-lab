@@ -12,9 +12,11 @@ namespace MotiffLab.Api.Assistant;
 /// device sends the role, the language, the context of the question (the selected passage's facts digest and notes) and
 /// the history; the relay hands it to the model with the role's instructions and tools, and answers with the model's tool
 /// calls for the device to run (it never runs a tool) or with its answer, checked: an answer that cites a fact the turn did
-/// not give, or none, becomes the engine's template text. Two roles are served: the mentor (read tools) and the proposer
-/// (read tools and the tools that make drafts: repairs, variations, note edits, a joined tie). A call of a tool the role
-/// lacks, or with arguments its schema refuses (out of range), is never passed on: the turn answers the template instead.
+/// not give, or none, or is too long, is sent back to the model once with the reason to be rewritten (<see cref="AnswerRetry"/>),
+/// and becomes the engine's template text when the rewrite fails too; the reply then says why (<see cref="TurnReply.Reason"/>).
+/// Two roles are served: the mentor (read tools) and the proposer (read tools and the tools that make drafts: repairs,
+/// variations, note edits, a joined tie). A call of a tool the role lacks, or with arguments its schema refuses (out of
+/// range), is never passed on: the turn answers the template instead.
 /// Gates: signed in with the API's scope, on the allow-list (Assistant:Allowed), Pro, a turn of at most
 /// <see cref="TurnRequest.MaxBytes"/>, at most Assistant:DailyRequests turns a day. With no model configured it answers
 /// "not configured" before reading the turn. It logs the outcome, counts and timing, never the turn's content.
@@ -77,7 +79,7 @@ internal static class AssistantEndpoints
         }
 
         var watch = Stopwatch.StartNew();
-        (TurnReply reply, string outcome, ModelReply? answered) = await AskAsync(model, request, options.Timeout, cancel);
+        (TurnReply reply, string outcome, int input, int output) = await AskAsync(model, request, options.Timeout, cancel);
         logger.LogInformation(
             "Assistant turn: prompt {Prompt}, model {Model}, outcome {Outcome}, history {Entries}, calls {Calls}, tokens {Input}/{Output}, {Milliseconds} ms",
             AssistantPrompts.VersionOf(request.Role),
@@ -85,8 +87,8 @@ internal static class AssistantEndpoints
             outcome,
             request.History.Count,
             reply.Calls.Count,
-            answered?.InputTokens ?? 0,
-            answered?.OutputTokens ?? 0,
+            input,
+            output,
             watch.ElapsedMilliseconds);
         return Reply(reply);
     }
@@ -128,47 +130,65 @@ internal static class AssistantEndpoints
         ProjectEndpoints.Problem(StatusCodes.Status413RequestEntityTooLarge, $"A turn is at most {TurnRequest.MaxBytes / 1024} KB; select fewer bars.", "tooLarge");
 
     /// <summary>
+    /// The turn's reply, within <paramref name="timeout"/> in all: the model's step (<see cref="StepAsync"/>), and when its
+    /// answer failed the check for a reason a rewrite can mend, one more step that asks for the rewrite (<see cref="AnswerRetry"/>).
+    /// The outcome of a retried turn is "retried:&lt;first reason&gt;", then ";&lt;the retry's outcome&gt;" unless it passed.
+    /// </summary>
+    private static async Task<(TurnReply Reply, string Outcome, int InputTokens, int OutputTokens)> AskAsync(IAssistantModel model, TurnRequest request, TimeSpan timeout, CancellationToken cancel)
+    {
+        Words words = Words.For(request.Language);
+        var turn = new ModelTurn(AssistantPrompts.For(request.Role, request.Language), request.Language, Catalogue(request.Role), request.Context, request.History);
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        limit.CancelAfter(timeout);
+        Step first = await StepAsync(model, turn, request, words, limit.Token, cancel);
+        if (first.Checked is not { FellBack: true } failed || AnswerRetry.Turn(turn, first.Answered!.Text!, failed.Reason, request.KnownIds) is not { } rewrite)
+        {
+            return (first.Reply, first.Outcome, first.Answered?.InputTokens ?? 0, first.Answered?.OutputTokens ?? 0);
+        }
+
+        Step second = await StepAsync(model, rewrite, request, words, limit.Token, cancel);
+        string outcome = second.Outcome == "answer" ? $"retried:{failed.Reason}" : $"retried:{failed.Reason};{second.Outcome}";
+        return (second.Reply, outcome, first.Answered.InputTokens + (second.Answered?.InputTokens ?? 0), first.Answered.OutputTokens + (second.Answered?.OutputTokens ?? 0));
+    }
+
+    /// <summary>
     /// The model's step, as the device may take it: its tool calls when they are the role's and within the cap, else its
     /// answer checked; the engine's template when it calls a tool the role lacks, calls too often, errs or takes too long.
     /// </summary>
-    private static async Task<(TurnReply Reply, string Outcome, ModelReply? Answered)> AskAsync(IAssistantModel model, TurnRequest request, TimeSpan timeout, CancellationToken cancel)
+    private static async Task<Step> StepAsync(IAssistantModel model, ModelTurn turn, TurnRequest request, Words words, CancellationToken limit, CancellationToken cancel)
     {
-        Words words = Words.For(request.Language);
         TurnReply Template(string reason) => TurnReply.Answered(AnswerCheck.Template(request.Context, words, reason, request.Question));
         ModelReply answered;
-        using (var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel))
+        try
         {
-            limit.CancelAfter(timeout);
-            try
-            {
-                answered = await model.NextAsync(new ModelTurn(AssistantPrompts.For(request.Role, request.Language), request.Language, Catalogue(request.Role), request.Context, request.History), limit.Token);
-            }
-            catch (Exception error) when (error is OperationCanceledException or HttpRequestException or InvalidOperationException or JsonException)
-            {
-                return (Template("modelError"), cancel.IsCancellationRequested ? "cancelled" : error is OperationCanceledException ? "timeout" : "modelError", null);
-            }
+            answered = await model.NextAsync(turn, limit);
+        }
+        catch (Exception error) when (error is OperationCanceledException or HttpRequestException or InvalidOperationException or JsonException)
+        {
+            string reason = error is OperationCanceledException && !cancel.IsCancellationRequested ? AnswerCheck.Timeout : AnswerCheck.ModelError;
+            return new Step(Template(reason), cancel.IsCancellationRequested ? "cancelled" : reason, null, null);
         }
 
         if (answered.Calls.Count > 0)
         {
             if (answered.Calls.Any(call => !AssistantRoles.Allows(request.Role, call.Name)))
             {
-                return (Template("toolNotAllowed"), "toolNotAllowed", answered);
+                return new Step(Template(AnswerCheck.ToolNotAllowed), AnswerCheck.ToolNotAllowed, answered, null);
             }
 
             // A call whose arguments the tool's schema refuses (out of range, missing) never reaches the device.
             if (answered.Calls.Any(call => AssistantRoles.CallRefusal(request.Role, call, words) is not null))
             {
-                return (Template("badArguments"), "badArguments", answered);
+                return new Step(Template(AnswerCheck.BadArguments), AnswerCheck.BadArguments, answered, null);
             }
 
             return request.ToolCallsInQuestion + answered.Calls.Count > AssistantRoles.MostToolCalls
-                ? (Template("tooManyCalls"), "tooManyCalls", answered)
-                : (TurnReply.Called(answered.Calls), "toolCalls", answered);
+                ? new Step(Template(AnswerCheck.TooManyCalls), AnswerCheck.TooManyCalls, answered, null)
+                : new Step(TurnReply.Called(answered.Calls), "toolCalls", answered, null);
         }
 
         CheckedAnswer checkedAnswer = AnswerCheck.Check(answered.Text, request.KnownIds, request.Context, words, request.Drafted, request.Question);
-        return (TurnReply.Answered(checkedAnswer), checkedAnswer.FellBack ? $"fallback:{checkedAnswer.Reason}" : "answer", answered);
+        return new Step(TurnReply.Answered(checkedAnswer), checkedAnswer.FellBack ? $"fallback:{checkedAnswer.Reason}" : "answer", answered, checkedAnswer);
     }
 
     private static JsonElement Catalogue(AssistantRole role)
@@ -195,4 +215,7 @@ internal static class AssistantEndpoints
 
         return Results.Bytes(buffer.ToArray(), "application/json");
     }
+
+    /// <summary>One step of the model: the reply for the device, the outcome for the log, what the model answered (null when it failed) and its answer as checked (null for calls).</summary>
+    private sealed record Step(TurnReply Reply, string Outcome, ModelReply? Answered, CheckedAnswer? Checked);
 }

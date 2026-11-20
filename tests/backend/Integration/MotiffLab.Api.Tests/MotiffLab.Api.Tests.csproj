@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\..\..\src\shared\Playback\FurElise.musicxml" Link="CheckQuestions\FurElise.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="CheckQuestions\check-questions.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\..\src\backend\MotiffLab.Api\MotiffLab.Api.csproj" />
   </ItemGroup>
 
