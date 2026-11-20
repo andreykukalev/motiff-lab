@@ -44,9 +44,7 @@ final class FacadeTests: XCTestCase {
     }
 
     func testThePhrasesAndTheSelectionAreReadFromMusicCore() throws {
-        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
-        XCTAssertEqual(shown.level, "phrase")
-        XCTAssertEqual(shown.counts["phrase"], shown.units.count)
+        let shown = try XCTUnwrap(PiecePhrases(answer: MusicCore.call(piece: piece, "phrases")))
         let first = try XCTUnwrap(shown.units.first)
         XCTAssertEqual(first.number, 1, "the first unit starts the piece")
         XCTAssertEqual(first.name, "фраза", "a unit is named in the piece's language")
@@ -56,15 +54,12 @@ final class FacadeTests: XCTestCase {
         let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", request)))
         XCTAssertEqual(selected.onset, first.selectableOnset)
         XCTAssertEqual(selected.firstBar, first.firstBar)
-
-        let sentences = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases.level", #"{"level": "sentence"}"#)))
-        XCTAssertEqual(sentences.level, "sentence")
-        XCTAssertLessThanOrEqual(sentences.units.count, shown.units.count)
+        XCTAssertEqual(shown.unit(selected: selected)?.number, 1, "the selection is the first phrase exactly")
     }
 
     /// v0.6.4 (#614 item 4): the iPad's span is a passage of time; with no notes in it, it is still the selection.
     func testAPassageWithNoNotesIsSelectedAsTheIPadAsks() throws {
-        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
+        let shown = try XCTUnwrap(PiecePhrases(answer: MusicCore.call(piece: piece, "phrases")))
         let first = try XCTUnwrap(shown.units.first)
         // Ten ticks just after a note starts, where no other note starts.
         let between = SelectionSpan(onset: first.selectableOnset + 10, end: first.selectableOnset + 20)

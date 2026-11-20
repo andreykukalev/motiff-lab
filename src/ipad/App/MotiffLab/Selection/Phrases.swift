@@ -1,32 +1,16 @@
 import Foundation
 
-/// The phrases of a piece at the level shown (facade `phrases`, 0018 section 3): Short, Phrases or Sentences. They are
-/// no longer drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14); focus steps by
-/// them and a selection is named by them.
-struct PhraseLevelsShown: Equatable, Sendable {
-    /// "short", "phrase" or "sentence".
-    var level: String
-    /// How many units each level has, by its id.
-    var counts: [String: Int]
+/// The phrases of a piece (facade `phrases`, the phrases spec, v1.2): the unit of work. Each start is marked on the score
+/// (ScorePhraseMarks.swift); focus steps by them, and a selection that is one exactly is named by it.
+struct PiecePhrases: Equatable, Sendable {
     var units: [PhraseUnit]
-    /// The levels the player changed (boundaries added or taken away, in the Music Studio), which can be reset.
-    var edited: Set<String> = []
-
-    static let ids = ["short", "phrase", "sentence"]
+    /// The sections of the form, A, B, A′…, each with its letter at its start on the score.
+    var sections: [FormSection]
 
     /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
     init(_ answer: PhrasesAnswer) {
-        level = answer.level
-        var counts: [String: Int] = [:]
-        for entry in answer.levels ?? [] {
-            if let id = entry.id { counts[id] = entry.count ?? 0 }
-        }
-        self.counts = counts
-        edited = Set(Self.ids.filter { id in
-            let level = answer.edits?[id]
-            return !(level?.added ?? []).isEmpty || !(level?.removed ?? []).isEmpty
-        })
         units = answer.units.compactMap(PhraseUnit.init)
+        sections = (answer.sections ?? []).map(FormSection.init)
     }
 
     /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
@@ -40,9 +24,15 @@ struct PhraseLevelsShown: Equatable, Sendable {
     func unit(_ number: Int) -> PhraseUnit? {
         units.first { $0.number == number }
     }
+
+    /// The phrase a selection is exactly, its selectable span (the phrases spec, decision 1); nil for any other passage.
+    func unit(selected selection: ScoreSelection?) -> PhraseUnit? {
+        guard let selection else { return nil }
+        return units.first { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }
+    }
 }
 
-/// One unit of a level: its number, the bars and ticks it covers, the span a tap selects, and how its start was found.
+/// One phrase: its number, the bars and ticks it covers, the span a tap selects, and how its start was found.
 struct PhraseUnit: Equatable, Sendable {
     var number: Int
     var name: String
@@ -52,8 +42,14 @@ struct PhraseUnit: Equatable, Sendable {
     var end: Double
     var selectableOnset: Double
     var selectableEnd: Double
-    /// "imported", "inferred", "userEdited", …: the provenance of its start.
-    var provenance: String
+    /// Whether its start is the player's own (moved, set or confirmed: "userEdited", "userConfirmed"), drawn in amber;
+    /// else it was found ("imported", "inferred").
+    var own: Bool
+    /// The bar and beat of its start note, as music-core counts them.
+    var startBar: Int
+    var startBeat: Int
+    /// «Почему здесь»: how its start was found, in the player's language, completing «начинается …».
+    var why: String
 
     /// A unit music-core answers; nil without its number, onset or end.
     init?(_ unit: PhrasesAnswer.Unit) {
@@ -66,7 +62,10 @@ struct PhraseUnit: Equatable, Sendable {
         self.end = end
         selectableOnset = unit.selectable?.onset ?? onset
         selectableEnd = unit.selectable?.end ?? end
-        provenance = unit.start?.provenance ?? "inferred"
+        own = unit.start?.provenance.map { ["userEdited", "userConfirmed"].contains($0) } ?? false
+        startBar = unit.start?.bar ?? firstBar
+        startBeat = unit.start?.beat ?? 1
+        why = unit.start?.why ?? ""
     }
 }
 

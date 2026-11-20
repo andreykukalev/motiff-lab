@@ -3,7 +3,8 @@ import XCTest
 @testable import MotiffLab
 
 /// The score page's contract (decision record 0031, step 2): the app names the functions and decodes the messages listed
-/// in tests/contracts/score-page.json, the lists tests/shared/score-page-contract.test.mjs checks score.js against.
+/// in tests/contracts/score-page.json, the lists tests/shared/score-page-contract.test.mjs checks the page
+/// (Scripts/score/ipad-page) and its types against.
 final class ScorePageContractTests: XCTestCase {
     private final class Marker {}
 
@@ -65,6 +66,14 @@ final class ScorePageContractTests: XCTestCase {
         guard case let .seamDiamond(key, left, bottom)? = events.first else { return XCTFail("a seam: \(events)") }
         XCTAssertEqual(key, "pl_0002")
         XCTAssertEqual([left, bottom], [30, 40])
+    }
+
+    /// A phrase's number and a section's letter tapped on the score (the phrases spec, v1.2) name what they mark.
+    func testAPhraseMarkNamesItsPhraseAndALetterItsSection() {
+        guard case .phraseMark(let number)? = PageEvent.events(in: ["phraseMark": 2]).first else { return XCTFail("a phrase's number") }
+        XCTAssertEqual(number, 2)
+        guard case .sectionMark(let id)? = PageEvent.events(in: ["sectionMark": "section_2"]).first else { return XCTFail("a section's letter") }
+        XCTAssertEqual(id, "section_2")
     }
 
     func testTheMenuPutAwayIsNoPlace() {
