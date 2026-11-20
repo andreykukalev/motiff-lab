@@ -453,7 +453,7 @@ final class FacadeTests: XCTestCase {
 
     func testAPdfAndTheNotesReadFromItFindEachOtherOnTheShelf() throws {
         // Notes read from a PDF piece name it and where each of its pages starts in them (PDF | Notes, 0023).
-        // In a file of version 16 the working notes' pageMap names the other piece's PDF (docs/project-file.md).
+        // Since version 16 the working notes' pageMap names the other piece's PDF (docs/project-file.md).
         let saved = MusicCore.call(piece: piece, "project.save")
         var file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(saved.utf8)) as? [String: Any])
         var entries = try XCTUnwrap(file["notes"] as? [[String: Any]])
