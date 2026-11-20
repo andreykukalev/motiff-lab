@@ -345,7 +345,15 @@
        "end": 2880,
        "firstBar": 1,
        "lastBar": 4,
-       "variants": 1
+       "steps": 0,
+       "variants": [
+        {
+         "id": "v_0001",
+         "label": "Notes 1–4",
+         "base": true,
+         "steps": 0
+        }
+       ]
       },
       {
        "id": "pl_0002",
@@ -354,7 +362,21 @@
        "end": 5520,
        "firstBar": 5,
        "lastBar": 8,
-       "variants": 1
+       "steps": 0,
+       "variants": [
+        {
+         "id": "v_0002",
+         "label": "Notes 5–8",
+         "base": true,
+         "steps": 0
+        }
+       ]
+      }
+     ],
+     "shelf": [
+      {
+       "id": "v_0003",
+       "label": "Notes 1–4 · right hand"
       }
      ]
     },

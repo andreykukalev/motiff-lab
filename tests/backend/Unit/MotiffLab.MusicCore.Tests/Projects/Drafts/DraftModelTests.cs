@@ -56,7 +56,28 @@ public class DraftModelTests
         Assert.Equal(["v_1", "v_2"], inPlace.Places[0].Variants.Select(variant => variant.Id));
         Assert.Equal(["pl_1", "pl_2"], newPlace.Places.Select(place => place.Id));
         Assert.Throws<KeyNotFoundException>(() => shelved.Placed("v_9", DraftDrop.Place, "pl_2"));
-        Assert.Throws<ArgumentException>(() => shelved.Placed("v_2", DraftDrop.Shelf, "pl_2"));
+        Assert.Throws<ArgumentException>(() => shelved.Placed("v_2", DraftDrop.Shelf, null));
+    }
+
+    [Fact]
+    public void A_variant_moved_out_of_its_place_leaves_its_anchors_and_the_steps_that_name_it_and_a_base_stays()
+    {
+        Draft draft = Started()
+            .With(Variant("v_2", Score(prefix: "r"), 1, 4) with { Anchors = [new DraftAnchor(new Tick(0), new Tick(0))] }, DraftDrop.Variant, "pl_1")
+            .With(Variant("v_3", Score(prefix: "o"), 5, 6), DraftDrop.Place, "pl_2");
+        draft = new Draft(draft.Id, draft.Name, draft.CreatedAt, draft.Places, draft.Shelf, [new DraftTake(1, At, "pl_1", "v_2"), new DraftTranspose(2, At, "pl_1", 2)], 3);
+
+        Draft shelved = draft.Placed("v_2", DraftDrop.Shelf, null);
+        Draft moved = draft.Placed("v_2", DraftDrop.Variant, "pl_2");
+
+        Assert.Equal([1], draft.StepsNaming("v_2").Select(step => step.Number));
+        Assert.Equal(["v_1"], shelved.Places[0].Variants.Select(variant => variant.Id));
+        Assert.Empty(Assert.Single(shelved.Shelf).Anchors);
+        Assert.Equal([2], shelved.Steps.Select(step => step.Number));
+        Assert.Equal(["v_3", "v_2"], moved.Places[1].Variants.Select(variant => variant.Id));
+        Assert.Empty(moved.Places[1].Variants[1].Anchors);
+        Assert.Throws<ArgumentException>(() => draft.Placed("v_1", DraftDrop.Shelf, null));
+        Assert.Throws<ArgumentException>(() => draft.Placed("v_2", DraftDrop.Variant, "pl_1"));
     }
 
     [Fact]
