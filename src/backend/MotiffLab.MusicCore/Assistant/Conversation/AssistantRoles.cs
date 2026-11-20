@@ -51,8 +51,8 @@ public static class AssistantRoles
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown role."),
     };
 
-    /// <summary>The roles the relay answers, each with its own instructions; a draft's roles once the relay has theirs.</summary>
-    public static IReadOnlyList<AssistantRole> Served { get; } = [AssistantRole.Mentor, AssistantRole.Proposer];
+    /// <summary>The roles the relay answers, each with its own instructions: all of them, the piece's and the draft's (0034 section 6).</summary>
+    public static IReadOnlyList<AssistantRole> Served { get; } = [AssistantRole.Mentor, AssistantRole.Proposer, AssistantRole.PlaceAssembler, AssistantRole.Explainer, AssistantRole.SeamChooser];
 
     /// <summary>
     /// Why a call cannot run as the model made it, before any notes are read: the role lacks the tool, or its arguments do

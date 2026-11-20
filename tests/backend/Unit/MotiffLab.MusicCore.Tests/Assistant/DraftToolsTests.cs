@@ -125,7 +125,7 @@ public class DraftToolsTests
         Assert.False(AssistantRoles.Allows(AssistantRole.PlaceAssembler, "variation.simplify"));
         Assert.DoesNotContain(AssistantRoles.ToolsOf(AssistantRole.Explainer), static tool => tool.Kind != ToolKind.Read);
         Assert.True(AssistantRoles.Allows(AssistantRole.SeamChooser, "place.bridge"));
-        Assert.Equal([AssistantRole.Mentor, AssistantRole.Proposer], AssistantRoles.Served);
+        Assert.Equal(Enum.GetValues<AssistantRole>(), AssistantRoles.Served);
     }
 
     [Fact]

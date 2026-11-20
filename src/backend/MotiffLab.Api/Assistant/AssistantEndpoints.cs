@@ -14,9 +14,11 @@ namespace MotiffLab.Api.Assistant;
 /// calls for the device to run (it never runs a tool) or with its answer, checked: an answer that cites a fact the turn did
 /// not give, or none, or is too long, is sent back to the model once with the reason to be rewritten (<see cref="AnswerRetry"/>),
 /// and becomes the engine's template text when the rewrite fails too; the reply then says why (<see cref="TurnReply.Reason"/>).
-/// Two roles are served: the mentor (read tools) and the proposer (read tools and the tools that make drafts: repairs,
-/// variations, note edits, a joined tie). A call of a tool the role lacks, or with arguments its schema refuses (out of
-/// range), is never passed on: the turn answers the template instead.
+/// Five roles are served, each with its instructions (<see cref="AssistantPrompts"/>): on a piece the mentor (read tools)
+/// and the proposer (read tools and the tools that make drafts: repairs, variations, note edits, a joined tie); in a
+/// draft's place (0034 section 6) the place assembler (takes приёмы), the explainer (reads only) and the seam chooser
+/// (chooses a bridge). A call of a tool the role lacks, or with arguments its schema refuses (out of range), is never
+/// passed on: the turn answers the template instead.
 /// Gates: signed in with the API's scope, on the allow-list (Assistant:Allowed), Pro, a turn of at most
 /// <see cref="TurnRequest.MaxBytes"/>, at most Assistant:DailyRequests turns a day. With no model configured it answers
 /// "not configured" before reading the turn. It logs the outcome, counts and timing, never the turn's content.
