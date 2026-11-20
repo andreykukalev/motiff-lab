@@ -390,8 +390,8 @@ final class DraftsTests: XCTestCase {
 
         // «↻ Место»: the picked occurrence's place, else the one at the playhead, else the first.
         let places = [
-            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, steps: 0, variants: []),
-            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, steps: 0, variants: []),
+            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, steps: 0, bridge: false, variants: []),
+            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, steps: 0, bridge: false, variants: []),
         ]
         XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: model.spots[0], at: 15000)?.id, "pl_0001")
         XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 15000)?.id, "pl_0002")

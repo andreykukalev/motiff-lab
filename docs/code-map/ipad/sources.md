@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -12,7 +12,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
   `takeHand`, the seams' offers, `takeSure`, `makeBase`, `put`, undone by `drafts.undo`, `.draftStep`);
   `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet; «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
-  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams).
+  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams,
+  since v1.2 the register and the bridge place picked), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
+  amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`.
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

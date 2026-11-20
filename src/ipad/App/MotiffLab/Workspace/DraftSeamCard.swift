@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// A seam's card on a draft's view (v1.1, ADR 0034 sections 5 and 9 step 7; spec «Коллаж», «Экран (iPad)»): the two places
-/// either side, each as its source states its key, meter and tempo, what differs, «▶ Послушать стык», what music-core
-/// offers for the place after it («② в соль мажор», «Темп как в ①») and «Оставить». Shown at its diamond on the page
-/// (`DraftViewCards`) or on the draft's map under the diamond between two places (`DraftMap`). No «Связка» (version 1.2).
+/// either side, each as its source states its key, meter and tempo, what differs, the register where music-core tells of
+/// it («② на октаву выше», v1.2), «▶ Послушать стык», what music-core offers for the place after it («② в соль мажор»,
+/// «② на октаву ниже», «Темп как в ①»), the bridge where the keys differ («Связка · 3 кандидата», v1.2: its candidates
+/// put as a new place before it, `DraftBridgeContent`) and «Оставить». Shown at its diamond on the page
+/// (`DraftViewCards`) or on the draft's map under the diamond between two places (`DraftMap`).
 struct DraftSeamContent: View {
     @ObservedObject var score: ScoreController
     let seam: DraftSeamsAnswer.Seam
@@ -24,6 +26,9 @@ struct DraftSeamContent: View {
                 }
             }
             Text(text.format("drafts.seamDiffers", DraftSeamsModel.changes(seam, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            if let register = seam.register {
+                Text(register.label).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            }
             Button { score.hearSeam(seam) } label: {
                 Label { Text(text["drafts.seamListen"]) } icon: { Icon(name: "play", size: CGFloat.ds("icon-s")) }
             }
@@ -33,6 +38,12 @@ struct DraftSeamContent: View {
                     Label { Text(offer.label) } icon: { Icon(name: offer.kind == "tempo" ? "tempo" : "keysig", size: CGFloat.ds("icon-s")) }
                 }
                 .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+            }
+            if let bridge = seam.bridge {
+                Button { act { await owner.putBridge(bridge, of: draft.id) } } label: {
+                    Label { Text(bridge.label) } icon: { Icon(name: "plus", size: CGFloat.ds("icon-s")) }
+                }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 Button(text["drafts.leaveButton"]) { act { await owner.leave(seam, of: draft.id) } }
@@ -71,11 +82,12 @@ struct DraftSeamContent: View {
     }
 }
 
-/// The cards over a draft's view: a приём's at its number, a seam's at its diamond, one at a time (picking one closes the
-/// other); a tap elsewhere puts the seam's away.
+/// The cards over a draft's view: a приём's at its number, a seam's at its diamond, a bridge's at its place's label (v1.2),
+/// an anchor's at its mark (v1.2), one at a time (picking one closes the others); a tap elsewhere puts it away.
 struct DraftViewCards: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var seams: DraftSeamsModel
+    @ObservedObject var anchors: DraftAnchorsModel
     let player: Player
     let owner: SourcesController
     let draft: DraftViewAnswer.Draft
@@ -86,6 +98,14 @@ struct DraftViewCards: View {
         if let pick = seams.picked, let at = pick.at {
             DraftCardAtMark(at: at, close: { seams.close() }) {
                 DraftSeamContent(score: score, seam: pick.seam, draft: draft, owner: owner, text: text, reopen: reopen)
+            }
+        } else if let pick = seams.bridge, let place = draft.places.first(where: { $0.id == pick.place && $0.bridge }) {
+            DraftCardAtMark(at: pick.at, close: { seams.close() }) {
+                DraftBridgeContent(score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
+            }
+        } else if let pick = anchors.picked {
+            DraftCardAtMark(at: pick.at, close: { anchors.close() }) {
+                DraftAnchorContent(score: score, mark: pick.mark, draft: draft, owner: owner, text: text, reopen: reopen)
             }
         } else {
             DraftTechniqueCard(score: score, model: score.draftModel, player: player, owner: owner, text: text, reopen: reopen)

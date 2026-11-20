@@ -75,6 +75,33 @@ extension SourcesController {
         await draftStep("drafts.leaveSeam", ["place": seam.after], of: draft, toast: text["drafts.toastSeamLeft"])
     }
 
+    /// «Связка · 3 кандидата» on a seam's card (v1.2, the plan's answer 2): music-core's candidates put as the variants of a
+    /// new place just before the place after the seam, the first its base; listened to, chosen (`makeBase`) and removed
+    /// («Оставить», `leaveBridge`) on the bridge's card.
+    func putBridge(_ bridge: DraftSeamsAnswer.Bridge, of draft: String) async -> Bool {
+        await draftStep("drafts.bridge", ["place": bridge.place], of: draft, toast: text["drafts.toastBridge"])
+    }
+
+    /// «Оставить» on a bridge's card: the bridge place goes with its candidates, the seam as it was.
+    func leaveBridge(_ place: DraftViewAnswer.Place, of draft: String) async -> Bool {
+        await draftStep("drafts.leaveBridge", ["place": place.id], of: draft, toast: text["drafts.toastBridgeLeft"])
+    }
+
+    /// «Не тот такт? Сопоставить…» on a приём's card (v1.2, the plan's answer 4): the occurrence's start in the place's base
+    /// sounds with the variant's tick `variantTick` (the start of the variant's bar the player tapped); music-core aligns
+    /// the variant again around it, and the приёмы follow.
+    func anchor(_ spot: DraftTechniquesModel.Spot, variantTick: Int) async -> Bool {
+        let anchor = ["base": spot.occurrence.inBase.onset, "variant": variantTick]
+        let fields: [String: Any] = ["place": spot.place, "variant": spot.technique.variant, "anchor": anchor]
+        return await draftStep("drafts.anchor", fields, of: spot.draft, toast: text.format("drafts.toastAnchored", String(spot.occurrence.firstBar)))
+    }
+
+    /// «Открепить» in an anchor's menu: the anchor goes, and music-core aligns the variant without it.
+    func unanchor(_ mark: DraftAnchorsModel.Mark, of draft: String) async -> Bool {
+        let fields: [String: Any] = ["place": mark.place, "variant": mark.variant.id, "base": mark.anchor.base]
+        return await draftStep("drafts.unanchor", fields, of: draft, toast: text.format("drafts.toastUnanchored", String(mark.anchor.bar)))
+    }
+
     /// «Взять всё уверенное» on a place's card of the map: every sure open приём of the place taken, as one group.
     func takeSure(_ place: DraftViewAnswer.Place, of draft: String) async -> Bool {
         await draftStep("drafts.takeSure", ["place": place.id], of: draft, toast: text["drafts.toastTakenSure"])

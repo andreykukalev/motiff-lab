@@ -105,7 +105,7 @@ export interface PageCheck {
 
 /**
  * A label over a bar: another version's, a draft's place (`place`), a приём's number (`technique`, its key) or a seam's
- * diamond (`seam`, its key), with its `state` (v1.1, ADR 0034).
+ * diamond (`seam`, its key), with its `state` (v1.1, ADR 0034), or an anchor's amber mark (`anchor`, its key, v1.2).
  */
 export interface PageMarker {
     bar: number;
@@ -115,6 +115,7 @@ export interface PageMarker {
     place?: boolean;
     technique?: string;
     seam?: string;
+    anchor?: string;
     state?: string;
 }
 
@@ -248,12 +249,13 @@ export interface PageEvents {
     coloured: TickRange;
 }
 
-/** Where a tapped label over a bar is, in window pixels, and a draft's приём number's or seam's key. */
+/** Where a tapped label over a bar is, in window pixels, and a draft's приём number's, seam's or anchor's key. */
 export interface MarkerTap {
     left: number;
     bottom: number;
     technique?: string;
     seam?: string;
+    anchor?: string;
 }
 
 /** A message the page posts: one kind with what it carries; `performanceBar` and `phraseHeld` with where the mark is. */

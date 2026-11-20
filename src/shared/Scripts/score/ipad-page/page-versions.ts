@@ -2,7 +2,8 @@
 // otherwise, over the bookmarks' level and before any Check flag or note on the bar, and its missing notes tinted
 // (`performance`); a tap on a label gives its bar to Swift with where the label is (page-taps.ts). These show only with
 // Extra information on (testing item 33), with a thin plum line under each bar taken from a version. A draft's view (v1.1,
-// ADR 0034) draws its places' labels, its приёмы's numbers and its seams' diamonds in the same row.
+// ADR 0034) draws its places' labels, its приёмы's numbers and its seams' diamonds in the same row, and (v1.2) the amber
+// marks of the anchors the player confirmed, beside the numbers.
 import { BRACKET_LIFT, type ScoreBar, type ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PageMarker } from "../page-contract.js";
 import { state } from "./page-state.js";
@@ -83,7 +84,8 @@ export function placeTaken(geometry: ScoreGeometry): void {
     }
 }
 
-const isNumber = (marker: PageMarker): boolean => marker.technique !== undefined;
+/** A приём's number, or an anchor's mark (v1.2), which stands beside the numbers of its bar. */
+const isNumber = (marker: PageMarker): boolean => marker.technique !== undefined || marker.anchor !== undefined;
 
 /**
  * Another version's labels above the bars' top left, under the bookmarks: one may run on over the next bar, up to the
@@ -130,13 +132,14 @@ function labelRoom(bar: ScoreBar, next: Placed | undefined, widest: number, flag
     return { room, ahead, lifted };
 }
 
-/** A label's button: a version's, a draft's place (`place`) or a приём's number (`technique`). */
+/** A label's button: a version's, a draft's place (`place`), a приём's number (`technique`) or an anchor's mark (`anchor`). */
 function labelOf(marker: PageMarker, number: boolean): HTMLButtonElement {
     const label = document.createElement("button");
     label.type = "button";
-    label.className = number ? `perf-marker technique state-${marker.state}` : marker.place ? "perf-marker place" : "perf-marker";
+    label.className = marker.anchor !== undefined ? "perf-marker anchor" : number ? `perf-marker technique state-${marker.state}` : marker.place ? "perf-marker place" : "perf-marker";
     label.dataset.bar = String(marker.bar);
-    if (number) label.dataset.technique = marker.technique;
+    if (marker.anchor !== undefined) label.dataset.anchor = marker.anchor;
+    else if (number) label.dataset.technique = marker.technique;
     const text = document.createElement("span");
     text.textContent = marker.text;
     label.append(text);

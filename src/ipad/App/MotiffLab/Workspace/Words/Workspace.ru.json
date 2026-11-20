@@ -119,5 +119,16 @@
   "drafts.moveToShelf": "На полку",
   "drafts.takeSureCount": "Взять всё уверенное · {0}",
   "drafts.shelfEmpty": "На полке ничего нет",
-  "drafts.put": "Поставить…"
+  "drafts.put": "Поставить…",
+  "drafts.bridgeTitle": "Связка · такт {0}",
+  "drafts.bridgeLine": "Послушайте кандидатов и выберите один; «Оставить» убирает связку.",
+  "drafts.bridgeChosen": "выбрана",
+  "drafts.bridgeHear": "Послушать",
+  "drafts.bridgeChoose": "Выбрать",
+  "drafts.anchorTitle": "Опорная точка · такт {0}",
+  "drafts.anchorLine": "Закреплена с вариантом «{0}»",
+  "drafts.unpin": "Открепить",
+  "drafts.match": "Не тот такт? Сопоставить…",
+  "drafts.matchLine": "Какой такт варианта звучит в такте {0}?",
+  "drafts.matchBar": "Такт {0} варианта"
 }

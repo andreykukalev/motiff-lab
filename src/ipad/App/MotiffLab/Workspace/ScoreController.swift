@@ -74,6 +74,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     let draftModel = DraftTechniquesModel()
     /// A draft's seams on its view, their diamonds and the one picked (Sources/DraftSeams.swift, v1.1 step 7).
     let seamsModel = DraftSeamsModel()
+    /// A draft's anchors on its view, their amber marks and the one picked (Sources/DraftAnchors.swift, v1.2).
+    let anchorsModel = DraftAnchorsModel()
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -352,7 +354,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch event {
         case let .pages(first, last, count):
             pages = PagesInView(first: first, last: last, count: count)
-        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .phraseMark, .sectionMark:
+        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark:
             markTapped(event)
         case let .phraseHeld(number, left, bottom):
             holdPhrase(number, at: CGPoint(x: left, y: bottom))

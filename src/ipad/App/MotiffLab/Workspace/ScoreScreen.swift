@@ -352,7 +352,7 @@ struct ScoreScreenContent: View {
                     }
                 } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
                     // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
-                    DraftViewCards(score: score, seams: score.seamsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
+                    DraftViewCards(score: score, seams: score.seamsModel, anchors: score.anchorsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {

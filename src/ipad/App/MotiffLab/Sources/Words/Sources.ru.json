@@ -157,5 +157,11 @@
   "drafts.toastTakenSure": "Взяты все уверенные приёмы",
   "drafts.toastBase": "Теперь основа: «{0}»",
   "drafts.toastShelved": "На полке: «{0}»",
-  "drafts.toastPut": "Поставлено: «{0}»"
+  "drafts.toastPut": "Поставлено: «{0}»",
+  "drafts.seamRegister": "регистр",
+  "drafts.toastBridge": "Связка поставлена перед местом",
+  "drafts.toastBridgeLeft": "Связка убрана",
+  "drafts.toastAnchored": "Опорная точка в такте {0}",
+  "drafts.toastUnanchored": "Опорная точка в такте {0} откреплена",
+  "drafts.anchorLabel": "Опорная точка в такте {0} · {1}"
 }

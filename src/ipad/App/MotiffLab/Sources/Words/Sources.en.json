@@ -144,5 +144,11 @@
   "drafts.toastTakenSure": "Every sure technique taken",
   "drafts.toastBase": "The base now: “{0}”",
   "drafts.toastShelved": "On the shelf: “{0}”",
-  "drafts.toastPut": "Put in: “{0}”"
+  "drafts.toastPut": "Put in: “{0}”",
+  "drafts.seamRegister": "register",
+  "drafts.toastBridge": "Bridge put in before the place",
+  "drafts.toastBridgeLeft": "Bridge removed",
+  "drafts.toastAnchored": "Anchored in bar {0}",
+  "drafts.toastUnanchored": "Anchor in bar {0} removed",
+  "drafts.anchorLabel": "Anchor in bar {0} · {1}"
 }

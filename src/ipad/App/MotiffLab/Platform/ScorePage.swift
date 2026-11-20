@@ -107,6 +107,8 @@ enum PageEvent {
     case techniqueNumber(String, left: Double, bottom: Double)
     /// A draft's seam diamond tapped (v1.1): a `performanceBar` message with the seam's key, and where the diamond is.
     case seamDiamond(String, left: Double, bottom: Double)
+    /// A draft's anchor mark tapped (v1.2): a `performanceBar` message with the anchor's key, and where the mark is.
+    case anchorMark(String, left: Double, bottom: Double)
     /// A phrase's number tapped on the score (the phrases spec, decision 1): which phrase, from 1.
     case phraseMark(Int)
     /// A section's boxed letter tapped on the score: the section's id.
@@ -163,13 +165,14 @@ enum PageEvent {
         }
     }
 
-    /// A marker tapped over the bars, at its bottom left: a draft's приём number, a seam's diamond, else a version's or a
-    /// place's label at its bar.
+    /// A marker tapped over the bars, at its bottom left: a draft's приём number, a seam's diamond, an anchor's mark, else a
+    /// version's or a place's label at its bar.
     private static func markerTap(_ value: Any?, _ message: [String: Any]) -> PageEvent? {
         let left = number(message["left"]) ?? 0
         let bottom = number(message["bottom"]) ?? 0
         if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom) }
         if let key = message["seam"] as? String { return .seamDiamond(key, left: left, bottom: bottom) }
+        if let key = message["anchor"] as? String { return .anchorMark(key, left: left, bottom: bottom) }
         return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
     }
 

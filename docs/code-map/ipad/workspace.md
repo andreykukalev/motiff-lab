@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`DraftMap`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
+`DraftAnchorCard`, `DraftBridgeCard`, `DraftMap`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
 `ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
@@ -36,6 +36,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap`); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
+  v1.2: `DraftBridgeCard.swift` (a bridge place's candidates, at its label and on the map), `DraftAnchorCard.swift`
+  (an anchor's «Открепить», and «Сопоставить…»'s bars in the приём card);
   `ScoreWorkspaceDrafts.swift`, `draftOwner`, `draftSheet`, `newDraft` (no selection: a hint).
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,

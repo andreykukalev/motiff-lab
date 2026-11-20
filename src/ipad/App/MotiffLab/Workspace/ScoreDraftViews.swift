@@ -7,8 +7,9 @@ import SwiftUI
 
 /// The card at a приём's number tapped (ds.css `.menu` surface, as a version marker's popover): its number and bar, its kind
 /// as the engine read it, how sure that is, «▶ Как в нотах» and «▶ Как на записи», «Взять везде · N», «Только здесь»,
-/// «Оставить», and one hand from its variant, each only where music-core takes it (`Spot.offer`). A tap elsewhere puts it
-/// away; once a step is taken the draft's view opens again at the occurrence (`reopen`).
+/// «Оставить», and one hand from its variant, each only where music-core takes it (`Spot.offer`), and since v1.2 «Не тот
+/// такт? Сопоставить…» (`DraftAnchorMatch`, an anchor). A tap elsewhere puts it away; once a step is taken the draft's view
+/// opens again at the occurrence (`reopen`).
 struct DraftTechniqueCard: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
@@ -18,11 +19,16 @@ struct DraftTechniqueCard: View {
     let reopen: ((Landing) async -> Void)?
     /// The last step was not taken: the card says so in its own words, never music-core's.
     @State private var refused = false
+    /// «Сопоставить…» tapped: the variant's bars show to pick the one that sounds here.
+    @State private var matching = false
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
             DraftCardAtMark(at: at, close: { model.closeCard() }) { card(pick.spot) }
-                .onChange(of: pick.spot) { _, _ in refused = false }
+                .onChange(of: pick.spot) { _, _ in
+                    refused = false
+                    matching = false
+                }
         }
     }
 
@@ -56,6 +62,16 @@ struct DraftTechniqueCard: View {
                 }
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(!offer.hands)
+            }
+            if matching {
+                DraftAnchorMatch(score: score, spot: spot, text: text) { tick in act { await owner.anchor(spot, variantTick: tick) } }
+            } else {
+                // An anchor holds a bar of the base: none where the base has no bars (an inserted bar).
+                Button { matching = true } label: {
+                    Label { Text(text["drafts.match"]) } icon: { Icon(name: "check", size: CGFloat.ds("icon-s")) }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                .disabled(spot.heard(variant: false).span.isEmpty)
             }
             if refused {
                 Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))

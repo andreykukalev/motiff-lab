@@ -117,5 +117,16 @@
   "drafts.moveToShelf": "To the shelf",
   "drafts.takeSureCount": "Take all sure · {0}",
   "drafts.shelfEmpty": "Nothing on the shelf",
-  "drafts.put": "Put…"
+  "drafts.put": "Put…",
+  "drafts.bridgeTitle": "Bridge · bar {0}",
+  "drafts.bridgeLine": "Hear the candidates and choose one; Leave removes the bridge.",
+  "drafts.bridgeChosen": "chosen",
+  "drafts.bridgeHear": "Hear",
+  "drafts.bridgeChoose": "Choose",
+  "drafts.anchorTitle": "Anchor · bar {0}",
+  "drafts.anchorLine": "Pinned to the variant “{0}”",
+  "drafts.unpin": "Unpin",
+  "drafts.match": "Wrong bar? Match…",
+  "drafts.matchLine": "Which bar of the variant sounds in bar {0}?",
+  "drafts.matchBar": "Bar {0} of the variant"
 }

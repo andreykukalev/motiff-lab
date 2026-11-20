@@ -5,21 +5,47 @@ import Foundation
 /// came from («① Ноты 9–16»), stands above the place's first bar, drawn with the version's labels (`performance`, with
 /// `place`, in the ink); a tap on one selects the place, so it plays and loops as any passage. Above the bars of each приём
 /// stands its plum number (`draftModel`); a tap on one selects that occurrence and opens its card there, and the pill's ‹ ›
-/// steps from one to the next.
+/// steps from one to the next. Since v1.2 a bridge place's label opens its card too, and each anchor the player
+/// confirmed stands as a small amber mark over its bar (`anchorsModel`), its menu «Открепить».
 extension ScoreController {
-    /// The labels of the draft's places for the page, in order, then the numbers of their приёмы and the diamonds of their
-    /// seams; none for any other piece.
+    /// The labels of the draft's places for the page, in order, then the numbers of their приёмы, the diamonds of their
+    /// seams and the marks of their anchors (with the numbers, hidden with them); none for any other piece.
     var placeMarkers: [[String: Any]] {
         (piece?.draft?.places ?? []).map { place -> [String: Any] in
             ["bar": place.firstBar, "tick": place.onset, "text": place.label, "label": place.label, "place": true]
-        } + draftModel.markers(text) + seamsModel.markers(text)
+        } + draftModel.markers(text) + seamsModel.markers(text) + DraftAnchorsModel.markers(piece?.draft, hidden: draftModel.numbersHidden, text)
     }
 
     /// A seam's diamond tapped (`key`, at its bottom left on the page, nil on the draft's map): its card opens there, and
-    /// the приём card, if one is open, goes.
+    /// the приём card or an anchor's menu, if one is open, goes.
     func pickSeam(_ key: String, at point: CGPoint?) {
         guard seamsModel.pick(key, at: point) != nil else { return }
         draftModel.closeCard()
+        anchorsModel.close()
+    }
+
+    /// An anchor's mark tapped (`key`, at its bottom left): its menu opens there, and any other card goes.
+    func pickAnchor(_ key: String, at point: CGPoint) {
+        guard anchorsModel.pick(key, in: piece?.draft, at: point) != nil else { return }
+        draftModel.closeCard()
+        seamsModel.close()
+    }
+
+    /// A candidate of a bridge place heard alone, once, over the place's length (`span`, the variant's own ticks), as the
+    /// draft view plays it.
+    func hearVariant(_ variant: String, of draft: String, over span: Range<Double>) {
+        guard let piece else { return }
+        Task {
+            guard let notes = await DraftTechniquesModel.playback(of: variant, in: draft, on: piece.id).map(PlaybackScore.init)?.notes else { return }
+            hearNotes?(notes, span)
+        }
+    }
+
+    /// The bars of the occurrence's variant in its own ticks (number and onset), for «Сопоставить…»; empty when music-core
+    /// does not open it.
+    func variantBars(_ spot: DraftTechniquesModel.Spot) async -> [PlaybackAnswer.Bar] {
+        guard let piece else { return [] }
+        return await DraftTechniquesModel.playback(of: spot.technique.variant, in: spot.draft, on: piece.id)?.bars ?? []
     }
 
     /// «▶ Послушать стык»: the bar before the seam and the bar after it, once, as the draft view plays them (music-core's
@@ -46,15 +72,25 @@ extension ScoreController {
             pickTechnique(key, at: CGPoint(x: left, y: bottom))
         case let .seamDiamond(key, left, bottom):
             pickSeam(key, at: CGPoint(x: left, y: bottom))
+        case let .anchorMark(key, left, bottom):
+            pickAnchor(key, at: CGPoint(x: left, y: bottom))
         default:
             break
         }
     }
 
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
-    /// there, else a version's marker, whose card opens there and whose bar is selected.
+    /// there, with a bridge's card at its label (v1.2), else a version's marker, whose card opens there and whose bar is
+    /// selected.
     func pickLabel(_ bar: Int, left: Double, bottom: Double) {
-        guard !pickPlace(startingAt: bar) else { return }
+        guard !pickPlace(startingAt: bar) else {
+            if let bridge = piece?.draft?.places.first(where: { $0.firstBar == bar && $0.bridge }) {
+                seamsModel.pickBridge(bridge.id, at: CGPoint(x: left, y: bottom))
+                draftModel.closeCard()
+                anchorsModel.close()
+            }
+            return
+        }
         sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: bar, left: left, bottom: bottom))
         showVersionBar(bar)
     }
@@ -71,6 +107,7 @@ extension ScoreController {
     func pickTechnique(_ key: String, at point: CGPoint) {
         guard let spot = draftModel.pick(key, at: point) else { return }
         seamsModel.close()
+        anchorsModel.close()
         showOccurrence(spot)
     }
 
@@ -80,9 +117,10 @@ extension ScoreController {
         showOccurrence(spot)
     }
 
-    /// «Скрыть номера» or «Показать номера»: the numbers leave the page or come back.
+    /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back.
     func hideTechniqueNumbers(_ hidden: Bool) {
         draftModel.hideNumbers(hidden)
+        if hidden { anchorsModel.close() }
         Task { await drawVersions() }
     }
 

@@ -157,8 +157,13 @@ final class DraftTechniquesModel: ObservableObject {
     /// asked on `piece`, the draft's view or the piece it belongs to): opened read-only, its playback score read, closed
     /// again; heard over `Spot.heard(variant:)`'s span. Nil when music-core does not open it.
     static func playback(_ spot: Spot, variant: Bool, on piece: Int32) async -> PlaybackAnswer? {
-        let side = spot.heard(variant: variant).variant
-        guard let view = await PieceCore(piece: piece).openVariant(side, of: spot.draft).value else { return nil }
+        await playback(of: spot.heard(variant: variant).variant, in: spot.draft, on: piece)
+    }
+
+    /// A variant's own music (`drafts.open` with "variant"): opened read-only on `piece`, its playback score read (its
+    /// notes and bars in its own ticks), closed again; a bridge's candidate heard, a variant's bars to anchor to (v1.2).
+    static func playback(of variant: String, in draft: String, on piece: Int32) async -> PlaybackAnswer? {
+        guard let view = await PieceCore(piece: piece).openVariant(variant, of: draft).value else { return nil }
         let playback = await PieceCore(piece: view.piece).playback().value
         _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
         return playback

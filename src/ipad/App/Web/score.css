@@ -90,6 +90,10 @@ button.perf-marker.technique.state-left span { background: var(--paper); box-sha
 button.perf-marker.seam { width: var(--s-6); }
 button.perf-marker.seam span { width: var(--s-3); height: var(--s-3); margin: var(--s-1) auto; padding: 0; border-radius: 0; background: var(--ink-2); transform: rotate(45deg); }
 button.perf-marker.seam.state-left span { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+/* An anchor the player confirmed on a draft's variant (v1.2): a small amber dot beside the приёмы's numbers of its bar
+   (amber: what the player marked). */
+button.perf-marker.anchor { width: var(--s-6); }
+button.perf-marker.anchor span { width: var(--s-3); height: var(--s-3); margin: var(--s-1) auto; padding: 0; border-radius: var(--r-pill); background: var(--amber); }
 .page g.note.not-heard { fill: var(--warning); stroke: var(--warning); color: var(--warning); }
 /* On the comparison layer, and above the phrase in focus, a note the version adds is plum, and a likely artefact of a
    recording's hearing grey (0022, the web app's .version-added and .version-artefact). */
