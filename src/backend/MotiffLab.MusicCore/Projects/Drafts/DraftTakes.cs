@@ -15,11 +15,12 @@ public static class DraftTakes
 {
     /// <summary>
     /// The приём <paramref name="number"/> of the place taken: where it is still open, or, with <paramref name="bar"/>, only
-    /// at that bar of the place (from 1). Inserted bars go in whole, at the bar line they fall on, in their own meter.
+    /// at that bar of the place (from 1). Inserted bars go in whole, at the bar line they fall on, in their own meter. The step
+    /// is accepted with others as <paramref name="group"/> and proposed by <paramref name="origin"/> (null: the player).
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place or приём.</exception>
     /// <exception cref="InvalidOperationException">Nothing of it is open there.</exception>
-    public static Draft Take(Draft draft, string placeId, int number, int? bar, DateTimeOffset at, string? group = null)
+    public static Draft Take(Draft draft, string placeId, int number, int? bar, DateTimeOffset at, string? group = null, string? origin = null)
     {
         ArgumentNullException.ThrowIfNull(draft);
         (PlaceTechnique technique, IReadOnlyList<TechniqueOccurrence> occurrences) = Chosen(draft, placeId, number, bar);
@@ -33,6 +34,7 @@ public static class DraftTakes
             Added = [.. occurrences.SelectMany(static occurrence => occurrence.Added).Where(id => !here.Contains(id)).Distinct(StringComparer.Ordinal)],
             Insert = occurrences[0].Insert is { } insert ? insert with { At = result.InResult(insert.At) } : null,
             Group = group,
+            Origin = origin,
         });
     }
 

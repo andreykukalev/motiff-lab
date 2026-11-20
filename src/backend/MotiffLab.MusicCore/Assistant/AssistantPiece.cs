@@ -43,6 +43,12 @@ public sealed class AssistantPiece
 
     public MeterMap Meter => Piece.Meter;
 
+    /// <summary>
+    /// The draft place the question is asked in (decision record 0034, section 6), whose base this piece is; null outside a
+    /// draft. The draft's tools read it and refuse without it; set once, by <see cref="Drafts.DraftScope.Of"/>.
+    /// </summary>
+    public Drafts.DraftScope? Draft { get; internal set; }
+
     /// <summary>The first bar of the piece: 0 with a pickup, otherwise 1.</summary>
     public int FirstBar => Meter.FirstBarNumber;
 

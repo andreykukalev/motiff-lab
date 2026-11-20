@@ -1,0 +1,1104 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "drafts.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "bars": {
+     "first": 1,
+     "last": 4
+    },
+    "now": "2026-11-20T10:00:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "variant": "v_0001",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "bars": {
+     "first": 5,
+     "last": 8
+    },
+    "draft": "d_0001",
+    "drop": "variant",
+    "place": "pl_0001",
+    "now": "2026-11-20T10:05:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "variant": "v_0002",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.context",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001"
+   },
+   "answer": {
+    "context": {
+     "digest": {
+      "scope": "draftPlace",
+      "bars": {
+       "from": 1,
+       "to": 4
+      },
+      "hand": "both",
+      "meter": "3/8",
+      "key": "A minor",
+      "items": [
+       {
+        "id": "place",
+        "kind": "place",
+        "certainty": "imported",
+        "text": "① Notes 1–4 · 2 variants: bars 1–4",
+        "bars": {
+         "from": 1,
+         "to": 4
+        }
+       },
+       {
+        "id": "source.base",
+        "kind": "source",
+        "certainty": "imported",
+        "text": "Notes 1–4"
+       },
+       {
+        "id": "source.variant",
+        "kind": "source",
+        "certainty": "imported",
+        "text": "Notes 5–8"
+       },
+       {
+        "id": "technique.1",
+        "kind": "technique",
+        "certainty": "inferred",
+        "text": "Technique 1: simplification, bar 4 · 75 % · sure · open",
+        "bars": {
+         "from": 4,
+         "to": 4
+        }
+       }
+      ],
+      "ids": [
+       "place",
+       "source.base",
+       "source.variant",
+       "technique.1"
+      ]
+     },
+     "notes": {
+      "notes": [
+       {
+        "address": "1.R.1",
+        "pitch": "E5",
+        "midi": 76,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.2",
+        "pitch": "D♯5",
+        "midi": 75,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.3",
+        "pitch": "E5",
+        "midi": 76,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.4",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.5",
+        "pitch": "D5",
+        "midi": 74,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.6",
+        "pitch": "C5",
+        "midi": 72,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.1",
+        "pitch": "A2",
+        "midi": 45,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.3",
+        "pitch": "A3",
+        "midi": 57,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.1",
+        "pitch": "A4",
+        "midi": 69,
+        "at": "0",
+        "length": "1/8",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.2",
+        "pitch": "C4",
+        "midi": 60,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.3",
+        "pitch": "E4",
+        "midi": 64,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.4",
+        "pitch": "A4",
+        "midi": 69,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.1",
+        "pitch": "E2",
+        "midi": 40,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.3",
+        "pitch": "G♯3",
+        "midi": 56,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.1",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "0",
+        "length": "1/8",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.2",
+        "pitch": "E4",
+        "midi": 64,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.3",
+        "pitch": "G♯4",
+        "midi": 68,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.4",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.1",
+        "pitch": "A2",
+        "midi": 45,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.3",
+        "pitch": "A3",
+        "midi": 57,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.R.1",
+        "pitch": "C5",
+        "midi": 72,
+        "at": "0",
+        "length": "1/8",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.R.2",
+        "pitch": "E4",
+        "midi": 64,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.R.3",
+        "pitch": "E5",
+        "midi": 76,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.R.4",
+        "pitch": "D♯5",
+        "midi": 75,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       }
+      ]
+     },
+     "variantNotes": {
+      "notes": [
+       {
+        "address": "1.R.1",
+        "pitch": "E5",
+        "midi": 76,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.2",
+        "pitch": "D♯5",
+        "midi": 75,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.3",
+        "pitch": "E5",
+        "midi": 76,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.4",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.5",
+        "pitch": "D5",
+        "midi": 74,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "1.R.6",
+        "pitch": "C5",
+        "midi": 72,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.1",
+        "pitch": "A2",
+        "midi": 45,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.L.3",
+        "pitch": "A3",
+        "midi": 57,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.1",
+        "pitch": "A4",
+        "midi": 69,
+        "at": "0",
+        "length": "1/8",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.2",
+        "pitch": "C4",
+        "midi": 60,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.3",
+        "pitch": "E4",
+        "midi": 64,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "2.R.4",
+        "pitch": "A4",
+        "midi": 69,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.1",
+        "pitch": "E2",
+        "midi": 40,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.L.3",
+        "pitch": "G♯3",
+        "midi": 56,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.1",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "0",
+        "length": "1/8",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.2",
+        "pitch": "E4",
+        "midi": 64,
+        "at": "3/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.3",
+        "pitch": "C5",
+        "midi": 72,
+        "at": "1/4",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "3.R.4",
+        "pitch": "B4",
+        "midi": 71,
+        "at": "5/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.1",
+        "pitch": "A2",
+        "midi": 45,
+        "at": "0",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.2",
+        "pitch": "E3",
+        "midi": 52,
+        "at": "1/16",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.L.3",
+        "pitch": "A3",
+        "midi": 57,
+        "at": "1/8",
+        "length": "1/16",
+        "velocity": 80,
+        "provenance": "imported"
+       },
+       {
+        "address": "4.R.1",
+        "pitch": "A4",
+        "midi": 69,
+        "at": "0",
+        "length": "1/4",
+        "velocity": 80,
+        "provenance": "imported"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "call": "drafts.call",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "tool": "place.techniques",
+    "role": "placeAssembler"
+   },
+   "answer": {
+    "tool": "place.techniques",
+    "kind": "read",
+    "ok": true,
+    "result": {
+     "variant": "Notes 5–8",
+     "techniques": [
+      {
+       "id": "technique.1",
+       "number": 1,
+       "kind": "simplify",
+       "label": "simplification",
+       "confidence": 75,
+       "sure": true,
+       "state": "open",
+       "occurrences": [
+        {
+         "bar": 4,
+         "matched": 3,
+         "total": 4,
+         "state": "open"
+        }
+       ]
+      }
+     ],
+     "ids": [
+      "technique.1"
+     ]
+    }
+   }
+  },
+  {
+   "call": "drafts.call",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "tool": "place.take",
+    "parameters": {
+     "techniques": [
+      1
+     ],
+     "bar": null
+    },
+    "role": "placeAssembler",
+    "now": "2026-11-20T10:10:00Z"
+   },
+   "answer": {
+    "tool": "place.take",
+    "kind": "proposeDraft",
+    "ok": true,
+    "drafts": [
+     {
+      "tool": "place.take",
+      "applied": false,
+      "title": "Take technique 1",
+      "explanation": "Into ① from Notes 5–8: technique 1, simplification.",
+      "draft": "d_0001",
+      "place": "pl_0001",
+      "structure": false,
+      "steps": [
+       {
+        "kind": "take",
+        "technique": {
+         "kind": "simplify",
+         "bars": [
+          4
+         ],
+         "label": "simplification"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.proposal",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "tool": "place.take",
+    "parameters": {
+     "techniques": [
+      1
+     ],
+     "bar": null
+    },
+    "now": "2026-11-20T10:10:00Z"
+   },
+   "answer": {
+    "piece": 2,
+    "readOnly": true,
+    "draft": {
+     "id": "d_0001",
+     "name": "Draft 1",
+     "places": [
+      {
+       "id": "pl_0001",
+       "label": "① Notes 1–4 · 2 variants",
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 1,
+       "lastBar": 4,
+       "steps": 1,
+       "bridge": false,
+       "variants": [
+        {
+         "id": "v_0001",
+         "label": "Notes 1–4",
+         "base": true,
+         "steps": 0
+        },
+        {
+         "id": "v_0002",
+         "label": "Notes 5–8",
+         "base": false,
+         "steps": 1,
+         "anchors": []
+        }
+       ]
+      }
+     ],
+     "shelf": []
+    },
+    "project": {
+     "id": "p_answers",
+     "fileName": "Draft 1.mid",
+     "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+     "lastOpened": "2026-11-20T10:00:00.0000000+00:00",
+     "origin": "imported",
+     "motifs": 0,
+     "variations": 0,
+     "corrections": 0,
+     "resumePoints": 0,
+     "ideas": 0,
+     "marks": 0,
+     "bookmarks": 0,
+     "openChecks": 0,
+     "title": "Draft 1",
+     "titleFrom": "fileName",
+     "composer": null,
+     "composerFrom": null,
+     "tags": [],
+     "playlists": [],
+     "checkBars": 0,
+     "hasNotes": true,
+     "document": false,
+     "originals": [
+      {
+       "id": "src_file",
+       "kind": "midi",
+       "shown": "Draft 1.mid",
+       "fileName": "Draft 1.mid",
+       "folder": null,
+       "sha256": null,
+       "bytes": 292,
+       "pages": null,
+       "durationMs": null,
+       "inFile": true,
+       "kept": "file",
+       "held": []
+      }
+     ],
+     "partOf": null,
+     "pieceKeys": [
+      "51ed56e453ea3aa72c2d99cd98537eeb89dab923abb8956e101529bf0cc6e7fb"
+     ],
+     "latest": null
+    },
+    "summary": {
+     "fileName": "Draft 1.mid",
+     "format": "midi",
+     "noteCount": 23,
+     "barCount": 4,
+     "end": 2880,
+     "heard": false,
+     "tracks": [
+      {
+       "index": 1,
+       "label": "Track 2: Right hand",
+       "name": "Right hand",
+       "noteCount": 14,
+       "hands": "none"
+      },
+      {
+       "index": 2,
+       "label": "Track 3: Left hand",
+       "name": "Left hand",
+       "noteCount": 9,
+       "hands": "none"
+      }
+     ],
+     "keys": [
+      {
+       "at": 0,
+       "fifths": 0,
+       "mode": "minor"
+      }
+     ],
+     "report": {
+      "format": "MIDI type 1",
+      "tracks": 3,
+      "notes": 23,
+      "measures": 4,
+      "issues": []
+     }
+    },
+    "language": "en",
+    "selection": null,
+    "hasVariation": false
+   }
+  },
+  {
+   "call": "drafts.accept",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "tool": "place.take",
+    "parameters": {
+     "techniques": [
+      1
+     ],
+     "bar": null
+    },
+    "role": "placeAssembler",
+    "now": "2026-11-20T10:10:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "steps": [
+     1
+    ],
+    "structure": false,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 1,
+       "total": 1
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.undo",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "undone": [
+     1
+    ],
+    "structure": false,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

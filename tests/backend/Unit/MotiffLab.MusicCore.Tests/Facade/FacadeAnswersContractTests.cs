@@ -246,6 +246,29 @@ public class FacadeAnswersContractTests
             ("drafts.unanchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","base":2880,"now":"2026-11-20T10:15:00Z"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // The assistant in a draft (version 1.2, decision record 0034 section 6, the plan's answer 7): what a turn sends about
+        // a place, the приёмы read, a take proposed and heard after, accepted as the assistant's step and undone.
+        ["drafts.assistant"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.context", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.call", """{"draft":"d_0001","place":"pl_0001","tool":"place.techniques","role":"placeAssembler"}"""),
+            ("drafts.call", """{"draft":"d_0001","place":"pl_0001","tool":"place.take","parameters":{"techniques":[1],"bar":null},"role":"placeAssembler","now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.proposal", """{"draft":"d_0001","place":"pl_0001","tool":"place.take","parameters":{"techniques":[1],"bar":null},"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.accept", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","tool":"place.take","parameters":{"techniques":[1],"bar":null},"role":"placeAssembler","now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // The seams' role in a draft: the bridge candidates read at the seam before the second place, the bass walk proposed
+        // and accepted as a place between.
+        ["drafts.assistant.bridge"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.transpose", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","semitones":2,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.call", """{"draft":"d_0001","place":"pl_0002","tool":"place.bridges","role":"seamChooser"}"""),
+            ("drafts.accept", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","tool":"place.bridge","parameters":{"kind":"bassWalk"},"role":"seamChooser","now":"2026-11-20T10:15:00Z"}"""),
+        ],
         // The collage (version 1.2, the plan's answer 5): the drafts of another piece's project file listed, and bars 1–4 of
         // this piece added to the end of its draft, answered with that piece's file to save.
         ["drafts.collage"] =
