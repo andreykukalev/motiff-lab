@@ -4,19 +4,6 @@ import Foundation
 /// by what they share, the key lane, a chord per bar with the closes, the density, new material, register and dynamics,
 /// and the ideas with every place each is heard. Every lane says how far it is filled.
 struct DnaMap: Sendable {
-    struct Section: Sendable, Identifiable, Equatable {
-        var id: String
-        var label: String
-        var onset: Double
-        var end: Double
-        var firstBar: Int
-        var lastBar: Int
-        var sharesWith: [String]
-        /// What a tap on the section selects: the whole section, or its first bars when it runs longer than a selection holds.
-        var selectableOnset: Double
-        var selectableEnd: Double
-    }
-
     struct Mark: Sendable, Equatable {
         /// "original", "exact", "transposed", "varied" or "inverted".
         var kind: String
@@ -93,7 +80,7 @@ struct DnaMap: Sendable {
     var circles: [SectionCircle] = []
     /// Where each bar starts, in ticks, from the first bar to one past the last.
     var barStarts: [Double] = []
-    var form: [Section] = []
+    var form: [FormSection] = []
     var ideasStatus = "notYet"
     var ideas: [Idea] = []
     var keys: [Key] = []
@@ -165,7 +152,7 @@ struct DnaMap: Sendable {
         form = (lane("form")["sections"] as? [[String: Any]] ?? []).map { section in
             let (onset, end, first, last) = passage(section["passage"])
             let selectable = section["selectable"] as? [String: Any]
-            return Section(id: section["id"] as? String ?? "", label: section["label"] as? String ?? "", onset: onset, end: end,
+            return FormSection(id: section["id"] as? String ?? "", label: section["label"] as? String ?? "", onset: onset, end: end,
                            firstBar: first, lastBar: last, sharesWith: section["sharesWith"] as? [String] ?? [],
                            selectableOnset: selectable.map { number($0["onset"]) } ?? onset,
                            selectableEnd: selectable.map { number($0["end"]) } ?? end)

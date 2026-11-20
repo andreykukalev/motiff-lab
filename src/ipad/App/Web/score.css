@@ -98,12 +98,37 @@ g.note.version-added { fill: var(--plum); stroke: var(--plum); color: var(--plum
 div.taken-bar { position: absolute; z-index: 1; height: 2px; border-radius: 1px; background: var(--plum); pointer-events: none; }
 g.note.version-artefact { fill: var(--ink-3); stroke: var(--ink-3); color: var(--ink-3); }
 
+/* The phrases' marks (the phrases spec, v1.2; page-phrases.ts): a breath mark before the start note and the phrase's number,
+   a section's letter boxed before it, right above the notes. Found ones a tone lighter than the notes, the player's own
+   amber (the kit's amber for text), the selected phrase's number cobalt; while the piece plays, the phrase playing in full
+   ink, its number heavier, the rest dimmed. Each letter and number is a touch target of its own, none in the Pen. */
+.phrase-ink { position: absolute; z-index: 1; left: 0; top: 0; color: var(--ink-2); font: var(--t-label); white-space: nowrap; pointer-events: none; }
+.phrase-ink.own { color: var(--warning); }
+.phrase-ink.comma { width: var(--s-2); height: var(--s-3); }
+.phrase-ink.comma svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.phrase-ink.letter { box-sizing: border-box; padding: 0 var(--s-1); border: var(--stroke-icon) solid currentColor; border-radius: var(--r-xs); font-family: var(--font-display); }
+.phrase-ink.number.selected { color: var(--accent); }
+body[data-phrases-playing] .phrase-ink:not(.current) { color: var(--ink-3); }
+body[data-phrases-playing] .phrase-ink.number.current { color: var(--ink); font-weight: 600; }
+button.phrase-mark { position: absolute; z-index: 1; min-height: 0; padding: 0; border: 0; background: transparent; -webkit-touch-callout: none; user-select: none; }
+/* A found start the player moved keeps a faint comma where it was found; a held mark (page-phrase-drag.ts) lifts in amber,
+   its ghost faint where it was, an amber line at the note it would go to, its caption over the finger, and the two phrases
+   it would make lit lightly in amber. */
+.phrase-ink.ghost { color: var(--ink-3); }
+.phrase-ink.lifted { z-index: 2; color: var(--warning); }
+div.phrase-drag { position: absolute; pointer-events: none; }
+div.phrase-neighbour { z-index: 0; border-radius: var(--r-xs); background: color-mix(in srgb, var(--amber-tint) 50%, transparent); }
+div.phrase-snap { z-index: 2; width: var(--stroke-icon); background: var(--amber); }
+div.phrase-caption { z-index: 3; padding: var(--s-1) var(--s-2); border-radius: var(--r-xs); background: var(--surface); box-shadow: var(--shadow-menu); color: var(--ink); font: var(--t-caption); white-space: nowrap; }
+body[data-mode="pen"] button.phrase-mark { pointer-events: none; }
+
 /* The layers of marks, hidden for a clean page (0018 section 5). */
 body.hide-ink #ink,
 body.hide-notes :is(button.marker, div.hl),
 body.hide-bookmarks button.bmb,
 body.hide-analysis .ring,
-body.hide-check button.check-flag { display: none; }
+body.hide-check button.check-flag,
+body.hide-phrases :is(.phrase-ink, button.phrase-mark) { display: none; }
 
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
 .sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }

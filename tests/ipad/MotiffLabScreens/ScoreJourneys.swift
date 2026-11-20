@@ -7,7 +7,7 @@ extension Walk {
     /// The example piece opened from the empty library and played: the sound loads and the playing moves on.
     func openExampleAndPlay() throws {
         try openExample(shots: true)
-        for (label, what) in [("Библиотека", "Back"), ("Фразы", "Phrases"), ("Инсайты", "Insights"),
+        for (label, what) in [("Библиотека", "Back"), ("Выбрать, что показывать", "the list of extra information"), ("Инсайты", "Insights"),
                               ("Навигация", "Navigate"), ("Выделение", "Select"), ("Перо", "the Pen"), ("Источники", "Sources")] {
             try need(button(label), "\(what) in the score's bar")
         }
@@ -248,12 +248,12 @@ extension Walk {
         try until("the pill's assistant closes the panel") { !$0.on("assistant") }
     }
 
-    /// The other places of the score for the mockups: Phrases, a bookmark, the Contents, More and Settings, Sources; then
-    /// back to the library with the example's card.
+    /// The other places of the score for the mockups: the list of extra information with the phrases' marks first, a
+    /// bookmark, the Contents, More and Settings, Sources; then back to the library with the example's card.
     func otherPlaces() throws {
-        try press(button("Фразы"), "Phrases")
-        try need(app.otherElements["PopoverDismissRegion"], "the Phrases popover")
-        shot("12-phrases-levels")
+        try press(button("Выбрать, что показывать"), "the list of extra information")
+        try need(app.switches["Фразы"], "the phrases' marks in the list (the phrases spec, v1.2)")
+        shot("12-extra-phrases")
         try dismissPopover()
 
         try choosePhrase()

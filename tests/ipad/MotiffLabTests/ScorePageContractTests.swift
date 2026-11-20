@@ -3,7 +3,8 @@ import XCTest
 @testable import MotiffLab
 
 /// The score page's contract (decision record 0031, step 2): the app names the functions and decodes the messages listed
-/// in tests/contracts/score-page.json, the lists tests/shared/score-page-contract.test.mjs checks score.js against.
+/// in tests/contracts/score-page.json, the lists tests/shared/score-page-contract.test.mjs checks the page
+/// (Scripts/score/ipad-page) and its types against.
 final class ScorePageContractTests: XCTestCase {
     private final class Marker {}
 
@@ -65,6 +66,27 @@ final class ScorePageContractTests: XCTestCase {
         guard case let .seamDiamond(key, left, bottom)? = events.first else { return XCTFail("a seam: \(events)") }
         XCTAssertEqual(key, "pl_0002")
         XCTAssertEqual([left, bottom], [30, 40])
+    }
+
+    /// A phrase's number and a section's letter tapped on the score (the phrases spec, v1.2) name what they mark.
+    func testAPhraseMarkNamesItsPhraseAndALetterItsSection() {
+        guard case .phraseMark(let number)? = PageEvent.events(in: ["phraseMark": 2]).first else { return XCTFail("a phrase's number") }
+        XCTAssertEqual(number, 2)
+        guard case .sectionMark(let id)? = PageEvent.events(in: ["sectionMark": "section_2"]).first else { return XCTFail("a section's letter") }
+        XCTAssertEqual(id, "section_2")
+    }
+
+    /// A phrase's number held names its phrase with where it is, for its menu; a mark dragged and let go, the start it
+    /// moves from and the note it goes to (the phrases spec, v1.2 i-3a).
+    func testAPhraseMarkHeldCarriesItsPlaceAndOneDraggedItsMove() {
+        let held = PageEvent.events(in: ["phraseHeld": 3, "left": 12.5, "bottom": 80])
+        XCTAssertEqual(held.count, 1, "left and bottom belong to the mark")
+        guard case let .phraseHeld(number, left, bottom)? = held.first else { return XCTFail("a mark held: \(held)") }
+        XCTAssertEqual(number, 3)
+        XCTAssertEqual([left, bottom], [12.5, 80])
+        guard case let .phraseMoved(from, to)? = PageEvent.events(in: ["phraseMoved": ["from": 2880, "to": 2520]]).first else { return XCTFail("a mark moved") }
+        XCTAssertEqual([from, to], [2880, 2520])
+        XCTAssertTrue(PageEvent.events(in: ["phraseMoved": ["from": 2880]]).isEmpty, "a move needs both ticks")
     }
 
     func testTheMenuPutAwayIsNoPlace() {

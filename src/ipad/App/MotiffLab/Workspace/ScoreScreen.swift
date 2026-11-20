@@ -3,7 +3,7 @@ import WebKit
 
 /// A piece's score (0018 section 2, design/kit/screens/s2_score_page.png): the score is the whole screen, A4 pages in one
 /// column in portrait and two to a row in landscape, with the pencil marks on them (0019 section 2.2). Verovio's SVG is in
-/// one web view that runs the web app's score modules (ScoreController, Web/score.js). Nothing is docked: the bar floats
+/// one web view that runs the web app's score modules (ScoreController, Web/score.html). Nothing is docked: the bar floats
 /// over the top with the way back, the title, the pages in view and the actions, and the pill floats at the bottom with
 /// play, the tempo and the metronome. Colours come from the design kit's tokens, Daylight or Night with
 /// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
@@ -345,6 +345,11 @@ struct ScoreScreenContent: View {
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
+                } else if let pick = score.phraseMenu, let unit = selectionModel.phrases?.unit(pick.number), !focusModel.focused {
+                    // A phrase's number held (v1.2): its mark's menu under it (ScorePhraseEdits.swift).
+                    DraftCardAtMark(at: pick.at, close: { score.closePhraseMenu() }) {
+                        PhraseMarkMenu(score: score, unit: unit, first: unit.number == selectionModel.phrases?.units.first?.number, text: text)
+                    }
                 } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
                     // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
                     DraftViewCards(score: score, seams: score.seamsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
@@ -360,7 +365,12 @@ struct ScoreScreenContent: View {
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    // Over it, the toast of an edit of the phrases with its Undo or Redo (v1.2, ScorePhraseEdits.swift).
+                    VStack(spacing: CGFloat.ds("s-2")) {
+                        PhraseEditToast(selectionModel: selectionModel, score: score, text: text)
+                        SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text)
+                    }
+                    .padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .overlay {
@@ -781,7 +791,6 @@ struct ScoreBar: View {
     /// The bar's width, the screen's less its margins (TopBar).
     var width: CGFloat = 0
     let back: () -> Void
-    @State private var phrasesOpen = false
     /// The list of extra information under the ⓘ button's chevron.
     @State private var extraOpen = false
     @EnvironmentObject private var settings: DeviceSettings
@@ -837,21 +846,9 @@ struct ScoreBar: View {
         playAndMore
     }
 
-    /// What the score shows: Phrases and its menu, and the extra information and its list; the piano roll is the pill's
-    /// alone (Andrei's 0.8 test, finding 7, answer 1).
+    /// What the score shows: the extra information and its list, with the phrases' marks first; the piano roll is the
+    /// pill's alone (Andrei's 0.8 test, finding 7, answer 1).
     @ViewBuilder private var viewButtons: some View {
-        Button {
-            phrasesOpen.toggle()
-        } label: {
-            HStack(spacing: 0) {
-                Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-                Icon(name: "chevd", size: CGFloat.ds("icon-s")).padding(.trailing, CGFloat.ds("s-1"))
-            }
-        }
-        .buttonStyle(BarActionStyle(on: phrasesOpen))
-        .accessibilityLabel(text["bar.phrases"])
-        .accessibilityValue(selectionModel.phrasesHidden ? text["phrases.hide"] : "")
-        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, selectionModel: selectionModel, text: text) }
         // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {
@@ -1420,68 +1417,6 @@ struct FocusBar: View {
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
-    }
-}
-
-/// Phrases, from the bar (0018 section 3; the approved mockup v0.5.2, #479 item 21): the level focus steps by, Short,
-/// Phrases or Sentences, each with how many units the piece has at it, or «Не показывать», then «Вернуть найденные» for
-/// a level the player changed. It never lists the phrases, and since #479 item 14 the score does not draw them.
-struct PhrasesPanel: View {
-    @ObservedObject var score: ScoreController
-    @ObservedObject var selectionModel: SelectionModel
-    let text: UIText
-
-    private static let names = ["short": "phrases.levelShort", "phrase": "phrases.levelPhrases", "sentence": "phrases.levelSentences"]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            Text(text["phrases.levelTitle"]).overline().padding(.bottom, CGFloat.ds("s-1"))
-            ForEach(PhraseLevelsShown.ids, id: \.self) { level in
-                let count = selectionModel.phrases?.counts[level]
-                row(text[Self.names[level] ?? ""], count: count.map(String.init), on: !selectionModel.phrasesHidden && (selectionModel.phrases?.level ?? "phrase") == level) {
-                    score.showLevel(level)
-                }
-            }
-            PaletteRule()
-            row(text["phrases.hide"], count: nil, on: selectionModel.phrasesHidden) {
-                selectionModel.hidePhrases(true)
-            }
-            .accessibilityHint(text["phrases.hideHint"])
-            PaletteRule()
-            Button(text["phrases.resetLevel"]) { score.resetLevel() }
-                .buttonStyle(DSItemStyle())
-                .disabled(selectionModel.phrasesHidden || !(selectionModel.phrases.map { $0.edited.contains($0.level) } ?? false))
-                .accessibilityHint(text["phrases.resetHint"])
-        }
-        .padding(CGFloat.ds("s-3"))
-        .frame(width: 300, alignment: .leading)
-        .presentationCompactAdaptation(.popover)
-    }
-
-    /// A choice of the menu: a round mark, filled while it is chosen, its word and, for a level, its count.
-    private func row(_ title: String, count: String?, on: Bool, choose: @escaping () -> Void) -> some View {
-        Button(action: choose) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Circle()
-                    .strokeBorder(on ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: on ? 5 : 1.5)
-                    .frame(width: 16, height: 16)
-                Text(title).lineLimit(1)
-                Spacer(minLength: CGFloat.ds("s-2"))
-                if let count {
-                    Text(count).dsType(.caption).foregroundStyle(Color.ds("ink-3"))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(DSItemStyle(on: on))
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-}
-
-/// A thin rule across a menu, between its groups.
-private struct PaletteRule: View {
-    var body: some View {
-        Rectangle().fill(Color.ds("hairline")).frame(height: 1).padding(.vertical, CGFloat.ds("s-1"))
     }
 }
 

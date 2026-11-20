@@ -263,12 +263,17 @@ struct SourcesToastView: View {
     }
 }
 
-/// The score's toast: a light capsule with what was just done, a quiet «Отменить» where it can be undone, and ✕.
+/// The score's toast: a light capsule with what was just done, a quiet «Отменить» where it can be undone (or the words
+/// `actionKey` names, «Повторить» after a phrase edit's Undo), and ✕.
 struct UndoToast: View {
     let words: String
     let text: UIText
     let undo: (() -> Void)?
     let close: () -> Void
+    var actionKey = UndoToast.undoKey
+
+    /// The key of «Отменить».
+    static let undoKey = "merge.toastUndo"
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-3")) {
@@ -276,7 +281,7 @@ struct UndoToast: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
             if let undo {
-                Button(text["merge.toastUndo"], action: undo)
+                Button(text[actionKey], action: undo)
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button(action: close) { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }

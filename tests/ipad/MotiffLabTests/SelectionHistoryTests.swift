@@ -18,6 +18,21 @@ final class SelectionHistoryTests: XCTestCase {
         XCTAssertEqual(history.redo()?.after, one)
     }
 
+    /// A step that could not be taken back or done again (the phrases' edits changed since, v1.2) goes altogether.
+    func testAStepThatCouldNotBeUndoneOrRedoneGoes() {
+        var history = SelectionHistory<SelectionSpan>()
+        history.record(from: nil, to: one)
+        history.record(from: one, to: two)
+        _ = history.undo()
+        history.dropLast(undone: true)
+        XCTAssertFalse(history.canRedo, "no Redo of a step that was not undone")
+        XCTAssertEqual(history.done.count, 1)
+        _ = history.undo()
+        _ = history.redo()
+        history.dropLast(undone: false)
+        XCTAssertFalse(history.canUndo, "no Undo of a step that was not redone")
+    }
+
     func testAHoldThatClearsAndADragAfterItAreOneReplaceStep() {
         var history = SelectionHistory<SelectionSpan>()
         history.record(from: nil, to: one, gesture: "g1")

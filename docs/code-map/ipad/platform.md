@@ -14,10 +14,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
 - `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b, a struct): the hot features'
-  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls), `phraseLevel`,
+  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls),
   `draftSheet` and `draftTechniques` (v1.1), each answered as `PieceCore.Answer` (the typed value, the text,
   music-core's `message`). Features make these calls only here; the other calls move with their features in phase C.
-- `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` and `PhraseLevelAnswer`, `PlaybackAnswer`,
+- `FormSection.swift`: `FormSection`, a section of the form as music-core letters it (`Answer.FormSection`), one type
+  for Piece DNA's form lane, the Contents' structure and the letters on the score (`PiecePhrases.sections`).
+- `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` (units with their starts, sections), `PlaybackAnswer`,
   `RollAnswer` (passed to the roll page whole, `RollPage.load`), `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
   `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
   features build their own types from them. They name no feature type.
