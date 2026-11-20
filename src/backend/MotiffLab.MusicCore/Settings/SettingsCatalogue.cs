@@ -43,7 +43,7 @@ public static class SettingsCatalogue
         // A thin plum line under each bar taken from another version, with extra information on.
         Switch("layers.taken", SettingSection.MarksAndLayers, null, SettingScope.Piece, on: true),
         // The comparison layer over the whole score (0022, section 4) and its artefacts, no longer shown (testing item 33): a
-        // version is compared in the merge draft. Kept so files that set them still open.
+        // version was compared in the merge draft. Kept so files that set them still open.
         Switch("layers.version", SettingSection.MarksAndLayers, null, SettingScope.Piece),
         Switch("layers.artefacts", SettingSection.MarksAndLayers, null, SettingScope.Piece),
         Switch("pen.pencilOnly", SettingSection.MarksAndLayers, null, SettingScope.Device, on: true),
@@ -53,9 +53,6 @@ public static class SettingsCatalogue
         Switch("dna.chords", SettingSection.Score, null, SettingScope.Device, on: true),
         Switch("dna.degrees", SettingSection.Score, null, SettingScope.Device),
         Switch("dna.functions", SettingSection.Score, null, SettingScope.Device, on: true),
-
-        // A choice on a version's page applied at once, without the merge draft (testing item 34); Undo stays in its toast.
-        Switch("merge.direct", SettingSection.Score, null, SettingScope.Device),
 
         Switch("playback.metronome", SettingSection.Playback, null, SettingScope.Device),
         Switch("playback.countIn", SettingSection.Playback, null, SettingScope.Device),

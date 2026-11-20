@@ -136,8 +136,9 @@ public class AssistantFacadeTests
     }
 
     [Fact]
-    public void The_contract_stays_12()
+    public void The_contract_stays_13()
     {
-        Assert.Equal(12, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());
+        // The assistant's calls came within 12; 13 is the merge calls removed (version 1.1, ADR 0034 section 8).
+        Assert.Equal(13, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());
     }
 }

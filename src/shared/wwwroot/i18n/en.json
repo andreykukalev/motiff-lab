@@ -122,7 +122,6 @@
   "extra.check": "Check flags",
   "extra.none": "This piece has no extra information yet.",
   "extra.yours": "Your marks",
-  "merge.direct": "Apply at once, without a draft",
   "originals.nowhere": "Not on any device",
   "originals.relink": "Link the original",
   "originals.otherFile": "This is a different file. To keep it as another original, add it with Add a source.",
