@@ -142,12 +142,12 @@ public class DraftBridgesTests
     }
 
     [Fact]
-    public void A_bridge_place_is_offered_nothing_and_no_bridge_is_offered_next_to_one()
+    public void A_bridge_place_is_offered_nothing_its_register_unsaid_and_no_bridge_is_offered_next_to_one()
     {
-        IReadOnlyList<DraftSeam> seams = DraftSeams.Of(DraftBridges.Put(Collage(semitones: 24), "pl_2", At));
+        IReadOnlyList<DraftSeam> seams = DraftSeams.Of(DraftBridges.Put(Collage(semitones: 36), "pl_2", At));
 
         Assert.True(seams[0].KeyChanges);
-        Assert.Equal((null, null, null), (seams[0].Semitones, seams[0].Tempo, seams[0].Octave));
+        Assert.Equal((null, null, null, 0), (seams[0].Semitones, seams[0].Tempo, seams[0].Octave, seams[0].Register));
         Assert.All(seams, seam => Assert.Empty(DraftBridges.Of(seam)));
         Assert.False(seams[1].KeyChanges);
     }

@@ -243,6 +243,20 @@ public class PerformanceComparisonTests
     }
 
     [Fact]
+    public void After_the_last_confirmed_anchor_the_music_follows_it_and_the_gap_falls_at_the_end()
+    {
+        // Eight bars alike, of which two are played, confirmed to start at bar 3: bar 3's second beat is the second note played.
+        int[] melody = [72, 74, 76, 77];
+        List<Note> score = [.. Enumerable.Range(0, Bars * 4).Select(i => Printed($"q{i:D2}", melody[i % 4], i * Quarter))];
+        List<PlayedNote> played = AsPrinted(score.Take(8));
+        Anchor confirmed = new(new Tick(2 * BarTicks), played[0].Onset);
+
+        PerformanceAlignment aligned = PerformanceAlignment.Align(score, played, [confirmed]);
+
+        Assert.Equal(new Anchor(new Tick((2 * BarTicks) + Quarter), played[1].Onset), aligned.Anchors.SkipWhile(anchor => anchor != confirmed).ElementAt(1));
+    }
+
+    [Fact]
     public void A_recording_of_the_whole_piece_is_compared_with_its_opening()
     {
         // Public-domain material: Für Elise's opening as printed, and Transkun's hearing of a recording of the whole piece.

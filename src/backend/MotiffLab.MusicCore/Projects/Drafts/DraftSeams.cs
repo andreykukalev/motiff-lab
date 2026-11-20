@@ -77,7 +77,8 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
     /// <summary>
     /// The register (the plan's answer 3): 1 when the mean pitch of the place after the seam, the mean MIDI number of all its
     /// notes, both hands, is an octave (12 semitones) or more above that of the place before it, −1 when it is as far below,
-    /// else 0 and nothing is said of it. Worked out in whole numbers: the sums of the pitches against 12 × both counts.
+    /// else 0 and nothing is said of it; 0 too into a bridge place, which follows its neighbours' register (<see cref="DraftBridges"/>).
+    /// Worked out in whole numbers: the sums of the pitches against 12 × both counts.
     /// </summary>
     public int Register
     {
@@ -85,12 +86,12 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
         {
             long before = Before.Notes.Sum(static note => (long)note.Pitch.MidiNumber), after = After.Notes.Sum(static note => (long)note.Pitch.MidiNumber);
             long difference = (after * Before.Notes.Count) - (before * After.Notes.Count), octave = 12L * Before.Notes.Count * After.Notes.Count;
-            return octave == 0 ? 0 : difference >= octave ? 1 : difference <= -octave ? -1 : 0;
+            return octave == 0 || After.Bridge ? 0 : difference >= octave ? 1 : difference <= -octave ? -1 : 0;
         }
     }
 
     /// <summary>«② на октаву ниже»: the place after the seam moved an octave towards the one before it, its spelling kept (−12 or 12); null when the register does not differ.</summary>
-    public int? Octave => Register == 0 || After.Bridge ? null : -12 * Register;
+    public int? Octave => Register == 0 ? null : -12 * Register;
 }
 
 /// <summary>

@@ -67,15 +67,16 @@ public class DraftAnchorsTests
     public void The_steps_stay_and_the_приёмы_are_worked_out_again_around_the_anchors()
     {
         // The variant plays bar 2 an octave higher; lined up by itself (all its bars alike the base's) it falls on bar 6.
-        // Confirmed that its bars 1 and 4 are the base's bars 3 and 6, the octave is the base's bar 4.
+        // Confirmed only that its bar 1 is the base's bar 3, the octave is the base's bar 4 and nothing in bars 3 and 4 is simplified.
         SourceMusic octave = Score(bars: 4, melody: bar => bar == 1 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h");
         Draft draft = Draft.Start("d_1", "x", At, "pl_1", Variant("v_1", Score(), 1, 8)).With(Variant("v_2", octave, 1, 4, notes: "perf_1"), DraftDrop.Variant, "pl_1");
         draft = DraftSeams.Tempo(draft, "pl_1", 60, At);
 
-        Draft anchored = DraftAnchors.Confirm(DraftAnchors.Confirm(draft, "pl_1", "v_2", Anchor(3, 1)), "pl_1", "v_2", Anchor(6, 4));
+        Draft anchored = DraftAnchors.Confirm(draft, "pl_1", "v_2", Anchor(3, 1));
 
         Assert.Equal([6], Assert.Single(draft.TechniquesOf("pl_1"), static technique => technique.Kind == TechniqueKind.Octave).Occurrences.Select(static occurrence => occurrence.Bar));
         Assert.Equal([4], Assert.Single(anchored.TechniquesOf("pl_1"), static technique => technique.Kind == TechniqueKind.Octave).Occurrences.Select(static occurrence => occurrence.Bar));
+        Assert.DoesNotContain(anchored.TechniquesOf("pl_1"), static technique => technique.Kind == TechniqueKind.Simplify);
         Assert.Equal(draft.Steps, anchored.Steps);
     }
 }
