@@ -138,14 +138,15 @@ public class FacadeAnswersContractTests
             ("drafts.rename", """{"device":"ipad","here":[],"draft":"d_0001","name":"Coda"}"""),
         ],
         // A place's приёмы (0034 section 4; the iPad's step 6): bars 1–4 as a new draft's place and bars 5–8 as its
-        // variant, the приёмы with their numbers, positions and labels, one taken only here (then taken by the notes), each
-        // step undone in turn, one left, «Взять всё уверенное», the right hand of bars 3–4 taken from the variant, and the
+        // variant, the приёмы with their numbers, positions and labels, the variant opened alone to hear it, one taken only
+        // here (then taken by the notes), each step undone in turn, one left, «Взять всё уверенное», the right hand of bars 3–4 taken from the variant, and the
         // приёмы as that step left them.
         ["drafts.techniques"] =
         [
             ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
             ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.open", """{"draft":"d_0001","variant":"v_0002"}"""),
             ("drafts.take", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","technique":1,"bar":4,"now":"2026-11-20T10:10:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
@@ -156,6 +157,9 @@ public class FacadeAnswersContractTests
             ("drafts.takeFrom", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","part":"right","span":{"onset":1440,"end":2880},"now":"2026-11-20T10:25:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
         ],
+        // A place's приёмы where its variant is notes heard in a recording: each occurrence names the recording and the
+        // stretch of it that occurrence was played in.
+        ["drafts.techniques.heard"] = [("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}""")],
         // A draft's seams (0034 section 5; the iPad's step 7, the seam card): bars 1–4 and bars 5–8 as two places of a new
         // draft, the seam between them as alike, then the second place transposed a tone up and set to 60 a minute, the seam
         // with the key and tempo changed and «② в ля минор» and «Темп как в ①» offered, kept as it is, and undone.
@@ -189,6 +193,7 @@ public class FacadeAnswersContractTests
     {
         ["corrections.layer"] = (Piece, WithStaleCorrections),
         ["sources.layers.pdf"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
+        ["drafts.techniques.heard"] = (Piece, WithAHeardVariant),
     };
 
     private static readonly JsonSerializerOptions s_written = new()
@@ -257,6 +262,30 @@ public class FacadeAnswersContractTests
         JsonElement opened = FacadeCalls.Json(facade.Open(fileName, data, request));
         Assert.False(opened.TryGetProperty("error", out JsonElement error), opened.ToString());
         return opened.GetProperty("piece").GetInt32();
+    }
+
+    /// <summary>
+    /// The example's project file with a recording heard as Notes n_2 and a draft whose place is bars 1–4 of the notes and
+    /// whose variant is bars 1–4 as heard.
+    /// </summary>
+    private static byte[] WithAHeardVariant(byte[] data)
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Opened(facade, Piece, data, """{"language":"en","id":"p_answers"}""");
+        string[] calls =
+        [
+            "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-20T10:30:00Z"}""",
+            "sources.notes.hear", FacadeCalls.Heard(),
+            "drafts.add", """{"bars": {"first": 1, "last": 4}, "now": "2026-11-20T10:00:00Z"}""",
+        ];
+        for (int index = 0; index < calls.Length; index += 2)
+        {
+            Assert.DoesNotContain("error", facade.Call(piece, calls[index], calls[index + 1]), StringComparison.Ordinal);
+        }
+
+        int shown = FacadeCalls.Json(facade.Call(piece, "sources.notes.open", """{"id": "n_2"}""")).GetProperty("piece").GetInt32();
+        Assert.DoesNotContain("error", facade.Call(shown, "drafts.add", """{"bars": {"first": 1, "last": 4}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:40:00Z"}"""), StringComparison.Ordinal);
+        return Encoding.UTF8.GetBytes(facade.Call(piece, "project.save"));
     }
 
     /// <summary>

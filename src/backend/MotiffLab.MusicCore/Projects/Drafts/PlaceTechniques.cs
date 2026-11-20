@@ -20,13 +20,14 @@ public enum TechniqueState
 /// </summary>
 /// <param name="Bar">The place's bar, from 1, as its base has it: the bar it is in, or the one inserted bars go before (one past the last at the end).</param>
 /// <param name="Span">Where it lies in the base's ticks; for inserted bars, where they go and how long they are.</param>
+/// <param name="InVariant">Where it lies in the variant's own ticks, through the alignment: what of the variant sounds there.</param>
 /// <param name="Matched">The bar's notes found in place, as 0024 (section 6) finds them; none for inserted bars, found nowhere in the base.</param>
 /// <param name="Total">
 /// The bar's notes counted against them: those on the side with more, the base's or the variant's, leaving out the приём's
 /// own, the notes its kind explains (<see cref="BarComparison.ExplainedNotHeard"/>, <see cref="BarComparison.ExplainedPlayed"/>:
 /// none for <see cref="TechniqueKind.Other"/>); for inserted bars, their notes.
 /// </param>
-public sealed record TechniqueOccurrence(int Bar, TickSpan Span, int Matched, int Total, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State)
+public sealed record TechniqueOccurrence(int Bar, TickSpan Span, TickSpan InVariant, int Matched, int Total, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State)
 {
     /// <summary>The share of the bar's notes found in place, in whole per cent, rounded down; 100 with none to count, as an empty bar «совпадает».</summary>
     public int Confidence => Total == 0 ? 100 : Matched * 100 / Total;
@@ -98,6 +99,13 @@ public static class PlaceTechniques
             .Select((each, number) => new PlaceTechnique(number + 1, place.Variants[each.VariantIndex].Id, each.Kind, each.Occurrences))];
     }
 
+    /// <summary>How many of <paramref name="techniques"/> are taken, of how many: «взято 3 приёма из 4».</summary>
+    public static (int Taken, int Total) Tally(IReadOnlyCollection<PlaceTechnique> techniques)
+    {
+        ArgumentNullException.ThrowIfNull(techniques);
+        return (techniques.Count(static technique => technique.State == TechniqueState.Taken), techniques.Count);
+    }
+
     /// <summary>A variant's music with its notes named as in a place.</summary>
     private static SourceMusic Named(DraftVariant variant) =>
         variant.Music with { Notes = [.. variant.Music.Notes.Select(note => note with { Id = variant.NoteId(note.Id) })] };
@@ -135,7 +143,7 @@ public static class PlaceTechniques
                 : (bar.ExplainedNotHeard, bar.ExplainedPlayed);
             string shape = ShapeOf(removed, put, notes, span);
             string[] added = [.. put.Select(static note => note.Id).Order(StringComparer.Ordinal)];
-            var occurrence = new TechniqueOccurrence(index + 1, span, bar.Matched.Count, total, removed, added, null, decided.Of(kind, index + 1, removed, added));
+            var occurrence = new TechniqueOccurrence(index + 1, span, TickSpan.FromBounds(DraftAlignment.InVariant(alignment, span.Onset), DraftAlignment.InVariant(alignment, span.End)), bar.Matched.Count, total, removed, added, null, decided.Of(kind, index + 1, removed, added));
             if (techniques.FindIndex(each => each.Kind == kind && each.Shape == shape) is var at and >= 0)
             {
                 techniques[at].Occurrences.Add(occurrence);
@@ -150,7 +158,7 @@ public static class PlaceTechniques
         foreach ((TickSpan span, Tick at) in inserted)
         {
             int bar = basis.Bars.Count(each => each.Span.Onset < at) + 1;
-            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), 0, music.NotesIn(span.Onset, span.End).Count, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
+            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), span, 0, music.NotesIn(span.Onset, span.End).Count, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
         }
 
         return result;

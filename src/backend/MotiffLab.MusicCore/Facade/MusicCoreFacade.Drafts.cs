@@ -20,7 +20,7 @@ public sealed partial class MusicCoreFacade
             "drafts.open" => OpenDraft(ownerNumber, owner, fields),
             "drafts.rename" => DraftRequest.Rename(owner, fields),
             "drafts.remove" => DraftRequest.Remove(owner, fields),
-            "drafts.techniques" => DraftTakeRequest.Techniques(owner, fields),
+            "drafts.techniques" => DraftTakeRequest.Techniques(owner, fields, Working),
             "drafts.take" => DraftTakeRequest.Take(owner, fields),
             "drafts.leave" => DraftTakeRequest.Leave(owner, fields),
             "drafts.takeSure" => DraftTakeRequest.TakeSure(owner, fields),
@@ -67,11 +67,32 @@ public sealed partial class MusicCoreFacade
     /// answer for it. Answers as <c>open</c> does, with "readOnly": true and "draft" (<see cref="DraftRequest.View"/>). The
     /// summary is that of the score as an imported MIDI ("origin" imported, kind midi), as a version's view is: where the
     /// draft came from is in "draft" (its places' labels), never in those fields. A draft with no notes yet is unavailable.
+    /// With "variant" (version 1.1, the iPad's step 6), that variant's own music alone, answered with "variant", its id, in
+    /// place of "draft": a приём heard as the variant has it, over an occurrence's "inVariant" ticks.
     /// </summary>
     private string OpenDraft(int number, OpenPiece owner, Request fields)
     {
         string id = fields.Required("draft");
         Draft? draft = owner.Project.FindDraft(id);
-        return OpenShown(owner, () => owner.Project.ViewOfDraft(id), new ShownView(number, id, Draft: true), json => DraftRequest.View(json, draft!, owner.Words));
+        string? variant = fields.Text("variant");
+        return OpenShown(
+            owner,
+            () => owner.Project.ViewOfDraft(id, variant),
+            new ShownView(number, id, Draft: true),
+            json =>
+            {
+                if (variant is null)
+                {
+                    DraftRequest.View(json, draft!, owner.Words);
+                }
+                else
+                {
+                    json.WriteString("variant", variant);
+                }
+            });
     }
+
+    /// <summary>The piece open to work on whose id is <paramref name="projectId"/>, as a variant from another piece names it; null when none is.</summary>
+    private Project? Working(string projectId) =>
+        _pieces.Values.FirstOrDefault(each => !each.ReadOnly && each.Project.Id == projectId)?.Project;
 }

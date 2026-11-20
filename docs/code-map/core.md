@@ -35,7 +35,7 @@ through the facade; the API references it.
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
-  `PlaceTechniques`, `DraftSeams` (seams).
+  `PlaceTechniques`, `VariantRecording`, `DraftSeams`.
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,

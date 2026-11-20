@@ -38,13 +38,6 @@ public class DraftsFacadeTests
 
     private static JsonElement New(MusicCoreFacade facade, int piece = 1) => Json(facade.Call(piece, "drafts.add", $$"""{{{Bars}}}"""));
 
-    private static string Heard()
-    {
-        ImportedPiece piece = PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!;
-        string midi = Convert.ToBase64String(global::MotiffLab.MusicCore.Export.MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
-        return $$$"""{"original": "src_rec", "engine": "transkun", "milliseconds": 60000, "sentFromMs": 30000, "parts": [{"index": 0, "midi": "{{{midi}}}"}], "now": "2026-11-20T11:00:00Z"}""";
-    }
-
     private static Project Saved(MusicCoreFacade facade) => ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
 
     private static JsonElement Item(JsonElement answer, string list, string id) =>
@@ -258,6 +251,74 @@ public class DraftsFacadeTests
         Assert.Equal("① Notes 1–4 + Recording · 2 variants", DraftLabels.Place(place, 0, Words.English));
         Assert.Equal("from the PDF's notes and the recording", Item(added, "drafts", "d_0001").GetProperty("caption").GetString());
         Assert.Equal("из нот с PDF и записи", DraftLabels.Caption(Saved(facade).FindDraft("d_0001")!, Words.Russian));
+    }
+
+    /// <summary>
+    /// A recording added to piece 1 and heard as Notes n_2, opened to be shown, its bars 1–4 added to the draft
+    /// <paramref name="into"/>'s place as a variant (that piece's first draft and place).
+    /// </summary>
+    private static void HeardVariant(MusicCoreFacade facade, int into = 1)
+    {
+        Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-20T10:30:00Z"}""");
+        Call(facade, "sources.notes.hear", Heard());
+        int shown = Call(facade, "sources.notes.open", """{"id": "n_2"}""").GetProperty("piece").GetInt32();
+        JsonElement added = Json(facade.Call(shown, "drafts.add", $$"""{{{Bars}}, "into": {{into}}, "draft": "d_0001", "drop": "variant", "place": "pl_0001" }"""));
+        Assert.False(added.TryGetProperty("error", out _), added.ToString());
+    }
+
+    /// <summary>The "recording" of the variant's first occurrence of a simplification in piece <paramref name="piece"/>'s first draft and place.</summary>
+    private static JsonElement Recording(MusicCoreFacade facade, int piece = 1) =>
+        Json(facade.Call(piece, "drafts.techniques", """{"draft": "d_0001", "place": "pl_0001"}""")).GetProperty("techniques").EnumerateArray()
+            .Single(each => each.GetProperty("kind").GetString() == "simplify").GetProperty("occurrences")[0].GetProperty("recording");
+
+    [Fact]
+    public void An_occurrence_of_a_variant_heard_in_a_recording_names_the_recording_and_the_stretch_it_was_played_in()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        HeardVariant(facade);
+
+        JsonElement techniques = Call(facade, "drafts.techniques", """{"draft": "d_0001", "place": "pl_0001"}""").GetProperty("techniques");
+
+        JsonElement simplified = techniques.EnumerateArray().Single(each => each.GetProperty("kind").GetString() == "simplify").GetProperty("occurrences")[0];
+        JsonElement inVariant = simplified.GetProperty("inVariant");
+        Assert.Equal((4320, 5040), (inVariant.GetProperty("onset").GetInt32(), inVariant.GetProperty("end").GetInt32()));
+        // That bar of the variant as heard, inside the variant's own stretch (31.5–37.5 s), on the heard notes' clock.
+        JsonElement recording = simplified.GetProperty("recording");
+        Assert.Equal(("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "src_rec", 36_000L, 36_750L), (recording.GetProperty("project").GetString(), recording.GetProperty("original").GetString(), recording.GetProperty("from").GetInt64(), recording.GetProperty("to").GetInt64()));
+        // Played as the variant has it: the variant's own music alone, opened only to be shown.
+        JsonElement variant = Call(facade, "drafts.open", """{"draft": "d_0001", "variant": "v_0002"}""");
+        Assert.Equal(("v_0002", true, false), (variant.GetProperty("variant").GetString(), variant.GetProperty("readOnly").GetBoolean(), variant.TryGetProperty("draft", out _)));
+        Assert.Equal(Saved(facade).FindDraft("d_0001")!.Places[0].Find("v_0002")!.Music.Notes.Count, Json(facade.Call(variant.GetProperty("piece").GetInt32(), "playback")).GetProperty("notes").GetArrayLength());
+        Assert.Equal("badRequest", Error(facade, "drafts.open", """{"draft": "d_0001", "variant": "v_0009"}"""));
+    }
+
+    [Fact]
+    public void Once_the_heard_notes_are_removed_an_occurrence_has_no_recording()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        HeardVariant(facade);
+        Assert.Equal(JsonValueKind.Object, Recording(facade).ValueKind);
+
+        Call(facade, "sources.notes.remove", """{"id": "n_2"}""");
+
+        Assert.Equal(JsonValueKind.Null, Recording(facade).ValueKind);
+    }
+
+    [Fact]
+    public void A_variant_heard_in_another_piece_has_its_recording_only_while_that_piece_is_open()
+    {
+        MusicCoreFacade facade = Opened();
+        byte[] data = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml"));
+        int other = Json(facade.Open("FurElise.musicxml", data, """{"language": "en", "id": "p_other"}""")).GetProperty("piece").GetInt32();
+        Json(facade.Call(other, "drafts.add", $$"""{{{Bars}}}"""));
+        HeardVariant(facade, into: other);
+        Assert.Equal("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", Recording(facade, other).GetProperty("project").GetString());
+
+        Assert.True(facade.Close(1));
+
+        Assert.Equal(JsonValueKind.Null, Recording(facade, other).ValueKind);
     }
 
     [Fact]
