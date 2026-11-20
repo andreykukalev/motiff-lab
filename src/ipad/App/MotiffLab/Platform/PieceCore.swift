@@ -54,6 +54,15 @@ struct PieceCore: Sendable {
         return Answer(text, of: "sources.layers")
     }
 
+    /// `drafts.sheet`: the «В черновик» sheet for the request's "span" of this piece's notes and its "part" (v1.1, ADR
+    /// 0034): what can be taken, the piece's drafts and the place where the fragment is the same music. On notes opened
+    /// only to be shown, the drafts are those of the piece they were opened from.
+    func draftSheet(_ request: String) async -> Answer<DraftSheetAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.sheet", request) }
+        return Answer(text, of: "drafts.sheet")
+    }
+
     /// The corrections calls (OpenPiece.Corrections.cs and OpenPiece.EditsLayer.cs), every one answered with a bar's notes
     /// as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without one).
     enum Correction: Sendable {

@@ -4,9 +4,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `KeptCopies`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`,
+`DeleteOriginalDialog`, `DraftSheet`, `KeptCopies`, `Originals`, `OriginalsController`,
+`OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+
+- Drafts (v1.1, ADR 0034 step 5): `SourceLayers.drafts` and the view of kind "draft" (its `name` is its word in the
+  switch); `SourcesDrafts.swift` (`addToDraft` on the piece the notes are shown on, `renameDraft`, `removeDraft` with
+  Undo, `openDraft` by `drafts.open` through `openShown`); `DraftSheet.swift`: `DraftChoice` (what, into, how, the
+  same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
+  (`SourcesRows.swift`) and `DraftDialogs`. No «расширить»: music-core has no call for it yet.
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).
@@ -14,15 +20,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
   original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
 - `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
-  (`SourcesController.performance`), under the bar of `ScoreScreen` and `PdfScreen`, for their piece while the switch
-  shows or the piece under a screen over it (`heardOver`: a view in a cover, the PDF linked in Files;
-  `sources(over:own:switchOn:)`); `RecordingViewCapsule` (its ✕ only with `close`: none under the waveform of
-  `Workspace/RecordingScreen`), `RecordingListening`. The sound,
-  `RecordingListening.shared`, counts the capsules showing it (`shown`, `hidden`) and stops at none (`end`) unless the
-  piece was handed over (`SourcesController.handOver`). `load` takes the recording handed (`takeHanded`) or stops it;
-  a screen going without handing over calls `leave` (`cancelHandOver`); a switch that never ran takes it back
-  (`switchReturned`: not in `ClosedPieces`; `handedAway` once it ran). ✕ (`putAway`) silences it and withdraws it;
-  picking a view never closes it.
+  (`SourcesController.performance`) under the bar of `ScoreScreen` and `PdfScreen`, or of a screen over the piece
+  (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`), `RecordingListening`:
+  `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
+  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it.
 - `SourcesSheet.swift` (from `Workspace/ScoreScreen`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
   (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.
@@ -41,17 +42,16 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   Recognising is one path: `canRecognise` (pages kept here with working notes, or a recording's sound here, also on a
   piece with no notes yet, v1.1), then
   `recognise` builds a `Recognised` (fields, the field dropped on "badRequest", toast): `readPages`, or `hearRecording`
-  (`OriginalSounds.file` → `RecordingHearing.hear`, `progress`, s-3; `hearFields`: "tempo": "live" and "hint", the
-  working notes' metre and tempo from `playback`, dropped when refused; `gridHint`: none without working notes); `keepRecognised` keeps it under the literal
+  (`RecordingHearing.hear`; `hearFields`: "tempo": "live" and the "hint" of `gridHint`, none without working notes,
+  dropped when refused); `keepRecognised` keeps it under the literal
   call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
   `fresh`, save, toast; the first notes of a piece that had none are its working notes, and the piece opens again on
   them; the first pages added to a piece that is only its recording open it again as a PDF piece (`tell`: the toast here,
   or handed over with `reopen`). New Notes go under their original; the working notes change only by «Сделать рабочими». A
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
-- `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words, a version's marker tapped (`markerPick`),
-  the score as last engraved (even bars); reads a version and the list through music-core, renames a version
-  (`rename`, `performance.rename`, v1.1). Tests: `MotiffLabTests/SourcesModelTests`.
+- `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last
+  engraved; reads and renames versions (`performance.rename`). Tests: `SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
   `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
   «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources

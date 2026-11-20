@@ -65,17 +65,32 @@ struct SourceLayers: Equatable, Sendable {
         var id: String { original.id }
     }
 
-    /// A view of the switch: an original as it is, Notes, or a recording's sound.
+    /// A draft of the piece (v1.1, ADR 0034): the player's own version put together from fragments, listed in the group
+    /// «Черновики» and shown as a view of the switch of its own.
+    struct Draft: Identifiable, Equatable, Sendable {
+        var id: String
+        var name: String
+        /// music-core's words for where its fragments came from: «из нот с PDF и записи».
+        var caption: String
+        var places: Int
+        var shelf: Int
+    }
+
+    /// A view of the switch: an original as it is, Notes, a recording's sound, or a draft.
     struct ViewEntry: Identifiable, Equatable, Sendable {
         var id: String
-        /// "original", "notes" or "performance".
+        /// "original", "notes", "performance" or "draft".
         var kind: String
         /// The original whose group it is in, the working notes' too (PDF before Notes, #582 item 2); nil for Notes of no original here.
         var group: String?
         var working: Bool
         var hidden: Bool
-        /// What made it, for its pictogram: the Notes' operation, "pdf" or "recording".
+        /// What made it, for its pictogram: the Notes' operation, "pdf", "recording" or "draft".
         var op: String
+        /// A draft's name, its word in the switch; nil for every other view.
+        var name: String? = nil
+
+        var isDraft: Bool { kind == "draft" }
     }
 
     /// The working notes' id; nil for a piece that is only its PDF.
@@ -85,6 +100,8 @@ struct SourceLayers: Equatable, Sendable {
     var views: [ViewEntry] = []
     /// How many views the player hid from the switch.
     var hiddenCount = 0
+    /// The piece's drafts in the order they were made.
+    var drafts: [Draft] = []
 
     init() {}
 
@@ -103,7 +120,11 @@ struct SourceLayers: Equatable, Sendable {
                 state: $0.state, edits: $0.edits, taken: $0.taken, hidden: $0.hidden
             )
         }
-        views = answer.views.map { ViewEntry(id: $0.id, kind: $0.kind, group: $0.group, working: $0.working, hidden: $0.hidden, op: $0.op) }
+        drafts = answer.drafts.map { Draft(id: $0.id, name: $0.name, caption: $0.caption, places: $0.places, shelf: $0.shelf) }
+        let names = Dictionary(drafts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        views = answer.views.map {
+            ViewEntry(id: $0.id, kind: $0.kind, group: $0.group, working: $0.working, hidden: $0.hidden, op: $0.op, name: $0.kind == "draft" ? names[$0.id] : nil)
+        }
         hiddenCount = answer.hidden
     }
 
@@ -133,6 +154,11 @@ struct SourceLayers: Equatable, Sendable {
     func notes(_ id: String?) -> Notes? {
         guard let id else { return nil }
         return notes.first { $0.id == id }
+    }
+
+    func draft(_ id: String?) -> Draft? {
+        guard let id else { return nil }
+        return drafts.first { $0.id == id }
     }
 
     /// The originals the sheet counts: deleted ones are listed, never counted.
@@ -165,7 +191,7 @@ struct SourceLayers: Equatable, Sendable {
         switch op {
         case "pdfRecognition": "fromPdf"
         case "audioRecognition": "fromRec"
-        case "assembly": "assemble"
+        case "assembly", "draft": "assemble"
         case "pdf": "pages"
         case "recording": "mic"
         default: "fromFile"
@@ -199,11 +225,12 @@ struct SourceLayers: Equatable, Sendable {
         return underOriginal ? text["sources.roleNotes"] + " · " + Self.operationName(notes.op, text) : Self.operationName(notes.op, text)
     }
 
-    /// A view's word in the switch: «PDF», «Ноты» or «Исполнение».
+    /// A view's word in the switch: «PDF», «Ноты», «Исполнение», or a draft's name.
     static func word(_ view: ViewEntry, _ text: UIText) -> String {
         switch view.kind {
         case "original": text["pdf.viewPdfShort"]
         case "performance": text["sources.rolePlaying"]
+        case "draft": view.name ?? text["drafts.word"]
         default: text["sources.roleNotes"]
         }
     }

@@ -84,8 +84,11 @@ struct ScoreScreenContent: View {
     @ObservedObject private var focusModel: FocusModel
     @ObservedObject private var penModel: PenModel
     @ObservedObject private var marksModel: MarksModel
-    /// A view of the switch shown over the score: another PDF or photos as they are, or other Notes; nil while none is.
+    /// A view of the switch shown over the score: another PDF or photos as they are, other Notes, or a draft; nil while
+    /// none is.
     @State private var shownView: ShownView?
+    /// The «В черновик» sheet for the selection (v1.1); nil while it is not open.
+    @State private var draftSheet: DraftSheetRequest?
 
     init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, workspace: ScoreWorkspace) {
         self.piece = piece
@@ -286,7 +289,7 @@ struct ScoreScreenContent: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = selectionModel.menuPlace {
-                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights))
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: draftOwner == nil ? nil : { toDraft() })
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -538,8 +541,44 @@ extension ScoreScreenContent {
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
-            versionStatus: sourcesModel.status
+            versionStatus: sourcesModel.status, newDraft: { newDraft() }
         )
+    }
+
+    /// The piece whose drafts a fragment selected here goes into (v1.1, ADR 0034): this piece, or the one a view shown over
+    /// it was opened from; none on a draft's own view, as music-core takes fragments from notes, never from a draft.
+    var draftOwner: SourcesController? {
+        piece.draft != nil ? nil : sourcesOn ? sources : pieceUnder
+    }
+
+    /// «Черновик» in the selection menu: the «В черновик» sheet for the passage selected, `into` a new draft from Sources.
+    func toDraft(into: DraftChoice.Into? = nil) {
+        guard let selection = selectionModel.selection else { return }
+        draftSheet = DraftSheetRequest(piece: piece.id, span: selection.onset..<selection.end, into: into)
+    }
+
+    /// «Новый черновик» in Sources (Andrei's open question; the lead's recommendation built, 2026-11-20): Sources gives
+    /// way to the notes; with a passage selected the sheet opens for a new draft, with none the hint to select notes
+    /// shows. No empty draft is ever made. This one place decides it.
+    func newDraft() {
+        change(.close(.versions))
+        if selectionModel.selection != nil {
+            toDraft(into: .new)
+        } else {
+            score.showNotice("drafts.selectNotes")
+        }
+    }
+
+    /// The «В черновик» sheet, over the screen; once a fragment is added the screen says so.
+    @ViewBuilder func draftSheetScreen(_ request: DraftSheetRequest) -> some View {
+        if let owner = draftOwner {
+            DraftSheet(request: request, sources: owner, text: text) {
+                draftSheet = nil
+                score.showNotice("drafts.added")
+            } cancel: {
+                draftSheet = nil
+            }
+        }
     }
 
     /// The views shown over the score, the sources read as the screen opens, and a variation only tried left before the
@@ -547,11 +586,13 @@ extension ScoreScreenContent {
     func sourcing(_ content: some View) -> some View {
         content
             .fullScreenCover(item: $shownView) { view in shownViewScreen(view) }
+            .sheet(item: $draftSheet) { request in draftSheetScreen(request) }
             .task(id: sourcesOn) { await workspace.loadSources(reopen: reopen, pick: pickView) }
             .onChange(of: panels[.versions]) { _, open in workspace.sourcesOpened(open) }
     }
 
-    /// The view shown now: the working notes (the recording heard is over the view, not one: v0.10, finding 24).
+    /// The view shown now: the working notes (the recording heard is over the view, not one: v0.10, finding 24; a draft's
+    /// view is shown over it).
     var currentView: String? { sources.layers.working }
 
     /// The views for the bar's switch, and what picking one does; nil while the switch is off.
@@ -1020,10 +1061,10 @@ struct Pill: View {
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
-/// what applies and what the iPad has so far: Focus, Note and Bookmark, then Insights (none for a passage without notes),
-/// and More with Highlight; the piano roll is the pill's (Andrei's 0.8 test, finding 7). Bookmark and Note turn the menu
-/// into their cards, as on the web. Its actions show their icons alone (v0.5.2, #495 UX-11), each at a fingertip's square,
-/// with its word for VoiceOver.
+/// what applies and what the iPad has so far: Focus, Note, Bookmark and Draft (v1.1, none on a draft's view), then
+/// Insights (none for a passage without notes), and More with Highlight; the piano roll is the pill's (Andrei's 0.8 test,
+/// finding 7). Bookmark and Note turn the menu into their cards, as on the web. Its actions show their icons alone (v0.5.2,
+/// #495 UX-11), each at a fingertip's square, with its word for VoiceOver.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
@@ -1034,6 +1075,8 @@ struct SelectionMenu: View {
     @ObservedObject var contents: ContentsController
     let text: UIText
     @Binding var insightsOpen: Bool
+    /// «Черновик» (v1.1, ADR 0034): the «В черновик» sheet for the passage; nil where the notes shown are a draft's.
+    let toDraft: (() -> Void)?
     @State private var more = false
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
@@ -1135,6 +1178,10 @@ struct SelectionMenu: View {
             iconItem("bookmark", text["menu.bookmark"], on: false) {
                 marksModel.noteDraft = nil
                 contents.start(title: score.bookmarkTitle)
+            }
+            // The passage into a draft (v1.1): a fragment of these notes, which stay as they are.
+            if let toDraft {
+                iconItem("assemble", text["menu.draft"], on: false, action: toDraft)
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             if !(selectionModel.selection?.noteIds.isEmpty ?? true) {

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The Sources sheet's dialogs (moved out of `SourcesSheet.swift` in v0.10): the warning before an original is deleted,
 /// with or without its notes; «Удалить ноты…»; a version's new name; and an original picked in Files kept where it lies or
-/// copied to this iPad.
+/// copied to this iPad. A draft's are `DraftDialogs` (v1.1).
 struct SourcesDialogs: ViewModifier {
     @ObservedObject var sources: SourcesController
     @ObservedObject var originals: OriginalsController
@@ -61,6 +61,41 @@ struct SourcesDialogs: ViewModifier {
                 Button(text["common.cancel"], role: .cancel) {}
             } message: { _ in
                 Text(text["originals.linkOrCopyHint"])
+            }
+    }
+}
+
+/// A draft's dialogs (v1.1): its new name («Переименовать…»), and the question before it is deleted, which says that only
+/// the draft goes, never its sources or their notes (0034, section 1).
+struct DraftDialogs: ViewModifier {
+    @ObservedObject var sources: SourcesController
+    let text: UIText
+    @Binding var renaming: SourceLayers.Draft?
+    @Binding var deleting: SourceLayers.Draft?
+    @State private var name = ""
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                renaming.map { text.format("sources.sheet.renameTitle", $0.name) } ?? "",
+                isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }),
+                presenting: renaming
+            ) { draft in
+                TextField(text["performance.name"], text: $name).submitLabel(.done)
+                Button(text["sources.sheet.renameButton"]) { Task { await sources.renameDraft(draft, to: name) } }
+                Button(text["common.cancel"], role: .cancel) {}
+            }
+            .onChange(of: renaming) { _, draft in name = draft?.name ?? "" }
+            .confirmationDialog(
+                deleting.map { text.format("drafts.deleteTitle", $0.name) } ?? "",
+                isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                titleVisibility: .visible,
+                presenting: deleting
+            ) { draft in
+                Button(text["drafts.deleteButton"], role: .destructive) { Task { await sources.removeDraft(draft) } }
+                Button(text["common.cancel"], role: .cancel) {}
+            } message: { _ in
+                Text(text["drafts.deleteLine"])
             }
     }
 }
