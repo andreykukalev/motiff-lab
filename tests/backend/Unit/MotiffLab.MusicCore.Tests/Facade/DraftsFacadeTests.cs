@@ -231,8 +231,8 @@ public class DraftsFacadeTests
 
         DraftPlace place = Saved(facade).FindDraft("d_0001")!.Places.Single();
         Assert.Null(place.BaseVariant.From.Milliseconds);
-        (long from, long to) = place.Find("v_0002")!.From.Milliseconds!.Value;
-        Assert.True(from >= 30_000 && to > from && to <= 90_000, $"{from}–{to}");
+        // Bars 1–4 as heard, from bar line to bar line on the heard notes' clock, moved by the 30 s where the stretch sent started.
+        Assert.Equal((31_500L, 37_500L), place.Find("v_0002")!.From.Milliseconds);
         Assert.Equal("① Notes 1–4 + Recording · 2 variants", DraftLabels.Place(place, 0, Words.English));
         Assert.Equal("from the PDF's notes and the recording", Item(added, "drafts", "d_0001").GetProperty("caption").GetString());
         Assert.Equal("из нот с PDF и записи", DraftLabels.Caption(Saved(facade).FindDraft("d_0001")!, Words.Russian));
