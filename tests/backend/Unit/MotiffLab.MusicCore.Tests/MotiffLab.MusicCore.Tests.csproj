@@ -38,6 +38,8 @@
     <None Include="Variations\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- The print and a performance compared bar by bar (Performance/PerformanceComparisonTests.cs). -->
     <None Include="Performance\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The assistant's digest of a real piece in both languages (Assistant/FactsDigestTests.cs). -->
+    <None Include="Assistant\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- Every edit of the three phrase levels on real pieces (Analysis/Phrasing/PhraseEditsGoldenTests.cs). -->
     <None Include="Analysis\Phrasing\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- The phrases, form and Piece DNA golden the iPad tests assert under NativeAOT too, and the kit's piece it is made from. -->

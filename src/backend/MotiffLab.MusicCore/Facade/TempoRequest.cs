@@ -2,9 +2,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Pieces;
-using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
-using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
@@ -21,16 +19,14 @@ internal static class TempoRequest
     /// </summary>
     public static void Write(Utf8JsonWriter json, Project project, ImportedPiece piece, Words words)
     {
-        IReadOnlyList<PlaybackTempo> tempos = PlaybackScore.FromPiece(piece).Tempos;
-        bool inferred = piece.Bars is not null;
-        Profile(json, TempoProfile.Of(piece.Meter, tempos, piece.End, inferred), words);
+        Profile(json, TempoProfile.OfPiece(piece), words);
         json.WriteStartArray("pieces");
         foreach (LayerPiece part in PieceLayer.Read(project, piece.Meter))
         {
             json.WriteStartObject();
             json.WriteString("id", part.BookmarkId);
             json.WriteString("title", part.Title);
-            Profile(json, TempoProfile.Of(piece.Meter, tempos, piece.End, inferred, part.Span), words);
+            Profile(json, TempoProfile.OfPiece(piece, part.Span), words);
             json.WriteEndObject();
         }
 

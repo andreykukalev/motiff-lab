@@ -134,7 +134,7 @@ internal static class AssistantEndpoints
     private static async Task<(TurnReply Reply, string Outcome, ModelReply? Answered)> AskAsync(IAssistantModel model, TurnRequest request, TimeSpan timeout, CancellationToken cancel)
     {
         Words words = Words.For(request.Language);
-        TurnReply Template(string reason) => TurnReply.Answered(AnswerCheck.Template(request.Context, words, reason));
+        TurnReply Template(string reason) => TurnReply.Answered(AnswerCheck.Template(request.Context, words, reason, request.Question));
         ModelReply answered;
         using (var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel))
         {
@@ -167,7 +167,7 @@ internal static class AssistantEndpoints
                 : (TurnReply.Called(answered.Calls), "toolCalls", answered);
         }
 
-        CheckedAnswer checkedAnswer = AnswerCheck.Check(answered.Text, request.KnownIds, request.Context, words, request.Drafted);
+        CheckedAnswer checkedAnswer = AnswerCheck.Check(answered.Text, request.KnownIds, request.Context, words, request.Drafted, request.Question);
         return (TurnReply.Answered(checkedAnswer), checkedAnswer.FellBack ? $"fallback:{checkedAnswer.Reason}" : "answer", answered);
     }
 

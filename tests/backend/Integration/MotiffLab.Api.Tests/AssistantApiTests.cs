@@ -170,7 +170,7 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
         Assert.Contains("notes.join", offered);
         Assert.Contains("repair.candidates", offered);
         Assert.Contains("variation.simplify", offered);
-        Assert.DoesNotContain("practice.suggest", offered);
+        Assert.Contains("practice.suggest", offered);
         Assert.Contains("never write notes", _api.Model.Seen(asked).Instructions, StringComparison.Ordinal);
 
         // Out of range (MIDI 200): the engine's template, and nothing for the device to run.

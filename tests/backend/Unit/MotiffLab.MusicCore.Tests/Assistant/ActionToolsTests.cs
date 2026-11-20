@@ -93,4 +93,31 @@ public class ActionToolsTests
         Assert.True(request.Drafted);
         Assert.False(AssistantSession.Start(AssistantRole.Proposer).Ask("Why?").Request("en", context).Drafted);
     }
+
+    [Fact]
+    public void The_proposer_suggests_a_practice_loop_in_range_that_only_the_player_takes()
+    {
+        AssistantPiece piece = Open(FurElise(), words: Words.Russian);
+        static System.Text.Json.JsonElement Loop(int from, int to, int tempo) => Json($$"""{"bars": {"from": {{from}}, "to": {{to}}}, "hand": "right", "tempo": {{tempo}}, "loop": true}""");
+        Assert.True(AssistantRoles.Allows(AssistantRole.Proposer, "practice.suggest"));
+        Assert.False(AssistantRoles.Allows(AssistantRole.Mentor, "practice.suggest"));
+        Assert.Contains("\"tempo\" must be a whole number from 25 to 150", AssistantRoles.CallRefusal(AssistantRole.Proposer, new ToolCall("c0", "practice.suggest", Loop(5, 8, 151)), Words.English), StringComparison.Ordinal);
+
+        ToolCall call = new("c1", "practice.suggest", Loop(32, 35, 60));
+        AssistantSession session = AssistantSession.Start(AssistantRole.Proposer).Ask("Как учить такты 32–35?").Called([call]);
+        IReadOnlyList<ToolOutcome> results = TurnRunner.Run(piece, AssistantRole.Proposer, [call, new ToolCall("c2", "practice.suggest", Loop(100, 120, 60)), new ToolCall("c3", "practice.suggest", Loop(1, 40, 60))], 0);
+
+        // A proposal: an action and its button's words; no draft, nothing applied, and the session keeps no draft of it.
+        System.Text.Json.JsonElement offered = results[0].Content;
+        Assert.Equal("suggestAction", offered.GetProperty("kind").GetString());
+        Assert.False(offered.TryGetProperty("drafts", out _));
+        Assert.Equal("Зациклить такты 32–35 в темпе 60 % · правая рука", offered.GetProperty("result").GetProperty("label").GetString());
+        Assert.Equal(60, offered.GetProperty("result").GetProperty("action").GetProperty("tempo").GetInt32());
+        Assert.Empty(session.Resulted([results[0]]).Drafts);
+        Assert.False(session.Resulted([results[0]]).Request("ru", AssistantContext.OfPiece(piece)).Drafted);
+
+        // Bars the piece has not, or more than a range holds, are refused with the reason.
+        Assert.Equal("В пьесе такты с 0 по 105.", results[1].Content.GetProperty("refusal").GetString());
+        Assert.Equal("Диапазон — не больше 32 тактов.", results[2].Content.GetProperty("refusal").GetString());
+    }
 }

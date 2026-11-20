@@ -207,6 +207,6 @@ public class AssistantToolsTests
         Assert.All(notes.EnumerateArray(), note => Assert.EndsWith(".R." + note.GetProperty("address").GetString()!.Split('.')[2], note.GetProperty("address").GetString()!, StringComparison.Ordinal));
         Assert.NotEqual(0, chords.GetArrayLength());
         Assert.All(chords.EnumerateArray(), chord => Assert.All(chord.GetProperty("notes").EnumerateArray(), note => Assert.Matches(NoteAddress.Pattern, note.GetString()!)));
-        Assert.Equal("Цикл такты 3–4 · 60 % · левая рука", practice.GetProperty("label").GetString());
+        Assert.Equal("Зациклить такты 3–4 в темпе 60 % · левая рука", practice.GetProperty("label").GetString());
     }
 }
