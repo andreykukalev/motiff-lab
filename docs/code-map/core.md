@@ -3,13 +3,13 @@
 Notes, time, analysis, variations and the project file: pure, deterministic, no UI, I/O, cloud or AI. The iPad reads it
 through the facade; the API references it.
 
-## Folders (`MotiffLab.MusicCore.<Folder>`; `Import`, `Assistant` and `Analysis` have sub-namespaces)
+## Folders (`MotiffLab.MusicCore.<Folder>`, some with sub-namespaces)
 
 - `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
   the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
 - `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`);
   pitch spelling (`NoteNaming`, `NoteNames`, `PitchSpeller`, `SpelledPitch`, `TransposedSpelling`, `KeyChange`).
-- `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
+- `Pieces`: the piece as imported: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
   `ImportReport`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars of a recording
   (`BarGrid`, `GridMeter`; found and applied in `Import.Transcription`), `PageMap`, `Transcribed`, the player's
@@ -61,14 +61,15 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-No two namespaces use each other, in a loop too, by `using`, code or `cref` (a comment names a higher one's type
-in plain text); a sub-namespace counts as its parent. Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`,
-`Playback`, rules (`Analysis`, `Notation`…), `Projects`, `Assistant`, `Facade`; kept by the `dependencies` check
-(`CORE_LAYERS`, `governance/quality/README.md`).
+No two namespaces use each other, even round a loop, by `using`, code or `cref` (a comment names a higher one's
+type as text). Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`, `Playback`, rules (`Analysis`,
+`Notation`…), `Projects`, `Assistant`, `Facade`; kept by `dependencies` (`CORE_LAYERS`), which counts a sub-namespace
+as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFact`, `ReadKey`; `MotifAnalyzer`,
+`FormAnalyzer`, `PieceDna`).
 
 ## Rules not to break
 
-- No other project, web, cloud or AI package (the `dependencies` check); no floating point for time.
+- No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
   same notes and diff.
 - A new call goes into `facade-calls.json`; a change to the project file or to an answer the app reads is Andrei's

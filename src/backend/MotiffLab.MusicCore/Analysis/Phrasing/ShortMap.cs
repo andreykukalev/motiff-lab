@@ -157,7 +157,7 @@ public sealed partial class ShortMap
     private static Func<Tick, bool> CutsAllowed(PhraseMap phrases)
     {
         var phraseBoundaries = phrases.Boundaries.Select(static boundary => boundary.At).ToHashSet();
-        return tick => tick > Tick.Zero && tick < phrases.End && !phraseBoundaries.Contains(tick);
+        return tick => PhraseMap.Inside(tick, phrases.End) && !phraseBoundaries.Contains(tick);
     }
 
     private static ShortMap Build(PhraseMap phrases, MeterMap meter, IReadOnlyList<ShortBoundary> found, PhraseEdits edits)

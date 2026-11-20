@@ -272,7 +272,8 @@ public sealed class PhraseMap
     private LevelEditor Editor() =>
         new(Edits, [.. Boundaries.Select(static boundary => boundary.At)], tick => Inside(tick, End), Found.Select(static boundary => boundary.At).ToHashSet());
 
-    private static bool Inside(Tick tick, Tick end) => tick > Tick.Zero && tick < end;
+    /// <summary>Whether <paramref name="tick"/> lies inside a piece ending at <paramref name="end"/>, where a boundary of any level can be.</summary>
+    internal static bool Inside(Tick tick, Tick end) => tick > Tick.Zero && tick < end;
 
     private static PhraseMap Build(IReadOnlyList<PhraseBoundary> found, PhraseEdits edits, MeterMap meter, Tick end, PhraseEvidenceLevel evidence)
     {
