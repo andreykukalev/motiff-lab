@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Assembly;
@@ -88,10 +89,68 @@ internal static class DraftRequest
     /// </summary>
     public static string Add(OpenPiece owner, FragmentOrigin from, Request request)
     {
+        (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
+        if (draft is null)
+        {
+            string newId = owner.Project.NextDraftId();
+            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
+            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, variant.AddedAt, place!, variant)), json => Added(json, newId, place, variant.Id));
+        }
+
+        return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variant.Id)));
+    }
+
+    /// <summary>
+    /// «Добавить» into a draft of another piece (version 1.2, collage, the plan's answer 5): the fragment, as <see cref="Add"/>
+    /// takes it, into the draft "draft" of <paramref name="into"/>, the project of the file the app sent, which is not open
+    /// here. The piece the fragment comes from does not change, nor its undo; the variant is a copy that names that piece
+    /// (its "project", and every source of its provenance), so it stays whole when that piece is removed. A new draft is
+    /// not made there. Answers "draft", "place" (null on the shelf), "variant", "project", the summary of the project
+    /// changed, and "file", its project file to save in place of the one sent, written at version 17 (<see cref="ProjectFile.Version"/>).
+    /// </summary>
+    public static string AddTo(Project into, FragmentOrigin from, Request request)
+    {
+        _ = request.Required("draft");
+        (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(into, from, request);
+        Project changed;
+        try
+        {
+            changed = into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place));
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        return Answer.Write(json =>
+        {
+            Added(json, draft.Id, place, variant.Id);
+            Answer.Project(json, "project", changed);
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(changed)));
+        });
+    }
+
+    /// <summary>
+    /// The drafts of another piece's project file (version 1.2, collage): "project", its summary, as project.summary answers
+    /// it, and "drafts" as the piece's sources list them (<see cref="Answer.Drafts"/>), for the «В черновик» sheet's group of
+    /// that piece. Nothing is written: a file of version 16 stays as it is until a fragment is added.
+    /// </summary>
+    public static string Of(Project project, Words words) => Answer.Write(json =>
+    {
+        Answer.Project(json, "project", project);
+        Answer.Drafts(json, project, words);
+    });
+
+    /// <summary>
+    /// The fragment selected in <paramref name="from"/> as «Добавить» takes it into the drafts of <paramref name="into"/>:
+    /// the draft "draft" (null for a new one), where "drop" puts it, the place it goes to (null on the shelf) and the variant.
+    /// </summary>
+    private static (Draft? Draft, DraftDrop Drop, string? Place, DraftVariant Variant) Fragment(Project into, FragmentOrigin from, Request request)
+    {
         (SourceMusic music, TickSpan span) = Selected(from.Open, request);
         DraftPart part = PartOf(request, DraftFragment.Parts(music.NotesIn(span.Onset, span.End)));
         DateTimeOffset now = SourceRequest.Now(request);
-        Draft? draft = request.Text("draft") is { } id ? owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
+        Draft? draft = request.Text("draft") is { } id ? into.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
         DraftDrop drop = request.Enum<DraftDrop>("drop") ?? (draft is null ? DraftDrop.Place : throw FacadeException.BadRequest("Send \"drop\": variant, place or shelf."));
         if (draft is null && drop != DraftDrop.Place)
         {
@@ -105,16 +164,9 @@ internal static class DraftRequest
             DraftDrop.Place => draft.NextPlaceId(),
             _ => null,
         };
-        string? project = from.Project == owner.Project.Id ? null : from.Project;
+        string? project = from.Project == into.Id ? null : from.Project;
         DraftVariant variant = Taken(() => DraftFragment.Variant(variantId, now, music, span, part, from.Notes, from.Provenance, project, DraftFragment.Heard(from.Open.Project, HeardClock.Of(from.Open.Project, from.Open.Piece), span)));
-        if (draft is null)
-        {
-            string newId = owner.Project.NextDraftId();
-            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
-            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, now, place!, variant)), json => Added(json, newId, place, variantId));
-        }
-
-        return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variantId)));
+        return (draft, drop, place, variant);
     }
 
     /// <summary>«Переименовать»: the draft "draft" named "name". Answers the sources with "draft".</summary>

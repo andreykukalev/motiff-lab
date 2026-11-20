@@ -47,6 +47,8 @@ A fragment is added from the selection menu («Черновик»), in any view 
 - **as a new place** at the end;
 - **on the shelf.**
 
+From the piece open, a fragment also goes into a draft of another piece of the library (version 1.2, the plan's answer 5, Andrei's choice of 2026-11-20): the «В черновик» sheet lists the other pieces' drafts grouped by piece, each offering «Новым местом в конце» or «На полку». music-core reads that piece's project file the app sends and answers it changed for the app to save (`project.drafts`, `drafts.add` with `file`, [0020](0020-music-core-facade.md)); the piece open, its file and its undo do not change, and the variant is a copy that names the piece it came from.
+
 There is no hidden automatic merge. Within a place the player decides consciously, by приём (section 4), with one tap «Взять всё уверенное», or through the assistant (section 6).
 
 ### 4. Приёмы: differences grouped by kind, not by bar

@@ -246,6 +246,13 @@ public class FacadeAnswersContractTests
             ("drafts.unanchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","base":2880,"now":"2026-11-20T10:15:00Z"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // The collage (version 1.2, the plan's answer 5): the drafts of another piece's project file listed, and bars 1–4 of
+        // this piece added to the end of its draft, answered with that piece's file to save.
+        ["drafts.collage"] =
+        [
+            ("project.drafts", """{"file":"<pieceA>","language":"en"}"""),
+            ("drafts.add", """{"bars":{"first":1,"last":4},"file":"<pieceA>","draft":"d_0001","drop":"place","now":"2026-11-20T10:00:00Z"}"""),
+        ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for
@@ -255,6 +262,9 @@ public class FacadeAnswersContractTests
 
     /// <summary>Calls whose answer the file does not keep, only their request: those that only build a file's state (another answer's).</summary>
     private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
+
+    /// <summary>Calls made on piece 0, with no piece, beside those on the piece open.</summary>
+    private static readonly HashSet<string> s_withoutPiece = ["project.drafts"];
 
     /// <summary>
     /// The files whose calls start from a project file and not from the example opened anew: the file the project is made
@@ -307,7 +317,7 @@ public class FacadeAnswersContractTests
         var answers = new JsonArray();
         foreach ((string call, string? request) in s_files[name])
         {
-            JsonNode answer = JsonNode.Parse(facade.Call(piece, call, WithBytes(request)))!;
+            JsonNode answer = JsonNode.Parse(facade.Call(s_withoutPiece.Contains(call) ? 0 : piece, call, WithBytes(request)))!;
             Assert.False(answer.AsObject().ContainsKey("error"), $"{call} {request}: {answer.ToJsonString()}");
             answers.Add(new JsonObject
             {
@@ -402,7 +412,17 @@ public class FacadeAnswersContractTests
         .Replace("<pdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes(Pdf)), StringComparison.Ordinal)
         .Replace("<otherPdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes("%PDF-1.4\nanother edition\n%%EOF\n")), StringComparison.Ordinal)
         .Replace("<scan>", Convert.ToBase64String(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"))), StringComparison.Ordinal)
-        .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal);
+        .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal)
+        .Replace("<pieceA>", request.Contains("<pieceA>", StringComparison.Ordinal) ? PieceA() : "", StringComparison.Ordinal);
+
+    /// <summary>Another piece's project file, as a JSON string's text: Ode to Joy with a draft "Ode" of its bars 1–2.</summary>
+    private static string PieceA()
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Opened(facade, "Ode.musicxml", FacadeCalls.Fixture("ode-to-joy.musicxml"), """{"language":"en","id":"p_a","now":"2026-11-20T08:00:00Z"}""");
+        Assert.DoesNotContain("error", facade.Call(piece, "drafts.add", """{"bars":{"first":1,"last":2},"name":"Ode","now":"2026-11-20T08:30:00Z"}"""), StringComparison.Ordinal);
+        return JsonEncodedText.Encode(facade.Call(piece, "project.save", """{"now":"2026-11-20T08:45:00Z"}"""), JavaScriptEncoder.UnsafeRelaxedJsonEscaping).ToString();
+    }
 
     /// <summary>The example played with bar 5's three highest notes doubled a little off their pitch, as MusicCoreFacadeTests plays a performance.</summary>
     private static string Played()

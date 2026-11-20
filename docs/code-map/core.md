@@ -46,7 +46,7 @@ through the facade; the API references it.
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
-  `Draft*Request`, `MusicCoreFacade.Drafts`, `ShownView`.
+  `Draft*Request`, `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`), `ShownView`.
 
 ## The native build (`src/ipad/Core`)
 

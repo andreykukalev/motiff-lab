@@ -108,6 +108,7 @@
     { "name": "pieces.save", "on": ["piece"] },
     { "name": "playback", "on": ["piece"] },
     { "name": "project", "on": ["pdf", "recording"] },
+    { "name": "project.drafts", "on": ["piece0"] },
     { "name": "project.join", "on": ["piece0"] },
     { "name": "project.metadata", "on": ["piece0", "piece", "pdf", "recording"] },
     { "name": "project.online", "on": ["piece0"] },
