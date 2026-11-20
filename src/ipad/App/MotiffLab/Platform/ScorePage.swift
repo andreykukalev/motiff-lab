@@ -81,7 +81,8 @@ enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
-        case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, place, heads, drag, blank
+        case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved
+        case place, heads, drag, blank
         case leave, cardLayout, coloured
     }
 
@@ -110,6 +111,11 @@ enum PageEvent {
     case phraseMark(Int)
     /// A section's boxed letter tapped on the score: the section's id.
     case sectionMark(String)
+    /// A phrase's number held still and let go (the phrases spec, «Polish of option A» 2): which phrase, and where its
+    /// number's bottom left is on the page, for its menu.
+    case phraseHeld(Int, left: Double, bottom: Double)
+    /// A phrase's mark dragged and let go on a note: the tick its phrase starts at and that note's onset.
+    case phraseMoved(from: Double, to: Double)
     case place(start: Double, end: Double)
     case heads([CGPoint])
     case drag(PlayheadGesture)
@@ -194,6 +200,10 @@ enum PageEvent {
             return fields.map { .pages(first: int($0["first"]), last: int($0["last"]), count: int($0["count"])) }
         case .performanceBar:
             return markerTap(value, message)
+        case .phraseHeld:
+            return number(value).map { .phraseHeld(Int($0), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0) }
+        case .phraseMoved:
+            return fields.flatMap { moved in number(moved["from"]).flatMap { from in number(moved["to"]).map { .phraseMoved(from: from, to: $0) } } }
         case .playheadAway:
             return number(value).map { .playheadAway($0) }
         case .place:

@@ -63,6 +63,8 @@
     "performanceBar",
     "phraseMark",
     "sectionMark",
+    "phraseHeld",
+    "phraseMoved",
     "place",
     "heads",
     "drag",

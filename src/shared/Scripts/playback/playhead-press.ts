@@ -44,7 +44,7 @@ export interface PressTimers {
     clear(id: number): void;
 }
 
-const WINDOW_TIMERS: PressTimers = {
+export const WINDOW_TIMERS: PressTimers = {
     set: (run, ms) => setTimeout(run, ms) as unknown as number,
     clear: (id) => clearTimeout(id),
 };

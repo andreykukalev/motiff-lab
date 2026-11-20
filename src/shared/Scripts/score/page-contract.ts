@@ -7,6 +7,7 @@ import type { Handle } from "../playback/playback-model.js";
 import type { DragMessage } from "../playback/playhead-drag.js";
 import type { PracticeShown } from "../layout/practice-view.js";
 import type { CardOssia } from "./phrase-card.js";
+import type { BarBeatPlace } from "./phrase-drag.js";
 import type { BarFrame, InkPoint, MarkColour, MarkTool, PencilMark } from "./pencil-marks.js";
 import type { Rect } from "./score-geometry.js";
 import type { TimemapEntry } from "./score-timeline.js";
@@ -117,12 +118,16 @@ export interface PageMarker {
     state?: string;
 }
 
-/** A phrase's mark at its start (the phrases spec, v1.2): its number, its start note's onset, the player's own (amber) or found, and what a screen reader says. */
+/**
+ * A phrase's mark at its start (the phrases spec, v1.2): its number, its start note's onset, the player's own (amber) or
+ * found, what a screen reader says, and for a found start the player moved, where it was found (its faint ghost).
+ */
 export interface PagePhraseMark {
     number: number;
     tick: number;
     own?: boolean;
     label: string;
+    found?: number;
 }
 
 /** A section of the form where it starts: its id (what a tap on its letter posts), its boxed letter and what a screen reader says. */
@@ -191,7 +196,7 @@ export interface PageCommands {
     reveal(shown: { start: number }): boolean;
     notes(given: { notes?: PageNote[]; highlights?: PageHighlight[] }): number;
     checks(given: { flags?: PageCheck[] }): number;
-    phraseMarks(given: { phrases?: PagePhraseMark[]; sections?: PageSectionMark[] }): number;
+    phraseMarks(given: { phrases?: PagePhraseMark[]; sections?: PageSectionMark[]; places?: BarBeatPlace[]; caption?: string }): number;
     performance(version: { markers?: PageMarker[]; unheard?: string[]; artefacts?: string[]; taken?: number[] }): number;
     layers(given: { hidden?: string[]; slate?: boolean }): string[];
     playing(position: { tick: number; playing: boolean; follow?: boolean; auto?: boolean }): number | null;
@@ -230,6 +235,10 @@ export interface PageEvents {
     phraseMark: number;
     /** A section's letter tapped: the section's id. */
     sectionMark: string;
+    /** A phrase's number held still and let go: the phrase's number, with where it is (`MarkerTap`), for its menu. */
+    phraseHeld: number;
+    /** A phrase's mark dragged and let go on a note: the tick its phrase starts at and the onset of that note. */
+    phraseMoved: { from: number; to: number };
     place: TickRange;
     heads: { handle: Handle; x: number; y: number }[];
     drag: DragMessage;
@@ -247,9 +256,9 @@ export interface MarkerTap {
     seam?: string;
 }
 
-/** A message the page posts: one kind with what it carries; `performanceBar` with where the label is. */
+/** A message the page posts: one kind with what it carries; `performanceBar` and `phraseHeld` with where the mark is. */
 export type PageMessage = {
-    [Kind in keyof PageEvents]: { [Key in Kind]: PageEvents[Kind] } & (Kind extends "performanceBar" ? MarkerTap : unknown);
+    [Kind in keyof PageEvents]: { [Key in Kind]: PageEvents[Kind] } & (Kind extends "performanceBar" | "phraseHeld" ? MarkerTap : unknown);
 }[keyof PageEvents];
 
 declare global {

@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 ## Files
 
 `DraftMap`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
-`ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseMarks`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
+`ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,
@@ -41,6 +41,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,
   `OpenPiece.shownOnly`: a draft's view, other Notes), `pickPhrase` and `pickSection` (a tap on a number
   or a letter: the phrase's or the section's selectable span as a new selection, a replace with «Вернуть»).
+- `ScorePhraseEdits.swift` (v1.2 i-3a): a mark held (`phraseHeld` → `phraseMenu`, `PhraseMarkMenu` in `DraftCardAtMark`)
+  or dragged (`phraseMoved` → `phrases.edit` move), «Убрать границу», «Вернуть найденную», the toast (`PhraseEditToast`,
+  the score's `UndoToast`) with Undo/Redo through `SelectionModel`; `setBarBeats` (the drag's caption). Never selects.
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web
   view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
   `following`); `ScoreBar`, `Pill` (the transport, then the roll and the assistant), `SelectionMenu` (with the pill,

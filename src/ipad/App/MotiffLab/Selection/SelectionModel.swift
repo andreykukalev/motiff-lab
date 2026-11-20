@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The selection on the score and what goes with it (ADR 0031 section 3, S1): the passage selected, its Undo and Redo
 /// (#511 11), the toast after a clear or a replace, the hint to hold (#511 2.1), the place of the selection menu, and the
-/// piece's phrases (the phrases spec, v1.2). It owns this state and the rules of its own that need nothing else: the
-/// history's steps, kept for the piece beside the screen (SelectionHistories), how long the toast and the hint stay, and
+/// piece's phrases (the phrases spec, v1.2) with their edits' Undo and Redo and its toast. It owns this state and the
+/// rules of its own that need nothing else: the history's steps, kept for the piece beside the screen (SelectionHistories), how long the toast and the hint stay, and
 /// since S3 selecting and reading the phrases through music-core (`select`, `loadPhrases`). What follows a new selection
 /// (the page, the play range, Expand) and a clear, which leaves Expand first, are ScoreController's, the composition root,
 /// which hands the menu's place in here as the page gives it (`placeMenu`) and takes the selection away (`answered(nil)`);
@@ -16,12 +16,27 @@ final class SelectionModel: ObservableObject {
         var id = UUID()
     }
 
+    /// What the toast after an edit of the phrases says, and what it offers: Undo after an edit or a Redo, Redo after an
+    /// Undo, nothing with a refusal's reason.
+    struct PhraseToast: Equatable {
+        enum Offer: Equatable { case undo, redo }
+
+        var words: String
+        var offer: Offer?
+        var id = UUID()
+    }
+
     /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
     static let toastSeconds = 6.0
     static let holdHintSeconds = 2.0
 
     /// The piece's phrases, whose starts are marked on the score (the phrases spec, decision 1).
     @Published private(set) var phrases: PiecePhrases?
+    /// The edits of the phrases' boundaries, each one step of their own Undo and Redo (the phrases spec, v1.2 i-3a): from
+    /// the edits before it (`previous`) to those it left (`edits`), while the screen is open.
+    @Published private(set) var phraseSteps = SelectionHistory<PhraseLevelEdits>()
+    /// The toast after an edit of the phrases, its Undo or Redo, or why it could not be; nil while none shows.
+    @Published private(set) var phraseToast: PhraseToast?
     /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
     /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
@@ -66,6 +81,58 @@ final class SelectionModel: ObservableObject {
         phrases = PiecePhrases(answer: answer)
     }
 
+    /// An edit of the phrases' boundaries (`phrases.edit`: a mark moved, which music-core snaps to the nearest note, a
+    /// boundary removed or put back where it was found): the phrases as they are now, one step of their history, and the
+    /// toast with `words` and Undo (none for an edit that left the edits as they were); refused, the toast says why. The
+    /// selection stays as it is (the phrases spec: nothing about phrase marks changes it). Returns music-core's refusal,
+    /// nil once edited.
+    func editPhrases(in piece: Int32, _ request: String, done words: String) async -> String? {
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
+        guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
+        phrases = edited
+        let step = edited.edits.flatMap { phraseSteps.record(from: edited.previous, to: $0) }
+        showPhraseToast(PhraseToast(words: words, offer: step == nil ? nil : .undo))
+        return nil
+    }
+
+    /// Undo (`redo` false) or Redo of an edit of the phrases: music-core puts back the edits the step went from (or to),
+    /// once those it left are the edits in force; otherwise the step goes from the history and the toast says why (c-2's
+    /// `restore` and `expected`). The selection stays as it is. Returns music-core's refusal, nil once done.
+    func stepPhrases(in piece: Int32, redo: Bool, done words: String) async -> String? {
+        guard let step = redo ? phraseSteps.redo() : phraseSteps.undo(), let from = redo ? step.before : step.after,
+              let to = redo ? step.after : step.before else { return nil }
+        let request = "{\"restore\": \(to.json), \"expected\": \(from.json)}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
+        guard let restored = PiecePhrases(answer: answer) else {
+            phraseSteps.dropLast(undone: !redo)
+            return refusedPhrases(answer)
+        }
+        phrases = restored
+        showPhraseToast(PhraseToast(words: words, offer: redo ? .undo : .redo))
+        return nil
+    }
+
+    /// An edit of the phrases refused: its reason in the toast, and returned.
+    private func refusedPhrases(_ answer: String) -> String {
+        let problem = FacadeAnswer.problem(answer)
+        showPhraseToast(PhraseToast(words: problem, offer: nil))
+        return problem
+    }
+
+    /// Shows the toast after an edit of the phrases for a while, as the selection's toast stays.
+    private func showPhraseToast(_ shown: PhraseToast) {
+        phraseToast = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.toastSeconds))
+            if self?.phraseToast == shown { self?.phraseToast = nil }
+        }
+    }
+
+    /// The toast after an edit of the phrases put away (its ✕).
+    func closePhraseToast() {
+        phraseToast = nil
+    }
+
     /// Where the page places the selection menu, or where the player let it go; nil for none.
     func placeMenu(_ place: CGPoint?) {
         menuPlace = place
@@ -76,6 +143,8 @@ final class SelectionModel: ObservableObject {
         let key = SelectionHistories.key(piece)
         historyKey = key
         steps = SelectionHistories.history(of: key)
+        phraseSteps = SelectionHistory()
+        phraseToast = nil
     }
 
     /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a

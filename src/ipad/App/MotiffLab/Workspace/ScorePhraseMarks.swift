@@ -6,22 +6,26 @@ import Foundation
 /// phrase, a tap on a letter its section (at most 32 bars, as the Contents' chips select it), each a new selection in place
 /// of the one there was, with «Вернуть»; the marks themselves never change the selection. Their editing is not here. They
 /// stand only on the piece's working notes, where they are edited: none on a draft's view or other Notes shown over the
-/// piece (`OpenPiece.shownOnly`; the lead's decision, v1.2 i-2 review 1).
+/// piece (`OpenPiece.shownOnly`; the lead's decision, v1.2 i-2 review 1). Their hold and drag: ScorePhraseEdits.swift.
 extension ScoreController {
-    /// The marks for the page: each phrase's number, start and whether it is the player's own, each section's letter at
-    /// its start, with their labels («Фраза 2, с такта 4, доля 3, начинается после половинной каденции»); none on a view
-    /// only shown.
+    /// The marks for the page: each phrase's number, start, whether it is the player's own and, moved from a found start,
+    /// where that was found; each section's letter at its start, with their labels («Фраза 2, с такта 4, доля 3, начинается
+    /// после половинной каденции»); the beats with their bar and beat and the words a dragged mark's caption is written in;
+    /// none on a view only shown.
     var phraseMarks: [String: Any] {
         let phrases = piece?.shownOnly == false ? selectionModel.phrases : nil
         let numbers = (phrases?.units ?? []).map { unit -> [String: Any] in
             let label = text.format("phrases.markLabel", String(unit.number), String(unit.startBar), String(unit.startBeat), unit.why)
-            return ["number": unit.number, "tick": unit.onset, "own": unit.own, "label": label]
+            var mark: [String: Any] = ["number": unit.number, "tick": unit.onset, "own": unit.own, "label": label]
+            if let found = unit.found { mark["found"] = found.at }
+            return mark
         }
         let letters = (phrases?.sections ?? []).map { section -> [String: Any] in
             let label = text.format("phrases.sectionLabel", section.label, barsText(section.firstBar, section.lastBar, text))
             return ["id": section.id, "tick": section.onset, "letter": section.label, "label": label]
         }
-        return ["phrases": numbers, "sections": letters]
+        let places = barBeats.marks.map { ["at": $0.at, "bar": $0.place.bar, "beat": $0.place.beat] as [String: Any] }
+        return ["phrases": numbers, "sections": letters, "places": places, "caption": text["phrases.dragCaption"]]
     }
 
     /// A phrase's number tapped: the whole phrase, its selectable span, selected in place of the selection there was.
