@@ -82,6 +82,8 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
     the pages is, from the staff lines the card draws.
   - `{"edge": "start" | "end"}` is the centre of a drawn selection edge's handle.
   - `{"grip": "black" | "blue"}` is the centre of a drawn playhead handle.
+  - `{"marker": "place", "bar": 6}` is the centre of the first drawn marker over the bars of that kind (`version`,
+    `place`, `technique` or `seam`, as the mark `markers` reads them), of that bar when `bar` is given.
   - Each point may add `dx` and `dy` in pixels.
 - On the roll: `{"tick": 1920, "y": 0.7}` is a tick across the notes, and a fraction of the notes' height down. The x of a
   tick comes from `roll.frame()` (zoom and scroll) and where the roll draws its playhead's control. `{"grip": "black"}`
@@ -118,6 +120,9 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
     - `card`: Expand's card, `{left, top, right, bottom, inkTop, inkBottom, scroll}`: the box its notes scroll in, the
       room in it above its first bar's top line and below its last bar's bottom line, and how far its notes are
       scrolled; null when no card is open;
+    - `markers`: the labels over the bars that `performance` gives, in the order the page draws them, `{kind, bar,
+      text, state, left, top, right, bottom}`: `kind` is `version` (another version's label), or a draft's `place`
+      label, `technique` number or `seam` diamond, `bar` the bar it names, `state` its `state-…` class or null;
     - `scroll`: `{x, y}`.
   - roll:
     - `frame`: `{zoom, rowScale, scroll, pitchTop}`, with zoom and rowScale to 0.01;

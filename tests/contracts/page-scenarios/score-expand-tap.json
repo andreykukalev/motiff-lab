@@ -106,10 +106,6 @@
       }
     },
     {
-      "wait": 640,
-      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms) before its bars come: the card reads where its bars are as they come (layoutCard), and read during the lift they are scaled, so the dot and the beat a tap finds are off by up to 4% (issue #729); this scenario checks the card once it stands still"
-    },
-    {
       "call": "card",
       "with": {
         "pages": "$fixture.card.pages",
@@ -127,6 +123,10 @@
         "follow": false
       },
       "note": "the playhead at the passage's start"
+    },
+    {
+      "wait": 640,
+      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms): the bars came during the lift, read while the card was scaled, and the card reads them again when the lift ends (#729); this scenario checks the card once it stands still"
     },
     {
       "expect": {

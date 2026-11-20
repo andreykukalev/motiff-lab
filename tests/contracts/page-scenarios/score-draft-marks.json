@@ -1,0 +1,343 @@
+{
+  "id": "score-draft-marks",
+  "protects": [
+    "DRAFT-03",
+    "DRAFT-04",
+    "DRAFT-06"
+  ],
+  "says": "A draft's marks over its bars, a place's label, a приём's number and a seam's diamond, stand above the bars they belong to, and a tap on one, with the stylus or a finger, in Select or Navigate, says which mark it is and selects no bar and places no playhead.",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render); a draft's view is a score as any other"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "performance",
+      "with": {
+        "markers": [
+          {
+            "bar": 2,
+            "tick": 240,
+            "text": "① Ноты 1–4",
+            "label": "① Ноты 1–4",
+            "place": true
+          },
+          {
+            "bar": 3,
+            "tick": 960,
+            "text": "1",
+            "label": "Приём 1: упрощение, такт 3",
+            "technique": "pl_0001/1/3",
+            "state": "open"
+          },
+          {
+            "bar": 4,
+            "tick": 1680,
+            "text": "1",
+            "label": "Приём 1: упрощение, такт 4",
+            "technique": "pl_0001/1/4",
+            "state": "taken"
+          },
+          {
+            "bar": 6,
+            "tick": 3120,
+            "text": "② Ноты 9–12",
+            "label": "② Ноты 9–12",
+            "place": true
+          },
+          {
+            "bar": 6,
+            "tick": 3120,
+            "text": "",
+            "label": "Стык тактов 5 и 6: тональность",
+            "seam": "pl_0002",
+            "state": "open"
+          }
+        ],
+        "unheard": [],
+        "artefacts": [],
+        "taken": []
+      },
+      "note": "a draft's marks as ScoreController.placeMarkers gives them (DRAFT-03, DRAFT-04, DRAFT-06): each place's label at its first bar, a приём's numbers at its occurrences' first bars with their state, a seam's diamond at the first bar of the place after it; the bars stand for the fixture's (the frames' order)"
+    },
+    {
+      "expect": {
+        "returned": 5,
+        "marks": {
+          "markers": [
+            {
+              "kind": "seam",
+              "bar": 6,
+              "text": "",
+              "state": "open",
+              "left": 663,
+              "top": 195,
+              "right": 687,
+              "bottom": 219
+            },
+            {
+              "kind": "place",
+              "bar": 2,
+              "text": "① Ноты 1–4",
+              "state": null,
+              "left": 210,
+              "top": 169,
+              "bottom": 193
+            },
+            {
+              "kind": "technique",
+              "bar": 3,
+              "text": "1",
+              "state": "open",
+              "left": 335,
+              "top": 195,
+              "right": 367,
+              "bottom": 219
+            },
+            {
+              "kind": "technique",
+              "bar": 4,
+              "text": "1",
+              "state": "taken",
+              "left": 444,
+              "top": 195,
+              "right": 476,
+              "bottom": 219
+            },
+            {
+              "kind": "place",
+              "bar": 6,
+              "text": "② Ноты 9–12",
+              "state": null,
+              "left": 693,
+              "top": 195,
+              "bottom": 219
+            }
+          ]
+        },
+        "note": "the seam's diamond first, just before the bar line where bar 6 starts, in the labels' row; each label and number at its bar's left, above it (a label as wide as its words, which the fonts decide), the numbers in their state; the first place's label a row up, over the numbers in its room"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "marker": "technique",
+          "bar": 3
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on the приём's number over bar 3, in Select, and its click"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "performanceBar": 3,
+              "technique": "pl_0001/1/3"
+            }
+          ]
+        },
+        "note": "the number tapped says which occurrence it is, where it stands (for its card): no bar or note chosen, no place for the playhead (DRAFT-04)"
+      }
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "marker": "seam",
+          "bar": 6
+        }
+      ],
+      "click": true,
+      "note": "a finger's tap on the seam's diamond"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "performanceBar": 6,
+              "seam": "pl_0002"
+            }
+          ]
+        },
+        "note": "the diamond tapped says which seam it is (for its card), and selects nothing (DRAFT-06)"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "marker": "place",
+          "bar": 6
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on the second place's label"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "performanceBar": 6
+            }
+          ]
+        },
+        "note": "the label tapped names its place's first bar, which the app selects and loops (DRAFT-03); the page chooses no bar itself"
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "band": []
+        },
+        "note": "nothing selected on the page by those taps"
+      }
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "none",
+          "tap": true,
+          "handles": false,
+          "hold": true
+        },
+        "pen": {
+          "select": "none",
+          "tap": true,
+          "handles": false,
+          "hold": true
+        },
+        "places": true
+      },
+      "note": "Navigate"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "navigate"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "marker": "technique",
+          "bar": 4
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on the taken number over bar 4, in Navigate"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "performanceBar": 4,
+              "technique": "pl_0001/1/4"
+            }
+          ]
+        },
+        "note": "the number answers in Navigate too, and the playhead is not placed"
+      }
+    }
+  ]
+}

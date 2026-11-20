@@ -369,8 +369,9 @@ final class WorkspaceScenarioTests: XCTestCase {
         try compare(transcript, with: "workspace-life")
     }
 
-    /// The views of the switch: a version picked opens its page in Sources, a recording is heard from under the bar,
-    /// and the working notes are this screen, the recording still heard over them (v0.10, Andrei's finding 24).
+    /// The views of the switch: a version picked opens Sources and is the one compared on the score (its page in Sources
+    /// went with the bar-by-bar merge in v1.1, PR #738), a recording is heard from under the bar, and the working notes are
+    /// this screen, the recording still heard over them (v0.10, Andrei's finding 24).
     func testAViewPickedInTheSwitch() async throws {
         let example = try XCTUnwrap(KitPiece.example)
         let session = await WorkspaceSession(piece: try await kit())
