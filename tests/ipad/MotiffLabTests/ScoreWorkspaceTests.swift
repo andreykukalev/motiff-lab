@@ -80,6 +80,16 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertFalse(workspace.panels[.insights])
     }
 
+    /// A draft's map takes the sheet's place (v1.1): opened, it puts Insights, Check and the assistant's panel away.
+    func testTheDraftMapPutsTheSheetAway() {
+        let workspace = make()
+        workspace.change(.open(.insights))
+        XCTAssertTrue(workspace.panels.sheetOpen)
+        workspace.draftMapOpened()
+        XCTAssertFalse(workspace.panels.sheetOpen)
+        XCTAssertFalse(workspace.assistant.panelOpen)
+    }
+
     /// The bar's tool and the Pen decide on the roll too, and the roll asks the score how it selects.
     func testTheScoreAndTheRollHearEachOther() {
         let workspace = make()

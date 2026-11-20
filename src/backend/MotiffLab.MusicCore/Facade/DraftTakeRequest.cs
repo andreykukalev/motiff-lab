@@ -114,15 +114,27 @@ internal static class DraftTakeRequest
             });
     }
 
-    /// <summary>Undo in a draft: its last step goes, with the steps accepted with it. Answers the sources with "draft" and "undone", the steps' numbers.</summary>
+    /// <summary>
+    /// Undo in a draft: its last change goes. A change of its structure made while the piece is open (drafts.place,
+    /// drafts.base: <see cref="OpenPiece.DraftBefore"/>) puts the draft back as it was, the steps that change dropped with
+    /// it, and answers "structure": true; else its last step goes, with the steps accepted with it. Answers the sources with
+    /// "draft", "undone" (the steps' numbers that went, none for a change of structure) and "structure".
+    /// </summary>
     public static string Undo(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
         IReadOnlyList<int> undone = [];
+        bool structure = false;
         return owner.Changed(
             request,
             piece => piece.ChangeDraft(id, each =>
             {
+                if (owner.DraftBefore(each) is { } before)
+                {
+                    structure = true;
+                    return before;
+                }
+
                 Draft changed = each.Undone();
                 undone = [.. each.Steps.Select(static step => step.Number).Except(changed.Steps.Select(static step => step.Number))];
                 return changed;
@@ -131,6 +143,7 @@ internal static class DraftTakeRequest
             {
                 json.WriteString("draft", id);
                 Answer.Numbers(json, "undone", undone);
+                json.WriteBoolean("structure", structure);
             });
     }
 

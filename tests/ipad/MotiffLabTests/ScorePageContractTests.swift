@@ -58,6 +58,15 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([left, bottom], [10, 20])
     }
 
+    /// A draft's seam diamond (v1.1) is a marker that says which seam it is: its card opens there.
+    func testASeamDiamondCarriesItsKey() {
+        let events = PageEvent.events(in: ["performanceBar": 5, "left": 30, "bottom": 40, "seam": "pl_0002"])
+        XCTAssertEqual(events.count, 1)
+        guard case let .seamDiamond(key, left, bottom)? = events.first else { return XCTFail("a seam: \(events)") }
+        XCTAssertEqual(key, "pl_0002")
+        XCTAssertEqual([left, bottom], [30, 40])
+    }
+
     func testTheMenuPutAwayIsNoPlace() {
         guard case .menu(let place)? = PageEvent.events(in: ["menu": NSNull()]).first else { return XCTFail("the menu") }
         XCTAssertNil(place)

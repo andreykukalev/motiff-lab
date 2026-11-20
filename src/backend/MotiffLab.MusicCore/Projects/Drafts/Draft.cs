@@ -73,20 +73,37 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     }
 
     /// <summary>
-    /// «Поставить…» on the shelf: the shelf's variant <paramref name="variantId"/> as a variant of the place
-    /// <paramref name="placeId"/> (<see cref="DraftDrop.Variant"/>) or as a new place of that id at the end (<see cref="DraftDrop.Place"/>).
+    /// «Поставить…» on the shelf, or a variant moved on the draft's map: the variant <paramref name="variantId"/>, on the shelf
+    /// or a place's that is not its base, as a variant of the place <paramref name="placeId"/> (<see cref="DraftDrop.Variant"/>),
+    /// as a new place of that id at the end (<see cref="DraftDrop.Place"/>) or on the shelf (<see cref="DraftDrop.Shelf"/>,
+    /// no place id). Taken out of a place, it leaves its anchors and the steps that name it (<see cref="StepsNaming"/>), which
+    /// were taken from it there (docs/project-file.md, "Drafts").
     /// </summary>
-    /// <exception cref="KeyNotFoundException">No such variant on the shelf, or no such place.</exception>
-    public Draft Placed(string variantId, DraftDrop drop, string placeId)
+    /// <exception cref="KeyNotFoundException">No such variant, or no such place.</exception>
+    /// <exception cref="ArgumentException">A place's base, which stays until another is chosen, or a variant put where it is already.</exception>
+    public Draft Placed(string variantId, DraftDrop drop, string? placeId)
     {
-        DraftVariant variant = Shelf.FirstOrDefault(each => each.Id == variantId) ?? throw new KeyNotFoundException($"There is no variant {variantId} on the shelf.");
-        if (drop == DraftDrop.Shelf)
+        DraftPlace? from = Places.FirstOrDefault(place => place.Find(variantId) is not null);
+        DraftVariant variant = from?.Find(variantId) ?? Shelf.FirstOrDefault(each => each.Id == variantId) ?? throw new KeyNotFoundException($"The draft has no variant {variantId}.");
+        if (from?.Base == variantId)
         {
-            throw new ArgumentException("A variant on the shelf goes into a place.", nameof(drop));
+            throw new ArgumentException($"The variant {variantId} is the base of its place: choose another base first.", nameof(variantId));
         }
 
-        return Changed(Places, [.. Shelf.Where(each => each.Id != variantId)], Steps).With(variant, drop, placeId);
+        if (from is null ? drop == DraftDrop.Shelf : drop == DraftDrop.Variant && from.Id == placeId)
+        {
+            throw new ArgumentException($"The variant {variantId} is there already.", nameof(drop));
+        }
+
+        Draft taken = from is null
+            ? Changed(Places, [.. Shelf.Where(each => each.Id != variantId)], Steps)
+            : Changed([.. Places.Select(each => each.Id == from.Id ? each.With([.. each.Variants.Where(other => other.Id != variantId)], each.Base) : each)], Shelf, [.. Steps.Except(StepsNaming(variantId))]);
+        return taken.With(variant with { Anchors = [] }, drop, placeId);
     }
+
+    /// <summary>The steps of the journal that take from or leave the variant <paramref name="variantId"/>: they go with it when it leaves its place.</summary>
+    public IReadOnlyList<DraftStep> StepsNaming(string variantId) =>
+        [.. Steps.Where(step => step switch { DraftTake take => take.Variant == variantId, DraftLeave leave => leave.Variant == variantId, _ => false })];
 
     /// <summary>
     /// The place <paramref name="placeId"/> with another of its variants as its base: its bars, meter, key and tempo from

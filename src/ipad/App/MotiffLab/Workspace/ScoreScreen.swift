@@ -91,6 +91,10 @@ struct ScoreScreenContent: View {
     @State private var shownView: ShownView?
     /// The «В черновик» sheet for the selection (v1.1); nil while it is not open.
     @State private var draftSheet: DraftSheetRequest?
+    /// A draft's map, open or not, kept by the draft's screen (`ShownDraftScreen`); nil on any other screen.
+    @Environment(\.draftMap) private var draftMap
+    /// Where the pill of a draft's view ends, in the layers' space: in landscape the map starts below it.
+    @State private var draftPillBottom: CGFloat = 0
 
     init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, workspace: ScoreWorkspace) {
         self.piece = piece
@@ -137,7 +141,13 @@ struct ScoreScreenContent: View {
         .environmentObject(assistant)
         // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
         .onChange(of: assistant.panelOpen) { _, open in workspace.assistantPanelChanged(open) }
-        .onChange(of: panels.sheetOpen) { _, open in workspace.sheetChanged(open) }
+        .onChange(of: panels.sheetOpen) { _, open in
+            workspace.sheetChanged(open)
+            if open { draftMap?.wrappedValue = nil }
+        }
+        .onChange(of: draftMap?.wrappedValue) { _, open in
+            if open != nil { workspace.draftMapOpened() }
+        }
     }
 
     /// Where the Insights sheet is: none, beside the score on the right, or over the lower half.
@@ -185,12 +195,14 @@ struct ScoreScreenContent: View {
         panels.binding(panel, change: change)
     }
 
-    /// What the sheet over the right holds: Sources, Check, or Insights.
+    /// What the sheet over the right holds: Sources, Check, a draft's map (v1.1, DraftMap.swift), or Insights.
     @ViewBuilder private func sheetContent() -> some View {
         if panels[.versions] && sourcesOn {
             sourcesSheet
         } else if panels[.check] {
             CheckDrawer(score: score, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
+        } else if !panels.sheetOpen, let owner = mapOwner, let draft = piece.draft {
+            DraftMap(score: score, seams: score.seamsModel, techniques: score.draftModel, draft: draft, owner: owner, text: text, reopen: reopen)
         } else {
             InsightsSheet(insights: insights, score: score, selectionModel: selectionModel, player: player, range: variationRange, text: text) { change(.close(.insights)) }
         }
@@ -280,6 +292,21 @@ struct ScoreScreenContent: View {
         covered > 0 ? covered + CGFloat.ds("s-3") : CGFloat.ds("s-4")
     }
 
+    /// How far the pill and the toasts keep from the right: beside a sheet at the side, else beside the assistant's panel
+    /// (`side`, its width and a gap, or 0).
+    private static func pillTrailing(sheet: SheetPlace, side: CGFloat) -> CGFloat {
+        sheet == .side ? ScoreScreen.sheetWidth + CGFloat.ds("s-3") : side
+    }
+
+    /// The layers' coordinate space, in which a sheet at the side is placed under the pills over the score.
+    private static let layersSpace = "layers"
+
+    /// Where a sheet at the side starts: under the bar; a draft's map under the draft's pill too, which stays in reach.
+    private var sideSheetTop: CGFloat {
+        let bar = CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2")
+        return mapOwner == nil ? bar : max(bar, draftPillBottom + CGFloat.ds("s-2"))
+    }
+
     /// Where a toast stands: over the pill, a touch's height and a gap above where the pill floats.
     private static func toastBottom(covered: CGFloat) -> CGFloat {
         pillBottom(covered: covered) + CGFloat.ds("h-touch") + CGFloat.ds("s-3")
@@ -291,7 +318,7 @@ struct ScoreScreenContent: View {
         let pillBottom = Self.pillBottom(covered: covered)
         // The full assistant's panel sits beside the score, which keeps the rest of the width (#582 item 17.1).
         let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: screen.width > screen.height) + gap : 0
-        let pillTrailing: CGFloat = sheet == .side ? ScoreScreen.sheetWidth + gap : side
+        let pillTrailing = Self.pillTrailing(sheet: sheet, side: side)
         let pillLeading: CGFloat = contentsPlace == .side ? ScoreScreen.contentsWidth + gap : 0
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
@@ -318,9 +345,9 @@ struct ScoreScreenContent: View {
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
-                } else if piece.draft != nil, let owner = pieceUnder, !focusModel.focused {
-                    // A draft's приём number tapped (v1.1): its card under it (ScoreDraftViews.swift).
-                    DraftTechniqueCard(score: score, model: score.draftModel, player: player, owner: owner, text: text, reopen: reopen)
+                } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
+                    // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
+                    DraftViewCards(score: score, seams: score.seamsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -356,8 +383,9 @@ struct ScoreScreenContent: View {
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
                         PerformanceCapsule(sources: heard, text: text)
                     }
-                    if !focusModel.focused, piece.draft != nil {
-                        DraftAssemblyPill(score: score, model: score.draftModel, player: player, text: text)
+                    if !focusModel.focused, let draft = piece.draft {
+                        DraftAssemblyPill(score: score, model: score.draftModel, player: player, draft: draft, text: text)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.layersSpace)).maxY } action: { draftPillBottom = $0 }
                     }
                     if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
@@ -393,7 +421,7 @@ struct ScoreScreenContent: View {
                         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                         .dsShadow("shadow-sheet")
                         .frame(width: ScoreScreen.sheetWidth)
-                        .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
+                        .padding(.top, sideSheetTop)
                         .padding([.trailing, .bottom], CGFloat.ds("s-3"))
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .bottom(let height):
@@ -534,12 +562,18 @@ struct ScoreScreenContent: View {
 /// Notes, open on a screen of their own over this one, read-only, from a copy never saved; a version opens its page in
 /// the sheet, as Other versions did; a recording's sound is heard from a capsule under the bar.
 extension ScoreScreenContent {
-    /// Where the sheet over the score goes: Insights, Check and Other versions beside the score in landscape and over the
-    /// lower half in portrait; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
+    /// Where the sheet over the score goes: Insights, Check, Other versions and a draft's map (v1.1) beside the score in
+    /// landscape and over the lower half in portrait, so the pills and toasts make way; Sources always as a panel over the lower half (#582 item 4), so it is plainly apart from
     /// the document and its view.
     func sheetPlace(landscape: Bool, height: CGFloat) -> SheetPlace {
         if panels[.versions] && sourcesOn { return .bottom(height / 2) }
-        return panels.sheetOpen ? (landscape ? .side : .bottom(height / 2)) : .none
+        return panels.sheetOpen || mapOwner != nil ? (landscape ? .side : .bottom(height / 2)) : .none
+    }
+
+    /// The Sources of the piece a draft's view belongs to while the draft's map is open, in the sheet's place (v1.1);
+    /// nil while it is closed or on any screen that is no draft's.
+    var mapOwner: SourcesController? {
+        piece.draft != nil && draftMap?.wrappedValue != nil ? pieceUnder : nil
     }
 
     /// A view of the switch on a screen of its own over the score, its piece closed in music-core as it goes.
@@ -641,6 +675,7 @@ extension ScoreScreenContent {
         // The chain is cut into parts so the compiler type-checks each on its own.
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
         let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
+            .coordinateSpace(name: Self.layersSpace)
             .overlay(alignment: .bottomTrailing) {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
@@ -648,10 +683,11 @@ extension ScoreScreenContent {
                 }
             }
             .overlay(alignment: .bottom) {
-                // A step just taken on a draft's view, with its Undo (v1.1), where the Sources toast stands.
+                // A step just taken on a draft's view, with its Undo (v1.1), where the Sources toast stands, beside the map.
                 if piece.draft != nil, let owner = pieceUnder {
                     DraftStepToast(owner: owner, score: score, text: text, reopen: reopen)
                         .padding(.bottom, Self.toastBottom(covered: covered))
+                        .padding(.trailing, Self.pillTrailing(sheet: sheet, side: 0))
                 }
             }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)

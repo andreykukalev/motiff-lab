@@ -4,16 +4,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
-- Drafts (v1.1, ADR 0034 step 5): `SourceLayers.drafts` and the view of kind "draft" (its `name` is its word in the
-  switch); `SourcesDrafts.swift` (`addToDraft` on the piece the notes are shown on, `renameDraft`, `removeDraft` with
-  Undo, `openDraft` by `drafts.open` through `openShown`); `DraftSheet.swift`: `DraftChoice` (what, into, how, the
-  same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
-  (`SourcesRows.swift`) and `DraftDialogs`. Step 6: `DraftTechniquesModel` (`DraftTechniques.swift`, a draft view's
-  приёмы); `take`, `leave`, `takeHand`, undone by `drafts.undo` (`.draftStep`). No «расширить» yet.
+- Drafts (v1.1, ADR 0034): `SourceLayers.drafts`, the view of kind "draft" (its `name` its word); `SourcesDrafts.swift`
+  (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
+  `takeHand`, the seams' offers, `takeSure`, `makeBase`, `put`, undone by `drafts.undo`, `.draftStep`);
+  `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet; «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
+  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

@@ -40,6 +40,9 @@ public sealed partial class MusicCoreFacade
     /// Also within 13 (version 1.1, ADR 0034 section 9 step 4, the iPad's step 7): drafts.seams answers a draft's seams, what
     /// differs of key, meter and tempo either side and what is offered, drafts.transpose and drafts.tempo add the step an
     /// offer names, drafts.leaveSeam keeps a seam as it is (<see cref="DraftSeamRequest"/>); calls added.
+    /// Also within 13 (version 1.1, the iPad's step 7, the draft's map): drafts.open gives each place its variants and steps
+    /// and the draft its shelf, drafts.place moves a variant and drafts.base chooses a place's base (<see cref="DraftRequest"/>);
+    /// calls added; drafts.undo takes them back while the piece is open (a draft's structure is its state, not in its journal).
     /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";

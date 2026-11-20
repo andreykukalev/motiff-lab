@@ -73,7 +73,10 @@ struct TempoReading: Equatable, Sendable {
     var dotted: Bool { beat == "dottedQuarter" }
 
     /// The beat's note as a metronome mark writes it: "♩", or "♩." for a dotted quarter.
-    var note: String { dotted ? "♩." : "♩" }
+    var note: String { Self.note(beat: beat) }
+
+    /// The note of `beat` ("quarter" or "dottedQuarter", as music-core names it) as a metronome mark writes it.
+    static func note(beat: String) -> String { beat == "dottedQuarter" ? "♩." : "♩" }
 
     /// Beats a minute at the start as played, exact: a dotted quarter lasts three halves of a quarter.
     var beatsPerMinute: Double { dotted ? perMinute * 2 / 3 : perMinute }

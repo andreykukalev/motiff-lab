@@ -7,11 +7,48 @@ import Foundation
 /// stands its plum number (`draftModel`); a tap on one selects that occurrence and opens its card there, and the pill's ‹ ›
 /// steps from one to the next.
 extension ScoreController {
-    /// The labels of the draft's places for the page, in order, then the numbers of their приёмы; none for any other piece.
+    /// The labels of the draft's places for the page, in order, then the numbers of their приёмы and the diamonds of their
+    /// seams; none for any other piece.
     var placeMarkers: [[String: Any]] {
         (piece?.draft?.places ?? []).map { place -> [String: Any] in
             ["bar": place.firstBar, "tick": place.onset, "text": place.label, "label": place.label, "place": true]
-        } + draftModel.markers(text)
+        } + draftModel.markers(text) + seamsModel.markers(text)
+    }
+
+    /// A seam's diamond tapped (`key`, at its bottom left on the page, nil on the draft's map): its card opens there, and
+    /// the приём card, if one is open, goes.
+    func pickSeam(_ key: String, at point: CGPoint?) {
+        guard seamsModel.pick(key, at: point) != nil else { return }
+        draftModel.closeCard()
+    }
+
+    /// «▶ Послушать стык»: the bar before the seam and the bar after it, once, as the draft view plays them (music-core's
+    /// `listen`), each place in its own key and tempo.
+    func hearSeam(_ seam: DraftSeamsAnswer.Seam) {
+        Task {
+            guard let notes = await draftNotes() else { return }
+            hearNotes?(notes, Double(seam.listen.onset)..<Double(seam.listen.end))
+        }
+    }
+
+    /// The draft view's own notes as it plays them, in its ticks (the seam heard, the map's thumbnails); nil before a piece.
+    func draftNotes() async -> [PlaybackNote]? {
+        guard let piece else { return nil }
+        return await PieceCore(piece: piece.id).playback().value.map(PlaybackScore.init)?.notes
+    }
+
+    /// A marker tapped over the bars (at its bottom left on the page): a label, a приём's number or a seam's diamond.
+    func pickMarker(_ event: PageEvent) {
+        switch event {
+        case let .performanceBar(bar, left, bottom):
+            pickLabel(bar, left: left, bottom: bottom)
+        case let .techniqueNumber(key, left, bottom):
+            pickTechnique(key, at: CGPoint(x: left, y: bottom))
+        case let .seamDiamond(key, left, bottom):
+            pickSeam(key, at: CGPoint(x: left, y: bottom))
+        default:
+            break
+        }
     }
 
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
@@ -33,6 +70,7 @@ extension ScoreController {
     /// A приём's number tapped (`key`, at the number's bottom left): its card opens there and the occurrence is selected.
     func pickTechnique(_ key: String, at point: CGPoint) {
         guard let spot = draftModel.pick(key, at: point) else { return }
+        seamsModel.close()
         showOccurrence(spot)
     }
 

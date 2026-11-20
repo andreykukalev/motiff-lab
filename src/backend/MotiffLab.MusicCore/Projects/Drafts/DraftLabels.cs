@@ -47,11 +47,28 @@ public static class DraftLabels
     {
         ArgumentNullException.ThrowIfNull(place);
         DraftVariant first = place.BaseVariant;
-        string bars = first.From.Bars is var (from, to) ? from == to ? $" {from}" : $" {from}–{to}" : "";
-        List<string> parts = [$"{Circled(index + 1)} {Name(Kind(first), words)}{bars}"];
+        List<string> parts = [$"{Circled(index + 1)} {Name(Kind(first), words)}{Bars(first)}"];
         parts.AddRange(place.Variants.Select(Kind).Distinct().Where(kind => kind != Kind(first)).Select(kind => $"+ {Name(kind, words)}"));
         string label = string.Join(" ", parts);
         return place.Variants.Count > 1 ? $"{label} · {words.Count(place.Variants.Count, "variant", "variants", "вариант", "варианта", "вариантов")}" : label;
+    }
+
+    /// <summary>
+    /// A variant on the draft's map: what it was copied from with the bars there, and the part taken when not all:
+    /// «Запись 9–12 · правая рука», "Recording 9–12 · right hand".
+    /// </summary>
+    public static string Variant(DraftVariant variant, Words words)
+    {
+        ArgumentNullException.ThrowIfNull(variant);
+        string label = $"{Name(Kind(variant), words)}{Bars(variant)}";
+        string? part = variant.From.Part switch
+        {
+            DraftPart.Right => words.T("right hand", "правая рука"),
+            DraftPart.Left => words.T("left hand", "левая рука"),
+            DraftPart.Melody => words.T("melody", "мелодия"),
+            _ => null,
+        };
+        return part is null ? label : $"{label} · {part}";
     }
 
     /// <summary>
@@ -117,6 +134,9 @@ public static class DraftLabels
     }
 
     private static string NameNumbered(int number, Words words) => string.Create(CultureInfo.InvariantCulture, $"{words.T("Draft", "Черновик")} {number}");
+
+    /// <summary>The bars a variant was copied from, after a space: " 9–16", " 9"; none when it does not say.</summary>
+    private static string Bars(DraftVariant variant) => variant.From.Bars is var (from, to) ? from == to ? $" {from}" : $" {from}–{to}" : "";
 
     /// <summary>The number in a circle, ① to ⑳; past 20 in brackets.</summary>
     private static string Circled(int number) =>

@@ -365,4 +365,148 @@ public class DraftsFacadeTests
         Assert.Equal("пока пусто", DraftLabels.Caption(read.Drafts[0], Words.Russian));
         Assert.Equal("v_0001", Call(facade, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "place" }""").GetProperty("variant").GetString());
     }
+
+    private const string Named = """ "draft": "d_0001" """;
+
+    // A draft's map (the iPad's step 7): each place's variants with its base, the shelf, «Поставить…», a variant moved, and
+    // another base chosen; the structure is the draft's state, not a step, undone while the piece is open.
+
+    /// <summary>The example open in Russian with bars 1–4 and 5–8 as two places of a draft and the right hand of bars 1–4 on its shelf.</summary>
+    private static MusicCoreFacade Shelved()
+    {
+        var facade = new MusicCoreFacade();
+        byte[] data = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml"));
+        Json(facade.Open("FurElise.musicxml", data, """{"language": "ru", "id": "p_map"}"""));
+        Call(facade, "drafts.add", """{"bars": {"first": 1, "last": 4}, "now": "2026-11-20T10:00:00Z"}""");
+        Call(facade, "drafts.add", """{"bars": {"first": 5, "last": 8}, "draft": "d_0001", "drop": "place", "now": "2026-11-20T10:05:00Z"}""");
+        Call(facade, "drafts.add", """{"bars": {"first": 1, "last": 4}, "part": "right", "draft": "d_0001", "drop": "shelf", "now": "2026-11-20T10:10:00Z"}""");
+        return facade;
+    }
+
+    private static JsonElement Map(MusicCoreFacade facade) => Call(facade, "drafts.open", $$"""{{{Named}}}""").GetProperty("draft");
+
+    private static Draft SavedDraft(MusicCoreFacade facade) => Saved(facade).Drafts[0];
+
+    private static string PlaceRequest(string variant, string drop, string? place = null) =>
+        $$"""{{{Named}}, "variant": "{{variant}}", "drop": "{{drop}}"{{(place is null ? "" : $", \"place\": \"{place}\"")}}, "now": "2026-11-20T10:20:00Z"}""";
+
+    [Fact]
+    public void The_map_lists_each_place_with_its_variants_and_base_and_the_shelf_in_the_language_of_the_piece()
+    {
+        JsonElement map = Map(Shelved());
+
+        JsonElement first = map.GetProperty("places")[0];
+        JsonElement variant = Assert.Single(first.GetProperty("variants").EnumerateArray());
+        Assert.Equal(("v_0001", "Ноты 1–4", true, 0), (variant.GetProperty("id").GetString(), variant.GetProperty("label").GetString(), variant.GetProperty("base").GetBoolean(), variant.GetProperty("steps").GetInt32()));
+        Assert.Equal(0, first.GetProperty("steps").GetInt32());
+        JsonElement shelved = Assert.Single(map.GetProperty("shelf").EnumerateArray());
+        Assert.Equal(("v_0003", "Ноты 1–4 · правая рука"), (shelved.GetProperty("id").GetString(), shelved.GetProperty("label").GetString()));
+        Assert.False(shelved.TryGetProperty("base", out _));
+    }
+
+    [Fact]
+    public void A_variant_of_the_shelf_is_put_into_a_place_or_as_a_new_place_and_saved_as_the_drafts_state_not_a_step()
+    {
+        MusicCoreFacade into = Shelved();
+        MusicCoreFacade asNew = Shelved();
+
+        JsonElement put = Call(into, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        JsonElement made = Call(asNew, "drafts.place", PlaceRequest("v_0003", "place"));
+
+        Assert.Equal(("pl_0001", "v_0003"), (put.GetProperty("place").GetString(), put.GetProperty("variant").GetString()));
+        Assert.Empty(put.GetProperty("dropped").EnumerateArray());
+        Assert.Equal(0, put.GetProperty("drafts")[0].GetProperty("shelf").GetInt32());
+        Assert.Equal(["v_0001", "v_0003"], SavedDraft(into).Places[0].Variants.Select(variant => variant.Id));
+        Assert.Empty(SavedDraft(into).Steps);
+        Assert.Equal(1, SavedDraft(into).Next);
+        Assert.Equal("pl_0003", made.GetProperty("place").GetString());
+        Assert.Equal(["pl_0001", "pl_0002", "pl_0003"], SavedDraft(asNew).Places.Select(place => place.Id));
+    }
+
+    [Fact]
+    public void A_variant_moved_out_of_its_place_takes_the_steps_that_name_it_and_says_which()
+    {
+        MusicCoreFacade facade = Shelved();
+        Call(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        Call(facade, "drafts.takeFrom", $$"""{{{Named}}, "place": "pl_0001", "variant": "v_0003", "now": "2026-11-20T10:25:00Z"}""");
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0001", "semitones": 2, "now": "2026-11-20T10:30:00Z"}""");
+        Assert.Equal(1, Map(facade).GetProperty("places")[0].GetProperty("variants")[1].GetProperty("steps").GetInt32());
+
+        JsonElement moved = Call(facade, "drafts.place", PlaceRequest("v_0003", "shelf"));
+
+        Assert.Equal(JsonValueKind.Null, moved.GetProperty("place").ValueKind);
+        Assert.Equal([1], moved.GetProperty("dropped").EnumerateArray().Select(step => step.GetInt32()));
+        Assert.Equal([2], SavedDraft(facade).Steps.Select(step => step.Number));
+        Assert.Equal("v_0003", Assert.Single(SavedDraft(facade).Shelf).Id);
+    }
+
+    [Fact]
+    public void Another_base_drops_the_places_steps_and_says_which_and_the_map_marks_it()
+    {
+        MusicCoreFacade facade = Shelved();
+        Call(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0001", "semitones": 2, "now": "2026-11-20T10:25:00Z"}""");
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0002", "semitones": 2, "now": "2026-11-20T10:26:00Z"}""");
+        Assert.Equal(1, Map(facade).GetProperty("places")[0].GetProperty("steps").GetInt32());
+
+        JsonElement rebased = Call(facade, "drafts.base", $$"""{{{Named}}, "place": "pl_0001", "variant": "v_0003", "now": "2026-11-20T10:30:00Z"}""");
+
+        Assert.Equal([1], rebased.GetProperty("dropped").EnumerateArray().Select(step => step.GetInt32()));
+        Assert.Equal("v_0003", SavedDraft(facade).Places[0].Base);
+        Assert.Equal([2], SavedDraft(facade).Steps.Select(step => step.Number));
+        Assert.Equal([false, true], Map(facade).GetProperty("places")[0].GetProperty("variants").EnumerateArray().Select(variant => variant.GetProperty("base").GetBoolean()));
+        JsonElement again = Call(facade, "drafts.base", $$"""{{{Named}}, "place": "pl_0001", "variant": "v_0003", "now": "2026-11-20T10:35:00Z"}""");
+        Assert.Empty(again.GetProperty("dropped").EnumerateArray());
+    }
+
+    [Fact]
+    public void A_base_is_not_moved_a_variant_is_not_put_where_it_is_and_unknown_ones_are_refused()
+    {
+        MusicCoreFacade facade = Shelved();
+
+        Assert.Equal("badRequest", Error(facade, "drafts.place", PlaceRequest("v_0001", "shelf")));
+        Assert.Equal("badRequest", Error(facade, "drafts.place", PlaceRequest("v_0003", "shelf")));
+        Assert.Equal("badRequest", Error(facade, "drafts.place", PlaceRequest("v_0009", "place")));
+        Assert.Equal("badRequest", Error(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0009")));
+        Assert.Equal("badRequest", Error(facade, "drafts.place", $$"""{{{Named}}, "variant": "v_0003"}"""));
+        Assert.Equal("badRequest", Error(facade, "drafts.base", $$"""{{{Named}}, "place": "pl_0001", "variant": "v_0003"}"""));
+        Assert.Equal("badRequest", Error(facade, "drafts.base", $$"""{{{Named}}, "place": "pl_0009", "variant": "v_0001"}"""));
+        Assert.Equal("v_0003", Assert.Single(SavedDraft(facade).Shelf).Id);
+    }
+
+    [Fact]
+    public void Undo_takes_back_a_change_of_structure_with_the_steps_it_dropped_and_the_steps_in_their_order()
+    {
+        MusicCoreFacade facade = Shelved();
+        Call(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0001", "semitones": 2, "now": "2026-11-20T10:25:00Z"}""");
+        Call(facade, "drafts.base", $$"""{{{Named}}, "place": "pl_0001", "variant": "v_0003", "now": "2026-11-20T10:30:00Z"}""");
+
+        JsonElement rebased = Call(facade, "drafts.undo", $$"""{{{Named}}}""");
+        Assert.True(rebased.GetProperty("structure").GetBoolean());
+        Assert.Equal(("v_0001", 1, 2), (SavedDraft(facade).Places[0].Base, Assert.Single(SavedDraft(facade).Steps).Number, SavedDraft(facade).Next));
+        JsonElement step = Call(facade, "drafts.undo", $$"""{{{Named}}}""");
+        Assert.False(step.GetProperty("structure").GetBoolean());
+        Assert.Equal([1], step.GetProperty("undone").EnumerateArray().Select(each => each.GetInt32()));
+        Assert.True(Call(facade, "drafts.undo", $$"""{{{Named}}}""").GetProperty("structure").GetBoolean());
+        Assert.Equal(("v_0003", 2), (Assert.Single(SavedDraft(facade).Shelf).Id, SavedDraft(facade).Next));
+    }
+
+    [Fact]
+    public void A_draft_added_to_or_renamed_after_a_change_of_structure_is_not_taken_back_by_undo()
+    {
+        MusicCoreFacade facade = Shelved();
+        Call(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        Call(facade, "drafts.add", """{"bars": {"first": 5, "last": 8}, "part": "left", "draft": "d_0001", "drop": "shelf", "now": "2026-11-20T10:25:00Z"}""");
+        Assert.Equal("unavailable", Error(facade, "drafts.undo", $$"""{{{Named}}}"""));
+        Assert.Equal("v_0004", Assert.Single(SavedDraft(facade).Shelf).Id);
+        Assert.Equal(["v_0001", "v_0003"], SavedDraft(facade).Places[0].Variants.Select(each => each.Id));
+
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0002", "semitones": 2, "now": "2026-11-20T10:30:00Z"}""");
+        Call(facade, "drafts.place", PlaceRequest("v_0004", "place"));
+        Call(facade, "drafts.rename", $$"""{{{Named}}, "name": "Coda"}""");
+        JsonElement undone = Call(facade, "drafts.undo", $$"""{{{Named}}}""");
+        Assert.False(undone.GetProperty("structure").GetBoolean(), "the journal's last step, not the new place");
+        Assert.Equal(("Coda", 3, 0), (SavedDraft(facade).Name, SavedDraft(facade).Places.Count, SavedDraft(facade).Steps.Count));
+    }
 }

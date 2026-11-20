@@ -20,6 +20,8 @@ public sealed partial class MusicCoreFacade
             "drafts.open" => OpenDraft(ownerNumber, owner, fields),
             "drafts.rename" => DraftRequest.Rename(owner, fields),
             "drafts.remove" => DraftRequest.Remove(owner, fields),
+            "drafts.place" => DraftRequest.Place(owner, fields),
+            "drafts.base" => DraftRequest.Base(owner, fields),
             "drafts.techniques" => DraftTakeRequest.Techniques(owner, fields, Working),
             "drafts.take" => DraftTakeRequest.Take(owner, fields),
             "drafts.leave" => DraftTakeRequest.Leave(owner, fields),

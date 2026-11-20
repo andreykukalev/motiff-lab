@@ -8,7 +8,8 @@ struct SourcesToast: Identifiable, Equatable {
         case restore(String)
         /// These notes made the working ones again, as «Сделать рабочими» is undone (0030, section 4).
         case makeWorking(String)
-        /// The last step of this draft undone (`drafts.undo`, v1.1): a приём, a hand or a span taken or left.
+        /// The last step of this draft undone (`drafts.undo`, v1.1): a приём, a hand or a span taken or left, a seam's offer
+        /// taken or the seam left, or, while the piece is open, a change of its places (a new base, a variant put or moved).
         case draftStep(String)
     }
 

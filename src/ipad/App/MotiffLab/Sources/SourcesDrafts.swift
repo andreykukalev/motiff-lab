@@ -59,8 +59,42 @@ extension SourcesController {
         return await draftStep("drafts.takeFrom", fields, of: spot.draft, toast: text[part == "left" ? "drafts.toastLeftHand" : "drafts.toastRightHand"])
     }
 
+    // MARK: - Seams and the draft's map (v1.1, ADR 0034 sections 2 and 5, step 7)
+
+    /// «② в соль мажор» or «Темп как в ①» on a seam's card: the step music-core offers for the place after the seam.
+    func take(_ offer: DraftSeamsAnswer.Offer, of draft: String) async -> Bool {
+        if offer.kind == "transpose", let semitones = offer.semitones {
+            return await draftStep("drafts.transpose", ["place": offer.place, "semitones": semitones], of: draft, toast: offer.label)
+        }
+        guard offer.kind == "tempo", let tempo = offer.quarterNotesPerMinute else { return false }
+        return await draftStep("drafts.tempo", ["place": offer.place, "quarterNotesPerMinute": tempo], of: draft, toast: offer.label)
+    }
+
+    /// «Оставить» on a seam's card: the seam kept as it is, remembered.
+    func leave(_ seam: DraftSeamsAnswer.Seam, of draft: String) async -> Bool {
+        await draftStep("drafts.leaveSeam", ["place": seam.after], of: draft, toast: text["drafts.toastSeamLeft"])
+    }
+
+    /// «Взять всё уверенное» on a place's card of the map: every sure open приём of the place taken, as one group.
+    func takeSure(_ place: DraftViewAnswer.Place, of draft: String) async -> Bool {
+        await draftStep("drafts.takeSure", ["place": place.id], of: draft, toast: text["drafts.toastTakenSure"])
+    }
+
+    /// «Сделать основой» on the map: `variant` the base of `place`; the place's steps go (the map warns first).
+    func makeBase(_ variant: DraftViewAnswer.Variant, of place: DraftViewAnswer.Place, in draft: String) async -> Bool {
+        await draftStep("drafts.base", ["place": place.id, "variant": variant.id], of: draft, toast: text.format("drafts.toastBase", variant.label))
+    }
+
+    /// «Поставить…» on the shelf, or a variant moved on the map: `variant` as a variant of `place`, or as a new place at the
+    /// end with `place` nil, or onto the shelf with `shelf`; out of a place it takes the steps that name it (the map warns).
+    func put(_ variant: String, label: String, into place: String?, shelf: Bool = false, of draft: String) async -> Bool {
+        var fields: [String: Any] = ["variant": variant, "drop": shelf ? "shelf" : place == nil ? "place" : "variant"]
+        if let place, !shelf { fields["place"] = place }
+        return await draftStep("drafts.place", fields, of: draft, toast: text.format(shelf ? "drafts.toastShelved" : "drafts.toastPut", label))
+    }
+
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
-    /// (`toast`) undoes it with `drafts.undo`.
+    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open).
     private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {
         var fields = fields
         fields["draft"] = draft
