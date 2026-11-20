@@ -1,0 +1,759 @@
+{
+  "id": "score-phrase-marks",
+  "protects": [
+    "PHR-01"
+  ],
+  "says": "At each phrase start a comma right before its start note and the phrase's number, a section's boxed letter before the number at its start, right above the notes and raised only over what is printed there; a tap on a number or a letter names it to the app and chooses nothing on the page; the selected phrase's number cobalt, the playing phrase's in full ink; in the Pen they take no touch; the layer hidden draws none (the phrases spec, v1.2, decision 1, «Polish of option A»).",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "ScoreController.render"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      }
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "phraseMarks",
+      "with": {
+        "phrases": [
+          {
+            "number": 1,
+            "tick": 0,
+            "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы"
+          },
+          {
+            "number": 2,
+            "tick": 2880,
+            "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции"
+          },
+          {
+            "number": 3,
+            "tick": 5760,
+            "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции"
+          },
+          {
+            "number": 4,
+            "tick": 10560,
+            "own": true,
+            "label": "Фраза 4, с такта 15, доля 3, ваша граница"
+          },
+          {
+            "number": 5,
+            "tick": 13440,
+            "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции"
+          },
+          {
+            "number": 6,
+            "tick": 16560,
+            "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы"
+          },
+          {
+            "number": 7,
+            "tick": 22320,
+            "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции"
+          }
+        ],
+        "sections": [
+          {
+            "id": "section_1",
+            "tick": 0,
+            "letter": "A",
+            "label": "Часть A, такты 0–8"
+          },
+          {
+            "id": "section_2",
+            "tick": 5760,
+            "letter": "B",
+            "label": "Часть B, такты 9–23"
+          }
+        ]
+      },
+      "note": "ScoreController.phraseMarks (ScorePhraseMarks.swift): the phrases answer's starts and sections, labels from Words; on the working notes only"
+    },
+    {
+      "expect": {
+        "marks": {
+          "phrases": [
+            {
+              "kind": "comma",
+              "phrase": 1,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 151,
+              "top": 170,
+              "right": 159,
+              "bottom": 182
+            },
+            {
+              "kind": "letter",
+              "phrase": 1,
+              "text": "A",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 161,
+              "top": 164,
+              "right": 181,
+              "bottom": 184
+            },
+            {
+              "kind": "number",
+              "phrase": 1,
+              "text": "1",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 184,
+              "top": 164,
+              "right": 191,
+              "bottom": 182
+            },
+            {
+              "kind": "comma",
+              "phrase": 2,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 635,
+              "top": 196,
+              "right": 643,
+              "bottom": 208
+            },
+            {
+              "kind": "number",
+              "phrase": 2,
+              "text": "2",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 645,
+              "top": 190,
+              "right": 652,
+              "bottom": 208
+            },
+            {
+              "kind": "comma",
+              "phrase": 3,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 305,
+              "top": 444,
+              "right": 313,
+              "bottom": 456
+            },
+            {
+              "kind": "letter",
+              "phrase": 3,
+              "text": "B",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 315,
+              "top": 438,
+              "right": 334,
+              "bottom": 458
+            },
+            {
+              "kind": "number",
+              "phrase": 3,
+              "text": "3",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 338,
+              "top": 438,
+              "right": 345,
+              "bottom": 456
+            },
+            {
+              "kind": "comma",
+              "phrase": 4,
+              "text": "",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 202,
+              "top": 705,
+              "right": 210,
+              "bottom": 717
+            },
+            {
+              "kind": "number",
+              "phrase": 4,
+              "text": "4",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 212,
+              "top": 699,
+              "right": 219,
+              "bottom": 717
+            },
+            {
+              "kind": "comma",
+              "phrase": 5,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 651,
+              "top": 685,
+              "right": 659,
+              "bottom": 697
+            },
+            {
+              "kind": "number",
+              "phrase": 5,
+              "text": "5",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 661,
+              "top": 679,
+              "right": 668,
+              "bottom": 697
+            },
+            {
+              "kind": "comma",
+              "phrase": 6,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 366,
+              "top": 938,
+              "right": 374,
+              "bottom": 950
+            },
+            {
+              "kind": "number",
+              "phrase": 6,
+              "text": "6",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 376,
+              "top": 932,
+              "right": 382,
+              "bottom": 950
+            },
+            {
+              "kind": "comma",
+              "phrase": 7,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 707,
+              "top": 1164,
+              "right": 715,
+              "bottom": 1176
+            },
+            {
+              "kind": "number",
+              "phrase": 7,
+              "text": "7",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 717,
+              "top": 1158,
+              "right": 723,
+              "bottom": 1176
+            }
+          ],
+          "phraseTargets": [
+            {
+              "phrase": null,
+              "section": "section_1",
+              "label": "Часть A, такты 0–8",
+              "left": 149,
+              "top": 142,
+              "right": 179,
+              "bottom": 186
+            },
+            {
+              "phrase": 1,
+              "section": null,
+              "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы",
+              "left": 179,
+              "top": 142,
+              "right": 210,
+              "bottom": 186
+            },
+            {
+              "phrase": 2,
+              "section": null,
+              "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции",
+              "left": 627,
+              "top": 168,
+              "right": 671,
+              "bottom": 212
+            },
+            {
+              "phrase": null,
+              "section": "section_2",
+              "label": "Часть B, такты 9–23",
+              "left": 303,
+              "top": 416,
+              "right": 333,
+              "bottom": 460
+            },
+            {
+              "phrase": 3,
+              "section": null,
+              "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции",
+              "left": 333,
+              "top": 416,
+              "right": 364,
+              "bottom": 460
+            },
+            {
+              "phrase": 4,
+              "section": null,
+              "label": "Фраза 4, с такта 15, доля 3, ваша граница",
+              "left": 194,
+              "top": 677,
+              "right": 238,
+              "bottom": 721
+            },
+            {
+              "phrase": 5,
+              "section": null,
+              "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции",
+              "left": 643,
+              "top": 657,
+              "right": 687,
+              "bottom": 701
+            },
+            {
+              "phrase": 6,
+              "section": null,
+              "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы",
+              "left": 357,
+              "top": 910,
+              "right": 401,
+              "bottom": 954
+            },
+            {
+              "phrase": 7,
+              "section": null,
+              "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции",
+              "left": 698,
+              "top": 1136,
+              "right": 742,
+              "bottom": 1180
+            }
+          ]
+        },
+        "returned": 9,
+        "note": "a comma before each start note, the number after it, the sections' letters A and B before phrases 1 and 3's numbers; phrase 1 raised over the tempo mark; each letter and number a 44 px target, the close letter and number meeting halfway; the own phrase 4 amber"
+      }
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "phrase": 2
+        }
+      ],
+      "click": true,
+      "note": "a finger's tap on phrase 2's number"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "phraseMark",
+            "sectionMark",
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "phraseMark": 2
+            }
+          ]
+        },
+        "note": "the number tapped names its phrase, which the app selects (its selectable span, a replace); no bar, note or place chosen"
+      }
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "section": "section_2"
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on section B's letter"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "phraseMark",
+            "sectionMark",
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "sectionMark": "section_2"
+            }
+          ]
+        },
+        "note": "the letter tapped names its section, which the app selects (at most 32 bars, as Contents)"
+      }
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 2880,
+        "end": 5760,
+        "startLabel": "Start",
+        "endLabel": "End",
+        "phrase": 2
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 6000,
+        "playing": true
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "phrases": [
+            {
+              "kind": "comma",
+              "phrase": 1,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 151,
+              "top": 170,
+              "right": 159,
+              "bottom": 182
+            },
+            {
+              "kind": "letter",
+              "phrase": 1,
+              "text": "A",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 161,
+              "top": 164,
+              "right": 181,
+              "bottom": 184
+            },
+            {
+              "kind": "number",
+              "phrase": 1,
+              "text": "1",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 184,
+              "top": 164,
+              "right": 191,
+              "bottom": 182
+            },
+            {
+              "kind": "comma",
+              "phrase": 2,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 635,
+              "top": 196,
+              "right": 643,
+              "bottom": 208
+            },
+            {
+              "kind": "number",
+              "phrase": 2,
+              "text": "2",
+              "own": false,
+              "selected": true,
+              "current": false,
+              "left": 645,
+              "top": 190,
+              "right": 652,
+              "bottom": 208
+            },
+            {
+              "kind": "comma",
+              "phrase": 3,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": true,
+              "left": 305,
+              "top": 444,
+              "right": 313,
+              "bottom": 456
+            },
+            {
+              "kind": "letter",
+              "phrase": 3,
+              "text": "B",
+              "own": false,
+              "selected": false,
+              "current": true,
+              "left": 315,
+              "top": 438,
+              "right": 334,
+              "bottom": 458
+            },
+            {
+              "kind": "number",
+              "phrase": 3,
+              "text": "3",
+              "own": false,
+              "selected": false,
+              "current": true,
+              "left": 338,
+              "top": 438,
+              "right": 345,
+              "bottom": 456
+            },
+            {
+              "kind": "comma",
+              "phrase": 4,
+              "text": "",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 202,
+              "top": 705,
+              "right": 210,
+              "bottom": 717
+            },
+            {
+              "kind": "number",
+              "phrase": 4,
+              "text": "4",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 212,
+              "top": 699,
+              "right": 219,
+              "bottom": 717
+            },
+            {
+              "kind": "comma",
+              "phrase": 5,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 651,
+              "top": 685,
+              "right": 659,
+              "bottom": 697
+            },
+            {
+              "kind": "number",
+              "phrase": 5,
+              "text": "5",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 661,
+              "top": 679,
+              "right": 668,
+              "bottom": 697
+            },
+            {
+              "kind": "comma",
+              "phrase": 6,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 366,
+              "top": 938,
+              "right": 374,
+              "bottom": 950
+            },
+            {
+              "kind": "number",
+              "phrase": 6,
+              "text": "6",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 376,
+              "top": 932,
+              "right": 382,
+              "bottom": 950
+            },
+            {
+              "kind": "comma",
+              "phrase": 7,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 707,
+              "top": 1164,
+              "right": 715,
+              "bottom": 1176
+            },
+            {
+              "kind": "number",
+              "phrase": 7,
+              "text": "7",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 717,
+              "top": 1158,
+              "right": 723,
+              "bottom": 1176
+            }
+          ]
+        },
+        "note": "phrase 2 selected (Swift says which phrase the selection is): its number cobalt; playing at tick 6000, phrase 3's marks current"
+      }
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 6000,
+        "playing": false
+      }
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "pen"
+      }
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "phrase": 2
+        }
+      ],
+      "click": true,
+      "note": "in the Pen"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "phraseMark",
+            "sectionMark",
+            "performanceBar",
+            "chosen",
+            "picked",
+            "cleared",
+            "place",
+            "bar",
+            "blank"
+          ],
+          "messages": [
+            {
+              "blank": true
+            }
+          ]
+        },
+        "note": "in the Pen the number takes no touch: the tap goes to the score under it, as anywhere else in the Pen"
+      }
+    },
+    {
+      "call": "layers",
+      "with": {
+        "hidden": [
+          "phrases"
+        ]
+      }
+    },
+    {
+      "expect": {
+        "marks": {
+          "phrases": [],
+          "phraseTargets": []
+        },
+        "note": "layers hidden «phrases»: no marks, no targets"
+      }
+    }
+  ]
+}

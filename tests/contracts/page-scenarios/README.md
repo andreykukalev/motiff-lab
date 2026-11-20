@@ -83,7 +83,11 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
   - `{"edge": "start" | "end"}` is the centre of a drawn selection edge's handle.
   - `{"grip": "black" | "blue"}` is the centre of a drawn playhead handle.
   - `{"marker": "place", "bar": 6}` is the centre of the first drawn marker over the bars of that kind (`version`,
-    `place`, `technique` or `seam`, as the mark `markers` reads them), of that bar when `bar` is given.
+    `place`, `technique`, `seam` or `anchor`, as the mark `markers` reads them), of that bar when `bar` is given.
+  - `{"phrase": 2}` is the centre of the touch target of phrase 2's number, `{"section": "section_2"}` of that section's
+    letter, as the mark `phraseTargets` reads them.
+  - `{"motif": 1, "of": 2}` is the centre of the touch target of motif 1's comma of phrase 2 on Expand's card, as the
+    mark `motifTargets` reads them.
   - Each point may add `dx` and `dy` in pixels.
 - On the roll: `{"tick": 1920, "y": 0.7}` is a tick across the notes, and a fraction of the notes' height down. The x of a
   tick comes from `roll.frame()` (zoom and scroll) and where the roll draws its playhead's control. `{"grip": "black"}`
@@ -122,7 +126,16 @@ tap's 320 ms between them (`DOUBLE_TAP_MS`); no scenario has them yet.
       scrolled; null when no card is open;
     - `markers`: the labels over the bars that `performance` gives, in the order the page draws them, `{kind, bar,
       text, state, left, top, right, bottom}`: `kind` is `version` (another version's label), or a draft's `place`
-      label, `technique` number or `seam` diamond, `bar` the bar it names, `state` its `state-…` class or null;
+      label, `technique` number, `seam` diamond or `anchor` mark, `bar` the bar it names, `state` its `state-…` class
+      or null;
+    - `phrases`: the phrases' marks on the pages, each part as it is drawn, `{kind, phrase, text, own, selected,
+      current, left, top, right, bottom}`: `kind` is `comma`, `letter` or `number`, `phrase` its number (null for a
+      section's letter where no phrase starts, and for the faint comma where a moved start was found, which adds
+      `ghost: true`), `own` the player's boundary, `selected` the selected phrase's number, `current` the phrase playing;
+    - `cardPhrases`: the same marks over Expand's card, adding `motif: true` on a motif's small comma, `paint` (the
+      token it is painted in) and `inside` (whether a comma's drawing keeps inside its box);
+    - `phraseTargets`: the touch targets of the numbers and the letters, `{phrase, section, label, left, top, right,
+      bottom}`; `motifTargets`: those of the motifs' commas on the card, `{motif, of, label, left, top, right, bottom}`;
     - `scroll`: `{x, y}`.
   - roll:
     - `frame`: `{zoom, rowScale, scroll, pitchTop}`, with zoom and rowScale to 0.01;
