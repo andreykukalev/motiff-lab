@@ -382,7 +382,7 @@
     {"tool":"jscpd","rule":"duplicate","file":"tests/backend/Unit/MotiffLab.MusicCore.Tests/Variations/MelodicSequenceTests.cs","symbol":"with tests/backend/Unit/MotiffLab.MusicCore.Tests/Variations/VariationChainTests.cs","value":11,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Insights/Insights.swift","symbol":"","value":826,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Marks/Bookmarks.swift","symbol":"","value":669,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"","value":919,"why":"existing before #332"},
+    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"","value":854,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"cyclomatic_complexity","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"handle","value":19,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"","value":852,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"","value":1886,"why":"existing before #332"},

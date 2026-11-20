@@ -276,6 +276,44 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(after.first?.inFile, true)
     }
 
+    /// v1.1, finding 29 («в одну пьесу можно загрузить, например, PDF и аудиозапись, распознать оба»): a PDF piece with no
+    /// notes yet has Sources too, where a recording added is kept on this iPad and offered «Распознать · Pro»; its notes,
+    /// the piece's first, open it again as notes, and anything else at the page under the bar.
+    @MainActor
+    func testAPdfPieceWithNoNotesTakesARecordingToRecognise() async throws {
+        let pages = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
+            context.beginPage()
+        }
+        let piece = try await OpenPiece.open(fileName: "Prelude.pdf", data: pages, language: "en").get()
+        XCTAssertTrue(piece.isDocument)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("Prelude.motiff.json")
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: file)
+        let project = try XCTUnwrap(sources.projectId, "a PDF piece answers sources")
+        defer {
+            MusicCore.close(piece: piece.id)
+            try? FileManager.default.removeItem(at: folder)
+            try? FileManager.default.removeItem(at: OriginalSounds.folder(project: project))
+        }
+        XCTAssertNil(sources.layers.working, "no notes yet")
+
+        let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
+        let take = folder.appendingPathComponent("take.wav")
+        try RecordingSound.wav(tone[...]).write(to: take)
+        await sources.addRecording(take)
+        XCTAssertNil(sources.status, "the recording is added to the PDF piece")
+        let recording = try XCTUnwrap(sources.layers.originals.first { $0.isRecording && !$0.isRemoved })
+        XCTAssertNotNil(OriginalSounds.file(project: project, original: recording.id), "its sound is kept on this iPad")
+        XCTAssertTrue(sources.canRecognise(recording), "«Распознать · Pro» on its row")
+        XCTAssertNil(sources.layers.working, "adding it made no notes")
+
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: true, page: 3), .tick(0), "the first notes open as notes")
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: false, page: 3), .page(3), "an Undo stays on the PDF")
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: true, hasNotes: true, page: 0), .page(1), "«Сделать рабочими» too")
+    }
+
     private func json(_ object: [String: Any]) -> String {
         String(decoding: (try? JSONSerialization.data(withJSONObject: object)) ?? Data("{}".utf8), as: UTF8.self)
     }
