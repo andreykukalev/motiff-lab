@@ -3,8 +3,7 @@ import SwiftUI
 /// The selection on the score and what goes with it (ADR 0031 section 3, S1): the passage selected, its Undo and Redo
 /// (#511 11), the toast after a clear or a replace, the hint to hold (#511 2.1), the place of the selection menu, and the
 /// piece's phrases (the phrases spec, v1.2) with their edits' Undo and Redo and its toast. It owns this state and the
-/// rules of its own that need nothing else: the
-/// history's steps, kept for the piece beside the screen (SelectionHistories), how long the toast and the hint stay, and
+/// rules of its own that need nothing else: the history's steps, kept for the piece beside the screen (SelectionHistories), how long the toast and the hint stay, and
 /// since S3 selecting and reading the phrases through music-core (`select`, `loadPhrases`). What follows a new selection
 /// (the page, the play range, Expand) and a clear, which leaves Expand first, are ScoreController's, the composition root,
 /// which hands the menu's place in here as the page gives it (`placeMenu`) and takes the selection away (`answered(nil)`);
@@ -84,8 +83,9 @@ final class SelectionModel: ObservableObject {
 
     /// An edit of the phrases' boundaries (`phrases.edit`: a mark moved, which music-core snaps to the nearest note, a
     /// boundary removed or put back where it was found): the phrases as they are now, one step of their history, and the
-    /// toast with `words` and Undo (none for an edit that left the edits as they were); refused, the toast says why. The selection stays as it is (the phrases spec: nothing
-    /// about phrase marks changes it). Returns music-core's refusal, nil once edited.
+    /// toast with `words` and Undo (none for an edit that left the edits as they were); refused, the toast says why. The
+    /// selection stays as it is (the phrases spec: nothing about phrase marks changes it). Returns music-core's refusal,
+    /// nil once edited.
     func editPhrases(in piece: Int32, _ request: String, done words: String) async -> String? {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
         guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
