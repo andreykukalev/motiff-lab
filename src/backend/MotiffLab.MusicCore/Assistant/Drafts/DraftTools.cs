@@ -48,7 +48,7 @@ internal static class DraftTools
 
     private static void WriteTechniques(Utf8JsonWriter json, DraftScope scope)
     {
-        PlaceTechnique[] techniques = [.. Of(scope)];
+        PlaceTechnique[] techniques = [.. Of(scope.Draft, scope)];
         json.WriteStartObject();
         json.WriteString("variant", scope.Variant is { } variant ? DraftLabels.Variant(variant, scope.Words) : null);
         json.WriteStartArray("techniques");
@@ -82,9 +82,9 @@ internal static class DraftTools
         json.WriteEndObject();
     }
 
-    /// <summary>The приёмы of the variant built from; none without one.</summary>
-    private static IEnumerable<PlaceTechnique> Of(DraftScope scope) =>
-        scope.Draft.TechniquesOf(scope.Place.Id).Where(technique => technique.Variant == scope.Variant?.Id);
+    /// <summary>The приёмы of the variant built from in <paramref name="draft"/>, the scope's draft or one changed from it; none without one.</summary>
+    private static IEnumerable<PlaceTechnique> Of(Draft draft, DraftScope scope) =>
+        draft.TechniquesOf(scope.Place.Id).Where(technique => technique.Variant == scope.Variant?.Id);
 
     /// <summary>The приёмы taken one after another, as one group when more than one, each step marked as the assistant's.</summary>
     private static ToolResult Take(DraftScope scope, JsonElement parameters)
@@ -92,10 +92,13 @@ internal static class DraftTools
         Words w = scope.Words;
         int[] numbers = [.. parameters.GetProperty("techniques").EnumerateArray().Select(static number => number.GetInt32())];
         int? bar = parameters.GetProperty("bar") is { ValueKind: JsonValueKind.Number } only ? only.GetInt32() : null;
-        PlaceTechnique[] techniques = [.. Of(scope)];
+        string? group = numbers.Length > 1 ? Project.NextId("g_", scope.Draft.Steps.Select(static step => step.Group).OfType<string>()) : null;
+        Draft after = scope.Draft;
+        List<PlaceTechnique> techniques = [];
         foreach (int number in numbers)
         {
-            if (techniques.FirstOrDefault(technique => technique.Number == number) is not { } technique)
+            // Each against the draft as the takes before it leave it: an earlier take may have closed it.
+            if (Of(after, scope).FirstOrDefault(technique => technique.Number == number) is not { } technique)
             {
                 return ToolResult.Refused(w.T($"The variant built from has no technique {number} in this place.", $"У варианта, из которого собирают, нет приёма {number} в этом месте."));
             }
@@ -106,13 +109,14 @@ internal static class DraftTools
                     ? w.T($"The technique {number} is decided everywhere.", $"Приём {number} уже решён везде.")
                     : w.T($"The technique {number} is not open at bar {bar}.", $"Приём {number} не открыт в такте {bar}."));
             }
+
+            after = DraftTakes.Take(after, scope.Place.Id, number, bar, scope.At, group, DraftProposal.Origin);
+            techniques.Add(technique);
         }
 
-        string? group = numbers.Length > 1 ? Project.NextId("g_", scope.Draft.Steps.Select(static step => step.Group).OfType<string>()) : null;
-        Draft after = numbers.Aggregate(scope.Draft, (draft, number) => DraftTakes.Take(draft, scope.Place.Id, number, bar, scope.At, group, DraftProposal.Origin));
         string place = DraftLabels.Circled(scope.Index + 1);
         string listed = string.Join(", ", numbers);
-        string taken = string.Join("; ", numbers.Select(number => techniques.First(technique => technique.Number == number)).Select(technique =>
+        string taken = string.Join("; ", techniques.Select(technique =>
             w.T($"technique {technique.Number}, {DraftLabels.Technique(technique.Kind, w)}", $"приём {technique.Number}, {DraftLabels.Technique(technique.Kind, w)}")));
         string where = bar is { } at ? w.T($" at bar {at}", $" в такте {at}") : "";
         return ToolResult.Proposing(new DraftProposal(
@@ -153,12 +157,9 @@ internal static class DraftTools
         json.WriteStartArray("candidates");
         foreach (DraftVariant variant in place.Variants)
         {
-            BridgeKind kind = DraftBridges.KindOf(variant)!.Value;
             json.WriteStartObject();
-            json.WriteString("id", BridgeId(kind));
-            json.WriteString("kind", ToolSchema.Camel(kind.ToString()));
-            json.WriteString("label", DraftBridges.Label(kind, words));
-            json.WriteString("explanation", DraftBridges.Explanation(variant, words));
+            json.WriteString("id", BridgeId(DraftBridges.KindOf(variant)!.Value));
+            WriteCandidate(json, variant, words);
             json.WriteBoolean("base", variant.Id == place.Base);
             json.WriteEndObject();
         }
@@ -197,6 +198,15 @@ internal static class DraftTools
             w.T($"Bridge: {DraftBridges.Label(kind, w)}", $"Связка: {DraftBridges.Label(kind, w)}"),
             DraftBridges.Explanation(chosen, w) ?? DraftBridges.Label(kind, w))
         { Structure = true });
+    }
+
+    /// <summary>A bridge candidate's "kind" (dominant, commonChord, bassWalk), "label" («Доминанта») and "explanation" (the chords it sounds), as the seam card and the assistant read them.</summary>
+    internal static void WriteCandidate(Utf8JsonWriter json, DraftVariant variant, Words words)
+    {
+        BridgeKind kind = DraftBridges.KindOf(variant)!.Value;
+        json.WriteString("kind", ToolSchema.Camel(kind.ToString()));
+        json.WriteString("label", DraftBridges.Label(kind, words));
+        json.WriteString("explanation", DraftBridges.Explanation(variant, words));
     }
 
     private static string BridgeId(BridgeKind kind) => $"bridge.{ToolSchema.Camel(kind.ToString())}";

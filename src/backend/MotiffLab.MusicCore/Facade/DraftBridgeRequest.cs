@@ -49,12 +49,9 @@ internal static class DraftBridgeRequest
         json.WriteStartArray("candidates");
         foreach (DraftVariant variant in place.Variants)
         {
-            BridgeKind kind = DraftBridges.KindOf(variant)!.Value;
             json.WriteStartObject();
             json.WriteString("variant", variant.Id);
-            json.WriteString("kind", Answer.Camel(kind));
-            json.WriteString("label", DraftBridges.Label(kind, words));
-            json.WriteString("explanation", DraftBridges.Explanation(variant, words));
+            Assistant.Drafts.DraftTools.WriteCandidate(json, variant, words);
             json.WriteEndObject();
         }
 
