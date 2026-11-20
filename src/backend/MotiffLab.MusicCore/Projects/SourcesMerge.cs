@@ -29,7 +29,7 @@ internal static class SourcesMerge
                 continue;
             }
 
-            project = live is null ? project : SourceOperations.Gone(project, live.Id);
+            project = live is null ? project : OriginalOperations.Gone(project, live.Id);
             kept.Add(tombstone);
         }
 

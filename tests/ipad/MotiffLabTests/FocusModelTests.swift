@@ -80,7 +80,7 @@ final class FocusModelTests: XCTestCase {
         let notes = try XCTUnwrap(read)
         XCTAssertFalse(notes.isEmpty, "the version's notes to hear")
 
-        _ = MusicCore.call(piece: piece, "performance.remove", facadeRequest(["id": id]))
+        _ = MusicCore.call(piece: piece, "sources.notes.remove", facadeRequest(["id": id]))
         let kept = await focus.versionNotes(of: id, in: piece)
         XCTAssertEqual(kept, notes, "kept, not read again")
         focus.forgetVersionNotes()

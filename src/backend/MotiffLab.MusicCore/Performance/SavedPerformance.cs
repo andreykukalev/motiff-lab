@@ -42,7 +42,7 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
     /// <summary>Bars taken into the score, in bar order.</summary>
     public IReadOnlyList<TakenBar> Taken { get; init; } = [];
 
-    /// <summary>The merge draft last applied (testing items 32 and 34), so it can be opened again; null before the first.</summary>
+    /// <summary>The merge draft last applied (testing items 32 and 34), as the file keeps it; null before the first.</summary>
     public MergeRecord? Merge { get; init; }
 
     /// <summary>The original these notes were heard in or read from (<c>PieceOriginal.Id</c>, version 0.3); null when not kept.</summary>

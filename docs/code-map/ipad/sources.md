@@ -61,7 +61,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 - `SourceLayers` holds only what music-core answered (`tests/contracts/facade-answers/sources.layers.json`, decoded by
   `FacadeAnswerFixturesTests`); every request of the sheet carries `"device": "ipad"` and `"here"`.
-- `VersionShelf` likewise (taken bars: `performance.merge.json`).
+- `VersionShelf` likewise (taken bars: `performance.taken.json`).
 
 ## The state it owns
 
