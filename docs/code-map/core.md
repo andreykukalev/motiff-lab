@@ -30,8 +30,10 @@ through the facade; the API references it.
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (the playing's marks per bar, `ControlEvents`, from
   `PlayingMarks` and `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
   `LayoutElements`), and `MeiWriter`.
-- `Projects`: `Project` (`Project.Recording`: a recording only, v17; `PieceOrigin`), sources, originals
-  (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `BookmarkCategory`;
+- `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
+  `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, v17),
+  records apart (`ProjectSummary`, `SavedMotif`, `SavedVariation`); `OriginalOperations`, `NotesOperations`; originals
+  (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, `ReadEnvelope`, `Version`) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`).
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
@@ -53,16 +55,14 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
   pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
-  (`FacadeAnswersContractTests`, written again with `MOTIFF_UPDATE_SNAPSHOTS=1`).
+  (`FacadeAnswersContractTests`, written again as above).
 
 ## Which namespace uses which
 
 No two namespaces use each other, directly or round a loop, by `using`, code or `cref`: a comment names a type of a
-higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time` uses nothing; `Events` only
-`Time` and the root (`Words`); `Motifs` only `Time` and `Events`; `Pieces` those and the root; `Import` (with its
-sub-namespaces) and `Playback` add nothing above `Pieces`; then the rules (`Analysis`, `Notation`, `Performance`,
-`Assembly`, `Variations`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies` check keeps the layers
-(`CORE_LAYERS`, listed in `governance/quality/README.md`): a namespace uses only the layers below its own.
+higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time`, `Events`, `Motifs`, `Pieces`, `Import`
+and `Playback`, then the rules (`Analysis`, `Notation`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies`
+check keeps the layers (`CORE_LAYERS`, in `governance/quality/README.md`): each uses only those below it.
 
 ## Rules not to break
 
