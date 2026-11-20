@@ -47,14 +47,22 @@ public sealed record ModelTurn(string Instructions, string Language, JsonElement
             string about = scope switch
             {
                 "selection" when digest.TryGetProperty("bars", out JsonElement bars) && bars.TryGetProperty("from", out JsonElement from) && bars.TryGetProperty("to", out JsonElement to) =>
-                    $"The player selected {(from.GetInt32() == to.GetInt32() ? $"bar {from.GetInt32()}" : $"bars {from.GetInt32()}-{to.GetInt32()}")} in the score, and the next question is about them (\"here\", \"this\", \"these bars\" mean them). What music-core gives for them: their facts digest and their notes by address",
+                    $"The player selected {Bars(from.GetInt32(), to.GetInt32())} in the score, "
+                    + "and the next question is about them (\"here\", \"this\", \"these bars\" mean them). "
+                    + "What music-core gives for them: their facts digest and their notes by address",
                 "draftPlace" =>
-                    "The player is assembling a draft, and the next question is about one place of it (\"here\", \"this place\" mean it). What music-core gives for it: the place's facts digest (where its base and the variant built from came from, the techniques of that variant, the seams either side), the base's notes by address and the variant's notes as variantNotes, each in its own bars from 1",
+                    "The player is assembling a draft, and the next question is about one place of it (\"here\", \"this place\" mean it). "
+                    + "What music-core gives for it: the place's facts digest (where its base and the variant built from came from, "
+                    + "the techniques of that variant, the seams either side), the base's notes by address "
+                    + "and the variant's notes as variantNotes, each in its own bars from 1",
                 _ => "The next question is about the whole piece. What music-core gives for it: the piece's facts digest",
             };
             return $"{about}:\n{Context.GetRawText()}";
         }
     }
+
+    /// <summary>"bar 3" or "bars 3-4".</summary>
+    private static string Bars(int from, int to) => from == to ? $"bar {from}" : $"bars {from}-{to}";
 }
 
 /// <summary>The model's step: tool calls, or the answer's text when there are none; and what it cost, in tokens.</summary>
