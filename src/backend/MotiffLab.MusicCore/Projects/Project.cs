@@ -2,11 +2,9 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
-using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
-using MotiffLab.MusicCore.Variations;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -832,118 +830,3 @@ public sealed partial record Project(
     private Observation FindObservation(string id) =>
         Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
-
-/// <summary>
-/// A project's card in the library (0018, section 9): the piece, its resume points and ideas, when it was last opened,
-/// where it came from, how many bars Check still asks about, and the latest resume point, without loading the project.
-/// </summary>
-public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int ResumeCount = 0, int IdeaCount = 0)
-{
-    /// <summary>A file, a scan or a recording; summaries saved before it was kept read as a file.</summary>
-    public PieceOrigin Origin { get; init; }
-
-    /// <summary>The bars with Check flags not yet resolved.</summary>
-    public int CheckBars { get; init; }
-
-    /// <summary>The resume point worked at last, or null when there is none (or the summary was saved before it was kept).</summary>
-    public ResumeSummary? Latest { get; init; }
-
-    /// <summary>For notes read from a PDF piece, that piece's id (0023), so the PDF view finds its notes; null otherwise.</summary>
-    public string? ReadFrom { get; init; }
-
-    /// <summary>The title, composer and tags the card shows (<see cref="Project.Details"/>); null for a summary saved before they were kept.</summary>
-    public PieceDetails? Details { get; init; }
-
-    /// <summary>The piece's originals and where their bytes are (version 0.3); empty for a summary saved before they were kept.</summary>
-    public IReadOnlyList<OriginalSummary> Originals { get; init; } = [];
-
-    /// <summary>
-    /// For a piece made from a collection (version 0.4, «Пьесы в файле»), the collection's original it keeps and where it is
-    /// in it; null for a piece of its own, and for a summary saved before it was kept.
-    /// </summary>
-    public PartSummary? Part { get; init; }
-
-    /// <summary>
-    /// What the piece is known by on every device (version 0.6.1, <see cref="SamePiece.Keys"/>), so the library finds the
-    /// projects that may be one piece without reading them; null for a summary saved before it was kept. The apps fill it from
-    /// the project; <see cref="Project.Summary"/> leaves it out.
-    /// </summary>
-    public IReadOnlyList<string>? PieceKeys { get; init; }
-}
-
-/// <summary>
-/// A piece made from a collection, as its library row tells it (version 0.4): the collection's original as the piece keeps
-/// it (<see cref="PieceParts.OriginalId"/>) and its place there (<see cref="Projects.PartOf"/>), null for a part of a score
-/// cut by bars, whose place the format has no value for.
-/// </summary>
-public sealed record PartSummary(PieceOriginal Original, PartOf? Place);
-
-/// <summary>A resume point as its piece's card shows it: its name, the position and passage in ticks, and when it was last active.</summary>
-public sealed record ResumeSummary(string Id, string? Name, long At, long? From, long? To, DateTimeOffset LastActive);
-
-/// <summary>A motif as saved: what the player picked, from which the motif is rebuilt on open.</summary>
-/// <param name="NoteIds">The selected notes, checked against the source when the project opens.</param>
-public sealed record SavedMotif(
-    string Id,
-    string Name,
-    MotifSelectionKind Kind,
-    MotifMode Mode,
-    TickSpan Span,
-    SelectionFilter Filter,
-    IReadOnlyList<string> NoteIds)
-{
-    /// <summary>
-    /// The Notes the motif was made on, when they are not the working notes any more (version 16): other Notes were made
-    /// the working ones, so the motif waits, kept in the file, until its own are working again. Null for the working notes.
-    /// </summary>
-    public string? Notes { get; init; }
-
-    public static SavedMotif From(Motif motif)
-    {
-        ArgumentNullException.ThrowIfNull(motif);
-        return new(motif.Id, motif.Name, motif.Kind, motif.Mode, motif.Span, motif.Filter, motif.NoteIds);
-    }
-}
-
-/// <summary>One step of a saved variation: the operation's catalogue id and its parameters.</summary>
-public sealed record SavedStep(string Operation, OperationParameters Parameters)
-{
-    public static SavedStep From(VariationStep step)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-        return new(step.Operation.Id, step.Parameters);
-    }
-}
-
-/// <summary>
-/// A variation as saved: the chain of steps that made it from a motif (S1-E5). Steps are pure, so
-/// they are run again on open. Undone steps are not saved.
-/// </summary>
-/// <param name="Steps">The accepted steps, oldest first.</param>
-/// <param name="Pending">The step that was being heard and not yet accepted or rejected, or null.</param>
-/// <param name="Keep">The properties the player asked to keep, in Keep table order.</param>
-public sealed record SavedVariation(
-    string Id,
-    string MotifId,
-    IReadOnlyList<SavedStep> Steps,
-    SavedStep? Pending,
-    IReadOnlyList<KeepProperty> Keep)
-{
-    /// <summary>
-    /// The key the steps read, when the chain had one, so a step that counts in the key's scale (passing notes) can be
-    /// made again on opening; null for a file that has none, which opens as before.
-    /// </summary>
-    public MusicalKey? Key { get; init; }
-
-    public static SavedVariation Create(string id, string motifId, VariationChain chain)
-    {
-        ArgumentNullException.ThrowIfNull(chain);
-        return new(id, motifId, [.. chain.Steps.Select(SavedStep.From)], chain.Pending is { } pending ? SavedStep.From(pending) : null, [.. chain.Context.Keep.Distinct().Order()])
-        {
-            Key = chain.Context.Key,
-        };
-    }
-}
-
-/// <summary>A project file or saved project that cannot be opened. The message is a plain reason for the player.</summary>
-public sealed class ProjectFileException(string message) : Exception(message);
