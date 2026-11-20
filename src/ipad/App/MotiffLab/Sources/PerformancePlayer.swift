@@ -132,6 +132,8 @@ final class RecordingListening: ObservableObject {
     /// stopped there and the next play starts from the beginning.
     private var atEnd = false
     private var timer: Timer?
+    /// Where a stretch heard once pauses (`playStretch`).
+    private var stretchEnd: Timer?
     /// How many capsules show it now: one on the piece's screen, another on a view shown over it.
     private var shownIn = 0
     /// The screen handed the piece to its other view: the capsule going with the old screen leaves the sound on.
@@ -172,6 +174,26 @@ final class RecordingListening: ObservableObject {
         handedOver = true
     }
 
+    /// The stretch `from` to `to` milliseconds of the recording at `url`, heard once (a draft's приём «Как на записи», v1.1
+    /// step 6): paused at its end, and the file let go there when no capsule shows it; a press of a capsule's play before
+    /// then lets it play on.
+    func playStretch(_ url: URL, from: Int, to: Int) {
+        load(url)
+        seek(to: from)
+        if !playing { toggle(url) }
+        stretchEnd?.invalidate()
+        stretchEnd = Timer.scheduledTimer(withTimeInterval: Double(max(0, to - from)) / 1000, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.shownIn == 0 {
+                    self.end()
+                } else if let url = self.url, self.playing {
+                    self.toggle(url)
+                }
+            }
+        }
+    }
+
     /// The hand-over came to nothing: a screen went without handing the piece over, or the switch never ran. Once no
     /// capsule shows the recording, the sound stops (v0.10 s-2 review: never heard on in the library).
     func cancelHandOver() {
@@ -192,6 +214,8 @@ final class RecordingListening: ObservableObject {
     }
 
     func toggle(_ url: URL) {
+        stretchEnd?.invalidate()
+        stretchEnd = nil
         load(url)
         guard let player else { return }
         if player.isPlaying {
@@ -212,6 +236,8 @@ final class RecordingListening: ObservableObject {
     }
 
     func stop() {
+        stretchEnd?.invalidate()
+        stretchEnd = nil
         player?.stop()
         playing = false
         timer?.invalidate()

@@ -70,6 +70,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// The marks, the note being written, the layers hidden, the piece's own settings and the bookmark gone to
     /// (Marks/MarksModel.swift).
     let marksModel: MarksModel
+    /// A draft's приёмы on its view, their numbers, the one picked and «Скрыть номера» (Sources/DraftTechniques.swift, v1.1).
+    let draftModel = DraftTechniquesModel()
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -163,7 +165,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     private var handleSpots: [CGPoint] = []
     /// The playheads' handles, in the document's pixels, as the page last reported them: a finger there takes the handle.
     private var headSpots: [CGPoint] = []
-    private let text = UIText.current
+    let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
     /// The places ringed for the fact chosen in Insights.
@@ -351,10 +353,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             showCheckBar(bar)
             checkPicked?(bar)
         case let .performanceBar(bar, left, bottom):
-            // In a draft's view the labels are its places' (ScoreDraftPlaces.swift).
-            guard !pickPlace(startingAt: bar) else { break }
-            sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: bar, left: left, bottom: bottom))
-            showVersionBar(bar)
+            pickLabel(bar, left: left, bottom: bottom)
+        case let .techniqueNumber(key, left, bottom):
+            pickTechnique(key, at: CGPoint(x: left, y: bottom))
         case .playheadAway(let away):
             playheadAway = away < 0 ? nil : away
         case let .place(start, end):
@@ -1023,8 +1024,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// With extra information on, the bars the version has otherwise as plum labels above them and the printed notes it
     /// does not have tinted, and a thin plum line under the bars taken from it; in a draft's view, always, the labels of
-    /// its places (`placeMarkers`).
-    private func drawVersions() async {
+    /// its places and the numbers of their приёмы (`placeMarkers`).
+    func drawVersions() async {
         await readSources()
         guard shown else { return }
         let name = sourcesModel.versions.shown?.name ?? ""
@@ -1351,6 +1352,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await marksModel.loadSettings(of: piece.id)
             await applyLayers()
             await applyLevel()
+            await draftModel.load(piece.draft, on: piece.id)
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()

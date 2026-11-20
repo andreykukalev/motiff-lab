@@ -74,6 +74,9 @@ struct SourceLayers: Equatable, Sendable {
         var caption: String
         var places: Int
         var shelf: Int
+        /// How many of the приёмы of all its places are taken, and how many there are (v1.1 step 6).
+        var taken = 0
+        var techniques = 0
     }
 
     /// A view of the switch: an original as it is, Notes, a recording's sound, or a draft.
@@ -118,7 +121,9 @@ struct SourceLayers: Equatable, Sendable {
                 state: $0.state, edits: $0.edits, taken: $0.taken, hidden: $0.hidden
             )
         }
-        drafts = answer.drafts.map { Draft(id: $0.id, name: $0.name, caption: $0.caption, places: $0.places, shelf: $0.shelf) }
+        drafts = answer.drafts.map {
+            Draft(id: $0.id, name: $0.name, caption: $0.caption, places: $0.places, shelf: $0.shelf, taken: $0.techniques.taken, techniques: $0.techniques.total)
+        }
         let names = Dictionary(drafts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
         views = answer.views.map {
             ViewEntry(id: $0.id, kind: $0.kind, group: $0.group, working: $0.working, hidden: $0.hidden, op: $0.op, name: $0.kind == "draft" ? names[$0.id] : nil)

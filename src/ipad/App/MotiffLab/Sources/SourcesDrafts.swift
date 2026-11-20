@@ -30,7 +30,43 @@ extension SourcesController {
     /// A draft's tab picked in the switch: the draft opened by music-core under a number of its own only to be shown
     /// (`drafts.open`, never `sources.notes.open`), its places with it; nil, with why in `status`, for one that cannot be
     /// shown (a draft with no places yet is unavailable).
-    func openDraft(_ draft: SourceLayers.Draft) async -> OpenPiece? {
-        await openShown("drafts.open", ["draft": draft.id], title: draft.name, at: nil, draft: true)
+    func openDraft(_ draft: SourceLayers.Draft, at tick: Double? = nil) async -> OpenPiece? {
+        let answer = await PieceCore(piece: piece).openDraft(draft.id)
+        return await engraveShown(answer.text, title: draft.name, at: tick, draft: answer.value?.draft)
+    }
+
+    // MARK: - A place's приёмы (v1.1, ADR 0034 section 4, step 6)
+
+    /// «Взять везде · N», or with `here` «Только здесь» (the occurrence's bar): the приём taken into its place. False, with
+    /// why in `status`, when music-core refused it; else the toast undoes it.
+    func take(_ spot: DraftTechniquesModel.Spot, here: Bool) async -> Bool {
+        var fields: [String: Any] = ["place": spot.place, "technique": spot.technique.number]
+        if here { fields["bar"] = spot.occurrence.bar }
+        return await draftStep("drafts.take", fields, of: spot.draft, toast: text.format("drafts.toastTaken", String(spot.technique.number)))
+    }
+
+    /// «Оставить»: the приём kept as in the base, everywhere in its place.
+    func leave(_ spot: DraftTechniquesModel.Spot) async -> Bool {
+        let fields: [String: Any] = ["place": spot.place, "technique": spot.technique.number]
+        return await draftStep("drafts.leave", fields, of: spot.draft, toast: text.format("drafts.toastLeft", String(spot.technique.number)))
+    }
+
+    /// «Правая рука из варианта…» or «Левая рука…» (`part` "right" or "left"): that hand of the occurrence's variant taken
+    /// over the occurrence's bars.
+    func takeHand(_ part: String, at spot: DraftTechniquesModel.Spot) async -> Bool {
+        let span = ["onset": spot.occurrence.onset, "end": spot.occurrence.end]
+        let fields: [String: Any] = ["place": spot.place, "variant": spot.technique.variant, "part": part, "span": span]
+        return await draftStep("drafts.takeFrom", fields, of: spot.draft, toast: text[part == "left" ? "drafts.toastLeftHand" : "drafts.toastRightHand"])
+    }
+
+    /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
+    /// (`toast`) undoes it with `drafts.undo`.
+    private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {
+        var fields = fields
+        fields["draft"] = draft
+        fields["now"] = Self.now()
+        guard await change(name, fields) != nil else { return false }
+        toast = SourcesToast(text: words, undo: .draftStep(draft))
+        return true
     }
 }

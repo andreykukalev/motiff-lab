@@ -214,6 +214,144 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(reopened, 1, "the piece opens again from it")
     }
 
+    /// A draft whose place has a variant (Für Elise bars 1–4, and 5–8 added to it): its view numbers the приём above its
+    /// bar, a tap picks it, «Взять везде» takes it (saved, its toast undoes it with `drafts.undo`), the view opened again
+    /// at it shows it taken, the hand and «Оставить» are steps too, and Sources counts what is taken.
+    func testAPriyomIsNumberedTakenAndUndone() async throws {
+        let (workspace, _) = try await sourced()
+        let sources = workspace.sources
+        let first = await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
+        XCTAssertNotNil(first, sources.status ?? "")
+        let draft = try XCTUnwrap(sources.layers.drafts.first)
+        var view = try await draftView(draft, sources)
+        let place = try XCTUnwrap(view.draft?.places.first)
+        let variant = await sources.change("drafts.add", ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "variant", "place": place.id, "now": "2026-11-20T10:05:00Z"])
+        XCTAssertNotNil(variant, sources.status ?? "")
+        view = try await draftView(draft, sources)
+
+        let screen = ScoreWorkspace(piece: view, viewing: "view only")
+        let model = screen.score.draftModel
+        await model.load(view.draft, on: view.id)
+        let spot = try XCTUnwrap(model.spots.first, "Für Elise's bar 8 against bar 4: one приём")
+        XCTAssertEqual(model.total, 1)
+        XCTAssertEqual(model.taken, 0)
+        XCTAssertTrue(spot.technique.inferred)
+        let numbers = screen.score.placeMarkers.filter { $0["technique"] != nil }
+        XCTAssertEqual(numbers.count, 1, "one number above its bar, beside the place's label")
+        XCTAssertEqual(numbers[0]["text"] as? String, String(spot.technique.number))
+        XCTAssertEqual(numbers[0]["state"] as? String, "open")
+        XCTAssertEqual(model.pick(spot.key, at: CGPoint(x: 10, y: 20)), spot)
+        XCTAssertEqual(model.picked?.at, CGPoint(x: 10, y: 20), "its card at the number")
+        XCTAssertEqual(model.step(1), spot, "the last stays the current one")
+        XCTAssertNil(model.picked?.at, "stepping shows no card")
+        XCTAssertTrue(screen.score.canHear(spot, variant: false), "the base's own notes there")
+        XCTAssertNil(spot.occurrence.recording, "not heard from a recording")
+        XCTAssertTrue(screen.score.canHear(spot, variant: true), "the variant's own notes, opened alone")
+        let variantNotes = await DraftTechniquesModel.playback(spot, variant: true, on: view.id)
+        XCTAssertFalse(variantNotes?.notes.isEmpty ?? true, "the variant's music, opened alone and closed again")
+        XCTAssertEqual(spot.offer, DraftTechniquesModel.Offer(steps: true, hands: true, everywhere: 1), "open: every step")
+        XCTAssertTrue(model.stepping, "the pill's ‹ ›, in place of the phrase's")
+        let looped = DraftTechniquesModel.place(among: view.draft?.places ?? [], picked: model.picked?.spot, at: 0)
+        XCTAssertEqual(looped?.id, spot.place, "«↻ Место» loops the current occurrence's place")
+
+        let taken = await sources.take(spot, here: false)
+        XCTAssertTrue(taken, sources.status ?? "")
+        guard case .draftStep(let undone)? = sources.toast?.undo else { return XCTFail("its toast undoes the step") }
+        XCTAssertEqual(undone, draft.id)
+        let reopened = await sources.openDraft(draft, at: spot.span.lowerBound)
+        let again = try XCTUnwrap(reopened, sources.status ?? "")
+        opened.append(again.id)
+        XCTAssertEqual(again.landing, .tick(spot.span.lowerBound), "opened again where the приём is")
+        await model.load(again.draft, on: again.id)
+        let takenSpot = try XCTUnwrap(model.spots.first)
+        XCTAssertEqual(takenSpot.occurrence.state, "taken")
+        XCTAssertTrue(screen.score.canHear(takenSpot, variant: false), "taken: «Как в нотах» still hears the base, opened alone")
+        XCTAssertTrue(screen.score.canHear(takenSpot, variant: true))
+        let baseNotes = await DraftTechniquesModel.playback(takenSpot, variant: false, on: again.id)
+        XCTAssertFalse(baseNotes?.notes.isEmpty ?? true, "the base's music over its own ticks")
+        XCTAssertEqual(sources.layers.drafts.first?.taken, 1, "the Sources tally, from music-core")
+        XCTAssertEqual(takenSpot.offer, DraftTechniquesModel.Offer(steps: false, hands: false, everywhere: 0), "taken: music-core refuses another step")
+
+        await sources.undo()
+        await model.load(again.draft, on: again.id)
+        XCTAssertEqual(model.spots.first?.occurrence.state, "open", "undone by drafts.undo")
+
+        let hand = await sources.takeHand("right", at: spot)
+        XCTAssertTrue(hand, sources.status ?? "")
+        await sources.undo()
+        let left = await sources.leave(spot)
+        XCTAssertTrue(left, sources.status ?? "")
+        await model.load(again.draft, on: again.id)
+        XCTAssertEqual(model.spots.first?.occurrence.state, "left")
+
+        model.hideNumbers(true)
+        XCTAssertTrue(model.markers(UIText.current).isEmpty, "«Скрыть номера»: practice on the draft")
+        XCTAssertNil(model.pick(spot.key, at: nil))
+        XCTAssertNil(model.step(1))
+        XCTAssertFalse(model.stepping, "hidden: the phrase's ‹ › come back")
+    }
+
+    /// The card offers only what music-core takes: an open occurrence every step, a hand only over bars with notes (an
+    /// inserted bar not yet put in has none), one taken or left nothing; «Взять везде · N» counts the open ones. Its words,
+    /// and the place «↻ Место» loops.
+    func testTheCardOffersOnlyTheStepsMusicCoreTakes() throws {
+        let json = #"""
+        {"draft": "dr_0001", "place": "pl_0001", "base": "va_0000", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
+        "kind": "octave", "label": "октава", "inferred": true, "confidence": 90, "sure": true, "state": "open", "occurrences": [
+        {"bar": 4, "firstBar": 4, "lastBar": 4, "onset": 5760, "end": 7200, "confidence": 90, "matched": 3, "total": 4, "state": "open",
+         "inBase": {"onset": 5760, "end": 7200}, "inVariant": {"onset": 0, "end": 1440}, "recording": null},
+        {"bar": 6, "firstBar": 6, "lastBar": 6, "onset": 8640, "end": 8640, "confidence": 80, "matched": 0, "total": 2, "state": "open",
+         "inBase": {"onset": 8640, "end": 8640}, "inVariant": {"onset": 2880, "end": 4320}, "recording": {"project": "p_1", "original": "src_rec", "from": 3000, "to": 4500}},
+        {"bar": 8, "firstBar": 8, "lastBar": 8, "onset": 11520, "end": 12960, "confidence": 90, "matched": 4, "total": 4, "state": "taken",
+         "inBase": {"onset": 11520, "end": 12960}, "inVariant": {"onset": 5760, "end": 7200}, "recording": null},
+        {"bar": 9, "firstBar": 9, "lastBar": 9, "onset": 12960, "end": 14400, "confidence": 90, "matched": 1, "total": 1, "state": "left",
+         "inBase": {"onset": 12960, "end": 14400}, "inVariant": {"onset": 7200, "end": 8640}, "recording": null}]}]}
+        """#
+        let read = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, json, of: "drafts.techniques"))
+        let model = DraftTechniquesModel()
+        model.keep([read])
+        let offers = model.spots.map(\.offer)
+        XCTAssertEqual(offers.map(\.steps), [true, true, false, false])
+        XCTAssertEqual(offers.map(\.hands), [true, false, false, false], "no hand over a bar not yet put in")
+        XCTAssertEqual(offers.map(\.everywhere), [2, 2, 2, 2], "«Взять везде · 2»: the open ones")
+        let russian = UIText(language: "ru")
+        XCTAssertEqual(model.spots.map { DraftTechniquesModel.status($0, russian) }, [
+            "уверенно · 3 из 4 нот на месте", "уверенно · 0 из 2 нот на месте", "уверенно · 4 из 4 нот на месте · взят",
+            "уверенно · 1 из 1 ноты на месте · оставлен как в основе",
+        ])
+        XCTAssertEqual(model.spots[1].occurrence.recording?.from, 3000, "heard from a recording's stretch")
+        XCTAssertTrue(model.spots[1].heard(variant: false).span.isEmpty, "an inserted bar: no base to hear")
+        XCTAssertEqual(model.spots[2].heard(variant: false).variant, "va_0000", "taken: the base, opened alone")
+        XCTAssertEqual(model.spots[2].heard(variant: false).span, 11520..<12960)
+        XCTAssertEqual(model.spots[2].heard(variant: true).variant, "va_0001")
+
+        // «↻ Место»: the picked occurrence's place, else the one at the playhead, else the first.
+        let places = [
+            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, variants: 1),
+            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, variants: 0),
+        ]
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: model.spots[0], at: 15000)?.id, "pl_0001")
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 15000)?.id, "pl_0002")
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 99999)?.id, "pl_0001")
+        XCTAssertNil(DraftTechniquesModel.place(among: [], picked: nil, at: 0))
+    }
+
+    /// On a view only to be shown (Notes or a draft over the piece) the selection menu offers no Note, Bookmark, Insights or
+    /// More, which music-core refuses there; elsewhere all of them, Insights only over notes.
+    func testAViewOnlyMenuOffersOnlyWhatWorksThere() {
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: true, notes: true), [])
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: false, notes: true), [.note, .bookmark, .insights, .more])
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: false, notes: false), [.note, .bookmark, .more])
+    }
+
+    /// The draft opened to be shown, closed when the test ends.
+    private func draftView(_ draft: SourceLayers.Draft, _ sources: SourcesController) async throws -> OpenPiece {
+        let opening = await sources.openDraft(draft)
+        let shown = try XCTUnwrap(opening, sources.status ?? "")
+        opened.append(shown.id)
+        return shown
+    }
+
     /// The kit's piece open in music-core, with its sources read.
     private func sourced() async throws -> (ScoreWorkspace, OpenPiece) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")

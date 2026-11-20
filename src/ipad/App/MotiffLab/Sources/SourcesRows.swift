@@ -207,13 +207,21 @@ struct SourcesDraftRow: View {
                 sources: sources, row: row, icon: SourceLayers.pictogram(op: "draft"), iconLabel: nil, title: draft.name, removed: false,
                 eye: shownView.map { (id: $0.id, hidden: $0.hidden) }, menu: AnyView(menu)
             )
-            Text([draft.caption, text.count("drafts.places", draft.places)].joined(separator: " · "))
+            Text(Self.caption(draft, text))
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, CGFloat.ds("s-3"))
         .padding(.horizontal, CGFloat.ds("s-2"))
+    }
+
+    /// The line under the draft's name: where its fragments came from, its places and, once there are приёмы, how many of
+    /// them are taken, as music-core counts them: «из нот с PDF и записи · 2 места · взято 3 приёма из 4».
+    static func caption(_ draft: SourceLayers.Draft, _ text: UIText) -> String {
+        var parts = [draft.caption, text.count("drafts.places", draft.places)]
+        if draft.techniques > 0 { parts.append(SourceLayers.counted("drafts.tally", draft.taken, String(draft.techniques), text: text)) }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var menu: some View {

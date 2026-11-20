@@ -228,6 +228,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
 
     /// The drafts' calls (v1.1, ADR 0034): the «В черновик» sheet and what it offers first, the Sources group and the draft's
     /// view in the switch, and a draft opened with its places, read only from its "draft" block.
+    @MainActor
     func testTheDraftsDecode() throws {
         let answers = try Self.answers("drafts")
         XCTAssertEqual(answers.count, 7, "each call's answer")
@@ -248,11 +249,89 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertNil(tab.group)
         XCTAssertEqual(SourceLayers.word(tab, UIText.current), "Coda")
         XCTAssertEqual(layers[0].draft("d_0001")?.caption, "from the file's notes")
+        XCTAssertEqual(layers[3].drafts.first?.techniques, 0, "no приём yet: the caption has no tally")
+        let caption = try XCTUnwrap(layers[3].drafts.first)
+        XCTAssertEqual(SourcesDraftRow.caption(caption, UIText(language: "en")), "from the file's notes · " + UIText(language: "en").count("drafts.places", 2))
 
         let view = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[5].text, of: "drafts.open"), "\(reported)")
         XCTAssertEqual(view.draft.places.map(\.label), ["① Notes 1–4", "② Notes 5–8"])
         XCTAssertEqual(view.draft.places.map(\.firstBar), [1, 5])
         XCTAssertEqual(view.draft.places[1].onset, view.draft.places[0].end, "the places follow one another")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// A place's приёмы (v1.1, ADR 0034 step 6): `drafts.techniques` before and after a take, decoded into the draft
+    /// view's numbers with how many notes are in place and how the variant's side is heard (c-4b), the variant opened alone,
+    /// and each step's answer read as the sources it carries, with the draft's tally.
+    @MainActor
+    func testTheTechniquesDecode() throws {
+        let answers = try Self.answers("drafts.techniques")
+        XCTAssertEqual(answers.count, 13, "each call's answer")
+        let calls = [2, 5, 12].map { answers[$0] }
+        let read = try calls.map { try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, $0.text, of: "drafts.techniques"), "\(reported)") }
+        XCTAssertEqual(read.map(\.taken), [0, 1, 1])
+        let technique = try XCTUnwrap(read[0].techniques.first)
+        XCTAssertTrue(technique.inferred, "the kind is the engine's reading")
+        XCTAssertEqual(technique.label, "simplification")
+        XCTAssertEqual(technique.occurrences.map(\.firstBar), [4])
+        XCTAssertEqual(read[1].techniques.first?.occurrences.first?.state, "taken")
+        let occurrence = try XCTUnwrap(technique.occurrences.first)
+        XCTAssertEqual([occurrence.matched, occurrence.total], [3, 4])
+        XCTAssertEqual(read.map(\.base), ["v_0001", "v_0001", "v_0001"], "the place's base variant")
+        XCTAssertEqual(occurrence.inBase, DraftTechniquesAnswer.Span(onset: 2160, end: 2880))
+        XCTAssertEqual(occurrence.inVariant, DraftTechniquesAnswer.Span(onset: 2160, end: 2880))
+        XCTAssertNil(occurrence.recording, "the variant was not heard from a recording")
+        let variant = try XCTUnwrap(FacadeAnswer.decode(DraftVariantAnswer.self, answers[3].text, of: "drafts.open"), "\(reported)")
+        XCTAssertEqual(variant.variant, technique.variant)
+        XCTAssertGreaterThan(variant.piece, 0)
+
+        let model = DraftTechniquesModel()
+        model.keep([read[0]])
+        let marker = try XCTUnwrap(model.markers(UIText(language: "en")).first)
+        XCTAssertEqual(marker["text"] as? String, "1")
+        XCTAssertEqual(marker["technique"] as? String, "pl_0001/1/4")
+        XCTAssertEqual(marker["bar"] as? Int, 4)
+        XCTAssertEqual(marker["state"] as? String, "open")
+        let spot = try XCTUnwrap(model.spots.first)
+        let english = UIText(language: "en")
+        XCTAssertEqual(DraftTechniquesModel.status(spot, english), "sure · 3 of 4 notes in place", "no percentage: the notes in place")
+
+        let steps = try [4, 6, 7, 8, 9, 10, 11].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
+        XCTAssertEqual(steps.map { $0.drafts.first?.taken }, [1, 0, 0, 0, 1, 0, 1], "taken, undone, left, undone, all sure, undone, a hand")
+        XCTAssertEqual(steps.map { $0.drafts.first?.techniques }, [1, 1, 1, 1, 1, 1, 1])
+        let taken = try XCTUnwrap(steps[0].drafts.first)
+        XCTAssertTrue(SourcesDraftRow.caption(taken, english).hasSuffix(" · 1 technique of 1 taken"), "«взято 1 приём из 1»")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// The приёмы of a variant heard from a recording (c-4b): an inserted bar, with no base to hear and no draft bars yet,
+    /// and a simplification, each with the stretch of the recording it was heard from.
+    @MainActor
+    func testTheTechniquesHeardFromARecordingDecode() throws {
+        let (_, text) = try XCTUnwrap(Self.answers("drafts.techniques.heard").first)
+        let read = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, text, of: "drafts.techniques"), "\(reported)")
+        let model = DraftTechniquesModel()
+        model.keep([read])
+        let spots = model.spots
+        XCTAssertEqual(spots.count, 2)
+        XCTAssertEqual(spots.map { $0.occurrence.recording?.original }, ["src_rec", "src_rec"])
+        XCTAssertEqual(spots.map { $0.occurrence.recording?.from }, [31500, 36000])
+        XCTAssertTrue(spots[0].heard(variant: false).span.isEmpty, "an inserted bar: «Как в нотах» has nothing to play")
+        XCTAssertEqual(spots[0].heard(variant: true).span, 0..<1440, "but the variant has its bar")
+        XCTAssertFalse(spots[0].offer.hands, "no hand over a bar not yet put in")
+        XCTAssertEqual(spots[1].heard(variant: false).variant, "v_0001", "the base, opened alone")
+        XCTAssertEqual(spots[1].heard(variant: false).span, 2160..<2880)
+        XCTAssertEqual(spots[1].heard(variant: true).span, 4320..<5040, "the variant's own ticks")
+        XCTAssertEqual(DraftTechniquesModel.status(spots[0], UIText(language: "en")), "not sure · 0 of 14 notes in place")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// The seams' calls carry each draft's tally in the Sources they answer (c-4b over c-5), read as any Sources answer.
+    func testTheSeamsSourcesCarryTheTally() throws {
+        let answers = try Self.answers("drafts.seams")
+        XCTAssertEqual(answers.count, 9, "each call's answer")
+        let layers = try [0, 1, 3, 4, 6, 8].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
+        XCTAssertEqual(layers.map { $0.drafts.first?.techniques }, [0, 0, 0, 0, 0, 0], "two places, no variant: no приём")
         XCTAssertEqual(reported, [])
     }
 

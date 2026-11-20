@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreDraftPlaces`, `ScoreScreen`,
+`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScoreScreen`,
 `ScoreScreenViews`, `ScoreWorkspace`,
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
@@ -34,7 +34,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
   `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
-- `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels (`placeMarkers`); a tap selects one (`pickPlace`).
+- `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels and приём numbers (`placeMarkers`, `pickLabel`,
+  `pickTechnique`), the pill's steps, hearing (`hearTechnique`), `playDraft`, `loopPlace`.
+- `ScoreDraftViews.swift` (v1.1): `DraftTechniqueCard`, `DraftAssemblyPill`, `DraftStepToast`, `ShownDraftScreen`.
 - `ScoreWorkspaceDrafts.swift` (v1.1): `draftOwner` (nil on a draft's view), `draftSheet`, `newDraft` (no selection:
   a hint, never an empty draft).
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web

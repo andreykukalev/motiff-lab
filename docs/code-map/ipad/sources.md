@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftSheet`, `KeptCopies`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -12,7 +12,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   switch); `SourcesDrafts.swift` (`addToDraft` on the piece the notes are shown on, `renameDraft`, `removeDraft` with
   Undo, `openDraft` by `drafts.open` through `openShown`); `DraftSheet.swift`: `DraftChoice` (what, into, how, the
   same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
-  (`SourcesRows.swift`) and `DraftDialogs`. No «расширить»: music-core has no call for it yet.
+  (`SourcesRows.swift`) and `DraftDialogs`. Step 6: `DraftTechniquesModel` (`DraftTechniques.swift`, a draft view's
+  приёмы); `take`, `leave`, `takeHand`, undone by `drafts.undo` (`.draftStep`). No «расширить» yet.
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).
@@ -23,7 +24,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`SourcesController.performance`) under the bar of `ScoreScreen` and `PdfScreen`, or of a screen over the piece
   (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`), `RecordingListening`:
   `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
-  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it.
+  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`.
 - `SourcesSheet.swift` (from `Workspace/ScoreScreen`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
   (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.

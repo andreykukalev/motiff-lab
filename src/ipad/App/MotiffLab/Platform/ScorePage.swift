@@ -74,7 +74,8 @@ func pageScript(_ object: String, _ function: String, _ argument: Any?) -> (Stri
     return ("return \(object).\(function)(argument)", ["argument": argument])
 }
 
-/// What the page posts, each kind decoded in one place. A message carries one kind, `performanceBar` with its place.
+/// What the page posts, each kind decoded in one place. A message carries one kind, `performanceBar` with its place (and a
+/// приём's number its key).
 enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
@@ -100,6 +101,8 @@ enum PageEvent {
     case playheadAway(Double)
     case checkFlag(Int)
     case performanceBar(Int, left: Double, bottom: Double)
+    /// A draft's приём number tapped (v1.1): a `performanceBar` message with the number's key, and where the number is.
+    case techniqueNumber(String, left: Double, bottom: Double)
     case place(start: Double, end: Double)
     case heads([CGPoint])
     case drag(PlayheadGesture)
@@ -160,7 +163,10 @@ enum PageEvent {
         case .checkFlag:
             return number(value).map { .checkFlag(Int($0)) }
         case .performanceBar:
-            return number(value).map { .performanceBar(Int($0), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0) }
+            let left = number(message["left"]) ?? 0
+            let bottom = number(message["bottom"]) ?? 0
+            if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom) }
+            return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
         case .playheadAway:
             return number(value).map { .playheadAway($0) }
         case .place:
