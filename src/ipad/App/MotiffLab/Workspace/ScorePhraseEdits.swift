@@ -53,6 +53,7 @@ extension ScoreController {
     /// selection's history.
     func takePhraseOffer() {
         guard let offer = selectionModel.phraseOffer else { return }
+        selectionModel.closePhraseOffer()
         Task { await select(offer.onset, offer.end) }
     }
 

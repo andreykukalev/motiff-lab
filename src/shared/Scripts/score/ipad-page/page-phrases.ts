@@ -108,6 +108,11 @@ export function placePhrases(): void {
     if (cardSurface !== null) {
         drawOn(cardSurface);
     }
+    drawAgainWithFonts();
+}
+
+/** Once the fonts the marks are set in have loaded, all of them drawn again: their widths place them. */
+function drawAgainWithFonts(): void {
     if (document.fonts.status === "loading" && !awaitingFonts) {
         awaitingFonts = true;
         void document.fonts.ready.then(() => {
@@ -117,13 +122,19 @@ export function placePhrases(): void {
     }
 }
 
-/** The card in focus laid out with its bars (page-card.ts `layoutCard`): the same marks over them; null takes them away. */
+/**
+ * The card in focus laid out with its bars (page-card.ts `layoutCard`): the same marks over them, the page's left as they
+ * are; null (out of focus) takes the card's away.
+ */
 export function placeCardPhrases(surface: PhraseSurface | null): void {
-    if (cardSurface !== null && surface === null) {
+    if (surface === null && cardSurface !== null) {
         clear(cardSurface);
     }
     cardSurface = surface;
-    placePhrases();
+    if (surface !== null) {
+        drawOn(surface);
+        drawAgainWithFonts();
+    }
 }
 
 function clear(surface: PhraseSurface): void {
