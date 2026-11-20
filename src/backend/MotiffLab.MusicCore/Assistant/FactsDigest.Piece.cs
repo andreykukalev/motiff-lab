@@ -10,7 +10,8 @@ namespace MotiffLab.MusicCore.Assistant;
 /// <summary>
 /// The digest of the whole piece (assistant option A, item 2): the facts music-core already computed for the piece, each with
 /// an id an answer can cite and the bars it is about, so a question about the piece is answered from them without reading
-/// it in ranges. Only the engine's facts: no notes, nothing of the player's but the phrases as the score shows them.
+/// it in ranges. Only the engine's facts: no notes and nothing of the player's; the phrases and sentences are numbered as
+/// the score shows them, and nothing says which boundaries the player set.
 /// </summary>
 public sealed partial class FactsDigest
 {
@@ -132,39 +133,23 @@ public sealed partial class FactsDigest
     }
 
     /// <summary>Each run of bars whose line repeats no earlier bar (<see cref="PieceDna.NewMaterialBars"/>), by its first bar.</summary>
-    private static IEnumerable<DigestItem> NewMaterialItems(IReadOnlyList<int> bars, HashSet<string> ids, Words w)
-    {
-        var runs = new List<(int From, int To)>();
-        foreach (int bar in bars.Order())
-        {
-            if (runs.Count > 0 && runs[^1].To + 1 == bar)
-            {
-                runs[^1] = (runs[^1].From, bar);
-            }
-            else
-            {
-                runs.Add((bar, bar));
-            }
-        }
-
-        return runs.Select(run => new DigestItem(
-            Unique(string.Create(CultureInfo.InvariantCulture, $"new.{run.From}"), ids),
+    private static IEnumerable<DigestItem> NewMaterialItems(IReadOnlyList<int> bars, HashSet<string> ids, Words w) =>
+        StructureAnalyzer.Runs(bars).Select(run => new DigestItem(
+            Unique(string.Create(CultureInfo.InvariantCulture, $"new.{run.First}"), ids),
             "newMaterial",
             "inferred",
-            w.T($"new material in {Bars(run.From, run.To, w)}", $"новый материал: {Bars(run.From, run.To, w)}"))
+            w.T($"new material in {Bars(run.First, run.Last, w)}", $"новый материал: {Bars(run.First, run.Last, w)}"))
         { Bars = run });
-    }
 
     /// <summary>"Phrase 2, bars 4–8, from bar 4, beat 3": numbered as the marks on the score number it.</summary>
     private static DigestItem PhraseItem(Phrase phrase, AssistantPiece piece, HashSet<string> ids)
     {
         Words w = piece.Words;
         MetricPosition start = piece.Meter.ToPosition(phrase.Span.Onset);
-        string certainty = phrase.Start is not { } boundary ? "detected" : PhraseMap.IsOwn(boundary) ? "player" : Certainty(boundary.Attribution);
         return new DigestItem(
             Unique(string.Create(CultureInfo.InvariantCulture, $"phrase.{phrase.Number}"), ids),
             "phrase",
-            certainty,
+            phrase.Start is { } boundary ? Certainty(boundary.Attribution) : "detected",
             w.T(
                 $"Phrase {phrase.Number}, {Bars(phrase.FirstBar, phrase.LastBar, w)}, from bar {start.Bar}, beat {start.Beat}",
                 $"Фраза {phrase.Number}, {Bars(phrase.FirstBar, phrase.LastBar, w)}, начало: такт {start.Bar}, доля {start.Beat}"))
@@ -205,11 +190,10 @@ public sealed partial class FactsDigest
         }
     }
 
-    /// <summary>"detected" for what the file marks or a recording shows, "player" for what the player set, else "inferred".</summary>
+    /// <summary>"detected" for what the file marks or a recording shows, else "inferred": a boundary the player set is not told apart (no player data is sent).</summary>
     private static string Certainty(Attribution attribution) => attribution.Provenance switch
     {
         Provenance.Imported or Provenance.Detected => "detected",
-        Provenance.UserConfirmed or Provenance.UserEdited => "player",
         _ => "inferred",
     };
 }

@@ -71,11 +71,11 @@ public class TempoProfileTests
         ImportedPiece heard = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 150_000, BarGridTests.Waltz())));
         ImportedPiece barred = RecordingBars.Find(heard.Midi!)!.Apply(heard);
 
-        TempoProfile profile = TempoProfile.Of(barred.Meter, PlaybackScore.FromPiece(barred).Tempos, barred.End, inferred: true)!;
+        TempoProfile profile = TempoProfile.OfPiece(barred)!;
 
         Assert.True(profile.Inferred);
         Assert.InRange(profile.Usual, 970, 1030);
         Assert.Equal(FactCertainty.Inferred, profile.Facts(Words.English)[0].Certainty);
-        Assert.Equal(profile.Bars, TempoProfile.Of(barred.Meter, PlaybackScore.FromPiece(barred).Tempos, barred.End, inferred: true)!.Bars);
+        Assert.Equal(profile.Bars, TempoProfile.OfPiece(barred)!.Bars);
     }
 }

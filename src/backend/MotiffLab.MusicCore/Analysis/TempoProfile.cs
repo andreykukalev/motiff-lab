@@ -41,14 +41,21 @@ public sealed record TempoProfile(IReadOnlyList<BarTempo> Bars, int Usual, int L
         return new TempoProfile(bars, usual, sorted[(sorted.Length - 1) / 10], sorted[(sorted.Length - 1) * 9 / 10], ChangesOf(bars, usual), inferred);
     }
 
-    /// <summary>
-    /// The profile of <paramref name="piece"/> as it plays (<see cref="PlaybackScore.Tempos"/>), of the bars that start within
-    /// <paramref name="within"/> when given: inferred for a recording, whose bars were found in it, read from the file otherwise.
-    /// </summary>
+    /// <summary>The profile of <paramref name="piece"/> as it plays (<see cref="PlaybackScore.Tempos"/>), of the bars that start within <paramref name="within"/> when given.</summary>
     public static TempoProfile? OfPiece(ImportedPiece piece, TickSpan? within = null)
     {
         ArgumentNullException.ThrowIfNull(piece);
-        return Of(piece.Meter, PlaybackScore.FromPiece(piece).Tempos, piece.End, piece.Bars is not null, within);
+        return OfPiece(piece, PlaybackScore.FromPiece(piece).Tempos, within);
+    }
+
+    /// <summary>
+    /// The profile of <paramref name="piece"/> at <paramref name="tempos"/>, its tempos as it plays read once for several
+    /// stretches: inferred for a recording, whose bars were found in it, read from the file otherwise.
+    /// </summary>
+    public static TempoProfile? OfPiece(ImportedPiece piece, IReadOnlyList<PlaybackTempo> tempos, TickSpan? within = null)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        return Of(piece.Meter, tempos, piece.End, piece.Bars is not null, within);
     }
 
     /// <summary>Whether the tempo changes at all: some bar is played or written at another tempo.</summary>

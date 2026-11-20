@@ -63,4 +63,19 @@ public class NearestFactsTests
         Assert.Equal(Cited(piece, Words.Russian, null), Cited(piece, Words.Russian, "Расскажи что-нибудь"));
         Assert.Equal(Cited(passage, Words.Russian, "Какие здесь аккорды?"), Cited(passage, Words.Russian, "Какие здесь аккорды?"));
     }
+
+    [Fact]
+    public void A_word_that_only_starts_like_a_kind_or_a_small_letter_after_part_asks_for_nothing()
+    {
+        JsonElement russian = AssistantContext.OfPiece(s_russian);
+        JsonElement english = AssistantContext.OfPiece(s_english);
+
+        // «часто» is no «часть», "particular" no "part": the question has no cue, so the digest's order stands.
+        Assert.Equal(Cited(russian, Words.Russian, null), Cited(russian, Words.Russian, "Как часто это играть?"));
+        Assert.Equal(Cited(english, Words.English, null), Cited(english, Words.English, "What is particular here?"));
+
+        // "part a bit" names no section A: it asks about the form only, as "part" alone does.
+        Assert.Equal(Cited(english, Words.English, "Is this part odd?"), Cited(english, Words.English, "Is this part a bit odd?"));
+        Assert.NotEqual(Cited(english, Words.English, "Is this part odd?"), Cited(english, Words.English, "Is this part A odd?"));
+    }
 }

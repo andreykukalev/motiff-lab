@@ -137,21 +137,21 @@ public class FactsDigestTests
     }
 
     [Fact]
-    public void A_phrase_the_player_started_says_so_and_the_digest_is_numbered_as_the_score()
+    public void The_phrases_are_numbered_as_the_score_and_never_tell_which_boundary_the_player_set()
     {
         ImportedPiece imported = FurElise();
-        AssistantPiece found = Open(imported);
-        PhraseLevels levels = found.Structure.Levels;
+        PhraseLevels levels = Open(imported).Structure.Levels;
         Tick start = imported.Notes.Where(note => imported.Meter.BarAt(note.Span.Onset).Number == 12).Min(note => note.Span.Onset);
         PhraseLevels edited = levels.With(LevelEdits.None.With(PhraseLevel.Phrase, levels.Phrases.StartAt(start)));
         var piece = new AssistantPiece(imported, imported.Notes, [], Words.English, PieceStructure.Of(imported.Notes, imported.Meter, edited));
 
-        JsonElement items = Json(Written(FactsDigest.OfPiece(piece))).GetProperty("items");
-        JsonElement own = items.EnumerateArray().Single(item => item.GetProperty("kind").GetString() == "phrase" && item.GetProperty("bars").GetProperty("from").GetInt32() == 12);
+        JsonElement[] phrasing = [.. Json(Written(FactsDigest.OfPiece(piece))).GetProperty("items").EnumerateArray().Where(item => item.GetProperty("kind").GetString() is "phrase" or "sentence")];
+        JsonElement[] phrases = [.. phrasing.Where(item => item.GetProperty("kind").GetString() == "phrase")];
 
-        Assert.Equal("player", own.GetProperty("certainty").GetString());
-        Assert.Equal(edited.Phrases.Phrases.Count, items.EnumerateArray().Count(item => item.GetProperty("kind").GetString() == "phrase"));
         Assert.Equal(levels.Phrases.Phrases.Count + 1, edited.Phrases.Phrases.Count);
+        Assert.Equal(edited.Phrases.Phrases.Select(phrase => (phrase.FirstBar, phrase.LastBar)), phrases.Select(item => (item.GetProperty("bars").GetProperty("from").GetInt32(), item.GetProperty("bars").GetProperty("to").GetInt32())));
+        Assert.Equal("inferred", phrases.Single(item => item.GetProperty("bars").GetProperty("from").GetInt32() == 12).GetProperty("certainty").GetString());
+        Assert.All(phrasing, item => Assert.Contains(item.GetProperty("certainty").GetString(), new[] { "detected", "inferred" }));
     }
 
     [Fact]
