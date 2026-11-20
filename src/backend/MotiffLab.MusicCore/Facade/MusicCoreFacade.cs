@@ -23,6 +23,8 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed partial class MusicCoreFacade
 {
     /// <summary>
+    /// 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it
+    /// answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
     /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
     /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they
@@ -48,104 +50,9 @@ public sealed partial class MusicCoreFacade
     /// its "motifs", the answer "own" and "sections" (dna's form, each with its "phrase", bar and beat); phrases.edit takes
     /// "move", "start", "remove", "putBack", "resetAll" (the phrases only, "replaced") and "restore" with "expected" (Undo,
     /// refused when stale), answering "previous" and "changed"; fields added. A piece opens in phrases, no edit moves a bookmark.
-    /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
-    /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
-    /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
-    /// project.metadata sets them on an open piece or PDF piece, and on piece 0 in a project file sent as "file", answering
-    /// that file changed. Within 12, the summary gained "playlists", the playlists the piece is on by name, and
-    /// project.metadata takes them as it takes "tags", a field added. Also within 12, four calls on piece 0 sync projects
-    /// (version 0.2, <see cref="ProjectSync"/>), each with project files as text: project.online (the copy saved online),
-    /// project.sync (the next step), project.pulled (an online copy kept with this device's PDF) and project.resolve (two
-    /// changed copies: the last saved kept, the other beside as a previous copy), calls added. Also within 12 (version 0.3,
-    /// long recordings), recording.parts plans the whole recording rather than its first 7 minutes, and it, performance.add
-    /// with "parts" and open with "transcription" take "levels", the sound's loudness that puts the seams at quiet moments,
-    /// a field added.
-    /// Also within 12, reference.key and reference.sound on piece 0 answer the circle of fifths with any key's card and its
-    /// scales and chords to hear (the Reference experiment, <see cref="Analysis.KeyReference"/>), calls added. Also within 12
-    /// (the Reference, part 2), reference.chord and reference.scale on piece 0 answer a chord's and a scale's own card,
-    /// reference.sound sounds them, and reference.key on an open piece also answers "pieceKey", calls and fields added.
-    /// Also within 12 (version 0.5, the iPad's «Справочник»), reference.sounding sounds a chord or a scale as chosen (position,
-    /// spacing, the way it is played, octaves) and reference.explorer the harmony explorer's progression in a texture, and the
-    /// chords and scales offered tell their "family", calls and fields added.
-    /// Also within 12, for the iPad's practice experiments (#327, #328, #349): select takes "snap": "beat" and a selection
-    /// answers "firstBeat" and "lastBeat"; playback takes "hands" ("both", "right", "left") and answers "hands" (which hands
-    /// the notes carry, and whether any was inferred); resume.save takes "passage": null for no passage, fields added.
-    /// Also within 12 (version 0.4), the calls write the fields the project file took within 15: parts.split's parts keep
-    /// "partOf", which the project summary answers; document.read takes "reports" as scan.join does and keeps them, raising
-    /// PageQuality, and check answers "pages"; ink.add and document.ink.add keep a stroke's "margin", which marks and
-    /// document.marks answer, fields added.
-    /// Also within 12 (version 0.5, «Импорт папки»), library.plan on piece 0 answers the import plan of a folder the app
-    /// read (<see cref="Import.LibraryImport"/>) and library.confirm the metadata of a piece once the player confirmed its
-    /// suggestions, calls added; library.relink answers where the library's originals are in a fresh listing of the folder
-    /// (<see cref="Import.LibraryRelink"/>), a call added; library.linked makes a piece of a PDF left in the player's folder
-    /// and library.link moves an original to where it was found again, calls added; open takes "pdf" (base64) for a piece
-    /// whose PDF is away (it answered "originalAway" before), and answers "otherFile" when the fingerprint differs.
-    /// Also within 12 (version 0.5.2, the iPad's one playback position), playback's beats answer "bar" and "beat" and its
-    /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
-    /// Also within 12 (decision record 0029, the scan engine «Авто»), scan.vector on piece 0 reads a born-digital PDF's pages
-    /// on the device and says which pages go to the scan server (<see cref="ScanRequest.Vector"/>), a call added.
-    /// Also within 12 (version 0.6, the assistant's first steps without a model, 0028), assistant.tools on piece 0 answers
-    /// the assistant's tool registry (<see cref="Assistant.AssistantTools"/>), and on an open piece assistant.call runs a tool
-    /// and answers what it read or its drafts (never applied), assistant.digest the facts digest of bars or of the piece, and
-    /// assistant.address a note's address (bar.hand.index) or the note at one, calls added. Version 0.6.1 (#582) adds
-    /// assistant.context, the context a turn sends for the selection or the whole piece, and the tool notes.join; and
-    /// corrections.acceptDraft, the player's Accept of an assistant's draft on the iPad, its edits added as corrections, and
-    /// corrections.undoDraft, its one Undo; assistant.call takes the turn's "role", checked as the relay checks a call.
-    /// Also within 12 (version 0.6, the sources by the layers of 0030, project file version 16): sources.layers answers the
-    /// originals and Notes with their states and the views of the switch in order; sources.view.hide, sources.original.add,
-    /// .remove, sources.notes.recognise, .hear (a recording already added heard into new Notes, as transcribe hears one),
-    /// .remove and sources.makeWorking change them; sources.pdf takes an "id"; sources.notes.open opens Notes that are not
-    /// working under a new number, "readOnly", answering only the calls that show them (else "readOnly"); a PDF piece takes
-    /// the sheet's calls too, and document, document.marks, ink.* and bookmark.* take an "original" (the first PDF when
-    /// left out), so each PDF or photos original keeps its own page marks. The answer of sources and every other answer
-    /// stay as they were, calls added.
-    /// Also within 12 (version 1.1, finding 29, project file version 17): open takes "recording" and makes a piece that is
-    /// only that recording, kept on the device, which opens, as the project file of one does, without notes, as a PDF piece
-    /// does (its answer has "recording", the original's "id", "fileName" and "durationMs", in place of "document"), where
-    /// before no file had such a piece; that piece and a PDF piece answer sources (the project's id among it, its "base"
-    /// "audio" for a recording) and sources.notes.hear, whose notes become the working notes of a piece with none; the
-    /// project summary's originals tell the recording; a field, a value and calls added.
-    /// Also within 12 (version 0.6.4, #614 item 4, the iPad's selection of time): select takes "empty": true, and a span or
-    /// bars with no notes in them are then selected as they are, noteIds empty; understand, circle and try answer
-    /// "unavailable" for such a selection, project.save keeps it as no selection, a field added.
-    /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
-    /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
-    /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
-    /// a fact turns "uncertain" and a key read from those notes too; check answers "lengths", the bars of a recording
-    /// whose notes' lengths are uncertain. The project file stays version 15.
-    /// 10 removes the calls no app sends (#342): the assembly calls of 9 (the web assembles through music-core directly,
-    /// 0024 and 0025), variation.start, .propose, .check, .accept, .reject, .undo and .redo (the iPad app runs a variation
-    /// through try and variation.clear), and experiments, experiments.start and experiments.surprise. They answer
-    /// unknownCall. The project file stays version 15 and keeps an assembly journal as it was read.
-    /// 4 brings performances (0022) and project file version 13: performances, performance (the comparison bar by bar with
-    /// its markers), performance.add, .rename, .dismiss, .take, .restore and .remove; a Check flag's source can be performance.
-    /// 5 moves to project file version 14 (testing item 15): a correction can add a note, the note editor on the roll
-    /// adds and sets notes (corrections.add, corrections.set) on a draft that the project keeps only once saved
-    /// (corrections.begin, .save, .discard, .reset).
-    /// 6 keeps a piece's sources in the piece (testing item 16): document.read fills the PDF piece itself with the notes read
-    /// from it, a piece with notes and a PDF opens in its "PDF" view with "view": "pdf", sources tells the base and what the
-    /// player's version holds, sources.document keeps a PDF inside a piece with notes, sources.documentNotes adds the notes
-    /// read from it as a version, and performance.takeAll takes every bar the comparison is sure of.
-    /// 8 explains Piece DNA (testing item 30): dna answers a "summary" line, every harmony bar its "degree" and
-    /// "function", every cadence its "explanation", and "circles", the circle of fifths of each section with the key it
-    /// comes from; a circle's chords tell their "function" and "role", and a circle its twelve "zones".
-    /// 9 assembles the player's own version from the piece's sources (0024): assembly, assembly.source, .notation,
-    /// .playback, .pick, .sheet, .carry, .transpose, .accept, .undo, .redo, .restart, .revert, .journal, .apply, .unapply
-    /// and .recording, over project file version 15.
-    /// 7 merges a version through a draft (testing items 32 and 34): performance.merge.open, .choose, .own, .undecide,
-    /// .undo, .redo, .reset, .cancel and .apply, the three views engraved and heard (performance.merge.notation, .playback),
-    /// performance.merge.undoApplied, and performance.putBack for a version removed while the piece is open; a performance
-    /// tells "mergedAt" and "mergeKept". The project file stays version 14 with an optional "merge" on a performance.
-    /// 3 brings the three phrase levels (0018, section 3; preparation items 7–9): the phrases answer names the level shown and
-    /// the units of a level with their parent, "long" replaces "fitsSelection", the levels are short, phrase and sentence,
-    /// phrases.level and phrases.edit take a level and split, understand ranks the facts and offers Try chips, and try sounds a chip.
-    /// 2 moves to project file version 12 (0018): the project answer counts resume points, ideas, marks, bookmarks and
-    /// open Check flags in place of sessions and observations, and the calls for marks, bookmarks, resume points, ideas,
-    /// settings and Check join.
-    /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
-    /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
+    /// Earlier contracts: ADR 0020, point 2.
     /// </summary>
-    public const int Contract = 13;
+    public const int Contract = 14;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

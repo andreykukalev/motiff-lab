@@ -110,19 +110,6 @@ public class FacadeAnswersContractTests
             ("performance.takeAll", """{"id":"perf_1"}"""),
             ("performance.restore", """{"id":"perf_1","bars":[5]}"""),
         ],
-        // Another level shown with nothing selected (the selection null), a passage selected and the level changed under
-        // it (the selection moved to the units there), the device's level shown without becoming the piece's; then the
-        // phrases with the player's own boundary (a phrase joined with the next) and with it reset.
-        ["phrases.level"] =
-        [
-            ("phrases.level", """{"level":"sentence"}"""),
-            ("select", """{"bars":{"first":5,"last":8}}"""),
-            ("phrases.level", """{"level":"short"}"""),
-            ("phrases.level", """{"level":"phrase","remember":false}"""),
-            ("phrases", null),
-            ("phrases.edit", """{"joinWithNext":1}"""),
-            ("phrases.edit", """{"reset":true}"""),
-        ],
         // The phrase marks (the phrases spec, version 1.2): the marks with nothing changed; the start of phrase 2 dragged a
         // little before its note (snapped to the nearest note, the player's own with the found boundary it replaced) and put
         // back by Undo ("restore" with the edits before, "expected" the edits the move left, a level left out having none);
