@@ -346,13 +346,13 @@ Notes compared with the working notes ([0022](architecture/adr/0022-score-and-pe
         "added": [ { "id": "perf-perf_1-n_0042", "pitch": 79, "onset": 4560, "duration": 120,
                      "velocity": 64, "track": 0, "hand": "Right" } ] }   // hand absent when unknown
     ],
-    "merge": {                           // optional: the merge draft's choices, to open again
+    "merge": {                           // optional: the merge draft's choices, read and written back as they were
       "appliedAt": "2026-11-07T12:30:00.0000000+00:00",   // null after "Undo the merge"; the choices stay
       "bars": [ { "bar": 5, "choice": "Version" },        // Mine, Version, Own or NotADifference
                 { "bar": 7, "choice": "Own", "own": { "bar": 7, "removed": [ … ], "added": [ … ] } } ] } } }
 ```
 
-The provenance's `op` follows `source`: a recording heard is `audioRecognition` (its original is the version's own audio original), a MIDI file `import`, a written score `import`, or `pdfRecognition` when it was read from a PDF with an engine. `merge` is written once the player applies a merge draft (0022, section 5): applying it sets `taken` to the bars the draft takes and adds its "not a difference" bars to `dismissed`; undoing the merge empties `taken` and sets `appliedAt` to null.
+The provenance's `op` follows `source`: a recording heard is `audioRecognition` (its original is the version's own audio original), a MIDI file `import`, a written score `import`, or `pdfRecognition` when it was read from a PDF with an engine. `merge` was written when the player applied a merge draft (0022, section 5): applying it set `taken` to the bars the draft took and added its "not a difference" bars to `dismissed`; undoing the merge emptied `taken` and set `appliedAt` to null. The draft left the iPad in version 1.1 (ADR 0034, section 8) and no build writes a new `merge`; a file that has one reads it and writes it back as it was.
 
 The working notes a project opens with are their music, then their corrections, then the taken bars: removed ids are left out (an id that is no longer there is ignored) and added notes come in marked user-edited. Bars cannot be changed while bars are taken.
 

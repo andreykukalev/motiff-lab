@@ -9,27 +9,26 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Tests.Projects;
 
 /// <summary>
-/// The operations on a piece's originals and Notes (decision record 0030, section 4, and its amendment of 2026-11-14):
-/// another PDF beside the first, removing an original with or without its notes and reviving it with the same file,
-/// recognising again beside the working notes, removing Notes, and making other Notes the working ones.
+/// The operations on a piece's originals (decision record 0030, section 4): another PDF beside the first, removing an
+/// original with or without its notes and reviving it with the same file; <see cref="NotesOperationsTests"/> for the Notes.
 /// </summary>
-public class SourceOperationsTests
+public class OriginalOperationsTests
 {
-    private static readonly DateTimeOffset s_now = new(2026, 11, 14, 10, 0, 0, TimeSpan.Zero);
+    internal static readonly DateTimeOffset s_now = new(2026, 11, 14, 10, 0, 0, TimeSpan.Zero);
 
-    private static readonly byte[] s_pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+    internal static readonly byte[] s_pdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
 
     private static readonly byte[] s_otherPdf = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog /Lang (de) >> endobj\n%%EOF\n");
 
-    private static byte[] Scanned() =>
+    internal static byte[] Scanned() =>
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
 
-    private static byte[] Original() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", "fur-elise-original.musicxml"));
+    internal static byte[] Original() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", "fur-elise-original.musicxml"));
 
-    private static PageMap Pages(byte[] musicXml, int pages = 2) => PageMap.Of(PieceImporter.Import("a.musicxml", musicXml).Piece!, pages);
+    internal static PageMap Pages(byte[] musicXml, int pages = 2) => PageMap.Of(PieceImporter.Import("a.musicxml", musicXml).Piece!, pages);
 
     /// <summary>A PDF piece read by a scan, with a mark on its first page and one correction of its first note.</summary>
-    private static Project ScannedPdf()
+    internal static Project ScannedPdf()
     {
         byte[] musicXml = Scanned();
         Project project = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now).Recognised(musicXml, "homr 0.7.0", Pages(musicXml), s_now.AddMinutes(1));
@@ -44,7 +43,7 @@ public class SourceOperationsTests
 
     private static PieceOriginal Pdf(string id, string name) => new(id, OriginalKind.Pdf, name, OriginalKept.File, s_now.AddHours(1));
 
-    private static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));
+    internal static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));
 
     [Fact]
     public void Another_pdf_is_a_new_original_beside_the_first_with_its_bytes_in_the_file_and_never_online()
@@ -127,82 +126,6 @@ public class SourceOperationsTests
         Assert.Equal(OriginalKept.Link, Assert.Single(unlinked.Sources.Removed).Original.Kept);
         Assert.Null(unlinked.FindOriginal("src_scan"));
         Assert.Throws<ArgumentException>(() => linked.AddOriginal(Pdf("src_kept", "x.pdf"), null));
-    }
-
-    [Fact]
-    public void Recognising_again_adds_notes_beside_the_working_ones_which_keep_their_corrections()
-    {
-        byte[] musicXml = Scanned();
-        Project project = ScannedPdf();
-
-        Project again = project.RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr 0.8.0", Pages(musicXml, 3), s_now.AddHours(1));
-
-        OtherNotes notes = Assert.Single(again.Sources.Notes);
-        Assert.Equal(("n_2", "Nocturne.musicxml", "homr 0.8.0"), (notes.Id, notes.FileName, notes.Provenance.Engine));
-        Assert.Equal(PieceOriginal.Fingerprint(s_pdf), notes.Provenance.Original!.Sha256);
-        Assert.Equal(3, notes.Pages!.Pages);
-        Assert.True(notes.Edits.IsEmpty);
-        Assert.Equal(project.Edits, again.Edits);
-        Assert.Equal(project.Source, again.Source);
-        Assert.Equal(notes, Assert.Single(RoundTrip(again).Sources.Notes));
-        Assert.Throws<InvalidOperationException>(() => Project.CreateDocument("p_only", "a.pdf", s_pdf, s_now).RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr", null, s_now));
-    }
-
-    [Fact]
-    public void Removing_notes_keeps_the_original_and_never_takes_the_working_notes()
-    {
-        Project project = ScannedPdf().RecognisedAgain(PieceOriginal.DocumentId, Scanned(), "homr 0.8.0", null, s_now).ViewHidden("n_2", hidden: true);
-
-        Project removed = project.DeleteNotes("n_2");
-
-        Assert.Empty(removed.Sources.Notes);
-        Assert.Empty(removed.HiddenViews);
-        Assert.Equal(s_pdf, removed.Document);
-        Assert.Throws<InvalidOperationException>(() => project.DeleteNotes(project.NotesId));
-        Assert.Throws<KeyNotFoundException>(() => project.DeleteNotes("n_7"));
-    }
-
-    [Fact]
-    public void Other_notes_made_working_keep_the_old_working_notes_whole_and_the_motifs_wait_with_their_own_notes()
-    {
-        Project worked = ProjectFileTests.Worked();
-        Project project = worked with { Marks = worked.Marks.AddNote(new MarginNote("n_0001", new MusicCore.Time.TickSpan(new MusicCore.Time.Tick(0), 480), "Breathe", s_now)) };
-        var other = new OtherNotes(project.NextNotesId(), "minuet.musicxml", Original(), new NotesProvenance(NotesProvenance.Import) { From = [new ProvenanceSource("src_fur")] });
-        Project two = project.AddNotes(other);
-        Assert.Throws<ArgumentException>(() => two.AddNotes(other));
-
-        Project swapped = two.MakeWorking(other.Id);
-
-        Assert.Equal((other.Id, other.Music), (swapped.NotesId, swapped.Source));
-        Assert.Equal(project.FileName, swapped.FileName);
-        OtherNotes before = Assert.Single(swapped.Sources.Notes);
-        Assert.Equal((project.NotesId, project.Source), (before.Id, before.Music));
-        Assert.Equal(project.Marks, before.Marks);
-        Assert.True(swapped.Marks.IsEmpty);
-        Assert.All(swapped.Motifs, motif => Assert.Equal(project.NotesId, motif.Notes));
-        OpenedProject opened = OpenedProject.Open(swapped);
-        Assert.Empty(opened.Motifs);
-        Assert.Equal(["m_0001", "m_0002", "v_0001", "v_0002"], opened.Hidden.Order(StringComparer.Ordinal));
-        Assert.Equal(ProjectFile.Write(swapped), ProjectFile.Write(RoundTrip(swapped)));
-
-        Project back = swapped.MakeWorking(project.NotesId);
-        Assert.Equal(ProjectFile.Write(two), ProjectFile.Write(back));
-        Assert.Equal(2, OpenedProject.Open(back).Motifs.Count);
-        Assert.Throws<KeyNotFoundException>(() => back.MakeWorking(back.NotesId));
-    }
-
-    [Fact]
-    public void Removing_notes_takes_the_motifs_made_on_them()
-    {
-        Project project = ProjectFileTests.Worked();
-        var other = new OtherNotes("n_2", "fur-elise.musicxml", Original(), new NotesProvenance(NotesProvenance.Import));
-        Project swapped = project.AddNotes(other).MakeWorking("n_2");
-
-        Project removed = swapped.DeleteNotes(project.NotesId);
-
-        Assert.Empty(removed.Motifs);
-        Assert.Empty(removed.Variations);
-        Assert.Empty(removed.Sources.Notes);
     }
 
     [Fact]
