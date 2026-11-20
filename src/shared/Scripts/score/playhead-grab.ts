@@ -173,7 +173,7 @@ export interface ScorePressHost {
 }
 
 /** The marks over the score that are their own targets: a long press there is theirs. */
-const OWN_TARGETS = "button, a, input, .grip, .sel-handle, .bracket";
+const OWN_TARGETS = "button, a, input, .grip, .sel-handle";
 
 /**
  * The long press in Navigate on the score (#543 3.1 and 5.5): held still on a bar it takes the black playhead to the place

@@ -36,7 +36,6 @@
   "roll.js.legendInferred": "Dashed outline: inferred, not in the file (the note or its hand)",
 
 
-  "bar.phrases": "Phrases",
   "bar.roll": "Piano roll",
   "bar.insights": "Insights",
   "bar.more": "More",
@@ -44,10 +43,6 @@
   "bar.page": "p. {0} of {1}",
   "bar.pages": "pp. {0}–{1} of {2}",
   "drawer.close": "Close",
-  "phrases.levelTitle": "Phrases",
-  "phrases.levelShort": "Short",
-  "phrases.levelPhrases": "Phrases",
-  "phrases.levelSentences": "Sentences",
 
   "menu.clearSelection": "Clear the selection",
   "roll.noteNames": "Note names",
@@ -122,6 +117,7 @@
   "extra.show": "Show",
   "extra.performance": "Differences from versions",
   "extra.taken": "Bars taken from a version",
+  "extra.phrases": "Phrases",
   "extra.check": "Check flags",
   "extra.none": "This piece has no extra information yet.",
   "extra.yours": "Your marks",

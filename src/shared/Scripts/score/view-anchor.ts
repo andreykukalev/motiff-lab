@@ -2,7 +2,8 @@
 // section 10): not as pixels, which a new layout (another width, the score engraved again after the switch, a turn of the
 // iPad) would send elsewhere, but as a place in what the view shows and a share of it. On the notes the place is a system,
 // named by the tick of its first bar; on a PDF it is a page, by its number. The same rules serve the web's score and PDF
-// views and the iPad's score page (Web/score.js); the iPad's PDF keeps them in Swift (ViewStates.swift), with the same tests.
+// views and the iPad's score page (ipad-page/page-navigation.ts); the iPad's PDF keeps them in Swift (ViewStates.swift),
+// with the same tests.
 
 /** A stretch of the view from top to bottom, in the view's content pixels: a system of the notes, or a page of a PDF. */
 export interface AnchorSpan {

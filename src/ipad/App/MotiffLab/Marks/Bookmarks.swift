@@ -105,7 +105,7 @@ final class ContentsController: ObservableObject {
     @Published var draft: Draft?
     /// The sections of the form music-core finds in the piece, for the Contents' structure: the same sections, letters and
     /// bars as Piece DNA, read from the one structure of the piece (#347), whatever level the brackets show.
-    @Published private(set) var sections: [DnaMap.Section] = []
+    @Published private(set) var sections: [FormSection] = []
     @Published var search = ""
     /// The player's own order rather than the score's.
     @Published var myOrder = false
@@ -657,10 +657,10 @@ struct PagesStrip: View {
         (contents.shelf?.bookmarks ?? []).filter { page.start <= $0.onset && $0.onset < page.end }
     }
 
-    /// "p. 2 · phrases 3–5", the phrases named while the level is Phrases and they are shown (not «Не показывать»).
+    /// "p. 2 · phrases 3–5": the phrases that start on the page.
     private func caption(_ page: ScoreController.PageOutline) -> String {
         let number = text.format("contents.page", String(page.page))
-        guard !selectionModel.phrasesHidden, let phrases = selectionModel.phrases, phrases.level == "phrase" else { return number }
+        guard let phrases = selectionModel.phrases else { return number }
         let starting = phrases.units.filter { page.start <= $0.onset && $0.onset < page.end }.map(\.number)
         guard let first = starting.first, let last = starting.last else { return number }
         let named = first == last ? text.format("contents.pagePhrase", String(first)) : text.format("contents.pagePhrases", String(first), String(last))
