@@ -44,6 +44,10 @@ public sealed partial class MusicCoreFacade
             "drafts.leaveBridge" => DraftBridgeRequest.Leave(owner, fields),
             "drafts.anchor" => DraftAnchorRequest.Confirm(owner, fields, Working),
             "drafts.unanchor" => DraftAnchorRequest.Remove(owner, fields),
+            "drafts.context" => DraftAssistantRequest.Context(owner, fields),
+            "drafts.call" => DraftAssistantRequest.Call(owner, fields),
+            "drafts.accept" => DraftAssistantRequest.Accept(owner, fields),
+            "drafts.proposal" => OpenProposal(ownerNumber, owner, fields),
             _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
         };
     }
@@ -114,6 +118,17 @@ public sealed partial class MusicCoreFacade
                     json.WriteString("variant", variant);
                 }
             });
+    }
+
+    /// <summary>
+    /// «▶ После» of what the assistant proposes in a draft (version 1.2, decision record 0034, section 6): the draft as the
+    /// call "tool" with "parameters" on the place would leave it (<see cref="DraftAssistantRequest.Proposal"/>), open under a
+    /// new number only to be shown, answered as drafts.open is; the draft itself does not change. «▶ До» is drafts.open.
+    /// </summary>
+    private string OpenProposal(int number, OpenPiece owner, Request fields)
+    {
+        Draft after = DraftAssistantRequest.Proposal(owner, fields).After;
+        return OpenShown(owner, () => owner.Project.ChangeDraft(after.Id, _ => after).ViewOfDraft(after.Id), new ShownView(number, after.Id, Draft: true), json => DraftRequest.View(json, after, owner.Words));
     }
 
     /// <summary>The piece open to work on whose id is <paramref name="projectId"/>, as a variant from another piece names it; null when none is.</summary>

@@ -48,6 +48,31 @@ public static class AssistantContext
         return piece.RangeRefusal(bars.FirstBar, bars.LastBar) is null ? OfRange(piece, bars.FirstBar, bars.LastBar, hand) : null;
     }
 
+    /// <summary>
+    /// The context of a question in a draft's place (decision record 0034, section 6; the plan's answer 7; the consent lists
+    /// exactly this): {"digest": the place's digest (<see cref="FactsDigest.OfDraftPlace"/>), "notes": the base's notes,
+    /// "variantNotes": the notes of the variant built from, by address in its own bars, absent without one}. At most 32 bars
+    /// each (<see cref="Drafts.DraftScope.Of"/>); never a file, a name, a title, a recording's sound or the player's marks.
+    /// </summary>
+    public static JsonElement OfDraft(Drafts.DraftScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        return Written(json =>
+        {
+            json.WritePropertyName("digest");
+            FactsDigest.OfDraftPlace(scope).Write(json);
+            json.WritePropertyName("notes");
+            AllNotes(json, scope.Base);
+            if (scope.Heard is { } heard)
+            {
+                json.WritePropertyName("variantNotes");
+                AllNotes(json, heard);
+            }
+        });
+    }
+
+    private static void AllNotes(Utf8JsonWriter json, AssistantPiece piece) => ReadingTools.WriteNotes(json, piece, piece.Read(piece.FirstBar, piece.LastBar));
+
     /// <summary>{"digest": the whole piece's digest}.</summary>
     public static JsonElement OfPiece(AssistantPiece piece)
     {

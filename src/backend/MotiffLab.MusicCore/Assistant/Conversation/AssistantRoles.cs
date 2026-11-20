@@ -16,6 +16,19 @@ public enum AssistantRole
     /// app shows as a button the player taps or not. Served once with the experiment «Помощник правит ноты».
     /// </summary>
     Proposer,
+
+    /// <summary>
+    /// In a draft (decision record 0034, section 6; Pro), the place assembler («Собери место ① как на записи без
+    /// импровизации»): it reads the приёмы of the variant built from against the place's base, and the base's facts, and
+    /// proposes taking приёмы through the player's own steps; music-core writes them, and only the player accepts.
+    /// </summary>
+    PlaceAssembler,
+
+    /// <summary>In a draft, explanations: it reads the приёмы, where the variants came from, the seams and the base's facts, and answers citing them; it proposes nothing.</summary>
+    Explainer,
+
+    /// <summary>In a draft, the seams: it reads the bridge candidates at the seam before the place and proposes one; music-core builds its notes.</summary>
+    SeamChooser,
 }
 
 /// <summary>
@@ -32,10 +45,13 @@ public static class AssistantRoles
     {
         AssistantRole.Mentor => [.. AssistantTools.All.Where(static tool => tool.Kind == ToolKind.Read)],
         AssistantRole.Proposer => [.. AssistantTools.All.Where(static tool => tool.Kind is ToolKind.Read or ToolKind.ProposeDraft or ToolKind.Check or ToolKind.SuggestAction)],
+        AssistantRole.PlaceAssembler => Named("facts.get", "notes.list", "harmony.chords", "place.techniques", "place.take"),
+        AssistantRole.Explainer => Named("facts.get", "notes.list", "harmony.chords", "place.techniques", "place.bridges"),
+        AssistantRole.SeamChooser => Named("facts.get", "harmony.chords", "place.bridges", "place.bridge"),
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown role."),
     };
 
-    /// <summary>The roles the relay answers: both, each with its own instructions.</summary>
+    /// <summary>The roles the relay answers, each with its own instructions; a draft's roles once the relay has theirs.</summary>
     public static IReadOnlyList<AssistantRole> Served { get; } = [AssistantRole.Mentor, AssistantRole.Proposer];
 
     /// <summary>
@@ -53,6 +69,9 @@ public static class AssistantRoles
 
         return tool.Parameters.Refusal(call.Arguments, "", words);
     }
+
+    /// <summary>The role's tools named here, of a piece first, then of a draft (on a draft, the piece's read the place's base).</summary>
+    private static AssistantTool[] Named(params string[] names) => [.. AssistantTools.All.Concat(AssistantTools.InDraft).Where(tool => names.Contains(tool.Name, StringComparer.Ordinal))];
 
     /// <summary>Whether the role may call the tool.</summary>
     public static bool Allows(AssistantRole role, string tool) => ToolsOf(role).Any(allowed => allowed.Name == tool);

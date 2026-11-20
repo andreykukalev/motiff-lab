@@ -34,8 +34,11 @@ public sealed record ToolResult
     /// <summary>Why the tool did nothing, in the player's language; null when it answered.</summary>
     public string? Refusal { get; private init; }
 
-    /// <summary>The drafts the tool made, in the order it offers them; empty for a tool that reads.</summary>
+    /// <summary>The drafts of notes the tool made, in the order it offers them; empty for a tool that reads or works in a draft.</summary>
     public IReadOnlyList<AssistantDraft> Drafts { get; private init; } = [];
+
+    /// <summary>What a draft's tool proposes (decision record 0034, section 6), written as the one entry of "drafts"; null otherwise.</summary>
+    public Drafts.DraftProposal? Proposal { get; private init; }
 
     /// <summary>Why a proposing tool made no draft although it ran, such as a Check reason with no safe repair; null otherwise.</summary>
     public string? NoDraftReason { get; init; }
@@ -50,6 +53,8 @@ public sealed record ToolResult
     internal static ToolResult Read(Action<Utf8JsonWriter> body) => new() { Body = body };
 
     public static ToolResult Proposed(IReadOnlyList<AssistantDraft> drafts, Action<Utf8JsonWriter>? body = null) => new() { Drafts = drafts, Body = body };
+
+    internal static ToolResult Proposing(Drafts.DraftProposal proposal) => new() { Proposal = proposal };
 }
 
 /// <summary>
@@ -79,13 +84,18 @@ public static class AssistantTools
     /// <summary>The velocity of an added note when the call gives none.</summary>
     public const int AddedVelocity = 80;
 
-    /// <summary>Every tool, in the order of the catalogue: reading, proposing, checking, suggesting.</summary>
+    /// <summary>Every tool of a piece, in the order of the catalogue: reading, proposing, checking, suggesting.</summary>
     public static IReadOnlyList<AssistantTool> All => s_all ??= [.. ReadingTools.All(), .. VariationTools.All(), .. NoteTools.All(), .. TieTools.All(), .. Repairs.RepairTools.All()];
+
+    /// <summary>The tools of a draft's place (decision record 0034, section 6), which run only on a piece in a draft (<see cref="AssistantPiece.Draft"/>).</summary>
+    public static IReadOnlyList<AssistantTool> InDraft => s_inDraft ??= [.. Drafts.DraftTools.All()];
 
     private static IReadOnlyList<AssistantTool>? s_all;
 
-    /// <summary>The tool with this name, or null.</summary>
-    public static AssistantTool? Find(string name) => All.FirstOrDefault(tool => tool.Name == name);
+    private static IReadOnlyList<AssistantTool>? s_inDraft;
+
+    /// <summary>The tool with this name, of a piece or of a draft, or null.</summary>
+    public static AssistantTool? Find(string name) => All.Concat(InDraft).FirstOrDefault(tool => tool.Name == name);
 
     /// <summary>
     /// Runs a tool: refused when there is no such tool, when the parameters do not fit its schema, or when music-core
@@ -162,13 +172,15 @@ public static class AssistantTools
             body(json);
         }
 
-        if (result.Drafts.Count > 0 || result.NoDraftReason is not null || Find(name)?.Kind == ToolKind.ProposeDraft)
+        if (result.Drafts.Count > 0 || result.Proposal is not null || result.NoDraftReason is not null || Find(name)?.Kind == ToolKind.ProposeDraft)
         {
             json.WriteStartArray("drafts");
             foreach (AssistantDraft draft in result.Drafts)
             {
                 draft.Write(json, piece);
             }
+
+            result.Proposal?.Write(json, piece.Words);
 
             json.WriteEndArray();
         }

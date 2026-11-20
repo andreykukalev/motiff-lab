@@ -30,12 +30,18 @@ internal static class AssistantRequest
     /// "drafts". A refusal is an answer, not an error: it is what a model is told back. With "role" ("mentor" or "proposer",
     /// the iPad's turn), the call is first checked as the relay checks it (<see cref="AssistantRoles.CallRefusal"/>).
     /// </summary>
-    private static string Run(Request request, AssistantPiece piece)
+    internal static string Run(Request request, AssistantPiece piece)
     {
         string tool = request.Required("tool");
-        JsonElement parameters = request.Element("parameters") ?? EmptyObject();
-        ToolResult result = RoleRefusal(request, tool, parameters, piece) is { } refusal ? ToolResult.Refused(refusal) : AssistantTools.Call(piece, tool, parameters);
+        ToolResult result = Result(request, tool, piece);
         return Answer.Write(json => AssistantTools.WriteResult(json, piece, tool, result));
+    }
+
+    /// <summary>The answer of the call "tool" with "parameters" on <paramref name="piece"/>, checked first for "role" when there is one.</summary>
+    internal static ToolResult Result(Request request, string tool, AssistantPiece piece)
+    {
+        JsonElement parameters = request.Element("parameters") ?? EmptyObject();
+        return RoleRefusal(request, tool, parameters, piece) is { } refusal ? ToolResult.Refused(refusal) : AssistantTools.Call(piece, tool, parameters);
     }
 
     private static string? RoleRefusal(Request request, string tool, JsonElement parameters, AssistantPiece piece)

@@ -196,7 +196,8 @@ public sealed record DigestPlace(string Label, IReadOnlyList<string> Notes);
 
 /// <summary>
 /// One item of a digest: its id, kind (a fact's lens, "chord", "check", "range"; of the piece also "summary", "key", "form",
-/// "tempo", "density", "newMaterial", "phrase", "sentence", "chords", "cadence"), how sure it is and its line.
+/// "tempo", "density", "newMaterial", "phrase", "sentence", "chords", "cadence"; of a draft's place "place", "source",
+/// "technique", "seam"), how sure it is and its line.
 /// </summary>
 public sealed record DigestItem(string Id, string Kind, string Certainty, string Text)
 {
