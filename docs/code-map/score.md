@@ -1,9 +1,9 @@
-# Code map: the score's selection (`src/shared/Scripts/score`, the iPad's `src/ipad/App/Web/score.js`)
+# Code map: the score's selection (`src/shared/Scripts/score`)
 
 **Status (2026-11-16):** the web app is archived (`docs/architecture/adr/0032-ipad-first-web-archived.md`); these modules live in `src/shared` because the iPad bundles them ([0033](../architecture/adr/0033-repository-layout.md)), and iPad work owns them. The web's own callers are frozen in `archive/web`.
 
-The web and the iPad run the same TS modules; the iPad's page (`score.js`) builds the layers with its host options and
-posts what the player did to Swift. Node tests: `tests/shared/selection-*.test.mjs` (after `tsc`).
+The web and the iPad run the same TS modules; the iPad's page (`score/ipad-page`, [`score-page.md`](score-page.md)) builds
+the layers with its host options and posts what the player did to Swift. Node tests: `tests/shared/selection-*.test.mjs` (after `tsc`).
 What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/score-*.json` (SEL-01, SEL-02, SEL-03,
 SEL-04, PLAY-05, VIEW-03), replayed on `score.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's
 WKWebView (`PageScenarioTests.swift`); a change to what the page posts or draws there fails them, and a change to the
@@ -18,13 +18,13 @@ engraving options (`score-page.ts`) fails the run's fixture check until the fixt
   `placeChange`, `drawnRange`, `movedEdge`, `edgeHandles`, `onEdgeHandle`, `strokeHand`, `headAt`, `scrollStep`. Pure.
 - `selection-rect.ts` (v0.6.3): the drawn rectangle `traceBox` and what it covers, `rectPassage`. Pure.
 - `selection-grid.ts` (v0.6.4): the one grid of the score and the roll, `gridLines` (every sixteenth from each bar's start,
-  a tuplet one block: `tupletBlocks` from score.js's `g.tuplet`); PlaceLayer's `grid` option. Pure.
-- `selection-place-layer.ts` (v0.6.2 S2): `PlaceLayer` takes the presses while `placesOn()` (score.js: `input.places`
+  a tuplet one block: `tupletBlocks` from the page's `g.tuplet`); PlaceLayer's `grid` option. Pure.
+- `selection-place-layer.ts` (v0.6.2 S2): `PlaceLayer` takes the presses while `placesOn()` (`page-selection.ts`: `input.places`
   and Select), shows the gesture through `SelectionLayer.showPlaced`, draws `.sel-edge` (full height, circles),
   ghost, addition, targets, `.sel-trace`; posts `chosen`, `picked`, `cleared`, `zoomSelection`; autoscroll in `view()`;
   prevents the stylus' touches while on; `handleAt` (only an edge's handle beats a playhead's, 0.9: `onEdgeHandle`); a span let go is read as the selection
-  until `settle()` (score.js `select`). Handles: score.css `.sel-edge` (ds `.handle` at the edge's middle). `decorate()` from `placeMenu`.
-- `colour-bars.ts` (v0.10 d-5, finding 31): the pen's colour bars. score.js builds a second `PlaceLayer` for them
+  until `settle()` (the page's `select`). Handles: score.css `.sel-edge` (ds `.handle` at the edge's middle). `decorate()` from `placeMenu`.
+- `colour-bars.ts` (v0.10 d-5, finding 31): the pen's colour bars. `page-colouring.ts` builds a second `PlaceLayer` for them
   (`colouring`: no selection, `edges: false`, on while `input.colour` names the colour, the pointer's `input.<pointer>.colour`),
   so they colour exactly as Select selects: the rectangle on the grid, a bar tapped, a note head's beats (`noteUnit`); it
   posts `coloured` {start, end} and never changes the selection; the preview is `.hl.hl-preview`. The eraser takes the
@@ -36,7 +36,7 @@ engraving options (`score-page.ts`) fails the run's fixture check until the fixt
 
 ## Not reached by the iPad's pages (W0.6, measured 2026-11-16; written down, not cut)
 
-From `score.js` and `roll.js` with the TypeScript language service; the full list is in the v0.7 shared track's note.
+From the score page (then `score.js`) and `roll.js` with the TypeScript language service; the full list is in the v0.7 shared track's note.
 `score-page.ts` is loaded by no page (the A4 layout the node tests and `Engraver.swift` share); `svg-parse.ts` is the
 parser half of the archived `svg-to-pdf.ts` (`docs/web-archive.md`).
 
