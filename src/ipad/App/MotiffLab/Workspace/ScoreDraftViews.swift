@@ -21,14 +21,8 @@ struct DraftTechniqueCard: View {
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
-            GeometryReader { area in
-                ZStack(alignment: .topLeading) {
-                    Color.clear.contentShape(Rectangle()).onTapGesture { model.closeCard() }
-                    card(pick.spot)
-                        .offset(x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")), y: at.y + CGFloat.ds("s-1"))
-                }
-            }
-            .onChange(of: pick.spot) { _, _ in refused = false }
+            DraftCardAtMark(at: at, close: { model.closeCard() }) { card(pick.spot) }
+                .onChange(of: pick.spot) { _, _ in refused = false }
         }
     }
 
@@ -67,11 +61,6 @@ struct DraftTechniqueCard: View {
                 Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
             }
         }
-        .padding(CGFloat.ds("s-3"))
-        .frame(width: ScoreScreen.popoverWidth, alignment: .leading)
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        .dsShadow("shadow-menu")
         .accessibilityElement(children: .contain)
         .accessibilityLabel(DraftTechniquesModel.title(spot, text))
     }
@@ -99,34 +88,84 @@ struct DraftTechniqueCard: View {
     }
 }
 
-/// The pill of the assembly under the bar of a draft's view with приёмы (spec «Экран (iPad)», «при сборке»): ‹ › from one
-/// occurrence to the next, the current one's name, «▶ Ноты» and «▶ Запись» for it, «▶ Всё» (the whole draft) and «↻ Место»
-/// (its place round and round) by the one playback model, and «Скрыть номера», which leaves the score to practise on (the
-/// numbers, the card and the stepping put away) with «Показать номера» alone. «Карта» and «Полка» are not here yet.
+/// A card of a draft's view at its mark on the page (`at`, the mark's bottom left), on ds.css's `.menu` surface as a
+/// version marker's popover, kept on the screen; a tap elsewhere puts it away (`close`).
+struct DraftCardAtMark<Content: View>: View {
+    let at: CGPoint
+    let close: @MainActor () -> Void
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        GeometryReader { area in
+            ZStack(alignment: .topLeading) {
+                Color.clear.contentShape(Rectangle()).onTapGesture { close() }
+                content
+                    .padding(CGFloat.ds("s-3"))
+                    .frame(width: ScoreScreen.popoverWidth, alignment: .leading)
+                    .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+                    .dsShadow("shadow-menu")
+                    .offset(x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")), y: at.y + CGFloat.ds("s-1"))
+            }
+        }
+    }
+}
+
+/// The pill under the bar of a draft's view (spec «Экран (iPad)», «при сборке»): with приёмы, ‹ › from one occurrence to
+/// the next, the current one's name, «▶ Ноты» and «▶ Запись» for it; always «▶ Всё» (the whole draft) and «↻ Место» (its
+/// place round and round) by the one playback model, «Карта» (the draft's map) and «Полка · N» (its shelf, on the map);
+/// with приёмы «Скрыть номера», which leaves the score to practise on (the numbers, the card and the stepping put away)
+/// with «Показать номера» alone. Where it does not fit, the items show their icons alone, their words for VoiceOver.
 struct DraftAssemblyPill: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
     @ObservedObject var player: Player
+    let draft: DraftViewAnswer.Draft
     let text: UIText
+    @Environment(\.draftMap) private var map
 
     var body: some View {
-        if !model.spots.isEmpty {
-            HStack(spacing: CGFloat.ds("s-1")) {
-                if model.numbersHidden {
-                    word("eye", "drafts.showNumbers") { score.hideTechniqueNumbers(false) }
-                } else {
-                    assembly
-                }
-            }
-            .padding(.horizontal, CGFloat.ds("s-2"))
-            .frame(height: CGFloat.ds("h-touch"))
-            .modifier(FloatingSurface())
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(text["drafts.pill"])
+        ViewThatFits(in: .horizontal) {
+            pill(compact: false)
+            pill(compact: true)
         }
     }
 
-    @ViewBuilder private var assembly: some View {
+    private func pill(compact: Bool) -> some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            if model.numbersHidden {
+                word("eye", text["drafts.showNumbers"]) { score.hideTechniqueNumbers(false) }
+            } else {
+                if !model.spots.isEmpty {
+                    assembly(compact: compact)
+                    ItemDivider()
+                }
+                Group {
+                    word("play", text["drafts.playAll"], compact: compact) { score.playDraft(on: player) }
+                    word("loop", text["drafts.loopPlace"], compact: compact) { Task { await score.loopPlace(on: player) } }
+                }
+                .disabled(!player.ready)
+                if let map {
+                    ItemDivider()
+                    word("phrases", text["drafts.map"], compact: compact, on: map.wrappedValue == .places) { map.wrappedValue = map.wrappedValue == .places ? nil : .places }
+                    word("folder", text.format("drafts.shelfCount", String(draft.shelf.count)), compact: compact, on: map.wrappedValue == .shelf) {
+                        map.wrappedValue = map.wrappedValue == .shelf ? nil : .shelf
+                    }
+                }
+                if !model.spots.isEmpty {
+                    ItemDivider()
+                    word("eyeoff", text["drafts.hideNumbers"], compact: compact) { score.hideTechniqueNumbers(true) }
+                }
+            }
+        }
+        .padding(.horizontal, CGFloat.ds("s-2"))
+        .frame(height: CGFloat.ds("h-touch"))
+        .modifier(FloatingSurface())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["drafts.pill"])
+    }
+
+    @ViewBuilder private func assembly(compact: Bool) -> some View {
         let current = model.picked?.spot
         stepItem("back", text["drafts.previous"]) { score.stepTechnique(-1) }
         Text(current.map { DraftTechniquesModel.title($0, text) } ?? text.count("drafts.techniqueCount", model.total))
@@ -136,29 +175,25 @@ struct DraftAssemblyPill: View {
         stepItem("fwd", text["drafts.next"]) { score.stepTechnique(1) }
         ItemDivider()
         ForEach([false, true], id: \.self) { variant in
-            word("play", variant ? (current.flatMap { score.recordingHeard($0) } != nil ? "drafts.pillRecording" : "drafts.pillVariant") : "drafts.pillNotes") {
+            let key = variant ? (current.flatMap { score.recordingHeard($0) } != nil ? "drafts.pillRecording" : "drafts.pillVariant") : "drafts.pillNotes"
+            word("play", text[key], compact: compact) {
                 if let current { score.hearTechnique(current, variant: variant, pausing: player) }
             }
             .disabled(!(current.map { score.canHear($0, variant: variant) } ?? false))
         }
-        ItemDivider()
-        Group {
-            word("play", "drafts.playAll") { score.playDraft(on: player) }
-            word("loop", "drafts.loopPlace") { Task { await score.loopPlace(on: player) } }
-        }
-        .disabled(!player.ready)
-        ItemDivider()
-        word("eyeoff", "drafts.hideNumbers") { score.hideTechniqueNumbers(true) }
     }
 
-    private func word(_ icon: String, _ key: String, action: @escaping () -> Void) -> some View {
+    /// An item: its icon and words, or its icon alone where the pill does not fit (`compact`), its words for VoiceOver.
+    private func word(_ icon: String, _ words: String, compact: Bool = false, on: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: CGFloat.ds("s-1")) {
                 Icon(name: icon, size: CGFloat.ds("icon-s"))
-                Text(text[key]).dsType(.label)
+                if !compact { Text(words).dsType(.label).lineLimit(1) }
             }
         }
-        .buttonStyle(DSItemStyle())
+        .buttonStyle(DSItemStyle(on: on))
+        .accessibilityLabel(words)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 
@@ -182,10 +217,12 @@ struct DraftStepToast: View {
 }
 
 /// A draft's view on its screen over the piece (v1.1): after each step it opens again in its place (`reopen`, the
-/// `ScoreScreen`'s), at the place asked, as music-core rebuilt it; each number it was open under is closed once the next
-/// shows or the screen goes.
+/// `ScoreScreen`'s), at the place asked, as music-core rebuilt it, its map as it was; each number it was open under is
+/// closed once the next shows or the screen goes.
 struct ShownDraftScreen: View {
     @State private var piece: OpenPiece
+    /// The draft's map, open or not, as the view opens again after each step.
+    @State private var map: DraftMapOpen?
     let owner: SourcesController
     let viewing: String
 
@@ -197,6 +234,7 @@ struct ShownDraftScreen: View {
 
     var body: some View {
         ScoreScreen(piece: piece, viewing: viewing, reopen: reopen)
+            .environment(\.draftMap, $map)
             .onDisappear { [id = piece.id] in ScoreScreenContent.ShownView.close(id) }
             .id(piece.id)
     }

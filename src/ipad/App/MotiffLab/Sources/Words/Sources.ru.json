@@ -147,5 +147,15 @@
   "drafts.tally.many": "взято {0} приёмов из {1}",
   "drafts.matched.one": "{1} из {0} ноты на месте",
   "drafts.matched.few": "{1} из {0} нот на месте",
-  "drafts.matched.many": "{1} из {0} нот на месте"
+  "drafts.matched.many": "{1} из {0} нот на месте",
+  "drafts.seamLabel": "Стык тактов {0} и {1}: {2}",
+  "drafts.seamKey": "тональность",
+  "drafts.seamMeter": "размер",
+  "drafts.seamTempo": "темп",
+  "drafts.seamTitle": "Стык · такты {0} и {1}",
+  "drafts.toastSeamLeft": "Стык оставлен как есть",
+  "drafts.toastTakenSure": "Взяты все уверенные приёмы",
+  "drafts.toastBase": "Теперь основа: «{0}»",
+  "drafts.toastShelved": "На полке: «{0}»",
+  "drafts.toastPut": "Поставлено: «{0}»"
 }

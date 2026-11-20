@@ -60,9 +60,25 @@ struct DraftSheetAnswer: Decodable, Sendable {
 }
 
 /// A draft opened to be shown (`drafts.open`, DraftRequest.View): its "draft" block, where the draft came from and its
-/// places in order, in the draft's own ticks and bar numbers. The rest of the answer is `open`'s for the score made of
-/// its places, whose summary tells nothing of where it came from (an imported MIDI file): only this block does.
+/// places in order, in the draft's own ticks and bar numbers, and since step 7 its map: each place's variants and base,
+/// and the shelf. The rest of the answer is `open`'s for the score made of its places, whose summary tells nothing of
+/// where it came from (an imported MIDI file): only this block does.
 struct DraftViewAnswer: Decodable, Sendable {
+    /// A variant of a place: music-core's words for it («Запись 9–12 · правая рука»), whether it is the base, and how many
+    /// steps take from it or leave it (they go with it when it leaves the place).
+    struct Variant: Decodable, Equatable, Sendable {
+        let id: String
+        let label: String
+        let base: Bool
+        let steps: Int
+    }
+
+    /// A variant on the shelf, not yet in a place.
+    struct Shelved: Decodable, Equatable, Sendable {
+        let id: String
+        let label: String
+    }
+
     struct Place: Decodable, Equatable, Sendable {
         let id: String
         /// «① Ноты 9–16 + Запись · 2 варианта», music-core's words.
@@ -71,13 +87,16 @@ struct DraftViewAnswer: Decodable, Sendable {
         let end: Int
         let firstBar: Int
         let lastBar: Int
-        let variants: Int
+        /// The journal's steps of the place, which a new base removes.
+        let steps: Int
+        let variants: [Variant]
     }
 
     struct Draft: Decodable, Equatable, Sendable {
         let id: String
         let name: String
         let places: [Place]
+        let shelf: [Shelved]
     }
 
     let piece: Int32
@@ -163,4 +182,106 @@ struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
 struct DraftVariantAnswer: Decodable, Sendable {
     let piece: Int32
     let variant: String
+}
+
+/// A draft's seams (`drafts.seams`, DraftSeamRequest.Seams, c-5): each boundary of two places in order, where it is (the
+/// draft's tick and bars either side), the bar either side to hear it with the draft view's own playback ("listen"),
+/// whether the player kept it as it is ("left"), what differs ("key", "meter", "tempo"), each side as its source states
+/// it, and what music-core offers for the place after it (a transposition, the tempo before it), each with its words.
+struct DraftSeamsAnswer: Decodable, Equatable, Sendable {
+    struct Span: Decodable, Equatable, Sendable {
+        let onset: Int
+        let end: Int
+    }
+
+    struct Key: Decodable, Equatable, Sendable {
+        let fifths: Int
+        /// "major", "minor", or null where the source states only the signature.
+        let mode: String?
+        let name: String
+
+        private enum CodingKeys: String, CodingKey { case fifths, mode, name }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            fifths = try fields.decode(Int.self, forKey: .fifths)
+            mode = try fields.decodeNullable(String.self, forKey: .mode)
+            name = try fields.decode(String.self, forKey: .name)
+        }
+    }
+
+    struct Meter: Decodable, Equatable, Sendable {
+        let beats: Int
+        let beatType: Int
+        let label: String
+    }
+
+    struct Tempo: Decodable, Equatable, Sendable {
+        let perMinute: Int
+        /// "notated", "inferred", "player", "default" or "assumed".
+        let source: String
+        /// "quarter" or "dottedQuarter", the meter's beat.
+        let beat: String
+        let beatsPerMinute: Int
+        /// The mark as the score writes it after the beat's note («= 92», «≈ 92»); null for a recording's own clock.
+        let mark: String?
+
+        private enum CodingKeys: String, CodingKey { case perMinute, source, beat, beatsPerMinute, mark }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            perMinute = try fields.decode(Int.self, forKey: .perMinute)
+            source = try fields.decode(String.self, forKey: .source)
+            beat = try fields.decode(String.self, forKey: .beat)
+            beatsPerMinute = try fields.decode(Int.self, forKey: .beatsPerMinute)
+            mark = try fields.decodeNullable(String.self, forKey: .mark)
+        }
+    }
+
+    struct Side: Decodable, Equatable, Sendable {
+        let place: String
+        /// The place's number, from 1 («①»).
+        let number: Int
+        let variant: String
+        let key: Key?
+        let meter: Meter
+        let tempo: Tempo
+
+        private enum CodingKeys: String, CodingKey { case place, number, variant, key, meter, tempo }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            place = try fields.decode(String.self, forKey: .place)
+            number = try fields.decode(Int.self, forKey: .number)
+            variant = try fields.decode(String.self, forKey: .variant)
+            key = try fields.decodeNullable(Key.self, forKey: .key)
+            meter = try fields.decode(Meter.self, forKey: .meter)
+            tempo = try fields.decode(Tempo.self, forKey: .tempo)
+        }
+    }
+
+    /// «② в соль мажор» ("transpose", with "semitones") or «Темп как в ①» ("tempo", with "quarterNotesPerMinute").
+    struct Offer: Decodable, Equatable, Sendable {
+        let kind: String
+        let place: String
+        let semitones: Int?
+        let quarterNotesPerMinute: Int?
+        let label: String
+    }
+
+    struct Seam: Decodable, Equatable, Sendable {
+        let before: String
+        let after: String
+        let at: Int
+        let lastBar: Int
+        let firstBar: Int
+        let listen: Span
+        let left: Bool
+        let changes: [String]
+        let sides: [Side]
+        let offers: [Offer]
+    }
+
+    let draft: String
+    let seams: [Seam]
 }

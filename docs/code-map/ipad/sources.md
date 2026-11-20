@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -14,6 +14,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
   (`SourcesRows.swift`) and `DraftDialogs`. Step 6: `DraftTechniquesModel` (`DraftTechniques.swift`, a draft view's
   приёмы); `take`, `leave`, `takeHand`, undone by `drafts.undo` (`.draftStep`). No «расширить» yet.
+  Step 7: `DraftSeamsModel` (`DraftSeams.swift`, the seams and the one picked); offers, `leave(seam)`, `takeSure`,
+  `makeBase`, `put` (`drafts.place`).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

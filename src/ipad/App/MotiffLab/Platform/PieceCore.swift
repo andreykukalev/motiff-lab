@@ -72,6 +72,15 @@ struct PieceCore: Sendable {
         return Answer(text, of: "drafts.techniques")
     }
 
+    /// `drafts.seams`: the seams of the draft `draft` (v1.1, ADR 0034 section 5), asked on the piece it belongs to or on its
+    /// view, which music-core answers for the piece it was opened from.
+    func draftSeams(_ draft: String) async -> Answer<DraftSeamsAnswer> {
+        let piece = piece
+        let request = facadeRequest(["draft": draft])
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.seams", request) }
+        return Answer(text, of: "drafts.seams")
+    }
+
     /// `drafts.open`: the draft `draft` opened under a number of its own only to be shown ("readOnly"), with its places
     /// (v1.1, ADR 0034); asked on the piece it belongs to or on a view of it. The screen closes the number when it goes.
     func openDraft(_ draft: String) async -> Answer<DraftViewAnswer> {

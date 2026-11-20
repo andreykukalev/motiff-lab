@@ -21,7 +21,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `RollAnswer` (passed to the roll page whole, `RollPage.load`), `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
   `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
   features build their own types from them. They name no feature type.
-- `DraftAnswers.swift` (v1.1): `DraftSheetAnswer`, `DraftViewAnswer`, `DraftTechniquesAnswer`, `DraftVariantAnswer`.
+- `DraftAnswers.swift` (v1.1): `DraftSheetAnswer`, `DraftViewAnswer`, `DraftTechniquesAnswer`, `DraftVariantAnswer`,
+  `DraftSeamsAnswer`.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
 - `RollPage.swift`: the one port to the roll page (0031 step 12, B7): `RollCommand` names `window.roll`'s functions,

@@ -72,6 +72,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     let marksModel: MarksModel
     /// A draft's приёмы on its view, their numbers, the one picked and «Скрыть номера» (Sources/DraftTechniques.swift, v1.1).
     let draftModel = DraftTechniquesModel()
+    /// A draft's seams on its view, their diamonds and the one picked (Sources/DraftSeams.swift, v1.1 step 7).
+    let seamsModel = DraftSeamsModel()
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -352,10 +354,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         case .checkFlag(let bar):
             showCheckBar(bar)
             checkPicked?(bar)
-        case let .performanceBar(bar, left, bottom):
-            pickLabel(bar, left: left, bottom: bottom)
-        case let .techniqueNumber(key, left, bottom):
-            pickTechnique(key, at: CGPoint(x: left, y: bottom))
+        case .performanceBar, .techniqueNumber, .seamDiamond:
+            pickMarker(event)
         case .playheadAway(let away):
             playheadAway = away < 0 ? nil : away
         case let .place(start, end):
@@ -1353,6 +1353,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await applyLayers()
             await applyLevel()
             await draftModel.load(piece.draft, on: piece.id)
+            await seamsModel.load(piece.draft, on: piece.id)
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()

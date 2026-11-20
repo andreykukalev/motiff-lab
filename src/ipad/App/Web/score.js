@@ -440,7 +440,10 @@ function placeNotes() {
  * next label, Check flag or note on the same system, and goes up above the flags when a narrow bar leaves it too little room.
  */
 function placePerformance(geometry, flags) {
-    const placed = state.performance.map((marker) => ({ marker, bar: geometry.barAt(marker.tick) })).filter((entry) => entry.bar !== undefined);
+    const all = state.performance.map((marker) => ({ marker, bar: geometry.barAt(marker.tick) })).filter((entry) => entry.bar !== undefined);
+    // A draft's seam diamonds (v1.1) stand apart, just before the bar line where the place after the seam starts.
+    all.filter((entry) => entry.marker.seam !== undefined).forEach(placeSeam);
+    const placed = all.filter((entry) => entry.marker.seam === undefined);
     const isNumber = (marker) => marker.technique !== undefined;
     const numbers = placed.filter((entry) => isNumber(entry.marker));
     const inBar = new Map();
@@ -458,7 +461,7 @@ function placePerformance(geometry, flags) {
         }
         // A place's label goes up a row over the numbers in its room; the numbers of one bar stand side by side.
         const over = marker.place && numbers.some((entry) => entry.bar.system === bar.system && entry.bar.left >= bar.left && entry.bar.left - bar.left < room);
-        const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2 - (over ? PERFORMANCE_TARGET + 2 : 0);
+        const top = labelTop(bar) - (over ? PERFORMANCE_TARGET + 2 : 0);
         const beside = number ? inBar.get(`${bar.system}:${bar.left}`) ?? 0 : 0;
         if (number) inBar.set(`${bar.system}:${bar.left}`, beside + 1);
         const label = document.createElement("button");
@@ -475,6 +478,28 @@ function placePerformance(geometry, flags) {
         label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(widest, room))}px`;
         document.body.append(label);
     });
+}
+
+/**
+ * A draft's seam (v1.1, ADR 0034 section 5): a diamond in a touch target just before the bar line where the place after
+ * it starts, in the row of the labels; its key (`seam`) is what a tap posts, its `state` "open" or "left" (kept as it is).
+ */
+function placeSeam({ marker, bar }) {
+    const diamond = document.createElement("button");
+    diamond.type = "button";
+    diamond.className = `perf-marker seam state-${marker.state}`;
+    diamond.dataset.bar = String(marker.bar);
+    diamond.dataset.seam = marker.seam;
+    diamond.append(document.createElement("span"));
+    diamond.setAttribute("aria-label", marker.label);
+    diamond.style.left = `${bar.left - PERFORMANCE_TARGET - NOTE_OFFSET_X / 2}px`;
+    diamond.style.top = `${labelTop(bar)}px`;
+    document.body.append(diamond);
+}
+
+/** The top of the row of labels over a bar: its touch target centred on a label's height, above the system's bracket. */
+function labelTop(bar) {
+    return (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2;
 }
 
 /**
@@ -962,9 +987,10 @@ document.body.addEventListener("click", (event) => {
     const version = target?.closest(".perf-marker");
     if (version) {
         const box = version.getBoundingClientRect();
-        // A draft's приём number (v1.1) says which it is.
+        // A draft's приём number or seam diamond (v1.1) says which it is.
         const technique = version.dataset.technique === undefined ? {} : { technique: version.dataset.technique };
-        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique });
+        const seam = version.dataset.seam === undefined ? {} : { seam: version.dataset.seam };
+        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique, ...seam });
         return;
     }
     const marker = target?.closest(".marker");

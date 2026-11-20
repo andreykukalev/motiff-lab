@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScoreScreen`,
+`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `DraftMap`, `DraftSeamCard`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScoreScreen`,
 `ScoreScreenViews`, `ScoreWorkspace`,
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
@@ -35,8 +35,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels and приём numbers (`placeMarkers`, `pickLabel`,
-  `pickTechnique`), the pill's steps, hearing (`hearTechnique`), `playDraft`, `loopPlace`.
-- `ScoreDraftViews.swift` (v1.1): `DraftTechniqueCard`, `DraftAssemblyPill`, `DraftStepToast`, `ShownDraftScreen`.
+  `pickTechnique`, `pickSeam`), the pill's steps, hearing (`hearTechnique`, `hearSeam`), `playDraft`, `loopPlace`.
+- `ScoreDraftViews.swift` (v1.1): `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill` (with «Карта», «Полка · N»),
+  `DraftStepToast`, `ShownDraftScreen` (keeps the map open). `DraftSeamCard.swift`: `DraftSeamContent`, `DraftViewCards`.
+  `DraftMap.swift`: `DraftMap` (places, variants, base, seams, shelf), `draftMap` in the environment.
 - `ScoreWorkspaceDrafts.swift` (v1.1): `draftOwner` (nil on a draft's view), `draftSheet`, `newDraft` (no selection:
   a hint, never an empty draft).
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web

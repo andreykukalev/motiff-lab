@@ -291,6 +291,57 @@ final class DraftsTests: XCTestCase {
         XCTAssertFalse(model.stepping, "hidden: the phrase's ‹ › come back")
     }
 
+    /// A draft's map over a live music-core (v1.1 step 7): a variant on the shelf put into the place, made its base, each
+    /// with its toast undoing it (`drafts.undo`, a change of structure while the piece is open); the seam of two places with
+    /// the same key, meter and tempo shows no diamond.
+    func testTheMapPutsAVariantMakesItTheBaseAndUndoes() async throws {
+        let (workspace, _) = try await sourced()
+        let sources = workspace.sources
+        let first = await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
+        XCTAssertNotNil(first, sources.status ?? "")
+        let draft = try XCTUnwrap(sources.layers.drafts.first)
+        let added = [
+            ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "place", "now": "2026-11-20T10:01:00Z"],
+            ["bars": ["first": 1, "last": 4], "part": "right", "draft": draft.id, "drop": "shelf", "now": "2026-11-20T10:02:00Z"],
+        ]
+        for fields in added {
+            let answer = await sources.change("drafts.add", fields)
+            XCTAssertNotNil(answer, sources.status ?? "")
+        }
+        var view = try await draftView(draft, sources)
+        let shelved = try XCTUnwrap(view.draft?.shelf.first, "on the shelf: «Полка · 1»")
+        let place = try XCTUnwrap(view.draft?.places.first)
+
+        let screen = ScoreWorkspace(piece: view, viewing: "view only")
+        await screen.score.seamsModel.load(view.draft, on: view.id)
+        XCTAssertEqual(screen.score.seamsModel.seams.count, 1, "one seam between the two places")
+        XCTAssertTrue(screen.score.placeMarkers.filter { $0["seam"] != nil }.isEmpty, "nothing differs there: no diamond")
+
+        let put = await sources.put(shelved.id, label: shelved.label, into: place.id, of: draft.id)
+        XCTAssertTrue(put, sources.status ?? "")
+        guard case .draftStep(let undone)? = sources.toast?.undo else { return XCTFail("its toast undoes the step") }
+        XCTAssertEqual(undone, draft.id)
+        view = try await draftView(draft, sources)
+        let placed = try XCTUnwrap(view.draft?.places.first)
+        XCTAssertEqual(placed.variants.map(\.id), [place.variants[0].id, shelved.id])
+        XCTAssertEqual(view.draft?.shelf, [])
+
+        let variant = try XCTUnwrap(placed.variants.last)
+        let based = await sources.makeBase(variant, of: placed, in: draft.id)
+        XCTAssertTrue(based, sources.status ?? "")
+        view = try await draftView(draft, sources)
+        XCTAssertEqual(view.draft?.places.first?.variants.first { $0.base }?.id, shelved.id, "the new base")
+
+        await sources.undo()
+        view = try await draftView(draft, sources)
+        XCTAssertEqual(view.draft?.places.first?.variants.first { $0.base }?.id, place.variants[0].id, "undone: the old base again")
+        // The toast went with the first Undo; the put before it is undone as the next toast would.
+        let again = await sources.change("drafts.undo", ["draft": draft.id])
+        XCTAssertNotNil(again, sources.status ?? "")
+        view = try await draftView(draft, sources)
+        XCTAssertEqual(view.draft?.shelf.map(\.id), [shelved.id], "undone: back on the shelf")
+    }
+
     /// The card offers only what music-core takes: an open occurrence every step, a hand only over bars with notes (an
     /// inserted bar not yet put in has none), one taken or left nothing; «Взять везде · N» counts the open ones. Its words,
     /// and the place «↻ Место» loops.
@@ -327,8 +378,8 @@ final class DraftsTests: XCTestCase {
 
         // «↻ Место»: the picked occurrence's place, else the one at the playhead, else the first.
         let places = [
-            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, variants: 1),
-            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, variants: 0),
+            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, steps: 0, variants: []),
+            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, steps: 0, variants: []),
         ]
         XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: model.spots[0], at: 15000)?.id, "pl_0001")
         XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 15000)?.id, "pl_0002")

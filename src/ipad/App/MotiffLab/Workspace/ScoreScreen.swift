@@ -318,9 +318,9 @@ struct ScoreScreenContent: View {
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
-                } else if piece.draft != nil, let owner = pieceUnder, !focusModel.focused {
-                    // A draft's приём number tapped (v1.1): its card under it (ScoreDraftViews.swift).
-                    DraftTechniqueCard(score: score, model: score.draftModel, player: player, owner: owner, text: text, reopen: reopen)
+                } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
+                    // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
+                    DraftViewCards(score: score, seams: score.seamsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -356,8 +356,8 @@ struct ScoreScreenContent: View {
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
                         PerformanceCapsule(sources: heard, text: text)
                     }
-                    if !focusModel.focused, piece.draft != nil {
-                        DraftAssemblyPill(score: score, model: score.draftModel, player: player, text: text)
+                    if !focusModel.focused, let draft = piece.draft {
+                        DraftAssemblyPill(score: score, model: score.draftModel, player: player, draft: draft, text: text)
                     }
                     if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
@@ -645,6 +645,12 @@ extension ScoreScreenContent {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
                     AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // A draft's map from its pill (v1.1, DraftMap.swift), where the sheets stand.
+                if let draft = piece.draft, let owner = pieceUnder {
+                    DraftMap(score: score, seams: score.seamsModel, techniques: score.draftModel, draft: draft, owner: owner, text: text, screen: screen, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {

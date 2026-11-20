@@ -134,5 +134,15 @@
   "drafts.tally.one": "{0} technique of {1} taken",
   "drafts.tally.many": "{0} techniques of {1} taken",
   "drafts.matched.one": "{1} of {0} note in place",
-  "drafts.matched.many": "{1} of {0} notes in place"
+  "drafts.matched.many": "{1} of {0} notes in place",
+  "drafts.seamLabel": "Seam of bars {0} and {1}: {2}",
+  "drafts.seamKey": "key",
+  "drafts.seamMeter": "meter",
+  "drafts.seamTempo": "tempo",
+  "drafts.seamTitle": "Seam · bars {0} and {1}",
+  "drafts.toastSeamLeft": "Seam kept as it is",
+  "drafts.toastTakenSure": "Every sure technique taken",
+  "drafts.toastBase": "The base now: “{0}”",
+  "drafts.toastShelved": "On the shelf: “{0}”",
+  "drafts.toastPut": "Put in: “{0}”"
 }

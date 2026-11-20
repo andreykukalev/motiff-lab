@@ -335,6 +335,74 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(reported, [])
     }
 
+    /// A seam's card (v1.1 step 7): `drafts.seams` before and after the second place is transposed and slowed, then kept as
+    /// it is; only a seam where something differs shows a diamond, at the first bar after it, with its sides' facts and
+    /// music-core's offers.
+    @MainActor
+    func testTheSeamsDecode() throws {
+        let answers = try Self.answers("drafts.seams")
+        let read = try [2, 5, 7].map { try XCTUnwrap(FacadeAnswer.decode(DraftSeamsAnswer.self, answers[$0].text, of: "drafts.seams"), "\(reported)") }
+        let english = UIText(language: "en")
+        let model = DraftSeamsModel()
+        model.keep(read[0].seams)
+        XCTAssertEqual(read[0].seams.map(\.changes), [[]], "the same key, meter and tempo either side")
+        XCTAssertTrue(model.markers(english).isEmpty, "no diamond where nothing differs")
+
+        model.keep(read[1].seams)
+        let seam = try XCTUnwrap(model.shown.first)
+        XCTAssertEqual(seam.changes, ["key", "tempo"])
+        XCTAssertEqual(seam.offers.map(\.label), ["② to A minor", "Tempo as in ①"])
+        XCTAssertEqual(seam.offers.map(\.semitones), [-2, nil])
+        XCTAssertEqual(seam.offers.map(\.quarterNotesPerMinute), [nil, 72])
+        XCTAssertEqual(seam.listen, DraftSeamsAnswer.Span(onset: 2160, end: 3600), "the bar either side")
+        XCTAssertEqual(DraftSeamContent.facts(seam.sides[1], english), "B minor · 3/8 · ♩ = 60")
+        let marker = try XCTUnwrap(model.markers(english).first)
+        XCTAssertEqual(marker["seam"] as? String, "pl_0002")
+        XCTAssertEqual(marker["bar"] as? Int, 5)
+        XCTAssertEqual(marker["state"] as? String, "open")
+        XCTAssertEqual(marker["label"] as? String, "Seam of bars 4 and 5: key, tempo")
+        XCTAssertEqual(DraftSeamsModel.title(seam, english), "Seam · bars 4 and 5")
+        XCTAssertEqual(model.before("pl_0002"), seam, "on the map, between ① and ②")
+        XCTAssertEqual(model.pick("pl_0002", at: nil), seam)
+        XCTAssertNil(model.picked?.at, "picked on the map: its card opens there")
+
+        model.keep(read[2].seams)
+        XCTAssertEqual(model.picked?.seam.left, true, "still picked, now kept as it is")
+        XCTAssertEqual(model.markers(english).first?["state"] as? String, "left")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// A side whose source states no key: its facts say so, as the card shows them.
+    func testASideWithNoKeySaysSo() throws {
+        let json = #"{"place": "pl_0002", "number": 2, "variant": "v_0002", "key": null, "meter": {"beats": 6, "beatType": 8, "label": "6/8"}, "tempo": {"perMinute": 90, "source": "assumed", "beat": "dottedQuarter", "beatsPerMinute": 60, "mark": null}}"#
+        let side = try JSONDecoder().decode(DraftSeamsAnswer.Side.self, from: Data(json.utf8))
+        XCTAssertNil(side.key)
+        XCTAssertEqual(DraftSeamContent.facts(side, UIText(language: "en")), "no key stated · 6/8 · ♩. ?")
+        XCTAssertEqual(DraftSeamContent.facts(side, UIText(language: "ru")), "тональность не указана · 6/8 · ♩. ?")
+    }
+
+    /// A draft's map (v1.1 step 7): `drafts.open` lists each place's variants, the base marked, and the shelf; a variant put
+    /// from the shelf into a place and as a new place, a new base, which drops the place's step, each answered as the
+    /// sources, and `drafts.undo` taking back the new base (a change of structure) and then the step it dropped.
+    @MainActor
+    func testTheDraftMapDecodes() throws {
+        let answers = try Self.answers("drafts.map")
+        XCTAssertEqual(answers.count, 12, "each call's answer")
+        let before = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[4].text, of: "drafts.open"), "\(reported)")
+        XCTAssertEqual(before.draft.places.map { $0.variants.map(\.base) }, [[true], [true]])
+        XCTAssertEqual(before.draft.shelf.map(\.label), ["Notes 1–4 · right hand", "Notes 5–8 · left hand"])
+        let after = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[9].text, of: "drafts.open"), "\(reported)")
+        XCTAssertEqual(after.draft.places.count, 3, "the left hand as a new place")
+        XCTAssertEqual(after.draft.places[0].variants.map(\.id), ["v_0001", "v_0003"])
+        XCTAssertEqual(after.draft.places[0].variants.first { $0.base }?.label, "Notes 1–4 · right hand", "the new base")
+        XCTAssertTrue(after.draft.shelf.isEmpty)
+
+        let steps = try [5, 6, 8, 10, 11].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
+        XCTAssertEqual(steps.map { $0.drafts.first?.shelf }, [1, 0, 0, 0, 0])
+        XCTAssertEqual(steps.map { $0.drafts.first?.places }, [2, 3, 3, 3, 3])
+        XCTAssertEqual(reported, [])
+    }
+
     /// A version with bars taken into the notes, as a file saved before v1.1 holds it (the bar-by-bar merge left the
     /// iPad, ADR 0034 section 8): the answers of a bar taken and restored, read as any version is.
     func testAVersionWithTakenBarsDecodes() throws {

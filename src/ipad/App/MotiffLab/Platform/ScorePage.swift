@@ -75,7 +75,7 @@ func pageScript(_ object: String, _ function: String, _ argument: Any?) -> (Stri
 }
 
 /// What the page posts, each kind decoded in one place. A message carries one kind, `performanceBar` with its place (and a
-/// приём's number its key).
+/// приём's number or a seam's diamond its key).
 enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
@@ -103,6 +103,8 @@ enum PageEvent {
     case performanceBar(Int, left: Double, bottom: Double)
     /// A draft's приём number tapped (v1.1): a `performanceBar` message with the number's key, and where the number is.
     case techniqueNumber(String, left: Double, bottom: Double)
+    /// A draft's seam diamond tapped (v1.1): a `performanceBar` message with the seam's key, and where the diamond is.
+    case seamDiamond(String, left: Double, bottom: Double)
     case place(start: Double, end: Double)
     case heads([CGPoint])
     case drag(PlayheadGesture)
@@ -150,6 +152,16 @@ enum PageEvent {
         }
     }
 
+    /// A marker tapped over the bars, at its bottom left: a draft's приём number, a seam's diamond, else a version's or a
+    /// place's label at its bar.
+    private static func markerTap(_ value: Any?, _ message: [String: Any]) -> PageEvent? {
+        let left = number(message["left"]) ?? 0
+        let bottom = number(message["bottom"]) ?? 0
+        if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom) }
+        if let key = message["seam"] as? String { return .seamDiamond(key, left: left, bottom: bottom) }
+        return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
+    }
+
     /// The pages, the marks on them, the playheads and Expand's card.
     private static func markEvent(_ kind: Kind, _ value: Any?, _ message: [String: Any]) -> PageEvent? {
         let fields = value as? [String: Any]
@@ -163,10 +175,7 @@ enum PageEvent {
         case .checkFlag:
             return number(value).map { .checkFlag(Int($0)) }
         case .performanceBar:
-            let left = number(message["left"]) ?? 0
-            let bottom = number(message["bottom"]) ?? 0
-            if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom) }
-            return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
+            return markerTap(value, message)
         case .playheadAway:
             return number(value).map { .playheadAway($0) }
         case .place:
