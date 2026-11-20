@@ -61,7 +61,7 @@ public sealed partial class FactsDigest
 
     /// <summary>
     /// The digest of bars <paramref name="from"/> to <paramref name="to"/> (in one hand, or both): the meter and key, the
-    /// strongest facts with their places, the chords, the Check flags and each hand's range.
+    /// strongest facts with their places, the chords, the Check flags, each hand's range and the tempo of those bars.
     /// </summary>
     public static FactsDigest OfRange(AssistantPiece piece, int from, int to, Hand? hand = null)
     {
@@ -81,6 +81,7 @@ public sealed partial class FactsDigest
         items.AddRange(reading.Harmony.Chords.Select(chord => ChordItem(chord, piece, reading, ids)));
         items.AddRange(ChecksIn(piece, from, to, ids, openOnly: false));
         items.AddRange(Lines(reading.NotesOf(piece.Notes), ids, w));
+        items.AddRange(TempoItems(piece, ids, TickSpan.FromBounds(piece.Meter.GetBar(from).Span.Onset, piece.Meter.GetBar(to).Span.End)));
         return new FactsDigest("selection", from, to, hand, items, header);
     }
 
