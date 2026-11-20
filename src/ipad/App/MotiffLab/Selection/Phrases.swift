@@ -9,6 +9,11 @@ struct PiecePhrases: Equatable, Sendable {
     /// The player's edits of the boundaries now, and before the edit that answered them: one step of their Undo.
     var edits: PhraseLevelEdits?
     var previous: PhraseLevelEdits?
+    /// How many boundaries are the player's own: the reset's warning «Ваших границ: N» (the phrases spec, «Player's
+    /// boundaries» 2).
+    var own: Int
+    /// The phrases the edit that answered them changed, as they were and the phrase now that covers most of each.
+    var changed: [PhrasesAnswer.Change]
 
     /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
     init(_ answer: PhrasesAnswer) {
@@ -16,6 +21,8 @@ struct PiecePhrases: Equatable, Sendable {
         sections = (answer.sections ?? []).map(FormSection.init)
         edits = answer.edits
         previous = answer.previous
+        own = answer.own ?? 0
+        changed = answer.changed ?? []
     }
 
     /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
@@ -34,6 +41,28 @@ struct PiecePhrases: Equatable, Sendable {
     func unit(selected selection: ScoreSelection?) -> PhraseUnit? {
         guard let selection else { return nil }
         return units.first { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }
+    }
+
+    /// The phrase that holds this tick.
+    func unit(at tick: Double) -> PhraseUnit? {
+        units.first { $0.onset <= tick && tick < $0.end }
+    }
+
+    /// The phrase a selection lies inside without being it exactly, which «Вся фраза» selects (the phrases spec, decision 5,
+    /// from option C); nil for a phrase selected exactly or a passage across a boundary.
+    func unit(enclosing selection: ScoreSelection?) -> PhraseUnit? {
+        guard let selection, unit(selected: selection) == nil, let holding = unit(at: selection.onset), selection.end <= holding.end else {
+            return nil
+        }
+        return holding
+    }
+
+    /// The change of the phrase a selection was exactly before the edit that answered these phrases, whose new boundaries the
+    /// card «Выделить её по новым границам?» offers (the phrases spec, «Player's boundaries» 4); nil when the selection was
+    /// no phrase, or its phrase did not change.
+    func change(selected selection: ScoreSelection?) -> PhrasesAnswer.Change? {
+        guard let selection else { return nil }
+        return changed.first { $0.before.span == [selection.onset, selection.end] }
     }
 }
 

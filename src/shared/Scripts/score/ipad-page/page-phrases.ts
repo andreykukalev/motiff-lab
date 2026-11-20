@@ -4,8 +4,9 @@
 // Found marks are a tone lighter than the notes, the player's own amber, the selected phrase's number cobalt; while the
 // piece plays, the number of the phrase playing is in full ink and the rest are dimmed; a found start the player moved keeps
 // a faint comma where it was found. A tap on a number or a letter names it to Swift (page-taps.ts), a hold or a drag of a
-// number is page-phrase-drag.ts's; in the Pen they take no touch. Nothing here changes the selection.
-import type { Rect } from "../score-geometry.js";
+// number is page-phrase-drag.ts's; in the Pen they take no touch. In focus the card has the same marks over its bars
+// (page-card.ts hands them its surface, `placeCardPhrases`), only to read. Nothing here changes the selection.
+import type { Rect, ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PagePhraseMark, PageSectionMark } from "../page-contract.js";
 import type { BarBeatPlace } from "../phrase-drag.js";
 import { type MarkSpot, phraseAt, placeMarks } from "../phrase-marks.js";
@@ -22,6 +23,44 @@ const PRINTED = "g.note, g.chord, g.rest, g.mRest, g.beam, g.ledgerLines, g.tie,
 
 /** The breath mark: a round head with a tail down to the left, as a pencil writes it over the notes, a unit wide. */
 const COMMA = "M -1 0 a 1 1 0 1 1 2 0 c 0 1.538 -0.769 2.692 -2.077 3.231 c 0.692 -0.692 1 -1.385 1 -2 z";
+
+/**
+ * Where the marks are drawn: the pages, in the document's pixels, with the marks' touch targets; or the card in focus, in
+ * its own pixels (it scrolls inside itself), its ticks counted from its first bar (`offset` in the piece), only to read.
+ */
+export interface PhraseSurface {
+    root: HTMLElement;
+    geometry: ScoreGeometry | null;
+    offset: number;
+    /** Where its notes end, in its ticks: the card's last bar holds no start after its notes. */
+    end: number;
+    onsetOf: (id: string) => number | undefined;
+    /** A box on the screen, in the surface's pixels. */
+    local: (box: DOMRect) => Rect;
+    /** The engraved system that holds a bar, by its id. */
+    system: (bar: string) => Element | null;
+    targets: boolean;
+}
+
+const pageSurface: PhraseSurface = {
+    root: document.body,
+    get geometry() {
+        return state.geometry;
+    },
+    offset: 0,
+    end: Infinity,
+    onsetOf: (id) => state.timeline?.onsetOf(id),
+    local: (box) => ({ left: box.left + window.scrollX, top: box.top + window.scrollY, right: box.right + window.scrollX, bottom: box.bottom + window.scrollY }),
+    system: (bar) => document.querySelector(`#pages [id="${CSS.escape(bar)}"]`)?.closest("g.system") ?? null,
+    targets: true,
+};
+
+/** The card in focus, while it has its bars; null out of focus. */
+let cardSurface: PhraseSurface | null = null;
+
+/** The marks' parts on both surfaces, for the selected and the playing phrase to show on each. */
+const INK = "body > .phrase-ink, #focus .card-score > .phrase-ink";
+const NUMBERS = "body > .phrase-ink.number, #focus .card-score > .phrase-ink.number";
 
 /** A start on the score: a phrase's, a section's, or both; or where a start the player moved was found (`ghost`). */
 interface Start {
@@ -61,47 +100,14 @@ export function phraseMarks({ phrases: given, sections: lettered, places: beats,
 }
 
 /**
- * Draws the marks again where their starts are now, and once more when the fonts they are set in have loaded: a font
- * starts loading when a mark first uses it, and the marks' widths place them.
+ * Draws the marks again where their starts are now, on the pages and on the card in focus, and once more when the fonts
+ * they are set in have loaded: a font starts loading when a mark first uses it, and the marks' widths place them.
  */
 export function placePhrases(): void {
-    for (const old of document.querySelectorAll("body > .phrase-mark, body > .phrase-ink")) {
-        old.remove();
+    drawOn(pageSurface);
+    if (cardSurface !== null) {
+        drawOn(cardSurface);
     }
-    const geometry = state.geometry;
-    if (geometry === null) {
-        return;
-    }
-    const onsetOf = (id: string): number | undefined => state.timeline?.onsetOf(id);
-    const drawn = startsOf().flatMap((start) => {
-        const bar = geometry.barAt(start.tick);
-        if (bar === undefined) {
-            return [];
-        }
-        const index = geometry.bars.indexOf(bar);
-        const heads = geometry.notes.filter((note) => note.bar === index && onsetOf(note.id) === start.tick).map((note) => note.left);
-        const noteLeft = heads.length > 0 ? Math.min(...heads) : geometry.playhead(start.tick, onsetOf)?.x ?? bar.left;
-        return [{ start, bar, noteLeft, ink: inkOf(start) }];
-    });
-    const spots: MarkSpot[] = drawn.map(({ bar, noteLeft, ink }) => ({
-        system: bar.system, noteLeft, staffTop: bar.staves[0]?.top ?? bar.top,
-        comma: ink.comma?.offsetWidth ?? 0, letter: ink.letter?.offsetWidth ?? 0, number: ink.number?.offsetWidth ?? 0,
-    }));
-    const height = Math.max(0, ...drawn.map(({ ink }) => (ink.number ?? ink.letter)?.offsetHeight ?? 0));
-    const printed = printedOn(drawn.map(({ bar }) => bar));
-    const sizes = { gap: Number.parseFloat(token("s-1")) || 0, height, target: Number.parseFloat(token("h-touch")) || 0 };
-    placeMarks(spots, (system) => printed.get(system) ?? [], sizes).forEach((place, index) => {
-        const { start, ink } = drawn[index];
-        moveTo(ink.comma, place.comma, place.bottom - (ink.comma?.offsetHeight ?? 0));
-        moveTo(ink.letter, place.letter, place.top);
-        moveTo(ink.number, place.number, place.top);
-        if (start.section !== undefined && place.letterTarget !== null) {
-            target(place.letterTarget, start.section.label).dataset.section = start.section.id;
-        }
-        if (start.phrase !== undefined && place.numberTarget !== null) {
-            target(place.numberTarget, start.phrase.label).dataset.phrase = String(start.phrase.number);
-        }
-    });
     if (document.fonts.status === "loading" && !awaitingFonts) {
         awaitingFonts = true;
         void document.fonts.ready.then(() => {
@@ -109,6 +115,63 @@ export function placePhrases(): void {
             placePhrases();
         });
     }
+}
+
+/** The card in focus laid out with its bars (page-card.ts `layoutCard`): the same marks over them; null takes them away. */
+export function placeCardPhrases(surface: PhraseSurface | null): void {
+    if (cardSurface !== null && surface === null) {
+        clear(cardSurface);
+    }
+    cardSurface = surface;
+    placePhrases();
+}
+
+function clear(surface: PhraseSurface): void {
+    for (const old of surface.root.querySelectorAll(":scope > .phrase-mark, :scope > .phrase-ink")) {
+        old.remove();
+    }
+}
+
+/** The marks over the bars of one surface, each start that falls on them. */
+function drawOn(surface: PhraseSurface): void {
+    clear(surface);
+    const geometry = surface.geometry;
+    if (geometry === null) {
+        return;
+    }
+    const drawn = startsOf().flatMap((start) => {
+        const tick = start.tick - surface.offset;
+        const bar = tick < surface.end ? geometry.barAt(tick) : undefined;
+        if (bar === undefined) {
+            return [];
+        }
+        const index = geometry.bars.indexOf(bar);
+        const heads = geometry.notes.filter((note) => note.bar === index && surface.onsetOf(note.id) === tick).map((note) => note.left);
+        const noteLeft = heads.length > 0 ? Math.min(...heads) : geometry.playhead(tick, surface.onsetOf)?.x ?? bar.left;
+        return [{ start, bar, noteLeft, ink: inkOf(start, surface.root) }];
+    });
+    const spots: MarkSpot[] = drawn.map(({ bar, noteLeft, ink }) => ({
+        system: bar.system, noteLeft, staffTop: bar.staves[0]?.top ?? bar.top,
+        comma: ink.comma?.offsetWidth ?? 0, letter: ink.letter?.offsetWidth ?? 0, number: ink.number?.offsetWidth ?? 0,
+    }));
+    const height = Math.max(0, ...drawn.map(({ ink }) => (ink.number ?? ink.letter)?.offsetHeight ?? 0));
+    const printed = printedOn(drawn.map(({ bar }) => bar), surface);
+    const sizes = { gap: Number.parseFloat(token("s-1")) || 0, height, target: Number.parseFloat(token("h-touch")) || 0 };
+    placeMarks(spots, (system) => printed.get(system) ?? [], sizes).forEach((place, index) => {
+        const { start, ink } = drawn[index];
+        moveTo(ink.comma, place.comma, place.bottom - (ink.comma?.offsetHeight ?? 0));
+        moveTo(ink.letter, place.letter, place.top);
+        moveTo(ink.number, place.number, place.top);
+        if (!surface.targets) {
+            return;
+        }
+        if (start.section !== undefined && place.letterTarget !== null) {
+            target(place.letterTarget, start.section.label).dataset.section = start.section.id;
+        }
+        if (start.phrase !== undefined && place.numberTarget !== null) {
+            target(place.numberTarget, start.phrase.label).dataset.phrase = String(start.phrase.number);
+        }
+    });
 }
 
 /** What a mark's drag reads: the phrases and their starts in time order, the beats and the caption's words. */
@@ -134,7 +197,7 @@ function startsOf(): Start[] {
 }
 
 /** The parts of a start's mark, on the page to be measured: the comma and the number for a phrase, the letter for a section. */
-function inkOf(start: Start): { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } {
+function inkOf(start: Start, root: HTMLElement): { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } {
     const part = (kind: string): HTMLElement => {
         const element = document.createElement("span");
         element.className = `phrase-ink ${kind}`;
@@ -144,7 +207,7 @@ function inkOf(start: Start): { comma?: HTMLElement; letter?: HTMLElement; numbe
             element.classList.toggle("own", start.phrase.own === true);
             element.classList.toggle("current", start.phrase.number === phrases[playingIndex]?.number);
         }
-        document.body.append(element);
+        root.append(element);
         return element;
     };
     const ink: { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } = {};
@@ -164,17 +227,16 @@ function inkOf(start: Start): { comma?: HTMLElement; letter?: HTMLElement; numbe
     return ink;
 }
 
-/** The boxes of what is printed on the systems of these bars, in the document's pixels, by system. */
-function printedOn(bars: readonly { id: string; system: number }[]): Map<number, Rect[]> {
+/** The boxes of what is printed on the systems of these bars, in the surface's pixels, by system. */
+function printedOn(bars: readonly { id: string; system: number }[], surface: PhraseSurface): Map<number, Rect[]> {
     const bySystem = new Map<number, Rect[]>();
     for (const bar of bars) {
         if (bySystem.has(bar.system)) {
             continue;
         }
-        const system = document.querySelector(`#pages [id="${CSS.escape(bar.id)}"]`)?.closest("g.system");
-        const boxes = [...(system?.querySelectorAll(PRINTED) ?? [])].map((element) => element.getBoundingClientRect())
+        const boxes = [...(surface.system(bar.id)?.querySelectorAll(PRINTED) ?? [])].map((element) => element.getBoundingClientRect())
             .filter((box) => box.width > 0 || box.height > 0)
-            .map((box) => ({ left: box.left + window.scrollX, top: box.top + window.scrollY, right: box.right + window.scrollX, bottom: box.bottom + window.scrollY }));
+            .map(surface.local);
         bySystem.set(bar.system, boxes);
     }
     return bySystem;
@@ -204,7 +266,7 @@ function target(box: Rect, label: string): HTMLButtonElement {
 /** The phrase the selection is (`select`): its number turns cobalt, the one before goes back; none for no phrase. */
 export function showSelectedPhrase(phrase: number | undefined): void {
     selected = phrase ?? null;
-    for (const number of document.querySelectorAll<HTMLElement>("body > .phrase-ink.number")) {
+    for (const number of document.querySelectorAll<HTMLElement>(NUMBERS)) {
         number.classList.toggle("selected", Number(number.dataset.phrase) === selected);
     }
 }
@@ -221,7 +283,7 @@ export function showPhrasePlaying(tick: number, playing: boolean): void {
     }
     playingIndex = index;
     const number = index >= 0 ? phrases[index].number : null;
-    for (const ink of document.querySelectorAll<HTMLElement>("body > .phrase-ink")) {
+    for (const ink of document.querySelectorAll<HTMLElement>(INK)) {
         ink.classList.toggle("current", ink.dataset.phrase !== undefined && Number(ink.dataset.phrase) === number);
     }
 }

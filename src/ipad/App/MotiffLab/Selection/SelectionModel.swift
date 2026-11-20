@@ -26,6 +26,15 @@ final class SelectionModel: ObservableObject {
         var id = UUID()
     }
 
+    /// The card after an edit of the phrases changed the phrase the selection was exactly (the phrases spec, «Player's
+    /// boundaries» 4): that phrase's number before the edit, and the span its new boundaries give, which «Выделить» selects.
+    struct PhraseOffer: Equatable {
+        var number: Int
+        var onset: Double
+        var end: Double
+        var id = UUID()
+    }
+
     /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
     static let toastSeconds = 6.0
     static let holdHintSeconds = 2.0
@@ -37,6 +46,9 @@ final class SelectionModel: ObservableObject {
     @Published private(set) var phraseSteps = SelectionHistory<PhraseLevelEdits>()
     /// The toast after an edit of the phrases, its Undo or Redo, or why it could not be; nil while none shows.
     @Published private(set) var phraseToast: PhraseToast?
+    /// «Выделение было фразой 2. Выделить её по новым границам?» for a while after an edit of the phrases changed the phrase
+    /// the selection was exactly; nil while none shows. Only the player's «Выделить» changes the selection.
+    @Published private(set) var phraseOffer: PhraseOffer?
     /// The passage selected on the score: a bar tapped, or bars chosen by a long press and a drag.
     @Published private(set) var selection: ScoreSelection?
     /// The selection's Undo and Redo (#511 11, SelectionHistory), kept for the piece beside the screen (SelectionHistories).
@@ -57,9 +69,11 @@ final class SelectionModel: ObservableObject {
         toast?.replaced == true ? "selection.replacedToast" : "selection.clearedToast"
     }
 
-    /// The selection as music-core answered it (a select, a clear), or none.
+    /// The selection as music-core answered it (a select, a clear), or none; the card offering a phrase's new boundaries
+    /// goes with the selection there was.
     func answered(_ selection: ScoreSelection?) {
         self.selection = selection
+        phraseOffer = nil
     }
 
     /// Selects through music-core in the piece (`piece`), which keeps the selection within what a selection may hold:
@@ -84,14 +98,19 @@ final class SelectionModel: ObservableObject {
     /// An edit of the phrases' boundaries (`phrases.edit`: a mark moved, which music-core snaps to the nearest note, a
     /// boundary removed or put back where it was found): the phrases as they are now, one step of their history, and the
     /// toast with `words` and Undo (none for an edit that left the edits as they were); refused, the toast says why. The
-    /// selection stays as it is (the phrases spec: nothing about phrase marks changes it). Returns music-core's refusal,
-    /// nil once edited.
+    /// selection stays as it is (the phrases spec: nothing about phrase marks changes it); when it was a phrase exactly and
+    /// the edit changed that phrase, the card offering its new boundaries shows (`phraseOffer`). Returns music-core's
+    /// refusal, nil once edited.
     func editPhrases(in piece: Int32, _ request: String, done words: String) async -> String? {
+        phraseOffer = nil
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
         guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
         phrases = edited
         let step = edited.edits.flatMap { phraseSteps.record(from: edited.previous, to: $0) }
         showPhraseToast(PhraseToast(words: words, offer: step == nil ? nil : .undo))
+        if let change = edited.change(selected: selection) {
+            showPhraseOffer(PhraseOffer(number: change.before.number, onset: change.after.span[0], end: change.after.span[1]))
+        }
         return nil
     }
 
@@ -101,6 +120,7 @@ final class SelectionModel: ObservableObject {
     func stepPhrases(in piece: Int32, redo: Bool, done words: String) async -> String? {
         guard let step = redo ? phraseSteps.redo() : phraseSteps.undo(), let from = redo ? step.before : step.after,
               let to = redo ? step.after : step.before else { return nil }
+        phraseOffer = nil
         let request = "{\"restore\": \(to.json), \"expected\": \(from.json)}"
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
         guard let restored = PiecePhrases(answer: answer) else {
@@ -133,6 +153,21 @@ final class SelectionModel: ObservableObject {
         phraseToast = nil
     }
 
+    /// Shows the card offering a changed phrase's new boundaries for a while, as the toast stays; unanswered, it goes with
+    /// the selection unchanged.
+    private func showPhraseOffer(_ shown: PhraseOffer) {
+        phraseOffer = shown
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.toastSeconds))
+            if self?.phraseOffer == shown { self?.phraseOffer = nil }
+        }
+    }
+
+    /// The card offering a changed phrase's new boundaries put away («Оставить», another action): the selection stays.
+    func closePhraseOffer() {
+        phraseOffer = nil
+    }
+
     /// Where the page places the selection menu, or where the player let it go; nil for none.
     func placeMenu(_ place: CGPoint?) {
         menuPlace = place
@@ -145,6 +180,7 @@ final class SelectionModel: ObservableObject {
         steps = SelectionHistories.history(of: key)
         phraseSteps = SelectionHistory()
         phraseToast = nil
+        phraseOffer = nil
     }
 
     /// A change of the selection the player made: a step of the history, or a part of its gesture's step. A clear or a

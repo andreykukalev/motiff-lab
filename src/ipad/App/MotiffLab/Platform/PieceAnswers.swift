@@ -84,11 +84,31 @@ struct PhrasesAnswer: Decodable, Sendable {
         let lastBar: Int
     }
 
+    /// A phrase an edit changed (`phrases.edit` "changed"): as it was, numbered as it was, and the phrase now that covers
+    /// most of it, each with the span a tap selects.
+    struct Change: Decodable, Equatable, Sendable {
+        let before: Changed
+        let after: Changed
+    }
+
+    struct Changed: Decodable, Equatable, Sendable {
+        let number: Int
+        let onset: Double
+        let end: Double
+        let selectable: SpanAnswer?
+
+        /// The span a tap on it selects, [onset, end].
+        var span: [Double] { [selectable?.onset ?? onset, selectable?.end ?? end] }
+    }
+
     let units: [Unit]
     let sections: [Section]?
     /// The player's edits of the boundaries now, and (from `phrases.edit`) as they were before the edit: one step of Undo.
     let edits: PhraseLevelEdits?
     let previous: PhraseLevelEdits?
+    /// How many boundaries are the player's own («Ваших границ: N»), and (from `phrases.edit`) the phrases the edit changed.
+    let own: Int?
+    let changed: [Change]?
 }
 
 /// The player's edits of the boundaries as music-core answers them ("edits", "previous"): each level's starts added and
@@ -497,7 +517,7 @@ struct VersionHead: Decodable, Sendable {
 }
 
 /// A span in ticks (`Answer.Span`), each end read as none when missing.
-struct SpanAnswer: Decodable, Sendable {
+struct SpanAnswer: Decodable, Equatable, Sendable {
     let onset: Double?
     let end: Double?
 }

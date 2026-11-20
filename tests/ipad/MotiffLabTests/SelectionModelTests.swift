@@ -197,4 +197,58 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertNil(model.toast)
         XCTAssertNil(model.revert("g2"))
     }
+
+    /// The card «Выделить её по новым границам?» (the phrases spec, «Player's boundaries» 4, v1.2 i-3b): after an edit that
+    /// changed the phrase the selection was exactly, it offers that phrase's new span; the selection itself never changes,
+    /// and the next selection puts the card away.
+    func testAnEditOfTheSelectedPhraseOffersItsNewBoundariesAndChangesNothing() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd))}}"#, step: true)
+        let selected = model.selection
+
+        _ = await model.editPhrases(in: piece, #"{"move": {"from": \#(Int(second.onset)), "to": \#(Int(second.onset) - 360)}}"#, done: "moved")
+        let offer = try XCTUnwrap(model.phraseOffer, "the selection was phrase 2")
+        let moved = try XCTUnwrap(model.phrases?.unit(2))
+        XCTAssertEqual(offer.number, 2)
+        XCTAssertEqual([offer.onset, offer.end], [moved.selectableOnset, moved.selectableEnd], "its new boundaries")
+        XCTAssertEqual(model.selection, selected, "only «Выделить» changes the selection")
+
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(offer.onset)), "end": \#(Int(offer.end))}}"#, step: true)
+        XCTAssertNil(model.phraseOffer, "«Выделить» (or any other selection) puts it away")
+        XCTAssertEqual(model.phrases?.unit(selected: model.selection)?.number, 2, "the phrase by its new boundaries")
+        XCTAssertEqual(model.undo()?.before, SelectionSpan(selected), "one step of the selection's own history")
+    }
+
+    /// A selection that was not exactly a phrase gets no card; a reset is one edit, its Undo in the phrases' own history.
+    func testASelectionThatWasNoPhraseGetsNoCardAndAResetIsOneStep() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd) - 240)}}"#, step: true)
+        XCTAssertEqual(model.phrases?.unit(enclosing: model.selection)?.number, 2, "«Вся фраза» offers phrase 2")
+
+        _ = await model.editPhrases(in: piece, #"{"remove": \#(Int(second.onset))}"#, done: "removed")
+        XCTAssertNil(model.phraseOffer, "not exactly a phrase: no card")
+        XCTAssertEqual(model.phrases?.own, 1, "«Ваших границ: 1»")
+
+        _ = await model.editPhrases(in: piece, #"{"resetAll": true}"#, done: "reset")
+        XCTAssertEqual(model.phrases?.own, 0)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, second.onset, "the found boundary again")
+        XCTAssertEqual(model.phraseToast?.offer, .undo)
+        _ = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertEqual(model.phrases?.own, 1, "Undo takes the reset back in one step")
+    }
+
+    /// «Вся фраза» (the phrases spec, decision 5): only for a selection inside one phrase that is not that phrase exactly.
+    func testTheWholePhraseIsOfferedOnlyInsideOnePhrase() throws {
+        let answer = #"{"units": [{"number": 1, "onset": 0, "end": 1920}, {"number": 2, "onset": 1920, "end": 3840}]}"#
+        let phrases = try XCTUnwrap(PiecePhrases(answer: answer))
+        let inside = ScoreSelection(onset: 480, end: 960, firstBar: 1, lastBar: 1)
+        XCTAssertEqual(phrases.unit(enclosing: inside)?.number, 1)
+        XCTAssertNil(phrases.unit(enclosing: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 2)), "the phrase exactly")
+        XCTAssertNil(phrases.unit(enclosing: ScoreSelection(onset: 960, end: 2400, firstBar: 2, lastBar: 3)), "across a boundary")
+        XCTAssertEqual(phrases.unit(at: 1920)?.number, 2)
+    }
 }

@@ -113,5 +113,8 @@
   "checkPieces.all": "All pieces",
   "padEdits.unfitRow": "Bar {0} · {1}",
   "padEdits.more": "And {0} more: they come up as these are removed.",
-  "padEdits.saveEditFirst": "Save or cancel the note editing in the piano roll first."
+  "padEdits.saveEditFirst": "Save or cancel the note editing in the piano roll first.",
+  "phrases.reset": "Restore the found boundaries",
+  "phrases.resetWarning": "Your boundaries: {0}. They will be replaced by the found ones",
+  "phrases.resetConfirm": "Restore the found ones"
 }

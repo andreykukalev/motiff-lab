@@ -306,6 +306,18 @@
         return { left: round(box.left + window.scrollX), top: round(box.top + window.scrollY), right: round(box.right + window.scrollX), bottom: round(box.bottom + window.scrollY) };
     }
     const shown = (element) => !element.hidden && element.isConnected && getComputedStyle(element).visibility !== "hidden" && element.getClientRects().length > 0;
+    // A phrase's mark as each part is drawn: its kind (comma, letter or number), its phrase (null for a section's letter
+    // where no phrase starts), its text, whether it is the player's own, the selected phrase's number or the phrase playing,
+    // and its box.
+    const phraseInks = (selector) => [...document.querySelectorAll(selector)].filter(shown).map((ink) => ({
+        kind: ["comma", "letter", "number"].find((kind) => ink.classList.contains(kind)),
+        phrase: ink.dataset.phrase === undefined ? null : Number(ink.dataset.phrase),
+        text: ink.textContent,
+        own: ink.classList.contains("own"),
+        selected: ink.classList.contains("selected"),
+        current: ink.classList.contains("current"),
+        ...boxOf(ink),
+    }));
 
     /** The pages, each with the room above its first ink and below its last (the paper's margins), and the room above and below them. */
     function paper() {
@@ -376,18 +388,10 @@
             state: [...marker.classList].find((name) => name.startsWith("state-"))?.slice("state-".length) ?? null,
             ...boxOf(marker),
         })),
-        // The phrases' marks (v1.2), each part drawn in the order the page draws them: its kind (comma, letter or number), its
-        // phrase (null for a section's letter where no phrase starts), its text, whether it is the player's own, the
-        // selected phrase's number or the phrase playing, and its box.
-        phrases: () => [...document.querySelectorAll("body > .phrase-ink")].filter(shown).map((ink) => ({
-            kind: ["comma", "letter", "number"].find((kind) => ink.classList.contains(kind)),
-            phrase: ink.dataset.phrase === undefined ? null : Number(ink.dataset.phrase),
-            text: ink.textContent,
-            own: ink.classList.contains("own"),
-            selected: ink.classList.contains("selected"),
-            current: ink.classList.contains("current"),
-            ...boxOf(ink),
-        })),
+        // The phrases' marks (v1.2), each part drawn in the order the page draws them (`phraseInks`).
+        phrases: () => phraseInks("body > .phrase-ink"),
+        // The same marks over the card's bars in focus (v1.2 i-3b), only to read.
+        cardPhrases: () => phraseInks("#focus .card-score > .phrase-ink"),
         // The touch targets of the phrases' numbers and the sections' letters: which each is, what it says, and its box.
         phraseTargets: () => [...document.querySelectorAll("body > .phrase-mark")].filter(shown).map((target) => ({
             phrase: target.dataset.phrase === undefined ? null : Number(target.dataset.phrase),

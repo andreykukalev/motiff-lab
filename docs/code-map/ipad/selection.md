@@ -8,7 +8,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 
 - `Phrases.swift`: `PiecePhrases` with its `PhraseUnit`s (each start's bar, beat, «Почему здесь» and whether it is the
   player's own) and `FormSection`s (the form's letters, `Platform/FormSection.swift`), from `PhrasesAnswer` (the text of `phrases` and `phrases.edit`
-  by `init?(answer:)`); `unit(selected:)`, the one rule of a selection that is a phrase exactly (its selectable span); and
+  by `init?(answer:)`); `unit(selected:)`, the one rule of a selection that is a phrase exactly (its selectable span),
+  `unit(enclosing:)` («Вся фраза»), `change(selected:)` (the edit's `changed` for that phrase), `own`; and
   `ScoreSelection`, built from `SelectionAnswer.Selection` only.
 - `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`. The page's rule is `Scripts/score/selection-places.ts` (`../score.md`).
@@ -16,7 +17,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
   Also the phrases' edits' (`SelectionHistory<PhraseLevelEdits>`, v1.2 i-3a); `dropLast` takes a refused step away.
 - `SelectionModel.swift` (S1, S3, ADR 0031 section 3): the selection's state and its own rules (the history's steps,
   the toast's and the hold hint's time), selecting and reading the phrases through music-core, and editing them
-  (`editPhrases`, `stepPhrases`: c-2's restore/expected, `phraseSteps`, `phraseToast`; the selection untouched). Tests:
+  (`editPhrases`, `stepPhrases`: c-2's restore/expected, `phraseSteps`, `phraseToast`; the selection untouched;
+  `phraseOffer`, the card after an edit changed the phrase selected exactly, gone with the next selection). Tests:
   `MotiffLabTests/SelectionModelTests`.
 
 ## The contract others may rely on

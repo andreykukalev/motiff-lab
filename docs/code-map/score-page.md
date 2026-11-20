@@ -34,7 +34,8 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
   the phrase's number, a section's boxed letter, placed by `phrase-marks.ts` over what is printed on each system and drawn
   again by `layout` (and once the fonts have loaded); their 44 pt targets (`button.phrase-mark`, `page-taps.ts` posts
   `phraseMark`/`sectionMark`); the selected phrase's number (`select`'s `phrase`), the phrase playing (`playing`),
-  `phraseMarksTop` (the menu clears them); hidden by the layer `phrases`.
+  `phraseMarksTop` (the menu clears them); hidden by the layer `phrases`. Drawn on a `PhraseSurface`: the pages, and in
+  focus the card's bars (`placeCardPhrases` from `page-card.ts` `layoutCard`, v1.2 i-3b), there only to read.
 - `page-phrase-drag.ts` (v1.2 i-3a): a number held (`phraseHeld`, for Swift's menu) or dragged (`phraseMoved`): the mark
   lifted, its ghost, the amber line at the note, the caption, the two phrases it would make lit; rule `phrase-drag.ts`.
 - `page-marks.ts`: margin notes and highlights (`notes`), Check flags (`checks`), `layers`, `tint`, highlight bands.

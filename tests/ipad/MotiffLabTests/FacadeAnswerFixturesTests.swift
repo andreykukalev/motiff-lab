@@ -225,6 +225,14 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(read[1].edits?.phrase, PhraseLevelEdits.Edits(added: [2520], removed: [2880]), "the edits it left: Undo's expected")
         XCTAssertEqual(read[3].units.filter(\.own).map(\.number), [4], "a phrase the player started")
         XCTAssertEqual(read[3].unit(4)?.why, "set by you")
+
+        // «Ваших границ: N» before a reset, and each edit's changed phrases, which the card «Выделить её по новым границам?» reads.
+        XCTAssertEqual(read.map(\.own), [0, 1, 0, 1, 1, 2, 1, 0])
+        XCTAssertTrue(read[0].changed.isEmpty, "no edit")
+        XCTAssertEqual(read[1].changed.map { [$0.before.number, $0.after.number] }, [[1, 1], [2, 2]])
+        XCTAssertEqual(read[1].changed.first?.before.span, [0, 2880], "phrase 1 as it was")
+        XCTAssertEqual(read[1].changed.first?.after.span, [0, 2520], "and by its new boundaries")
+        XCTAssertEqual(read[4].changed.map { [$0.before.number, $0.after.number] }, [[4, 4], [5, 4]], "a boundary removed: two into one")
     }
 
     /// The drafts' calls (v1.1, ADR 0034): the «В черновик» sheet and what it offers first, the Sources group and the draft's
