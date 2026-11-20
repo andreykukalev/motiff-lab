@@ -96,6 +96,7 @@ public class PlaceResultTests
         Assert.All(result.Steps, step => Assert.True(step.Applied));
         Assert.Equal([1, 2, 3], result.Steps.Select(step => step.Number));
         Assert.Equal(70, result.Music.Notes.Single(note => note.Id == "v_1.n0r0").Pitch.MidiNumber);
+        Assert.Equal(-2, Assert.Single(result.Music.Keys).Fifths);
         Assert.Equal(60, result.Music.TempoAt(Tick.Zero));
     }
 

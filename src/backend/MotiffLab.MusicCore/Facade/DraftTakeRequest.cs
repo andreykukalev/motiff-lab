@@ -68,11 +68,11 @@ internal static class DraftTakeRequest
     /// draft "draft" taken, "now" its time. Answers the sources with "draft", "place" and "step", its number.
     /// </summary>
     public static string Take(OpenPiece owner, Request request) =>
-        Stepped(owner, request, (draft, place, now) => DraftTakes.Take(draft, place, Technique(request), request.Int("bar"), now));
+        Stepped(owner, request, (draft, place, now) => DraftTakes.Take(draft, place, request.RequiredInt("technique"), request.Int("bar"), now));
 
     /// <summary>«Оставить»: as <see cref="Take"/>, the приём kept as in the base.</summary>
     public static string Leave(OpenPiece owner, Request request) =>
-        Stepped(owner, request, (draft, place, now) => DraftTakes.Leave(draft, place, Technique(request), request.Int("bar"), now));
+        Stepped(owner, request, (draft, place, now) => DraftTakes.Leave(draft, place, request.RequiredInt("technique"), request.Int("bar"), now));
 
     /// <summary>
     /// «Правая рука из варианта…», «Взять отсюда»: "part" (all, the default, right or left) of the variant "variant" taken into
@@ -137,7 +137,7 @@ internal static class DraftTakeRequest
     }
 
     /// <summary>A step made by <paramref name="step"/> on the draft's place, answered as the sources with "draft", "place" and "step".</summary>
-    private static string Stepped(OpenPiece owner, Request request, Func<Draft, string, DateTimeOffset, Draft> step)
+    internal static string Stepped(OpenPiece owner, Request request, Func<Draft, string, DateTimeOffset, Draft> step)
     {
         (Draft draft, string placeId) = PlaceOf(owner, request);
         int number = draft.Next;
@@ -170,8 +170,6 @@ internal static class DraftTakeRequest
         long to = Math.Min(inDraft.End.Value, place.End.Value) - place.Onset.Value;
         return to > from ? TickSpan.FromBounds(new Tick(from), new Tick(to)) : throw FacadeException.BadRequest("The span lies outside the place.");
     }
-
-    private static int Technique(Request request) => request.Int("technique") ?? throw FacadeException.BadRequest("The request needs \"technique\".");
 
     private static void Ids(Utf8JsonWriter json, string draft, string place)
     {

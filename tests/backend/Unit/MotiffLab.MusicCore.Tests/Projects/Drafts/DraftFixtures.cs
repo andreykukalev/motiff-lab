@@ -59,6 +59,10 @@ internal static class DraftFixtures
     public static DraftVariant Variant(string id, SourceMusic music, int first, int last, DraftPart part = DraftPart.All, string notes = "n_1") =>
         DraftFragment.Variant(id, At, music, Bars(first, last), part, notes, Read);
 
+    /// <summary>Bars <paramref name="first"/> to <paramref name="last"/> of <paramref name="music"/> as notes heard in a recording.</summary>
+    public static DraftVariant Heard(string id, SourceMusic music, int first = 1, int last = 4) =>
+        DraftFragment.Variant(id, At, music, Bars(first, last), DraftPart.All, "perf_1", new NotesProvenance(NotesProvenance.AudioRecognition));
+
     /// <summary>The recording plays bars 2 and 6 an octave higher.</summary>
     public static SourceMusic Octaves() => Score(melody: bar => bar is 1 or 5 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h");
 

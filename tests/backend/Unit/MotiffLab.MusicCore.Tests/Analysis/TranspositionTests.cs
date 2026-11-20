@@ -75,6 +75,18 @@ public class TranspositionTests
         Assert.Equal(["fs5", "es5", "fs5", "es5", "fs5"], Opening(Transposition.Of(piece.Notes, Keys(piece), s_aMinor, new MusicalKey(2, KeyMode.Minor)), piece));
     }
 
+    [Theory]
+    [InlineData(0, 2, 2)]
+    [InlineData(2, 5, 1)]
+    [InlineData(0, 3, -3)]
+    [InlineData(1, 6, 7)]
+    [InlineData(5, 4, -3)]
+    [InlineData(0, -2, -2)]
+    public void A_key_signature_moves_by_the_fifths_of_the_interval_written_with_seven_sharps_or_flats_at_most(int fifths, int semitones, int moved)
+    {
+        Assert.Equal(moved, Transposition.Moved(fifths, semitones));
+    }
+
     [Fact]
     public void The_key_signature_follows_the_new_key()
     {

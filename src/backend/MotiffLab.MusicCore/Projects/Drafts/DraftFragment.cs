@@ -66,7 +66,9 @@ public static class DraftFragment
 
     /// <summary>
     /// The music of <paramref name="span"/> of <paramref name="music"/>, from 0: the notes that start in it, of the part
-    /// asked for, the bars cut at its ends, and the tempo and key in force at its start with the changes inside it.
+    /// asked for, the bars cut at its ends, and the tempo and key in force at its start with the changes inside it. The
+    /// piece's default tempo, taken where nothing states one, is not copied: the file keeps a tempo without its source, and
+    /// a place with no tempo plays at that default anyway (<see cref="DraftMusic"/>), so it is never read back as stated.
     /// </summary>
     /// <exception cref="ArgumentException">The part is not offered for these notes, or it holds no notes.</exception>
     public static SourceMusic Of(SourceMusic music, TickSpan span, DraftPart part)
@@ -87,7 +89,8 @@ public static class DraftFragment
 
         long from = span.Onset.Value;
         Tick Moved(Tick tick) => new(Math.Max(0, tick.Value - from));
-        PlaybackTempo[] tempos = [.. music.Tempos.Where(tempo => tempo.At <= span.Onset).TakeLast(1).Concat(music.Tempos.Where(tempo => tempo.At > span.Onset && tempo.At < span.End))];
+        PlaybackTempo[] stated = [.. music.Tempos.Where(static tempo => tempo.Source != TempoSource.Default)];
+        PlaybackTempo[] tempos = [.. stated.Where(tempo => tempo.At <= span.Onset).TakeLast(1).Concat(stated.Where(tempo => tempo.At > span.Onset && tempo.At < span.End))];
         KeySignature[] keys = [.. (KeySignature.InForce(music.Keys, span.Onset) is { } start ? [start] : Array.Empty<KeySignature>()).Concat(music.Keys.Where(key => key.At > span.Onset && key.At < span.End))];
         return new SourceMusic(
             [.. taken.Select(note => note with { Span = new TickSpan(Moved(note.Span.Onset), note.Span.Duration) })],

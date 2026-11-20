@@ -50,15 +50,24 @@ public static class Transposition
         var sections = new List<(Tick At, int OriginalFifths, int Letters)>(original.Length);
         foreach (KeyChange key in original)
         {
-            // Beyond seven sharps or flats the key is written as its enharmonic, twelve fifths round: one letter apart.
-            int shifted = key.Fifths + fifths;
-            int written = shifted > 7 ? shifted - 12 : shifted < -7 ? shifted + 12 : shifted;
+            int written = Written(key.Fifths + fifths);
             moved.Add(new KeyChange(key.At, written));
             sections.Add((key.At, key.Fifths, Letters(semitones, written - key.Fifths)));
         }
 
         Note[] shiftedNotes = [.. notes.Select(note => note with { Pitch = new Pitch(Within(note.Pitch.MidiNumber + semitones)) })];
         return new TransposedPiece(from, to, semitones, shiftedNotes, moved, new TransposedSpelling(semitones, sections));
+    }
+
+    /// <summary>
+    /// The key signature of <paramref name="fifths"/> once its notes move by <paramref name="semitones"/>: as many fifths on
+    /// as the interval is (seven semitones a fifth, a tritone up six sharps), written as <see cref="Of"/> writes it. C major
+    /// up two semitones is two sharps, D major up five is one, A minor up three is three flats.
+    /// </summary>
+    public static int Moved(int fifths, int semitones)
+    {
+        int on = Mod(7 * semitones, 12);
+        return Written(fifths + (on > 6 ? on - 12 : on));
     }
 
     /// <summary>
@@ -71,6 +80,9 @@ public static class Transposition
         double target = semitones * 7.0 / 12.0;
         return residue + (7 * (int)Math.Round((target - residue) / 7.0, MidpointRounding.AwayFromZero));
     }
+
+    /// <summary>Beyond seven sharps or flats a key is written as its enharmonic, twelve fifths round: one letter apart.</summary>
+    private static int Written(int shifted) => shifted > 7 ? shifted - 12 : shifted < -7 ? shifted + 12 : shifted;
 
     private static int Within(int midiNumber) =>
         midiNumber > Pitch.MaxMidiNumber ? midiNumber - 12 : midiNumber < 0 ? midiNumber + 12 : midiNumber;

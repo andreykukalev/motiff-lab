@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Performance;
@@ -128,9 +129,11 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             return null;
         }
 
+        /// <summary>The place's notes moved by <paramref name="semitones"/>, and its keys with them (<see cref="Transposition.Moved"/>); a place whose source states no key still states none.</summary>
         private string? Transpose(int semitones)
         {
             _notes = [.. _notes.Select(note => note with { Pitch = new Pitch(Math.Clamp(note.Pitch.MidiNumber + semitones, 0, Pitch.MaxMidiNumber)) })];
+            _keys = [.. _keys.Select(key => key with { Fifths = Transposition.Moved(key.Fifths, semitones) })];
             return null;
         }
 

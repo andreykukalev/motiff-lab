@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects.Drafts;
@@ -32,9 +33,16 @@ public static class DraftLabels
     {
         ArgumentNullException.ThrowIfNull(variant);
         return variant.From.Project is not null ? DraftSourceKind.OtherPiece
-            : variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null ? DraftSourceKind.Recording
+            : IsHeard(variant) ? DraftSourceKind.Recording
             : variant.Provenance.Op == NotesProvenance.PdfRecognition ? DraftSourceKind.PdfNotes
             : DraftSourceKind.FileNotes;
+    }
+
+    /// <summary>Whether the variant's notes were heard in a recording: their bars and tempo were worked out from the playing, inferred.</summary>
+    public static bool IsHeard(DraftVariant variant)
+    {
+        ArgumentNullException.ThrowIfNull(variant);
+        return variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null;
     }
 
     /// <summary>
@@ -77,6 +85,29 @@ public static class DraftLabels
         TechniqueKind.InsertBars => words.T("inserted bars", "вставка тактов"),
         _ => words.T("other", "иначе"),
     };
+
+    /// <summary>A key as a seam names it: «соль мажор», "G major"; by its signature, «1 диез», "1 sharp", where its source states no mode.</summary>
+    public static string Key(KeySignature key, Words words)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return key.Mode is { } mode ? new MusicalKey(key.Fifths, mode).NameIn(words) : KeyReference.CountOf(key.Fifths, words);
+    }
+
+    /// <summary>
+    /// The offer to transpose the place at <paramref name="index"/> (from 0) to <paramref name="key"/>: «② в соль мажор», "② to
+    /// G major"; «② в тональность ①», "② into ①'s key", where the key has no mode to name it by.
+    /// </summary>
+    public static string Transpose(int index, KeySignature key, Words words)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        string place = Circled(index + 1);
+        return key.Mode is not null
+            ? words.T($"{place} to {Key(key, words)}", $"{place} в {Key(key, words)}")
+            : words.T($"{place} into {Circled(index)}'s key", $"{place} в тональность {Circled(index)}");
+    }
+
+    /// <summary>The offer to play a place at the tempo of the place before it, at <paramref name="index"/> (from 0): «Темп как в ①», "Tempo as in ①".</summary>
+    public static string TempoAsIn(int index, Words words) => words.T($"Tempo as in {Circled(index + 1)}", $"Темп как в {Circled(index + 1)}");
 
     /// <summary>The name of a new draft of <paramref name="project"/>: «Черновик N», "Draft N", N one more than its drafts, the first such name not taken.</summary>
     public static string NewName(Project project, Words words)
