@@ -38,7 +38,8 @@
       "op": "pdf"
      }
     ],
-    "hidden": 0
+    "hidden": 0,
+    "drafts": []
    }
   }
  ]

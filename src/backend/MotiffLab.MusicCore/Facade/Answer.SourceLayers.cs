@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Projects.Drafts;
 
 namespace MotiffLab.MusicCore.Facade;
 
@@ -17,9 +18,10 @@ internal static partial class Answer
     /// "notes": [ids made from it], "pageMarks"}], "notes": [{"id", "role" ("working" / "other" / "version"), "name", "op",
     /// "engine", "at", "original", "state" (as an original's, or "fileChanged"; null with no original), "edits", "taken",
     /// "hidden"}], "views": [{"id", "kind" ("original" / "notes" / "performance"), "group", "working", "hidden", "op"}] in
-    /// the switch's order, and "hidden", how many views are hidden (<see cref="PieceViews"/>).
+    /// the switch's order, "hidden", how many views are hidden (<see cref="PieceViews"/>), and since version 1.1 (0034) "drafts"
+    /// (<see cref="Drafts"/>), the Sources group «Черновики»; a draft is a view of kind "draft" too, last in the switch.
     /// </summary>
-    public static void SourceLayers(Utf8JsonWriter json, Project project, PieceViews views)
+    public static void SourceLayers(Utf8JsonWriter json, Project project, PieceViews views, Words words)
     {
         if (project.HasNotes)
         {
@@ -59,6 +61,29 @@ internal static partial class Answer
 
         json.WriteEndArray();
         json.WriteNumber("hidden", views.HiddenCount);
+        Drafts(json, project, words);
+    }
+
+    /// <summary>
+    /// "drafts": [{"id", "name", "caption" («из нот с PDF и записи»), "createdAt", "places", "shelf"}] in the order they were
+    /// made, for the Sources group «Черновики» (0034, spec «Экран (iPad)»).
+    /// </summary>
+    private static void Drafts(Utf8JsonWriter json, Project project, Words words)
+    {
+        json.WriteStartArray("drafts");
+        foreach (Draft draft in project.Drafts)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", draft.Id);
+            json.WriteString("name", draft.Name);
+            json.WriteString("caption", DraftLabels.Caption(draft, words));
+            json.WriteString("createdAt", draft.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+            json.WriteNumber("places", draft.Places.Count);
+            json.WriteNumber("shelf", draft.Shelf.Count);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     private static void SourceOriginal(Utf8JsonWriter json, SourceOriginal source)

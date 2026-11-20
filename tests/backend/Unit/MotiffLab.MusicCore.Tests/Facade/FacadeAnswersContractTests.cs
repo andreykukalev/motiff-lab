@@ -123,6 +123,20 @@ public class FacadeAnswersContractTests
             ("phrases.edit", """{"joinWithNext":1}"""),
             ("phrases.edit", """{"reset":true}"""),
         ],
+        // Drafts (0034, version 1.1; the iPad's step 5): the «В черновик» sheet with no draft yet, «Добавить» making a new
+        // one (answered as the sources, the draft in the group and in the switch), the sheet again with the same music
+        // offered first, bars 5–8 as a new place, the right hand on the shelf, the draft view with its place labels, and
+        // the draft renamed.
+        ["drafts"] =
+        [
+            ("drafts.sheet", """{"bars":{"first":1,"last":4}}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"part":"all","now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.sheet", """{"bars":{"first":1,"last":4},"part":"all"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"part":"right","draft":"d_0001","drop":"shelf","now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.rename", """{"device":"ipad","here":[],"draft":"d_0001","name":"Coda"}"""),
+        ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for

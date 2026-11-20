@@ -45,6 +45,9 @@ public enum ViewKind
 
     /// <summary>A recording's sound with the notes heard in it («Исполнение»).</summary>
     Performance,
+
+    /// <summary>A draft, its places' results as one score (decision record 0034, «вкладка черновика»).</summary>
+    Draft,
 }
 
 /// <summary>An original as the Sources sheet lists it: live or removed, with where its bytes are and the Notes made from it.</summary>
@@ -62,9 +65,9 @@ public sealed record SourceOriginal(PieceOriginal Original, SourceState State, D
 public sealed record SourceNotes(string Id, NotesRole Role, string? Name, NotesProvenance Provenance, string? Original, SourceState? State, int Edits, int Taken, bool Hidden);
 
 /// <summary>A view of the switch: what it shows, the original it is grouped under, and whether it is working or hidden.</summary>
-/// <param name="Id">The original's id for an original or a recording's sound, the Notes' id for Notes.</param>
+/// <param name="Id">The original's id for an original or a recording's sound, the Notes' id for Notes, the draft's for a draft.</param>
 /// <param name="Group">The original whose group it is in («PDF» and the notes read from it, the working ones too); null for Notes of no original here.</param>
-/// <param name="Operation">What made it, for its pictogram: the Notes' operation (<see cref="NotesProvenance.Op"/>), "pdf" or "recording".</param>
+/// <param name="Operation">What made it, for its pictogram: the Notes' operation (<see cref="NotesProvenance.Op"/>), "pdf", "recording" or "draft".</param>
 public sealed record SourceView(string Id, ViewKind Kind, string? Group, bool Working, bool Hidden, string Operation);
 
 /// <summary>
@@ -83,8 +86,9 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
     /// bytes the app has on this device, such as a recording's sound it keeps beside the file). The views, PDF before Notes
     /// (Andrei, 0.6.1 #582 item 2): by original, a PDF here (or photos) followed by the Notes read from it, the working ones
     /// first, a recording here followed by its sound and the Notes heard from it; then Notes of no original here, the
-    /// working ones first; an assembly that is not working last. A recording or PDF that is not here, and a removed
-    /// original, are no views.
+    /// working ones first; an assembly that is not working last; then the drafts in the order they were made, never hidden
+    /// (no other part of the file names a draft, docs/project-file.md, "Drafts"). A recording or PDF that is not here, and a
+    /// removed original, are no views.
     /// </summary>
     public static PieceViews Of(Project project, HoldingDevice device, IReadOnlyCollection<string>? here = null)
     {
@@ -96,7 +100,9 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
             .. project.Originals.Select(original => new SourceOriginal(original, Where(project, original, device, here), null, project.IsHidden(original.Id), MadeFrom(notes, original.Id), PageMarks(project, original.Id))),
             .. project.Sources.Removed.Select(removed => new SourceOriginal(removed.Original, SourceState.Removed, removed.At, Hidden: false, MadeFrom(notes, removed.Original.Id), removed.Marks.Ink.Count + removed.Marks.Bookmarks.Count)),
         ];
-        return new PieceViews(originals, notes, ViewsOf(notes, originals));
+        List<SourceView> views = ViewsOf(notes, originals);
+        views.AddRange(project.Drafts.Select(static draft => new SourceView(draft.Id, ViewKind.Draft, null, Working: false, Hidden: false, "draft")));
+        return new PieceViews(originals, notes, views);
     }
 
     private static List<SourceNotes> NotesOf(Project project, HoldingDevice device, IReadOnlyCollection<string> here)

@@ -19,11 +19,12 @@ internal sealed partial class OpenPiece
     {
         "sources.notes.recognise" => RecogniseAgain(request),
         "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words),
-        _ => SourceRequest.Call(name, request, () => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages)),
+        _ => SourceRequest.Call(name, request, () => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words),
     };
 
-    private string Changed(Request request, Func<Project, Project> change, Action<Utf8JsonWriter> more) =>
-        SourceRequest.Changed(request, () => Project, project => Project = project, change, more);
+    /// <summary>The piece changed by one of the Sources sheet's operations, a draft's among them, answered as the sources with what <paramref name="more"/> adds.</summary>
+    internal string Changed(Request request, Func<Project, Project> change, Action<Utf8JsonWriter> more) =>
+        SourceRequest.Changed(request, () => Project, project => Project = project, Words, change, more);
 
     /// <summary>
     /// «Распознать ещё раз»: "original" (the PDF's id), "musicXml" (base64) the scan server read from it, "engine",

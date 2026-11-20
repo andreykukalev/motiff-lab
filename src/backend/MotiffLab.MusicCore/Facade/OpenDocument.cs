@@ -119,7 +119,7 @@ internal sealed class OpenDocument
         "sources" => SourceRequest.Sources(Project, Words.For(request.Text("language"))),
         "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words.For(request.Text("language"))),
         // Version 0.6: the sources by the layers of 0030 for a piece that is only its PDF, as for a piece with notes.
-        _ when name.StartsWith("sources.", StringComparison.Ordinal) && SourceRequest.Call(name, request, () => Project, project => Project = project, null) is { } answer => answer,
+        _ when name.StartsWith("sources.", StringComparison.Ordinal) && SourceRequest.Call(name, request, () => Project, project => Project = project, null, Words.For(request.Text("language"))) is { } answer => answer,
         _ when Project.Document is null =>
             throw new FacadeException("noNotes", $"This piece is a recording with no notes yet, so there is no call \"{name}\" on it. Recognise its notes first."),
         "document" => Pages(request),
