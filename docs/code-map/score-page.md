@@ -54,8 +54,10 @@ loads, and the objects with listeners are `let`s made by their `install…`.
 
 ## Rules not to break
 
-- A module creates nothing on the page when it loads: elements, listeners and layers come from its `install…` or
-  `listen…`, called by `page.ts` in order. A new one goes into that order where it must run.
+- A module attaches nothing to the page when it loads: it may build detached elements (the menu's stand-in, the focus
+  layer) and objects that listen to nothing yet (the playheads' marks and grabs), but appending to the page, adding a
+  listener and making a layer that listens (`SelectionLayer`, `PlaceLayer`, `ScorePress`) happen only in its `install…`
+  or `listen…`, called by `page.ts` in order. A new one goes into that order where it must run.
 - Only `post` speaks to Swift. A new command or message: `page-contract.ts`, `score-page.json`, Swift's `PageCommand`
   or `PageEvent` in one pull request.
 - A state field has one writer (its module); others read it or call the owner.
