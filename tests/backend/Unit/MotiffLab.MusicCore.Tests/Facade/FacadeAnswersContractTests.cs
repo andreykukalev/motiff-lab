@@ -138,14 +138,15 @@ public class FacadeAnswersContractTests
             ("drafts.rename", """{"device":"ipad","here":[],"draft":"d_0001","name":"Coda"}"""),
         ],
         // A place's приёмы (0034 section 4; the iPad's step 6): bars 1–4 as a new draft's place and bars 5–8 as its
-        // variant, the приёмы with their numbers, positions and labels, one taken only here (then taken by the notes), each
-        // step undone in turn, one left, «Взять всё уверенное», the right hand of bars 3–4 taken from the variant, and the
+        // variant, the приёмы with their numbers, positions and labels, the variant opened alone to hear it, one taken only
+        // here (then taken by the notes), each step undone in turn, one left, «Взять всё уверенное», the right hand of bars 3–4 taken from the variant, and the
         // приёмы as that step left them.
         ["drafts.techniques"] =
         [
             ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
             ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.open", """{"draft":"d_0001","variant":"v_0002"}"""),
             ("drafts.take", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","technique":1,"bar":4,"now":"2026-11-20T10:10:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),

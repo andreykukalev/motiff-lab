@@ -28,14 +28,16 @@ public sealed partial record Project
     /// <summary>
     /// The draft <paramref name="id"/> as a piece only to be shown («вкладка черновика»): its score is the places' results in
     /// order (<see cref="DraftMusic"/>), as an assembly applied over its own MIDI, so it is engraved and played, each place in
-    /// its own meter, key and tempo. The piece itself does not change.
+    /// its own meter, key and tempo; with <paramref name="variant"/>, that variant's own music alone, from 0, so a приём is
+    /// heard as the variant has it («как в нотах»). The piece itself does not change.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">The piece has no draft with the id.</exception>
+    /// <exception cref="KeyNotFoundException">The piece has no draft with the id, or the draft no such variant.</exception>
     /// <exception cref="InvalidOperationException">The draft has no notes to show: no place yet, or its places' steps took every note out.</exception>
-    public Project ViewOfDraft(string id)
+    public Project ViewOfDraft(string id, string? variant = null)
     {
         Draft draft = FindDraft(id) ?? throw new KeyNotFoundException($"There is no draft {id}.");
-        SourceMusic music = DraftMusic.Of(draft).Music;
+        SourceMusic music = variant is null ? DraftMusic.Of(draft).Music
+            : (draft.Variants.FirstOrDefault(each => each.Id == variant) ?? throw new KeyNotFoundException($"The draft has no variant {variant}.")).Music;
         if (music.Notes.Count == 0)
         {
             throw new InvalidOperationException($"The draft {draft.Name} has no notes to show yet: add a fragment to it first.");

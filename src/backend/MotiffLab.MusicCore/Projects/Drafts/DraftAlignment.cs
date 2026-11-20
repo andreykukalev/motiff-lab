@@ -22,4 +22,8 @@ internal static class DraftAlignment
     /// <summary>Where a tick of the variant falls in the base: through the alignment, or where it is when nothing lines up.</summary>
     public static Tick InBase(PerformanceAlignment alignment, Tick tick) =>
         alignment.Anchors.Count == 0 ? tick : alignment.TickAt(tick.Value * 1000);
+
+    /// <summary>Where a tick of the base falls in the variant, the other way from <see cref="InBase"/>; never before its start.</summary>
+    public static Tick InVariant(PerformanceAlignment alignment, Tick tick) =>
+        alignment.Anchors.Count == 0 ? tick : new Tick(Math.Max(0, alignment.MicrosecondsAt(tick) / 1000));
 }

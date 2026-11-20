@@ -261,6 +261,31 @@ public class DraftsFacadeTests
     }
 
     [Fact]
+    public void An_occurrence_of_a_variant_heard_in_a_recording_names_the_recording_and_the_stretch_it_was_played_in()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-20T10:30:00Z"}""");
+        Call(facade, "sources.notes.hear", Heard());
+        int shown = Call(facade, "sources.notes.open", """{"id": "n_2"}""").GetProperty("piece").GetInt32();
+        Json(facade.Call(shown, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "variant", "place": "pl_0001" }"""));
+
+        JsonElement techniques = Call(facade, "drafts.techniques", """{"draft": "d_0001", "place": "pl_0001"}""").GetProperty("techniques");
+
+        JsonElement simplified = techniques.EnumerateArray().Single(each => each.GetProperty("kind").GetString() == "simplify").GetProperty("occurrences")[0];
+        JsonElement inVariant = simplified.GetProperty("inVariant");
+        Assert.Equal((4320, 5040), (inVariant.GetProperty("onset").GetInt32(), inVariant.GetProperty("end").GetInt32()));
+        // That bar of the variant as heard, inside the variant's own stretch (31.5–37.5 s), on the heard notes' clock.
+        JsonElement recording = simplified.GetProperty("recording");
+        Assert.Equal(("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "src_rec", 36_000L, 36_750L), (recording.GetProperty("project").GetString(), recording.GetProperty("original").GetString(), recording.GetProperty("from").GetInt64(), recording.GetProperty("to").GetInt64()));
+        // Played as the variant has it: the variant's own music alone, opened only to be shown.
+        JsonElement variant = Call(facade, "drafts.open", """{"draft": "d_0001", "variant": "v_0002"}""");
+        Assert.Equal(("v_0002", true, false), (variant.GetProperty("variant").GetString(), variant.GetProperty("readOnly").GetBoolean(), variant.TryGetProperty("draft", out _)));
+        Assert.Equal(Saved(facade).FindDraft("d_0001")!.Places[0].Find("v_0002")!.Music.Notes.Count, Json(facade.Call(variant.GetProperty("piece").GetInt32(), "playback")).GetProperty("notes").GetArrayLength());
+        Assert.Equal("badRequest", Error(facade, "drafts.open", """{"draft": "d_0001", "variant": "v_0009"}"""));
+    }
+
+    [Fact]
     public void The_melody_is_taken_where_the_voices_are_cleanly_split_marked_inferred()
     {
         MusicCoreFacade facade = Opened();

@@ -78,7 +78,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
      }
     ]
    }
@@ -162,7 +166,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
      }
     ]
    }
@@ -197,11 +205,116 @@
         "onset": 2160,
         "end": 2880,
         "confidence": 75,
-        "state": "open"
+        "matched": 3,
+        "total": 4,
+        "state": "open",
+        "inVariant": {
+         "onset": 2160,
+         "end": 2880
+        },
+        "recording": null
        }
       ]
      }
     ]
+   }
+  },
+  {
+   "call": "drafts.open",
+   "request": {
+    "draft": "d_0001",
+    "variant": "v_0002"
+   },
+   "answer": {
+    "piece": 2,
+    "readOnly": true,
+    "variant": "v_0002",
+    "project": {
+     "id": "p_answers",
+     "fileName": "Draft 1.mid",
+     "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+     "lastOpened": "2026-11-20T10:00:00.0000000+00:00",
+     "origin": "imported",
+     "motifs": 0,
+     "variations": 0,
+     "corrections": 0,
+     "resumePoints": 0,
+     "ideas": 0,
+     "marks": 0,
+     "bookmarks": 0,
+     "openChecks": 0,
+     "title": "Draft 1",
+     "titleFrom": "fileName",
+     "composer": null,
+     "composerFrom": null,
+     "tags": [],
+     "playlists": [],
+     "checkBars": 0,
+     "hasNotes": true,
+     "document": false,
+     "originals": [
+      {
+       "id": "src_file",
+       "kind": "midi",
+       "shown": "Draft 1.mid",
+       "fileName": "Draft 1.mid",
+       "folder": null,
+       "sha256": null,
+       "bytes": 301,
+       "pages": null,
+       "durationMs": null,
+       "inFile": true,
+       "kept": "file",
+       "held": []
+      }
+     ],
+     "partOf": null,
+     "pieceKeys": [
+      "d86bc32802dc852b62cccb6ad62849d447304b4e97b2e8f5b2a2e1233ebdeb65"
+     ],
+     "latest": null
+    },
+    "summary": {
+     "fileName": "Draft 1.mid",
+     "format": "midi",
+     "noteCount": 24,
+     "barCount": 4,
+     "end": 2640,
+     "heard": false,
+     "tracks": [
+      {
+       "index": 1,
+       "label": "Track 2: Right hand",
+       "name": "Right hand",
+       "noteCount": 15,
+       "hands": "none"
+      },
+      {
+       "index": 2,
+       "label": "Track 3: Left hand",
+       "name": "Left hand",
+       "noteCount": 9,
+       "hands": "none"
+      }
+     ],
+     "keys": [
+      {
+       "at": 0,
+       "fifths": 0,
+       "mode": "minor"
+      }
+     ],
+     "report": {
+      "format": "MIDI type 1",
+      "tracks": 3,
+      "notes": 24,
+      "measures": 4,
+      "issues": []
+     }
+    },
+    "language": "en",
+    "selection": null,
+    "hasVariation": false
    }
   },
   {
@@ -280,7 +393,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 1,
+       "total": 1
+      }
      }
     ]
    }
@@ -315,7 +432,14 @@
         "onset": 2160,
         "end": 2880,
         "confidence": 75,
-        "state": "taken"
+        "matched": 3,
+        "total": 4,
+        "state": "taken",
+        "inVariant": {
+         "onset": 2160,
+         "end": 2880
+        },
+        "recording": null
        }
       ]
      }
@@ -395,7 +519,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
      }
     ]
    }
@@ -475,7 +603,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
      }
     ]
    }
@@ -553,7 +685,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
      }
     ]
    }
@@ -634,7 +770,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 1,
+       "total": 1
+      }
      }
     ]
    }
@@ -712,7 +852,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 1
+      }
      }
     ]
    }
@@ -797,7 +941,11 @@
       "caption": "from the file's notes",
       "createdAt": "2026-11-20T10:00:00.0000000+00:00",
       "places": 1,
-      "shelf": 0
+      "shelf": 0,
+      "techniques": {
+       "taken": 1,
+       "total": 1
+      }
      }
     ]
    }
@@ -832,7 +980,14 @@
         "onset": 2160,
         "end": 2880,
         "confidence": 75,
-        "state": "taken"
+        "matched": 3,
+        "total": 4,
+        "state": "taken",
+        "inVariant": {
+         "onset": 2160,
+         "end": 2880
+        },
+        "recording": null
        }
       ]
      }

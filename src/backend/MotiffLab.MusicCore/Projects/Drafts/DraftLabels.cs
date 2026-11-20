@@ -61,7 +61,7 @@ public static class DraftLabels
     public static string Caption(Draft draft, Words words)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        List<string> kinds = [.. draft.Places.SelectMany(static place => place.Variants).Concat(draft.Shelf).Select(Kind).Distinct().Select(kind => Of(kind, words))];
+        List<string> kinds = [.. draft.Variants.Select(Kind).Distinct().Select(kind => Of(kind, words))];
         return kinds.Count == 0 ? words.T("empty so far", "пока пусто") : words.T($"from {words.Joined(kinds)}", $"из {words.Joined(kinds)}");
     }
 

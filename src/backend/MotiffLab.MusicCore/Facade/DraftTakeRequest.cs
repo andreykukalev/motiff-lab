@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Assembly;
+using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Projects.Drafts;
 using MotiffLab.MusicCore.Time;
 
@@ -21,21 +22,31 @@ internal static class DraftTakeRequest
     /// true: the engine found the kind), "confidence" (per cent, the lowest of its occurrences: the bar's notes found in
     /// place, the приём's own left aside), "sure", "state" (open, taken, left), "occurrences" [{"bar" (the place's bar,
     /// from 1, as "take" names it), "firstBar", "lastBar" (the draft's own numbers), "onset", "end" (the draft's ticks; for
-    /// bars not yet put in, where they would go, onset and end the same), "confidence", "state"}]}] in number order.
+    /// bars not yet put in, where they would go, onset and end the same), "confidence", "state", and since version 1.1
+    /// step 6 "matched" and "total" (the bar's notes found in place, of how many, as the sure rule counts them: «3 из 4
+    /// нот на месте») and how the variant's side is heard: "inVariant" {"onset", "end"} (the variant's own ticks, as
+    /// drafts.open with "variant" plays them, «как в нотах») and "recording" {"project", "original", "from", "to"} (the recording the
+    /// variant's notes were heard in, the piece whose original it is, and the stretch in milliseconds that occurrence was
+    /// played in, on the heard notes' clock, «как на записи»), null for notes not heard or whose Notes are not at hand}]}]
+    /// in number order. <paramref name="pieces"/> gives another piece open to work on by id, for a variant copied from it.
     /// </summary>
-    public static string Techniques(OpenPiece owner, Request request)
+    public static string Techniques(OpenPiece owner, Request request, Func<string, Project?> pieces)
     {
         (Draft draft, string placeId) = PlaceOf(owner, request);
         IReadOnlyList<PlaceTechnique> techniques = draft.TechniquesOf(placeId);
         DraftMusic score = DraftMusic.Of(draft);
         long start = score.Places.First(each => each.Place == placeId).Span.Onset.Value;
         PlaceResult result = draft.ResultOf(placeId);
+        DraftPlace place = draft.FindPlace(placeId)!;
+        Dictionary<string, VariantRecording?> recordings = techniques.Select(static technique => technique.Variant).Distinct()
+            .ToDictionary(static id => id, id => RecordingOf(place.Find(id)!, owner.Project, pieces));
+        (int taken, int total) = PlaceTechniques.Tally(techniques);
         return Answer.Write(json =>
         {
             json.WriteString("draft", draft.Id);
             json.WriteString("place", placeId);
-            json.WriteNumber("total", techniques.Count);
-            json.WriteNumber("taken", techniques.Count(static technique => technique.State == TechniqueState.Taken));
+            json.WriteNumber("total", total);
+            json.WriteNumber("taken", taken);
             json.WriteNumber("sure", techniques.Count(static technique => technique.IsSure && technique.State == TechniqueState.Open));
             json.WriteStartArray("techniques");
             foreach (PlaceTechnique technique in techniques)
@@ -52,7 +63,7 @@ internal static class DraftTakeRequest
                 json.WriteStartArray("occurrences");
                 foreach (TechniqueOccurrence occurrence in technique.Occurrences)
                 {
-                    Occurrence(json, occurrence, score.Music, start, result);
+                    Occurrence(json, occurrence, score.Music, start, result, recordings[technique.Variant]);
                 }
 
                 json.WriteEndArray();
@@ -120,8 +131,11 @@ internal static class DraftTakeRequest
             });
     }
 
-    /// <summary>An occurrence where it is in the draft now: its place's start in the draft and its own position in the place's result.</summary>
-    private static void Occurrence(Utf8JsonWriter json, TechniqueOccurrence occurrence, SourceMusic score, long start, PlaceResult result)
+    /// <summary>
+    /// An occurrence where it is in the draft now (its place's start in the draft and its own position in the place's
+    /// result), where it is in the variant, and the stretch of the variant's recording it was played in.
+    /// </summary>
+    private static void Occurrence(Utf8JsonWriter json, TechniqueOccurrence occurrence, SourceMusic score, long start, PlaceResult result, VariantRecording? recording)
     {
         Tick onset = result.InResult(occurrence.Span.Onset).Offset(start);
         Tick end = occurrence.Insert is not null && occurrence.State != TechniqueState.Taken ? onset : onset.Offset(occurrence.Span.Duration);
@@ -132,9 +146,33 @@ internal static class DraftTakeRequest
         json.WriteNumber("onset", onset.Value);
         json.WriteNumber("end", end.Value);
         json.WriteNumber("confidence", occurrence.Confidence);
+        json.WriteNumber("matched", occurrence.Matched);
+        json.WriteNumber("total", occurrence.Total);
         json.WriteString("state", Answer.Camel(occurrence.State));
+        json.WriteStartObject("inVariant");
+        json.WriteNumber("onset", occurrence.InVariant.Onset.Value);
+        json.WriteNumber("end", occurrence.InVariant.End.Value);
+        json.WriteEndObject();
+        if (recording?.Stretch(occurrence.InVariant) is (long from, long to))
+        {
+            json.WriteStartObject("recording");
+            json.WriteString("project", recording.Project);
+            json.WriteString("original", recording.Original);
+            json.WriteNumber("from", from);
+            json.WriteNumber("to", to);
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("recording");
+        }
+
         json.WriteEndObject();
     }
+
+    /// <summary>The recording of a variant heard in one, its Notes in the piece itself or in the other piece it names, when that is open.</summary>
+    private static VariantRecording? RecordingOf(DraftVariant variant, Project project, Func<string, Project?> pieces) =>
+        (variant.From.Project is null ? project : pieces(variant.From.Project)) is { } holder ? VariantRecording.Of(holder, variant) : null;
 
     /// <summary>A step made by <paramref name="step"/> on the draft's place, answered as the sources with "draft", "place" and "step".</summary>
     private static string Stepped(OpenPiece owner, Request request, Func<Draft, string, DateTimeOffset, Draft> step)
