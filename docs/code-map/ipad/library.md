@@ -7,6 +7,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Library`.
 `AwayPieces`, `LibraryShelf`, `LibraryShelfView`, `LibrarySwipe`, `LibraryTools`, `LibraryView`, `PieceCard`,
 `PiecePropertiesSheet` (`.swift`).
 
+- `LibraryView.swift` opens a piece on `Workspace/PieceScreen` (it names one screen); `PieceCard.swift` calls a piece
+  that is only its recording a recording, resumed «Запись как есть» (`PieceSummary.isRecordingOnly`, v1.1).
+
 ## PDF | Notes (lifecycle, `../ui-review-2026-11.md`)
 
 - `LibraryView.switchView` → `openFile` → `show`: opens the other view, reads only that file's summary, closes the old

@@ -166,9 +166,6 @@ struct LibraryView: View {
                 AddPieceSheet(text: text) { result in
                     adding = false
                     Task { await open(result) }
-                } heard: { recording in
-                    adding = false
-                    Task { await openHeard(recording) }
                 } demo: {
                     adding = false
                     Task { await openExample() }
@@ -184,14 +181,8 @@ struct LibraryView: View {
                 }
             }
             .navigationDestination(item: $piece) { piece in
-                Group {
-                    if piece.isDocument {
-                        PdfScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, openRead: { file, landing in await openFile(file, at: landing) })
-                    } else {
-                        ScoreScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, reopen: piece.file.map { file in { landing in await openFile(file, at: landing) } })
-                    }
-                }
-                .id(piece.id)
+                PieceScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, openFile: { file, landing in await openFile(file, at: landing) })
+                    .id(piece.id)
             }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
@@ -423,15 +414,6 @@ struct LibraryView: View {
         let language = text.language
         await show(saveAs: example.title) {
             await OpenPiece.open(fileName: example.fileName, data: example.data, language: language, title: example.title)
-        }
-    }
-
-    /// A recording heard by the scan server, as a new piece of its notes (0014, 0016), named after the recording.
-    private func openHeard(_ recording: HeardRecording) async {
-        let language = text.language
-        let title = recording.name.isEmpty ? text["library.recorded"] : recording.name
-        await show(saveAs: title) {
-            await OpenPiece.open(fileName: title + ".mid", data: Data(), language: language, title: title, heard: recording)
         }
     }
 

@@ -85,9 +85,11 @@ struct PieceCard: View {
         return [entry.composer, kind ?? (entry.composer == nil ? text["library.openFile"] : nil)].compactMap { $0 }.joined(separator: " · ")
     }
 
-    /// What kind of piece, when it is not a file the player opened: scanned, from a recording or a PDF.
+    /// What kind of piece, when it is not a file the player opened: scanned, from a recording, a PDF, or a recording with no
+    /// notes yet (v1.1, finding 29).
     static func kind(_ summary: PieceSummary?, _ text: UIText) -> String? {
         guard let summary else { return nil }
+        if summary.isRecordingOnly { return text["library.source.recording"] }
         if !summary.hasNotes { return text["library.pdf"] }
         return switch summary.origin {
         case "scanned": text["library.scanned"]
@@ -99,6 +101,7 @@ struct PieceCard: View {
     /// Where work on the piece stopped; nil for a piece not opened yet.
     private var resumeName: String? {
         guard let summary else { return nil }
+        if summary.isRecordingOnly { return text["library.recordingAsIs"] }
         if !summary.hasNotes { return text["library.pdfAsIs"] }
         guard let latest = summary.latest else { return nil }
         return latest.name ?? text["library.page1"]

@@ -52,5 +52,9 @@
   "padAssistant.undone": "The draft is taken back. The notes are as they were before it.",
   "padEdits.offNotice": "My corrections are off: turn them on in More to correct notes.",
   "pill.assistant": "Assistant",
-  "pill.assistantHint": "Opens the assistant with the last conversation, or closes it."
+  "pill.assistantHint": "Opens the assistant with the last conversation, or closes it.",
+  "recording.unreadable": "This recording's sound is on this iPad but could not be read.",
+  "recording.wave": "The recording's waveform",
+  "recording.waveHint": "Tap a place to hear the recording from there",
+  "recording.noContents": "The contents come with the notes: recognise them in Sources."
 }

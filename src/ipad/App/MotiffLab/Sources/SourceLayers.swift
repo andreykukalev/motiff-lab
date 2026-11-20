@@ -117,6 +117,14 @@ struct SourceLayers: Equatable, Sendable {
     /// The views the switch shows: every one the player did not hide.
     var shownViews: [ViewEntry] { views.filter { !$0.hidden } }
 
+    /// The views of a screen with no notes to open others in (a PDF piece with none yet, v1.1, finding 29): the one it
+    /// shows and the recordings, heard over it; other pages are no view there.
+    func views(showing shown: String) -> SourceLayers {
+        var only = self
+        only.views = views.filter { $0.id == shown || $0.kind == "performance" }
+        return only
+    }
+
     func original(_ id: String?) -> Original? {
         guard let id else { return nil }
         return originals.first { $0.id == id }

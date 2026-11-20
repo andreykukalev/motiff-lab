@@ -49,6 +49,27 @@ enum OriginalSounds {
         }
     }
 
+    /// A recording the player picked, as music-core takes it to describe its original: its file's name, how long it is,
+    /// and its bytes, which give music-core only the fingerprint (none for a very large file, described without it).
+    struct Picked: Sendable {
+        let fileName: String
+        let milliseconds: Int?
+        let data: Data?
+    }
+
+    /// The largest recording whose bytes are read for its fingerprint.
+    static let fingerprintLimit = 200 * 1024 * 1024
+
+    /// The picked file described, read inside its security scope: added to a piece in Sources, or as a new piece from Add
+    /// piece (v1.1, finding 29).
+    static func picked(_ url: URL) -> Picked {
+        let lent = url.startAccessingSecurityScopedResource()
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let data = size > 0 && size <= fingerprintLimit ? try? Data(contentsOf: url) : nil
+        if lent { url.stopAccessingSecurityScopedResource() }
+        return Picked(fileName: url.lastPathComponent, milliseconds: milliseconds(of: url), data: data)
+    }
+
     /// How long a recording is, in whole milliseconds; nil when the iPad cannot read it.
     static func milliseconds(of url: URL) -> Int? {
         let lent = url.startAccessingSecurityScopedResource()

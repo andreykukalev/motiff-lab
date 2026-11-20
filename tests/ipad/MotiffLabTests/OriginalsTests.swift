@@ -75,7 +75,8 @@ final class OriginalsTests: XCTestCase {
 
     /// The Sources sheet offers «Распознать» on a piece with working notes for the pages kept in the piece here (a PDF or
     /// photos) and, since v0.10 (findings 26, 28), for a recording whose sound is on this iPad; never for a linked or a
-    /// deleted PDF, a recording heard elsewhere, MusicXML, nor anything on a piece that is only its PDF.
+    /// deleted PDF, a recording heard elsewhere, MusicXML, nor the pages of a piece that is only its PDF; a piece that is
+    /// only its recording, with no notes yet, hears it (v1.1, finding 29).
     @MainActor
     func testThePagesKeptInThePieceAndARecordingHereAreRecognised() {
         func source(_ kind: String, state: String = "here", kept: String = "file") -> SourceLayers.Original {
@@ -96,6 +97,7 @@ final class OriginalsTests: XCTestCase {
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "onAnotherDevice")))
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "removed")))
         XCTAssertFalse(SourcesController().canRecognise(source("pdf")), "a piece that is only its PDF has no notes to add to")
+        XCTAssertTrue(SourcesController().canRecognise(source("audio", kept: "device")), "a piece that is only its recording takes its notes")
     }
 
     /// A recording is recognised from its sound on this iPad (v0.10, finding 26): without it nothing is sent, the row says
@@ -118,7 +120,7 @@ final class OriginalsTests: XCTestCase {
     /// v0.10 s-3: the fields `sources.notes.hear` gets for a recording kept in the piece, as the facade takes them: the
     /// transcription's with the live tempo, the original, the time, and the working notes' metre and tempo as "hint".
     func testTheRecordingHeardIsSentWithTheFieldsTheFacadeTakes() throws {
-        let heard = HeardRecording(name: "Live", engine: "basic-pitch", milliseconds: 60_000, parts: [(index: 0, midi: Data([1, 2]))], levels: [3, 4])
+        let heard = HeardRecording(engine: "basic-pitch", milliseconds: 60_000, parts: [(index: 0, midi: Data([1, 2]))], levels: [3, 4])
         let hint: [String: Any] = ["signature": "3/4", "quarterNotesPerMinute": 92]
         let fields = SourcesController.hearFields(heard, original: "src_rec", hint: hint, now: "2026-11-19T10:00:00Z")
         XCTAssertEqual(Set(fields.keys), ["engine", "milliseconds", "levels", "parts", "tempo", "original", "now", "hint"])
@@ -131,6 +133,8 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(parts.first?["midi"] as? String, Data([1, 2]).base64EncodedString())
         XCTAssertEqual((fields["hint"] as? [String: Any])?["signature"] as? String, "3/4")
         XCTAssertNil(SourcesController.hearFields(heard, original: "src_rec", hint: nil, now: "").index(forKey: "hint"), "no hint, no field")
+        XCTAssertNil(fields["starts"], "the iPad does not know where the pieces begin")
+        XCTAssertNil(heard.request["tempo"], "the request itself finds no bars")
     }
 
     /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set
@@ -270,6 +274,99 @@ final class OriginalsTests: XCTestCase {
         let after = OriginalEntry.list(kept["originals"]).filter(\.isDocument)
         XCTAssertEqual(after.count, 1, "no second original")
         XCTAssertEqual(after.first?.inFile, true)
+    }
+
+    /// v1.1, finding 29 («в одну пьесу можно загрузить, например, PDF и аудиозапись, распознать оба»): a PDF piece with no
+    /// notes yet has Sources too, where a recording added is kept on this iPad and offered «Распознать · Pro»; its notes,
+    /// the piece's first, open it again as notes, and anything else at the page under the bar.
+    @MainActor
+    func testAPdfPieceWithNoNotesTakesARecordingToRecognise() async throws {
+        let pages = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
+            context.beginPage()
+        }
+        let piece = try await OpenPiece.open(fileName: "Prelude.pdf", data: pages, language: "en").get()
+        XCTAssertTrue(piece.isDocument)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("Prelude.motiff.json")
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: file)
+        let project = try XCTUnwrap(sources.projectId, "a PDF piece answers sources")
+        defer {
+            MusicCore.close(piece: piece.id)
+            try? FileManager.default.removeItem(at: folder)
+            try? FileManager.default.removeItem(at: OriginalSounds.folder(project: project))
+        }
+        XCTAssertNil(sources.layers.working, "no notes yet")
+
+        let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
+        let take = folder.appendingPathComponent("take.wav")
+        try RecordingSound.wav(tone[...]).write(to: take)
+        await sources.addRecording(take)
+        XCTAssertNil(sources.status, "the recording is added to the PDF piece")
+        let recording = try XCTUnwrap(sources.layers.originals.first { $0.isRecording && !$0.isRemoved })
+        XCTAssertNotNil(OriginalSounds.file(project: project, original: recording.id), "its sound is kept on this iPad")
+        XCTAssertTrue(sources.canRecognise(recording), "«Распознать · Pro» on its row")
+        XCTAssertNil(sources.layers.working, "adding it made no notes")
+        let noHint = await sources.gridHint()
+        XCTAssertNil(noHint, "no metre or tempo is sent for a piece with no notes")
+        XCTAssertTrue(sources.layers.shownViews.contains { $0.id == PdfScreen.documentView }, "the PDF is a view")
+        XCTAssertTrue(sources.layers.shownViews.contains { $0.id == recording.id && $0.kind == "performance" },
+                      "and the recording, so the switch draws and its capsule plays it, as on the score")
+
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: true, page: 3), .tick(0), "the first notes open as notes")
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: false, page: 3), .page(3), "an Undo stays on the PDF")
+        XCTAssertEqual(PdfScreen.reopening(hadNotes: true, hasNotes: true, page: 0), .page(1), "«Сделать рабочими» too")
+    }
+
+    /// A PDF piece with no notes yet lists in its switch only the PDF it shows and the recordings (v1.1, finding 29): photos
+    /// or a second PDF added in Sources are no view there, so picking one never leaves a view pending for a later screen.
+    @MainActor
+    func testAPdfWithNoNotesListsOnlyItselfAndItsRecordings() {
+        var layers = SourceLayers()
+        layers.views = [
+            SourceLayers.ViewEntry(id: "src_pdf", kind: "original", group: "src_pdf", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_photos", kind: "original", group: "src_photos", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_pdf_2", kind: "original", group: "src_pdf_2", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_rec", kind: "performance", group: "src_rec", working: false, hidden: false, op: "recording"),
+            SourceLayers.ViewEntry(id: "src_rec_2", kind: "performance", group: "src_rec_2", working: false, hidden: true, op: "recording"),
+        ]
+        let shown = layers.views(showing: PdfScreen.documentView)
+        XCTAssertEqual(shown.views.map(\.id), ["src_pdf", "src_rec", "src_rec_2"])
+        XCTAssertEqual(shown.shownViews.map(\.id), ["src_pdf", "src_rec"], "a recording the player hid stays hidden")
+        XCTAssertEqual(layers.views.count, 5, "the piece's own layers are as music-core lists them")
+    }
+
+    /// Recognising a recording sends the working notes' metre and tempo as the grid's hint, the same `hint` music-core's
+    /// playback gives (v0.10 s-3); a piece with no notes sends none (the PDF piece's test above).
+    @MainActor
+    func testARecordingIsHeardWithTheWorkingNotesMetre() async throws {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { MusicCore.close(piece: piece.id) }
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: nil)
+        XCTAssertNotNil(sources.layers.working)
+        let hint = await sources.gridHint()
+        let playback = await PieceCore(piece: piece.id).playback().value
+        let direct = SourcesController.hint(playback)
+        XCTAssertEqual(hint.map { NSDictionary(dictionary: $0) }, direct.map { NSDictionary(dictionary: $0) })
+    }
+
+    /// The panel before Send says what the heard notes become (v1.1, finding 29): beside the working notes, or, on a piece
+    /// with none yet, the piece's own notes, which it opens on; never that working notes stay as they are when it has none.
+    @MainActor
+    func testTheRecognisePanelSaysWhatTheHeardNotesBecome() {
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            var layers = SourceLayers()
+            XCTAssertEqual(SourcesRecognisePanel.hearLine(layers, text: text), text["sources.sheet.hearHostedFirst"], language)
+            XCTAssertNotEqual(text["sources.sheet.hearHostedFirst"], "sources.sheet.hearHostedFirst", language)
+            layers.working = "n_1"
+            XCTAssertEqual(SourcesRecognisePanel.hearLine(layers, text: text), text["sources.sheet.hearHosted"], language)
+        }
+        XCTAssertTrue(UIText(language: "en")["sources.sheet.hearHostedFirst"].contains("become this piece's notes"))
+        XCTAssertTrue(UIText(language: "ru")["sources.sheet.hearHostedFirst"].contains("станут нотами этой пьесы"))
     }
 
     private func json(_ object: [String: Any]) -> String {
