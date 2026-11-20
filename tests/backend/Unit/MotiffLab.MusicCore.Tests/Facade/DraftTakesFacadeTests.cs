@@ -67,6 +67,21 @@ public class DraftTakesFacadeTests
     }
 
     [Fact]
+    public void The_base_side_of_an_occurrence_is_played_from_the_base_variant_even_once_the_technique_is_taken()
+    {
+        MusicCoreFacade facade = Drafted();
+        Call(facade, "drafts.takeSure", $$"""{{{Place}}, "now": "2026-11-20T10:10:00Z"}""");
+
+        JsonElement techniques = Call(facade, "drafts.techniques", $$"""{{{Place}}}""");
+
+        JsonElement occurrence = techniques.GetProperty("techniques")[0].GetProperty("occurrences")[0];
+        Assert.Equal(("v_0001", "taken"), (techniques.GetProperty("base").GetString(), occurrence.GetProperty("state").GetString()));
+        JsonElement inBase = occurrence.GetProperty("inBase");
+        Assert.Equal((2160, 2880), (inBase.GetProperty("onset").GetInt32(), inBase.GetProperty("end").GetInt32()));
+        Assert.Equal("v_0001", Call(facade, "drafts.open", """{"draft": "d_0001", "variant": "v_0001"}""").GetProperty("variant").GetString());
+    }
+
+    [Fact]
     public void Sources_give_each_draft_how_many_of_its_techniques_are_taken()
     {
         MusicCoreFacade facade = Drafted();

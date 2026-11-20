@@ -157,6 +157,9 @@ public class FacadeAnswersContractTests
             ("drafts.takeFrom", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","part":"right","span":{"onset":1440,"end":2880},"now":"2026-11-20T10:25:00Z"}"""),
             ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
         ],
+        // A place's приёмы where its variant is notes heard in a recording: each occurrence names the recording and the
+        // stretch of it that occurrence was played in.
+        ["drafts.techniques.heard"] = [("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}""")],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for
@@ -175,6 +178,7 @@ public class FacadeAnswersContractTests
     {
         ["corrections.layer"] = (Piece, WithStaleCorrections),
         ["sources.layers.pdf"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
+        ["drafts.techniques.heard"] = (Piece, WithAHeardVariant),
     };
 
     private static readonly JsonSerializerOptions s_written = new()
@@ -243,6 +247,30 @@ public class FacadeAnswersContractTests
         JsonElement opened = FacadeCalls.Json(facade.Open(fileName, data, request));
         Assert.False(opened.TryGetProperty("error", out JsonElement error), opened.ToString());
         return opened.GetProperty("piece").GetInt32();
+    }
+
+    /// <summary>
+    /// The example's project file with a recording heard as Notes n_2 and a draft whose place is bars 1–4 of the notes and
+    /// whose variant is bars 1–4 as heard.
+    /// </summary>
+    private static byte[] WithAHeardVariant(byte[] data)
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Opened(facade, Piece, data, """{"language":"en","id":"p_answers"}""");
+        string[] calls =
+        [
+            "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-20T10:30:00Z"}""",
+            "sources.notes.hear", FacadeCalls.Heard(),
+            "drafts.add", """{"bars": {"first": 1, "last": 4}, "now": "2026-11-20T10:00:00Z"}""",
+        ];
+        for (int index = 0; index < calls.Length; index += 2)
+        {
+            Assert.DoesNotContain("error", facade.Call(piece, calls[index], calls[index + 1]), StringComparison.Ordinal);
+        }
+
+        int shown = FacadeCalls.Json(facade.Call(piece, "sources.notes.open", """{"id": "n_2"}""")).GetProperty("piece").GetInt32();
+        Assert.DoesNotContain("error", facade.Call(shown, "drafts.add", """{"bars": {"first": 1, "last": 4}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:40:00Z"}"""), StringComparison.Ordinal);
+        return Encoding.UTF8.GetBytes(facade.Call(piece, "project.save"));
     }
 
     /// <summary>

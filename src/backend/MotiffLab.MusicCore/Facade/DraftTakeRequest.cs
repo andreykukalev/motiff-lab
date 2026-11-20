@@ -16,7 +16,8 @@ namespace MotiffLab.MusicCore.Facade;
 internal static class DraftTakeRequest
 {
     /// <summary>
-    /// The приёмы of the place "place" of the draft "draft": "draft", "place", "total" (how many), "taken" (how many are
+    /// The приёмы of the place "place" of the draft "draft": "draft", "place", since version 1.1 step 6 "base" (the place's
+    /// base variant, which drafts.open with "variant" plays over an occurrence's "inBase"), "total" (how many), "taken" (how many are
     /// taken), "sure" (how many sure ones are open: what «Взять всё уверенное» takes) and "techniques" [{"number", "variant",
     /// "kind" (fill, bass, simplify, ornament, octave, rhythm, insertBars, other), "label" («октава»), "inferred" (always
     /// true: the engine found the kind), "confidence" (per cent, the lowest of its occurrences: the bar's notes found in
@@ -24,11 +25,12 @@ internal static class DraftTakeRequest
     /// from 1, as "take" names it), "firstBar", "lastBar" (the draft's own numbers), "onset", "end" (the draft's ticks; for
     /// bars not yet put in, where they would go, onset and end the same), "confidence", "state", and since version 1.1
     /// step 6 "matched" and "total" (the bar's notes found in place, of how many, as the sure rule counts them: «3 из 4
-    /// нот на месте») and how the variant's side is heard: "inVariant" {"onset", "end"} (the variant's own ticks, as
+    /// нот на месте»), "inBase" {"onset", "end"} (the base's own ticks; for bars not yet put in, where they would go, onset
+    /// and end the same), and how the variant's side is heard: "inVariant" {"onset", "end"} (the variant's own ticks, as
     /// drafts.open with "variant" plays them, «как в нотах») and "recording" {"project", "original", "from", "to"} (the recording the
     /// variant's notes were heard in, the piece whose original it is, and the stretch in milliseconds that occurrence was
-    /// played in, on the heard notes' clock, «как на записи»), null for notes not heard or whose Notes are not at hand}]}]
-    /// in number order. <paramref name="pieces"/> gives another piece open to work on by id, for a variant copied from it.
+    /// played in, on the heard notes' clock, «как на записи»), null for notes not heard or whose Notes are not at hand; it
+    /// does not say the sound is on this device, which the app checks}]}] in number order. <paramref name="pieces"/> gives another piece open to work on by id, for a variant copied from it.
     /// </summary>
     public static string Techniques(OpenPiece owner, Request request, Func<string, Project?> pieces)
     {
@@ -45,6 +47,7 @@ internal static class DraftTakeRequest
         {
             json.WriteString("draft", draft.Id);
             json.WriteString("place", placeId);
+            json.WriteString("base", place.Base);
             json.WriteNumber("total", total);
             json.WriteNumber("taken", taken);
             json.WriteNumber("sure", techniques.Count(static technique => technique.IsSure && technique.State == TechniqueState.Open));
@@ -149,10 +152,11 @@ internal static class DraftTakeRequest
         json.WriteNumber("matched", occurrence.Matched);
         json.WriteNumber("total", occurrence.Total);
         json.WriteString("state", Answer.Camel(occurrence.State));
-        json.WriteStartObject("inVariant");
-        json.WriteNumber("onset", occurrence.InVariant.Onset.Value);
-        json.WriteNumber("end", occurrence.InVariant.End.Value);
+        json.WriteStartObject("inBase");
+        json.WriteNumber("onset", occurrence.Span.Onset.Value);
+        json.WriteNumber("end", occurrence.Insert is null ? occurrence.Span.End.Value : occurrence.Span.Onset.Value);
         json.WriteEndObject();
+        Answer.Span(json, "inVariant", occurrence.InVariant);
         if (recording?.Stretch(occurrence.InVariant) is (long from, long to))
         {
             json.WriteStartObject("recording");

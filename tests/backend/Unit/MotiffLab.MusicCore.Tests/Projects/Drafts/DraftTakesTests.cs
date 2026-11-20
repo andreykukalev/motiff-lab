@@ -183,6 +183,30 @@ public class DraftTakesTests
     }
 
     [Fact]
+    public void Where_a_base_tick_falls_in_the_variant_undoes_where_a_variant_tick_falls_in_the_base_round_a_confirmed_anchor()
+    {
+        DraftVariant variant = Variant("v_2", Score(bars: 4, prefix: "h"), 1, 4, notes: "perf_1") with { Anchors = [new DraftAnchor(new Tick(2 * BarLength), Tick.Zero)] };
+        DraftPlace place = Draft.Start("d_1", "Предложение", At, "pl_1", Variant("v_1", Score(), 1, 8)).With(variant, DraftDrop.Variant, "pl_1").FindPlace("pl_1")!;
+
+        MusicCore.Performance.PerformanceAlignment alignment = DraftAlignment.Of(place, place.Find("v_2")!);
+
+        Assert.Equal(Tick.Zero, DraftAlignment.InVariant(alignment, new Tick(2 * BarLength)));
+        long[] ticks = [0, Quarter, BarLength + 120, 3 * BarLength];
+        Assert.Equal(ticks, ticks.Select(tick => DraftAlignment.InVariant(alignment, DraftAlignment.InBase(alignment, new Tick(tick))).Value));
+    }
+
+    [Fact]
+    public void The_tally_kept_for_a_draft_is_the_tally_worked_out_again_after_a_take_and_an_undo()
+    {
+        Draft drafted = Drafted(OctavesAndBass());
+        Draft taken = DraftTakes.Take(drafted, "pl_1", 1, null, Later);
+        Draft undone = taken.Undone();
+
+        Assert.Equal([(0, 2), (1, 2), (0, 2)], new[] { drafted.Tally(), taken.Tally(), undone.Tally() });
+        Assert.All(new[] { drafted, taken, undone }, draft => Assert.Equal(PlaceTechniques.Tally(draft.TechniquesOf("pl_1")), draft.Tally()));
+    }
+
+    [Fact]
     public void A_new_base_drops_the_anchors_of_every_variant_of_its_place()
     {
         DraftVariant anchored = Variant("v_3", Score(prefix: "k"), 1, 8) with { Anchors = [new DraftAnchor(new Tick(BarLength), new Tick(BarLength))] };

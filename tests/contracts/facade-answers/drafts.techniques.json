@@ -184,6 +184,7 @@
    "answer": {
     "draft": "d_0001",
     "place": "pl_0001",
+    "base": "v_0001",
     "total": 1,
     "taken": 0,
     "sure": 1,
@@ -208,6 +209,10 @@
         "matched": 3,
         "total": 4,
         "state": "open",
+        "inBase": {
+         "onset": 2160,
+         "end": 2880
+        },
         "inVariant": {
          "onset": 2160,
          "end": 2880
@@ -411,6 +416,7 @@
    "answer": {
     "draft": "d_0001",
     "place": "pl_0001",
+    "base": "v_0001",
     "total": 1,
     "taken": 1,
     "sure": 0,
@@ -435,6 +441,10 @@
         "matched": 3,
         "total": 4,
         "state": "taken",
+        "inBase": {
+         "onset": 2160,
+         "end": 2880
+        },
         "inVariant": {
          "onset": 2160,
          "end": 2880
@@ -959,6 +969,7 @@
    "answer": {
     "draft": "d_0001",
     "place": "pl_0001",
+    "base": "v_0001",
     "total": 1,
     "taken": 1,
     "sure": 0,
@@ -983,6 +994,10 @@
         "matched": 3,
         "total": 4,
         "state": "taken",
+        "inBase": {
+         "onset": 2160,
+         "end": 2880
+        },
         "inVariant": {
          "onset": 2160,
          "end": 2880

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Projects.Drafts;
@@ -24,6 +26,12 @@ public enum DraftDrop
 /// <param name="Next">The number the next step takes.</param>
 public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IReadOnlyList<DraftPlace> Places, IReadOnlyList<DraftVariant> Shelf, IReadOnlyList<DraftStep> Steps, int Next)
 {
+    /// <summary>
+    /// The tally of each draft instance (<see cref="Tally"/>), by reference: a draft never changes, a change makes another,
+    /// so a kept tally never goes stale; not a field, which <c>with</c> would copy into the changed draft.
+    /// </summary>
+    private static readonly ConditionalWeakTable<Draft, StrongBox<(int, int)>> s_tallies = [];
+
     public string Id { get; } = !string.IsNullOrWhiteSpace(Id) ? Id : throw new ArgumentException("A draft has an id.", nameof(Id));
 
     /// <summary>One line, as the player named it.</summary>
@@ -130,8 +138,12 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>The приёмы of the place <paramref name="placeId"/>'s variants against its base, decided as its steps left them (<see cref="PlaceTechniques.Of"/>).</summary>
     public IReadOnlyList<PlaceTechnique> TechniquesOf(string placeId) => PlaceTechniques.Of(Place(placeId), StepsOf(placeId));
 
-    /// <summary>The приёмы of all its places, how many are taken of how many (<see cref="PlaceTechniques.Tally"/>), for the Sources caption.</summary>
-    public (int Taken, int Total) Tally() => PlaceTechniques.Tally([.. Places.SelectMany(place => TechniquesOf(place.Id))]);
+    /// <summary>
+    /// The приёмы of all its places, how many are taken of how many (<see cref="PlaceTechniques.Tally"/>), for the Sources
+    /// caption: worked out once for this draft, which never changes, and kept beside it (<see cref="s_tallies"/>).
+    /// </summary>
+    public (int Taken, int Total) Tally() =>
+        s_tallies.GetValue(this, static draft => new StrongBox<(int, int)>(PlaceTechniques.Tally([.. draft.Places.SelectMany(place => draft.TechniquesOf(place.Id))]))).Value;
 
     /// <summary>The ids of every place and variant, for a new one never to take one.</summary>
     public IEnumerable<string> Ids => [.. Places.Select(static place => place.Id), .. Variants.Select(static variant => variant.Id)];
