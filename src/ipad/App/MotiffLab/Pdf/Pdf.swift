@@ -751,13 +751,14 @@ struct PdfScreen: View {
     static let documentView = "src_pdf"
 
     /// The piece's views for the switch of all views, as music-core lists them for this iPad; nil while the piece has no
-    /// notes (PDF | Notes stays), except a PDF of its own with none yet (`withoutNotes`, v1.1): its recording is heard.
+    /// notes (PDF | Notes stays), except a PDF of its own with none yet (`withoutNotes`, v1.1): it and its recordings.
     private var sourceLayers: SourceLayers? {
-        sourcesOn && (sources.layers.working != nil || withoutNotes) ? sources.layers : nil
+        guard sourcesOn else { return nil }
+        if sources.layers.working != nil { return sources.layers }
+        return withoutNotes ? sources.layers.views(showing: PdfScreen.documentView) : nil
     }
 
-    /// A PDF of the piece's own with no notes yet, opened from the library (v1.1, finding 29): Sources is there with no
-    /// switch, so a recording added to it is recognised («Распознать · Pro»), and its notes open the piece again as notes.
+    /// A PDF of the piece's own with no notes yet (v1.1, finding 29): Sources, where a recording added is recognised.
     private var withoutNotes: Bool { !linked && piece.other == nil && piece.file != nil && openRead != nil }
 
     /// The piece's sources (version 0.6, 0030), for a PDF whose notes the library holds or one with none yet; then what the
@@ -796,9 +797,8 @@ struct PdfScreen: View {
         .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-6"))
     }
 
-    /// The piece opened again in this screen's place, as «Сделать рабочими» or the toast's Undo has just left its project
-    /// file, at the page under the bar: the PDF view is kept for it and nothing more is written to the file. The first notes
-    /// of a piece that had none, heard from its recording in Sources, open it as notes (v1.1, finding 29).
+    /// The piece opened again in this screen's place as «Сделать рабочими», Undo or the first notes heard left its project
+    /// file (`reopening`): the PDF view is kept for it and nothing more is written to the file.
     private func reopenHere() async {
         guard let openRead, let file = piece.file else { return }
         pdf.keepView()
@@ -810,10 +810,10 @@ struct PdfScreen: View {
         !hadNotes && hasNotes ? .tick(0) : .page(max(1, page))
     }
 
-    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views the notes' screen
-    /// shows once the piece opens there, as only it holds the notes.
+    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views, none with no notes
+    /// yet (v1.1: nothing left pending), the notes' screen shows once the piece opens there, as only it holds the notes.
     private func pickView(_ view: SourceLayers.ViewEntry) {
-        guard view.id != PdfScreen.documentView else { return }
+        guard view.id != PdfScreen.documentView, !withoutNotes || view.kind == "performance" else { return }
         if view.kind == "performance" {
             sources.performance = view.id
             return

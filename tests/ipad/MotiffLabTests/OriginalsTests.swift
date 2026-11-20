@@ -319,6 +319,24 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(PdfScreen.reopening(hadNotes: true, hasNotes: true, page: 0), .page(1), "«Сделать рабочими» too")
     }
 
+    /// A PDF piece with no notes yet lists in its switch only the PDF it shows and the recordings (v1.1, finding 29): photos
+    /// or a second PDF added in Sources are no view there, so picking one never leaves a view pending for a later screen.
+    @MainActor
+    func testAPdfWithNoNotesListsOnlyItselfAndItsRecordings() {
+        var layers = SourceLayers()
+        layers.views = [
+            SourceLayers.ViewEntry(id: "src_pdf", kind: "original", group: "src_pdf", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_photos", kind: "original", group: "src_photos", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_pdf_2", kind: "original", group: "src_pdf_2", working: false, hidden: false, op: "pdf"),
+            SourceLayers.ViewEntry(id: "src_rec", kind: "performance", group: "src_rec", working: false, hidden: false, op: "recording"),
+            SourceLayers.ViewEntry(id: "src_rec_2", kind: "performance", group: "src_rec_2", working: false, hidden: true, op: "recording"),
+        ]
+        let shown = layers.views(showing: PdfScreen.documentView)
+        XCTAssertEqual(shown.views.map(\.id), ["src_pdf", "src_rec", "src_rec_2"])
+        XCTAssertEqual(shown.shownViews.map(\.id), ["src_pdf", "src_rec"], "a recording the player hid stays hidden")
+        XCTAssertEqual(layers.views.count, 5, "the piece's own layers are as music-core lists them")
+    }
+
     /// Recognising a recording sends the working notes' metre and tempo as the grid's hint, the same `hint` music-core's
     /// playback gives (v0.10 s-3); a piece with no notes sends none (the PDF piece's test above).
     @MainActor
