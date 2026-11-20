@@ -29,6 +29,9 @@ struct OpenPiece: Identifiable, Sendable {
     /// A draft opened to be shown (`drafts.open`, v1.1): its name and places, whose labels stand above each place's start;
     /// nil for any other piece.
     var draft: DraftViewAnswer.Draft?
+    /// Opened under a number of its own only to be shown over the piece ("readOnly": other Notes, a draft's view): the
+    /// phrases' marks are not drawn on it (v1.2, they belong to the working notes, where they are edited).
+    var shownOnly = false
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave, and the project file of a piece that is

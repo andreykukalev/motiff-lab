@@ -111,7 +111,7 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertFalse(first.why.isEmpty, "«Почему здесь»")
         XCTAssertTrue(phrases.units.allSatisfy { !$0.own }, "found in the file, none the player's yet")
         XCTAssertFalse(phrases.sections.isEmpty)
-        XCTAssertEqual(phrases.sections.first?.letter, "A")
+        XCTAssertEqual(phrases.sections.first?.label, "A")
         XCTAssertEqual(phrases.sections.first?.onset, 0)
 
         _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(first.selectableOnset)), "end": \#(Int(first.selectableEnd))}}"#, step: false)

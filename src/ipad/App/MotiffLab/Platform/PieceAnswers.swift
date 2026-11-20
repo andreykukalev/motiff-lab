@@ -59,12 +59,14 @@ struct PhrasesAnswer: Decodable, Sendable {
         let why: String?
     }
 
-    /// A section of the form (A, B, A′…): its letter, where it is, and the span a tap selects (at most 32 bars).
+    /// A section of the form (`Answer.FormSection`, A, B, A′…): its letter, where it is, the sections it shares its music
+    /// with, and the span a tap selects (at most 32 bars). The app's type is `FormSection`.
     struct Section: Decodable, Sendable {
         let id: String
         let label: String
         let passage: Passage
         let selectable: SpanAnswer?
+        let sharesWith: [String]?
     }
 
     struct Passage: Decodable, Sendable {

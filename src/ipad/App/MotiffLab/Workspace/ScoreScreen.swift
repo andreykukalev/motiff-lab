@@ -1410,13 +1410,6 @@ struct FocusBar: View {
     }
 }
 
-/// A thin rule across a menu, between its groups.
-private struct PaletteRule: View {
-    var body: some View {
-        Rectangle().fill(Color.ds("hairline")).frame(height: 1).padding(.vertical, CGFloat.ds("s-1"))
-    }
-}
-
 extension PanelState {
     /// A panel as a binding for the body that read this value (a sheet's or popover's `isPresented`, a toggle): what it sets
     /// goes through `change`.

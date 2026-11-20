@@ -105,7 +105,7 @@ final class ContentsController: ObservableObject {
     @Published var draft: Draft?
     /// The sections of the form music-core finds in the piece, for the Contents' structure: the same sections, letters and
     /// bars as Piece DNA, read from the one structure of the piece (#347), whatever level the brackets show.
-    @Published private(set) var sections: [DnaMap.Section] = []
+    @Published private(set) var sections: [FormSection] = []
     @Published var search = ""
     /// The player's own order rather than the score's.
     @Published var myOrder = false

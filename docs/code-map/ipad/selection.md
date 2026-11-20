@@ -7,7 +7,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 `Phrases`, `PlaceSelection`, `SelectionHistory`, `SelectionModel`, `SelectionTools` (`.swift`).
 
 - `Phrases.swift`: `PiecePhrases` with its `PhraseUnit`s (each start's bar, beat, «Почему здесь» and whether it is the
-  player's own) and `PhraseSection`s (the form's letters), from `PhrasesAnswer` (the text of `phrases` and `phrases.edit`
+  player's own) and `FormSection`s (the form's letters, `Platform/FormSection.swift`), from `PhrasesAnswer` (the text of `phrases` and `phrases.edit`
   by `init?(answer:)`); `unit(selected:)`, the one rule of a selection that is a phrase exactly (its selectable span); and
   `ScoreSelection`, built from `SelectionAnswer.Selection` only.
 - `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and

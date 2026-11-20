@@ -25,8 +25,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 ## The contract others may rely on
 
 `FocusModel`: its state changes only through its methods (`open`, `close`, `showAsRoll`, `takeCardOptions`,
-`showVersion`, `updatePlayRange`); the play range is the selection's span, nil without one; `unit` is the unit of the
-level shown that is selected, or the one that holds the selection's start.
+`showVersion`, `updatePlayRange`); the play range is the selection's span, nil without one; `unit` is the phrase that is
+selected exactly, or the one that holds the selection's start.
 
 `PlaybackModel` follows the shared case file above, but for the iPad's own cases (`Golden/playback-model-ipad.json`): a
 selection changed while Цикл plays, and `place`, the score's tap on a beat and the position put back from the PDF, which

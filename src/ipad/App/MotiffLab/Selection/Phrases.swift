@@ -5,12 +5,12 @@ import Foundation
 struct PiecePhrases: Equatable, Sendable {
     var units: [PhraseUnit]
     /// The sections of the form, A, B, A′…, each with its letter at its start on the score.
-    var sections: [PhraseSection]
+    var sections: [FormSection]
 
     /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
     init(_ answer: PhrasesAnswer) {
         units = answer.units.compactMap(PhraseUnit.init)
-        sections = (answer.sections ?? []).map(PhraseSection.init)
+        sections = (answer.sections ?? []).map(FormSection.init)
     }
 
     /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
@@ -66,27 +66,6 @@ struct PhraseUnit: Equatable, Sendable {
         startBar = unit.start?.bar ?? firstBar
         startBeat = unit.start?.beat ?? 1
         why = unit.start?.why ?? ""
-    }
-}
-
-/// A section of the form: its id and letter, where it starts, its bars, and the span a tap on its letter selects.
-struct PhraseSection: Equatable, Sendable {
-    var id: String
-    var letter: String
-    var onset: Double
-    var firstBar: Int
-    var lastBar: Int
-    var selectableOnset: Double
-    var selectableEnd: Double
-
-    init(_ section: PhrasesAnswer.Section) {
-        id = section.id
-        letter = section.label
-        onset = section.passage.onset
-        firstBar = section.passage.firstBar
-        lastBar = section.passage.lastBar
-        selectableOnset = section.selectable?.onset ?? section.passage.onset
-        selectableEnd = section.selectable?.end ?? section.passage.end
     }
 }
 

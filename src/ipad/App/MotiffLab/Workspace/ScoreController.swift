@@ -985,7 +985,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch engraved {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
-            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft)
+            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft, shownOnly: piece.shownOnly)
             sourcesModel.keepEngraved(SourcesModel.Engraved(even: even))
             await render()
             if focusModel.focused { await engraveCard() }
@@ -1267,7 +1267,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         Task { await scorePage.send(.menuClosed) }
     }
 
-    /// The piece's phrases read, their marks drawn (ScorePhraseMarks.swift), and the selection with the phrase it is.
+    /// The piece's phrases read, their marks drawn (ScorePhraseMarks.swift; none on a view only shown), and the selection
+    /// with the phrase it is.
     private func loadPhrases(_ piece: OpenPiece) async {
         await selectionModel.loadPhrases(of: piece.id)
         await scorePage.send(.phraseMarks, phraseMarks)

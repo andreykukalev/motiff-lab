@@ -202,7 +202,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
     /// and the sections' letters with the span a tap selects, read from `phrases` and from each `phrases.edit`.
     func testThePhraseMarksDecode() throws {
         let answers = try Self.answers("phrases.marks")
-        XCTAssertEqual(answers.count, 9)
+        XCTAssertEqual(answers.count, 8)
         let read = try answers.map { try XCTUnwrap(PiecePhrases(answer: $0.text), "\(reported)") }
         XCTAssertEqual(reported, [])
 
@@ -211,7 +211,8 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(first.why, "the start of the piece")
         XCTAssertEqual(read[0].unit(2)?.why, "after a half close and where an earlier passage comes back note for note")
         XCTAssertTrue(read[0].units.allSatisfy { !$0.own }, "all found")
-        XCTAssertEqual(read[0].sections.map(\.letter), ["A", "B", "C", "A′"])
+        XCTAssertEqual(read[0].sections.map(\.label), ["A", "B", "C", "A′"])
+        XCTAssertEqual(read[0].sections.first?.sharesWith, ["section_4"], "the same type as Piece DNA's form")
         let long = try XCTUnwrap(read[0].sections.first { $0.id == "section_3" })
         XCTAssertEqual([long.onset, long.selectableOnset, long.selectableEnd], [16560, 16560, 39600], "a tap selects 32 bars of it")
         XCTAssertEqual([long.firstBar, long.lastBar], [24, 77])
