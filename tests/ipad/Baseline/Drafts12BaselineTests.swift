@@ -102,13 +102,14 @@ final class Drafts12BaselineTests: XCTestCase {
         let sheet = try XCTUnwrap(asked.value, asked.message ?? "the sheet is answered")
         XCTAssertEqual(DraftChoice.ways(.elsewhere(into), in: sheet).map(\.drop), [.place, .shelf], "«Новым местом в конце» or «На полку»")
 
-        let saved = await MusicCore.run { MusicCore.call(piece: current.piece.id, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
+        let piece = current.piece.id
+        let saved = await MusicCore.run { MusicCore.call(piece: piece, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
         let added = await current.sources.addToDraft(DraftChoice(part: "all", into: .elsewhere(into), way: DraftChoice.Way(drop: .place)), span: 0..<1440, from: current.piece.id)
         XCTAssertTrue(added, current.sources.status ?? "")
         XCTAssertEqual(current.sources.addedElsewhere?.draft, into, "its toast, with «Открыть»")
         XCTAssertEqual(russian.format("drafts.addedElsewhere", made.name), "Добавлено в черновик «Черновик 1»")
         XCTAssertTrue(current.sources.layers.drafts.isEmpty, "this piece has no draft")
-        let after = await MusicCore.run { MusicCore.call(piece: current.piece.id, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
+        let after = await MusicCore.run { MusicCore.call(piece: piece, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
         XCTAssertEqual(after, saved, "and stays as it was")
         let again = await OtherPieceDrafts.list(in: folder, except: thisFile, project: current.sources.projectId, language: "ru")
         XCTAssertEqual(again.first?.drafts.first?.places, 2, "the other piece's draft has it as a new place at the end, in its file")
