@@ -72,16 +72,6 @@ public sealed partial record Project
     }
 
     /// <summary>
-    /// The project with its bookmarks where they belong after the phrases changed (<see cref="Bookmark.Follow"/>):
-    /// called with the phrases of the level a bookmark was made from, after a merge or a split.
-    /// </summary>
-    public Project FollowPhrases(IEnumerable<TickSpan> phrases)
-    {
-        TickSpan[] spans = [.. phrases ?? throw new ArgumentNullException(nameof(phrases))];
-        return this with { Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.Follow(spans))] };
-    }
-
-    /// <summary>
     /// The project with the detected form written into the Structure category (0018, section 5: "Structure for
     /// free"): one bookmark per sentence, "Sentence A, bars 1–8", after the player's own. A sentence already
     /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.

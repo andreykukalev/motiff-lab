@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Analysis.Phrasing;
 
-/// <summary>The one edit algebra of the phrase levels (D13): how an edge snaps to a place, which dragging a boundary relies on.</summary>
+/// <summary>The one edit algebra of the phrase levels (D13): how an edge snaps to a place, which dragging a boundary relies on, and a boundary moved as one edit.</summary>
 public class LevelEditorTests
 {
     private const long Quarter = 480;
@@ -23,5 +23,20 @@ public class LevelEditorTests
         // A beat or more from every place: the edge itself.
         Assert.Equal(new Tick(6 * Quarter), editor.Snap(new Tick(6 * Quarter), MeterMap.Default));
         Assert.Equal(new Tick(3 * Quarter), editor.Snap(new Tick(3 * Quarter), MeterMap.Default));
+    }
+
+    [Fact]
+    public void A_boundary_moves_as_one_edit_and_moved_back_onto_a_found_one_is_found_again()
+    {
+        var found = new HashSet<Tick> { new(4 * Quarter) };
+        var editor = new LevelEditor(PhraseEdits.None, [new Tick(4 * Quarter)], static tick => tick.Value is > 0 and < 16 * Quarter, found);
+
+        PhraseEdits moved = editor.Move(new Tick(4 * Quarter), new Tick(5 * Quarter));
+        Assert.Equal(new PhraseEdits([new Tick(5 * Quarter)], [new Tick(4 * Quarter)]), moved);
+
+        var back = new LevelEditor(moved, [new Tick(5 * Quarter)], static tick => tick.Value is > 0 and < 16 * Quarter, found);
+        Assert.Equal(PhraseEdits.None, back.Move(new Tick(5 * Quarter), new Tick(4 * Quarter)));
+        // Where the level allows no boundary, the move only takes it away.
+        Assert.Equal(new PhraseEdits([], [new Tick(4 * Quarter)]), editor.Move(new Tick(4 * Quarter), new Tick(16 * Quarter)));
     }
 }

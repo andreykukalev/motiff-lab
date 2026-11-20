@@ -33,6 +33,7 @@ public sealed class PhraseMap
     public const int LongPhraseBars = 8;
 
     private readonly MeterMap _meter;
+    private IReadOnlyDictionary<Tick, Tick>? _replaced;
 
     private PhraseMap(IReadOnlyList<PhraseBoundary> found, PhraseEdits edits, IReadOnlyList<PhraseBoundary> boundaries, IReadOnlyList<Phrase> phrases, PhraseEvidenceLevel evidence, MeterMap meter, Tick end)
     {
@@ -138,6 +139,75 @@ public sealed class PhraseMap
         return editor.Split(editor.Snap(at, _meter));
     }
 
+    /// <summary>
+    /// The edits that move the phrase start at <paramref name="from"/> to <paramref name="to"/> as one step (the iPad's drag
+    /// of a mark): taken away there and set exactly here, the found boundary again when one was found here; the start of
+    /// the piece or later than its end only takes it away. The app snaps <paramref name="to"/> as it likes; see
+    /// <see cref="PhraseLevels.NoteAt"/>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="from"/>.</exception>
+    public PhraseEdits Move(Tick from, Tick to) => Editor().Move(InEffect(from).At, to);
+
+    /// <summary>The edits that set a phrase start exactly at <paramref name="at"/> («Начать фразу здесь»); unchanged at the start or the end of the piece.</summary>
+    public PhraseEdits StartAt(Tick at) => Editor().Split(at);
+
+    /// <summary>The edits that take the phrase start at <paramref name="at"/> away («Убрать границу»), joining the phrases on either side.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="at"/>.</exception>
+    public PhraseEdits Remove(Tick at) => Editor().Join(InEffect(at).At);
+
+    /// <summary>
+    /// The edits that put the found boundary back in place of the player's own at <paramref name="at"/> («Вернуть
+    /// найденную»): moved back to the found boundary it took the place of (<see cref="Replaced"/>), or, when it replaced
+    /// none, taken away.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="at"/>.</exception>
+    public PhraseEdits PutBack(Tick at)
+    {
+        PhraseBoundary boundary = InEffect(at);
+        return Replaced.TryGetValue(boundary.At, out Tick found) ? Editor().Move(boundary.At, found) : Editor().Join(boundary.At);
+    }
+
+    /// <summary>Whether a boundary in effect is the player's own: set or confirmed by them.</summary>
+    public static bool IsOwn(PhraseBoundary boundary)
+    {
+        ArgumentNullException.ThrowIfNull(boundary);
+        return boundary.Attribution.Provenance is Provenance.UserEdited or Provenance.UserConfirmed;
+    }
+
+    /// <summary>
+    /// The found boundary each of the player's own boundaries took the place of, by the player's boundary: a found boundary
+    /// they took away goes with the nearer of the boundaries in effect either side of it when that one is a new boundary
+    /// of theirs (a mark dragged away from it), the earlier of two as near; and each of theirs keeps the nearest found one
+    /// that goes with it. The saved edits keep no pairs, so this is read again from them; nothing else is paired.
+    /// </summary>
+    public IReadOnlyDictionary<Tick, Tick> Replaced => _replaced ??= Pair();
+
+    /// <summary>
+    /// How many boundaries are the player's own, as «Ваших границ: N» counts them before a reset: their boundaries in effect
+    /// (a moved one counts once) and the found boundaries they took away without putting one of theirs beside it.
+    /// </summary>
+    public int OwnCount
+    {
+        get
+        {
+            HashSet<Tick> inEffect = [.. Boundaries.Select(static boundary => boundary.At)];
+            HashSet<Tick> paired = [.. Replaced.Values];
+            return Boundaries.Count(IsOwn) + TakenAway(inEffect).Count(tick => !paired.Contains(tick));
+        }
+    }
+
+    /// <summary>
+    /// Each phrase of <paramref name="before"/> that is not one of these phrases any more (numbered as it was), with the
+    /// phrase here that covers most of it: what an edit changed, for the offer to select a phrase that was selected by its
+    /// new boundaries.
+    /// </summary>
+    public IReadOnlyList<(Phrase Before, Phrase After)> ChangedFrom(PhraseMap before)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        HashSet<TickSpan> now = [.. Phrases.Select(static phrase => phrase.Span)];
+        return [.. before.Phrases.Where(phrase => !now.Contains(phrase.Span)).Select(phrase => (phrase, Covering(phrase.Span)))];
+    }
+
     /// <summary>The same notes and marks with other edits, for example after the player changed a boundary.</summary>
     public PhraseMap With(PhraseEdits edits)
     {
@@ -206,12 +276,16 @@ public sealed class PhraseMap
     /// </summary>
     public static string Describe(PhraseBoundary? start) => Describe(start, Words.English);
 
-    /// <summary>How a phrase's start was found, in the player's language (#134); the Russian completes "начинается …".</summary>
-    public static string Describe(PhraseBoundary? start, Words words)
+    /// <summary>
+    /// How a phrase's start was found, in the player's language (#134); the Russian completes "начинается …". With
+    /// <paramref name="after"/>, how the phrase before it closes («Почему здесь», the phrases spec): a full or a half close
+    /// comes first for a boundary the player did not set ("after a full close and after a rest of a beat or more").
+    /// </summary>
+    public static string Describe(PhraseBoundary? start, Words words, CloseKind after = CloseKind.None)
     {
         if (words.IsRussian)
         {
-            return RussianDescribe(start);
+            return RussianDescribe(start, after);
         }
 
         if (start is null)
@@ -219,7 +293,7 @@ public sealed class PhraseMap
             return "the start of the piece";
         }
 
-        string[] evidence = [.. start.Evidence.Select(static mark => mark switch
+        string[] evidence = [.. Close(start, after, "after a full close", "after a half close"), .. start.Evidence.Select(static mark => mark switch
         {
             PhraseEvidence.Slur => "at a slur",
             PhraseEvidence.Rest => "after a rest of a beat or more",
@@ -243,14 +317,14 @@ public sealed class PhraseMap
         };
     }
 
-    private static string RussianDescribe(PhraseBoundary? start)
+    private static string RussianDescribe(PhraseBoundary? start, CloseKind after)
     {
         if (start is null)
         {
             return "с начала пьесы";
         }
 
-        string[] evidence = [.. start.Evidence.Select(static mark => mark switch
+        string[] evidence = [.. Close(start, after, "после полной каденции", "после половинной каденции"), .. start.Evidence.Select(static mark => mark switch
         {
             PhraseEvidence.Slur => "по лиге",
             PhraseEvidence.Rest => "после паузы в долю или больше",
@@ -266,6 +340,50 @@ public sealed class PhraseMap
             Provenance.UserEdited or Provenance.UserConfirmed => $"{source}, подтверждено вами",
             _ => source,
         };
+    }
+
+    /// <summary>The close of the phrase before a boundary the source supports, as a reason for it; none for one the player set.</summary>
+    private static IEnumerable<string> Close(PhraseBoundary start, CloseKind after, string full, string half) =>
+        IsOwn(start) ? [] : after switch
+        {
+            CloseKind.Full => [full],
+            CloseKind.Half => [half],
+            _ => [],
+        };
+
+    /// <summary>The boundary in effect at <paramref name="at"/>.</summary>
+    private PhraseBoundary InEffect(Tick at) =>
+        Boundaries.FirstOrDefault(boundary => boundary.At == at) ?? throw new ArgumentOutOfRangeException(nameof(at), at, "No phrase starts there.");
+
+    /// <summary>The found boundaries the player took away that are not in effect.</summary>
+    private IEnumerable<Tick> TakenAway(HashSet<Tick> inEffect)
+    {
+        HashSet<Tick> found = [.. Found.Select(static boundary => boundary.At)];
+        return Edits.Removed.Where(tick => found.Contains(tick) && !inEffect.Contains(tick));
+    }
+
+    private Dictionary<Tick, Tick> Pair()
+    {
+        Tick[] inEffect = [.. Boundaries.Select(static boundary => boundary.At)];
+        HashSet<Tick> mine = [.. Boundaries.Where(static boundary => boundary.Attribution.Provenance == Provenance.UserEdited).Select(static boundary => boundary.At)];
+        var pairs = new Dictionary<Tick, Tick>();
+        foreach (Tick taken in TakenAway([.. inEffect]))
+        {
+            int next = ~Array.BinarySearch(inEffect, taken);
+            Tick[] beside = [.. new[] { next - 1, next }.Where(index => index >= 0 && index < inEffect.Length).Select(index => inEffect[index]).Where(mine.Contains)];
+            if (beside.Length == 0)
+            {
+                continue;
+            }
+
+            Tick at = beside.MinBy(tick => Math.Abs(tick.Value - taken.Value));
+            if (!pairs.TryGetValue(at, out Tick kept) || Math.Abs(taken.Value - at.Value) < Math.Abs(kept.Value - at.Value))
+            {
+                pairs[at] = taken;
+            }
+        }
+
+        return pairs;
     }
 
     /// <summary>The phrase edits at this map's boundaries: the player may set one anywhere inside the piece.</summary>

@@ -123,6 +123,21 @@ public class FacadeAnswersContractTests
             ("phrases.edit", """{"joinWithNext":1}"""),
             ("phrases.edit", """{"reset":true}"""),
         ],
+        // The phrase marks (the phrases spec, version 1.2): the marks with nothing changed; the start of phrase 2 dragged a
+        // little before its note (snapped to the nearest note, the player's own with the found boundary it replaced) and put
+        // back by Undo ("restore" with the edits before); a start set inside phrase 3, phrase 4's start taken away and
+        // phrase 2's moved again; «Вернуть найденную» on it; then «Вернуть найденные границы» over the player's two.
+        ["phrases.marks"] =
+        [
+            ("phrases", null),
+            ("phrases.edit", """{"move":{"from":2880,"to":2500}}"""),
+            ("phrases.edit", """{"restore":{"short":{"added":[],"removed":[]},"phrase":{"added":[],"removed":[]},"sentence":{"added":[],"removed":[]}}}"""),
+            ("phrases.edit", """{"start":7680}"""),
+            ("phrases.edit", """{"remove":10560}"""),
+            ("phrases.edit", """{"move":{"from":2880,"to":2400}}"""),
+            ("phrases.edit", """{"putBack":2400}"""),
+            ("phrases.edit", """{"resetAll":true}"""),
+        ],
         // Drafts (0034, version 1.1; the iPad's step 5): the «В черновик» sheet with no draft yet, «Добавить» making a new
         // one (answered as the sources, the draft in the group and in the switch), the sheet again with the same music
         // offered first, bars 5–8 as a new place, the right hand on the shelf, the draft view with its place labels, and

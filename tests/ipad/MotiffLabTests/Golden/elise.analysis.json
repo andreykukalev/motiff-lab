@@ -1001,6 +1001,545 @@
        "description": "at the middle of a long phrase"
       }
      }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
+     }
     ]
    }
   },
@@ -1064,8 +1603,31 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "the start of the piece"
-      }
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -1088,8 +1650,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 6000,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -1112,8 +1697,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 6000,
+        "end": 8640,
+        "firstBar": 9,
+        "lastBar": 12,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -1136,8 +1736,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 12,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 8640,
+        "end": 9600,
+        "firstBar": 12,
+        "lastBar": 13,
+        "bar": 12,
+        "beat": 3
+       },
+       {
+        "onset": 9600,
+        "end": 11760,
+        "firstBar": 14,
+        "lastBar": 16,
+        "bar": 14,
+        "beat": 1
+       },
+       {
+        "onset": 11760,
+        "end": 13200,
+        "firstBar": 17,
+        "lastBar": 18,
+        "bar": 17,
+        "beat": 1
+       },
+       {
+        "onset": 13200,
+        "end": 15360,
+        "firstBar": 19,
+        "lastBar": 21,
+        "bar": 19,
+        "beat": 1
+       },
+       {
+        "onset": 15360,
+        "end": 16080,
+        "firstBar": 22,
+        "lastBar": 22,
+        "bar": 22,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -1160,8 +1807,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 23,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 16080,
+        "end": 18720,
+        "firstBar": 23,
+        "lastBar": 26,
+        "bar": 23,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -1184,8 +1846,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 26,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 18720,
+        "end": 19680,
+        "firstBar": 26,
+        "lastBar": 27,
+        "bar": 26,
+        "beat": 3
+       },
+       {
+        "onset": 19680,
+        "end": 21840,
+        "firstBar": 28,
+        "lastBar": 30,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -1208,8 +1893,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 31,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 21840,
+        "end": 24480,
+        "firstBar": 31,
+        "lastBar": 34,
+        "bar": 31,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -1232,8 +1932,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 34,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 24480,
+        "end": 25440,
+        "firstBar": 34,
+        "lastBar": 35,
+        "bar": 34,
+        "beat": 3
+       },
+       {
+        "onset": 25440,
+        "end": 27600,
+        "firstBar": 36,
+        "lastBar": 38,
+        "bar": 36,
+        "beat": 1
+       },
+       {
+        "onset": 27600,
+        "end": 29040,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 1
+       },
+       {
+        "onset": 29040,
+        "end": 31200,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       },
+       {
+        "onset": 31200,
+        "end": 31920,
+        "firstBar": 44,
+        "lastBar": 44,
+        "bar": 44,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -1256,8 +2003,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 45,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 31920,
+        "end": 34560,
+        "firstBar": 45,
+        "lastBar": 48,
+        "bar": 45,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 10,
@@ -1280,8 +2042,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 48,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 34560,
+        "end": 35520,
+        "firstBar": 48,
+        "lastBar": 49,
+        "bar": 48,
+        "beat": 3
+       },
+       {
+        "onset": 35520,
+        "end": 37680,
+        "firstBar": 50,
+        "lastBar": 52,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 11,
@@ -1304,8 +2089,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37680,
+        "end": 40320,
+        "firstBar": 53,
+        "lastBar": 56,
+        "bar": 53,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -1328,8 +2128,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 56,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40320,
+        "end": 41280,
+        "firstBar": 56,
+        "lastBar": 57,
+        "bar": 56,
+        "beat": 3
+       },
+       {
+        "onset": 41280,
+        "end": 43440,
+        "firstBar": 58,
+        "lastBar": 60,
+        "bar": 58,
+        "beat": 1
+       },
+       {
+        "onset": 43440,
+        "end": 44880,
+        "firstBar": 61,
+        "lastBar": 62,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 44880,
+        "end": 47040,
+        "firstBar": 63,
+        "lastBar": 65,
+        "bar": 63,
+        "beat": 1
+       },
+       {
+        "onset": 47040,
+        "end": 47760,
+        "firstBar": 66,
+        "lastBar": 66,
+        "bar": 66,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 13,
@@ -1352,8 +2199,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 67,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 47760,
+        "end": 50400,
+        "firstBar": 67,
+        "lastBar": 70,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 14,
@@ -1376,8 +2238,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 70,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 50400,
+        "end": 51360,
+        "firstBar": 70,
+        "lastBar": 71,
+        "bar": 70,
+        "beat": 3
+       },
+       {
+        "onset": 51360,
+        "end": 53520,
+        "firstBar": 72,
+        "lastBar": 74,
+        "bar": 72,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -1400,8 +2285,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 75,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 53520,
+        "end": 56160,
+        "firstBar": 75,
+        "lastBar": 78,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -1424,8 +2324,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 78,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 56160,
+        "end": 57120,
+        "firstBar": 78,
+        "lastBar": 79,
+        "bar": 78,
+        "beat": 3
+       },
+       {
+        "onset": 57120,
+        "end": 59280,
+        "firstBar": 80,
+        "lastBar": 82,
+        "bar": 80,
+        "beat": 1
+       },
+       {
+        "onset": 59280,
+        "end": 60720,
+        "firstBar": 83,
+        "lastBar": 84,
+        "bar": 83,
+        "beat": 1
+       },
+       {
+        "onset": 60720,
+        "end": 62880,
+        "firstBar": 85,
+        "lastBar": 87,
+        "bar": 85,
+        "beat": 1
+       },
+       {
+        "onset": 62880,
+        "end": 63600,
+        "firstBar": 88,
+        "lastBar": 88,
+        "bar": 88,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -1448,8 +2395,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 89,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 63600,
+        "end": 66240,
+        "firstBar": 89,
+        "lastBar": 92,
+        "bar": 89,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 18,
@@ -1472,8 +2434,570 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 92,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 66240,
+        "end": 67200,
+        "firstBar": 92,
+        "lastBar": 93,
+        "bar": 92,
+        "beat": 3
+       },
+       {
+        "onset": 67200,
+        "end": 69360,
+        "firstBar": 94,
+        "lastBar": 96,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
      }
     ]
    }
@@ -1540,6 +3064,545 @@
        "confidence": 0.6,
        "description": "Phrase 2 starts where phrase 1 comes back note for note, so it reads as the consequent; phrase 2 reads no close, so it runs on; phrase 3 ends on a half close, so it runs on; phrase 4 ends on a half close, so it runs on; phrase 5 ends on a half close, so it runs on; phrase 6 reads no close, so it runs on; phrase 7 ends on a half close, so it runs on; phrase 8 ends on a half close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 reads no close, so it runs on; phrase 11 ends on a half close, so it runs on; phrase 12 ends on a half close, so it runs on; phrase 13 ends on a half close, so it runs on; phrase 14 reads no close, so it runs on; phrase 15 ends on a half close, so it runs on; phrase 16 ends on a half close, so it runs on; phrase 17 ends on a half close, so it runs on; phrase 18 ends with the piece."
       }
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
      }
     ]
    }
@@ -9910,6 +11973,545 @@
        "description": "в середине длинной фразы"
       }
      }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
+     }
     ]
    }
   },
@@ -9973,8 +12575,31 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "с начала пьесы"
-      }
+       "description": "с начала пьесы",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "с начала пьесы"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -9997,8 +12622,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 6000,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -10021,8 +12669,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 6000,
+        "end": 8640,
+        "firstBar": 9,
+        "lastBar": 12,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -10045,8 +12708,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 12,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 8640,
+        "end": 9600,
+        "firstBar": 12,
+        "lastBar": 13,
+        "bar": 12,
+        "beat": 3
+       },
+       {
+        "onset": 9600,
+        "end": 11760,
+        "firstBar": 14,
+        "lastBar": 16,
+        "bar": 14,
+        "beat": 1
+       },
+       {
+        "onset": 11760,
+        "end": 13200,
+        "firstBar": 17,
+        "lastBar": 18,
+        "bar": 17,
+        "beat": 1
+       },
+       {
+        "onset": 13200,
+        "end": 15360,
+        "firstBar": 19,
+        "lastBar": 21,
+        "bar": 19,
+        "beat": 1
+       },
+       {
+        "onset": 15360,
+        "end": 16080,
+        "firstBar": 22,
+        "lastBar": 22,
+        "bar": 22,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -10069,8 +12779,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 23,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 16080,
+        "end": 18720,
+        "firstBar": 23,
+        "lastBar": 26,
+        "bar": 23,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -10093,8 +12818,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 26,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 18720,
+        "end": 19680,
+        "firstBar": 26,
+        "lastBar": 27,
+        "bar": 26,
+        "beat": 3
+       },
+       {
+        "onset": 19680,
+        "end": 21840,
+        "firstBar": 28,
+        "lastBar": 30,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -10117,8 +12865,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 31,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 21840,
+        "end": 24480,
+        "firstBar": 31,
+        "lastBar": 34,
+        "bar": 31,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -10141,8 +12904,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 34,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 24480,
+        "end": 25440,
+        "firstBar": 34,
+        "lastBar": 35,
+        "bar": 34,
+        "beat": 3
+       },
+       {
+        "onset": 25440,
+        "end": 27600,
+        "firstBar": 36,
+        "lastBar": 38,
+        "bar": 36,
+        "beat": 1
+       },
+       {
+        "onset": 27600,
+        "end": 29040,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 1
+       },
+       {
+        "onset": 29040,
+        "end": 31200,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       },
+       {
+        "onset": 31200,
+        "end": 31920,
+        "firstBar": 44,
+        "lastBar": 44,
+        "bar": 44,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -10165,8 +12975,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 45,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 31920,
+        "end": 34560,
+        "firstBar": 45,
+        "lastBar": 48,
+        "bar": 45,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 10,
@@ -10189,8 +13014,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 48,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 34560,
+        "end": 35520,
+        "firstBar": 48,
+        "lastBar": 49,
+        "bar": 48,
+        "beat": 3
+       },
+       {
+        "onset": 35520,
+        "end": 37680,
+        "firstBar": 50,
+        "lastBar": 52,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 11,
@@ -10213,8 +13061,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 53,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 37680,
+        "end": 40320,
+        "firstBar": 53,
+        "lastBar": 56,
+        "bar": 53,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -10237,8 +13100,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 56,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 40320,
+        "end": 41280,
+        "firstBar": 56,
+        "lastBar": 57,
+        "bar": 56,
+        "beat": 3
+       },
+       {
+        "onset": 41280,
+        "end": 43440,
+        "firstBar": 58,
+        "lastBar": 60,
+        "bar": 58,
+        "beat": 1
+       },
+       {
+        "onset": 43440,
+        "end": 44880,
+        "firstBar": 61,
+        "lastBar": 62,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 44880,
+        "end": 47040,
+        "firstBar": 63,
+        "lastBar": 65,
+        "bar": 63,
+        "beat": 1
+       },
+       {
+        "onset": 47040,
+        "end": 47760,
+        "firstBar": 66,
+        "lastBar": 66,
+        "bar": 66,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 13,
@@ -10261,8 +13171,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 67,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 47760,
+        "end": 50400,
+        "firstBar": 67,
+        "lastBar": 70,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 14,
@@ -10285,8 +13210,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 70,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 50400,
+        "end": 51360,
+        "firstBar": 70,
+        "lastBar": 71,
+        "bar": 70,
+        "beat": 3
+       },
+       {
+        "onset": 51360,
+        "end": 53520,
+        "firstBar": 72,
+        "lastBar": 74,
+        "bar": 72,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -10309,8 +13257,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 75,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 53520,
+        "end": 56160,
+        "firstBar": 75,
+        "lastBar": 78,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -10333,8 +13296,55 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 78,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 56160,
+        "end": 57120,
+        "firstBar": 78,
+        "lastBar": 79,
+        "bar": 78,
+        "beat": 3
+       },
+       {
+        "onset": 57120,
+        "end": 59280,
+        "firstBar": 80,
+        "lastBar": 82,
+        "bar": 80,
+        "beat": 1
+       },
+       {
+        "onset": 59280,
+        "end": 60720,
+        "firstBar": 83,
+        "lastBar": 84,
+        "bar": 83,
+        "beat": 1
+       },
+       {
+        "onset": 60720,
+        "end": 62880,
+        "firstBar": 85,
+        "lastBar": 87,
+        "bar": 85,
+        "beat": 1
+       },
+       {
+        "onset": 62880,
+        "end": 63600,
+        "firstBar": 88,
+        "lastBar": 88,
+        "bar": 88,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -10357,8 +13367,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 89,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 63600,
+        "end": 66240,
+        "firstBar": 89,
+        "lastBar": 92,
+        "bar": 89,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 18,
@@ -10381,8 +13406,570 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
+       "description": "там, где нота в ноту возвращается более ранний отрывок",
+       "bar": 92,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "после половинной каденции и там, где нота в ноту возвращается более ранний отрывок"
+      },
+      "motifs": [
+       {
+        "onset": 66240,
+        "end": 67200,
+        "firstBar": 92,
+        "lastBar": 93,
+        "bar": 92,
+        "beat": 3
+       },
+       {
+        "onset": 67200,
+        "end": 69360,
+        "firstBar": 94,
+        "lastBar": 96,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
      }
     ]
    }
@@ -10449,6 +14036,545 @@
        "confidence": 0.6,
        "description": "Фраза 2 начинается там, где фраза 1 возвращается нота в ноту, поэтому читается как ответное построение; во фразе 2 каденция не читается, поэтому она продолжается; фраза 3 заканчивается половинной каденцией, поэтому продолжается; фраза 4 заканчивается половинной каденцией, поэтому продолжается; фраза 5 заканчивается половинной каденцией, поэтому продолжается; во фразе 6 каденция не читается, поэтому она продолжается; фраза 7 заканчивается половинной каденцией, поэтому продолжается; фраза 8 заканчивается половинной каденцией, поэтому продолжается; фраза 9 заканчивается половинной каденцией, поэтому продолжается; во фразе 10 каденция не читается, поэтому она продолжается; фраза 11 заканчивается половинной каденцией, поэтому продолжается; фраза 12 заканчивается половинной каденцией, поэтому продолжается; фраза 13 заканчивается половинной каденцией, поэтому продолжается; во фразе 14 каденция не читается, поэтому она продолжается; фраза 15 заканчивается половинной каденцией, поэтому продолжается; фраза 16 заканчивается половинной каденцией, поэтому продолжается; фраза 17 заканчивается половинной каденцией, поэтому продолжается; фраза 18 заканчивается вместе с произведением."
       }
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "sharesWith": [
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2880,
+       "end": 6000,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2880,
+       "end": 6000
+      },
+      "sharesWith": [
+       "section_1",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 3
+     },
+     {
+      "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "B",
+      "passage": {
+       "onset": 8640,
+       "end": 16080,
+       "firstBar": 12,
+       "lastBar": 22
+      },
+      "selectable": {
+       "onset": 8640,
+       "end": 16080
+      },
+      "sharesWith": [
+       "section_8",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 4,
+      "bar": 12,
+      "beat": 3
+     },
+     {
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 5,
+      "bar": 23,
+      "beat": 1
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
+      "passage": {
+       "onset": 18720,
+       "end": 21840,
+       "firstBar": 26,
+       "lastBar": 30
+      },
+      "selectable": {
+       "onset": 18720,
+       "end": 21840
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 6,
+      "bar": 26,
+      "beat": 3
+     },
+     {
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 7,
+      "bar": 31,
+      "beat": 1
+     },
+     {
+      "id": "section_8",
+      "label": "B",
+      "passage": {
+       "onset": 24480,
+       "end": 31920,
+       "firstBar": 34,
+       "lastBar": 44
+      },
+      "selectable": {
+       "onset": 24480,
+       "end": 31920
+      },
+      "sharesWith": [
+       "section_4",
+       "section_12",
+       "section_16"
+      ],
+      "phrase": 8,
+      "bar": 34,
+      "beat": 3
+     },
+     {
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 9,
+      "bar": 45,
+      "beat": 1
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
+      "passage": {
+       "onset": 34560,
+       "end": 37680,
+       "firstBar": 48,
+       "lastBar": 52
+      },
+      "selectable": {
+       "onset": 34560,
+       "end": 37680
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 10,
+      "bar": 48,
+      "beat": 3
+     },
+     {
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 11,
+      "bar": 53,
+      "beat": 1
+     },
+     {
+      "id": "section_12",
+      "label": "B",
+      "passage": {
+       "onset": 40320,
+       "end": 47760,
+       "firstBar": 56,
+       "lastBar": 66
+      },
+      "selectable": {
+       "onset": 40320,
+       "end": 47760
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_16"
+      ],
+      "phrase": 12,
+      "bar": 56,
+      "beat": 3
+     },
+     {
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_14",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 13,
+      "bar": 67,
+      "beat": 1
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
+      "passage": {
+       "onset": 50400,
+       "end": 53520,
+       "firstBar": 70,
+       "lastBar": 74
+      },
+      "selectable": {
+       "onset": 50400,
+       "end": 53520
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_15",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 14,
+      "bar": 70,
+      "beat": 3
+     },
+     {
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_17",
+       "section_18"
+      ],
+      "phrase": 15,
+      "bar": 75,
+      "beat": 1
+     },
+     {
+      "id": "section_16",
+      "label": "B",
+      "passage": {
+       "onset": 56160,
+       "end": 63600,
+       "firstBar": 78,
+       "lastBar": 88
+      },
+      "selectable": {
+       "onset": 56160,
+       "end": 63600
+      },
+      "sharesWith": [
+       "section_4",
+       "section_8",
+       "section_12"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 3
+     },
+     {
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_18"
+      ],
+      "phrase": 17,
+      "bar": 89,
+      "beat": 1
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
+      "passage": {
+       "onset": 66240,
+       "end": 69360,
+       "firstBar": 92,
+       "lastBar": 96
+      },
+      "selectable": {
+       "onset": 66240,
+       "end": 69360
+      },
+      "sharesWith": [
+       "section_1",
+       "section_2",
+       "section_3",
+       "section_5",
+       "section_6",
+       "section_7",
+       "section_9",
+       "section_10",
+       "section_11",
+       "section_13",
+       "section_14",
+       "section_15",
+       "section_17"
+      ],
+      "phrase": 18,
+      "bar": 92,
+      "beat": 3
      }
     ]
    }

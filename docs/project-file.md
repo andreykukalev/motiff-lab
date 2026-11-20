@@ -230,7 +230,7 @@ The contents of the piece in the player's own order (prep item 2): four built-in
   "items": [                    // in the player's order; the app also sorts them by place
     { "id": "b_0001", "title": "Theme", "category": "structure",
       "onset": 0, "duration": 3840,
-      "fromPhrase": true,       // made from a phrase: follows it when phrases are joined or split
+      "fromPhrase": true,       // made from a phrase; since 1.2 it stays put when a phrase boundary changes
       "createdAt": "…" }
   ]
 }
