@@ -51,12 +51,14 @@ extension View {
 
 /// The «Исполнение» capsule: the recording's sound kept on this iPad, heard as it is, from a capsule under the bar while the
 /// view under it stays as it is. Its slider moves through the recording, the time beside it (Andrei, v0.8 finding 20). ✕
-/// puts it away. Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the same.
+/// puts it away; a capsule with no `close` has none (v1.1: the player of a piece that is only its recording,
+/// `RecordingScreen`). Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the
+/// same.
 struct RecordingViewCapsule: View {
     let url: URL
     let title: String
     let text: UIText
-    let close: () -> Void
+    var close: (() -> Void)?
     @ObservedObject private var listening = RecordingListening.shared
 
     var body: some View {
@@ -86,16 +88,18 @@ struct RecordingViewCapsule: View {
                 .dsType(.caption)
                 .monospacedDigit()
                 .foregroundStyle(Color.ds("ink-2"))
-            Button {
-                // Put away: silent, whatever was handed over before.
-                listening.cancelHandOver()
-                listening.stop()
-                close()
-            } label: {
-                Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28)
+            if let close {
+                Button {
+                    // Put away: silent, whatever was handed over before.
+                    listening.cancelHandOver()
+                    listening.stop()
+                    close()
+                } label: {
+                    Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28)
+                }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["bar.close"])
             }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["bar.close"])
         }
         .controlShape(.capsule)
         .padding(.horizontal, CGFloat.ds("s-2"))

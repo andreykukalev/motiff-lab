@@ -441,7 +441,7 @@ struct PerformanceAnswer: Decodable, Sendable {
     let performance: Performance
 }
 
-/// The versions of the piece (`Answer.Performances`): `performances`, and what removing one answers. A missing list is none.
+/// The versions of the piece (`Answer.Performances`): `performances`. A missing list is none.
 struct PerformancesAnswer: Decodable, Sendable {
     let performances: [VersionHead]?
 }

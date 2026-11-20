@@ -71,5 +71,6 @@
   "library.edit": "Изменить",
   "library.tabOnline": "Нет на этом iPad",
   "recognition.choose": "Распознать ноты в нескольких пьесах",
-  "recognition.withoutNotes": "Без нот"
+  "recognition.withoutNotes": "Без нот",
+  "library.recordingAsIs": "Запись как есть"
 }

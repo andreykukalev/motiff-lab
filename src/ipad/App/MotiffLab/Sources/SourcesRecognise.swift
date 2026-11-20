@@ -44,7 +44,7 @@ struct SourcesRecognisePanel: View {
 
     private var offer: Offer {
         if original.isRecording {
-            return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: text["sources.sheet.hearHosted"], send: text["sources.sheet.sendRecording"])
+            return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: Self.hearLine(sources.layers, text: text), send: text["sources.sheet.sendRecording"])
         }
         let pages = max(1, original.pages ?? 1)
         guard let address = row.address else { return Offer(blocker: text["pdf.readNone"]) }
@@ -54,6 +54,12 @@ struct SourcesRecognisePanel: View {
             ? SourceLayers.counted("sources.sheet.readHosted", pages, text: text)
             : SourceLayers.counted("sources.sheet.readOwn", pages, address.absoluteString, text: text)
         return Offer(line: line, send: SourceLayers.counted("sources.sheet.send", pages, text: text))
+    }
+
+    /// Where a recording's sound goes and what its notes become: Notes under the recording beside the working notes, or,
+    /// on a piece with no notes yet, the piece's own notes, which it opens on (v1.1, finding 29).
+    static func hearLine(_ layers: SourceLayers, text: UIText) -> String {
+        text[layers.working == nil ? "sources.sheet.hearHostedFirst" : "sources.sheet.hearHosted"]
     }
 
     var body: some View {

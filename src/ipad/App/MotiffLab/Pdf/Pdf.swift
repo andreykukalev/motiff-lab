@@ -326,7 +326,8 @@ struct PdfScreen: View {
     /// pages, which opens here and leaves the PDF as it is (#582 item 4: it went to the notes to open the sheet there).
     @StateObject private var sources = SourcesController()
     @StateObject private var originals = OriginalsController()
-    /// Whether the switch of all views and Sources are on for this PDF: a PDF of the piece's own with notes.
+    /// Whether the switch of all views and Sources are on for this PDF: a PDF of the piece's own with notes, or with none
+    /// yet (Sources alone, v1.1, finding 29).
     @State private var sourcesOn = false
     /// The Sources panel over the lower half of the pages.
     @State private var sourcesOpen = false
@@ -488,8 +489,9 @@ struct PdfScreen: View {
     private func bar(width: CGFloat) -> some View {
         TopBar(width: width, pages: pageText) {
             barLeading
-            if let sourceLayers, toNotes != nil {
-                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
+            if let sourceLayers, toNotes != nil || withoutNotes {
+                // The switch of all the piece's views and Sources after it (version 0.6), as on the score; a PDF alone has none.
+                if sourceLayers.shownViews.count < 2 { Tag(text: text["pdf.title"], kind: .assumed) }
                 SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
                 SourcesButton(open: sourcesOpen, text: text, action: openSources)
             } else if let toNotes {
@@ -749,15 +751,20 @@ struct PdfScreen: View {
     static let documentView = "src_pdf"
 
     /// The piece's views for the switch of all views, as music-core lists them for this iPad; nil while the piece has no
-    /// notes, and PDF | Notes stays as it was.
+    /// notes (PDF | Notes stays), except a PDF of its own with none yet (`withoutNotes`, v1.1): it and its recordings.
     private var sourceLayers: SourceLayers? {
-        sourcesOn && sources.layers.working != nil ? sources.layers : nil
+        guard sourcesOn else { return nil }
+        if sources.layers.working != nil { return sources.layers }
+        return withoutNotes ? sources.layers.views(showing: PdfScreen.documentView) : nil
     }
 
-    /// The piece's sources (version 0.6, 0030), for a PDF whose notes the library holds; then what the screen before handed
-    /// over: the toast of what was just done in the panel.
+    /// A PDF of the piece's own with no notes yet (v1.1, finding 29): Sources, where a recording added is recognised.
+    private var withoutNotes: Bool { !linked && piece.other == nil && piece.file != nil && openRead != nil }
+
+    /// The piece's sources (version 0.6, 0030), for a PDF whose notes the library holds or one with none yet; then what the
+    /// screen before handed over: the toast of what was just done in the panel.
     private func readSourceLayers() async {
-        guard !linked, toNotes != nil else {
+        guard !linked, toNotes != nil || withoutNotes else {
             sourcesOn = false
             sourcesOpen = false
             // No switch here, so no recording heard over the pages (v0.10, finding 24).
@@ -790,18 +797,23 @@ struct PdfScreen: View {
         .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-6"))
     }
 
-    /// The piece opened again in this screen's place, at the page under the bar, as «Сделать рабочими» or the toast's Undo
-    /// has just left its project file: the PDF view is kept for it and nothing more is written to the file.
+    /// The piece opened again in this screen's place as «Сделать рабочими», Undo or the first notes heard left its project
+    /// file (`reopening`): the PDF view is kept for it and nothing more is written to the file.
     private func reopenHere() async {
         guard let openRead, let file = piece.file else { return }
         pdf.keepView()
-        await openRead(file, .page(max(1, pdf.page)))
+        await openRead(file, PdfScreen.reopening(hadNotes: piece.other != nil, hasNotes: sources.layers.working != nil, page: pdf.page))
     }
 
-    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views the notes' screen
-    /// shows once the piece opens there, as only it holds the notes.
+    /// Where the piece opens again in the PDF's place: on its notes when it has its first, else at the page under the bar.
+    static func reopening(hadNotes: Bool, hasNotes: Bool, page: Int) -> Landing {
+        !hadNotes && hasNotes ? .tick(0) : .page(max(1, page))
+    }
+
+    /// A view picked in the switch: a recording is heard over the pages (v0.10, finding 24); other views, none with no notes
+    /// yet (v1.1: nothing left pending), the notes' screen shows once the piece opens there, as only it holds the notes.
     private func pickView(_ view: SourceLayers.ViewEntry) {
-        guard view.id != PdfScreen.documentView else { return }
+        guard view.id != PdfScreen.documentView, !withoutNotes || view.kind == "performance" else { return }
         if view.kind == "performance" {
             sources.performance = view.id
             return
@@ -815,82 +827,6 @@ struct PdfScreen: View {
     /// Sources from the PDF: its panel opens over the pages, and the PDF stays as it is (#582 item 4).
     private func openSources() {
         sourcesOpen.toggle()
-    }
-}
-
-/// The PDF's Contents (the web app's `.pdf-contents`): the bookmarked pages, to go to, name or remove.
-struct PdfContents: View {
-    @ObservedObject var pdf: PdfController
-    let text: UIText
-    /// Opens «Пьесы в этом файле».
-    var parts: (() -> Void)?
-    let go: (Int) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            if let parts { PiecePartsEntry(family: pdf.family, text: text, open: parts) }
-            Text(text["pdf.bookmarks"]).overline().accessibilityAddTraits(.isHeader)
-            if pdf.bookmarks.isEmpty {
-                Text(text["pdf.noBookmarks"])
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("ink-2"))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            ForEach(pdf.bookmarks) { bookmark in
-                PdfBookmarkRow(bookmark: bookmark, text: text) {
-                    go(bookmark.page)
-                } rename: { name in
-                    Task { await pdf.rename(bookmark, name) }
-                } remove: {
-                    Task { await pdf.remove(bookmark) }
-                }
-            }
-        }
-        .padding(CGFloat.ds("s-4"))
-        .frame(width: 360, alignment: .leading)
-        .background(Color.ds("surface"))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["bar.contents"])
-    }
-}
-
-struct PdfBookmarkRow: View {
-    let bookmark: PageBookmarkEntry
-    let text: UIText
-    let go: () -> Void
-    let rename: (String) -> Void
-    let remove: () -> Void
-    @State private var name = ""
-
-    var body: some View {
-        let place = text.format("contents.page", String(bookmark.page))
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Button(action: go) {
-                HStack(spacing: CGFloat.ds("s-1")) {
-                    Icon(name: "bookmark").foregroundStyle(Color.ds("ink-carmine"))
-                    Text(place)
-                        .dsType(.label)
-                        .monospacedDigit()
-                        .foregroundStyle(Color.ds("ink"))
-                }
-            }
-            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-            .accessibilityLabel(text.format("pdf.goTo", bookmark.name ?? place))
-            TextField(text["pdf.bookmarkName"], text: $name)
-                .dsType(.body)
-                .textFieldStyle(.roundedBorder)
-                .submitLabel(.done)
-                .onSubmit { rename(String(name.prefix(80))) }
-                .accessibilityLabel(text.format("pdf.bookmarkNameFor", place))
-            Button(action: remove) {
-                Icon(name: "trash").frame(width: 32, height: 32)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text.format("pdf.removeBookmark", place))
-            .accessibilityHint(text["pdf.removeBookmarkHint"])
-        }
-        .onAppear { name = bookmark.name ?? "" }
-        .onDisappear { rename(String(name.prefix(80))) }
     }
 }
 

@@ -95,8 +95,7 @@ struct VersionShelf: Equatable, Sendable {
     var taken: [VersionBar] { bars.filter(\.taken) }
     var dismissed: [VersionBar] { bars.filter(\.dismissed) }
 
-    /// Reads `performances` (or what removing one answers, `PerformancesAnswer`); the version shown stays shown while it is
-    /// there.
+    /// Reads `performances` (`PerformancesAnswer`); the version shown stays shown while it is there.
     mutating func read(list answer: String) {
         guard let list = FacadeAnswer.decode(PerformancesAnswer.self, answer, of: "performances") else { return }
         entries = (list.performances ?? []).compactMap { VersionEntry($0) }

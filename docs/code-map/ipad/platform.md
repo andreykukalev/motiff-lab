@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
-`OpenPiece`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
+`OpenPiece`, `OriginalSounds`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
@@ -30,6 +30,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
   what the page sends and the app leaves out stays quiet, as before. `RollEvent.broken` is a hook of its own beside
   `FacadeAnswer.broken`: a test that silences one does not silence the other.
+- `OpenPiece.swift`: a piece opened in music-core: engraved, or a PDF piece (`isDocument`), or, since v1.1 (finding 29),
+  a piece that is only its recording (`recording`, its original's id), neither engraved.
+- `ProjectFiles.swift`: the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
+  JPEG or PNG, a recording); `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
+- `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
+  project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and
+  bytes for the fingerprint, up to `fingerprintLimit`).
 - `Design.swift` reads `design/kit/tokens.css`.
 - `HighlightInk.swift` (v0.10 d-5): the four inks a highlight is laid in and an ink's kit colour by name, the one list
   for the marks' shelf and bookmarks (Marks) and the pen's colour bars (Ink).

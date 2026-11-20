@@ -208,11 +208,14 @@ final class SourcesController: ObservableObject {
     }
 
     /// A PDF or photos added as an original without recognising it: kept in the project file on this iPad, never online.
+    /// The first added to a piece that is only its recording opens the piece again in its place (`reopen`, v1.1).
     func addPages(_ data: Data, fileName: String, kind: String) async {
         var fields: [String: Any] = ["kind": kind, "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": Self.now()]
         if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
+        // A piece that was only its recording opens again as music-core now holds it: a PDF piece with its first PDF.
+        let onlyRecording = layers.working == nil && !layers.originals.contains { $0.isPages && !$0.isRemoved }
         if await change("sources.original.add", fields) != nil {
-            toast = SourcesToast(text: text.format("sources.sheet.toastAdded", fileName))
+            await tell(SourcesToast(text: text.format("sources.sheet.toastAdded", fileName)), reopening: onlyRecording)
         }
     }
 
@@ -227,14 +230,10 @@ final class SourcesController: ObservableObject {
     /// project file. The same recording as a deleted one comes back with its id, as music-core knows it by its bytes.
     func addRecording(_ picked: URL) async {
         guard let projectId else { return }
-        let lent = picked.startAccessingSecurityScopedResource()
-        let size = (try? picked.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        // Its bytes only give music-core the fingerprint; a very large file is described without it.
-        let data = size > 0 && size <= Self.fingerprintLimit ? try? Data(contentsOf: picked) : nil
-        if lent { picked.stopAccessingSecurityScopedResource() }
-        var fields: [String: Any] = ["kind": "audio", "fileName": picked.lastPathComponent, "kept": "device", "now": Self.now()]
-        if let milliseconds = OriginalSounds.milliseconds(of: picked) { fields["durationMs"] = milliseconds }
-        if let data { fields["data"] = data.base64EncodedString() }
+        let sound = OriginalSounds.picked(picked)
+        var fields: [String: Any] = ["kind": "audio", "fileName": sound.fileName, "kept": "device", "now": Self.now()]
+        if let milliseconds = sound.milliseconds { fields["durationMs"] = milliseconds }
+        if let data = sound.data { fields["data"] = data.base64EncodedString() }
         guard let object = await change("sources.original.add", fields), let id = object["id"] as? String else { return }
         guard OriginalSounds.keep(picked, project: projectId, original: id) else {
             status = text["sources.sheet.soundNotKept"]
@@ -243,9 +242,6 @@ final class SourcesController: ObservableObject {
         await refresh()
         toast = SourcesToast(text: text.format("sources.sheet.toastAdded", picked.lastPathComponent))
     }
-
-    /// The largest recording whose bytes are read for its fingerprint.
-    static let fingerprintLimit = 200 * 1024 * 1024
 
     /// «Удалить только оригинал» or «Удалить вместе с нотами» (0030, section 4): the toast undoes it by writing the file
     /// back as it was.
@@ -272,7 +268,13 @@ final class SourcesController: ObservableObject {
     /// and the bars taken from it leave the score, which music-core's open notes still hold: the piece opens again in its
     /// place from the file just saved (`reopen`, as «Сделать рабочими»), the toast with its Undo on the next screen.
     private func removed(_ done: SourcesToast, versions: Set<String>) async {
-        guard !versions.isSubset(of: versionIds), let file, let reopen else {
+        await tell(done, reopening: !versions.isSubset(of: versionIds))
+    }
+
+    /// The toast of what was just done: shown here, or, when the piece opens again in this screen's place (`reopening`,
+    /// `reopen`), handed to the next screen (SourcesHandover), which shows it.
+    private func tell(_ done: SourcesToast, reopening: Bool) async {
+        guard reopening, let file, let reopen else {
             toast = done
             return
         }
@@ -280,16 +282,18 @@ final class SourcesController: ObservableObject {
         await reopen()
     }
 
-    /// Whether the original can be recognised here, on a piece with working notes: a PDF or photos whose bytes are kept in
-    /// the piece here, or a recording whose sound is on this iPad (v0.10, findings 26 and 28).
+    /// Whether the original can be recognised here: on a piece with working notes, a PDF or photos whose bytes are kept in
+    /// the piece here (v0.10, findings 26 and 28); a recording whose sound is on this iPad, also on a piece with no notes
+    /// yet, whose working notes it then gives (v1.1, finding 29).
     func canRecognise(_ original: SourceLayers.Original) -> Bool {
-        ((original.isPages && original.kept == "file") || original.isRecording) && original.isHere && layers.working != nil
+        original.isHere && (original.isRecording || (original.isPages && original.kept == "file" && layers.working != nil))
     }
 
     /// «Распознать», the first time or again, the one path of recognising an original: what it is read from goes to the
     /// scan server (the player's yes is the panel's Send): the pages to the one chosen (`address`), a recording's sound to
     /// Motiff Lab's. The notes it reads become new Notes of that original beside the ones there are, which keep their
-    /// corrections, and the working notes stay as they are (`keepRecognised`). Answers why not, or nil once done.
+    /// corrections, and the working notes stay as they are (`keepRecognised`); a piece with no notes yet takes them as its
+    /// working notes and opens again on them (v1.1, finding 29). Answers why not, or nil once done.
     func recognise(_ original: SourceLayers.Original, address: URL?, account: Account) async -> String? {
         reading = original.id
         defer {
@@ -341,9 +345,9 @@ final class SourcesController: ObservableObject {
         return .success(Recognised(fields: fields, dropped: dropped, toast: text.count("sources.sheet.toastRead", pages)))
     }
 
-    /// The recording's sound, kept on this iPad, heard by Motiff Lab's scan server part by part (0014, as a recording added
-    /// as a new piece is), for `sources.notes.hear`: the notes of the whole recording, their bars found as for a live
-    /// performance ("tempo": "live").
+    /// The recording's sound, kept on this iPad, heard by Motiff Lab's scan server part by part (0014), for
+    /// `sources.notes.hear`: the notes of the whole recording, their bars found as for a live performance ("tempo":
+    /// "live"); the working notes' metre and tempo as the hint, none on a piece with no notes yet (v1.1, finding 29).
     private func hearRecording(_ original: SourceLayers.Original, account: Account) async -> Result<Recognised, Refusal> {
         guard let projectId, let url = OriginalSounds.file(project: projectId, original: original.id) else {
             return .failure(Refusal(words: text["sources.sheet.soundNotHere"]))
@@ -352,7 +356,7 @@ final class SourcesController: ObservableObject {
         case .failure(let problem):
             return .failure(Refusal(words: problem.message))
         case .success(let heard):
-            let hint = Self.hint(await PieceCore(piece: piece).playback().value)
+            let hint = await gridHint()
             let fields = Self.hearFields(heard, original: original.id, hint: hint, now: Self.now())
             // A metre music-core offers no grid for is refused: the notes heard are sent again without the hint.
             return .success(Recognised(fields: fields, dropped: hint == nil ? nil : "hint", toast: text["sources.sheet.toastHeard"]))
@@ -363,11 +367,19 @@ final class SourcesController: ObservableObject {
     /// original's id, the time and, when there is one, the working notes' metre and tempo as the grid's "hint", so the
     /// recording's bars come out in the piece's metre (v0.10 s-3).
     nonisolated static func hearFields(_ heard: HeardRecording, original: String, hint: [String: Any]?, now: String) -> [String: Any] {
-        var fields = heard.transcription
+        var fields = heard.request
+        fields["tempo"] = "live"
         fields["original"] = original
         fields["now"] = now
         if let hint { fields["hint"] = hint }
         return fields
+    }
+
+    /// The grid hint a recording is heard with: the working notes' metre and tempo (`hint`); none on a piece with no notes
+    /// yet, which has neither (v1.1, finding 29).
+    func gridHint() async -> [String: Any]? {
+        guard layers.working != nil else { return nil }
+        return Self.hint(await PieceCore(piece: piece).playback().value)
     }
 
     /// The working notes' metre and tempo as music-core's grid hint ({"signature": "3/4", "quarterNotesPerMinute"}): the
@@ -387,8 +399,11 @@ final class SourcesController: ObservableObject {
     }
 
     /// The notes recognised kept by music-core (`name`, the call of the kind of original read) as new Notes of their
-    /// original, shown fresh once, saved, and told in the toast. Answers why not, or nil once kept.
+    /// original, shown fresh once, saved, and told in the toast. On a piece with no notes until now they are its working
+    /// notes: the piece opens again on them in this screen's place (`reopen`), the toast on the next screen (v1.1,
+    /// finding 29). Answers why not, or nil once kept.
     private func keepRecognised(_ name: String, _ read: Recognised) async -> String? {
+        let first = layers.working == nil
         var fields = read.fields
         var answer = await call(name, fields)
         if let dropped = read.dropped, facadeObject(answer)?["error"] as? String == "badRequest" {
@@ -402,7 +417,7 @@ final class SourcesController: ObservableObject {
         fresh = id
         status = nil
         await save()
-        toast = SourcesToast(text: read.toast)
+        await tell(SourcesToast(text: read.toast), reopening: first)
         return nil
     }
 

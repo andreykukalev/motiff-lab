@@ -14,19 +14,54 @@ struct RecordingSound: Sendable {
 
     /// The sound of an audio or video file, all of it or its first `most` milliseconds; nil when it has none the iPad can read.
     static func read(_ url: URL, most: Int64? = nil) -> RecordingSound? {
+        let wanted = most.map { Int(Double($0) / 1000 * sampleRate) } ?? Int.max
+        var samples: [Int16] = []
+        let read = decode(url, wanted: wanted, length: { samples.reserveCapacity(min(wanted, $0)) }, each: { samples.append(contentsOf: $0) })
+        return read && !samples.isEmpty ? RecordingSound(samples: Array(samples.prefix(wanted))) : nil
+    }
+
+    /// How loud a file's sound is every 100 ms, all of it, as `levels(from:to:)` reads them, kept only as the levels: its
+    /// sound is read a block at a time and let go, so an hour's recording is never held whole (the waveform, v1.1); nil
+    /// when it has none the iPad can read.
+    static func levels(of url: URL) -> [Int]? {
+        let window = Int(sampleRate / 10)
+        var levels: [Int] = []
+        var sum = 0
+        var count = 0
+        var total = 0
+        let read = decode(url, wanted: Int.max, length: { levels.reserveCapacity($0 / window + 1) }, each: { block in
+            for sample in block {
+                sum += abs(Int(sample))
+                count += 1
+                if count == window {
+                    levels.append(Int((Double(sum) / Double(window)).rounded()))
+                    sum = 0
+                    count = 0
+                }
+            }
+            total += block.count
+        })
+        guard read, total > 0 else { return nil }
+        if count > 0 { levels.append(Int((Double(sum) / Double(count)).rounded())) }
+        let tenths = (Int((Double(total) * 1000 / sampleRate).rounded()) + 99) / 100
+        return Array(levels.prefix(tenths))
+    }
+
+    /// Converts a file's sound to mono 16-bit at 22,050 Hz a block at a time, at most `wanted` samples: `length` gets about
+    /// how many there will be first, `each` every block converted. False when the iPad cannot read it.
+    private static func decode(_ url: URL, wanted: Int, length: (Int) -> Void, each: (UnsafeBufferPointer<Int16>) -> Void) -> Bool {
         guard let file = try? AVAudioFile(forReading: url),
               let target = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true),
               let converter = AVAudioConverter(from: file.processingFormat, to: target)
-        else { return nil }
+        else { return false }
         converter.downmix = true
         let chunk: AVAudioFrameCount = 16_384
-        guard let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return nil }
-        let wanted = most.map { Int(Double($0) / 1000 * sampleRate) } ?? Int.max
-        var samples: [Int16] = []
-        samples.reserveCapacity(min(wanted, Int(Double(file.length) * sampleRate / max(file.processingFormat.sampleRate, 1)) + Int(chunk)))
+        guard let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return false }
+        length(Int(Double(file.length) * sampleRate / max(file.processingFormat.sampleRate, 1)) + Int(chunk))
+        var converted = 0
         var ended = false
-        while samples.count < wanted {
-            guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: chunk) else { return nil }
+        while converted < wanted {
+            guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: chunk) else { return converted > 0 }
             var failure: NSError?
             let status = converter.convert(to: output, error: &failure) { _, state in
                 if ended {
@@ -46,13 +81,14 @@ struct RecordingSound: Sendable {
                 state.pointee = .haveData
                 return input
             }
-            if status == .error || failure != nil { return samples.isEmpty ? nil : RecordingSound(samples: Array(samples.prefix(wanted))) }
+            if status == .error || failure != nil { return converted > 0 }
             if let channel = output.int16ChannelData?[0], output.frameLength > 0 {
-                samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+                each(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+                converted += Int(output.frameLength)
             }
             if status == .endOfStream || output.frameLength == 0 { break }
         }
-        return samples.isEmpty ? nil : RecordingSound(samples: Array(samples.prefix(wanted)))
+        return true
     }
 
     /// How loud the sound is every 100 ms from one moment to another: the mean size of its samples, as the web app's
@@ -175,10 +211,9 @@ enum Transcriber {
     }
 }
 
-/// A recording heard by Motiff Lab's scan server, part by part: what music-core needs to make notes of it, as a new piece
-/// (`open` with "transcription") or another version (`performance.add` with "parts").
+/// A recording kept in the piece heard by Motiff Lab's scan server, part by part: what music-core needs to make its Notes
+/// (`sources.notes.hear`, `SourcesController.hearFields`).
 struct HeardRecording: Sendable {
-    let name: String
     let engine: String
     let milliseconds: Int64
     let parts: [(index: Int, midi: Data)]
@@ -194,19 +229,6 @@ struct HeardRecording: Sendable {
             "levels": levels,
             "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
         ]
-    }
-
-    /// The request with "tempo": "live" (version 0.5, «Темп живого исполнения», contract 12), so music-core finds the beat
-    /// again after each pause and tempo jump and a concert of several pieces keeps its bars: a new piece's
-    /// "transcription", and, since v0.10 s-3, the fields of Notes heard in a recording kept in the piece
-    /// (`sources.notes.hear`, `SourcesController.hearFields`), which add the working notes' metre and tempo as the "hint".
-    /// No "starts": the iPad does not know where the pieces begin; a new piece has no "hint", with no score of it to take
-    /// a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so
-    /// it keeps `request`.
-    var transcription: [String: Any] {
-        var fields = request
-        fields["tempo"] = "live"
-        return fields
     }
 }
 
@@ -236,8 +258,7 @@ enum RecordingHearing {
         })
         if let why = heard.failure { return .failure(RecordingProblem(why)) }
         guard !heard.parts.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"])) }
-        let name = url.deletingPathExtension().lastPathComponent
-        return .success(HeardRecording(name: name, engine: heard.engine, milliseconds: milliseconds, parts: heard.parts, levels: levels))
+        return .success(HeardRecording(engine: heard.engine, milliseconds: milliseconds, parts: heard.parts, levels: levels))
     }
 
     /// How many parts go to Motiff Lab's scan server at most at once, as on the web (ScanService.HostedAtOnce).
@@ -249,23 +270,10 @@ struct RecordingProblem: Error, Sendable {
     init(_ message: String) { self.message = message }
 }
 
-/// Choosing a recording to be heard: what it needs first (Motiff Lab's scan server, an account, Pro, offered here), where
-/// the sound goes, and the button that picks the recording; picking it is the player's yes to sending its sound, with no
-/// switch to turn on first (v0.5.6, #533 section 8). Used to add another version from a recording (Other versions, 0022);
-/// the library's Add piece makes its whole card the button, with the same `blocker`.
-struct RecordingChooser: View {
-    @EnvironmentObject private var account: Account
-    let text: UIText
-    /// What the scan server does with the recording, said above the button.
-    let line: String
-    let button: String
-    let hint: String
-    let progress: String?
-    /// Why the last recording was not heard, under the button.
-    var problem: String?
-    let picked: (URL) -> Void
-    @State private var choosing = false
-
+/// What hearing a recording needs first (Motiff Lab's scan server, an account, Pro), said where «Распознать · Pro» on a
+/// recording kept in the piece offers it (`SourcesRecognisePanel`); picking Send there is the player's yes to sending its
+/// sound (v0.5.6, #533 section 8). Since v1.1 (finding 29) Add piece adds a recording without hearing it.
+enum RecordingChooser {
     /// What hearing a recording needs before it works here, in the player's words, and whether that is Pro; nil when it
     /// works: Motiff Lab's scan server in this build, an account, then Pro.
     @MainActor
@@ -274,44 +282,6 @@ struct RecordingChooser: View {
         if account.player == nil { return (text["transcribe.signInPrompt"], false) }
         if !account.allows(.transcribe) { return (text["transcribe.proPrompt"], true) }
         return nil
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            if let blocked = Self.blocker(account, text) {
-                if blocked.pro {
-                    HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                        ProTag()
-                        caption(blocked.words)
-                    }
-                } else {
-                    caption(blocked.words)
-                }
-            } else {
-                caption(line)
-                Button(progress ?? button) { choosing = true }
-                    .buttonStyle(DSButtonStyle(kind: .secondary))
-                    .disabled(progress != nil)
-                    .accessibilityHint(hint)
-            }
-            if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .fileImporter(isPresented: $choosing, allowedContentTypes: RecordingHearing.recordings) { result in
-            guard case .success(let url) = result else { return }
-            picked(url)
-        }
-    }
-
-    private func caption(_ words: String) -> some View {
-        Text(words)
-            .dsType(.caption)
-            .foregroundStyle(Color.ds("ink-2"))
-            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
