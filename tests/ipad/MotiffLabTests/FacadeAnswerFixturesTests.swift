@@ -218,6 +218,11 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual([long.firstBar, long.lastBar], [24, 77])
 
         XCTAssertEqual(read[1].units.filter(\.own).map(\.number), [2], "a start moved by the player")
+        XCTAssertEqual(read[1].unit(2)?.found?.at, 2880, "where it was found, its faint comma")
+        XCTAssertEqual([read[1].unit(2)?.found?.bar, read[1].unit(2)?.found?.beat], [4, 3], "«Вернуть найденную · 4.3»")
+        XCTAssertNil(read[0].unit(2)?.found, "a found start not moved")
+        XCTAssertEqual(read[1].previous?.phrase, PhraseLevelEdits.Edits(added: [], removed: []), "the edits before the move: its Undo")
+        XCTAssertEqual(read[1].edits?.phrase, PhraseLevelEdits.Edits(added: [2520], removed: [2880]), "the edits it left: Undo's expected")
         XCTAssertEqual(read[3].units.filter(\.own).map(\.number), [4], "a phrase the player started")
         XCTAssertEqual(read[3].unit(4)?.why, "set by you")
     }

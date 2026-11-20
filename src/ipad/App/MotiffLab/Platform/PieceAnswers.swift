@@ -50,13 +50,21 @@ struct PhrasesAnswer: Decodable, Sendable {
     }
 
     /// A phrase's start, its mark (the phrases spec, decision 1): how it was found ("imported", "inferred"; "userEdited",
-    /// "userConfirmed" for the player's own), the bar and beat of its start note, and «Почему здесь» in the player's
-    /// language (the Russian completes «начинается …»).
+    /// "userConfirmed" for the player's own), the bar and beat of its start note, «Почему здесь» in the player's
+    /// language (the Russian completes «начинается …»), and for a found start the player moved, where it was found.
     struct Start: Decodable, Sendable {
         let provenance: String?
         let bar: Int?
         let beat: Int?
         let why: String?
+        let found: Found?
+    }
+
+    /// Where a start the player moved was found: its tick, bar and beat.
+    struct Found: Decodable, Equatable, Sendable {
+        let at: Double
+        let bar: Int
+        let beat: Int
     }
 
     /// A section of the form (`Answer.FormSection`, A, B, A′…): its letter, where it is, the sections it shares its music
@@ -78,6 +86,28 @@ struct PhrasesAnswer: Decodable, Sendable {
 
     let units: [Unit]
     let sections: [Section]?
+    /// The player's edits of the boundaries now, and (from `phrases.edit`) as they were before the edit: one step of Undo.
+    let edits: PhraseLevelEdits?
+    let previous: PhraseLevelEdits?
+}
+
+/// The player's edits of the boundaries as music-core answers them ("edits", "previous"): each level's starts added and
+/// removed, in ticks, sent back as they are to undo or redo a step (`phrases.edit` "restore" and "expected"; a level left
+/// out has none).
+struct PhraseLevelEdits: Codable, Equatable, Sendable {
+    struct Edits: Codable, Equatable, Sendable {
+        var added: [Int]
+        var removed: [Int]
+    }
+
+    var short: Edits?
+    var phrase: Edits?
+    var sentence: Edits?
+
+    /// The edits as JSON, for a request.
+    var json: String {
+        (try? JSONEncoder().encode(self)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
 }
 
 /// The playback score (`Answer.Playback`: `playback`, the reference's sounds): notes with

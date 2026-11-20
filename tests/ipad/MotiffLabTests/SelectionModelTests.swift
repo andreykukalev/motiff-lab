@@ -133,6 +133,50 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertEqual(edited.units.filter(\.own).map(\.number), [3], "drawn in amber")
     }
 
+    /// A mark dragged is one step of the phrases' own Undo and Redo (v1.2 i-3a, c-2's restore): Undo puts the found start
+    /// back, Redo moves it again, each with its toast; the selection stays exactly as it was throughout.
+    func testAPhraseEditIsOneStepOfItsUndoAndRedoAndLeavesTheSelection() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd))}}"#, step: true)
+        let selected = model.selection
+
+        let refused = await model.editPhrases(in: piece, #"{"move": {"from": \#(Int(second.onset)), "to": \#(Int(second.onset) - 360)}}"#, done: "moved")
+        XCTAssertNil(refused)
+        let moved = try XCTUnwrap(model.phrases?.unit(2))
+        XCTAssertTrue(moved.own, "the player's boundary, amber")
+        XCTAssertEqual(moved.found?.at, second.onset, "the found start keeps its ghost")
+        XCTAssertEqual(model.selection, selected, "an edit never changes the selection")
+        XCTAssertEqual(model.phraseToast?.offer, .undo)
+        XCTAssertTrue(model.phraseSteps.canUndo)
+
+        let undone = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertNil(undone)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, second.onset, "Undo: the found start again")
+        XCTAssertFalse(model.phrases?.unit(2)?.own ?? true)
+        XCTAssertEqual(model.phraseToast?.offer, .redo)
+        let redone = await model.stepPhrases(in: piece, redo: true, done: "redone")
+        XCTAssertNil(redone)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, moved.onset, "Redo: moved again")
+        XCTAssertEqual(model.selection, selected, "nor do Undo and Redo")
+    }
+
+    /// An Undo after the phrases changed elsewhere is refused (c-2: "unavailable"): its reason in the toast, and the step goes.
+    func testAnUndoThatCanNoLongerBeDoneSaysWhyAndGoes() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await model.editPhrases(in: piece, #"{"remove": \#(Int(second.onset))}"#, done: "removed")
+        _ = MusicCore.call(piece: piece, "phrases.edit", #"{"resetAll": true}"#)
+        let refused = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertNotNil(refused)
+        XCTAssertEqual(model.phraseToast?.words, refused, "the reason, in the toast")
+        XCTAssertNil(model.phraseToast?.offer)
+        XCTAssertFalse(model.phraseSteps.canUndo)
+        XCTAssertFalse(model.phraseSteps.canRedo, "the step is gone")
+    }
+
     func testARevertedGestureLeavesNoStep() throws {
         let model = opened(9_105)
         model.record(from: nil, to: one, gesture: nil)

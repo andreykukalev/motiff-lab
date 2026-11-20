@@ -89,7 +89,8 @@ struct DraftTechniqueCard: View {
 }
 
 /// A card of a draft's view at its mark on the page (`at`, the mark's bottom left), on ds.css's `.menu` surface as a
-/// version marker's popover, kept on the screen; a tap elsewhere puts it away (`close`).
+/// version marker's popover, kept on the screen; a tap elsewhere puts it away (`close`). A phrase's mark's menu is one too
+/// (ScorePhraseEdits.swift).
 struct DraftCardAtMark<Content: View>: View {
     let at: CGPoint
     let close: @MainActor () -> Void

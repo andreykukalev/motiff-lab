@@ -12,6 +12,7 @@ import { places, selection } from "./page-selection.js";
 import { colouring } from "./page-colouring.js";
 import { press } from "./page-playheads.js";
 import { cardTapped } from "./page-card.js";
+import { phraseMarkSwallowsClick } from "./page-phrase-drag.js";
 
 /** How far above or below a bar's staves a tap still lands on that bar, in pixels. */
 const BAR_REACH = 24;
@@ -101,6 +102,10 @@ function barUnder(event: MouseEvent): ScoreBar | undefined {
 function tapOnMark(target: Element | null): boolean {
     const phrase = target?.closest<HTMLElement>(".phrase-mark");
     if (phrase) {
+        // The release of a hold or a drag of a phrase's number is no tap (page-phrase-drag.ts).
+        if (phraseMarkSwallowsClick()) {
+            return true;
+        }
         post(phrase.dataset.section === undefined ? { phraseMark: Number(phrase.dataset.phrase) } : { sectionMark: phrase.dataset.section });
         return true;
     }

@@ -6,11 +6,16 @@ struct PiecePhrases: Equatable, Sendable {
     var units: [PhraseUnit]
     /// The sections of the form, A, B, A′…, each with its letter at its start on the score.
     var sections: [FormSection]
+    /// The player's edits of the boundaries now, and before the edit that answered them: one step of their Undo.
+    var edits: PhraseLevelEdits?
+    var previous: PhraseLevelEdits?
 
     /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
     init(_ answer: PhrasesAnswer) {
         units = answer.units.compactMap(PhraseUnit.init)
         sections = (answer.sections ?? []).map(FormSection.init)
+        edits = answer.edits
+        previous = answer.previous
     }
 
     /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
@@ -50,6 +55,9 @@ struct PhraseUnit: Equatable, Sendable {
     var startBeat: Int
     /// «Почему здесь»: how its start was found, in the player's language, completing «начинается …».
     var why: String
+    /// For a found start the player moved: where it was found, its tick (the faint comma there), bar and beat
+    /// («Вернуть найденную · 4.3»); nil for any other start.
+    var found: PhrasesAnswer.Found?
 
     /// A unit music-core answers; nil without its number, onset or end.
     init?(_ unit: PhrasesAnswer.Unit) {
@@ -66,6 +74,7 @@ struct PhraseUnit: Equatable, Sendable {
         startBar = unit.start?.bar ?? firstBar
         startBeat = unit.start?.beat ?? 1
         why = unit.start?.why ?? ""
+        found = unit.start?.found
     }
 }
 

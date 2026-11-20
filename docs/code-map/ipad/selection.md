@@ -13,8 +13,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
 - `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`. The page's rule is `Scripts/score/selection-places.ts` (`../score.md`).
 - `SelectionHistory.swift`: the selection's Undo and Redo: one step a finished gesture, up to 50 for the piece.
+  Also the phrases' edits' (`SelectionHistory<PhraseLevelEdits>`, v1.2 i-3a); `dropLast` takes a refused step away.
 - `SelectionModel.swift` (S1, S3, ADR 0031 section 3): the selection's state and its own rules (the history's steps,
-  the toast's and the hold hint's time), selecting and reading the phrases through music-core. Tests:
+  the toast's and the hold hint's time), selecting and reading the phrases through music-core, and editing them
+  (`editPhrases`, `stepPhrases`: c-2's restore/expected, `phraseSteps`, `phraseToast`; the selection untouched). Tests:
   `MotiffLabTests/SelectionModelTests`.
 
 ## The contract others may rely on

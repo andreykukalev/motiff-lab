@@ -102,6 +102,7 @@ extension ScoreWorkspace {
     /// playback model as the page and the roll draw it.
     func applyModel() {
         score.setBeatLines(player.beatLines)
+        score.setBarBeats(player.barBeats)
         syncPlayheads()
         if score.holdsSelection { player.hold(selection: score.focusModel.playRange?.range) }
     }
