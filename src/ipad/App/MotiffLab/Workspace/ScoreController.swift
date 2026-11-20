@@ -354,7 +354,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch event {
         case let .pages(first, last, count):
             pages = PagesInView(first: first, last: last, count: count)
-        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark:
+        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark, .motifMark:
             markTapped(event)
         case let .phraseHeld(number, left, bottom):
             holdPhrase(number, at: CGPoint(x: left, y: bottom))
@@ -384,7 +384,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     /// A mark on the score tapped: a bookmark goes there, a margin note opens, a Check flag shows its bar, a version's or a
-    /// draft's marker opens its card, a phrase's number or a section's letter selects it (ScorePhraseMarks.swift).
+    /// draft's marker opens its card, a phrase's number, a section's letter or a motif's comma selects it
+    /// (ScorePhraseMarks.swift).
     private func markTapped(_ event: PageEvent) {
         switch event {
         case .bookmark(let id):
@@ -398,6 +399,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             pickPhrase(number)
         case .sectionMark(let id):
             pickSection(id)
+        case let .motifMark(phrase, motif):
+            pickMotif(motif, of: phrase)
         default:
             pickMarker(event)
         }

@@ -108,7 +108,7 @@ final class FocusModel: ObservableObject {
     /// The phrase the card is, or that holds its start.
     var unit: PhraseUnit? {
         guard let selected = selection.selection, let phrases = selection.phrases else { return nil }
-        return phrases.unit(selected: selected) ?? phrases.units.first { $0.onset <= selected.onset && selected.onset < $0.end }
+        return phrases.unit(selected: selected) ?? phrases.unit(at: selected.onset)
     }
 
     var canStepBack: Bool { (unit?.number ?? 1) > 1 }

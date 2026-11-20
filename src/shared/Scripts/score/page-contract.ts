@@ -129,6 +129,14 @@ export interface PagePhraseMark {
     own?: boolean;
     label: string;
     found?: number;
+    /** Its motifs (decision 2), in time order: each one's start onset and what a screen reader says; drawn only in focus. */
+    motifs?: PageMotifMark[];
+}
+
+/** A motif of a phrase, a small comma on the card in focus that a tap selects: its start's onset and its label. */
+export interface PageMotifMark {
+    tick: number;
+    label: string;
 }
 
 /** A section of the form where it starts: its id (what a tap on its letter posts), its boxed letter and what a screen reader says. */
@@ -240,6 +248,8 @@ export interface PageEvents {
     phraseHeld: number;
     /** A phrase's mark dragged and let go on a note: the tick its phrase starts at and the onset of that note. */
     phraseMoved: { from: number; to: number };
+    /** A motif's comma tapped on the card in focus: its phrase's number and the motif's place in it, from 1. */
+    motifMark: { phrase: number; motif: number };
     place: TickRange;
     heads: { handle: Handle; x: number; y: number }[];
     drag: DragMessage;

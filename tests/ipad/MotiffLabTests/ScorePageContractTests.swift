@@ -85,6 +85,13 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual(id, "section_2")
     }
 
+    /// A motif's comma tapped on the card in focus (the phrases spec, decision 2) names its phrase and its place in it.
+    func testAMotifMarkNamesItsPhraseAndItsPlace() {
+        guard case let .motifMark(phrase, motif)? = PageEvent.events(in: ["motifMark": ["phrase": 3, "motif": 2]]).first else { return XCTFail("a motif's comma") }
+        XCTAssertEqual([phrase, motif], [3, 2])
+        XCTAssertTrue(PageEvent.events(in: ["motifMark": ["phrase": 3]]).isEmpty, "a motif needs its place")
+    }
+
     /// A phrase's number held names its phrase with where it is, for its menu; a mark dragged and let go, the start it
     /// moves from and the note it goes to (the phrases spec, v1.2 i-3a).
     func testAPhraseMarkHeldCarriesItsPlaceAndOneDraggedItsMove() {

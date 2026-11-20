@@ -197,4 +197,89 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertNil(model.toast)
         XCTAssertNil(model.revert("g2"))
     }
+
+    /// The card «Выделить её по новым границам?» (the phrases spec, «Player's boundaries» 4, v1.2 i-3b): after an edit that
+    /// changed the phrase the selection was exactly, it offers that phrase's new span; the selection itself never changes,
+    /// and the next selection puts the card away.
+    func testAnEditOfTheSelectedPhraseOffersItsNewBoundariesAndChangesNothing() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd))}}"#, step: true)
+        let selected = model.selection
+
+        _ = await model.editPhrases(in: piece, #"{"move": {"from": \#(Int(second.onset)), "to": \#(Int(second.onset) - 360)}}"#, done: "moved")
+        let offer = try XCTUnwrap(model.phraseOffer, "the selection was phrase 2")
+        let moved = try XCTUnwrap(model.phrases?.unit(2))
+        XCTAssertEqual(offer.number, 2)
+        XCTAssertEqual([offer.onset, offer.end], [moved.selectableOnset, moved.selectableEnd], "its new boundaries")
+        XCTAssertEqual(model.selection, selected, "only «Выделить» changes the selection")
+
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(offer.onset)), "end": \#(Int(offer.end))}}"#, step: true)
+        XCTAssertNil(model.phraseOffer, "«Выделить» (or any other selection) puts it away")
+        XCTAssertEqual(model.phrases?.unit(selected: model.selection)?.number, 2, "the phrase by its new boundaries")
+        XCTAssertEqual(model.undo()?.before, SelectionSpan(selected), "one step of the selection's own history")
+    }
+
+    /// A selection that was not exactly a phrase gets no card; a reset is one edit, its Undo in the phrases' own history.
+    func testASelectionThatWasNoPhraseGetsNoCardAndAResetIsOneStep() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd) - 240)}}"#, step: true)
+        XCTAssertEqual(model.phrases?.unit(enclosing: model.selection)?.number, 2, "«Вся фраза» offers phrase 2")
+
+        _ = await model.editPhrases(in: piece, #"{"remove": \#(Int(second.onset))}"#, done: "removed")
+        XCTAssertNil(model.phraseOffer, "not exactly a phrase: no card")
+        XCTAssertEqual(model.phrases?.own, 1, "«Ваших границ: 1»")
+
+        _ = await model.editPhrases(in: piece, #"{"resetAll": true}"#, done: "reset")
+        XCTAssertEqual(model.phrases?.own, 0)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, second.onset, "the found boundary again")
+        XCTAssertEqual(model.phraseToast?.offer, .undo)
+        _ = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertEqual(model.phrases?.own, 1, "Undo takes the reset back in one step")
+    }
+
+    /// A motif's comma tapped in focus (the phrases spec, decision 2): the page gets each phrase's motifs from music-core with
+    /// what a screen reader says, and a tap selects the motif's span in place of the selection there was, one step of the
+    /// selection's history; a motif the phrase has not selects nothing.
+    func testAMotifTappedInFocusIsSelectedAsOneStep() async throws {
+        let example = try XCTUnwrap(OpenPiece.example, "the example piece is in the app")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let score = ScoreController()
+        score.scorePage = RecordingScorePage()
+        score.show(piece, dark: false)
+        await score.selectionModel.loadPhrases(of: piece.id)
+        let phrase = try XCTUnwrap(score.selectionModel.phrases?.unit(1))
+        let motif = try XCTUnwrap(phrase.motifs.last, "music-core gives the phrase its motifs")
+        let marks = try XCTUnwrap(score.phraseMarks["phrases"] as? [[String: Any]])
+        let drawn = try XCTUnwrap(marks.first?["motifs"] as? [[String: Any]])
+        XCTAssertEqual(drawn.compactMap { $0["tick"] as? Double }, phrase.motifs.map(\.onset))
+        let label = try XCTUnwrap(drawn.last?["label"] as? String)
+        XCTAssertTrue(label.contains(barsText(motif.firstBar, motif.lastBar, score.text)), label)
+        XCTAssertFalse(label.contains("phrases.motifLabel"), "its words are in the Words")
+
+        score.pickMotif(phrase.motifs.count + 1, of: 1)
+        XCTAssertNil(score.selectionModel.selection, "no such motif")
+        // The piece's history is kept by its number in music-core, which another test may have left steps under.
+        let stepsBefore = score.selectionModel.steps.done.count
+        score.pickMotif(phrase.motifs.count, of: 1)
+        for _ in 0..<100 where score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
+        let selected = try XCTUnwrap(score.selectionModel.selection, "music-core selects the motif")
+        XCTAssertEqual([selected.onset, selected.end], [motif.onset, motif.end])
+        XCTAssertEqual(score.selectionModel.steps.done.count, stepsBefore + 1, "one step of the selection's history: this tap's")
+    }
+
+    /// «Вся фраза» (the phrases spec, decision 5): only for a selection inside one phrase that is not that phrase exactly.
+    func testTheWholePhraseIsOfferedOnlyInsideOnePhrase() throws {
+        let answer = #"{"units": [{"number": 1, "onset": 0, "end": 1920}, {"number": 2, "onset": 1920, "end": 3840}]}"#
+        let phrases = try XCTUnwrap(PiecePhrases(answer: answer))
+        let inside = ScoreSelection(onset: 480, end: 960, firstBar: 1, lastBar: 1)
+        XCTAssertEqual(phrases.unit(enclosing: inside)?.number, 1)
+        XCTAssertNil(phrases.unit(enclosing: ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 2)), "the phrase exactly")
+        XCTAssertNil(phrases.unit(enclosing: ScoreSelection(onset: 960, end: 2400, firstBar: 2, lastBar: 3)), "across a boundary")
+        XCTAssertEqual(phrases.unit(at: 1920)?.number, 2)
+    }
 }

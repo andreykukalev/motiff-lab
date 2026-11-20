@@ -139,7 +139,8 @@ struct NoteCard: View {
 }
 
 /// Extra information and the player's marks (0018 section 5; testing item 33): first the phrases' marks, shown by default
-/// and kept on this device (the phrases spec, v1.2); then what else the app adds over the notes, off by default, each kind
+/// and kept on this device, with «Вернуть найденные границы» (the phrases spec, v1.2; a warning first while the player has
+/// boundaries of their own); then what else the app adds over the notes, off by default, each kind
 /// with its own switch; then the layers of the player's own marks, each hidden for a clean page or all at once; those
 /// kept with the piece.
 struct LayersList: View {
@@ -149,6 +150,8 @@ struct LayersList: View {
     let text: UIText
     /// Whether the piece has other versions, a plain value from the screen that observes them (Marks may not read Sources).
     let hasVersions: Bool
+    /// The player's own boundaries the reset would replace, while its warning asks; nil while it does not.
+    @State private var resetting: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -158,6 +161,14 @@ struct LayersList: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
+            // Every boundary as the app found it («Player's boundaries» 2): at once without the player's own, else after the warning.
+            if let phrases = score.selectionModel.phrases, !phrases.units.isEmpty {
+                Button(text["phrases.reset"]) {
+                    if phrases.own > 0 { resetting = phrases.own } else { score.resetPhrases() }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                .padding(.leading, CGFloat.ds("s-3"))
+            }
             let extraOn = !marksModel.hiddenLayers.contains("extra")
             Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
                 .dsType(.label)
@@ -191,6 +202,10 @@ struct LayersList: View {
                 score.showLayers(layers, allHidden)
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+        }
+        .alert(text.format("phrases.resetWarning", String(resetting ?? 0)), isPresented: Binding(get: { resetting != nil }, set: { if !$0 { resetting = nil } })) {
+            Button(text["phrases.resetConfirm"], role: .destructive) { score.resetPhrases() }
+            Button(text["common.cancel"], role: .cancel) {}
         }
     }
 }

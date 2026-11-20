@@ -3,7 +3,9 @@
 // app's own card layout (Scripts/score/phrase-card.ts), and the page shows the SVG. A tap on the dimmed page goes back to
 // it (`leave`). A variation being tried is engraved above the phrase as an ossia, in the kit's dashed plum frame named by
 // an overline, and its added notes are plum. In Expand the card has the page's black playhead too, dragged inside the
-// passage (v0.6.4, spec 8: `drawCardHeads`), and a tap on a bar of the card puts it on the beat tapped (`place`).
+// passage (v0.6.4, spec 8: `drawCardHeads`), and a tap on a bar of the card puts it on the beat tapped (`place`). The
+// phrases' marks stand over its bars as over the pages (page-phrases.ts), only to read, with each motif's small comma,
+// which a tap selects (page-taps.ts).
 import { cardLayout } from "../phrase-card.js";
 import { ScoreGeometry, readPage, staffFrames, type PageGeometry, type Playhead } from "../score-geometry.js";
 import { ScoreTimeline } from "../score-timeline.js";
@@ -18,6 +20,7 @@ import { post, state } from "./page-state.js";
 import { tint } from "./page-marks.js";
 import { drawHeads, grabs, press, reportPlace } from "./page-playheads.js";
 import { forgetSounding, heard } from "./page-sounding.js";
+import { placeCardPhrases } from "./page-phrases.js";
 
 /** Only a change of the card's width beyond this engraves it again, as in the web app. */
 const RELAYOUT_THRESHOLD_PX = 24;
@@ -131,11 +134,15 @@ function placementOf(svg: Element, page: PageGeometry, view: DOMRect): { left: n
     };
 }
 
-/** Where every bar of the card sits, in the card's own pixels (it scrolls inside itself), as `layout` does for the pages. */
+/**
+ * Where every bar of the card sits, in the card's own pixels (it scrolls inside itself), as `layout` does for the pages;
+ * the phrases' marks drawn over them again.
+ */
 export function layoutCard(): void {
     const timeline = card.timeline;
     if (!state.focus || timeline === null) {
         card.geometry = null;
+        placeCardPhrases(null);
         return;
     }
     const view = cardScore.getBoundingClientRect();
@@ -147,6 +154,20 @@ export function layoutCard(): void {
         }
     });
     card.geometry = new ScoreGeometry(card.pages, placements, (id) => timeline.measureOnset(id));
+    placeCardPhrases({
+        root: cardScore,
+        geometry: card.geometry,
+        offset: card.offset,
+        end: timeline.spans.reduce((end, span) => Math.max(end, span.end), 0),
+        onsetOf: (id) => timeline.onsetOf(id),
+        local: (box) => {
+            const at = cardScore.getBoundingClientRect();
+            const [x, y] = [cardScore.scrollLeft - at.left, cardScore.scrollTop - at.top];
+            return { left: box.left + x, top: box.top + y, right: box.right + x, bottom: box.bottom + y };
+        },
+        system: (bar) => cardScore.querySelector(`[id="${CSS.escape(bar)}"]`)?.closest("g.system") ?? null,
+        taps: "motifs",
+    });
 }
 
 /** Draws the card's black playhead (Expand under the playback model), or hides it. */
@@ -182,6 +203,7 @@ export function focus({ open, label, back }: Parameters<PageCommands["focus"]>[0
         card.timeline = null;
         card.geometry = null;
         card.ossias = [];
+        placeCardPhrases(null);
         return {};
     }
     veil.setAttribute("aria-label", back ?? "");

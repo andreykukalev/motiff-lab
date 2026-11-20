@@ -1,8 +1,8 @@
 // Taps on the iPad's score page, and who may make them. Who selects, taps or writes with a finger or the Pencil is
 // Swift's (`input`, InputRules.swift, #479 item 18), under the bar's mode (`mode`) and its Pen (`pen`). A tap on a mark over
 // the bars names it to Swift (a Check flag, a version's label, a margin note, a bookmark, a phrase's number or a section's
-// letter); a tap on the music names its bar, or under the modes puts the playhead on the beat under it; a tap never plays
-// (#338).
+// letter, a motif's comma on the card in focus); a tap on the music names its bar, or under the modes puts the playhead on
+// the beat under it; a tap never plays (#338).
 import { beatUnder, modeOf } from "../score-modes.js";
 import { ScoreBeats } from "../selection-beats.js";
 import type { ScoreBar } from "../score-geometry.js";
@@ -145,7 +145,11 @@ export function listenTaps(): void {
     document.body.addEventListener("click", (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("#focus")) {
-            if (target.closest(".card-score") !== null) {
+            // A motif's comma on the card names the motif to Swift, which selects it (the phrases spec, decision 2).
+            const motif = target.closest<HTMLElement>("button.phrase-mark[data-motif]");
+            if (motif !== null) {
+                post({ motifMark: { phrase: Number(motif.dataset.motifOf), motif: Number(motif.dataset.motif) } });
+            } else if (target.closest(".card-score") !== null) {
                 cardTapped(event);
             }
             return;

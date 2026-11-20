@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { liftOver, phraseAt, placeMarks } from "../../src/shared/wwwroot/js/score/phrase-marks.js";
+import { commaOf, liftOver, markStarts, phraseAt, placeMarks } from "../../src/shared/wwwroot/js/score/phrase-marks.js";
 
 const sizes = { gap: 4, height: 18, target: 44 };
 const none = () => [];
@@ -94,6 +94,48 @@ test("targets on different systems, or at different heights, are not split", () 
     const [one, two] = placeMarks([spot({}), spot({ system: 1, noteLeft: 110 })], none, sizes);
     assert.equal(one.numberTarget.right, 126);
     assert.equal(two.numberTarget.left, 92);
+});
+
+test("in focus a motif's comma takes the tap, centred on it, and the card's phrase marks take none", () => {
+    const [phrase, motif, near] = placeMarks([
+        spot({ letter: 14, tap: "none" }),
+        spot({ noteLeft: 300, comma: 4, number: 0, tap: "comma" }),
+        spot({ noteLeft: 320, comma: 4, number: 0, tap: "comma" }),
+    ], none, sizes);
+    assert.equal(phrase.letterTarget, null, "only to read");
+    assert.equal(phrase.numberTarget, null);
+    assert.equal(phrase.commaTarget, null);
+    assert.equal(motif.comma, 300 - 4 - 2, "the small comma right before its note, as a phrase's");
+    assert.equal(motif.number, null, "no number");
+    assert.equal(motif.numberTarget, null);
+    const centre = 294 + 2;
+    assert.deepEqual({ ...motif.commaTarget, right: 0 }, { left: centre - 22, right: 0, top: 156, bottom: 200 });
+    assert.equal(motif.commaTarget.right, (centre + 316) / 2, "a close motif's target shares the room between them");
+    assert.equal(near.commaTarget.left, (centre + 316) / 2);
+    const [own] = placeMarks([spot({ tap: "comma" })], none, sizes);
+    assert.deepEqual(own.commaTarget, { left: 94 - 22, right: 94 + 22, top: 156, bottom: 200 }, "a phrase's comma takes its first motif's tap");
+    assert.equal(own.numberTarget, null);
+    assert.equal(placeMarks([spot({})], none, sizes)[0].commaTarget, null, "on the pages a comma takes no tap");
+});
+
+test("the starts drawn: one for each tick, the motifs only in focus, a motif at its phrase's start or a found start shown by that comma", () => {
+    const phrases = [
+        { number: 1, tick: 0, label: "1", motifs: [{ tick: 0, label: "m1" }, { tick: 960, label: "m2" }] },
+        { number: 2, tick: 2520, label: "2", found: 2880, motifs: [{ tick: 2520, label: "m3" }, { tick: 2880, label: "m4" }] },
+    ];
+    const sections = [{ id: "section_1", tick: 0, letter: "A", label: "A" }];
+    const page = markStarts(phrases, sections, false);
+    assert.deepEqual(page.map((start) => [start.tick, commaOf(start)]), [[0, "comma"], [2520, "comma"], [2880, "comma ghost"]], "no motifs on the pages");
+    assert.equal(page[0].section.id, "section_1");
+    const card = markStarts(phrases, sections, true);
+    assert.deepEqual(card.map((start) => [start.tick, commaOf(start), start.motif?.of, start.motif?.number]), [
+        [0, "comma", 1, 1],
+        [960, "comma motif", 1, 2],
+        [2520, "comma", 2, 1],
+        [2880, "comma ghost", 2, 2],
+    ], "a motif at its phrase's start takes the phrase's comma, one at a found start the ghost, which still shows");
+    assert.equal(card[3].ghost, true);
+    assert.equal(commaOf({ tick: 0, section: sections[0] }), null, "a section alone has no comma");
 });
 
 test("the phrase playing is the last one that starts at or before the moment", () => {

@@ -1197,6 +1197,7 @@ struct SelectionMenu: View {
                     Task { await score.practiseSuggestion(offer, on: player) }
                 }
             } else {
+                let card = more || selectionModel.phraseOffer != nil
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                     actions
                     if more {
@@ -1211,12 +1212,22 @@ struct SelectionMenu: View {
                             }
                         }
                         .buttonStyle(DSItemStyle())
+                        // A new boundary at the selection's first note (the phrases spec, decision 5), where none starts.
+                        if startsPhrase {
+                            Button(text["phrases.start"]) { score.startPhrase() }
+                                .buttonStyle(DSItemStyle())
+                        }
+                    }
+                    // The phrase the selection was changed by an edit: its new boundaries offered (ScorePhraseEdits.swift).
+                    if let offer = selectionModel.phraseOffer {
+                        Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+                        PhraseOfferCard(score: score, offer: offer, text: text)
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-2"))
                 .padding(.vertical, CGFloat.ds("s-1"))
-                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: more ? CGFloat.ds("r-l") : 26))
-                .overlay(RoundedRectangle(cornerRadius: more ? CGFloat.ds("r-l") : 26).strokeBorder(Color.ds("hairline")))
+                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: card ? CGFloat.ds("r-l") : 26))
+                .overlay(RoundedRectangle(cornerRadius: card ? CGFloat.ds("r-l") : 26).strokeBorder(Color.ds("hairline")))
             }
         }
         .dsShadow("shadow-menu")
@@ -1238,12 +1249,29 @@ struct SelectionMenu: View {
     }
 
     /// Where the selection starts and ends: as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); beat by
-    /// beat until the sound has given the bars' beats.
+    /// beat until the sound has given the bars' beats. A selection that is a phrase exactly is named by it: «Фраза 2 · 4.3 –
+    /// 8.3» (the phrases spec, «Polish of option A» 5).
     private var menuSpan: String? {
-        if let range = focusModel.playRange?.range, let span = player.barBeats.span(range) {
-            return text.format("pill.span", span.first, span.last)
+        var span = selectionModel.selection?.beatSpan(text)
+        if let range = focusModel.playRange?.range, let beats = player.barBeats.span(range) {
+            span = text.format("pill.span", beats.first, beats.last)
         }
-        return selectionModel.selection?.beatSpan(text)
+        guard let span, let unit = selectionModel.phrases?.unit(selected: selectionModel.selection) else { return span }
+        return text.format("selection.phrase", String(unit.number), span)
+    }
+
+    /// «Вся фраза · 4.3 – 8.3» for a selection inside a phrase (the phrases spec, decision 5, from option C); nil otherwise.
+    private var wholePhrase: String? {
+        guard !viewOnly, let unit = selectionModel.phrases?.unit(enclosing: selectionModel.selection) else { return nil }
+        guard let beats = player.barBeats.span(unit.selectableOnset..<unit.selectableEnd) else { return text["phrases.whole"] }
+        return text.format("phrases.wholeSpan", text.format("pill.span", beats.first, beats.last))
+    }
+
+    /// Whether More offers «Начать фразу здесь»: on the piece's working notes with the phrases' marks shown, where no phrase
+    /// starts at the selection already.
+    private var startsPhrase: Bool {
+        guard !viewOnly, !marksModel.phraseMarksHidden, let selection = selectionModel.selection, let phrases = selectionModel.phrases else { return false }
+        return !phrases.units.isEmpty && !phrases.units.contains { $0.onset == selection.onset }
     }
 
     /// The menu's items besides Expand, «Черновик», Hide and Clear: Note and Bookmark, Insights over notes, and More. On a
@@ -1264,6 +1292,11 @@ struct SelectionMenu: View {
                     .dsType(.label)
                     .foregroundStyle(Color.ds("accent"))
                     .padding(.horizontal, CGFloat.ds("s-2"))
+                ItemDivider()
+            }
+            if let wholePhrase {
+                Button(wholePhrase) { score.selectWholePhrase() }
+                    .buttonStyle(DSChipStyle())
                 ItemDivider()
             }
             if !penModel.penOn {
