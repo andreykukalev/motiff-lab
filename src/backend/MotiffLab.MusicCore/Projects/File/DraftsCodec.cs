@@ -124,7 +124,7 @@ internal static class DraftsCodec
             WriteSource(json, variant.From);
             WriteProvenance(json, variant.Provenance);
             json.WriteStartObject("music");
-            WriteMusic(json, variant.Music);
+            WriteMusic(json, variant.Music, tempoSources: true);
             json.WriteEndObject();
             if (variant.Anchors.Count > 0)
             {

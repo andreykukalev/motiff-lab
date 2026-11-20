@@ -20,8 +20,9 @@ internal static class DraftSeamRequest
     /// bar before and the bar after, for «▶ Послушать стык» with the draft view's playback), "left" (kept as it is),
     /// "changes" (of key, meter, tempo: what differs), "sides" [before, after] each {"place", "number" (from 1), "variant"
     /// (its base), "source" (pdfNotes, fileNotes, recording, otherPiece), "key" ({"fifths", "mode" (major, minor or null),
-    /// "name"}, null when its source states none), "meter" {"beats", "beatType", "label", "inferred"}, "tempo"
-    /// {"perMinute", "source" (notated, inferred, player, default), "mark" ("= 92", "≈ 92")}}, and "offers" [{"kind"
+    /// "name"}, null when its source states none), "meter" {"beats", "beatType", "label"}, "tempo"
+    /// {"perMinute", "source" (notated, inferred, player, default or assumed, as saved), "mark" ("= 92", "≈ 92" when
+    /// inferred, null when assumed, as the score marks it)}}, and "offers" [{"kind"
     /// (transpose, tempo), "place", "semitones" or "quarterNotesPerMinute", "label"}] for the place after the seam}] in order.
     /// </summary>
     public static string Seams(OpenPiece owner, Request request)
@@ -138,12 +139,19 @@ internal static class DraftSeamRequest
         json.WriteNumber("beats", side.Meter.Numerator);
         json.WriteNumber("beatType", side.Meter.Denominator);
         json.WriteString("label", side.Meter.ToString());
-        json.WriteBoolean("inferred", side.Heard);
         json.WriteEndObject();
         json.WriteStartObject("tempo");
         json.WriteNumber("perMinute", side.PerMinute);
-        json.WriteString("source", side.Tempo.Name());
-        json.WriteString("mark", new TempoMark(Tick.Zero, side.PerMinute, side.Tempo == TempoSource.Inferred).Text);
+        json.WriteString("source", side.Tempo.Source.Name());
+        if (side.Tempo.Source == TempoSource.Assumed)
+        {
+            json.WriteNull("mark");
+        }
+        else
+        {
+            json.WriteString("mark", new TempoMark(Tick.Zero, side.PerMinute, side.Tempo.Source == TempoSource.Inferred).Text);
+        }
+
         json.WriteEndObject();
         json.WriteEndObject();
     }

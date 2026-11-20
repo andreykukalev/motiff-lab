@@ -44,10 +44,11 @@ public class DraftsFormatTests
     /// </summary>
     private static Draft Worked()
     {
-        DraftVariant heard = DraftFragment.Variant("v_2", At.AddMinutes(1), Score(melody: bar => bar == 1 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h"), Bars(1, 4), DraftPart.All, "perf_1", s_heard, milliseconds: (72_000, 84_500))
+        SourceMusic played = Score(melody: bar => bar == 1 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h") with { Tempos = [new PlaybackTempo(Tick.Zero, 600_000, TempoSource.Inferred), new PlaybackTempo(new Tick(BarLength), 640_000, TempoSource.Inferred)] };
+        DraftVariant heard = DraftFragment.Variant("v_2", At.AddMinutes(1), played, Bars(1, 4), DraftPart.All, "perf_1", s_heard, milliseconds: (72_000, 84_500))
             with
         { Anchors = [new DraftAnchor(new Tick(BarLength), new Tick(BarLength + 60))] };
-        DraftVariant other = DraftFragment.Variant("v_3", At.AddMinutes(2), Score(fifths: -2, perMinute: 66, prefix: "o"), Bars(5, 6), DraftPart.Melody, "n_1", Read, project: "p_0f1e2d3c4b5a49687786a5b4c3d2e1f0");
+        DraftVariant other = DraftFragment.Variant("v_3", At.AddMinutes(2), Score(fifths: -2, perMinute: 66, prefix: "o") with { Tempos = [new PlaybackTempo(Tick.Zero, 909_091, TempoSource.Notated)] }, Bars(5, 6), DraftPart.Melody, "n_1", Read, project: "p_0f1e2d3c4b5a49687786a5b4c3d2e1f0");
         DraftPlace bridge = new("pl_3", "v_5", [Variant("v_5", Score(prefix: "b"), 1, 1), Variant("v_6", Score(prefix: "c"), 2, 2)])
         {
             Bridge = true,
@@ -99,6 +100,17 @@ public class DraftsFormatTests
         Assert.Equal([1, 2, 3, 4, 5], draft.Steps.Select(step => step.Number));
         Assert.Equal("assistant", draft.Steps[2].Origin);
         Assert.Equal(DraftMusic.Of(Worked()).Music.Notes, DraftMusic.Of(draft).Music.Notes);
+        Assert.Equal(DraftMusic.Of(Worked()).Music.Tempos, DraftMusic.Of(draft).Music.Tempos);
+    }
+
+    [Fact]
+    public void A_variants_tempos_keep_their_source_and_one_saved_without_reads_as_assumed()
+    {
+        Draft draft = ProjectFile.Read(GoldenFiles.Kept(Golden)).Drafts[0];
+
+        Assert.Equal([TempoSource.Inferred, TempoSource.Inferred], draft.Places[0].Find("v_2")!.Music.Tempos.Select(tempo => tempo.Source));
+        Assert.Equal(TempoSource.Notated, Assert.Single(draft.Places[1].BaseVariant.Music.Tempos).Source);
+        Assert.Equal(TempoSource.Assumed, Assert.Single(draft.Places[0].BaseVariant.Music.Tempos).Source);
     }
 
     [Fact]
@@ -125,6 +137,7 @@ public class DraftsFormatTests
     [InlineData("drafts/0/places/0/variants/1/music/notes/0/hand")]
     [InlineData("drafts/0/places/0/variants/0/music/notes/0/attribution/provenance")]
     [InlineData("drafts/0/places/0/variants/0/music/keys/0/mode")]
+    [InlineData("drafts/0/places/0/variants/1/music/tempos/0/source")]
     public void A_value_this_build_does_not_know_keeps_the_whole_draft_unknown_and_written_back_where_it_stood(string path)
     {
         JsonObject file = Node(GoldenFiles.Kept(Golden));

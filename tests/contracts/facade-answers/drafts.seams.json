@@ -200,8 +200,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 72,
@@ -222,8 +221,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 72,
@@ -434,8 +432,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 72,
@@ -456,8 +453,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 60,
@@ -600,8 +596,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 72,
@@ -622,8 +617,7 @@
         "meter": {
          "beats": 3,
          "beatType": 8,
-         "label": "3/8",
-         "inferred": false
+         "label": "3/8"
         },
         "tempo": {
          "perMinute": 60,

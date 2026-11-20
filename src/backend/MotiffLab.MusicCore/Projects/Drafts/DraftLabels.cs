@@ -33,16 +33,9 @@ public static class DraftLabels
     {
         ArgumentNullException.ThrowIfNull(variant);
         return variant.From.Project is not null ? DraftSourceKind.OtherPiece
-            : IsHeard(variant) ? DraftSourceKind.Recording
+            : variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null ? DraftSourceKind.Recording
             : variant.Provenance.Op == NotesProvenance.PdfRecognition ? DraftSourceKind.PdfNotes
             : DraftSourceKind.FileNotes;
-    }
-
-    /// <summary>Whether the variant's notes were heard in a recording: their bars and tempo were worked out from the playing, inferred.</summary>
-    public static bool IsHeard(DraftVariant variant)
-    {
-        ArgumentNullException.ThrowIfNull(variant);
-        return variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null;
     }
 
     /// <summary>

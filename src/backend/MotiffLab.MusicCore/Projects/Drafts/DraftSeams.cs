@@ -9,16 +9,14 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>
 /// One side of a seam as its place's result has it there: the key its source states (null when it states none, never one
-/// worked out), the meter of the bar at the seam and the tempo in force there. The base gives the facts; whether they were
-/// heard in a recording, and so inferred, is its provenance (<see cref="DraftLabels.IsHeard"/>).
+/// worked out), the meter of the bar at the seam and the tempo in force there with its source as saved; a place with no
+/// tempo there plays at the piece's default (<see cref="TempoSource.Default"/>). Where the base was copied from is its provenance.
 /// </summary>
 /// <param name="Index">The place's position in the draft, from 0.</param>
-/// <param name="Tempo">Where the tempo comes from: a tempo step of the draft (<see cref="TempoSource.Player"/>), the piece's
-/// default where nothing states one, worked out from the playing, or as its source states it (<see cref="TempoSource.Notated"/>).</param>
-public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySignature? Key, TimeSignature Meter, int PerMinute, TempoSource Tempo)
+public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySignature? Key, TimeSignature Meter, PlaybackTempo Tempo)
 {
-    /// <summary>Whether the place's notes were heard in a recording: its meter and tempo were worked out from the playing.</summary>
-    public bool Heard => DraftLabels.IsHeard(Base);
+    /// <summary>The tempo in quarter notes a minute, rounded.</summary>
+    public int PerMinute => TempoSources.PerMinute(Tempo.MicrosecondsPerQuarter);
 }
 
 /// <summary>
@@ -130,12 +128,6 @@ public static class DraftSeams
         Tick tick = atEnd ? new Tick(Math.Max(0, music.End.Value - 1)) : Tick.Zero;
         PlaybackTempo[] before = [.. music.Tempos.Where(each => each.At <= tick)];
         PlaybackTempo tempo = before.Length > 0 ? before.MaxBy(static each => each.At) : new PlaybackTempo(Tick.Zero, PlaybackTempo.PieceDefaultMicrosecondsPerQuarter, TempoSource.Default);
-        bool stepped = draft.StepsOf(place.Id).OfType<DraftTempo>().Any();
-        TempoSource source = tempo.Source == TempoSource.Default ? TempoSource.Default
-            : tempo.Source == TempoSource.Player && stepped ? TempoSource.Player
-            : tempo.Source == TempoSource.Inferred || DraftLabels.IsHeard(place.BaseVariant) ? TempoSource.Inferred
-            : TempoSource.Notated;
-        int perMinute = TempoSources.PerMinute(tempo.MicrosecondsPerQuarter);
-        return new SeamSide(place.Id, index, place.BaseVariant, KeySignature.InForce(music.Keys, tick), music.BarAt(tick).Bar.Signature, perMinute, source);
+        return new SeamSide(place.Id, index, place.BaseVariant, KeySignature.InForce(music.Keys, tick), music.BarAt(tick).Bar.Signature, tempo);
     }
 }

@@ -22,7 +22,7 @@ public class DraftSeamsTests
 
         Assert.Equal(("pl_1", "pl_2", new Tick(4 * BarLength)), (seam.Before.Place, seam.After.Place, seam.At));
         Assert.Equal((0, 2), (seam.Before.Key!.Fifths, seam.After.Key!.Fifths));
-        Assert.Equal((90, 120, TempoSource.Notated), (seam.Before.PerMinute, seam.After.PerMinute, seam.After.Tempo));
+        Assert.Equal((90, 120, TempoSource.Assumed), (seam.Before.PerMinute, seam.After.PerMinute, seam.After.Tempo.Source));
         Assert.Equal((true, false, true), (seam.KeyChanges, seam.MeterChanges, seam.TempoChanges));
         Assert.Equal(-2, seam.Semitones);
         Assert.Equal((0, KeyMode.Major), (seam.Transposed!.Fifths, seam.Transposed.Mode));
@@ -41,7 +41,7 @@ public class DraftSeamsTests
 
         DraftSeam after = DraftSeams.Of(draft)[0];
         Assert.Equal((0, KeyMode.Major), (after.After.Key!.Fifths, after.After.Key.Mode));
-        Assert.Equal((90, TempoSource.Player), (after.After.PerMinute, after.After.Tempo));
+        Assert.Equal((90, TempoSource.Player), (after.After.PerMinute, after.After.Tempo.Source));
         Assert.Equal((false, false, null, null), (after.KeyChanges, after.TempoChanges, after.Semitones, after.Tempo));
         Assert.Equal(74 - 2, draft.ResultOf("pl_2").Music.Notes.Single(note => note.Id == "v_2.o0r1").Pitch.MidiNumber);
     }
@@ -82,27 +82,16 @@ public class DraftSeamsTests
     }
 
     [Fact]
-    public void Notes_heard_in_a_recording_have_their_tempo_and_meter_worked_out_and_a_place_with_no_tempo_plays_at_the_default()
+    public void A_side_states_its_tempo_with_the_source_it_was_saved_with_and_a_place_with_no_tempo_plays_at_the_default()
     {
-        DraftVariant heard = Heard("v_2", Score(prefix: "o") with { Tempos = [] });
-        Draft draft = Draft.Start("d_1", "Запись", At, "pl_1", heard).With(Variant("v_1", Score(), 1, 4), DraftDrop.Place, "pl_2");
+        SourceMusic heard = Score(prefix: "o") with { Tempos = [new PlaybackTempo(Tick.Zero, 500_000, TempoSource.Inferred)] };
+        Draft draft = Draft.Start("d_1", "Запись", At, "pl_1", Variant("v_1", Score() with { Tempos = [] }, 1, 4)).With(Variant("v_2", heard, 1, 4), DraftDrop.Place, "pl_2");
 
         DraftSeam seam = DraftSeams.Of(draft)[0];
 
-        Assert.True(seam.Before.Heard);
-        Assert.Equal((PlaybackTempo.PieceDefaultPerMinute, TempoSource.Default), (seam.Before.PerMinute, seam.Before.Tempo));
+        Assert.Equal((PlaybackTempo.PieceDefaultPerMinute, TempoSource.Default), (seam.Before.PerMinute, seam.Before.Tempo.Source));
+        Assert.Equal((120, TempoSource.Inferred), (seam.After.PerMinute, seam.After.Tempo.Source));
         Assert.Equal(PlaybackTempo.PieceDefaultPerMinute, seam.Tempo);
-    }
-
-    [Fact]
-    public void A_heard_tempo_is_inferred_and_a_fragment_does_not_copy_the_pieces_default()
-    {
-        SourceMusic withDefault = Score(prefix: "o") with { Tempos = [new PlaybackTempo(Tick.Zero, PlaybackTempo.PieceDefaultMicrosecondsPerQuarter, TempoSource.Default)] };
-        DraftVariant copied = Variant("v_2", withDefault, 1, 4);
-        DraftVariant heard = Heard("v_2", Score(prefix: "o"));
-
-        Assert.Empty(copied.Music.Tempos);
-        Assert.Equal(TempoSource.Inferred, DraftSeams.Of(Draft.Start("d_1", "x", At, "pl_1", Variant("v_1", Score(), 1, 4)).With(heard, DraftDrop.Place, "pl_2"))[0].After.Tempo);
     }
 
     [Fact]

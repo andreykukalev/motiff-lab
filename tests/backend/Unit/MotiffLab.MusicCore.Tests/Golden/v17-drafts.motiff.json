@@ -906,7 +906,13 @@
                   "tempos": [
                     {
                       "at": 0,
-                      "microsecondsPerQuarter": 666666
+                      "microsecondsPerQuarter": 600000,
+                      "source": "inferred"
+                    },
+                    {
+                      "at": 1920,
+                      "microsecondsPerQuarter": 640000,
+                      "source": "inferred"
                     }
                   ],
                   "keys": [
@@ -1118,7 +1124,8 @@
                   "tempos": [
                     {
                       "at": 0,
-                      "microsecondsPerQuarter": 909090
+                      "microsecondsPerQuarter": 909091,
+                      "source": "notated"
                     }
                   ],
                   "keys": [
