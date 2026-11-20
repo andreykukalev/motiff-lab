@@ -138,9 +138,10 @@ struct NoteCard: View {
     }
 }
 
-/// Extra information and the player's marks (0018 section 5; testing item 33): what the app adds over the notes, off by
-/// default, each kind with its own switch, then the layers of the player's own marks, each hidden for a clean page or all
-/// at once; all kept with the piece.
+/// Extra information and the player's marks (0018 section 5; testing item 33): first the phrases' marks, shown by default
+/// and kept on this device (the phrases spec, v1.2); then what else the app adds over the notes, off by default, each kind
+/// with its own switch; then the layers of the player's own marks, each hidden for a clean page or all at once; those
+/// kept with the piece.
 struct LayersList: View {
     /// Shows and hides the layers, and whether Check has flags.
     @ObservedObject var score: ScoreController
@@ -152,6 +153,11 @@ struct LayersList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["extra.title"]).overline()
+            // The phrases' marks (the phrases spec, v1.2): shown by default, whatever the switch below; kept on this device.
+            Toggle(text["extra.phrases"], isOn: Binding(get: { !marksModel.phraseMarksHidden }, set: { score.showPhraseMarks($0) }))
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink"))
+                .tint(Color.ds("accent"))
             let extraOn = !marksModel.hiddenLayers.contains("extra")
             Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
                 .dsType(.label)

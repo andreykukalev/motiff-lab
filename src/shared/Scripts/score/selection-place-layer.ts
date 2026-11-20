@@ -100,8 +100,8 @@ const TARGET_CLASS = "sel-target";
 const TRACE_CLASS = "sel-trace";
 const OVERLAYS = [GHOST_CLASS, ADD_CLASS, TARGET_CLASS, TRACE_CLASS];
 
-/** What is pressed for its own sake, never a place of the selection: a bracket, a margin note, a bookmark, a version's label, a Check flag. */
-const OWN_TARGETS = ".bracket, .marker, .bmb, .perf-marker, .check-flag";
+/** What is pressed for its own sake, never a place of the selection: a phrase's mark, a margin note, a bookmark, a version's label, a Check flag. */
+const OWN_TARGETS = ".phrase-mark, .marker, .bmb, .perf-marker, .check-flag";
 
 export class PlaceLayer {
     private drag: PlaceDrag | null = null;

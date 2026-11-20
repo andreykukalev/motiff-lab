@@ -67,6 +67,12 @@ struct SelectionHistory<Selection: Equatable> {
         return step
     }
 
+    /// The step just taken back (`undone`) or done again could not be (the phrases' edits, when they changed since): it
+    /// goes from the history altogether.
+    mutating func dropLast(undone: Bool) {
+        if undone { _ = self.undone.popLast() } else { _ = done.popLast() }
+    }
+
     /// The gesture named was cancelled: its step goes, as if it never was; the owner selects its `before` again.
     mutating func revert(_ gesture: String) -> Step? {
         guard let last = done.last, last.gesture == gesture else { return nil }

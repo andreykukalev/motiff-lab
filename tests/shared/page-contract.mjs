@@ -1,6 +1,7 @@
 // Readers of a page's source for the pages' contract tests (decision record 0031): score-page-contract.test.mjs reads
-// src/ipad/App/Web/score.js with them, roll-page-contract.test.mjs src/ipad/App/Web/roll.js. They read the source as text
-// (no build needed): the functions the page offers the app, the messages it posts and the fields of each.
+// the score page's modules (src/shared/Scripts/score/ipad-page) with them, roll-page-contract.test.mjs
+// src/ipad/App/Web/roll.js. They read the source as text (no build needed): the functions the page offers the app, the
+// messages it posts and the fields of each.
 
 /** The names a page offers the app, from `window.<object> = { show, eraseAlong: eraseAlongPath, … };`. */
 export function offered(source, object) {

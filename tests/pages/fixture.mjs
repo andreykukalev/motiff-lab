@@ -20,8 +20,9 @@ const out = `${repo}tests/contracts/page-scenarios/fixtures/`;
 /** The pages kept: the first, a whole page with its systems spread to its margins (VIEW-03), is enough for every scenario. */
 const PAGES = 1;
 /**
- * The card's width in CSS pixels on a page of 1024 × 1366, the scenarios' default: what score.js `focus` measures and
- * answers as `cardLayout(964)` (a scenario on the card expects that answer, so a card of another width fails it).
+ * The card's width in CSS pixels on a page of 1024 × 1366, the scenarios' default: what the page's `focus`
+ * (ipad-page/page-card.ts) measures and answers as `cardLayout(964)` (a scenario on the card expects that answer, so a
+ * card of another width fails it).
  */
 const CARD_WIDTH = 964;
 

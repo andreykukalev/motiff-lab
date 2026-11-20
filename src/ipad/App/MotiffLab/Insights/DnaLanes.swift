@@ -231,10 +231,10 @@ extension DnaScreen {
         CGFloat(map.fraction(of: tick)) * width
     }
 
-    private func middle(_ section: DnaMap.Section) -> Double { (section.onset + section.end) / 2 }
+    private func middle(_ section: FormSection) -> Double { (section.onset + section.end) / 2 }
 
     /// Arcs from each section that brings material back to the one before it with the same letter.
-    private var arcs: [(DnaMap.Section, DnaMap.Section)] {
+    private var arcs: [(FormSection, FormSection)] {
         map.form.compactMap { section in
             map.form.last { $0.onset < section.onset && section.sharesWith.contains($0.id) }.map { ($0, section) }
         }
@@ -308,7 +308,7 @@ extension DnaScreen {
     }
 
     /// A section's colour by its letter, in the order the letters first come (A′ keeps A's colour, with a dashed edge).
-    private func sectionColour(_ section: DnaMap.Section) -> String {
+    private func sectionColour(_ section: FormSection) -> String {
         func letter(_ label: String) -> String {
             var label = label
             while let last = label.last, "′″‴".contains(last) { label.removeLast() }

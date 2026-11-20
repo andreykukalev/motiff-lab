@@ -1,17 +1,18 @@
 import CoreGraphics
 import WebKit
 
-// The score's web page (`Web/score.js` over `Scripts/score`) as the app sees it, through one port (decision record 0031,
-// step 2): the functions the page offers (`window.motiff`) and the messages it posts. The two lists are the contract,
-// kept in `tests/contracts/score-page.json` and checked against `score.js` by a node test and against this file by
-// `ScorePageContractTests`, so a function or a message renamed on one side fails both suites, not the page on the iPad.
+// The score's web page (`Web/score.html`, `Scripts/score/ipad-page`) as the app sees it, through one port (decision
+// record 0031, step 2): the functions the page offers (`window.motiff`) and the messages it posts. The two lists are the
+// contract, kept in `tests/contracts/score-page.json` and checked against the page and its types
+// (`Scripts/score/page-contract.ts`) by a node test and against this file by `ScorePageContractTests`, so a function or a
+// message renamed on one side fails both suites, not the page on the iPad.
 
 /// The functions of `window.motiff`; the only place that names them.
 enum PageCommand: String, CaseIterable {
     case show, layout, anchor, erase, eraseAlong, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved
     case menuClosed, pen, beats, focus, card, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick
-    case firstTickOn, placeAt, lineAt, reveal, notes, checks, performance, layers, playing, returnToPlayhead, mode
-    case playheads, practice, selectionControls, writing
+    case firstTickOn, placeAt, lineAt, reveal, notes, checks, performance, phraseMarks, layers, playing, returnToPlayhead
+    case mode, playheads, practice, selectionControls, writing
 }
 
 /// Calls the page's functions. `run` waits for the answer; `post` does not (the playhead, many times a second).
@@ -80,8 +81,9 @@ enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
-        case noteMarker, handles, playheadAway, checkFlag, performanceBar, place, heads, drag, blank, leave, cardLayout
-        case coloured
+        case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved
+        case place, heads, drag, blank
+        case leave, cardLayout, coloured
     }
 
     case pages(first: Int, last: Int, count: Int)
@@ -105,6 +107,15 @@ enum PageEvent {
     case techniqueNumber(String, left: Double, bottom: Double)
     /// A draft's seam diamond tapped (v1.1): a `performanceBar` message with the seam's key, and where the diamond is.
     case seamDiamond(String, left: Double, bottom: Double)
+    /// A phrase's number tapped on the score (the phrases spec, decision 1): which phrase, from 1.
+    case phraseMark(Int)
+    /// A section's boxed letter tapped on the score: the section's id.
+    case sectionMark(String)
+    /// A phrase's number held still and let go (the phrases spec, «Polish of option A» 2): which phrase, and where its
+    /// number's bottom left is on the page, for its menu.
+    case phraseHeld(Int, left: Double, bottom: Double)
+    /// A phrase's mark dragged and let go on a note: the tick its phrase starts at and that note's onset.
+    case phraseMoved(from: Double, to: Double)
     case place(start: Double, end: Double)
     case heads([CGPoint])
     case drag(PlayheadGesture)
@@ -120,7 +131,7 @@ enum PageEvent {
     }
 
     private static func event(_ kind: Kind, _ message: [String: Any]) -> PageEvent? {
-        selectionEvent(kind, message[kind.rawValue]) ?? markEvent(kind, message[kind.rawValue], message)
+        selectionEvent(kind, message[kind.rawValue]) ?? tapEvent(kind, message[kind.rawValue]) ?? markEvent(kind, message[kind.rawValue], message)
     }
 
     /// The selection and its menu.
@@ -162,20 +173,37 @@ enum PageEvent {
         return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
     }
 
-    /// The pages, the marks on them, the playheads and Expand's card.
-    private static func markEvent(_ kind: Kind, _ value: Any?, _ message: [String: Any]) -> PageEvent? {
-        let fields = value as? [String: Any]
+    /// A mark on the score tapped that names what it marks: a bookmark, a margin note, a Check flag, a phrase's number
+    /// or a section's letter.
+    private static func tapEvent(_ kind: Kind, _ value: Any?) -> PageEvent? {
         switch kind {
-        case .pages:
-            return fields.map { .pages(first: int($0["first"]), last: int($0["last"]), count: int($0["count"])) }
         case .bookmark:
             return (value as? String).map { .bookmark($0) }
         case .noteMarker:
             return (value as? String).map { .noteMarker($0) }
         case .checkFlag:
             return number(value).map { .checkFlag(Int($0)) }
+        case .phraseMark:
+            return number(value).map { .phraseMark(Int($0)) }
+        case .sectionMark:
+            return (value as? String).map { .sectionMark($0) }
+        default:
+            return nil
+        }
+    }
+
+    /// The pages, the version's markers on them, the playheads and Expand's card.
+    private static func markEvent(_ kind: Kind, _ value: Any?, _ message: [String: Any]) -> PageEvent? {
+        let fields = value as? [String: Any]
+        switch kind {
+        case .pages:
+            return fields.map { .pages(first: int($0["first"]), last: int($0["last"]), count: int($0["count"])) }
         case .performanceBar:
             return markerTap(value, message)
+        case .phraseHeld:
+            return number(value).map { .phraseHeld(Int($0), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0) }
+        case .phraseMoved:
+            return fields.flatMap { moved in number(moved["from"]).flatMap { from in number(moved["to"]).map { .phraseMoved(from: from, to: $0) } } }
         case .playheadAway:
             return number(value).map { .playheadAway($0) }
         case .place:

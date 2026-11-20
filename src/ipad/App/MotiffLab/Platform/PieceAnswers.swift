@@ -7,8 +7,7 @@ import Foundation
 // optional field is one music-core leaves out by design, or one the app read with a default before it was typed (step A7),
 // kept so. tests/contracts/facade-answers holds the answers on the example piece; FacadeAnswerFixturesTests decodes them.
 
-/// `select`, and `phrases.level` with its selection (`Answer.Selection`): {"selection": {…}}, null in `phrases.level`
-/// with none selected.
+/// `select` (`Answer.Selection`): {"selection": {…}}.
 struct SelectionAnswer: Decodable, Sendable {
     struct Selection: Decodable, Sendable {
         let onset: Double
@@ -36,22 +35,9 @@ struct SelectionAnswer: Decodable, Sendable {
     }
 }
 
-/// The phrases at the level shown (`Answer.Phrases`): `phrases`, `phrases.edit`, and `phrases.level` with its selection
-/// (`PhraseLevelAnswer`). The level and the units are read as before they were typed: every field but "level" and "units"
-/// with the default it had, and a unit without its number, onset or end left out.
+/// The phrases of the piece (`Answer.Phrases`): `phrases` and `phrases.edit`. The units are read as before they were typed:
+/// every field but "units" with the default it had, and a unit without its number, onset or end left out.
 struct PhrasesAnswer: Decodable, Sendable {
-    /// One level with how many units it has.
-    struct Level: Decodable, Sendable {
-        let id: String?
-        let count: Int?
-    }
-
-    /// The player's own boundaries at a level: the ticks added and taken away.
-    struct Edits: Decodable, Sendable {
-        let added: [Int]?
-        let removed: [Int]?
-    }
-
     struct Unit: Decodable, Sendable {
         let number: Int?
         let name: String?
@@ -63,28 +49,64 @@ struct PhrasesAnswer: Decodable, Sendable {
         let start: Start?
     }
 
-    /// How a unit's start was found: "imported", "inferred", "userEdited", …
+    /// A phrase's start, its mark (the phrases spec, decision 1): how it was found ("imported", "inferred"; "userEdited",
+    /// "userConfirmed" for the player's own), the bar and beat of its start note, «Почему здесь» in the player's
+    /// language (the Russian completes «начинается …»), and for a found start the player moved, where it was found.
     struct Start: Decodable, Sendable {
         let provenance: String?
+        let bar: Int?
+        let beat: Int?
+        let why: String?
+        let found: Found?
     }
 
-    /// "short", "phrase" or "sentence".
-    let level: String
-    let levels: [Level]?
-    /// By level id.
-    let edits: [String: Edits]?
+    /// Where a start the player moved was found: its tick, bar and beat.
+    struct Found: Decodable, Equatable, Sendable {
+        let at: Double
+        let bar: Int
+        let beat: Int
+    }
+
+    /// A section of the form (`Answer.FormSection`, A, B, A′…): its letter, where it is, the sections it shares its music
+    /// with, and the span a tap selects (at most 32 bars). The app's type is `FormSection`.
+    struct Section: Decodable, Sendable {
+        let id: String
+        let label: String
+        let passage: Passage
+        let selectable: SpanAnswer?
+        let sharesWith: [String]?
+    }
+
+    struct Passage: Decodable, Sendable {
+        let onset: Double
+        let end: Double
+        let firstBar: Int
+        let lastBar: Int
+    }
+
     let units: [Unit]
+    let sections: [Section]?
+    /// The player's edits of the boundaries now, and (from `phrases.edit`) as they were before the edit: one step of Undo.
+    let edits: PhraseLevelEdits?
+    let previous: PhraseLevelEdits?
 }
 
-/// `phrases.level` (`ChangeLevel` in OpenPiece.cs): the phrases at the new level, and the selection as it now is (null with
-/// none), both read from the one object.
-struct PhraseLevelAnswer: Decodable, Sendable {
-    let phrases: PhrasesAnswer
-    let selection: SelectionAnswer
+/// The player's edits of the boundaries as music-core answers them ("edits", "previous"): each level's starts added and
+/// removed, in ticks, sent back as they are to undo or redo a step (`phrases.edit` "restore" and "expected"; a level left
+/// out has none).
+struct PhraseLevelEdits: Codable, Equatable, Sendable {
+    struct Edits: Codable, Equatable, Sendable {
+        var added: [Int]
+        var removed: [Int]
+    }
 
-    init(from decoder: Decoder) throws {
-        phrases = try PhrasesAnswer(from: decoder)
-        selection = try SelectionAnswer(from: decoder)
+    var short: Edits?
+    var phrase: Edits?
+    var sentence: Edits?
+
+    /// The edits as JSON, for a request.
+    var json: String {
+        (try? JSONEncoder().encode(self)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 

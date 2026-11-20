@@ -243,7 +243,6 @@ struct SettingsSheet: View {
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
         case .score:
-            choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
             switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
             switchRow("score.evenBars", text["settings.evenBars"], hint: text["settings.evenBarsHint"])
         case .layers:
@@ -323,17 +322,8 @@ struct SettingsSheet: View {
         }
     }
 
-    static func granularityKey(_ choice: String) -> String {
-        switch choice {
-        case "short": "phrases.levelShort"
-        case "sentences": "phrases.levelSentences"
-        default: "phrases.levelPhrases"
-        }
-    }
-
-    /// "Phrases: Short" or "Bookmarks: hidden".
+    /// "Bookmarks: hidden".
     private func overrideName(_ id: String, _ value: String) -> String {
-        if id == "phrases.granularity" { return "\(text["phrases.levelTitle"]): \(text[Self.granularityKey(value)])" }
         if id.hasPrefix("layers.") {
             let layer = String(id.dropFirst("layers.".count))
             let name = layer == "extra" ? text["extra.title"] : MarksModel.extra.contains(layer) ? text["extra.\(layer)"] : text[id]

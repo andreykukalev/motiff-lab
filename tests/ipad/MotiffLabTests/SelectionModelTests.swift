@@ -62,15 +62,6 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertFalse(opened(9_103).steps.canUndo, "another piece's history replaced the first one's")
     }
 
-    func testHiddenPhrasesAreKeptOnTheDevice() {
-        let before = UserDefaults.standard.bool(forKey: SelectionModel.phrasesHiddenKey)
-        defer { UserDefaults.standard.set(before, forKey: SelectionModel.phrasesHiddenKey) }
-        SelectionModel().hidePhrases(true)
-        XCTAssertTrue(SelectionModel().phrasesHidden, "the next screen finds them hidden")
-        SelectionModel().hidePhrases(false)
-        XCTAssertFalse(SelectionModel().phrasesHidden)
-    }
-
     /// A model on the kit's piece open in music-core, closed when the test ends, with a history of its own.
     private func inMusicCore() throws -> (SelectionModel, Int32) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
@@ -109,35 +100,92 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertEqual(model.undo()?.after, SelectionSpan(selected), "and makes no step")
     }
 
-    func testAnotherLevelMovesTheSelectionToItsUnit() async throws {
+    /// The phrases are read with what their marks say (the phrases spec, v1.2): each start's bar, beat and why, whether it
+    /// is the player's own, and the sections' letters; a selection is a phrase only when it is its selectable span.
+    func testThePhrasesAreReadWithTheirStartsAndSections() async throws {
         let (model, piece) = try inMusicCore()
         await model.loadPhrases(of: piece)
-        XCTAssertEqual(model.phrases?.level, "phrase")
-        _ = await select(model, in: piece, #"{"bars": {"first": 3, "last": 4}}"#, step: false)
-        let before = try XCTUnwrap(model.selection)
+        let phrases = try XCTUnwrap(model.phrases)
+        let first = try XCTUnwrap(phrases.unit(1))
+        XCTAssertEqual(first.startBar, first.firstBar)
+        XCTAssertFalse(first.why.isEmpty, "«Почему здесь»")
+        XCTAssertTrue(phrases.units.allSatisfy { !$0.own }, "found in the file, none the player's yet")
+        XCTAssertFalse(phrases.sections.isEmpty)
+        XCTAssertEqual(phrases.sections.first?.label, "A")
+        XCTAssertEqual(phrases.sections.first?.onset, 0)
 
-        await model.showLevel("sentence", in: piece, remember: false)
-        XCTAssertEqual(model.phrases?.level, "sentence")
-        let moved = try XCTUnwrap(model.selection)
-        XCTAssertNotEqual(moved, before, "bars 3–4 are not a sentence: the selection moved")
-        let holding = try XCTUnwrap(model.phrases?.units.first { $0.onset <= before.onset && before.onset < $0.end })
-        XCTAssertEqual(moved.onset, holding.selectableOnset, "the selection is the sentence that holds it now")
-        XCTAssertEqual(moved.end, holding.selectableEnd)
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(first.selectableOnset)), "end": \#(Int(first.selectableEnd))}}"#, step: false)
+        XCTAssertEqual(phrases.unit(selected: model.selection)?.number, 1)
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(first.selectableOnset)), "end": \#(Int(first.selectableEnd) - 1)}}"#, step: false)
+        XCTAssertNil(phrases.unit(selected: model.selection), "a passage that is not the phrase exactly")
     }
 
-    func testResetLevelHasTheUnitsFoundInTheFileAgain() async throws {
+    func testAStartThePlayerSetIsTheirOwn() async throws {
         let (model, piece) = try inMusicCore()
         await model.loadPhrases(of: piece)
         let found = try XCTUnwrap(model.phrases)
-        XCTAssertTrue(found.edited.isEmpty)
-        _ = MusicCore.call(piece: piece, "phrases.edit", #"{"level": "phrase", "joinWithNext": 1}"#)
+        let second = try XCTUnwrap(found.unit(2))
+        let inside = Int(second.onset + (second.end - second.onset) / 2)
+        _ = MusicCore.call(piece: piece, "phrases.edit", #"{"start": \#(inside)}"#)
         await model.loadPhrases(of: piece)
-        XCTAssertEqual(model.phrases?.units.count, found.units.count - 1, "two phrases joined by the player")
-        XCTAssertEqual(model.phrases?.edited.contains("phrase"), true)
+        let edited = try XCTUnwrap(model.phrases)
+        XCTAssertEqual(edited.units.count, found.units.count + 1, "a phrase started by the player")
+        XCTAssertEqual(edited.units.filter(\.own).map(\.number), [3], "drawn in amber")
+    }
 
-        await model.resetLevel("phrase", in: piece)
-        XCTAssertEqual(model.phrases?.units.count, found.units.count)
-        XCTAssertEqual(model.phrases?.edited.isEmpty, true, "the player's own boundaries are forgotten")
+    /// A mark dragged is one step of the phrases' own Undo and Redo (v1.2 i-3a, c-2's restore): Undo puts the found start
+    /// back, Redo moves it again, each with its toast; the selection stays exactly as it was throughout.
+    func testAPhraseEditIsOneStepOfItsUndoAndRedoAndLeavesTheSelection() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await select(model, in: piece, #"{"span": {"onset": \#(Int(second.selectableOnset)), "end": \#(Int(second.selectableEnd))}}"#, step: true)
+        let selected = model.selection
+
+        let refused = await model.editPhrases(in: piece, #"{"move": {"from": \#(Int(second.onset)), "to": \#(Int(second.onset) - 360)}}"#, done: "moved")
+        XCTAssertNil(refused)
+        let moved = try XCTUnwrap(model.phrases?.unit(2))
+        XCTAssertTrue(moved.own, "the player's boundary, amber")
+        XCTAssertEqual(moved.found?.at, second.onset, "the found start keeps its ghost")
+        XCTAssertEqual(model.selection, selected, "an edit never changes the selection")
+        XCTAssertEqual(model.phraseToast?.offer, .undo)
+        XCTAssertTrue(model.phraseSteps.canUndo)
+
+        let undone = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertNil(undone)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, second.onset, "Undo: the found start again")
+        XCTAssertFalse(model.phrases?.unit(2)?.own ?? true)
+        XCTAssertEqual(model.phraseToast?.offer, .redo)
+        let redone = await model.stepPhrases(in: piece, redo: true, done: "redone")
+        XCTAssertNil(redone)
+        XCTAssertEqual(model.phrases?.unit(2)?.onset, moved.onset, "Redo: moved again")
+        XCTAssertEqual(model.selection, selected, "nor do Undo and Redo")
+    }
+
+    /// «Начать фразу здесь» where a phrase already starts changes no edit (c-2): no step, so its toast offers no Undo.
+    func testAnEditThatChangesNothingIsNoStep() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        let refused = await model.editPhrases(in: piece, #"{"start": \#(Int(second.onset))}"#, done: "started")
+        XCTAssertNil(refused)
+        XCTAssertNil(model.phraseToast?.offer, "nothing to take back")
+        XCTAssertFalse(model.phraseSteps.canUndo)
+    }
+
+    /// An Undo after the phrases changed elsewhere is refused (c-2: "unavailable"): its reason in the toast, and the step goes.
+    func testAnUndoThatCanNoLongerBeDoneSaysWhyAndGoes() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        _ = await model.editPhrases(in: piece, #"{"remove": \#(Int(second.onset))}"#, done: "removed")
+        _ = MusicCore.call(piece: piece, "phrases.edit", #"{"resetAll": true}"#)
+        let refused = await model.stepPhrases(in: piece, redo: false, done: "undone")
+        XCTAssertNotNil(refused)
+        XCTAssertEqual(model.phraseToast?.words, refused, "the reason, in the toast")
+        XCTAssertNil(model.phraseToast?.offer)
+        XCTAssertFalse(model.phraseSteps.canUndo)
+        XCTAssertFalse(model.phraseSteps.canRedo, "the step is gone")
     }
 
     func testARevertedGestureLeavesNoStep() throws {
