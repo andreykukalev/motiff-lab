@@ -65,7 +65,7 @@ A seam is the boundary of two places. music-core describes it (the difference of
 - **the neighbour's tempo**,
 - **a bridge**: two or three candidates built by music-core from rules of harmony, put as variants of a small new place between the two.
 
-Each is a step or a place the player chooses; nothing is changed by itself. «Оставить» keeps the seam as it is and is remembered. Changing a place's meter is not offered yet (section 8).
+Each is a step or a place the player chooses; nothing is changed by itself. «Оставить» keeps the seam as it is and is remembered. Changing a place's meter is not offered yet (section 8). Version 1.1 builds the description of key, meter and tempo, the transposition, the tempo and «Оставить»; the register and the bridge candidates come in version 1.2 (the lead's decision, 2026-11-20, as the plan's answer 1 allows).
 
 ### 6. The assistant in a draft
 

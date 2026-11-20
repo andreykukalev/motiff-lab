@@ -30,16 +30,22 @@ public static class TempoMarks
         {
             PlaybackTempo tempo = tempos[i];
             TempoBeat beat = meter is null ? TempoBeat.Quarter : TempoBeats.At(meter, tempo.At);
-            int perMinute = beat.PerMinute(tempo.MicrosecondsPerQuarter);
-            bool written = i == 0 ? tempo.Source != TempoSource.Assumed : tempo.Source == TempoSource.Notated;
-            if (!written || (marks.Count > 0 && marks[^1].PerMinute == perMinute && marks[^1].Beat == beat))
+            TempoMark? mark = i == 0 ? AtStart(tempo, beat) : tempo.Source == TempoSource.Notated ? new TempoMark(tempo.At, beat.PerMinute(tempo.MicrosecondsPerQuarter), false, beat) : null;
+            if (mark is null || (marks.Count > 0 && marks[^1].PerMinute == mark.PerMinute && marks[^1].Beat == beat))
             {
                 continue;
             }
 
-            marks.Add(new TempoMark(tempo.At, perMinute, tempo.Source == TempoSource.Inferred, beat));
+            marks.Add(mark);
         }
 
         return marks;
     }
+
+    /// <summary>
+    /// The mark of a tempo where music starts, counted in <paramref name="beat"/>: "≈" when it was worked out from a
+    /// recording, none for a recording's own clock (assumed), "=" for every other source.
+    /// </summary>
+    public static TempoMark? AtStart(PlaybackTempo tempo, TempoBeat beat) =>
+        tempo.Source == TempoSource.Assumed ? null : new TempoMark(tempo.At, beat.PerMinute(tempo.MicrosecondsPerQuarter), tempo.Source == TempoSource.Inferred, beat);
 }

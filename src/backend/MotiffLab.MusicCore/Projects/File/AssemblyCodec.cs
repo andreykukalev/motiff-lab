@@ -182,8 +182,11 @@ internal static class AssemblyCodec
         return new TimeAnchor(note, Long(anchor, "offset"));
     }
 
-    /// <summary>A music's notes, bars, tempos and keys, as the assembly's "applied" and a draft's variant hold them.</summary>
-    internal static void WriteMusic(Utf8JsonWriter json, SourceMusic music)
+    /// <summary>
+    /// A music's notes, bars, tempos and keys, as the assembly's "applied" and a draft's variant hold them; with
+    /// <paramref name="tempoSources"/> (a draft's variant, version 17) each tempo also says where it comes from, unless assumed.
+    /// </summary>
+    internal static void WriteMusic(Utf8JsonWriter json, SourceMusic music, bool tempoSources = false)
     {
         json.WriteStartArray("notes");
         foreach (Note note in music.Notes)
@@ -229,6 +232,11 @@ internal static class AssemblyCodec
             json.WriteStartObject();
             json.WriteNumber("at", tempo.At.Value);
             json.WriteNumber("microsecondsPerQuarter", tempo.MicrosecondsPerQuarter);
+            if (tempoSources && tempo.Source != TempoSource.Assumed)
+            {
+                json.WriteString("source", Lower(tempo.Source));
+            }
+
             json.WriteEndObject();
         }
 
@@ -250,8 +258,11 @@ internal static class AssemblyCodec
         json.WriteEndArray();
     }
 
-    /// <summary>The music <see cref="WriteMusic"/> wrote; <paramref name="what"/> names the part of the file a fault is in.</summary>
-    internal static SourceMusic ReadMusic(JsonElement music, string what)
+    /// <summary>
+    /// The music <see cref="WriteMusic"/> wrote; <paramref name="what"/> names the part of the file a fault is in. With
+    /// <paramref name="tempoSources"/> (a draft's variant) a tempo's "source" is read, assumed when left out; else every tempo is assumed, as before.
+    /// </summary>
+    internal static SourceMusic ReadMusic(JsonElement music, string what, bool tempoSources = false)
     {
         Expect(music, JsonValueKind.Object, what);
         List<Note> notes = [.. Property(music, "notes", JsonValueKind.Array).EnumerateArray().Select(note =>
@@ -289,7 +300,7 @@ internal static class AssemblyCodec
         }
 
         List<PlaybackTempo> tempos = [.. Property(music, "tempos", JsonValueKind.Array).EnumerateArray().Select(tempo =>
-            new PlaybackTempo(new Tick(Long(tempo, "at")), Integer(tempo, "microsecondsPerQuarter")))];
+            new PlaybackTempo(new Tick(Long(tempo, "at")), Integer(tempo, "microsecondsPerQuarter"), tempoSources && tempo.TryGetProperty("source", out _) ? LowerName<TempoSource>(tempo, "source") : TempoSource.Assumed))];
         List<KeySignature> keys = [.. Property(music, "keys", JsonValueKind.Array).EnumerateArray().Select(key =>
             new KeySignature(new Tick(Long(key, "at")), Integer(key, "fifths"), key.TryGetProperty("mode", out _) ? LowerName<KeyMode>(key, "mode") : null))];
         return new SourceMusic(notes, bars, tempos, keys);
