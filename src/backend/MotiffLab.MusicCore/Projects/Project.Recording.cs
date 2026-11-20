@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// A piece whose only original is a recording (version 1.1, finding 29; project file version 17): added on the device as
 /// it is, its sound kept beside the project file (<see cref="OriginalKept.Device"/>), with no notes until the player
-/// recognises it (<see cref="SourceOperations.HeardFrom"/>).
+/// recognises it (<see cref="NotesOperations.HeardFrom"/>).
 /// </summary>
 public sealed partial record Project
 {

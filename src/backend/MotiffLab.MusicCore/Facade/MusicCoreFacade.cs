@@ -297,7 +297,7 @@ public sealed class MusicCoreFacade
 
     /// <summary>
     /// «Открыть» on Notes that are not the working ones (version 0.6): "id", other Notes or a version, opened under a new
-    /// number only to be shown (<see cref="SourceOperations.ViewOf"/>), so piece, notation, playback, roll, phrases, dna,
+    /// number only to be shown (<see cref="NotesOperations.ViewOf"/>), so piece, notation, playback, roll, phrases, dna,
     /// marks and check answer for them and every other call answers "readOnly". The piece itself does not change; close
     /// the new number when done. Answers as <c>open</c> does, with "readOnly": true.
     /// </summary>
