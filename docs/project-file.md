@@ -152,7 +152,7 @@ The working notes and everything the player made on them, in their ticks.
 
 ### Views hidden from the switch (`hiddenViews`)
 
-The switch at the top of the score lists every view of the piece: each PDF original with the Notes read from it, each other Notes, and each recording with its sound as a Performance view (Andrei, 2026-11-14). The player can hide any of them from the switch in the Sources sheet, except the working notes. `hiddenViews` is the ids hidden, originals' or Notes', distinct and in the order of their ids; written only while one is hidden. An id this build does not know is kept, so a view a later build shows stays hidden; an id that names the working notes is kept and not applied while they are the working ones. A value that is not a list of distinct texts is damage. In the sync it is the player's data, as the rest of the workspace: the copy saved last says it.
+The switch at the top of the score lists every view of the piece: each PDF original with the Notes read from it, each other Notes, and each recording with its sound as a Performance view (Andrei, 2026-11-14), and since version 17 each draft ("Drafts"), after them. The player can hide any of them from the switch in the Sources sheet, except the working notes. `hiddenViews` is the ids hidden, originals', Notes' or (version 17) drafts', distinct and in the order of their ids; a draft deleted leaves it; written only while one is hidden. An id this build does not know is kept, so a view a later build shows stays hidden; an id that names the working notes is kept and not applied while they are the working ones. A value that is not a list of distinct texts is damage. In the sync it is the player's data, as the rest of the workspace: the copy saved last says it.
 
 ### Title, composer, tags and playlists (`metadata`)
 
@@ -388,7 +388,7 @@ The notes a project opens with: with `applied`, those notes, its bars and tempo,
 
 ## Drafts (`drafts`)
 
-The piece's drafts (version 17, [0034](architecture/adr/0034-drafts.md)): the player's own versions put together from fragments of any Notes, of this piece or another, without changing them. Left out while the piece has none. A draft is not the working notes: nothing in it is played, analysed or synced as the piece's notes, and no other part of the file names it.
+The piece's drafts (version 17, [0034](architecture/adr/0034-drafts.md)): the player's own versions put together from fragments of any Notes, of this piece or another, without changing them. Left out while the piece has none. A draft is not the working notes: nothing in it is played, analysed or synced as the piece's notes, and no other part of the file names it but `hiddenViews`, while the player hides it from the switch.
 
 ```jsonc
 "drafts": [

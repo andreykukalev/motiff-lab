@@ -97,6 +97,25 @@ public static class DraftFragment
     }
 
     /// <summary>
+    /// The stretch of the recording <paramref name="span"/> of the notes was played in, in milliseconds of the recording, when
+    /// they were heard in one (<paramref name="project"/>, opened as <paramref name="piece"/>, has a transcription): from when
+    /// its first bar line was played to when its last was (<see cref="HeardCut.StretchOfBars"/>), moved by where the stretch
+    /// sent to the engine started. Null for notes not heard.
+    /// </summary>
+    public static (long From, long To)? Heard(Project project, ImportedPiece piece, TickSpan span)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        if (HeardClock.Of(project, piece) is not { } clock)
+        {
+            return null;
+        }
+
+        (long from, long to) = HeardCut.StretchOfBars(clock, span);
+        long sent = project.Transcription?.SentFromMilliseconds ?? 0;
+        return to > from ? (from + sent, to + sent) : null;
+    }
+
+    /// <summary>
     /// A variant of the fragment <paramref name="span"/> of the Notes <paramref name="notesId"/>, whose music as shown is
     /// <paramref name="music"/> and whose provenance is <paramref name="provenance"/>: the music copied (<see cref="Of"/>), its
     /// bars named for the label, and, from another piece (<paramref name="project"/>), every source of the provenance naming

@@ -74,7 +74,7 @@ public class DraftsFormatTests
         return new Draft(draft.Id, draft.Name, draft.CreatedAt, [.. draft.Places, bridge], draft.Shelf, steps, 6);
     }
 
-    private static Project WithDrafts() => Piece().WithNewDraft(Worked()).WithNewDraft(Draft.Start("d_2", "Кода", At, "pl_1", Variant("v_1", Score(), 8, 8)));
+    private static Project WithDrafts() => Piece().WithNewDraft(Worked()).WithNewDraft(Draft.Start("d_2", "Кода", At, "pl_1", Variant("v_1", Score(), 8, 8))).ViewHidden("d_2", hidden: true);
 
     private static JsonObject Node(byte[] bytes) => JsonNode.Parse(bytes)!.AsObject();
 
@@ -87,6 +87,8 @@ public class DraftsFormatTests
 
         Project read = ProjectFile.Read(GoldenFiles.Kept(Golden));
         Assert.Equal(["d_1", "d_2"], read.Drafts.Select(draft => draft.Id));
+        Assert.Equal(["d_2"], read.HiddenViews);
+        Assert.Empty(read.WithoutDraft("d_2").HiddenViews);
         Draft draft = read.Drafts[0];
         Assert.Equal(["pl_1", "pl_2", "pl_3"], draft.Places.Select(place => place.Id));
         Assert.Equal((DraftPart.Melody, "p_0f1e2d3c4b5a49687786a5b4c3d2e1f0"), (draft.Places[1].BaseVariant.From.Part, draft.Places[1].BaseVariant.From.Project));

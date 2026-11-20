@@ -23,15 +23,21 @@ internal sealed partial class OpenPiece
     internal EditsLayer Layer => _layer;
 
     /// <summary>
-    /// True for Notes opened only to be shown (sources.notes.open): the facade answers the calls that show them and
-    /// refuses every other (<see cref="MusicCoreFacade"/>).
+    /// For Notes or a draft opened only to be shown (sources.notes.open, drafts.open): the piece they were opened from and
+    /// what is shown; null for a piece open to work on.
     /// </summary>
-    internal bool ReadOnly { get; private set; }
+    internal ShownView? ShownFrom { get; private set; }
 
-    /// <summary>This piece, open only to be shown from now on.</summary>
-    internal OpenPiece AsReadOnly()
+    /// <summary>
+    /// True for Notes or a draft opened only to be shown: the facade answers the calls that show them and refuses every
+    /// other (<see cref="MusicCoreFacade"/>).
+    /// </summary>
+    internal bool ReadOnly => ShownFrom is not null;
+
+    /// <summary>This piece, open only to be shown from now on, as <paramref name="shown"/> says.</summary>
+    internal OpenPiece AsReadOnly(ShownView shown)
     {
-        ReadOnly = true;
+        ShownFrom = shown;
         return this;
     }
 

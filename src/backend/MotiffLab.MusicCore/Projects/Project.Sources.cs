@@ -67,7 +67,7 @@ public sealed partial record Project
 
     /// <summary>
     /// The piece with the view <paramref name="id"/> hidden from the switch or shown again; the working notes cannot be
-    /// hidden while they are the working ones.
+    /// hidden while they are the working ones. A draft is a view too (version 17).
     /// </summary>
     public Project ViewHidden(string id, bool hidden)
     {

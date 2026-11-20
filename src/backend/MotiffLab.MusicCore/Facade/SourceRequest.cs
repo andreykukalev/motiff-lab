@@ -19,13 +19,13 @@ internal static class SourceRequest
 {
     /// <summary>The answer of a call of the sheet on the piece <paramref name="get"/> gives; null when the call is not one of them.</summary>
     /// <param name="evenPages">The page map of a PDF added to a piece with notes, its pages shared over the bars; null for a piece with none.</param>
-    public static string? Call(string name, Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages) => name switch
+    public static string? Call(string name, Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages, Words words) => name switch
     {
-        "sources.layers" => Layers(request, get()),
-        "sources.view.hide" => Changed(request, get, set, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false."))),
-        "sources.notes.remove" => Changed(request, get, set, project => project.DeleteNotes(request.Required("id"))),
-        "sources.original.remove" => Changed(request, get, set, project => project.RemoveOriginal(request.Required("id"), Now(request), request.Bool("withNotes") ?? false)),
-        "sources.original.add" => AddOriginal(request, get, set, evenPages),
+        "sources.layers" => Layers(request, get(), words),
+        "sources.view.hide" => Changed(request, get, set, words, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false."))),
+        "sources.notes.remove" => Changed(request, get, set, words, project => project.DeleteNotes(request.Required("id"))),
+        "sources.original.remove" => Changed(request, get, set, words, project => project.RemoveOriginal(request.Required("id"), Now(request), request.Bool("withNotes") ?? false)),
+        "sources.original.add" => AddOriginal(request, get, set, evenPages, words),
         _ => null,
     };
 
@@ -88,20 +88,20 @@ internal static class SourceRequest
         long from = request.Long("sentFromMs") ?? 0;
         (long, long) stretch = (from, from + request.Long("milliseconds")!.Value);
         string id = project.HasNotes ? project.NextNotesId() : project.NotesId;
-        return Changed(request, get, set, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, Now(request), stretch), json => json.WriteString("id", id));
+        return Changed(request, get, set, words, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, Now(request), stretch), json => json.WriteString("id", id));
     }
 
     /// <summary>
     /// The sources (<see cref="Answer.SourceLayers"/>) as "device" ("ipad", the default, or "web") sees them, with "here",
     /// the ids of the originals whose bytes the app has on this device beside the file (a recording's sound).
     /// </summary>
-    public static string Layers(Request request, Project project, Action<Utf8JsonWriter>? more = null)
+    public static string Layers(Request request, Project project, Words words, Action<Utf8JsonWriter>? more = null)
     {
         PieceViews views = PieceViews.Of(project, DeviceOf(request), request.Texts("here"));
         return Answer.Write(json =>
         {
             more?.Invoke(json);
-            Answer.SourceLayers(json, project, views);
+            Answer.SourceLayers(json, project, views, words);
         });
     }
 
@@ -114,7 +114,7 @@ internal static class SourceRequest
     };
 
     /// <summary>The piece changed by one of the sheet's operations, answered as the sources; what the operation refuses is a bad request.</summary>
-    public static string Changed(Request request, Func<Project> get, Action<Project> set, Func<Project, Project> change, Action<Utf8JsonWriter>? more = null)
+    public static string Changed(Request request, Func<Project> get, Action<Project> set, Words words, Func<Project, Project> change, Action<Utf8JsonWriter>? more = null)
     {
         Project changed;
         try
@@ -131,7 +131,7 @@ internal static class SourceRequest
         }
 
         set(changed);
-        return Layers(request, changed, more);
+        return Layers(request, changed, words, more);
     }
 
     public static DateTimeOffset Now(Request request) =>
@@ -144,7 +144,7 @@ internal static class SourceRequest
     /// default, "device" or "link"), "data" (base64, with "file"), "folder", "pages", "durationMs" and "now". The same file
     /// as a removed original revives it. Answers the sources with the original's "id".
     /// </summary>
-    private static string AddOriginal(Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages)
+    private static string AddOriginal(Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages, Words words)
     {
         OriginalKind kind = request.Text("kind") switch
         {
@@ -184,7 +184,7 @@ internal static class SourceRequest
         // The same file as a removed original takes its id back.
         string? sha = data is null ? null : PieceOriginal.Fingerprint(data);
         string id = project.Sources.Removed.FirstOrDefault(removed => sha is not null && removed.Original.Matches(sha))?.Original.Id ?? original.Id;
-        return Changed(request, get, set, piece => piece.AddOriginal(original, data, pages), json => json.WriteString("id", id));
+        return Changed(request, get, set, words, piece => piece.AddOriginal(original, data, pages), json => json.WriteString("id", id));
     }
 
     public static byte[] Base64(string text, string name)

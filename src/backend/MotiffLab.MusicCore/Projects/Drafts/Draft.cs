@@ -108,6 +108,12 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>The ids of every place and variant, for a new one never to take one.</summary>
     public IEnumerable<string> Ids => [.. Places.Select(static place => place.Id), .. Places.SelectMany(static place => place.Variants).Concat(Shelf).Select(static variant => variant.Id)];
 
+    /// <summary>The id a new place takes: <c>pl_</c> and the next number in the draft.</summary>
+    public string NextPlaceId() => Project.NextId("pl_", Ids);
+
+    /// <summary>The id a new variant takes: <c>v_</c> and the next number in the draft.</summary>
+    public string NextVariantId() => Project.NextId("v_", Ids);
+
     private DraftPlace Place(string? id) => (id is null ? null : FindPlace(id)) ?? throw new KeyNotFoundException($"The draft has no place {id}.");
 
     private Draft WithPlace(DraftPlace place) => Changed([.. Places.Select(each => each.Id == place.Id ? place : each)], Shelf, Steps);

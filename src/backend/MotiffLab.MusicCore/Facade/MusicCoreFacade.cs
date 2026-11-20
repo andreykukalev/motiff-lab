@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
@@ -19,7 +20,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// Not thread-safe: an app calls it from one thread at a time. Every answer is one JSON object; a
 /// failure is {"error": code, "message": text} and leaves the piece as it was.
 /// </remarks>
-public sealed class MusicCoreFacade
+public sealed partial class MusicCoreFacade
 {
     /// <summary>
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
@@ -28,6 +29,10 @@ public sealed class MusicCoreFacade
     /// answer unknownCall, and a performance no longer tells "mergedAt" and "mergeKept". A version is removed as other Notes
     /// are (sources.notes.remove). The project file stays version 17 and reads a performance's "taken" and "merge" and writes
     /// them back as before.
+    /// Also within 13 (version 1.1, ADR 0034 section 9 step 2, the iPad's step 5): drafts.sheet, drafts.add, drafts.open,
+    /// drafts.rename and drafts.remove (<see cref="DraftRequest"/>), on the piece open, on Notes or a version open only to be
+    /// shown, or with "into" from another piece; sources.layers and the Sources sheet's answers gain "drafts", their views
+    /// the kind "draft", which sources.view.hide hides as any other; calls, a field and a value added.
     /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
@@ -279,6 +284,11 @@ public sealed class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
+            if (name.StartsWith("drafts.", StringComparison.Ordinal))
+            {
+                return CallOnDrafts(piece, open, name, fields);
+            }
+
             if (open.ReadOnly && !IsShowingCall(name))
             {
                 throw new FacadeException("readOnly", "These notes are open only to be shown; make them the working notes to work on them.");
@@ -287,7 +297,7 @@ public sealed class MusicCoreFacade
             return name switch
             {
                 "sources.makeWorking" => MakeWorking(piece, open, fields),
-                "sources.notes.open" => OpenNotes(open, fields),
+                "sources.notes.open" => OpenNotes(piece, open, fields),
                 _ => open.Call(name, fields),
             };
         }
@@ -307,25 +317,41 @@ public sealed class MusicCoreFacade
     /// marks and check answer for them and every other call answers "readOnly". The piece itself does not change; close
     /// the new number when done. Answers as <c>open</c> does, with "readOnly": true.
     /// </summary>
-    private string OpenNotes(OpenPiece open, Request fields)
+    private string OpenNotes(int number, OpenPiece open, Request fields)
     {
-        Project shown;
+        string id = fields.Required("id");
+        return OpenShown(open, () => open.Project.ViewOf(id), new ShownView(number, id, Draft: false));
+    }
+
+    /// <summary>
+    /// What <paramref name="shown"/> gives, open under a new number only to be shown, as <paramref name="view"/> says, in the
+    /// language and layer of <paramref name="from"/>. Answers as <c>open</c> does, with "readOnly": true and what
+    /// <paramref name="more"/> writes.
+    /// </summary>
+    private string OpenShown(OpenPiece from, Func<Project> shown, ShownView view, Action<Utf8JsonWriter>? more = null)
+    {
+        Project project;
         try
         {
-            shown = open.Project.ViewOf(fields.Required("id"));
+            project = shown();
         }
         catch (KeyNotFoundException exception)
         {
             throw FacadeException.BadRequest(exception.Message);
         }
+        catch (InvalidOperationException exception)
+        {
+            throw FacadeException.Unavailable(exception.Message);
+        }
 
-        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(shown), open.Words, open.Layer).AsReadOnly();
+        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, from.Layer).AsReadOnly(view);
         int number = _next++;
         _pieces[number] = opened;
         return Answer.Write(json =>
         {
             json.WriteNumber("piece", number);
             json.WriteBoolean("readOnly", true);
+            more?.Invoke(json);
             opened.Summary(json);
         });
     }
