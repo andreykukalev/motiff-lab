@@ -47,6 +47,16 @@ struct PhrasesAnswer: Decodable, Sendable {
         let end: Double?
         let selectable: SpanAnswer?
         let start: Start?
+        let motifs: [Motif]?
+    }
+
+    /// A motif of a phrase (the phrases spec, decision 2), drawn in focus as a small comma that a tap selects: where it
+    /// starts and ends, and its bars.
+    struct Motif: Decodable, Equatable, Sendable {
+        let onset: Double
+        let end: Double
+        let firstBar: Int
+        let lastBar: Int
     }
 
     /// A phrase's start, its mark (the phrases spec, decision 1): how it was found ("imported", "inferred"; "userEdited",

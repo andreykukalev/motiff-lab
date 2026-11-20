@@ -87,6 +87,8 @@ struct PhraseUnit: Equatable, Sendable {
     /// For a found start the player moved: where it was found, its tick (the faint comma there), bar and beat
     /// («Вернуть найденную · 4.3»); nil for any other start.
     var found: PhrasesAnswer.Found?
+    /// Its motifs in time order, from music-core (decision 2): small commas on the card in focus, a tap selects one.
+    var motifs: [PhrasesAnswer.Motif]
 
     /// A unit music-core answers; nil without its number, onset or end.
     init?(_ unit: PhrasesAnswer.Unit) {
@@ -104,6 +106,7 @@ struct PhraseUnit: Equatable, Sendable {
         startBeat = unit.start?.beat ?? 1
         why = unit.start?.why ?? ""
         found = unit.start?.found
+        motifs = unit.motifs ?? []
     }
 }
 

@@ -31,13 +31,13 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
 - `page-ink.ts`: the pencil (`anchor`, `erase`, `eraseAlong`, `rub`, `rubEnd`, `draw`), owns the marks and the rubbing.
 - `page-bookmarks.ts`: `bookmarks`, `bookmarksTop` (the menu clears them).
 - `page-phrases.ts` (v1.2 i-2, the phrases spec): the phrases' marks (`phraseMarks`): a comma before each start note and
-  the phrase's number, a section's boxed letter, placed by `phrase-marks.ts` over what is printed on each system and drawn
-  again by `layout` (and once the fonts have loaded); their 44 pt targets (`button.phrase-mark`, `page-taps.ts` posts
+  the phrase's number, a section's boxed letter, placed by `phrase-marks.ts`, drawn again by `layout` and when the
+  fonts load; their 44 pt targets (`button.phrase-mark`, `page-taps.ts` posts
   `phraseMark`/`sectionMark`); the selected phrase's number (`select`'s `phrase`), the phrase playing (`playing`),
   `phraseMarksTop` (the menu clears them); hidden by the layer `phrases`. Drawn on a `PhraseSurface`: the pages, and in
-  focus the card's bars (`placeCardPhrases` from `page-card.ts` `layoutCard`, v1.2 i-3b), there only to read: a layout
-  of the card draws only the card's, leaving focus takes them away and leaves the page's as drawn; `phraseMarks` and the
-  page's `layout` draw both.
+  focus the card's bars (`placeCardPhrases` from `page-card.ts` `layoutCard`, v1.2 i-3b), only to read: a card's layout
+  draws only its own, leaving focus takes them away (the page's stay); `phraseMarks` and `layout` draw both. Only there
+  (`taps: "motifs"`, i-3c) motifs' small commas, whose tap `page-taps.ts` posts as `motifMark`.
 - `page-phrase-drag.ts` (v1.2 i-3a): a number held (`phraseHeld`, for Swift's menu) or dragged (`phraseMoved`): the mark
   lifted, its ghost, the amber line at the note, the caption, the two phrases it would make lit; rule `phrase-drag.ts`.
 - `page-marks.ts`: margin notes and highlights (`notes`), Check flags (`checks`), `layers`, `tint`, highlight bands.

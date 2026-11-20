@@ -115,6 +115,8 @@ button.phrase-mark { position: absolute; z-index: 1; min-height: 0; padding: 0; 
    its ghost faint where it was, an amber line at the note it would go to, its caption over the finger, and the two phrases
    it would make lit lightly in amber. */
 .phrase-ink.ghost { color: var(--ink-3); }
+/* In focus a motif's start (decision 2): a small comma without a number, a tone lighter than a phrase's found mark. */
+.phrase-ink.comma.motif { width: var(--s-1); height: var(--s-2); color: var(--ink-3); }
 .phrase-ink.lifted { z-index: 2; color: var(--warning); }
 div.phrase-drag { position: absolute; pointer-events: none; }
 div.phrase-neighbour { z-index: 0; border-radius: var(--r-xs); background: color-mix(in srgb, var(--amber-tint) 50%, transparent); }

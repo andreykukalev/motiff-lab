@@ -241,6 +241,35 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertEqual(model.phrases?.own, 1, "Undo takes the reset back in one step")
     }
 
+    /// A motif's comma tapped in focus (the phrases spec, decision 2): the page gets each phrase's motifs from music-core with
+    /// what a screen reader says, and a tap selects the motif's span in place of the selection there was, one step of the
+    /// selection's history; a motif the phrase has not selects nothing.
+    func testAMotifTappedInFocusIsSelectedAsOneStep() async throws {
+        let example = try XCTUnwrap(OpenPiece.example, "the example piece is in the app")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let score = ScoreController()
+        score.scorePage = RecordingScorePage()
+        score.show(piece, dark: false)
+        await score.selectionModel.loadPhrases(of: piece.id)
+        let phrase = try XCTUnwrap(score.selectionModel.phrases?.unit(1))
+        let motif = try XCTUnwrap(phrase.motifs.last, "music-core gives the phrase its motifs")
+        let marks = try XCTUnwrap(score.phraseMarks["phrases"] as? [[String: Any]])
+        let drawn = try XCTUnwrap(marks.first?["motifs"] as? [[String: Any]])
+        XCTAssertEqual(drawn.compactMap { $0["tick"] as? Double }, phrase.motifs.map(\.onset))
+        let label = try XCTUnwrap(drawn.last?["label"] as? String)
+        XCTAssertTrue(label.contains(barsText(motif.firstBar, motif.lastBar, score.text)), label)
+        XCTAssertFalse(label.contains("phrases.motifLabel"), "its words are in the Words")
+
+        score.pickMotif(phrase.motifs.count + 1, of: 1)
+        XCTAssertNil(score.selectionModel.selection, "no such motif")
+        score.pickMotif(phrase.motifs.count, of: 1)
+        for _ in 0..<100 where score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
+        let selected = try XCTUnwrap(score.selectionModel.selection, "music-core selects the motif")
+        XCTAssertEqual([selected.onset, selected.end], [motif.onset, motif.end])
+        XCTAssertTrue(score.selectionModel.steps.canUndo, "one step of the selection's history")
+    }
+
     /// «Вся фраза» (the phrases spec, decision 5): only for a selection inside one phrase that is not that phrase exactly.
     func testTheWholePhraseIsOfferedOnlyInsideOnePhrase() throws {
         let answer = #"{"units": [{"number": 1, "onset": 0, "end": 1920}, {"number": 2, "onset": 1920, "end": 3840}]}"#

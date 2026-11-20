@@ -96,6 +96,28 @@ test("targets on different systems, or at different heights, are not split", () 
     assert.equal(two.numberTarget.left, 92);
 });
 
+test("in focus a motif's comma takes the tap, centred on it, and the card's phrase marks take none", () => {
+    const [phrase, motif, near] = placeMarks([
+        spot({ letter: 14, tap: "none" }),
+        spot({ noteLeft: 300, comma: 4, number: 0, tap: "comma" }),
+        spot({ noteLeft: 320, comma: 4, number: 0, tap: "comma" }),
+    ], none, sizes);
+    assert.equal(phrase.letterTarget, null, "only to read");
+    assert.equal(phrase.numberTarget, null);
+    assert.equal(phrase.commaTarget, null);
+    assert.equal(motif.comma, 300 - 4 - 2, "the small comma right before its note, as a phrase's");
+    assert.equal(motif.number, null, "no number");
+    assert.equal(motif.numberTarget, null);
+    const centre = 294 + 2;
+    assert.deepEqual({ ...motif.commaTarget, right: 0 }, { left: centre - 22, right: 0, top: 156, bottom: 200 });
+    assert.equal(motif.commaTarget.right, (centre + 316) / 2, "a close motif's target shares the room between them");
+    assert.equal(near.commaTarget.left, (centre + 316) / 2);
+    const [own] = placeMarks([spot({ tap: "comma" })], none, sizes);
+    assert.deepEqual(own.commaTarget, { left: 94 - 22, right: 94 + 22, top: 156, bottom: 200 }, "a phrase's comma takes its first motif's tap");
+    assert.equal(own.numberTarget, null);
+    assert.equal(placeMarks([spot({})], none, sizes)[0].commaTarget, null, "on the pages a comma takes no tap");
+});
+
 test("the phrase playing is the last one that starts at or before the moment", () => {
     const starts = [0, 2880, 5760];
     assert.equal(phraseAt(starts, 0), 0);

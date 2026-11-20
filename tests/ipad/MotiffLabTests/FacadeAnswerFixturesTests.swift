@@ -209,6 +209,8 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         let first = try XCTUnwrap(read[0].unit(1))
         XCTAssertEqual([first.startBar, first.startBeat], [0, 3], "the upbeat")
         XCTAssertEqual(first.why, "the start of the piece")
+        XCTAssertEqual(first.motifs.map { [$0.onset, $0.end] }, [[0, 960], [960, 2880]], "its motifs, the small commas in focus")
+        XCTAssertEqual(first.motifs.map { [$0.firstBar, $0.lastBar] }, [[0, 1], [2, 4]])
         XCTAssertEqual(read[0].unit(2)?.why, "after a half close and where an earlier passage comes back note for note")
         XCTAssertTrue(read[0].units.allSatisfy { !$0.own }, "all found")
         XCTAssertEqual(read[0].sections.map(\.label), ["A", "B", "C", "A′"])

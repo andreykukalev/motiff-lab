@@ -17,6 +17,7 @@
   "credit.source": "исходный код",
   "phrases.bracketLabel": "{0} {1}, {2}",
   "phrases.markLabel": "Фраза {0}, с такта {1}, доля {2}, начинается {3}",
+  "phrases.motifLabel": "Мотив {0} фразы {1}, {2}",
   "phrases.sectionLabel": "Раздел {0}, {1}",
   "phrases.dragCaption": "такт {0} · доля {1}",
   "phrases.menuFound": "найдена приложением",

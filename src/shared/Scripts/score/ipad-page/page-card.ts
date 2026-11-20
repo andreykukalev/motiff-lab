@@ -4,7 +4,8 @@
 // it (`leave`). A variation being tried is engraved above the phrase as an ossia, in the kit's dashed plum frame named by
 // an overline, and its added notes are plum. In Expand the card has the page's black playhead too, dragged inside the
 // passage (v0.6.4, spec 8: `drawCardHeads`), and a tap on a bar of the card puts it on the beat tapped (`place`). The
-// phrases' marks stand over its bars as over the pages (page-phrases.ts), only to read.
+// phrases' marks stand over its bars as over the pages (page-phrases.ts), only to read, with each motif's small comma,
+// which a tap selects (page-taps.ts).
 import { cardLayout } from "../phrase-card.js";
 import { ScoreGeometry, readPage, staffFrames, type PageGeometry, type Playhead } from "../score-geometry.js";
 import { ScoreTimeline } from "../score-timeline.js";
@@ -165,7 +166,7 @@ export function layoutCard(): void {
             return { left: box.left + x, top: box.top + y, right: box.right + x, bottom: box.bottom + y };
         },
         system: (bar) => cardScore.querySelector(`[id="${CSS.escape(bar)}"]`)?.closest("g.system") ?? null,
-        targets: false,
+        taps: "motifs",
     });
 }
 

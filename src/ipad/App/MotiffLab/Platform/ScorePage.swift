@@ -81,7 +81,7 @@ enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
-        case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved
+        case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved, motifMark
         case place, heads, drag, blank
         case leave, cardLayout, coloured
     }
@@ -116,6 +116,9 @@ enum PageEvent {
     case phraseHeld(Int, left: Double, bottom: Double)
     /// A phrase's mark dragged and let go on a note: the tick its phrase starts at and that note's onset.
     case phraseMoved(from: Double, to: Double)
+    /// A motif's comma tapped on the card in focus (the phrases spec, decision 2): its phrase's number and its place in it,
+    /// both from 1.
+    case motifMark(phrase: Int, motif: Int)
     case place(start: Double, end: Double)
     case heads([CGPoint])
     case drag(PlayheadGesture)
@@ -173,8 +176,8 @@ enum PageEvent {
         return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
     }
 
-    /// A mark on the score tapped that names what it marks: a bookmark, a margin note, a Check flag, a phrase's number
-    /// or a section's letter.
+    /// A mark on the score tapped that names what it marks: a bookmark, a margin note, a Check flag, a phrase's number,
+    /// a section's letter or a motif's comma in focus.
     private static func tapEvent(_ kind: Kind, _ value: Any?) -> PageEvent? {
         switch kind {
         case .bookmark:
@@ -187,6 +190,9 @@ enum PageEvent {
             return number(value).map { .phraseMark(Int($0)) }
         case .sectionMark:
             return (value as? String).map { .sectionMark($0) }
+        case .motifMark:
+            guard let fields = value as? [String: Any], let phrase = number(fields["phrase"]), let motif = number(fields["motif"]) else { return nil }
+            return .motifMark(phrase: Int(phrase), motif: Int(motif))
         default:
             return nil
         }

@@ -40,7 +40,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,
   `OpenPiece.shownOnly`: a draft's view, other Notes), `pickPhrase` and `pickSection` (a tap on a number
-  or a letter: the phrase's or the section's selectable span as a new selection, a replace with «Вернуть»).
+  or a letter: the phrase's or the section's selectable span as a new selection, a replace with «Вернуть»), `pickMotif`
+  (a motif's comma on the card in focus, v1.2 i-3c: its span the same way, which Expand loops).
 - `ScorePhraseEdits.swift` (v1.2 i-3a): a mark held (`phraseHeld` → `phraseMenu`, `PhraseMarkMenu` in `DraftCardAtMark`)
   or dragged (`phraseMoved` → `phrases.edit` move), «Убрать границу», «Вернуть найденную», the toast (`PhraseEditToast`,
   the score's `UndoToast`) with Undo/Redo through `SelectionModel`; `setBarBeats` (the drag's caption). v1.2 i-3b:
