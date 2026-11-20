@@ -123,12 +123,16 @@
   "drafts.addButton": "Add",
   "drafts.techniqueLabel": "Technique {0}: {1}, bar {2}",
   "drafts.techniqueTitle": "Technique {0} · {1}",
-  "drafts.sure": "sure · {0} %",
-  "drafts.unsure": "not sure · {0} %",
+  "drafts.sure": "sure",
+  "drafts.unsure": "not sure",
   "drafts.stateTaken": "taken",
   "drafts.stateLeft": "left as in the base",
   "drafts.toastTaken": "Technique {0} taken",
   "drafts.toastLeft": "Technique {0} left as in the base",
   "drafts.toastRightHand": "The right hand taken from the variant",
-  "drafts.toastLeftHand": "The left hand taken from the variant"
+  "drafts.toastLeftHand": "The left hand taken from the variant",
+  "drafts.tally.one": "{0} technique of {1} taken",
+  "drafts.tally.many": "{0} techniques of {1} taken",
+  "drafts.matched.one": "{1} of {0} note in place",
+  "drafts.matched.many": "{1} of {0} notes in place"
 }

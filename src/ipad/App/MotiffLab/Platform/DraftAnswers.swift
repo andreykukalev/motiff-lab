@@ -84,19 +84,53 @@ struct DraftViewAnswer: Decodable, Sendable {
     let draft: Draft
 }
 
-/// A place's приёмы (`drafts.techniques`, DraftTakeRequest.Techniques, v1.1 c-4): how many there are, how many are taken,
+/// A place's приёмы (`drafts.techniques`, DraftTakeRequest.Techniques, v1.1 c-4 and c-4b): how many there are, how many are taken,
 /// and each приём with its number, the variant it is in, its kind as the engine read it ("inferred", always true), its
 /// label in words («октава»), how sure it is, its state ("open", "taken", "left") and where it occurs: the place's bar
-/// ("bar", as `drafts.take` names it), the draft's own bars and ticks (an inserted bar not yet put in has onset = end).
+/// ("bar", as `drafts.take` names it), the draft's own bars and ticks (an inserted bar not yet put in has onset = end);
+/// since c-4b how many of its notes are in place, and how its variant's side is heard: the variant's own ticks, and the
+/// stretch of the recording it was heard from (null when it was not, or its piece is not open).
 struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
+    struct Span: Decodable, Equatable, Sendable {
+        let onset: Int
+        let end: Int
+    }
+
+    /// A stretch of a recording, in milliseconds of its file (`OriginalSounds.file(project:original:)`).
+    struct Recording: Decodable, Equatable, Sendable {
+        let project: String
+        let original: String
+        let from: Int
+        let to: Int
+    }
+
     struct Occurrence: Decodable, Equatable, Sendable {
         let bar: Int
         let firstBar: Int
         let lastBar: Int
         let onset: Int
         let end: Int
-        let confidence: Int
+        let matched: Int
+        let total: Int
         let state: String
+        let inVariant: Span
+        let recording: Recording?
+
+        private enum CodingKeys: String, CodingKey { case bar, firstBar, lastBar, onset, end, matched, total, state, inVariant, recording }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            bar = try fields.decode(Int.self, forKey: .bar)
+            firstBar = try fields.decode(Int.self, forKey: .firstBar)
+            lastBar = try fields.decode(Int.self, forKey: .lastBar)
+            onset = try fields.decode(Int.self, forKey: .onset)
+            end = try fields.decode(Int.self, forKey: .end)
+            matched = try fields.decode(Int.self, forKey: .matched)
+            total = try fields.decode(Int.self, forKey: .total)
+            state = try fields.decode(String.self, forKey: .state)
+            inVariant = try fields.decode(Span.self, forKey: .inVariant)
+            recording = try fields.decodeNullable(Recording.self, forKey: .recording)
+        }
     }
 
     struct Technique: Decodable, Equatable, Sendable {
@@ -117,4 +151,11 @@ struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
     let taken: Int
     let sure: Int
     let techniques: [Technique]
+}
+
+/// A variant's own music opened to be heard (`drafts.open` with "variant", c-4b): the number it is open under, read-only;
+/// the rest is `open`'s summary, which the app does not read here.
+struct DraftVariantAnswer: Decodable, Sendable {
+    let piece: Int32
+    let variant: String
 }

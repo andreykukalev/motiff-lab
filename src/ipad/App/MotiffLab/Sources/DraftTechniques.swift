@@ -21,6 +21,8 @@ final class DraftTechniquesModel: ObservableObject {
         /// Where it is in the draft's ticks; empty for bars of a recording not yet put in (they would go there).
         var span: Range<Double> { Double(occurrence.onset)..<Double(max(occurrence.onset, occurrence.end)) }
         var isTaken: Bool { occurrence.state == "taken" }
+        /// Where it is in its variant's own ticks, as the variant's own music is heard (c-4b).
+        var variantSpan: Range<Double> { Double(occurrence.inVariant.onset)..<Double(max(occurrence.inVariant.onset, occurrence.inVariant.end)) }
 
         /// What the card offers here, as music-core takes it: the steps only while the occurrence is open (one taken or
         /// left is refused), a hand from the variant only over bars that hold notes (an inserted bar not yet put in has
@@ -140,14 +142,28 @@ final class DraftTechniquesModel: ObservableObject {
         }
     }
 
+    /// The variant's own music at `spot` (`drafts.open` with "variant", c-4b, asked on `piece`, the draft's view or the
+    /// piece it belongs to): opened read-only, its playback score read, closed again; heard over `Spot.variantSpan`. Nil
+    /// when music-core does not open it.
+    static func variantPlayback(_ spot: Spot, on piece: Int32) async -> PlaybackAnswer? {
+        let request = facadeRequest(["draft": spot.draft, "variant": spot.technique.variant])
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.open", request) }
+        guard let view = FacadeAnswer.decode(DraftVariantAnswer.self, text, of: "drafts.open") else { return nil }
+        let playback = await PieceCore(piece: view.piece).playback().value
+        _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
+        return playback
+    }
+
     /// The приём's name with its number: «Приём 2 · октава».
     static func title(_ spot: Spot, _ text: UIText) -> String {
         text.format("drafts.techniqueTitle", String(spot.technique.number), spot.technique.label)
     }
 
-    /// How sure music-core is of the occurrence, and what was done with it: «уверенно · 90 %», «взят».
+    /// How sure music-core is of the occurrence, how many of its notes are in place, and what was done with it:
+    /// «уверенно · 3 из 4 нот на месте · взят».
     static func status(_ spot: Spot, _ text: UIText) -> String {
-        let sure = text.format(spot.technique.sure ? "drafts.sure" : "drafts.unsure", String(spot.occurrence.confidence))
+        let matched = SourceLayers.counted("drafts.matched", spot.occurrence.total, String(spot.occurrence.matched), text: text)
+        let sure = text[spot.technique.sure ? "drafts.sure" : "drafts.unsure"] + " · " + matched
         switch spot.occurrence.state {
         case "taken": return sure + " · " + text["drafts.stateTaken"]
         case "left": return sure + " · " + text["drafts.stateLeft"]

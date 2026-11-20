@@ -271,14 +271,21 @@ struct SourceLayersAnswer: Decodable, Sendable {
     }
 
     /// A draft of the piece, for the Sources group «Черновики» (v1.1, ADR 0034): its name, the caption music-core words,
-    /// how many places it has and how many variants wait on its shelf.
+    /// how many places it has, how many variants wait on its shelf, and how many of the приёмы of all its places are taken
+    /// (step 6, c-4b).
     struct Draft: Decodable, Sendable {
+        struct Techniques: Decodable, Sendable {
+            let taken: Int
+            let total: Int
+        }
+
         let id: String
         let name: String
         let caption: String
         let createdAt: String
         let places: Int
         let shelf: Int
+        let techniques: Techniques
     }
 
     /// The working notes' id, null for a piece that is only its PDF.

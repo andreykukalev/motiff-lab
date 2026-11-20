@@ -245,7 +245,10 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(model.step(1), spot, "the last stays the current one")
         XCTAssertNil(model.picked?.at, "stepping shows no card")
         XCTAssertTrue(screen.score.canHear(spot, variant: false), "open: the draft sounds as the base there")
-        XCTAssertFalse(screen.score.canHear(spot, variant: true))
+        XCTAssertNil(spot.occurrence.recording, "not heard from a recording")
+        XCTAssertTrue(screen.score.canHear(spot, variant: true), "the variant's own notes, opened alone")
+        let variantNotes = await DraftTechniquesModel.variantPlayback(spot, on: view.id)
+        XCTAssertFalse(variantNotes?.notes.isEmpty ?? true, "the variant's music, opened alone and closed again")
         XCTAssertEqual(spot.offer, DraftTechniquesModel.Offer(steps: true, hands: true, everywhere: 1), "open: every step")
         XCTAssertTrue(model.stepping, "the pill's ‹ ›, in place of the phrase's")
         XCTAssertEqual(screen.score.currentPlace(at: 0)?.id, spot.place, "«↻ Место» loops the current occurrence's place")
@@ -261,7 +264,9 @@ final class DraftsTests: XCTestCase {
         await model.load(again.draft, on: again.id)
         let takenSpot = try XCTUnwrap(model.spots.first)
         XCTAssertTrue(takenSpot.isTaken)
-        XCTAssertTrue(screen.score.canHear(takenSpot, variant: true), "taken: the draft sounds as the variant there")
+        XCTAssertFalse(screen.score.canHear(takenSpot, variant: false), "taken: the draft's notes there are the variant's")
+        XCTAssertTrue(screen.score.canHear(takenSpot, variant: true))
+        XCTAssertEqual(sources.layers.drafts.first?.taken, 1, "the Sources tally, from music-core")
         XCTAssertEqual(takenSpot.offer, DraftTechniquesModel.Offer(steps: false, hands: false, everywhere: 0), "taken: music-core refuses another step")
 
         await sources.undo()
@@ -289,10 +294,14 @@ final class DraftsTests: XCTestCase {
         let json = #"""
         {"draft": "dr_0001", "place": "pl_0001", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
         "kind": "octave", "label": "октава", "inferred": true, "confidence": 90, "sure": true, "state": "open", "occurrences": [
-        {"bar": 4, "firstBar": 4, "lastBar": 4, "onset": 5760, "end": 7200, "confidence": 90, "state": "open"},
-        {"bar": 6, "firstBar": 6, "lastBar": 6, "onset": 8640, "end": 8640, "confidence": 80, "state": "open"},
-        {"bar": 8, "firstBar": 8, "lastBar": 8, "onset": 11520, "end": 12960, "confidence": 90, "state": "taken"},
-        {"bar": 9, "firstBar": 9, "lastBar": 9, "onset": 12960, "end": 14400, "confidence": 90, "state": "left"}]}]}
+        {"bar": 4, "firstBar": 4, "lastBar": 4, "onset": 5760, "end": 7200, "confidence": 90, "matched": 3, "total": 4, "state": "open",
+         "inVariant": {"onset": 0, "end": 1440}, "recording": null},
+        {"bar": 6, "firstBar": 6, "lastBar": 6, "onset": 8640, "end": 8640, "confidence": 80, "matched": 0, "total": 2, "state": "open",
+         "inVariant": {"onset": 2880, "end": 4320}, "recording": {"project": "p_1", "original": "src_rec", "from": 3000, "to": 4500}},
+        {"bar": 8, "firstBar": 8, "lastBar": 8, "onset": 11520, "end": 12960, "confidence": 90, "matched": 4, "total": 4, "state": "taken",
+         "inVariant": {"onset": 5760, "end": 7200}, "recording": null},
+        {"bar": 9, "firstBar": 9, "lastBar": 9, "onset": 12960, "end": 14400, "confidence": 90, "matched": 1, "total": 1, "state": "left",
+         "inVariant": {"onset": 7200, "end": 8640}, "recording": null}]}]}
         """#
         let read = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, json, of: "drafts.techniques"))
         let model = DraftTechniquesModel()
@@ -301,6 +310,12 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(offers.map(\.steps), [true, true, false, false])
         XCTAssertEqual(offers.map(\.hands), [true, false, false, false], "no hand over a bar not yet put in")
         XCTAssertEqual(offers.map(\.everywhere), [2, 2, 2, 2], "«Взять везде · 2»: the open ones")
+        let russian = UIText(language: "ru")
+        XCTAssertEqual(model.spots.map { DraftTechniquesModel.status($0, russian) }, [
+            "уверенно · 3 из 4 нот на месте", "уверенно · 0 из 2 нот на месте", "уверенно · 4 из 4 нот на месте · взят",
+            "уверенно · 1 из 1 ноты на месте · оставлен как в основе",
+        ])
+        XCTAssertEqual(model.spots[1].occurrence.recording?.from, 3000, "heard from a recording's stretch")
     }
 
     /// On a view only to be shown (Notes or a draft over the piece) the selection menu offers no Note, Bookmark, Insights or

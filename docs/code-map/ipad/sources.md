@@ -12,8 +12,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   switch); `SourcesDrafts.swift` (`addToDraft` on the piece the notes are shown on, `renameDraft`, `removeDraft` with
   Undo, `openDraft` by `drafts.open` through `openShown`); `DraftSheet.swift`: `DraftChoice` (what, into, how, the
   same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
-  (`SourcesRows.swift`) and `DraftDialogs`. Step 6: `DraftTechniquesModel`
-  (`DraftTechniques.swift`: a draft view's приёмы, the one picked, the numbers hidden, what the card offers); `take`, `leave`, `takeHand`
+  (`SourcesRows.swift`, its caption with «взято N приёмов из M» from music-core) and `DraftDialogs`. Step 6: `DraftTechniquesModel`
+  (`DraftTechniques.swift`: a draft view's приёмы, the one picked, the numbers hidden, what the card offers, the variant's music opened alone to be heard, `variantPlayback`); `take`, `leave`, `takeHand`
   (`drafts.take`, `drafts.leave`, `drafts.takeFrom`) with a toast whose Undo is `drafts.undo` (`SourcesToast.Undo.draftStep`). No «расширить»: music-core has no call for it yet.
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
@@ -25,7 +25,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`SourcesController.performance`) under the bar of `ScoreScreen` and `PdfScreen`, or of a screen over the piece
   (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`), `RecordingListening`:
   `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
-  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it.
+  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`, a stretch heard once (a приём «Как на записи»).
 - `SourcesSheet.swift` (from `Workspace/ScoreScreen`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
   (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.

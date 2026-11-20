@@ -80,5 +80,7 @@
   "drafts.techniqueCount.many": "{0} techniques",
   "drafts.playAll": "All",
   "drafts.loopPlace": "Place",
-  "drafts.refused": "That did not work: the draft is as it was."
+  "drafts.refused": "That did not work: the draft is as it was.",
+  "drafts.asInVariant": "As in the variant",
+  "drafts.pillVariant": "Variant"
 }

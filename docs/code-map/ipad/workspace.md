@@ -36,7 +36,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels and приём numbers (`placeMarkers`); a tap on a label
   (`pickLabel`) selects its place or a version's bar, on a number opens its card (`pickTechnique`); the pill's ‹ ›
-  (`stepTechnique`), «Скрыть номера», an occurrence heard (`hearTechnique`, `canHear`), «▶ Всё» (`playDraft`) and
+  (`stepTechnique`), «Скрыть номера», an occurrence heard (`hearTechnique`, `canHear`: the base, the recording's
+  stretch on this iPad, else the variant's own notes), «▶ Всё» (`playDraft`) and
   «↻ Место» (`loopPlace`, `currentPlace`) on the one playback model.
 - `ScoreDraftViews.swift` (v1.1, 0034 step 6): `DraftTechniqueCard`, `DraftAssemblyPill`, `DraftStepToast` (Undo by
   `drafts.undo`) and `ShownDraftScreen`, which opens the draft again after each step (`reopen`). On a view-only screen

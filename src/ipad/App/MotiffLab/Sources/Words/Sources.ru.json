@@ -134,12 +134,18 @@
   "drafts.addButton": "Добавить",
   "drafts.techniqueLabel": "Приём {0}: {1}, такт {2}",
   "drafts.techniqueTitle": "Приём {0} · {1}",
-  "drafts.sure": "уверенно · {0} %",
-  "drafts.unsure": "не уверенно · {0} %",
+  "drafts.sure": "уверенно",
+  "drafts.unsure": "не уверенно",
   "drafts.stateTaken": "взят",
   "drafts.stateLeft": "оставлен как в основе",
   "drafts.toastTaken": "Взят приём {0}",
   "drafts.toastLeft": "Приём {0} оставлен как в основе",
   "drafts.toastRightHand": "Взята правая рука из варианта",
-  "drafts.toastLeftHand": "Взята левая рука из варианта"
+  "drafts.toastLeftHand": "Взята левая рука из варианта",
+  "drafts.tally.one": "взят {0} приём из {1}",
+  "drafts.tally.few": "взято {0} приёма из {1}",
+  "drafts.tally.many": "взято {0} приёмов из {1}",
+  "drafts.matched.one": "{1} из {0} ноты на месте",
+  "drafts.matched.few": "{1} из {0} нот на месте",
+  "drafts.matched.many": "{1} из {0} нот на месте"
 }

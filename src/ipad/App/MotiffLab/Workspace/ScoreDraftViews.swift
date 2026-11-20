@@ -43,7 +43,8 @@ struct DraftTechniqueCard: View {
             Text(DraftTechniquesModel.status(spot, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             HStack(spacing: CGFloat.ds("s-2")) {
                 hear(spot, variant: false, "drafts.asInNotes")
-                hear(spot, variant: true, "drafts.asOnRecording")
+                // «Как на записи» where the variant was heard from a recording, else its own notes «Как в варианте».
+                hear(spot, variant: true, spot.occurrence.recording != nil ? "drafts.asOnRecording" : "drafts.asInVariant")
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 Button(text.format("drafts.takeEverywhere", String(offer.everywhere))) { act { await owner.take(spot, here: false) } }
@@ -134,7 +135,7 @@ struct DraftAssemblyPill: View {
         stepItem("fwd", text["drafts.next"]) { score.stepTechnique(1) }
         ItemDivider()
         ForEach([false, true], id: \.self) { variant in
-            word("play", variant ? "drafts.pillRecording" : "drafts.pillNotes") {
+            word("play", variant ? (current?.occurrence.recording != nil ? "drafts.pillRecording" : "drafts.pillVariant") : "drafts.pillNotes") {
                 if let current { score.hearTechnique(current, variant: variant) }
             }
             .disabled(!(current.map { score.canHear($0, variant: variant) } ?? false))

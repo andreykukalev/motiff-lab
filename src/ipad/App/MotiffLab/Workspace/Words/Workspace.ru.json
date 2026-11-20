@@ -81,5 +81,7 @@
   "drafts.techniqueCount.many": "{0} приёмов",
   "drafts.playAll": "Всё",
   "drafts.loopPlace": "Место",
-  "drafts.refused": "Не получилось: черновик остался как был."
+  "drafts.refused": "Не получилось: черновик остался как был.",
+  "drafts.asInVariant": "Как в варианте",
+  "drafts.pillVariant": "Вариант"
 }

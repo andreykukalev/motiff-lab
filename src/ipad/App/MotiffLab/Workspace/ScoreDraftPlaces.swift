@@ -81,20 +81,37 @@ extension ScoreController {
         showSpan(spot.span)
     }
 
-    /// What can be heard of the occurrence here: the draft's own notes there, which are the base's while the приём is not
-    /// taken and the variant's once it is (`variant`); not the other, which music-core does not answer on its own yet,
-    /// nor bars of a recording not yet put in.
+    /// What can be heard of the occurrence: as in the notes, the draft's own notes there while the приём is not taken (they
+    /// are the base's then), never over bars of a recording not yet put in; as in the variant, the stretch of the recording
+    /// it was heard from when that sound is on this iPad, else the variant's own notes over its ticks.
     func canHear(_ spot: DraftTechniquesModel.Spot, variant: Bool) -> Bool {
-        !spot.span.isEmpty && spot.isTaken == variant
+        guard variant else { return !spot.span.isEmpty && !spot.isTaken }
+        return recordingHeard(spot) != nil || !spot.variantSpan.isEmpty
     }
 
-    /// «▶ Как в нотах» or «▶ Как на записи» on the card or the pill: the occurrence heard once, as the draft's notes have
-    /// it now (`canHear`), as a version's bar is heard from its marker.
+    /// The recording the occurrence's variant was heard from, when its sound is kept on this iPad (c-4b).
+    func recordingHeard(_ spot: DraftTechniquesModel.Spot) -> URL? {
+        spot.occurrence.recording.flatMap { OriginalSounds.file(project: $0.project, original: $0.original) }
+    }
+
+    /// «▶ Как в нотах», «▶ Как на записи» or «▶ Как в варианте» on the card or the pill (`canHear`): the base as the draft's
+    /// notes have it there, the recording's stretch (`RecordingListening`), or the variant's own notes, heard once as a
+    /// version's bar is heard from its marker.
     func hearTechnique(_ spot: DraftTechniquesModel.Spot, variant: Bool) {
         guard let piece, canHear(spot, variant: variant) else { return }
+        if variant, let url = recordingHeard(spot), let stretch = spot.occurrence.recording {
+            RecordingListening.shared.playStretch(url, from: stretch.from, to: stretch.to)
+            return
+        }
         Task {
-            guard let notes = await PieceCore(piece: piece.id).playback().value.map(PlaybackScore.init)?.notes else { return }
-            hearNotes?(notes, spot.span)
+            let answer: PlaybackAnswer?
+            if variant {
+                answer = await DraftTechniquesModel.variantPlayback(spot, on: piece.id)
+            } else {
+                answer = await PieceCore(piece: piece.id).playback().value
+            }
+            guard let notes = answer.map(PlaybackScore.init)?.notes else { return }
+            hearNotes?(notes, variant ? spot.variantSpan : spot.span)
         }
     }
 }
