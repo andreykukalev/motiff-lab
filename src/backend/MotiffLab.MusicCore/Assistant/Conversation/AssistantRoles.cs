@@ -12,7 +12,8 @@ public enum AssistantRole
     /// The assistant that acts (#582 item 17.3; 0028 sections 1-3; the AI companion study, section 2.4): it reads like the
     /// mentor and, when the player asks for a change, chooses one catalogue operation with in-range parameters (a repair by
     /// Check reason, a variation, a note edit or a joined tie); music-core makes every note as a draft, and only the player
-    /// accepts it. Served once with the experiment «Помощник правит ноты».
+    /// accepts it. It may also suggest a practice action (practice.suggest: loop bars at a tempo, with a hand), which the
+    /// app shows as a button the player taps or not. Served once with the experiment «Помощник правит ноты».
     /// </summary>
     Proposer,
 }
@@ -30,7 +31,7 @@ public static class AssistantRoles
     public static IReadOnlyList<AssistantTool> ToolsOf(AssistantRole role) => role switch
     {
         AssistantRole.Mentor => [.. AssistantTools.All.Where(static tool => tool.Kind == ToolKind.Read)],
-        AssistantRole.Proposer => [.. AssistantTools.All.Where(static tool => tool.Kind is ToolKind.Read or ToolKind.ProposeDraft or ToolKind.Check)],
+        AssistantRole.Proposer => [.. AssistantTools.All.Where(static tool => tool.Kind is ToolKind.Read or ToolKind.ProposeDraft or ToolKind.Check or ToolKind.SuggestAction)],
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown role."),
     };
 
