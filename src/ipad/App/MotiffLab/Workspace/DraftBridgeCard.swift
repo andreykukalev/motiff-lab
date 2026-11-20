@@ -56,7 +56,8 @@ struct DraftBridgeContent: View {
         }
     }
 
-    /// A step on the draft: taken, the card goes and the draft's view opens again at the place; refused, the card says so.
+    /// A step on the draft: taken, the card goes and the draft's view opens again where the player is (as the map's steps,
+    /// so a step on the map does not scroll); refused, the card says so.
     private func act(_ step: @escaping () async -> Bool) {
         Task {
             guard await step() else {
@@ -64,7 +65,7 @@ struct DraftBridgeContent: View {
                 return
             }
             score.seamsModel.close()
-            await reopen?(.tick(Double(place.onset)))
+            await reopen?(.tick(await score.tickInView() ?? 0))
         }
     }
 }

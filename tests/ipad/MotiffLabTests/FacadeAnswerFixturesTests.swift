@@ -482,6 +482,22 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         model.close()
         XCTAssertNil(model.picked)
 
+        // The draft answered again: a pick stays while its anchor is there, and goes with it (unpinned, or an Undo).
+        model.pick("pl_0001/v_0002/2880", in: view.draft, at: CGPoint(x: 1, y: 2))
+        model.keep(view.draft)
+        XCTAssertEqual(model.picked?.mark.key, "pl_0001/v_0002/2880", "still there")
+        XCTAssertEqual(model.picked?.at, CGPoint(x: 1, y: 2), "where it was")
+        let places = view.draft.places.map { place in
+            let variants = place.variants.map {
+                DraftViewAnswer.Variant(id: $0.id, label: $0.label, base: $0.base, steps: $0.steps, bridge: $0.bridge, explanation: $0.explanation, anchors: [])
+            }
+            return DraftViewAnswer.Place(
+                id: place.id, label: place.label, onset: place.onset, end: place.end, firstBar: place.firstBar, lastBar: place.lastBar, steps: place.steps,
+                bridge: place.bridge, variants: variants)
+        }
+        model.keep(DraftViewAnswer.Draft(id: view.draft.id, name: view.draft.name, places: places, shelf: view.draft.shelf))
+        XCTAssertNil(model.picked, "its anchor gone: the menu goes")
+
         let steps = try [2, 5, 6].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
         XCTAssertEqual(steps.map { $0.drafts.first?.places }, [1, 1, 1], "anchors change no place")
 

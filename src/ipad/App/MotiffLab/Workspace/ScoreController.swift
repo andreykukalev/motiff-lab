@@ -1350,6 +1350,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await applyLayers()
             await draftModel.load(piece.draft, on: piece.id)
             await seamsModel.load(piece.draft, on: piece.id)
+            anchorsModel.keep(piece.draft)
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()

@@ -31,8 +31,8 @@ extension ScoreController {
         seamsModel.close()
     }
 
-    /// A candidate of a bridge place heard alone, once, over the place's length (`span`, the variant's own ticks), as the
-    /// draft view plays it.
+    /// A variant's own music heard once over `span` (its own ticks): a bridge's candidate over the place's length, or one
+    /// side of a приём's occurrence; nothing before a piece.
     func hearVariant(_ variant: String, of draft: String, over span: Range<Double>) {
         guard let piece else { return }
         Task {
@@ -164,15 +164,13 @@ extension ScoreController {
     /// (`RecordingListening`, the score's `player` paused first: one thing sounds at a time), else the base's or the
     /// variant's own notes, heard once as a version's bar is heard from its marker.
     func hearTechnique(_ spot: DraftTechniquesModel.Spot, variant: Bool, pausing player: Player) {
-        guard let piece, canHear(spot, variant: variant) else { return }
+        guard canHear(spot, variant: variant) else { return }
         if variant, let url = recordingHeard(spot), let stretch = spot.occurrence.recording {
             if PlaybackModel.playing(player.state) { player.apply(.press) }
             RecordingListening.shared.playStretch(url, from: stretch.from, to: stretch.to)
             return
         }
-        Task {
-            guard let notes = await DraftTechniquesModel.playback(spot, variant: variant, on: piece.id).map(PlaybackScore.init)?.notes else { return }
-            hearNotes?(notes, spot.heard(variant: variant).span)
-        }
+        let side = spot.heard(variant: variant)
+        hearVariant(side.variant, of: spot.draft, over: side.span)
     }
 }

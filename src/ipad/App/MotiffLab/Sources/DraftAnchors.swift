@@ -41,6 +41,13 @@ final class DraftAnchorsModel: ObservableObject {
         return mark
     }
 
+    /// The draft as music-core answered it again (a step, its Undo): the mark picked stays picked only while its anchor is
+    /// still there.
+    func keep(_ draft: DraftViewAnswer.Draft?) {
+        guard let pick = picked else { return }
+        picked = Self.marks(draft).first { $0.key == pick.mark.key }.map { Pick(mark: $0, at: pick.at) }
+    }
+
     /// The menu goes.
     func close() {
         picked = nil
