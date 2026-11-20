@@ -152,5 +152,24 @@ final class DraftAssistantTests: XCTestCase {
         XCTAssertEqual(undone, draft.id)
         await sources.undo()
         XCTAssertEqual(sources.layers.drafts.first?.taken, 0, "undone as any step of the draft")
+
+        // Too dense for one turn (the API's 413): no fewer bars can be selected in a draft, so it says the place is.
+        AssistantStub.answers = ["status": (200, Data(#"{"configured": true, "allowed": true, "pro": true, "left": 5}"#.utf8)), "turn": (413, Data())]
+        await assistant.askInDraft("Assemble the place", about: ask)
+        XCTAssertEqual(assistant.inDraft?.exchange?.note, "mentor.placeTooLarge", "never «select fewer bars» in a draft")
+        // A place no longer in the draft: music-core reads no context, and nothing goes.
+        let gone = AssistantDraftPlace(draft: draft.id, place: "pl_9999", label: place.label)
+        assistant.openInDraft(gone)
+        var lost = ask
+        lost.place = gone
+        AssistantStub.answers = ["status": (200, Data(#"{"configured": true, "allowed": true, "pro": true, "left": 5}"#.utf8))]
+        await assistant.askInDraft("Assemble the place", about: lost)
+        XCTAssertEqual(assistant.inDraft?.exchange?.note, "mentor.placeUnread", "not the 32 bars: the place could not be read")
+        XCTAssertEqual(AssistantStub.asked, ["status"], "no turn sent")
+        for language in ["en", "ru"] {
+            for key in ["mentor.placeTooLarge", "mentor.placeUnread", "mentor.placeTooLong"] {
+                XCTAssertNotEqual(UIText(language: language)[key], key, "\(key) in \(language)")
+            }
+        }
     }
 }

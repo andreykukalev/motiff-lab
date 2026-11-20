@@ -82,5 +82,7 @@
   "mentor.draftConsentTechniques": "the list of techniques (what differs, in which bars, how sure, whether taken) and the description of the place's seams (key, meter, tempo, register, bridge candidates), each fact with its id;",
   "mentor.draftConsentQuestion": "your question and this conversation with what the assistant looked at in the place.",
   "mentor.draftConsentNot": "Never sent: a recording's sound, files and their names, the piece's title, the notes of the draft's other places, your marks, notes, bookmarks and data.",
-  "mentor.placeTooLong": "The place or its variant is longer than 32 bars, more than a question in a draft takes. Nothing was sent."
+  "mentor.placeTooLong": "The place or its variant is longer than 32 bars, more than a question in a draft takes. Nothing was sent.",
+  "mentor.placeTooLarge": "The place and its variant are too dense for one question. Nothing was sent.",
+  "mentor.placeUnread": "The draft's place could not be read. Nothing was sent."
 }

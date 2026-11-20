@@ -22,6 +22,8 @@ extension ScoreWorkspace {
         // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
         // spec section 11: each visit with the sources on stayed in memory).
         sources.reopen = nil
+        // The assistant in a draft's place goes with the draft's view: a later visit starts empty (v1.2).
+        assistant.closeInDraft()
         let now = resumeNow()
         let view = notesViewNow()
         // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.

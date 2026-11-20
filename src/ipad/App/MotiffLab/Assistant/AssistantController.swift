@@ -385,7 +385,7 @@ final class AssistantController: ObservableObject {
         if let note = status.note { return .unanswered(note) }
         let place = ask.place
         guard let context = await Self.context(piece: ask.piece, selection: ask.wholePiece ? nil : ask.selection, wholePiece: ask.wholePiece, place: place) else {
-            return .unanswered(place == nil ? "mentor.tooManyBars" : "mentor.placeTooLong")
+            return .unanswered(await Self.contextRefused(piece: ask.piece, place: place))
         }
         let piece = ask.piece
         let role = chat.role
@@ -408,8 +408,18 @@ final class AssistantController: ObservableObject {
         case let .answered(answered, text, fallback, reason):
             return .answered(answered, text: text, fallback: fallback, reason: reason, context: context)
         case let .unanswered(note):
-            return .unanswered(note)
+            // Too large for one turn (its size, or the API's 413): in a draft no fewer bars can be selected.
+            return .unanswered(place != nil && note == "mentor.tooLarge" ? "mentor.placeTooLarge" : note)
         }
+    }
+
+    /// Why a turn has no context (`context` answered nil): the selection is longer than a question takes; in a draft's
+    /// place, the place or its variant is longer than 32 bars when the place is still there (`drafts.techniques` reads it,
+    /// as music-core refuses only a place it cannot find or one too long), else the place could not be read.
+    static func contextRefused(piece: Int32, place: AssistantDraftPlace?) async -> String {
+        guard let place else { return "mentor.tooManyBars" }
+        let there = await PieceCore(piece: piece).draftTechniques(draft: place.draft, place: place.place).value != nil
+        return there ? "mentor.placeTooLong" : "mentor.placeUnread"
     }
 
     /// The question's phase now (a turn sent, a tool call run on the iPad).
