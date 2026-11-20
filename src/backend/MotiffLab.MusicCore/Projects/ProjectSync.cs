@@ -134,6 +134,7 @@ public static class ProjectSync
         ["workspace.bookmarks"] = FieldClass.Player,
         ["workspace.resumePoints"] = FieldClass.Player,
         ["workspace.assembly"] = FieldClass.Player,
+        ["workspace.drafts"] = FieldClass.Player,
         ["workspace.settings"] = FieldClass.Player,
         ["workspace.hiddenViews"] = FieldClass.Player,
     };

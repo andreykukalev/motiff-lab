@@ -1,5 +1,7 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Projects.Drafts;
+using MotiffLab.MusicCore.Projects.File;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -60,7 +62,35 @@ internal static class SourcesMerge
         }
 
         merged = OtherNotes(merged, loser, @base);
-        return Versions(merged, loser, @base);
+        return Drafts(Versions(merged, loser, @base), loser, @base);
+    }
+
+    /// <summary>
+    /// The drafts of both copies by id, as Notes merge (decision record 0034, decision log; 0026 S8): the drafts only the
+    /// other copy has come in, and one changed only on the other side since the base takes that side's. The same draft
+    /// changed on both is a conflict: the winner's stands, the other's stays in the copy kept beside. With the base, a
+    /// draft removed on one side since then goes; without it, it comes back.
+    /// </summary>
+    private static Project Drafts(Project merged, Project loser, Project? @base)
+    {
+        List<Draft> drafts = [];
+        foreach (Draft mine in merged.Drafts)
+        {
+            Draft? theirs = loser.FindDraft(mine.Id);
+            Draft? before = @base?.FindDraft(mine.Id);
+            bool unchanged = before is not null && DraftsCodec.Same(before, mine);
+            if (theirs is null && unchanged && !Project.UnknownIds(loser.Unknown, Project.DraftsList).Contains(mine.Id, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            drafts.Add(theirs is not null && unchanged ? theirs : mine);
+        }
+
+        HashSet<string> known = [.. merged.DraftIds];
+        HashSet<string> inBase = @base is null ? [] : [.. @base.DraftIds];
+        drafts.AddRange(loser.Drafts.Where(theirs => !known.Contains(theirs.Id) && !inBase.Contains(theirs.Id)));
+        return drafts.SequenceEqual(merged.Drafts) ? merged : merged with { Drafts = drafts };
     }
 
     private static Project OtherNotes(Project merged, Project loser, Project? @base)

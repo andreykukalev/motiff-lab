@@ -33,7 +33,7 @@ public static class SamePiece
         "settings", "performances", "assembly", "metadata", "notes.name", "notes.fileName", "notes.edits", "notes.performance",
         "workspace", "workspace.working", "workspace.metadata", "workspace.tempo", "workspace.motifs", "workspace.variations",
         "workspace.observations", "workspace.phrases", "workspace.marks", "workspace.bookmarks", "workspace.resumePoints",
-        "workspace.assembly", "workspace.settings", "workspace.hiddenViews",
+        "workspace.assembly", "workspace.drafts", "workspace.settings", "workspace.hiddenViews",
     };
 
     /// <summary>Each of the player's fields, as it is copied from one project onto another to be compared written.</summary>
@@ -52,6 +52,8 @@ public static class SamePiece
         static (to, from) => to with { SettingOverrides = from.SettingOverrides },
         static (to, from) => to with { Performances = from.Performances },
         static (to, from) => to with { Assembly = from.Assembly },
+        // Drafts merge by id (version 17): a copy whose drafts the other has, each as it is, adds none.
+        static (to, from) => to with { Drafts = [.. to.Drafts.Select(draft => from.FindDraft(draft.Id) ?? draft), .. from.Drafts.Where(draft => to.FindDraft(draft.Id) is null)] },
         static (to, from) => to with { HiddenViews = from.HiddenViews },
         static (to, from) => to with { Sources = to.Sources with { Notes = from.Sources.Notes } },
     ];

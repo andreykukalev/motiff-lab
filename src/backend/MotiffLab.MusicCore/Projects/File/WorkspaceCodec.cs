@@ -8,6 +8,7 @@ using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.AssemblyCodec;
+using static MotiffLab.MusicCore.Projects.File.DraftsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierFile;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
@@ -32,7 +33,7 @@ internal static class WorkspaceCodec
     internal static readonly HashSet<string> s_workspaceFields = new(StringComparer.Ordinal)
     {
         "working", "metadata", "partOf", "editsOff", "tempo", "motifs", "variations", "observations", "phrases", "marks", "bookmarks",
-        "resumePoints", "assembly", "settings", "hiddenViews",
+        "resumePoints", "assembly", "drafts", "settings", "hiddenViews",
     };
 
     internal const string WorkspacePath = "workspace";
@@ -59,6 +60,8 @@ internal static class WorkspaceCodec
         {
             WriteAssembly(json, project.Assembly);
         }
+
+        WriteDrafts(json, project);
 
         json.WriteStartObject("settings");
         foreach ((string id, string value) in project.SettingOverrides.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -236,6 +239,7 @@ internal static class WorkspaceCodec
             Bookmarks = bookmarks,
             SettingOverrides = version >= 12 ? ReadSettings(Property(work, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal),
             Assembly = version >= 15 ? ReadAssembly(work) : PieceAssembly.Empty,
+            Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
             HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? ReadHiddenViews(hidden) : [],
         }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work);
