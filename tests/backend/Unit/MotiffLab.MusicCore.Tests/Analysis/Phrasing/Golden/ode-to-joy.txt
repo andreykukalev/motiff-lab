@@ -1,0 +1,609 @@
+# ode-to-joy.musicxml, end 15360
+found phrases [7680]
+found cuts []
+short +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[] -[]
+  0:1-8:inf0.6
+
+## 1. split short at 0
+short +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[] -[]
+  0:1-8:inf0.6
+
+## 2. split phrase at 5736
+short +[] -[]
+  0:1-3:imp 5736:3-4:edit 7680:5-8:inf0.6:repetition
+phrase +[5736] -[]
+  0:1-3:imp 5736:3-4:edit 7680:5-8:inf0.6:repetition
+sentence +[] -[]
+  0:1-8:inf0.6
+
+## 3. split sentence at 11472
+short +[] -[]
+  0:1-3:imp 5736:3-4:edit 7680:5-6:inf0.6:repetition 11472:6-8:edit
+phrase +[5736,11472] -[]
+  0:1-3:imp 5736:3-4:edit 7680:5-6:inf0.6:repetition 11472:6-8:edit
+sentence +[11472] -[]
+  0:1-6:inf0.6 11472:6-8:det0.9
+
+## 4. make short 1848–9648
+short +[1848,9648] -[7680]
+  0:1-1:imp 1848:1-6:edit:length 9648:6-6:edit:length 11472:6-8:edit
+phrase +[11472] -[7680]
+  0:1-6:imp 11472:6-8:edit
+sentence +[11472] -[]
+  0:1-6:edit 11472:6-8:det0.9
+
+## 5. make phrase 7584–15840
+short +[1848,9648] -[7680]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-5:edit 9600:6-6:inf0.4:length 9648:6-8:edit:length
+phrase +[7584] -[7680]
+  0:1-4:imp 7584:4-8:edit
+sentence +[11472] -[]
+  0:1-8:inf0.6
+
+## 6. make sentence 13321–15361
+short +[1848,9648] -[7680]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-6:edit 9648:6-7:edit:length 13321:7-8:edit
+phrase +[7584,13321] -[7680]
+  0:1-4:imp 7584:4-7:edit 13321:7-8:edit
+sentence +[13321] -[]
+  0:1-7:inf0.6 13321:7-8:det0.9
+
+## 7. join short 3
+short +[1848] -[]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-7:edit 13321:7-8:edit
+phrase +[7584,13321] -[7680]
+  0:1-4:imp 7584:4-7:edit 13321:7-8:edit
+sentence +[13321] -[]
+  0:1-7:inf0.6 13321:7-8:det0.9
+
+## 8. join phrase 2
+short +[1848] -[]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:inf0.4:length
+phrase +[7584] -[7680]
+  0:1-4:imp 7584:4-8:edit
+sentence +[13321] -[]
+  0:1-8:inf0.6
+
+## 9. join sentence 1
+short +[1848] -[]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:inf0.4:length
+phrase +[7584] -[7680]
+  0:1-4:imp 7584:4-8:edit
+sentence +[13321] -[]
+  0:1-8:inf0.6
+
+## 10. make short 9800–15160 (unit 4, inside)
+short +[1848,9600,15160] -[]
+  0:1-1:imp 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:conf:length 15160:8-8:edit:length
+phrase +[7584] -[7680]
+  0:1-4:imp 7584:4-8:edit
+sentence +[13321] -[]
+  0:1-8:inf0.6
+
+## 11. make phrase 200–7384 (unit 1, inside)
+short +[1848,9600,15160] -[]
+  0:1-1:imp 200:1-1:edit 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:conf:length 15160:8-8:edit:length
+phrase +[200,7584] -[7680]
+  0:1-1:imp 200:1-4:edit 7584:4-8:edit
+sentence +[13321] -[]
+  0:1-8:inf0.6
+
+## 12. make sentence 200–15160 (unit 1, inside)
+short +[1848,9600,15160] -[]
+  0:1-1:imp 200:1-1:edit 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:conf:length 15160:8-8:edit
+phrase +[200,7584,15160] -[7680]
+  0:1-1:imp 200:1-4:edit 7584:4-8:edit 15160:8-8:edit
+sentence +[200,15160] -[7584]
+  0:1-1:edit 200:1-8:edit 15160:8-8:det0.9
+
+## 13. join short 6 (the last)
+short +[1848,9600,15160] -[]
+  0:1-1:imp 200:1-1:edit 1848:1-4:edit:length 7584:4-5:edit 9600:6-8:conf:length 15160:8-8:edit
+phrase +[200,7584,15160] -[7680]
+  0:1-1:imp 200:1-4:edit 7584:4-8:edit 15160:8-8:edit
+sentence +[200,15160] -[7584]
+  0:1-1:edit 200:1-8:edit 15160:8-8:det0.9
+
+## 14. reset phrase
+short +[1848,9600,15160] -[]
+  0:1-1:imp 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[200,15160] -[7584]
+  0:1-8:inf0.6
+
+## 15. join sentence 1 (the last)
+short +[1848,9600,15160] -[]
+  0:1-1:imp 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[200,15160] -[7584]
+  0:1-8:inf0.6
+
+## 16. split short at 150 (near unit 1)
+short +[150,1848,9600,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[200,15160] -[7584]
+  0:1-8:inf0.6
+
+## 17. split phrase at 0 (near unit 1)
+short +[150,1848,9600,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[200,15160] -[7584]
+  0:1-8:inf0.6
+
+## 18. split sentence at 15360 (near unit 1)
+short +[150,1848,9600,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7680] -[]
+  0:1-4:edit 7680:5-8:det0.9
+
+## 19. split short at 10611
+short +[150,1848,9600,10611,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-8:edit:length 15160:8-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7680] -[]
+  0:1-4:edit 7680:5-8:det0.9
+
+## 20. split phrase at 507
+short +[150,1848,9600,10611,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-8:edit:length 15160:8-8:edit:length
+phrase +[507] -[]
+  0:1-1:imp 507:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[7680] -[]
+  0:1-4:inf0.6 7680:5-8:det0.9
+
+## 21. split sentence at 6244
+short +[150,1848,9600,10611,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-4:edit:length 6244:4-4:edit 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-8:edit:length 15160:8-8:edit:length
+phrase +[507,6244] -[]
+  0:1-1:imp 507:1-4:edit 6244:4-4:edit 7680:5-8:inf0.6:repetition
+sentence +[6244,7680] -[]
+  0:1-4:inf0.6 6244:4-4:edit 7680:5-8:det0.9
+
+## 22. make short 11980–15840
+short +[150,1848,9600,10611,11980,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-4:edit:length 6244:4-4:edit 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length 15160:8-8:edit:length
+phrase +[507,6244] -[]
+  0:1-1:imp 507:1-4:edit 6244:4-4:edit 7680:5-8:inf0.6:repetition
+sentence +[6244,7680] -[]
+  0:1-4:inf0.6 6244:4-4:edit 7680:5-8:det0.9
+
+## 23. make phrase 2356–8236
+short +[150,1848,9600,10611,11980,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length 15160:8-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[6244,7680] -[]
+  0:1-8:inf0.6
+
+## 24. make sentence 8092–15840
+short +[150,1848,9600,10611,11980,15160] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length 15160:8-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[2356] -[8236]
+  0:1-2:inf0.6 2356:2-8:edit
+
+## 25. join short 9
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[2356] -[8236]
+  0:1-2:inf0.6 2356:2-8:edit
+
+## 26. join phrase 4
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[2356] -[8236]
+  0:1-2:inf0.6 2356:2-8:edit
+
+## 27. join sentence 1
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[] -[2356,8236]
+  0:1-8:inf0.6
+
+## 28. make short 0–150 (unit 1, inside)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[] -[2356,8236]
+  0:1-8:inf0.6
+
+## 29. make phrase 200–307 (unit 1, inside)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[507,2356,8236] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit
+sentence +[] -[2356,8236]
+  0:1-8:inf0.6
+
+## 30. make sentence 200–15160 (unit 1, inside)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length 15160:8-8:edit
+phrase +[507,2356,8236,15160] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit 15160:8-8:edit
+sentence +[15160] -[507,2356,8236]
+  0:1-8:edit 15160:8-8:det0.9
+
+## 31. join short 10 (the last)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 507:1-1:edit 1848:1-2:edit:length 2356:2-5:edit 8236:5-5:edit 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length 15160:8-8:edit
+phrase +[507,2356,8236,15160] -[7680]
+  0:1-1:imp 507:1-2:edit 2356:2-5:edit 8236:5-8:edit 15160:8-8:edit
+sentence +[15160] -[507,2356,8236]
+  0:1-8:edit 15160:8-8:det0.9
+
+## 32. reset phrase
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[15160] -[507,2356,8236]
+  0:1-8:inf0.6
+
+## 33. join sentence 1 (the last)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[15160] -[507,2356,8236]
+  0:1-8:inf0.6
+
+## 34. split short at 15360 (near unit 1)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit:length 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[15160] -[507,2356,8236]
+  0:1-8:inf0.6
+
+## 35. split phrase at 150 (near unit 1)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[150] -[]
+  0:1-1:imp 150:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[15160] -[507,2356,8236]
+  0:1-8:inf0.6
+
+## 36. split sentence at 150 (near unit 1)
+short +[150,1848,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit 1848:1-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[150] -[]
+  0:1-1:imp 150:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[150] -[]
+  0:1-1:edit 150:1-8:inf0.6
+
+## 37. split short at 5383
+short +[1848,5383,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit 1848:1-3:edit:length 5383:3-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-7:edit:length 11980:7-8:edit:length
+phrase +[150] -[]
+  0:1-1:imp 150:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[150] -[]
+  0:1-1:edit 150:1-8:inf0.6
+
+## 38. split phrase at 10639
+short +[1848,5383,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit 1848:1-3:edit:length 5383:3-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-6:edit:length 10639:6-7:edit 11980:7-8:edit:length
+phrase +[150,10639] -[]
+  0:1-1:imp 150:1-4:edit 7680:5-6:inf0.6:repetition 10639:6-8:edit
+sentence +[150] -[]
+  0:1-1:edit 150:1-8:inf0.6
+
+## 39. split sentence at 1015
+short +[1848,5383,9600,10611,11980] -[]
+  0:1-1:imp 150:1-1:edit 1015:1-1:edit 1848:1-3:edit:length 5383:3-4:edit:length 7680:5-5:inf0.6:repetition 9600:6-6:edit:length 10611:6-6:edit:length 10639:6-7:edit 11980:7-8:edit:length
+phrase +[150,1015,10639] -[]
+  0:1-1:imp 150:1-1:edit 1015:1-4:edit 7680:5-6:inf0.6:repetition 10639:6-8:edit
+sentence +[150,1015] -[]
+  0:1-1:edit 150:1-1:edit 1015:1-8:inf0.6
+
+## 40. make short 6751–15840
+short +[1848,5383,6751] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-1:edit 1848:1-3:edit:length 5383:3-4:edit:length 6751:4-8:edit:length
+phrase +[150,1015] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-8:edit
+sentence +[150,1015] -[]
+  0:1-1:edit 150:1-1:edit 1015:1-8:det0.9
+
+## 41. make phrase 12488–14528
+short +[1848,5383,6751] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-1:edit 1848:1-3:edit:length 5383:3-4:edit:length 6751:4-7:edit:length 12488:7-8:edit 14528:8-8:edit
+phrase +[150,1015,12488,14528] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[150,1015] -[]
+  0:1-1:edit 150:1-1:edit 1015:1-8:inf0.6 14528:8-8:inf0.6
+
+## 42. make sentence 2864–6824
+short +[1848,5383,6751] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-1:edit 1848:1-2:edit:length 2864:2-3:edit 5383:3-4:edit:length 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[150,1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[150,1015,2864,6824] -[]
+  0:1-1:edit 150:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6 14528:8-8:inf0.6
+
+## 43. join short 5
+short +[1848,6751] -[]
+  0:1-1:imp 150:1-1:edit 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[150,1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 150:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[150,1015,2864,6824] -[]
+  0:1-1:edit 150:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6 14528:8-8:inf0.6
+
+## 44. join phrase 1
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[150,1015,2864,6824] -[]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6 14528:8-8:inf0.6
+
+## 45. join sentence 4
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[1015,2864,6824] -[14528]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6
+
+## 46. make short 3064–6551 (unit 4, inside)
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[1015,2864,6824] -[14528]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6
+
+## 47. make phrase 12688–14328 (unit 5, inside)
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[1015,2864,6824] -[14528]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6
+
+## 48. make sentence 1215–2664 (unit 2, inside)
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[1015,2864,6824] -[14528]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6
+
+## 49. join short 8 (the last)
+short +[1848,6751] -[]
+  0:1-1:imp 1015:1-1:edit 1848:1-2:edit:length 2864:2-4:edit 6751:4-4:edit:length 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+phrase +[1015,2864,6824,12488,14528] -[7680]
+  0:1-1:imp 1015:1-2:edit 2864:2-4:edit 6824:4-7:edit 12488:7-8:edit 14528:8-8:edit
+sentence +[1015,2864,6824] -[14528]
+  0:1-1:edit 1015:1-2:edit 2864:2-4:edit 6824:4-8:inf0.6
+
+## 50. reset phrase
+short +[1848,6751] -[]
+  0:1-1:imp 1848:1-4:edit:length 6751:4-4:edit:length 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[1015,2864,6824] -[14528]
+  0:1-8:inf0.6
+
+## 51. join sentence 1 (the last)
+short +[1848,6751] -[]
+  0:1-1:imp 1848:1-4:edit:length 6751:4-4:edit:length 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[1015,2864,6824] -[14528]
+  0:1-8:inf0.6
+
+## 52. split short at 1698 (near unit 2)
+short +[1848,6751] -[]
+  0:1-1:imp 1848:1-4:edit:length 6751:4-4:edit:length 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[1015,2864,6824] -[14528]
+  0:1-8:inf0.6
+
+## 53. split phrase at 0 (near unit 1)
+short +[1848,6751] -[]
+  0:1-1:imp 1848:1-4:edit:length 6751:4-4:edit:length 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[1015,2864,6824] -[14528]
+  0:1-8:inf0.6
+
+## 54. split sentence at 15360 (near unit 1)
+short +[1848,6751] -[]
+  0:1-1:imp 1848:1-4:edit:length 6751:4-4:edit:length 7680:5-8:inf0.6:repetition
+phrase +[] -[]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7680] -[]
+  0:1-4:edit 7680:5-8:det0.9
+
+## saved: outside the piece
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+phrase +[0,15360,15840] -[15840]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[0,15360] -[15840]
+  0:1-8:inf0.6
+
+### then join short 1
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:inf0.6:return
+phrase +[] -[7680]
+  0:1-8:imp
+sentence +[0,15360] -[15840]
+  0:1-8:det0.9
+
+### or split short at 7681
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+phrase +[0,15360,15840] -[15840]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[0,15360] -[15840]
+  0:1-8:inf0.6
+
+### then join phrase 1
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:inf0.6:return
+phrase +[] -[7680]
+  0:1-8:imp
+sentence +[0,15360] -[15840]
+  0:1-8:det0.9
+
+### or split phrase at 7681
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:conf:repetition
+phrase +[7680] -[]
+  0:1-4:imp 7680:5-8:conf:repetition
+sentence +[0,15360] -[15840]
+  0:1-8:inf0.6
+
+### then join sentence 1
+short +[0,15840] -[0]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+phrase +[0,15360,15840] -[15840]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[0,15360] -[15840]
+  0:1-8:inf0.6
+
+### or split sentence at 1
+short +[0,15840] -[0]
+  0:1-1:imp 1:1-4:edit 7680:5-8:inf0.6:repetition
+phrase +[1] -[]
+  0:1-1:imp 1:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[1] -[]
+  0:1-1:edit 1:1-8:inf0.6
+
+## saved: set and taken away at once
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:edit 7717:5-8:edit
+phrase +[7680,7717] -[7680,7717]
+  0:1-4:imp 7680:5-5:edit 7717:5-8:edit
+sentence +[7680] -[7680]
+  0:1-4:edit 7680:5-8:inf0.6
+
+### then join short 1
+short +[] -[]
+  0:1-4:imp 7680:5-5:edit 7717:5-8:edit
+phrase +[7680,7717] -[7680,7717]
+  0:1-4:imp 7680:5-5:edit 7717:5-8:edit
+sentence +[7680] -[7680]
+  0:1-4:edit 7680:5-8:inf0.6
+
+### or split short at 7718
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:edit 7717:5-8:edit
+phrase +[7680,7717] -[7680,7717]
+  0:1-4:imp 7680:5-5:edit 7717:5-8:edit
+sentence +[7680] -[7680]
+  0:1-4:edit 7680:5-8:inf0.6
+
+### then join phrase 1
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:inf0.5:heldNote 7717:5-8:edit
+phrase +[7717] -[7680]
+  0:1-5:imp 7717:5-8:edit
+sentence +[7680] -[7680]
+  0:1-8:inf0.6
+
+### or split phrase at 7718
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:conf:repetition 7717:5-8:edit
+phrase +[7680,7717] -[]
+  0:1-4:imp 7680:5-5:conf:repetition 7717:5-8:edit
+sentence +[7680] -[7680]
+  0:1-4:edit 7680:5-8:inf0.6
+
+### then join sentence 1
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:edit 7717:5-8:edit
+phrase +[7680,7717] -[7680,7717]
+  0:1-4:imp 7680:5-5:edit 7717:5-8:edit
+sentence +[] -[7680]
+  0:1-8:inf0.6
+
+### or split sentence at 7681
+short +[960,7717] -[960,7717]
+  0:1-1:imp 960:1-4:edit:length 7680:5-5:conf:repetition 7717:5-8:edit
+phrase +[7680,7717] -[]
+  0:1-4:imp 7680:5-5:conf:repetition 7717:5-8:edit
+sentence +[7680] -[]
+  0:1-4:edit 7680:5-8:inf0.6
+
+## saved: off the boundaries and at a coarser level's
+short +[7680,7717] -[7717,7718]
+  0:1-4:imp 7680:5-5:inf0.6:repetition 7717:5-8:edit:length
+phrase +[] -[7717,7718]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7717] -[7718,7680]
+  0:1-8:edit
+
+### then join short 1
+short +[7680,7717] -[7717,7718]
+  0:1-4:imp 7680:5-5:conf:return 7717:5-8:edit:length
+phrase +[] -[7680]
+  0:1-8:imp
+sentence +[7717] -[7718,7680]
+  0:1-8:det0.9
+
+### or split short at 7718
+short +[7717] -[]
+  0:1-4:imp 7680:5-5:inf0.6:repetition 7717:5-8:edit:length
+phrase +[] -[7717,7718]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7717] -[7718,7680]
+  0:1-8:edit
+
+### then join phrase 1
+short +[7680,7717] -[7717,7718]
+  0:1-4:imp 7680:5-5:conf:return 7717:5-8:edit:length
+phrase +[] -[7680]
+  0:1-8:imp
+sentence +[7717] -[7718,7680]
+  0:1-8:det0.9
+
+### or split phrase at 7681
+short +[7680,7717] -[7717,7718]
+  0:1-4:imp 7680:5-5:conf:repetition 7717:5-8:edit:length
+phrase +[7680] -[]
+  0:1-4:imp 7680:5-8:conf:repetition
+sentence +[7717] -[7718,7680]
+  0:1-8:edit
+
+### then join sentence 1
+short +[7680,7717] -[7717,7718]
+  0:1-4:imp 7680:5-5:inf0.6:repetition 7717:5-8:edit:length
+phrase +[] -[7717,7718]
+  0:1-4:imp 7680:5-8:inf0.6:repetition
+sentence +[7717] -[7718,7680]
+  0:1-8:edit
+
+### or split sentence at 1
+short +[7680,7717] -[7717,7718]
+  0:1-1:imp 1:1-4:edit 7680:5-5:inf0.6:repetition 7717:5-8:edit:length
+phrase +[1] -[]
+  0:1-1:imp 1:1-4:edit 7680:5-8:inf0.6:repetition
+sentence +[1] -[7680]
+  0:1-1:edit 1:1-8:edit

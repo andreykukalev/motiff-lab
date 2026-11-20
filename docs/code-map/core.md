@@ -3,13 +3,13 @@
 Notes, time, analysis, variations and the project file: pure, deterministic, no UI, I/O, cloud or AI. The iPad reads it
 through the facade; the API references it.
 
-## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
+## Folders (`MotiffLab.MusicCore.<Folder>`, some with sub-namespaces)
 
 - `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
   the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
 - `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`);
   pitch spelling (`NoteNaming`, `NoteNames`, `PitchSpeller`, `SpelledPitch`, `TransposedSpelling`, `KeyChange`).
-- `Pieces`: the piece as imported, the model every rule reads: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
+- `Pieces`: the piece as imported: `ImportedPiece` (`ImportedTrack`, `TrackHands`,
   `StartChoice`, `SourceFormat`), what each reader returns (`MidiImport`, `MusicXmlImport` and their records,
   `ImportReport`), `KeySignature`, the written marks (`PhraseMarks`, `SlurMark`, `AccentMark`), the bars of a recording
   (`BarGrid`, `GridMeter`; found and applied in `Import.Transcription`), `PageMap`, `Transcribed`, the player's
@@ -19,7 +19,9 @@ through the facade; the API references it.
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
-- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
+- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA, the circle of fifths; `.Phrasing`: the
+  phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`,
+  `PutBack`, `Replaced`, `OwnCount`) and `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
@@ -40,7 +42,8 @@ through the facade; the API references it.
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); drafts:
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); phrases: `OpenPiece.Phrases`,
+  `Answer.Phrases` (the marks); drafts:
   `Draft*Request`, `MusicCoreFacade.Drafts`, `ShownView`.
 
 ## The native build (`src/ipad/Core`)
@@ -60,16 +63,17 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-No two namespaces use each other, directly or round a loop, by `using`, code or `cref`: a comment names a type of a
-higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time`, `Events`, `Motifs`, `Pieces`, `Import`
-and `Playback`, then the rules (`Analysis`, `Notation`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies`
-check keeps the layers (`CORE_LAYERS`, in `governance/quality/README.md`): each uses only those below it.
+No two namespaces use each other, even round a loop, by `using`, code or `cref` (a comment names a higher one's
+type as text). Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`, `Playback`, rules (`Analysis`,
+`Notation`…), `Projects`, `Assistant`, `Facade`; kept by `dependencies` (`CORE_LAYERS`), which counts a sub-namespace
+as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFact`, `ReadKey`; `MotifAnalyzer`,
+`FormAnalyzer`, `PieceDna`).
 
 ## Rules not to break
 
-- No other project, web, cloud or AI package (the `dependencies` check); no floating point for time.
+- No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
-  same notes and diff.
+  same notes and diff. A phrase edit keeps the player's boundaries as saved and never moves the selection or a bookmark.
 - A new call goes into `facade-calls.json`; a change to the project file or to an answer the app reads is Andrei's
   decision 3 (`ProjectFile.Version`, `Contract`).
 - Analytics events are built only from `AnalyticsCatalogue`; sentences come in both languages from `Words`.

@@ -2,76 +2,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Analysis;
-
-/// <summary>The three levels the piece is read at (decision record 0018, section 3), finest first.</summary>
-public enum PhraseLevel
-{
-    /// <summary>Motifs and half-phrases of 1–4 bars (<see cref="ShortMap"/>).</summary>
-    Short,
-
-    /// <summary>Phrases of 4–8 bars, the default (<see cref="PhraseMap"/>).</summary>
-    Phrase,
-
-    /// <summary>Sentences of 8–16 or more bars (<see cref="SentenceMap"/>).</summary>
-    Sentence,
-}
-
-/// <summary>The player's edits at every level, saved with the project; each level's edits stick to the piece until Reset to detected.</summary>
-public sealed record LevelEdits(PhraseEdits Short, PhraseEdits Phrase, PhraseEdits Sentence)
-{
-    public static LevelEdits None { get; } = new(PhraseEdits.None, PhraseEdits.None, PhraseEdits.None);
-
-    public bool IsEmpty => Short.IsEmpty && Phrase.IsEmpty && Sentence.IsEmpty;
-
-    public PhraseEdits this[PhraseLevel level] => level switch
-    {
-        PhraseLevel.Short => Short,
-        PhraseLevel.Phrase => Phrase,
-        PhraseLevel.Sentence => Sentence,
-        _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unknown level."),
-    };
-
-    /// <summary>These edits with one level's replaced.</summary>
-    public LevelEdits With(PhraseLevel level, PhraseEdits edits)
-    {
-        ArgumentNullException.ThrowIfNull(edits);
-        return level switch
-        {
-            PhraseLevel.Short => this with { Short = edits },
-            PhraseLevel.Phrase => this with { Phrase = edits },
-            PhraseLevel.Sentence => this with { Sentence = edits },
-            _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unknown level."),
-        };
-    }
-}
-
-/// <summary>
-/// One unit of any level, as the brackets and the facade show it: a short unit, a phrase or a sentence with
-/// its number at its level, its place and how its start was found. The maps keep the richer records
-/// (<see cref="ShortUnit"/>, <see cref="Phrase"/>, <see cref="Sentence"/>); this is the view every level shares.
-/// </summary>
-/// <param name="Number">1 for the first unit of the piece at this level, then in order.</param>
-/// <param name="Start">How the unit's start was found: imported for the start of the piece, otherwise the boundary's attribution.</param>
-/// <param name="Evidence">The evidence names behind the start, in lower camel case; empty for the start of the piece or a sentence.</param>
-/// <param name="Description">How the start was found, in the language asked for, as <see cref="PhraseMap.Describe(PhraseBoundary?, Words)"/> words it; a sentence's basis.</param>
-public sealed record PhraseUnit(PhraseLevel Level, int Number, TickSpan Span, int FirstBar, int LastBar, Attribution Start, IReadOnlyList<string> Evidence, string Description)
-{
-    /// <summary>The number of bars the unit touches, counting partly covered bars.</summary>
-    public int BarCount => LastBar - FirstBar + 1;
-
-    /// <summary>Whether the unit runs longer than a phrase usually does (<see cref="PhraseMap.LongPhraseBars"/>).</summary>
-    public bool IsLong => BarCount > PhraseMap.LongPhraseBars;
-
-    /// <summary>Whether <paramref name="span"/> lies within the unit.</summary>
-    public bool Contains(TickSpan span) => Span.Onset <= span.Onset && span.End <= Span.End;
-
-    public bool Equals(PhraseUnit? other) =>
-        other is not null && Level == other.Level && Number == other.Number && Span == other.Span && FirstBar == other.FirstBar && LastBar == other.LastBar
-        && Start == other.Start && Evidence.SequenceEqual(other.Evidence, StringComparer.Ordinal) && Description == other.Description;
-
-    public override int GetHashCode() => HashCode.Combine(Level, Number, Span);
-}
+namespace MotiffLab.MusicCore.Analysis.Phrasing;
 
 /// <summary>
 /// The piece in three levels from one analysis (decision record 0018, section 3; preparation item 7): the
@@ -95,6 +26,7 @@ public sealed class PhraseLevels
     private readonly MeterMap _meter;
     private readonly KeySignature? _signature;
     private readonly Words _words;
+    private Tick[]? _onsets;
 
     private PhraseLevels(IReadOnlyList<Note> notes, MeterMap meter, KeySignature? signature, Words words, PhraseMap phrases, SentenceMap sentences, ShortMap shorts, LevelEdits edits)
     {
@@ -287,6 +219,60 @@ public sealed class PhraseLevels
         }
     }
 
+    /// <summary>
+    /// «Почему здесь» for a phrase's start (the phrases spec): how it was found, the close of the phrase before it first
+    /// (<see cref="PhraseMap.Describe(PhraseBoundary?, Words, CloseKind)"/>).
+    /// </summary>
+    public string WhyHere(Phrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+        return PhraseMap.Describe(phrase.Start, _words, CloseBefore(phrase) ?? CloseKind.None);
+    }
+
+    /// <summary>How the phrase before a phrase ends; null for the first phrase.</summary>
+    public CloseKind? CloseBefore(Phrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+        return phrase.Number > 1 ? Sentences.CloseOf(Phrases.Phrases[phrase.Number - 2]).Kind : null;
+    }
+
+    /// <summary>The short units inside a phrase, in time order: its motifs, as the focus card marks them.</summary>
+    public IReadOnlyList<PhraseUnit> MotifsOf(PhraseUnit phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+        return [.. Units(PhraseLevel.Short).Where(unit => phrase.Contains(unit.Span))];
+    }
+
+    /// <summary>
+    /// The onset of the note nearest <paramref name="at"/>, the earlier of two as near: where a phrase start the player
+    /// drags snaps to, note by note, upbeats included (the phrases spec, decision 5); <paramref name="at"/> itself in a
+    /// piece without notes.
+    /// </summary>
+    public Tick NoteAt(Tick at)
+    {
+        Tick[] onsets = Onsets();
+        int index = Array.BinarySearch(onsets, at);
+        if (index >= 0 || onsets.Length == 0)
+        {
+            return at;
+        }
+
+        int after = ~index;
+        if (after == 0 || after == onsets.Length)
+        {
+            return onsets[Math.Min(after, onsets.Length - 1)];
+        }
+
+        return onsets[after].Value - at.Value < at.Value - onsets[after - 1].Value ? onsets[after] : onsets[after - 1];
+    }
+
+    /// <summary>
+    /// The onset of the first note at or after <paramref name="at"/>: the note the player selected, where «Начать фразу
+    /// здесь» sets a start (so a selection that starts on a rest never gives a note before it); <paramref name="at"/>
+    /// itself when no note starts there or later.
+    /// </summary>
+    public Tick NoteFrom(Tick at) => PhraseBoundaryFinder.FirstOnsetFrom(Onsets(), at) ?? at;
+
     /// <summary>The edits with one level back to what was detected.</summary>
     public LevelEdits Reset(PhraseLevel level) => Edits.With(level, PhraseEdits.None);
 
@@ -325,6 +311,9 @@ public sealed class PhraseLevels
         PhraseLevel.Sentence => words.T("sentence", "предложение"),
         _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unknown level."),
     };
+
+    /// <summary>Every note's onset, in time order, each once.</summary>
+    private Tick[] Onsets() => _onsets ??= [.. _notes.Select(static note => note.Span.Onset).Distinct().Order()];
 
     private static PhraseLevels Build(IReadOnlyList<Note> notes, MeterMap meter, KeySignature? signature, Words words, PhraseMap phrases, LevelEdits edits)
     {

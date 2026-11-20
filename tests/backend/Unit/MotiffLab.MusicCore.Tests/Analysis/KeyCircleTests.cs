@@ -21,7 +21,7 @@ public class KeyCircleTests
         ImportedPiece piece = Piece("fur-elise-original.musicxml");
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, MotifSelector.Bars(piece.Meter, 0, 4, piece.End), SelectionFilter.All);
         KeySignature? signature = KeySignature.InForce(piece.Keys, selection.Span.Onset);
-        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(piece.Notes, piece.Meter, PhraseMarks.None);
+        IReadOnlyList<MusicCore.Analysis.Phrasing.PhraseBoundary> phrases = MusicCore.Analysis.Phrasing.PhraseBoundaryFinder.Find(piece.Notes, piece.Meter, PhraseMarks.None);
         MotifAnalysis motif = MotifAnalyzer.Analyze(piece.Notes, piece.Meter, selection, signature, accents: [], phrases, words);
         HarmonyAnalysis harmony = HarmonyAnalyzer.Analyze(piece.Notes, piece.Meter, selection, motif.Key?.Key, words);
         return KeyCircle.For(selection, piece.Notes, piece.Meter, motif.Key, harmony, words)!;

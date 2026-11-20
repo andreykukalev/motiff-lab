@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
@@ -68,16 +69,6 @@ public sealed partial record Project
     {
         _ = FindBookmark(id) ?? throw new KeyNotFoundException($"There is no bookmark {id}.");
         return this with { Bookmarks = [.. Bookmarks.Where(bookmark => bookmark.Id != id)] };
-    }
-
-    /// <summary>
-    /// The project with its bookmarks where they belong after the phrases changed (<see cref="Bookmark.Follow"/>):
-    /// called with the phrases of the level a bookmark was made from, after a merge or a split.
-    /// </summary>
-    public Project FollowPhrases(IEnumerable<TickSpan> phrases)
-    {
-        TickSpan[] spans = [.. phrases ?? throw new ArgumentNullException(nameof(phrases))];
-        return this with { Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.Follow(spans))] };
     }
 
     /// <summary>

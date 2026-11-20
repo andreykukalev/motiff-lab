@@ -1,0 +1,9167 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "phrases",
+   "request": null,
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "move": {
+     "from": 2880,
+     "to": 2500
+    }
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 5
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       2520
+      ],
+      "removed": [
+       2880
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2520,
+      "selectable": {
+       "onset": 0,
+       "end": 2520
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2520,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2520,
+      "end": 5760,
+      "selectable": {
+       "onset": 2520,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 2520,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 4,
+       "beat": 1,
+       "found": {
+        "at": 2880,
+        "bar": 4,
+        "beat": 3
+       },
+       "close": "full",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 2520,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 1
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 4,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 5,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 1,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 2520,
+       "firstBar": 0,
+       "lastBar": 4
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 2520
+      },
+      "sharesWith": [
+       "section_2"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "A′",
+      "passage": {
+       "onset": 2520,
+       "end": 5760,
+       "firstBar": 4,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 2520,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 2,
+      "bar": 4,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_5",
+      "label": "D",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 2520,
+       "selectable": {
+        "onset": 0,
+        "end": 2520
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 2,
+       "onset": 2880,
+       "end": 5760,
+       "selectable": {
+        "onset": 2880,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 2,
+       "onset": 2520,
+       "end": 5760,
+       "selectable": {
+        "onset": 2520,
+        "end": 5760
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "restore": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "expected": {
+     "phrase": {
+      "added": [
+       2520
+      ],
+      "removed": [
+       2880
+      ]
+     }
+    }
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       2520
+      ],
+      "removed": [
+       2880
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 2520,
+       "selectable": {
+        "onset": 0,
+        "end": 2520
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 2,
+       "onset": 2520,
+       "end": 5760,
+       "selectable": {
+        "onset": 2520,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 2,
+       "onset": 2880,
+       "end": 5760,
+       "selectable": {
+        "onset": 2880,
+        "end": 5760
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "start": 7680
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 40
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 22
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 11,
+      "onset": 5760,
+      "end": 7680,
+      "selectable": {
+       "onset": 5760,
+       "end": 7680
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7680,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 11,
+      "lastBar": 15,
+      "onset": 7680,
+      "end": 10560,
+      "selectable": {
+       "onset": 7680,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 7680,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 11,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 7680,
+        "end": 8640,
+        "firstBar": 11,
+        "lastBar": 12,
+        "bar": 11,
+        "beat": 3
+       },
+       {
+        "onset": 8640,
+        "end": 10560,
+        "firstBar": 13,
+        "lastBar": 15,
+        "bar": 13,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 22,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 1,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 7,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 17,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 3,
+       "onset": 5760,
+       "end": 10560,
+       "selectable": {
+        "onset": 5760,
+        "end": 10560
+       }
+      },
+      "after": {
+       "number": 4,
+       "onset": 7680,
+       "end": 10560,
+       "selectable": {
+        "onset": 7680,
+        "end": 10560
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "remove": 10560
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": [
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 11,
+      "onset": 5760,
+      "end": 7680,
+      "selectable": {
+       "onset": 5760,
+       "end": 7680
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7680,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 11,
+      "lastBar": 19,
+      "onset": 7680,
+      "end": 13440,
+      "selectable": {
+       "onset": 7680,
+       "end": 13440
+      },
+      "long": true,
+      "parent": 2,
+      "start": {
+       "at": 7680,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 11,
+       "beat": 3,
+       "found": {
+        "at": 10560,
+        "bar": 15,
+        "beat": 3
+       },
+       "close": "none",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 7680,
+        "end": 10080,
+        "firstBar": 11,
+        "lastBar": 14,
+        "bar": 11,
+        "beat": 3
+       },
+       {
+        "onset": 10080,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 1
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 1,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 4,
+       "onset": 7680,
+       "end": 10560,
+       "selectable": {
+        "onset": 7680,
+        "end": 10560
+       }
+      },
+      "after": {
+       "number": 4,
+       "onset": 7680,
+       "end": 13440,
+       "selectable": {
+        "onset": 7680,
+        "end": 13440
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 5,
+       "onset": 10560,
+       "end": 13440,
+       "selectable": {
+        "onset": 10560,
+        "end": 13440
+       }
+      },
+      "after": {
+       "number": 4,
+       "onset": 7680,
+       "end": 13440,
+       "selectable": {
+        "onset": 7680,
+        "end": 13440
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "move": {
+     "from": 2880,
+     "to": 2400
+    }
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 38
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       2400,
+       7680
+      ],
+      "removed": [
+       2880,
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 3,
+      "onset": 0,
+      "end": 2400,
+      "selectable": {
+       "onset": 0,
+       "end": 2400
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 2400,
+        "firstBar": 0,
+        "lastBar": 3,
+        "bar": 0,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2400,
+      "end": 5760,
+      "selectable": {
+       "onset": 2400,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2400,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 4,
+       "beat": 1,
+       "found": {
+        "at": 2880,
+        "bar": 4,
+        "beat": 3
+       },
+       "close": "half",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 2400,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 1
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 11,
+      "onset": 5760,
+      "end": 7680,
+      "selectable": {
+       "onset": 5760,
+       "end": 7680
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7680,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 11,
+      "lastBar": 19,
+      "onset": 7680,
+      "end": 13440,
+      "selectable": {
+       "onset": 7680,
+       "end": 13440
+      },
+      "long": true,
+      "parent": 2,
+      "start": {
+       "at": 7680,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 11,
+       "beat": 3,
+       "found": {
+        "at": 10560,
+        "bar": 15,
+        "beat": 3
+       },
+       "close": "none",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 7680,
+        "end": 10080,
+        "firstBar": 11,
+        "lastBar": 14,
+        "bar": 11,
+        "beat": 3
+       },
+       {
+        "onset": 10080,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 1
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 2,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": [
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 2400,
+       "selectable": {
+        "onset": 0,
+        "end": 2400
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 2,
+       "onset": 2880,
+       "end": 5760,
+       "selectable": {
+        "onset": 2880,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 2,
+       "onset": 2400,
+       "end": 5760,
+       "selectable": {
+        "onset": 2400,
+        "end": 5760
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "putBack": 2400
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": [
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 11,
+      "onset": 5760,
+      "end": 7680,
+      "selectable": {
+       "onset": 5760,
+       "end": 7680
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7680,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 11,
+      "lastBar": 19,
+      "onset": 7680,
+      "end": 13440,
+      "selectable": {
+       "onset": 7680,
+       "end": 13440
+      },
+      "long": true,
+      "parent": 2,
+      "start": {
+       "at": 7680,
+       "evidence": [],
+       "provenance": "userEdited",
+       "confidence": 1,
+       "description": "set by you",
+       "bar": 11,
+       "beat": 3,
+       "found": {
+        "at": 10560,
+        "bar": 15,
+        "beat": 3
+       },
+       "close": "none",
+       "why": "set by you"
+      },
+      "motifs": [
+       {
+        "onset": 7680,
+        "end": 10080,
+        "firstBar": 11,
+        "lastBar": 14,
+        "bar": 11,
+        "beat": 3
+       },
+       {
+        "onset": 10080,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 1
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 1,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       2400,
+       7680
+      ],
+      "removed": [
+       2880,
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 2400,
+       "selectable": {
+        "onset": 0,
+        "end": 2400
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 2,
+       "onset": 2400,
+       "end": 5760,
+       "selectable": {
+        "onset": 2400,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 2,
+       "onset": 2880,
+       "end": 5760,
+       "selectable": {
+        "onset": 2880,
+        "end": 5760
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "phrases.edit",
+   "request": {
+    "resetAll": true
+   },
+   "answer": {
+    "level": "phrase",
+    "levels": [
+     {
+      "id": "short",
+      "available": true,
+      "count": 39
+     },
+     {
+      "id": "phrase",
+      "available": true,
+      "count": 21
+     },
+     {
+      "id": "sentence",
+      "available": true,
+      "count": 4
+     }
+    ],
+    "evidence": "partial",
+    "edits": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "units": [
+     {
+      "number": 1,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 0,
+      "lastBar": 4,
+      "onset": 0,
+      "end": 2880,
+      "selectable": {
+       "onset": 0,
+       "end": 2880
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 0,
+       "evidence": [],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 4,
+      "lastBar": 8,
+      "onset": 2880,
+      "end": 5760,
+      "selectable": {
+       "onset": 2880,
+       "end": 5760
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 2880,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 3,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 15,
+      "onset": 5760,
+      "end": 10560,
+      "selectable": {
+       "onset": 5760,
+       "end": 10560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 5760,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 15,
+      "lastBar": 19,
+      "onset": 10560,
+      "end": 13440,
+      "selectable": {
+       "onset": 10560,
+       "end": 13440
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 6,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
+      "selectable": {
+       "onset": 16560,
+       "end": 22320
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 16560,
+       "evidence": [
+        "repeatSign"
+       ],
+       "provenance": "imported",
+       "confidence": 1,
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 39,
+      "lastBar": 43,
+      "onset": 27840,
+      "end": 30720,
+      "selectable": {
+       "onset": 27840,
+       "end": 30720
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 27840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 10,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
+      "selectable": {
+       "onset": 30720,
+       "end": 33120
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 47,
+      "lastBar": 53,
+      "onset": 33120,
+      "end": 37920,
+      "selectable": {
+       "onset": 33120,
+       "end": 37920
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 33120,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 12,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 57,
+      "onset": 37920,
+      "end": 40800,
+      "selectable": {
+       "onset": 37920,
+       "end": 40800
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 37920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 57,
+      "lastBar": 60,
+      "onset": 40800,
+      "end": 43200,
+      "selectable": {
+       "onset": 40800,
+       "end": 43200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 40800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 14,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
+      "selectable": {
+       "onset": 43200,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 55440,
+       "evidence": [
+        "rest"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
+      "selectable": {
+       "onset": 59760,
+       "end": 62400
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 59760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 18,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
+      "selectable": {
+       "onset": 62400,
+       "end": 64800
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 62400,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
+     },
+     {
+      "number": 19,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
+      "selectable": {
+       "onset": 64800,
+       "end": 69600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 64800,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 20,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 101,
+      "lastBar": 105,
+      "onset": 72480,
+      "end": 75600,
+      "selectable": {
+       "onset": 72480,
+       "end": 75600
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 72480,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [
+       7680
+      ],
+      "removed": [
+       10560
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 3,
+       "onset": 5760,
+       "end": 7680,
+       "selectable": {
+        "onset": 5760,
+        "end": 7680
+       }
+      },
+      "after": {
+       "number": 3,
+       "onset": 5760,
+       "end": 10560,
+       "selectable": {
+        "onset": 5760,
+        "end": 10560
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 4,
+       "onset": 7680,
+       "end": 13440,
+       "selectable": {
+        "onset": 7680,
+        "end": 13440
+       }
+      },
+      "after": {
+       "number": 3,
+       "onset": 5760,
+       "end": 10560,
+       "selectable": {
+        "onset": 5760,
+        "end": 10560
+       }
+      }
+     }
+    ],
+    "replaced": 1
+   }
+  }
+ ]
+}

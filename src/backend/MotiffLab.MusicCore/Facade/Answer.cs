@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Invitations;
@@ -384,72 +385,6 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    /// <summary>The three levels (0018, section 3; contract 3): the level shown, every level with its count, the edits per level and the units of the level shown.</summary>
-    public static void Phrases(Utf8JsonWriter json, PhraseLevels levels, PhraseLevel shown, Words words)
-    {
-        json.WriteString("level", PhraseLevels.Name(shown));
-        json.WriteStartArray("levels");
-        foreach (PhraseLevel level in PhraseLevels.All)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", PhraseLevels.Name(level));
-            json.WriteBoolean("available", true);
-            json.WriteNumber("count", levels.Units(level).Count);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-        json.WriteString("evidence", Name(levels.Phrases.Evidence));
-        json.WriteStartObject("edits");
-        foreach (PhraseLevel level in PhraseLevels.All)
-        {
-            json.WriteStartObject(PhraseLevels.Name(level));
-            Ticks(json, "added", levels.Edits[level].Added);
-            Ticks(json, "removed", levels.Edits[level].Removed);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndObject();
-
-        json.WriteStartArray("units");
-        foreach (PhraseUnit unit in levels.Units(shown))
-        {
-            Unit(json, levels, unit, words);
-        }
-
-        json.WriteEndArray();
-    }
-
-    public static void Unit(Utf8JsonWriter json, PhraseLevels levels, PhraseUnit unit, Words words)
-    {
-        json.WriteStartObject();
-        json.WriteNumber("number", unit.Number);
-        json.WriteString("level", PhraseLevels.Name(unit.Level));
-        json.WriteString("name", PhraseLevels.Describe(unit.Level, words));
-        json.WriteNumber("firstBar", unit.FirstBar);
-        json.WriteNumber("lastBar", unit.LastBar);
-        json.WriteNumber("onset", unit.Span.Onset.Value);
-        json.WriteNumber("end", unit.Span.End.Value);
-        Span(json, "selectable", levels.Selectable(unit));
-        json.WriteBoolean("long", unit.IsLong);
-        if (levels.Parent(unit) is { } parent)
-        {
-            json.WriteNumber("parent", parent.Number);
-        }
-        else
-        {
-            json.WriteNull("parent");
-        }
-
-        json.WriteStartObject("start");
-        json.WriteNumber("at", unit.Span.Onset.Value);
-        Texts(json, "evidence", unit.Evidence);
-        Attribution(json, unit.Start);
-        json.WriteString("description", unit.Description);
-        json.WriteEndObject();
-        json.WriteEndObject();
-    }
-
     /// <summary>
     /// A selection: its span, its bars and, since #349 (within contract 12), the beat of the first bar it starts on and the
     /// beat of the last bar it ends in ("bar 5, beat 2 → bar 8, beat 3"), counted as <see cref="MeterMap.ToPosition"/> counts them.
@@ -770,6 +705,16 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>A section of the form, as Piece DNA and the phrase marks write it: its letter, its bars and the span a tap selects (at most 32 bars).</summary>
+    public static void FormSection(Utf8JsonWriter json, DnaSection section, MeterMap? meter)
+    {
+        json.WriteString("id", section.Id);
+        json.WriteString("label", section.Label);
+        Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
+        Span(json, "selectable", meter is null ? section.Span : FormAnalyzer.Selectable(section, meter));
+        Texts(json, "sharesWith", section.SharesWith);
+    }
+
     /// <summary>
     /// Piece DNA (0018 section 11): every lane with its status (<c>notYet</c>, <c>partial</c>, <c>ready</c>), so the
     /// screen shows an empty state for a lane not analysed yet.
@@ -794,11 +739,7 @@ internal static partial class Answer
         foreach (DnaSection section in dna.Form)
         {
             json.WriteStartObject();
-            json.WriteString("id", section.Id);
-            json.WriteString("label", section.Label);
-            Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
-            Span(json, "selectable", meter is null ? section.Span : FormAnalyzer.Selectable(section, meter));
-            Texts(json, "sharesWith", section.SharesWith);
+            FormSection(json, section, meter);
             json.WriteEndObject();
         }
 

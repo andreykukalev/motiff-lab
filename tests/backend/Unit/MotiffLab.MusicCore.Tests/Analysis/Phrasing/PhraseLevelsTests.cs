@@ -1,9 +1,9 @@
-using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Tests.Analysis;
+namespace MotiffLab.MusicCore.Tests.Analysis.Phrasing;
 
 /// <summary>Three levels from one analysis (decision record 0018, section 3; preparation item 7): nested, edited per level, and a selection that follows the level.</summary>
 public class PhraseLevelsTests

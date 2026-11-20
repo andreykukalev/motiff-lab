@@ -1,4 +1,4 @@
-using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
@@ -20,28 +20,6 @@ public class MarksAndBookmarksTests
     private static TickSpan Bars(ImportedPiece piece, int first, int last) => MotifSelector.Bars(piece.Meter, first, last, piece.End);
 
     private static Project Fresh() => Project.Create("p_test", "minuet.musicxml", s_source, s_now);
-
-    [Fact]
-    public void A_bookmark_made_from_a_phrase_follows_it_through_a_merge_and_a_split()
-    {
-        ImportedPiece piece = Piece();
-        TickSpan phrase1 = Bars(piece, 0, 1);
-        TickSpan phrase2 = Bars(piece, 2, 3);
-        TickSpan merged = Bars(piece, 0, 3);
-        Project project = Fresh()
-            .AddBookmark(new Bookmark("b_0001", "From the phrase", BookmarkCategory.StructureId, phrase1, FromPhrase: true, s_now))
-            .AddBookmark(new Bookmark("b_0002", "My own bars", BookmarkCategory.PractiseId, phrase1, FromPhrase: false, s_now));
-
-        Project afterMerge = project.FollowPhrases([merged]);
-        Assert.Equal(merged, afterMerge.FindBookmark("b_0001")!.Span);
-        Assert.Equal(phrase1, afterMerge.FindBookmark("b_0002")!.Span);
-
-        Project afterSplit = afterMerge.FollowPhrases([Bars(piece, 0, 0), Bars(piece, 1, 3)]);
-        Assert.Equal(Bars(piece, 0, 0), afterSplit.FindBookmark("b_0001")!.Span);
-
-        // A phrase list that does not reach the bookmark leaves it alone.
-        Assert.Equal(afterSplit.Bookmarks, afterSplit.FollowPhrases([phrase2]).Bookmarks);
-    }
 
     [Fact]
     public void Structure_bookmarks_name_each_sentence_once_in_the_language()

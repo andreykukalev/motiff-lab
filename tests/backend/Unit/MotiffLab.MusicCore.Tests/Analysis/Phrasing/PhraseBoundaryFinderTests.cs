@@ -1,13 +1,13 @@
 using System.Text;
 
-using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Tests.Analysis;
+namespace MotiffLab.MusicCore.Tests.Analysis.Phrasing;
 
 public class PhraseBoundaryFinderTests
 {

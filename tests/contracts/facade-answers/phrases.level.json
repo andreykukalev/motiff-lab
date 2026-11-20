@@ -131,6 +131,85 @@
       }
      }
     ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
     "selection": null
    }
   },
@@ -1162,6 +1241,85 @@
       }
      }
     ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
     "selection": {
      "onset": 2880,
      "end": 3840,
@@ -1250,8 +1408,31 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "the start of the piece"
-      }
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -1274,8 +1455,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -1298,8 +1502,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -1322,8 +1549,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -1346,8 +1596,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -1370,8 +1643,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -1394,8 +1690,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -1418,8 +1729,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -1442,8 +1768,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 10,
@@ -1466,8 +1815,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 11,
@@ -1490,8 +1854,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -1514,8 +1901,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 13,
@@ -1538,8 +1948,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 14,
@@ -1562,8 +1987,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -1586,8 +2042,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -1610,8 +2097,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.7,
-       "description": "after a rest of a beat or more"
-      }
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -1634,8 +2152,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 18,
@@ -1658,8 +2191,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 19,
@@ -1682,8 +2230,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 20,
@@ -1706,8 +2277,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 21,
@@ -1730,8 +2324,110 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
      }
     ],
     "selection": {
@@ -1837,8 +2533,31 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "the start of the piece"
-      }
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -1861,8 +2580,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -1885,8 +2627,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -1909,8 +2674,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -1933,8 +2721,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -1957,8 +2768,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -1981,8 +2815,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -2005,8 +2854,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -2029,8 +2893,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 10,
@@ -2053,8 +2940,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 11,
@@ -2077,8 +2979,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -2101,8 +3026,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 13,
@@ -2125,8 +3073,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 14,
@@ -2149,8 +3112,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -2173,8 +3167,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -2197,8 +3222,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.7,
-       "description": "after a rest of a beat or more"
-      }
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -2221,8 +3277,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 18,
@@ -2245,8 +3316,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 19,
@@ -2269,8 +3355,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 20,
@@ -2293,8 +3402,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 21,
@@ -2317,8 +3449,110 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
      }
     ]
    }
@@ -2384,8 +3618,39 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "the start of the piece"
-      }
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 3120,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       },
+       {
+        "onset": 3120,
+        "end": 5760,
+        "firstBar": 5,
+        "lastBar": 8,
+        "bar": 5,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -2408,8 +3673,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -2432,8 +3720,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -2456,8 +3767,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -2480,8 +3814,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -2504,8 +3861,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -2528,8 +3900,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -2552,8 +3939,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -2576,8 +3986,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 10,
@@ -2600,8 +4025,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 11,
@@ -2624,8 +4072,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -2648,8 +4119,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 13,
@@ -2672,8 +4158,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 14,
@@ -2696,8 +4213,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -2720,8 +4268,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.7,
-       "description": "after a rest of a beat or more"
-      }
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -2744,8 +4323,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -2768,8 +4362,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 18,
@@ -2792,8 +4401,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 19,
@@ -2816,8 +4448,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 20,
@@ -2840,7 +4495,165 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 1,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 2,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 5,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 15,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": []
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 5760,
+       "selectable": {
+        "onset": 0,
+        "end": 5760
+       }
+      }
+     },
+     {
+      "before": {
+       "number": 2,
+       "onset": 2880,
+       "end": 5760,
+       "selectable": {
+        "onset": 2880,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 5760,
+       "selectable": {
+        "onset": 0,
+        "end": 5760
+       }
       }
      }
     ]
@@ -2905,8 +4718,31 @@
        "evidence": [],
        "provenance": "imported",
        "confidence": 1,
-       "description": "the start of the piece"
-      }
+       "description": "the start of the piece",
+       "bar": 0,
+       "beat": 3,
+       "found": null,
+       "close": null,
+       "why": "the start of the piece"
+      },
+      "motifs": [
+       {
+        "onset": 0,
+        "end": 960,
+        "firstBar": 0,
+        "lastBar": 1,
+        "bar": 0,
+        "beat": 3
+       },
+       {
+        "onset": 960,
+        "end": 2880,
+        "firstBar": 2,
+        "lastBar": 4,
+        "bar": 2,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 2,
@@ -2929,8 +4765,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 4,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 2880,
+        "end": 3840,
+        "firstBar": 4,
+        "lastBar": 5,
+        "bar": 4,
+        "beat": 3
+       },
+       {
+        "onset": 3840,
+        "end": 5760,
+        "firstBar": 6,
+        "lastBar": 8,
+        "bar": 6,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 3,
@@ -2953,8 +4812,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 9,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 5760,
+        "end": 7920,
+        "firstBar": 9,
+        "lastBar": 11,
+        "bar": 9,
+        "beat": 1
+       },
+       {
+        "onset": 7920,
+        "end": 10560,
+        "firstBar": 12,
+        "lastBar": 15,
+        "bar": 12,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 4,
@@ -2977,8 +4859,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 15,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 10560,
+        "end": 11520,
+        "firstBar": 15,
+        "lastBar": 16,
+        "bar": 15,
+        "beat": 3
+       },
+       {
+        "onset": 11520,
+        "end": 13440,
+        "firstBar": 17,
+        "lastBar": 19,
+        "bar": 17,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 5,
@@ -3001,8 +4906,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 19,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 13440,
+        "end": 14400,
+        "firstBar": 19,
+        "lastBar": 20,
+        "bar": 19,
+        "beat": 3
+       },
+       {
+        "onset": 14400,
+        "end": 16560,
+        "firstBar": 21,
+        "lastBar": 23,
+        "bar": 21,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 6,
@@ -3025,8 +4953,31 @@
        ],
        "provenance": "imported",
        "confidence": 1,
-       "description": "at a repeat sign"
-      }
+       "description": "at a repeat sign",
+       "bar": 24,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at a repeat sign"
+      },
+      "motifs": [
+       {
+        "onset": 16560,
+        "end": 19440,
+        "firstBar": 24,
+        "lastBar": 27,
+        "bar": 24,
+        "beat": 1
+       },
+       {
+        "onset": 19440,
+        "end": 22320,
+        "firstBar": 28,
+        "lastBar": 31,
+        "bar": 28,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 7,
@@ -3049,8 +5000,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 32,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 22320,
+        "end": 25200,
+        "firstBar": 32,
+        "lastBar": 35,
+        "bar": 32,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 8,
@@ -3073,8 +5039,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 36,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 25200,
+        "end": 27840,
+        "firstBar": 36,
+        "lastBar": 39,
+        "bar": 36,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 9,
@@ -3097,8 +5078,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 39,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 27840,
+        "end": 28800,
+        "firstBar": 39,
+        "lastBar": 40,
+        "bar": 39,
+        "beat": 3
+       },
+       {
+        "onset": 28800,
+        "end": 30720,
+        "firstBar": 41,
+        "lastBar": 43,
+        "bar": 41,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 10,
@@ -3121,8 +5125,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 43,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 30720,
+        "end": 33120,
+        "firstBar": 43,
+        "lastBar": 46,
+        "bar": 43,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 11,
@@ -3145,8 +5164,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 47,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 33120,
+        "end": 35280,
+        "firstBar": 47,
+        "lastBar": 49,
+        "bar": 47,
+        "beat": 1
+       },
+       {
+        "onset": 35280,
+        "end": 37920,
+        "firstBar": 50,
+        "lastBar": 53,
+        "bar": 50,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 12,
@@ -3169,8 +5211,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 53,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 37920,
+        "end": 38880,
+        "firstBar": 53,
+        "lastBar": 54,
+        "bar": 53,
+        "beat": 3
+       },
+       {
+        "onset": 38880,
+        "end": 40800,
+        "firstBar": 55,
+        "lastBar": 57,
+        "bar": 55,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 13,
@@ -3193,8 +5258,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 57,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 40800,
+        "end": 43200,
+        "firstBar": 57,
+        "lastBar": 60,
+        "bar": 57,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 14,
@@ -3217,8 +5297,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.5,
-       "description": "at the edge of a passage that starts again at once, note for note"
-      }
+       "description": "at the edge of a passage that starts again at once, note for note",
+       "bar": 61,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and at the edge of a passage that starts again at once, note for note"
+      },
+      "motifs": [
+       {
+        "onset": 43200,
+        "end": 45360,
+        "firstBar": 61,
+        "lastBar": 63,
+        "bar": 61,
+        "beat": 1
+       },
+       {
+        "onset": 45360,
+        "end": 47520,
+        "firstBar": 64,
+        "lastBar": 66,
+        "bar": 64,
+        "beat": 1
+       },
+       {
+        "onset": 47520,
+        "end": 48960,
+        "firstBar": 67,
+        "lastBar": 68,
+        "bar": 67,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 15,
@@ -3241,8 +5352,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 69,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 48960,
+        "end": 51840,
+        "firstBar": 69,
+        "lastBar": 72,
+        "bar": 69,
+        "beat": 1
+       },
+       {
+        "onset": 51840,
+        "end": 53280,
+        "firstBar": 73,
+        "lastBar": 74,
+        "bar": 73,
+        "beat": 1
+       },
+       {
+        "onset": 53280,
+        "end": 55440,
+        "firstBar": 75,
+        "lastBar": 77,
+        "bar": 75,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 16,
@@ -3265,8 +5407,39 @@
        ],
        "provenance": "inferred",
        "confidence": 0.7,
-       "description": "after a rest of a beat or more"
-      }
+       "description": "after a rest of a beat or more",
+       "bar": 78,
+       "beat": 1,
+       "found": null,
+       "close": "full",
+       "why": "after a full close and after a rest of a beat or more"
+      },
+      "motifs": [
+       {
+        "onset": 55440,
+        "end": 56160,
+        "firstBar": 78,
+        "lastBar": 78,
+        "bar": 78,
+        "beat": 1
+       },
+       {
+        "onset": 56160,
+        "end": 57600,
+        "firstBar": 79,
+        "lastBar": 80,
+        "bar": 79,
+        "beat": 1
+       },
+       {
+        "onset": 57600,
+        "end": 59760,
+        "firstBar": 81,
+        "lastBar": 83,
+        "bar": 81,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 17,
@@ -3289,8 +5462,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 84,
+       "beat": 1,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 59760,
+        "end": 62400,
+        "firstBar": 84,
+        "lastBar": 87,
+        "bar": 84,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 18,
@@ -3313,8 +5501,23 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 87,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 62400,
+        "end": 64800,
+        "firstBar": 87,
+        "lastBar": 90,
+        "bar": 87,
+        "beat": 3
+       }
+      ]
      },
      {
       "number": 19,
@@ -3337,8 +5540,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 91,
+       "beat": 1,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 64800,
+        "end": 66960,
+        "firstBar": 91,
+        "lastBar": 93,
+        "bar": 91,
+        "beat": 1
+       },
+       {
+        "onset": 66960,
+        "end": 69600,
+        "firstBar": 94,
+        "lastBar": 97,
+        "bar": 94,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 20,
@@ -3361,8 +5587,31 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
+       "description": "where an earlier passage comes back note for note",
+       "bar": 97,
+       "beat": 3,
+       "found": null,
+       "close": "none",
+       "why": "where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 69600,
+        "end": 70560,
+        "firstBar": 97,
+        "lastBar": 98,
+        "bar": 97,
+        "beat": 3
+       },
+       {
+        "onset": 70560,
+        "end": 72480,
+        "firstBar": 99,
+        "lastBar": 101,
+        "bar": 99,
+        "beat": 1
+       }
+      ]
      },
      {
       "number": 21,
@@ -3385,7 +5634,147 @@
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
+       "description": "where an earlier passage comes back note for note",
+       "bar": 101,
+       "beat": 3,
+       "found": null,
+       "close": "half",
+       "why": "after a half close and where an earlier passage comes back note for note"
+      },
+      "motifs": [
+       {
+        "onset": 72480,
+        "end": 73440,
+        "firstBar": 101,
+        "lastBar": 102,
+        "bar": 101,
+        "beat": 3
+       },
+       {
+        "onset": 73440,
+        "end": 75600,
+        "firstBar": 103,
+        "lastBar": 105,
+        "bar": 103,
+        "beat": 1
+       }
+      ]
+     }
+    ],
+    "own": 0,
+    "sections": [
+     {
+      "id": "section_1",
+      "label": "A",
+      "passage": {
+       "onset": 0,
+       "end": 5760,
+       "firstBar": 0,
+       "lastBar": 8
+      },
+      "selectable": {
+       "onset": 0,
+       "end": 5760
+      },
+      "sharesWith": [
+       "section_4"
+      ],
+      "phrase": 1,
+      "bar": 0,
+      "beat": 3
+     },
+     {
+      "id": "section_2",
+      "label": "B",
+      "passage": {
+       "onset": 5760,
+       "end": 16560,
+       "firstBar": 9,
+       "lastBar": 23
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 16560
+      },
+      "sharesWith": [],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 16560,
+       "end": 55440,
+       "firstBar": 24,
+       "lastBar": 77
+      },
+      "selectable": {
+       "onset": 16560,
+       "end": 39600
+      },
+      "sharesWith": [],
+      "phrase": 6,
+      "bar": 24,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
+      "label": "A′",
+      "passage": {
+       "onset": 55440,
+       "end": 75600,
+       "firstBar": 78,
+       "lastBar": 105
+      },
+      "selectable": {
+       "onset": 55440,
+       "end": 75600
+      },
+      "sharesWith": [
+       "section_1"
+      ],
+      "phrase": 16,
+      "bar": 78,
+      "beat": 1
+     }
+    ],
+    "previous": {
+     "short": {
+      "added": [],
+      "removed": []
+     },
+     "phrase": {
+      "added": [],
+      "removed": [
+       2880
+      ]
+     },
+     "sentence": {
+      "added": [],
+      "removed": []
+     }
+    },
+    "changed": [
+     {
+      "before": {
+       "number": 1,
+       "onset": 0,
+       "end": 5760,
+       "selectable": {
+        "onset": 0,
+        "end": 5760
+       }
+      },
+      "after": {
+       "number": 1,
+       "onset": 0,
+       "end": 2880,
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       }
       }
      }
     ]

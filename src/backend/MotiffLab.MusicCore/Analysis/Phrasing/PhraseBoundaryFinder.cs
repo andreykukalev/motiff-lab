@@ -2,43 +2,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Analysis;
-
-/// <summary>What in the source supports a phrase boundary (S1-I5).</summary>
-public enum PhraseEvidence
-{
-    /// <summary>A phrase slur starts or ends here. Imported.</summary>
-    Slur,
-
-    /// <summary>A beat or more of silence comes before this note. Derived from the notes.</summary>
-    Rest,
-
-    /// <summary>A repeat sign stands on the bar line here. Imported.</summary>
-    RepeatSign,
-
-    /// <summary>
-    /// The passage that opens the piece, or that starts at another boundary, comes back here note for
-    /// note. Derived from the notes, so inferred.
-    /// </summary>
-    Repetition,
-
-    /// <summary>
-    /// Inside a stretch that runs longer than a phrase with no boundary (<see cref="PhraseMap.LongPhraseBars"/>), a
-    /// passage starts again at once, note for note: the start of a phrase answered by one that starts the same, or
-    /// either edge of a short figure played twice in a row. Derived from the notes, so inferred.
-    /// </summary>
-    Restatement,
-}
-
-/// <summary>A place where a new phrase starts: the onset of its first note.</summary>
-/// <param name="At">The onset of the first note after the boundary.</param>
-/// <param name="Evidence">Everything in the source that supports the boundary, in enum order; empty for a boundary only the player set.</param>
-/// <param name="Attribution">
-/// Imported when a slur or repeat sign in the source marks it; inferred, with
-/// <see cref="PhraseBoundaryFinder.RestConfidence"/>, when only a rest does; user-confirmed or
-/// user-edited when the player set it (<see cref="PhraseBoundaryFinder.WithPlayerBoundaries"/>).
-/// </param>
-public sealed record PhraseBoundary(Tick At, IReadOnlyList<PhraseEvidence> Evidence, Attribution Attribution);
+namespace MotiffLab.MusicCore.Analysis.Phrasing;
 
 /// <summary>
 /// Marks phrase boundaries only where the source supports them (S1-I5): phrase slurs, rests of a
@@ -469,25 +433,20 @@ public static class PhraseBoundaryFinder
     {
         ArgumentNullException.ThrowIfNull(found);
         ArgumentNullException.ThrowIfNull(setByPlayer);
-
-        var merged = new SortedDictionary<Tick, PhraseBoundary>();
-        foreach (PhraseBoundary boundary in found)
-        {
-            merged[boundary.At] = boundary;
-        }
-
-        foreach (Tick at in setByPlayer)
-        {
-            merged[at] = merged.TryGetValue(at, out PhraseBoundary? source)
-                ? source with { Attribution = Attribution.UserConfirmed }
-                : new PhraseBoundary(at, [], Attribution.UserEdited);
-        }
-
-        return [.. merged.Values];
+        return WithPlayerBoundaries(found, new PhraseEdits([.. setByPlayer], []), static _ => true);
     }
 
+    /// <summary>The boundaries found, less those the player took away, with those they set where <paramref name="allows"/> lets them, as above.</summary>
+    internal static IReadOnlyList<PhraseBoundary> WithPlayerBoundaries(IEnumerable<PhraseBoundary> found, PhraseEdits edits, Func<Tick, bool> allows) =>
+        edits.AppliedTo(
+            found,
+            static boundary => boundary.At,
+            allows,
+            static source => source with { Attribution = Attribution.UserConfirmed },
+            static at => new PhraseBoundary(at, [], Attribution.UserEdited));
+
     /// <summary>The first onset at or after a position, or null when no note starts there or later.</summary>
-    private static Tick? FirstOnsetFrom(Tick[] onsets, Tick position)
+    internal static Tick? FirstOnsetFrom(Tick[] onsets, Tick position)
     {
         int index = Array.BinarySearch(onsets, position);
         if (index < 0)

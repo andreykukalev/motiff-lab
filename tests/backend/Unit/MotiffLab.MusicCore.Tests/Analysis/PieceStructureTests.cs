@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;

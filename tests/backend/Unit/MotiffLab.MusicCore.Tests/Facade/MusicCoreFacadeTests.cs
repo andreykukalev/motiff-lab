@@ -287,7 +287,7 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void TheLevelIsRememberedWithThePieceAndMovesTheSelection()
+    public void ALevelShownMovesTheSelectionAndAPieceOpensInPhrases()
     {
         (MusicCoreFacade facade, _) = Open();
         JsonElement shorts = Call(facade, "phrases", """{"level": "short"}""");
@@ -311,11 +311,12 @@ public class MusicCoreFacadeTests
         JsonElement back = Call(facade, "phrases.level", """{"level": "short"}""");
         Assert.Equal(back.GetProperty("units")[0].GetProperty("end").GetInt64(), back.GetProperty("selection").GetProperty("end").GetInt64());
 
-        // The level comes back with the project file.
+        // The piece opens in phrases again (the phrases spec: no level per piece), its file keeping the setting as it was.
         string saved = facade.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}""");
         var again = new MusicCoreFacade();
         again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
-        Assert.Equal("short", Call(again, "phrases").GetProperty("level").GetString());
+        Assert.Equal("phrase", Call(again, "phrases").GetProperty("level").GetString());
+        Assert.Equal(saved, again.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}"""));
 
         // The device's level is shown without becoming the piece's own.
         Assert.Equal("sentence", Call(again, "phrases.level", """{"level": "sentence", "remember": false}""").GetProperty("level").GetString());
@@ -670,7 +671,7 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void BookmarksHaveCategoriesAndFollowThePhraseTheyWereMadeFrom()
+    public void BookmarksHaveCategoriesAndStayWhenThePhrasesChange()
     {
         (MusicCoreFacade facade, _) = Open("""{"language": "ru"}""");
         JsonElement[] phrases = [.. Call(facade, "phrases").GetProperty("units").EnumerateArray()];
@@ -687,9 +688,10 @@ public class MusicCoreFacadeTests
         Assert.StartsWith("такты", bookmark.GetProperty("title").GetString());
         Assert.Equal(phrases[0].GetProperty("end").GetInt64(), bookmark.GetProperty("span").GetProperty("end").GetInt64());
 
+        // A bookmark never moves with a phrase boundary, even one made from a phrase (the phrases spec, 2026-11-20).
         Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{first}}}}""");
-        JsonElement followed = Call(facade, "bookmarks").GetProperty("bookmarks")[0];
-        Assert.Equal(phrases[1].GetProperty("end").GetInt64(), followed.GetProperty("span").GetProperty("end").GetInt64());
+        JsonElement kept = Call(facade, "bookmarks").GetProperty("bookmarks")[0];
+        Assert.Equal(phrases[0].GetProperty("end").GetInt64(), kept.GetProperty("span").GetProperty("end").GetInt64());
 
         JsonElement own = Call(facade, "category.add", """{"name": "Экзамен", "ink": "ochre"}""");
         Assert.Equal("c_0001", own.GetProperty("categories")[4].GetProperty("id").GetString());
