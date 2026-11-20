@@ -31,10 +31,16 @@ public sealed partial record Project
     /// its own meter, key and tempo. The piece itself does not change.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The piece has no draft with the id.</exception>
+    /// <exception cref="InvalidOperationException">The draft has no notes to show: no place yet, or its places' steps took every note out.</exception>
     public Project ViewOfDraft(string id)
     {
         Draft draft = FindDraft(id) ?? throw new KeyNotFoundException($"There is no draft {id}.");
         SourceMusic music = DraftMusic.Of(draft).Music;
+        if (music.Notes.Count == 0)
+        {
+            throw new InvalidOperationException($"The draft {draft.Name} has no notes to show yet: add a fragment to it first.");
+        }
+
         byte[] midi = MidiExporter.Export(music.Notes, music.Tempos, music.Meter, draft.Name);
         return Create(Id, $"{draft.Name}.mid", midi, draft.CreatedAt) with { Assembly = PieceAssembly.Empty with { Applied = music } };
     }

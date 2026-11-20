@@ -55,13 +55,14 @@ public static class DraftLabels
 
     /// <summary>
     /// The draft's line under its name in Sources: what its variants, in places and on the shelf, were copied from, each
-    /// once in the order first met: «из нот с PDF и записи», "from the PDF's notes and the recording".
+    /// once in the order first met: «из нот с PDF и записи», "from the PDF's notes and the recording"; «пока пусто», "empty
+    /// so far", for a draft with no variant (a file may hold one).
     /// </summary>
     public static string Caption(Draft draft, Words words)
     {
         ArgumentNullException.ThrowIfNull(draft);
         List<string> kinds = [.. draft.Places.SelectMany(static place => place.Variants).Concat(draft.Shelf).Select(Kind).Distinct().Select(kind => Of(kind, words))];
-        return words.T($"from {words.Joined(kinds)}", $"из {words.Joined(kinds)}");
+        return kinds.Count == 0 ? words.T("empty so far", "пока пусто") : words.T($"from {words.Joined(kinds)}", $"из {words.Joined(kinds)}");
     }
 
     /// <summary>The name of a new draft of <paramref name="project"/>: «Черновик N», "Draft N", N one more than its drafts, the first such name not taken.</summary>

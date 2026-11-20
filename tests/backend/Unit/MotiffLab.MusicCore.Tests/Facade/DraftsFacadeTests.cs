@@ -38,6 +38,13 @@ public class DraftsFacadeTests
 
     private static JsonElement New(MusicCoreFacade facade, int piece = 1) => Json(facade.Call(piece, "drafts.add", $$"""{{{Bars}}}"""));
 
+    private static string Heard()
+    {
+        ImportedPiece piece = PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!;
+        string midi = Convert.ToBase64String(global::MotiffLab.MusicCore.Export.MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
+        return $$$"""{"original": "src_rec", "engine": "transkun", "milliseconds": 60000, "sentFromMs": 30000, "parts": [{"index": 0, "midi": "{{{midi}}}"}], "now": "2026-11-20T11:00:00Z"}""";
+    }
+
     private static Project Saved(MusicCoreFacade facade) => ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
 
     private static JsonElement Item(JsonElement answer, string list, string id) =>
@@ -188,9 +195,14 @@ public class DraftsFacadeTests
         Assert.Equal("badRequest", Error(facade, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001" }"""));
         Assert.Equal("badRequest", Error(facade, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "variant", "place": "pl_0009" }"""));
         Assert.Equal("badRequest", Error(facade, "drafts.add", $$"""{{{Bars}}, "drop": "shelf" }"""));
-        Assert.Equal("badRequest", Error(facade, "drafts.add", $$"""{{{Bars}}, "ms": [5, 1] }"""));
+        foreach (string part in new[] { "all", "melody" })
+        {
+            string nowhere = $$"""{"span": {"onset": 9600000, "end": 9601920}, "part": "{{part}}"}""";
+            Assert.Equal(("unavailable", "unavailable"), (Error(facade, "drafts.sheet", nowhere), Error(facade, "drafts.add", nowhere)));
+        }
+
         Assert.Equal("v_0002", Call(facade, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "shelf", "ms": [0, 4000] }""").GetProperty("variant").GetString());
-        Assert.Equal((0L, 4000L), Saved(facade).FindDraft("d_0001")!.Shelf.Single().From.Milliseconds);
+        Assert.Null(Saved(facade).FindDraft("d_0001")!.Shelf.Single().From.Milliseconds);
     }
 
     [Fact]
@@ -204,5 +216,70 @@ public class DraftsFacadeTests
         }
 
         Assert.Equal(Run(), Run());
+    }
+
+    [Fact]
+    public void Notes_heard_in_a_recording_keep_the_stretch_music_core_works_out_and_are_labelled_the_recording()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-20T10:30:00Z"}""");
+        Call(facade, "sources.notes.hear", Heard());
+        int shown = Call(facade, "sources.notes.open", """{"id": "n_2"}""").GetProperty("piece").GetInt32();
+
+        JsonElement added = Json(facade.Call(shown, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "variant", "place": "pl_0001" }"""));
+
+        DraftPlace place = Saved(facade).FindDraft("d_0001")!.Places.Single();
+        Assert.Null(place.BaseVariant.From.Milliseconds);
+        (long from, long to) = place.Find("v_0002")!.From.Milliseconds!.Value;
+        Assert.True(from >= 30_000 && to > from && to <= 90_000, $"{from}–{to}");
+        Assert.Equal("① Notes 1–4 + Recording · 2 variants", DraftLabels.Place(place, 0, Words.English));
+        Assert.Equal("from the PDF's notes and the recording", Item(added, "drafts", "d_0001").GetProperty("caption").GetString());
+        Assert.Equal("из нот с PDF и записи", DraftLabels.Caption(Saved(facade).FindDraft("d_0001")!, Words.Russian));
+    }
+
+    [Fact]
+    public void The_melody_is_taken_where_the_voices_are_cleanly_split_marked_inferred()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement sheet = Call(facade, "drafts.sheet", $$"""{{{Bars}}}""");
+        Assert.Contains("melody", sheet.GetProperty("parts").EnumerateArray().Select(part => part.GetString()));
+
+        Call(facade, "drafts.add", $$"""{{{Bars}}, "part": "melody" }""");
+
+        DraftVariant variant = Saved(facade).FindDraft("d_0001")!.Places[0].BaseVariant;
+        Assert.Equal(DraftPart.Melody, variant.From.Part);
+        Assert.All(variant.Music.Notes, note => Assert.Equal(MusicCore.Events.Provenance.Inferred, note.Attribution.Provenance));
+    }
+
+    [Fact]
+    public void Two_drafts_with_the_same_music_offer_the_earlier_first()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        New(facade);
+
+        JsonElement sheet = Call(facade, "drafts.sheet", $$"""{{{Bars}}}""");
+
+        Assert.Equal(["pl_0001", "pl_0001"], sheet.GetProperty("drafts").EnumerateArray().Select(draft => draft.GetProperty("suggested").GetString()));
+        Assert.Equal("d_0001", sheet.GetProperty("suggested").GetProperty("draft").GetString());
+    }
+
+    [Fact]
+    public void An_empty_draft_in_the_file_is_listed_as_empty_and_has_nothing_to_open()
+    {
+        byte[] musicXml = Scanned();
+        Project read = Project.CreateDocument("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "Nocturne.pdf", s_pdf, s_now)
+            .Recognised(musicXml, "homr 0.7.0", PageMap.Of(PieceImporter.Import("a.musicxml", musicXml).Piece!, 1), s_now)
+            .WithNewDraft(new Draft("d_0001", "Draft 1", s_now, [], [], [], 1));
+        var facade = new MusicCoreFacade();
+        Json(facade.Open("Nocturne.motiff.json", ProjectFile.Write(read), """{"language": "en"}"""));
+
+        JsonElement layers = Call(facade, "sources.layers");
+
+        Assert.Equal("empty so far", Item(layers, "drafts", "d_0001").GetProperty("caption").GetString());
+        Assert.Equal("unavailable", Error(facade, "drafts.open", """{"draft": "d_0001"}"""));
+        Assert.Equal("пока пусто", DraftLabels.Caption(read.Drafts[0], Words.Russian));
+        Assert.Equal("v_0001", Call(facade, "drafts.add", $$"""{{{Bars}}, "draft": "d_0001", "drop": "place" }""").GetProperty("variant").GetString());
     }
 }

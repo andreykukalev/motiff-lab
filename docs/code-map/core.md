@@ -17,27 +17,29 @@ through the facade; the API references it.
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
-  MusicXML: `MusicXmlImporter` walks each part with `PartReader`; `ScoreBuilder` joins them (`ScoreNotes`, `ScoreMarks`).
+  The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
+  `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
   `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`).
-- The notation writer: `NotationGenerator` composes `NotationPlan` (`WrittenBars`, `PartPlan`, `MeasurePlan`),
-  `StaffVoices`, `TupletBeats`, `HeardRhythm`, `ControlPlan`, `StaffLayout` (`Beaming`, `BarAccidentals`), `MeiWriter`.
+- The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
+  (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
+  `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (`ControlEvents` from `PlayingMarks`,
+  `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
+  `LayoutElements`), and `MeiWriter`.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
   records apart (`ProjectSummary`, `SavedMotif`, `SavedVariation`); `OriginalOperations`, `NotesOperations`; originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, `ReadEnvelope`, `Version`) over `Projects.File` (a `*Codec` per part,
-  `UnknownEntities`, `Legacy`); `Projects.Drafts` (0034): `Draft`, `DraftPlace`, `DraftVariant`, steps, `PlaceResult`
-  (rebuild), `DraftFragment`, `SameMusic`, `DraftMusic`, `DraftLabels` (place labels, captions).
+  `UnknownEntities`, `Legacy`); `Projects.Drafts` (0034): `Draft*`, `PlaceResult`, `SameMusic`.
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (for NativeAOT); `MusicCoreFacade.Drafts` and
-  `DraftRequest` the `drafts.*` calls across open pieces (`ShownView`: what a read-only piece shows).
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (for NativeAOT); `DraftRequest`: `drafts.*`.
 
 ## The native build (`src/ipad/Core`)
 

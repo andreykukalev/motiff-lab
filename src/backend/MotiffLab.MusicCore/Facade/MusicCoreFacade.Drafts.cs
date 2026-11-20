@@ -54,7 +54,9 @@ public sealed partial class MusicCoreFacade
     /// <summary>
     /// The draft view (the switch's tab of a draft): the draft "draft" of the piece, its places' results in order as one score
     /// (<see cref="Project.ViewOfDraft"/>), open under a new number only to be shown, so piece, notation, playback and roll
-    /// answer for it. Answers as <c>open</c> does, with "readOnly": true and "draft" (<see cref="DraftRequest.View"/>).
+    /// answer for it. Answers as <c>open</c> does, with "readOnly": true and "draft" (<see cref="DraftRequest.View"/>). The
+    /// summary is that of the score as an imported MIDI ("origin" imported, kind midi), as a version's view is: where the
+    /// draft came from is in "draft" (its places' labels), never in those fields. A draft with no notes yet is unavailable.
     /// </summary>
     private string OpenDraft(int number, OpenPiece owner, Request fields)
     {

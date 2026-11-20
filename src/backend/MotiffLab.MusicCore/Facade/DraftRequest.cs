@@ -80,43 +80,41 @@ internal static class DraftRequest
     }
 
     /// <summary>
-    /// «Добавить» on the sheet: the fragment (as <see cref="Sheet"/> reads it, with "ms" [from, to], the stretch of the
-    /// recording it was played in, for notes heard) into the draft "draft", "drop" as "variant" of its place "place", as a
-    /// new "place" at the end or on the "shelf"; with no "draft", a new draft named "name" (else «Черновик N») of one place,
-    /// "now" its time. From another piece the variant names that piece. Answers the sources with "draft", "place" (null on
-    /// the shelf) and "variant", the ids.
+    /// «Добавить» on the sheet: the fragment (as <see cref="Sheet"/> reads it) into the draft "draft", "drop" as "variant" of
+    /// its place "place", as a new "place" at the end or on the "shelf"; with no "draft", a new draft named "name" (else
+    /// «Черновик N») of one place, "now" its time. From another piece the variant names that piece; from notes heard in a
+    /// recording it keeps the stretch of the recording they were played in (<see cref="DraftFragment.Heard"/>). Answers the
+    /// sources with "draft", "place" (null on the shelf) and "variant", the ids.
     /// </summary>
     public static string Add(OpenPiece owner, FragmentOrigin from, Request request)
     {
         (SourceMusic music, TickSpan span) = Selected(from.Open, request);
         DraftPart part = PartOf(request, DraftFragment.Parts(music.NotesIn(span.Onset, span.End)));
         DateTimeOffset now = SourceRequest.Now(request);
-        string? project = from.Project == owner.Project.Id ? null : from.Project;
-        (long, long)? milliseconds = Milliseconds(request);
-        DraftVariant Variant(string id) => DraftFragment.Variant(id, now, music, span, part, from.Notes, from.Provenance, project, milliseconds);
-        if (request.Text("draft") is not { } id)
+        Draft? draft = request.Text("draft") is { } id ? owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
+        DraftDrop drop = request.Enum<DraftDrop>("drop") ?? (draft is null ? DraftDrop.Place : throw FacadeException.BadRequest("Send \"drop\": variant, place or shelf."));
+        if (draft is null && drop != DraftDrop.Place)
         {
-            if (request.Enum<DraftDrop>("drop") is { } asked && asked != DraftDrop.Place)
-            {
-                throw FacadeException.BadRequest("A new draft starts with the fragment as its first place.");
-            }
-
-            string newId = owner.Project.NextDraftId();
-            const string first = "pl_0001", variant = "v_0001";
-            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
-            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, now, first, Variant(variant))), json => Added(json, newId, first, variant));
+            throw FacadeException.BadRequest("A new draft starts with the fragment as its first place.");
         }
 
-        Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
-        DraftDrop drop = request.Enum<DraftDrop>("drop") ?? throw FacadeException.BadRequest("Send \"drop\": variant, place or shelf.");
-        string? place = drop switch
+        string variantId = draft?.NextVariantId() ?? "v_0001";
+        string? place = draft is null ? "pl_0001" : drop switch
         {
             DraftDrop.Variant => request.Required("place"),
             DraftDrop.Place => draft.NextPlaceId(),
             _ => null,
         };
-        string variantId = draft.NextVariantId();
-        return owner.Changed(request, piece => piece.ChangeDraft(id, each => each.With(Variant(variantId), drop, place)), json => Added(json, id, place, variantId));
+        string? project = from.Project == owner.Project.Id ? null : from.Project;
+        DraftVariant variant = Taken(() => DraftFragment.Variant(variantId, now, music, span, part, from.Notes, from.Provenance, project, DraftFragment.Heard(from.Open.Project, from.Open.Piece, span)));
+        if (draft is null)
+        {
+            string newId = owner.Project.NextDraftId();
+            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
+            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, now, place!, variant)), json => Added(json, newId, place, variantId));
+        }
+
+        return owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variantId));
     }
 
     /// <summary>«Переименовать»: the draft "draft" named "name". Answers the sources with "draft".</summary>
@@ -226,7 +224,8 @@ internal static class DraftRequest
         return parts.Contains(part) ? part : throw FacadeException.Unavailable($"The selection has no {Name(part)} to take.");
     }
 
-    private static SourceMusic Taken(Func<SourceMusic> take)
+    /// <summary>What <paramref name="take"/> takes of the selection; a part with no notes there is unavailable, on the sheet and on «Добавить» alike.</summary>
+    private static T Taken<T>(Func<T> take)
     {
         try
         {
@@ -236,18 +235,6 @@ internal static class DraftRequest
         {
             throw FacadeException.Unavailable(exception.Message);
         }
-    }
-
-    /// <summary>"ms" [from, to]: the stretch of the recording the fragment was played in, for notes heard; null when not sent.</summary>
-    private static (long From, long To)? Milliseconds(Request request)
-    {
-        IReadOnlyList<JsonElement> ms = request.Elements("ms");
-        return ms.Count switch
-        {
-            0 => null,
-            2 when ms[0].TryGetInt64(out long from) && ms[1].TryGetInt64(out long to) && from >= 0 && to > from => (from, to),
-            _ => throw FacadeException.BadRequest("\"ms\" is [from, to], from 0 forward."),
-        };
     }
 
     private static string Name(DraftPart part) => part.ToString().ToLowerInvariant();

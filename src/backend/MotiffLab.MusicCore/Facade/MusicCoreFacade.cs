@@ -339,6 +339,10 @@ public sealed partial class MusicCoreFacade
         {
             throw FacadeException.BadRequest(exception.Message);
         }
+        catch (InvalidOperationException exception)
+        {
+            throw FacadeException.Unavailable(exception.Message);
+        }
 
         OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, from.Layer).AsReadOnly(view);
         int number = _next++;
