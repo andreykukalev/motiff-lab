@@ -222,10 +222,11 @@ final class DraftsBaselineTests: XCTestCase {
         XCTAssertEqual(player.selection, second, "the place is selected")
         XCTAssertEqual(player.loop, second, "and loops as any passage")
         await session.step("Цикл is turned off") { player.apply(.cycle) }
-        let atPlayhead = try XCTUnwrap(DraftTechniquesModel.place(among: places, picked: nil, at: player.tick))
+        // The session's player has no sound loaded and is never moved here, so its playhead stays at tick 0, in ①: the
+        // place at a playhead elsewhere is the device's line of DRAFT-03.
         await session.step("«↻ Место»") { await score.loopPlace(on: player) }
         XCTAssertTrue(player.cycle, "«↻ Место» turns Цикл on")
-        XCTAssertEqual(player.loop, Double(atPlayhead.onset)..<Double(atPlayhead.end), "and loops the place at the playhead")
+        XCTAssertEqual(player.loop, Double(places[0].onset)..<Double(places[0].end), "and loops the place at the playhead, ①")
         await session.step("«▶ Всё»") { score.playDraft(on: player) }
         XCTAssertFalse(player.cycle, "«▶ Всё»: Цикл off, the whole draft plays on")
         XCTAssertNil(player.loop)
@@ -337,8 +338,10 @@ final class DraftsBaselineTests: XCTestCase {
         XCTAssertEqual(plain.seamsModel.seams.count, 1, "one seam where ① and ② meet")
         // ② in another key and tempo, as a fragment of another piece brings them.
         let second = try XCTUnwrap(plain.piece?.draft?.places.last)
-        for (name, value) in [("drafts.transpose", ["semitones": 2]), ("drafts.tempo", ["quarterNotesPerMinute": 140])] {
-            let fields: [String: Any] = value.merging(["draft": draft.id, "place": second.id, "now": "2026-11-20T11:00:00Z"]) { kept, _ in kept }
+        let steps: [(String, [String: Any])] = [("drafts.transpose", ["semitones": 2]), ("drafts.tempo", ["quarterNotesPerMinute": 140])]
+        let place: [String: Any] = ["draft": draft.id, "place": second.id, "now": "2026-11-20T11:00:00Z"]
+        for (name, value) in steps {
+            let fields = value.merging(place) { kept, _ in kept }
             let changed = await sources.change(name, fields)
             XCTAssertNotNil(changed, sources.status ?? "")
         }

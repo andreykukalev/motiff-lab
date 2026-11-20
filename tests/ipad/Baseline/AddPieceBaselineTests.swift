@@ -5,7 +5,7 @@ import XCTest
 @testable import MotiffLab
 
 /// Adding a piece and a piece that is only its recording, as Andrei approved them for 1.1 (docs/ux-baseline.md, ADD-01,
-/// ADD-02, VIEW-08, VIEW-09 and VIEW-10; his finding 29 and answers 2–5 to the plan of 1.1, 2026-11-19 21:51 UTC): pages
+/// ADD-02, VIEW-08, VIEW-09 and VIEW-10; his finding 29 and answers 2–4 to the plan of 1.1, 2026-11-19 21:51 UTC): pages
 /// and recordings added on Add piece, a recording's waveform view, «Распознать · Pro» on it and its notes under it, and
 /// Sources on a PDF with no notes yet. Taken through what Add piece, the library and the Sources sheet call, over the real
 /// music-core, in Russian; the screens' look, the sound heard and the scan server are the device's.
@@ -77,9 +77,11 @@ final class AddPieceBaselineTests: XCTestCase {
     }
 
     /// ADD-01: «Открыть файл» takes a PDF, a JPEG or a PNG beside the files it reads, and «Фото страниц» photos of pages;
-    /// each is a piece of its pages with no notes, made on this iPad and titled by its name, which opens on its pages and
-    /// whose card says «PDF». A picture is one page; the photos are one PDF of them.
+    /// each is a piece of its pages with no notes, made on this iPad, which opens on its pages and whose card says «PDF».
+    /// A picture is one page; the photos are one PDF of them. A PDF and a picture are titled by the file's name, photos
+    /// «Фото страниц, <date>» (PhotoReviewScreen, the device's).
     func testADD01PagesAddedArePiecesOfThosePagesWithNoNotes() async throws {
+        // What AddPieceSheet's «Открыть файл» passes to its file importer, rebuilt here: the sheet names it nowhere else.
         let takes = LibraryView.openable + PhotoPiece.images
         for type in [UTType.pdf, .jpeg, .png] {
             XCTAssertTrue(takes.contains(type), "«Открыть файл» takes \(type.identifier)")
@@ -91,6 +93,10 @@ final class AddPieceBaselineTests: XCTestCase {
         opened.append(pdf.id)
         XCTAssertTrue(pdf.isDocument, "a PDF picked opens on its pages")
         XCTAssertNil(pdf.recording)
+        XCTAssertEqual(pdf.title, "Прелюдия", "titled by its file's name")
+        let own = try XCTUnwrap(pdf.own, "the library's summary of it")
+        XCTAssertFalse(own.hasNotes)
+        XCTAssertEqual(PieceCard.kind(own, russian), "PDF")
 
         let photo = try XCTUnwrap(PhotoImages.jpeg(picture()))
         let taken = PhotoImages.pdf([PhotoPage(photo: photo), PhotoPage(photo: photo)])
@@ -99,14 +105,14 @@ final class AddPieceBaselineTests: XCTestCase {
         let png = try onDisk("Страница.png", XCTUnwrap(picture().pngData()))
         let image = try await PhotoPiece.make(image: png, text: russian).get()
         made.append(image)
-        for (project, count, title) in [(photos, 2, "Этюд"), (image, 1, "Страница")] {
+        XCTAssertTrue(ProjectFiles.title(of: image.lastPathComponent).hasPrefix("Страница"), "a picture is titled by its file's name")
+        for (project, count, title) in [(photos, 2, "photos"), (image, 1, "Страница")] {
             let read = await PieceSummary.read(project)
             let summary = try XCTUnwrap(read, title)
             XCTAssertTrue(summary.document, title)
             XCTAssertFalse(summary.hasNotes, "\(title): nothing is recognised")
             XCTAssertEqual(summary.originals.map(\.kind), ["images"], title)
             XCTAssertEqual(summary.originals.first?.pages, count, title)
-            XCTAssertTrue(ProjectFiles.title(of: project.lastPathComponent).hasPrefix(title), "titled by its name")
             XCTAssertEqual(PieceCard.kind(summary, russian), "PDF", title)
             let piece = try await reopened(project)
             XCTAssertTrue(piece.isDocument, "\(title) opens on its pages")
