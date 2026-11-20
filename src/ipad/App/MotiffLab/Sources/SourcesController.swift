@@ -208,11 +208,14 @@ final class SourcesController: ObservableObject {
     }
 
     /// A PDF or photos added as an original without recognising it: kept in the project file on this iPad, never online.
+    /// The first added to a piece that is only its recording opens the piece again in its place (`reopen`, v1.1).
     func addPages(_ data: Data, fileName: String, kind: String) async {
         var fields: [String: Any] = ["kind": kind, "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": Self.now()]
         if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
+        // A piece that was only its recording opens again as music-core now holds it: a PDF piece with its first PDF.
+        let onlyRecording = layers.working == nil && !layers.originals.contains { $0.isPages && !$0.isRemoved }
         if await change("sources.original.add", fields) != nil {
-            toast = SourcesToast(text: text.format("sources.sheet.toastAdded", fileName))
+            await tell(SourcesToast(text: text.format("sources.sheet.toastAdded", fileName)), reopening: onlyRecording)
         }
     }
 
@@ -265,7 +268,13 @@ final class SourcesController: ObservableObject {
     /// and the bars taken from it leave the score, which music-core's open notes still hold: the piece opens again in its
     /// place from the file just saved (`reopen`, as «Сделать рабочими»), the toast with its Undo on the next screen.
     private func removed(_ done: SourcesToast, versions: Set<String>) async {
-        guard !versions.isSubset(of: versionIds), let file, let reopen else {
+        await tell(done, reopening: !versions.isSubset(of: versionIds))
+    }
+
+    /// The toast of what was just done: shown here, or, when the piece opens again in this screen's place (`reopening`,
+    /// `reopen`), handed to the next screen (SourcesHandover), which shows it.
+    private func tell(_ done: SourcesToast, reopening: Bool) async {
+        guard reopening, let file, let reopen else {
             toast = done
             return
         }
@@ -347,7 +356,7 @@ final class SourcesController: ObservableObject {
         case .failure(let problem):
             return .failure(Refusal(words: problem.message))
         case .success(let heard):
-            let hint = layers.working == nil ? nil : Self.hint(await PieceCore(piece: piece).playback().value)
+            let hint = await gridHint()
             let fields = Self.hearFields(heard, original: original.id, hint: hint, now: Self.now())
             // A metre music-core offers no grid for is refused: the notes heard are sent again without the hint.
             return .success(Recognised(fields: fields, dropped: hint == nil ? nil : "hint", toast: text["sources.sheet.toastHeard"]))
@@ -364,6 +373,13 @@ final class SourcesController: ObservableObject {
         fields["now"] = now
         if let hint { fields["hint"] = hint }
         return fields
+    }
+
+    /// The grid hint a recording is heard with: the working notes' metre and tempo (`hint`); none on a piece with no notes
+    /// yet, which has neither (v1.1, finding 29).
+    func gridHint() async -> [String: Any]? {
+        guard layers.working != nil else { return nil }
+        return Self.hint(await PieceCore(piece: piece).playback().value)
     }
 
     /// The working notes' metre and tempo as music-core's grid hint ({"signature": "3/4", "quarterNotesPerMinute"}): the
@@ -401,12 +417,7 @@ final class SourcesController: ObservableObject {
         fresh = id
         status = nil
         await save()
-        if first, let file, let reopen {
-            SourcesHandover.give(SourcesToast(text: read.toast), to: file)
-            await reopen()
-            return nil
-        }
-        toast = SourcesToast(text: read.toast)
+        await tell(SourcesToast(text: read.toast), reopening: first)
         return nil
     }
 

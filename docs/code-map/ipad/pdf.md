@@ -8,7 +8,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Pdf`.
 `Ink/PdfInk.swift`. Switching PDF | Notes: [`library.md`](library.md).
 
 - `Pdf.swift`: `PdfScreen`. With notes, the switch of all views and Sources in the bar; a PDF of the piece's own with no
-  notes yet (`withoutNotes`, v1.1, finding 29) has the PDF tag and Sources alone, where a recording added is recognised;
+  notes yet (`withoutNotes`, v1.1, finding 29) has Sources and, with a recording, the switch of the PDF and the recording
+  (heard in `PerformanceCapsule`), else the PDF tag; a recording added there is recognised;
   the piece's first notes open it again as notes (`reopenHere`, `PdfScreen.reopening`), anything else at the page.
 - `PdfContents.swift`: the Contents' bookmarked pages (`PdfContents`, `PdfBookmarkRow`), moved out of `Pdf.swift` in v1.1.
 

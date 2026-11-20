@@ -18,9 +18,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 - `RecordingPiece.swift`: a new piece that is only the recording picked (`open` with "recording", "device": "ipad",
   its length; project file version 17): its sound kept by `OriginalSounds.keep`, saved by `ProjectFiles.saveNew` titled
   by the recording's name; no sound is kept for a piece not saved.
-- `Recording.swift`: hearing a recording part by part (`RecordingHearing.hear` → `HeardRecording`, its `request`), for
-  Notes of a recording kept in the piece (`SourcesController.hearFields` adds "tempo": "live") and a version from a
-  recording (`performance.add`); `RecordingChooser.blocker`, what hearing needs first, said in Sources.
+- `Recording.swift`: the sound read on the iPad a block at a time (`RecordingSound.read`, and `levels(of:)`, which keeps
+  only the levels, for the waveform); hearing a recording kept in the piece part by part (`RecordingHearing.hear` →
+  `HeardRecording`, its `request`) for its Notes (`SourcesController.hearFields` adds "tempo": "live");
+  `RecordingChooser.blocker`, what hearing needs first, said in Sources.
 
 ## The contract others may rely on
 

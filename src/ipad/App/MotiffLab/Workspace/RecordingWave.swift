@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The waveform of a piece that is only its recording (v1.1, finding 29): how loud the sound is every 100 ms, read on this
-/// iPad as hearing it reads it (`RecordingSound.levels`), drawn in columns across the screen.
+/// iPad as hearing it reads it (`RecordingSound.levels(of:)`, a block at a time, keeping only the levels), drawn in columns
+/// across the screen.
 struct RecordingWave: Equatable, Sendable {
     let levels: [Int]
 
@@ -11,8 +12,8 @@ struct RecordingWave: Equatable, Sendable {
     /// The waveform of the sound at `url`, read off the main thread; nil when the iPad cannot read it.
     static func read(_ url: URL) async -> RecordingWave? {
         await Task.detached(priority: .userInitiated) { () -> RecordingWave? in
-            guard let sound = RecordingSound.read(url), sound.milliseconds > 0 else { return nil }
-            return RecordingWave(levels: sound.levels(from: 0, to: sound.milliseconds))
+            guard let levels = RecordingSound.levels(of: url), !levels.isEmpty else { return nil }
+            return RecordingWave(levels: levels)
         }.value
     }
 

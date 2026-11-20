@@ -31,7 +31,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (a version's «Переименовать…», `rename`, only with a score: `ScoreController.renameVersion`), `SourcesRowHead`,
   `SourcesRowBackground`, `SourcesCaption`.
 - `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted or a recording) and
-  `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`), Send →
+  `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`; `hearLine`:
+  beside the working notes, or the piece's own notes when it has none, v1.1), Send →
   `SourcesController.recognise`.
 - `SourcesDialogs.swift` (v0.10 s-1): the sheet's dialogs in one modifier: deleting an original (`DeleteOriginalDialog`)
   or Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
@@ -41,10 +42,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   piece with no notes yet, v1.1), then
   `recognise` builds a `Recognised` (fields, the field dropped on "badRequest", toast): `readPages`, or `hearRecording`
   (`OriginalSounds.file` → `RecordingHearing.hear`, `progress`, s-3; `hearFields`: "tempo": "live" and "hint", the
-  working notes' metre and tempo from `playback`, dropped when refused; none without working notes); `keepRecognised` keeps it under the literal
+  working notes' metre and tempo from `playback`, dropped when refused; `gridHint`: none without working notes); `keepRecognised` keeps it under the literal
   call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
   `fresh`, save, toast; the first notes of a piece that had none are its working notes, and the piece opens again on
-  them (`reopen`, toast handed over). New Notes go under their original; the working notes change only by «Сделать рабочими». A
+  them; the first pages added to a piece that is only its recording open it again as a PDF piece (`tell`: the toast here,
+  or handed over with `reopen`). New Notes go under their original; the working notes change only by «Сделать рабочими». A
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words, a version's marker tapped (`markerPick`),

@@ -49,6 +49,7 @@
   "sources.sheet.gone": "Original deleted · the notes stay",
   "sources.sheet.goneShort": "Original deleted",
   "sources.sheet.hearHosted": "The recording's sound goes to Motiff Lab's scan server in parts of about two minutes, and it deletes the sound once heard. The notes it hears appear under the recording; your working notes stay as they are.",
+  "sources.sheet.hearHostedFirst": "The recording's sound goes to Motiff Lab's scan server in parts of about two minutes, and it deletes the sound once heard. The notes it hears become this piece's notes, and the piece opens on them.",
   "sources.sheet.hidden": "{0} hidden",
   "sources.sheet.listen": "Listen to “{0}”",
   "sources.sheet.makeWorking": "Make working",

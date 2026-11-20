@@ -14,19 +14,54 @@ struct RecordingSound: Sendable {
 
     /// The sound of an audio or video file, all of it or its first `most` milliseconds; nil when it has none the iPad can read.
     static func read(_ url: URL, most: Int64? = nil) -> RecordingSound? {
+        let wanted = most.map { Int(Double($0) / 1000 * sampleRate) } ?? Int.max
+        var samples: [Int16] = []
+        let read = decode(url, wanted: wanted, length: { samples.reserveCapacity(min(wanted, $0)) }, each: { samples.append(contentsOf: $0) })
+        return read && !samples.isEmpty ? RecordingSound(samples: Array(samples.prefix(wanted))) : nil
+    }
+
+    /// How loud a file's sound is every 100 ms, all of it, as `levels(from:to:)` reads them, kept only as the levels: its
+    /// sound is read a block at a time and let go, so an hour's recording is never held whole (the waveform, v1.1); nil
+    /// when it has none the iPad can read.
+    static func levels(of url: URL) -> [Int]? {
+        let window = Int(sampleRate / 10)
+        var levels: [Int] = []
+        var sum = 0
+        var count = 0
+        var total = 0
+        let read = decode(url, wanted: Int.max, length: { levels.reserveCapacity($0 / window + 1) }, each: { block in
+            for sample in block {
+                sum += abs(Int(sample))
+                count += 1
+                if count == window {
+                    levels.append(Int((Double(sum) / Double(window)).rounded()))
+                    sum = 0
+                    count = 0
+                }
+            }
+            total += block.count
+        })
+        guard read, total > 0 else { return nil }
+        if count > 0 { levels.append(Int((Double(sum) / Double(count)).rounded())) }
+        let tenths = (Int((Double(total) * 1000 / sampleRate).rounded()) + 99) / 100
+        return Array(levels.prefix(tenths))
+    }
+
+    /// Converts a file's sound to mono 16-bit at 22,050 Hz a block at a time, at most `wanted` samples: `length` gets about
+    /// how many there will be first, `each` every block converted. False when the iPad cannot read it.
+    private static func decode(_ url: URL, wanted: Int, length: (Int) -> Void, each: (UnsafeBufferPointer<Int16>) -> Void) -> Bool {
         guard let file = try? AVAudioFile(forReading: url),
               let target = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true),
               let converter = AVAudioConverter(from: file.processingFormat, to: target)
-        else { return nil }
+        else { return false }
         converter.downmix = true
         let chunk: AVAudioFrameCount = 16_384
-        guard let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return nil }
-        let wanted = most.map { Int(Double($0) / 1000 * sampleRate) } ?? Int.max
-        var samples: [Int16] = []
-        samples.reserveCapacity(min(wanted, Int(Double(file.length) * sampleRate / max(file.processingFormat.sampleRate, 1)) + Int(chunk)))
+        guard let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return false }
+        length(Int(Double(file.length) * sampleRate / max(file.processingFormat.sampleRate, 1)) + Int(chunk))
+        var converted = 0
         var ended = false
-        while samples.count < wanted {
-            guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: chunk) else { return nil }
+        while converted < wanted {
+            guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: chunk) else { return converted > 0 }
             var failure: NSError?
             let status = converter.convert(to: output, error: &failure) { _, state in
                 if ended {
@@ -46,13 +81,14 @@ struct RecordingSound: Sendable {
                 state.pointee = .haveData
                 return input
             }
-            if status == .error || failure != nil { return samples.isEmpty ? nil : RecordingSound(samples: Array(samples.prefix(wanted))) }
+            if status == .error || failure != nil { return converted > 0 }
             if let channel = output.int16ChannelData?[0], output.frameLength > 0 {
-                samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+                each(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+                converted += Int(output.frameLength)
             }
             if status == .endOfStream || output.frameLength == 0 { break }
         }
-        return samples.isEmpty ? nil : RecordingSound(samples: Array(samples.prefix(wanted)))
+        return true
     }
 
     /// How loud the sound is every 100 ms from one moment to another: the mean size of its samples, as the web app's
@@ -175,8 +211,8 @@ enum Transcriber {
     }
 }
 
-/// A recording heard by Motiff Lab's scan server, part by part: what music-core needs to make notes of it, Notes of a
-/// recording kept in the piece (`sources.notes.hear`, `SourcesController.hearFields`).
+/// A recording kept in the piece heard by Motiff Lab's scan server, part by part: what music-core needs to make its Notes
+/// (`sources.notes.hear`, `SourcesController.hearFields`).
 struct HeardRecording: Sendable {
     let engine: String
     let milliseconds: Int64

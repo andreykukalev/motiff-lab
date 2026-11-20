@@ -26,18 +26,23 @@ final class AddPieceTests: XCTestCase {
         XCTAssertTrue(UIText(language: "ru")["library.fromRecordingHint"].contains("на этом iPad"))
     }
 
-    /// v1.1, finding 29: a recording picked on Add piece makes a piece whose one original is that recording, its sound
-    /// kept on this iPad, with no notes, titled by the recording's name; it opens again as that recording.
-    func testARecordingAddedMakesAPieceOfThatOneRecordingWithNoNotes() async throws {
-        let text = UIText(language: "en")
+    /// A piece made from a second of a tone picked as «Etude take.wav», as Add piece makes it; the picked file and the
+    /// project file go after the test.
+    private func recordingPiece() async throws -> URL {
         let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
         let picked = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("Etude take.wav")
         try FileManager.default.createDirectory(at: picked.deletingLastPathComponent(), withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: picked.deletingLastPathComponent()) }
         try RecordingSound.wav(tone[...]).write(to: picked)
-        defer { try? FileManager.default.removeItem(at: picked.deletingLastPathComponent()) }
+        let project = try await RecordingPiece.make(picked, text: UIText(language: "en")).get()
+        addTeardownBlock { try? FileManager.default.removeItem(at: project) }
+        return project
+    }
 
-        let project = try await RecordingPiece.make(picked, text: text).get()
-        defer { try? FileManager.default.removeItem(at: project) }
+    /// v1.1, finding 29: a recording picked on Add piece makes a piece whose one original is that recording, its sound
+    /// kept on this iPad, with no notes, titled by the recording's name; it opens again as that recording.
+    func testARecordingAddedMakesAPieceOfThatOneRecordingWithNoNotes() async throws {
+        let project = try await recordingPiece()
         let summary = try await XCTUnwrap(PieceSummary.read(project))
         let projectId = try XCTUnwrap(summary.id)
         defer { try? FileManager.default.removeItem(at: OriginalSounds.folder(project: projectId)) }
@@ -55,6 +60,36 @@ final class AddPieceTests: XCTestCase {
         XCTAssertEqual(opened.recording, original, "it opens as that recording")
         XCTAssertFalse(opened.isDocument)
         _ = await MusicCore.run { MusicCore.close(piece: opened.id) }
+    }
+
+    /// v1.1, finding 29: a PDF added in Sources to a piece that is only its recording opens the piece again in its place,
+    /// as music-core now holds it, a PDF piece, the toast handed to that screen.
+    func testAPdfAddedToARecordingPieceOpensItAgainAsAPdfPiece() async throws {
+        let project = try await recordingPiece()
+        let piece = try await OpenPiece.open(fileName: project.lastPathComponent, data: Data(contentsOf: project), language: "en").get()
+        XCTAssertNotNil(piece.recording)
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: project)
+        let projectId = try XCTUnwrap(sources.projectId)
+        defer {
+            MusicCore.close(piece: piece.id)
+            try? FileManager.default.removeItem(at: OriginalSounds.folder(project: projectId))
+        }
+        var reopened = 0
+        sources.reopen = { reopened += 1 }
+
+        let pages = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
+            context.beginPage()
+        }
+        await sources.addPages(pages, fileName: "Etude.pdf", kind: "pdf")
+        XCTAssertNil(sources.status, "the PDF is added")
+        XCTAssertEqual(reopened, 1, "the piece opens again in its place")
+        XCTAssertNil(sources.toast, "the toast is the next screen's")
+        XCTAssertNotNil(SourcesHandover.toast(for: project))
+        let again = try await OpenPiece.open(fileName: project.lastPathComponent, data: Data(contentsOf: project), language: "en").get()
+        defer { MusicCore.close(piece: again.id) }
+        XCTAssertTrue(again.isDocument, "as music-core now holds it: a PDF piece")
+        XCTAssertNil(again.recording)
     }
 
     /// The fields `open` gets for a recording: its length when the iPad reads one, and this iPad as the device keeping it.

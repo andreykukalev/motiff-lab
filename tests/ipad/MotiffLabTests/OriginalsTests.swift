@@ -308,10 +308,46 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNotNil(OriginalSounds.file(project: project, original: recording.id), "its sound is kept on this iPad")
         XCTAssertTrue(sources.canRecognise(recording), "«Распознать · Pro» on its row")
         XCTAssertNil(sources.layers.working, "adding it made no notes")
+        let noHint = await sources.gridHint()
+        XCTAssertNil(noHint, "no metre or tempo is sent for a piece with no notes")
+        XCTAssertTrue(sources.layers.shownViews.contains { $0.id == PdfScreen.documentView }, "the PDF is a view")
+        XCTAssertTrue(sources.layers.shownViews.contains { $0.id == recording.id && $0.kind == "performance" },
+                      "and the recording, so the switch draws and its capsule plays it, as on the score")
 
         XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: true, page: 3), .tick(0), "the first notes open as notes")
         XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: false, page: 3), .page(3), "an Undo stays on the PDF")
         XCTAssertEqual(PdfScreen.reopening(hadNotes: true, hasNotes: true, page: 0), .page(1), "«Сделать рабочими» too")
+    }
+
+    /// Recognising a recording sends the working notes' metre and tempo as the grid's hint, the same `hint` music-core's
+    /// playback gives (v0.10 s-3); a piece with no notes sends none (the PDF piece's test above).
+    @MainActor
+    func testARecordingIsHeardWithTheWorkingNotesMetre() async throws {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { MusicCore.close(piece: piece.id) }
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: nil)
+        XCTAssertNotNil(sources.layers.working)
+        let hint = await sources.gridHint()
+        let playback = await PieceCore(piece: piece.id).playback().value
+        XCTAssertEqual(hint as NSDictionary?, SourcesController.hint(playback) as NSDictionary?)
+    }
+
+    /// The panel before Send says what the heard notes become (v1.1, finding 29): beside the working notes, or, on a piece
+    /// with none yet, the piece's own notes, which it opens on; never that working notes stay as they are when it has none.
+    @MainActor
+    func testTheRecognisePanelSaysWhatTheHeardNotesBecome() {
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            var layers = SourceLayers()
+            XCTAssertEqual(SourcesRecognisePanel.hearLine(layers, text: text), text["sources.sheet.hearHostedFirst"], language)
+            XCTAssertNotEqual(text["sources.sheet.hearHostedFirst"], "sources.sheet.hearHostedFirst", language)
+            layers.working = "n_1"
+            XCTAssertEqual(SourcesRecognisePanel.hearLine(layers, text: text), text["sources.sheet.hearHosted"], language)
+        }
+        XCTAssertTrue(UIText(language: "en")["sources.sheet.hearHostedFirst"].contains("become this piece's notes"))
+        XCTAssertTrue(UIText(language: "ru")["sources.sheet.hearHostedFirst"].contains("станут нотами этой пьесы"))
     }
 
     private func json(_ object: [String: Any]) -> String {

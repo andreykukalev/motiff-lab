@@ -489,15 +489,15 @@ struct PdfScreen: View {
     private func bar(width: CGFloat) -> some View {
         TopBar(width: width, pages: pageText) {
             barLeading
-            if let sourceLayers, toNotes != nil {
-                // The switch of all the piece's views and Sources after it (version 0.6), as on the score.
+            if let sourceLayers, toNotes != nil || withoutNotes {
+                // The switch of all the piece's views and Sources after it (version 0.6), as on the score; a PDF alone has none.
+                if sourceLayers.shownViews.count < 2 { Tag(text: text["pdf.title"], kind: .assumed) }
                 SourcesViewSwitch(layers: sourceLayers, current: PdfScreen.documentView, text: text, pick: pickView, openSources: openSources)
                 SourcesButton(open: sourcesOpen, text: text, action: openSources)
             } else if let toNotes {
                 PdfNotesSwitch(onPdf: true, text: text, other: toNotes)
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
-                if sourcesOn && withoutNotes { SourcesButton(open: sourcesOpen, text: text, action: openSources) }
             }
             // Why this PDF takes no pen or bookmark: it is read where it lies, after the places it shares with the notes.
             if linked { Tag(text: readOnlyNote ?? text["originals.linkFiles"], kind: .assumed) }
@@ -751,9 +751,9 @@ struct PdfScreen: View {
     static let documentView = "src_pdf"
 
     /// The piece's views for the switch of all views, as music-core lists them for this iPad; nil while the piece has no
-    /// notes, and PDF | Notes stays as it was.
+    /// notes (PDF | Notes stays), except a PDF of its own with none yet (`withoutNotes`, v1.1): its recording is heard.
     private var sourceLayers: SourceLayers? {
-        sourcesOn && sources.layers.working != nil ? sources.layers : nil
+        sourcesOn && (sources.layers.working != nil || withoutNotes) ? sources.layers : nil
     }
 
     /// A PDF of the piece's own with no notes yet, opened from the library (v1.1, finding 29): Sources is there with no
@@ -785,7 +785,7 @@ struct PdfScreen: View {
             if let toast = sources.toast, sourcesOn {
                 SourcesToastView(sources: sources, toast: toast, text: text).transition(.opacity)
             }
-            if sourcesOpen, sourceLayers != nil || withoutNotes {
+            if sourcesOpen, sourceLayers != nil {
                 SourcesSheet(
                     sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
                     close: { sourcesOpen = false }

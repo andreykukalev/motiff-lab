@@ -15,8 +15,8 @@ struct RecordingScreen: View {
     @State private var sourcesOpen = false
     @State private var contentsOpen = false
     @State private var wave: RecordingWave?
-    /// The recording's sound could not be read here.
-    @State private var unreadable = false
+    /// The waveform was read, or could not be.
+    @State private var waveRead = false
     /// The piece is being handed over: once is enough.
     @State private var handingOver = false
     private let text = UIText.current
@@ -68,7 +68,7 @@ struct RecordingScreen: View {
             await originals.load(piece)
             if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
             if let sound { wave = await RecordingWave.read(sound) }
-            unreadable = wave == nil
+            waveRead = true
         }
         // A new interface language saves the piece and opens it again here (InterfaceLanguage).
         .handsOver(piece: piece.id) { await handOverForLanguage() }
@@ -92,12 +92,13 @@ struct RecordingScreen: View {
         piece.recording.flatMap { sources.layers.original($0)?.shown } ?? piece.title
     }
 
-    /// The waveform, while it is read a turning wheel, and a line when the sound is not on this iPad.
+    /// The waveform, while it is read a turning wheel, and a line when the sound is not on this iPad or the iPad cannot
+    /// read it.
     @ViewBuilder private var waveArea: some View {
         if let wave, let sound {
             RecordingWaveView(wave: wave, url: sound, text: text)
-        } else if unreadable {
-            Text(text["sources.sheet.soundNotHere"])
+        } else if waveRead || sound == nil {
+            Text(text[sound == nil ? "sources.sheet.soundNotHere" : "recording.unreadable"])
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink-2"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
