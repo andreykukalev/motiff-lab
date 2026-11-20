@@ -12,6 +12,7 @@ import SwiftUI
 struct DraftTechniqueCard: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
+    let player: Player
     let owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
@@ -44,7 +45,7 @@ struct DraftTechniqueCard: View {
             HStack(spacing: CGFloat.ds("s-2")) {
                 hear(spot, variant: false, "drafts.asInNotes")
                 // «Как на записи» where the variant was heard from a recording, else its own notes «Как в варианте».
-                hear(spot, variant: true, spot.occurrence.recording != nil ? "drafts.asOnRecording" : "drafts.asInVariant")
+                hear(spot, variant: true, score.recordingHeard(spot) != nil ? "drafts.asOnRecording" : "drafts.asInVariant")
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 Button(text.format("drafts.takeEverywhere", String(offer.everywhere))) { act { await owner.take(spot, here: false) } }
@@ -76,7 +77,7 @@ struct DraftTechniqueCard: View {
     }
 
     private func hear(_ spot: DraftTechniquesModel.Spot, variant: Bool, _ key: String) -> some View {
-        Button { score.hearTechnique(spot, variant: variant) } label: {
+        Button { score.hearTechnique(spot, variant: variant, pausing: player) } label: {
             Label { Text(text[key]) } icon: { Icon(name: "play", size: CGFloat.ds("icon-s")) }
         }
         .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
@@ -135,8 +136,8 @@ struct DraftAssemblyPill: View {
         stepItem("fwd", text["drafts.next"]) { score.stepTechnique(1) }
         ItemDivider()
         ForEach([false, true], id: \.self) { variant in
-            word("play", variant ? (current?.occurrence.recording != nil ? "drafts.pillRecording" : "drafts.pillVariant") : "drafts.pillNotes") {
-                if let current { score.hearTechnique(current, variant: variant) }
+            word("play", variant ? (current.flatMap { score.recordingHeard($0) } != nil ? "drafts.pillRecording" : "drafts.pillVariant") : "drafts.pillNotes") {
+                if let current { score.hearTechnique(current, variant: variant, pausing: player) }
             }
             .disabled(!(current.map { score.canHear($0, variant: variant) } ?? false))
         }

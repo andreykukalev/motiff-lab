@@ -251,7 +251,8 @@ final class DraftsTests: XCTestCase {
         XCTAssertFalse(variantNotes?.notes.isEmpty ?? true, "the variant's music, opened alone and closed again")
         XCTAssertEqual(spot.offer, DraftTechniquesModel.Offer(steps: true, hands: true, everywhere: 1), "open: every step")
         XCTAssertTrue(model.stepping, "the pill's ‹ ›, in place of the phrase's")
-        XCTAssertEqual(screen.score.currentPlace(at: 0)?.id, spot.place, "«↻ Место» loops the current occurrence's place")
+        let looped = DraftTechniquesModel.place(among: view.draft?.places ?? [], picked: model.picked?.spot, at: 0)
+        XCTAssertEqual(looped?.id, spot.place, "«↻ Место» loops the current occurrence's place")
 
         let taken = await sources.take(spot, here: false)
         XCTAssertTrue(taken, sources.status ?? "")
@@ -289,7 +290,8 @@ final class DraftsTests: XCTestCase {
     }
 
     /// The card offers only what music-core takes: an open occurrence every step, a hand only over bars with notes (an
-    /// inserted bar not yet put in has none), one taken or left nothing; «Взять везде · N» counts the open ones.
+    /// inserted bar not yet put in has none), one taken or left nothing; «Взять везде · N» counts the open ones. Its words,
+    /// and the place «↻ Место» loops.
     func testTheCardOffersOnlyTheStepsMusicCoreTakes() throws {
         let json = #"""
         {"draft": "dr_0001", "place": "pl_0001", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
@@ -316,6 +318,16 @@ final class DraftsTests: XCTestCase {
             "уверенно · 1 из 1 ноты на месте · оставлен как в основе",
         ])
         XCTAssertEqual(model.spots[1].occurrence.recording?.from, 3000, "heard from a recording's stretch")
+
+        // «↻ Место»: the picked occurrence's place, else the one at the playhead, else the first.
+        let places = [
+            DraftViewAnswer.Place(id: "pl_0001", label: "① Notes 1–9", onset: 0, end: 14400, firstBar: 1, lastBar: 9, variants: 1),
+            DraftViewAnswer.Place(id: "pl_0002", label: "② Notes 10–12", onset: 14400, end: 18720, firstBar: 10, lastBar: 12, variants: 0),
+        ]
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: model.spots[0], at: 15000)?.id, "pl_0001")
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 15000)?.id, "pl_0002")
+        XCTAssertEqual(DraftTechniquesModel.place(among: places, picked: nil, at: 99999)?.id, "pl_0001")
+        XCTAssertNil(DraftTechniquesModel.place(among: [], picked: nil, at: 0))
     }
 
     /// On a view only to be shown (Notes or a draft over the piece) the selection menu offers no Note, Bookmark, Insights or

@@ -31,7 +31,8 @@ extension SourcesController {
     /// (`drafts.open`, never `sources.notes.open`), its places with it; nil, with why in `status`, for one that cannot be
     /// shown (a draft with no places yet is unavailable).
     func openDraft(_ draft: SourceLayers.Draft, at tick: Double? = nil) async -> OpenPiece? {
-        await openShown("drafts.open", ["draft": draft.id], title: draft.name, at: tick, draft: true)
+        let answer = await PieceCore(piece: piece).openDraft(draft.id)
+        return await engraveShown(answer.text, title: draft.name, at: tick, draft: answer.value?.draft)
     }
 
     // MARK: - A place's приёмы (v1.1, ADR 0034 section 4, step 6)

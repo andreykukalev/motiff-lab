@@ -48,17 +48,10 @@ extension ScoreController {
         Task { await drawVersions() }
     }
 
-    /// The place the pill's «↻ Место» loops: the current occurrence's, else the one at `tick`, else the first; nil on a
-    /// piece that is not a draft.
-    func currentPlace(at tick: Double) -> DraftViewAnswer.Place? {
-        let places = piece?.draft?.places ?? []
-        let id = draftModel.picked?.spot.place
-        return places.first { $0.id == id } ?? places.first { Double($0.onset) <= tick && tick < Double($0.end) } ?? places.first
-    }
-
-    /// «↻ Место»: the current place selected and played round and round by the playback model (Цикл on), from its start.
+    /// «↻ Место»: the current place (`DraftTechniquesModel.place`) selected and played round and round by the playback
+    /// model (Цикл on), from its start.
     func loopPlace(on player: Player) async {
-        guard let place = currentPlace(at: player.tick) else { return }
+        guard let place = DraftTechniquesModel.place(among: piece?.draft?.places ?? [], picked: draftModel.picked?.spot, at: player.tick) else { return }
         await select(Double(place.onset), Double(place.end))
         player.hold(selection: focusModel.playRange?.range)
         if !player.cycle { player.apply(.cycle) }
@@ -95,11 +88,12 @@ extension ScoreController {
     }
 
     /// «▶ Как в нотах», «▶ Как на записи» or «▶ Как в варианте» on the card or the pill (`canHear`): the base as the draft's
-    /// notes have it there, the recording's stretch (`RecordingListening`), or the variant's own notes, heard once as a
-    /// version's bar is heard from its marker.
-    func hearTechnique(_ spot: DraftTechniquesModel.Spot, variant: Bool) {
+    /// notes have it there, the recording's stretch (`RecordingListening`, the score's `player` paused first: one thing
+    /// sounds at a time), or the variant's own notes, heard once as a version's bar is heard from its marker.
+    func hearTechnique(_ spot: DraftTechniquesModel.Spot, variant: Bool, pausing player: Player) {
         guard let piece, canHear(spot, variant: variant) else { return }
         if variant, let url = recordingHeard(spot), let stretch = spot.occurrence.recording {
+            if PlaybackModel.playing(player.state) { player.apply(.press) }
             RecordingListening.shared.playStretch(url, from: stretch.from, to: stretch.to)
             return
         }

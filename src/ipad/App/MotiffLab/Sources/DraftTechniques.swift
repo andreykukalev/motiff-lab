@@ -142,13 +142,17 @@ final class DraftTechniquesModel: ObservableObject {
         }
     }
 
+    /// The place the pill's «↻ Место» loops among the draft's `places`: the `picked` occurrence's, else the one at the
+    /// playhead (`tick`), else the first; nil without places.
+    static func place(among places: [DraftViewAnswer.Place], picked: Spot?, at tick: Double) -> DraftViewAnswer.Place? {
+        places.first { $0.id == picked?.place } ?? places.first { Double($0.onset) <= tick && tick < Double($0.end) } ?? places.first
+    }
+
     /// The variant's own music at `spot` (`drafts.open` with "variant", c-4b, asked on `piece`, the draft's view or the
     /// piece it belongs to): opened read-only, its playback score read, closed again; heard over `Spot.variantSpan`. Nil
     /// when music-core does not open it.
     static func variantPlayback(_ spot: Spot, on piece: Int32) async -> PlaybackAnswer? {
-        let request = facadeRequest(["draft": spot.draft, "variant": spot.technique.variant])
-        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.open", request) }
-        guard let view = FacadeAnswer.decode(DraftVariantAnswer.self, text, of: "drafts.open") else { return nil }
+        guard let view = await PieceCore(piece: piece).openVariant(spot.technique.variant, of: spot.draft).value else { return nil }
         let playback = await PieceCore(piece: view.piece).playback().value
         _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
         return playback

@@ -320,7 +320,7 @@ struct ScoreScreenContent: View {
                     }
                 } else if piece.draft != nil, let owner = pieceUnder, !focusModel.focused {
                     // A draft's приём number tapped (v1.1): its card under it (ScoreDraftViews.swift).
-                    DraftTechniqueCard(score: score, model: score.draftModel, owner: owner, text: text, reopen: reopen)
+                    DraftTechniqueCard(score: score, model: score.draftModel, player: player, owner: owner, text: text, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {

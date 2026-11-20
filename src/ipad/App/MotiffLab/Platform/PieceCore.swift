@@ -72,6 +72,25 @@ struct PieceCore: Sendable {
         return Answer(text, of: "drafts.techniques")
     }
 
+    /// `drafts.open`: the draft `draft` opened under a number of its own only to be shown ("readOnly"), with its places
+    /// (v1.1, ADR 0034); asked on the piece it belongs to or on a view of it. The screen closes the number when it goes.
+    func openDraft(_ draft: String) async -> Answer<DraftViewAnswer> {
+        await draftOpen(["draft": draft])
+    }
+
+    /// `drafts.open` with "variant": that variant of the draft alone, read-only (c-4b), as a приём is heard as the variant
+    /// has it; the caller closes the number once heard.
+    func openVariant(_ variant: String, of draft: String) async -> Answer<DraftVariantAnswer> {
+        await draftOpen(["draft": draft, "variant": variant])
+    }
+
+    private func draftOpen<Value: Decodable & Sendable>(_ fields: [String: Any]) async -> Answer<Value> {
+        let piece = piece
+        let request = facadeRequest(fields)
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.open", request) }
+        return Answer(text, of: "drafts.open")
+    }
+
     /// The corrections calls (OpenPiece.Corrections.cs and OpenPiece.EditsLayer.cs), every one answered with a bar's notes
     /// as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without one).
     enum Correction: Sendable {

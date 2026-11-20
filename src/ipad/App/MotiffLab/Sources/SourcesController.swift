@@ -481,22 +481,28 @@ final class SourcesController: ObservableObject {
         await openShown("sources.notes.open", ["id": notes.id], title: title, at: tick)
     }
 
-    /// What `name` opens under a number of its own only to be shown ("readOnly": other Notes, or a draft with
-    /// `draft`, whose places it then carries), engraved; nil, with why in `status`, when it cannot be shown.
-    func openShown(_ name: String, _ fields: [String: Any], title: String, at tick: Double?, draft: Bool = false) async -> OpenPiece? {
+    /// What `name` opens under a number of its own only to be shown ("readOnly", other Notes), engraved; nil, with why in
+    /// `status`, when it cannot be shown.
+    func openShown(_ name: String, _ fields: [String: Any], title: String, at tick: Double?) async -> OpenPiece? {
         let piece = self.piece
         let request = facadeRequest(fields)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        return await engraveShown(answer, title: title, at: tick, draft: nil)
+    }
+
+    /// A view music-core opened under a number of its own only to be shown (its answer, `opening`), engraved, with a
+    /// draft's places when it is one (`draft`); nil, with why in `status`, when it cannot be shown, its number closed.
+    func engraveShown(_ opening: String, title: String, at tick: Double?, draft: DraftViewAnswer.Draft?) async -> OpenPiece? {
         let evenBars = DeviceSettings.shared.isOn("score.evenBars")
         let opened: Result<OpenPiece, EngraveError> = await MusicCore.run {
-            let text = MusicCore.call(piece: piece, name, request)
-            let answer = facadeObject(text)
+            let answer = facadeObject(opening)
             guard let number = (answer?["piece"] as? NSNumber)?.int32Value, number > 0 else {
                 return .failure(EngraveError(message: answer?["message"] as? String ?? ""))
             }
             switch Engraver.engrave(piece: number, title: title, evenBars: evenBars) {
             case .success(let engraving):
                 var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap)
-                if draft { shown.draft = FacadeAnswer.decode(DraftViewAnswer.self, text, of: name)?.draft }
+                shown.draft = draft
                 return .success(shown)
             case .failure(let error):
                 _ = MusicCore.close(piece: number)
