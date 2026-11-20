@@ -118,7 +118,7 @@ export class ScoreBeats {
 
     /**
      * The band's runs cut, in place, to the beats where the passage starts and ends inside a bar; returns the beat lines, or
-     * null while the selection takes whole bars and nothing is cut. The blue playhead keeps to the same edges (score.js).
+     * null while the selection takes whole bars and nothing is cut. The blue playhead keeps to the same edges (ipad-page).
      */
     cutEdges(geometry: ScoreGeometry, runs: Run[], start: number, end: number): readonly number[] | null {
         const lines = this.lines();

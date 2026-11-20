@@ -2,7 +2,7 @@
 // as on paper. The score reflows with the window's width, so a mark is kept against the bar it was
 // written in, not against the page: where in the bar it starts (a share of the bar's width) and how far
 // from the bar's top staff line, with its shape in staff spaces. Laid out again, each mark goes back to
-// its bar at the same size as the staves. Pure functions only; the iPad's score page (score.js) draws them.
+// its bar at the same size as the staves. Pure functions only; the iPad's score page (ipad-page) draws them.
 //
 // Marks are the player's own writing. They are never read as music: nothing here turns them into notes,
 // facts or analysis.

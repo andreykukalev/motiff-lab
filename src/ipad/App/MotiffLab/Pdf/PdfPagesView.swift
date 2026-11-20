@@ -2,8 +2,9 @@ import PDFKit
 import UIKit
 
 /// Where a PDF's pages rest under the floating bar (#495 UX-12), as the notes' pages do (Web/score.css `--pad-top`,
-/// Web/score.js `showPage`): the first page at the top of the document, and a page brought to the top, start a gap of
-/// `s-4` below the bar's bottom edge. The rules are plain numbers, so the tests check them without a PDF view.
+/// `showPage` of the score page, ipad-page/page-navigation.ts): the first page at the top of the document, and a page
+/// brought to the top, start a gap of `s-4` below the bar's bottom edge. The rules are plain numbers, so the tests check
+/// them without a PDF view.
 enum PageRest {
     /// The gap between the bar and a page at the top of the view, as on the notes.
     static var gap: CGFloat { CGFloat.ds("s-4") }

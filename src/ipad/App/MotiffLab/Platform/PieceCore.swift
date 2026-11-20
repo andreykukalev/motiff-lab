@@ -158,11 +158,4 @@ struct PieceCore: Sendable {
         let text = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
         return Answer(text, of: name)
     }
-
-    /// `phrases.level`: another level shown, and the selection moved to the unit that is, encloses or starts it there.
-    func phraseLevel(_ request: String) async -> Answer<PhraseLevelAnswer> {
-        let piece = piece
-        let text = await MusicCore.run { MusicCore.call(piece: piece, "phrases.level", request) }
-        return Answer(text, of: "phrases.level")
-    }
 }

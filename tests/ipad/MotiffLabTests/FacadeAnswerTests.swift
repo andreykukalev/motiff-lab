@@ -53,7 +53,7 @@ final class FacadeAnswerTests: XCTestCase {
         expectBroken("noteIds") { ScoreSelection(answer: renamed(answer, "noteIds")) }
         expectBroken("selection") { ScoreSelection(answer: renamed(answer, "selection")) }
 
-        // `phrases.level` answers null with no selection; a refusal is no selection either.
+        // An answer with no selection (null) is none; a refusal is no selection either.
         XCTAssertNil(ScoreSelection(answer: #"{"selection": null}"#))
         let refused = MusicCore.call(piece: piece, "select", "{}")
         XCTAssertNotNil(facadeObject(refused)?["error"], refused)

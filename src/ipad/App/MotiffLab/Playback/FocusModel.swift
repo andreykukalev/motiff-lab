@@ -3,8 +3,8 @@ import Foundation
 /// Expand and what plays for the selection (ADR 0031 section 3, S3): where Expand was opened from (#521 17), whether the
 /// card shows the phrase as a roll (testing item 12), the card's options as the page gives them, the version shown for the
 /// phrase in focus (0022 section 5), and the span Play and Loop take for the selection (#533 3). It owns this state and
-/// the rules of its own that need only the selection (SelectionModel, which it reads): the play range, the unit of the
-/// level shown the card is, and the card's words for where it is; and since S4b the version's notes to hear, read for the
+/// the rules of its own that need only the selection (SelectionModel, which it reads): the play range, the phrase the
+/// card is, and the card's words for where it is; and since S4b the version's notes to hear, read for the
 /// version id the root hands in; and since S7c whether Expand is open (`focused`). Opening and leaving it on the page,
 /// engraving the card and which version is in focus are ScoreController's, the composition root, which hands in what they
 /// give (`open`, `close`, `takeCardOptions`, `showVersion`); the views observe this model. ADR 0031, the notes of
@@ -105,11 +105,10 @@ final class FocusModel: ObservableObject {
         playRange = PlayRange(selection: selected, range: selected.onset..<selected.end)
     }
 
-    /// The unit of the level shown that the card is, or that holds its start.
+    /// The phrase the card is, or that holds its start.
     var unit: PhraseUnit? {
-        guard let selected = selection.selection, let units = selection.phrases?.units else { return nil }
-        return units.first { $0.selectableOnset == selected.onset && $0.selectableEnd == selected.end }
-            ?? units.first { $0.onset <= selected.onset && selected.onset < $0.end }
+        guard let selected = selection.selection, let phrases = selection.phrases else { return nil }
+        return phrases.unit(selected: selected) ?? phrases.units.first { $0.onset <= selected.onset && selected.onset < $0.end }
     }
 
     var canStepBack: Bool { (unit?.number ?? 1) > 1 }
@@ -122,9 +121,7 @@ final class FocusModel: ObservableObject {
         let bars = selected.firstBar == selected.lastBar
             ? text.format("bars.one", String(selected.firstBar))
             : text.format("bars.range", String(selected.firstBar), String(selected.lastBar))
-        guard let units = selection.phrases?.units,
-              let unit = units.first(where: { $0.selectableOnset == selected.onset && $0.selectableEnd == selected.end })
-        else { return bars }
-        return text.format("focus.position", bars, unit.name, String(unit.number), String(units.count))
+        guard let phrases = selection.phrases, let unit = phrases.unit(selected: selected) else { return bars }
+        return text.format("focus.position", bars, unit.name, String(unit.number), String(phrases.units.count))
     }
 }

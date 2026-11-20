@@ -2,7 +2,7 @@ import PDFKit
 import SwiftUI
 import WebKit
 
-/// Where the score's page is scrolled to, as a place in the notes (Web/score.js `placeAt`, `lineAt`): the scroll view's top
+/// Where the score's page is scrolled to, as a place in the notes (the page's `placeAt`, `lineAt`): the scroll view's top
 /// in the document's points (its offset over its zoom) and back.
 extension ScoreController {
     /// Waits for the pages to be drawn, as `arrive(at:)` does; false when they were not within ten seconds.

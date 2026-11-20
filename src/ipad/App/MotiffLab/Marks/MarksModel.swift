@@ -2,11 +2,12 @@ import SwiftUI
 
 /// The player's marks on the score (ADR 0031 section 3, S6): the margin notes, highlights and inked bars as music-core
 /// answered the last mark call, the note being written, the layers of marks hidden and the piece's own settings they are
-/// kept in, and the bookmarks as the page draws them with the one last gone to. It owns this state and the rules of its
-/// own that need only the selection (SelectionModel, which it reads): whether the selection is the bookmark gone to, the layers and the kinds of extra information a piece has, and reading and keeping
-/// the piece's settings through music-core. Changing a mark (the answer drawn on the page), going to a bookmark or a note
-/// and what the page hides are ScoreController's, the composition root, which hands in what music-core answers (`show`)
-/// and the bookmarks (`keepBookmarks`); the views observe this model.
+/// kept in, whether the phrases' marks show on this device, and the bookmarks as the page draws them with the one last
+/// gone to. It owns this state and the rules of its own that need only the selection (SelectionModel, which it reads):
+/// whether the selection is the bookmark gone to, the layers and the kinds of extra information a piece has, and reading
+/// and keeping the piece's settings through music-core. Changing a mark (the answer drawn on the page), going to a bookmark
+/// or a note and what the page hides are ScoreController's, the composition root, which hands in what music-core answers
+/// (`show`) and the bookmarks (`keepBookmarks`); the views observe this model.
 @MainActor
 final class MarksModel: ObservableObject {
     /// A margin note being written: a new one (no id) or one already kept, over its bars.
@@ -31,8 +32,9 @@ final class MarksModel: ObservableObject {
     /// kind with its own switch: differences from versions, the bars taken from a version, and the Check flags.
     static let extra = ["performance", "taken", "check"]
     private static let layerIds = layers + ["extra"] + extra
-    /// The level a piece opens in, a setting of the device that a piece may have its own of.
-    static let granularity = "phrases.granularity"
+    /// Where this device keeps the phrases' marks hidden (the phrases spec, v1.2): a choice of the device for every piece,
+    /// shown by default. It replaces «Не показывать» of the Phrases menu, whose key is not read.
+    static let phraseMarksHiddenKey = "motiff.phraseMarks.hidden"
 
     @Published private(set) var markCount = 0
     /// The margin notes, highlights and inked bars, as music-core answered the last mark call.
@@ -41,6 +43,10 @@ final class MarksModel: ObservableObject {
     @Published var noteDraft: NoteDraft?
     /// The layers of marks hidden on the page (0018 section 5), kept with the piece as `layers.*` settings.
     @Published private(set) var hiddenLayers: Set<String> = []
+    /// «Фразы» off in the list of extra information: the phrases' marks are not drawn, on this device.
+    @Published private(set) var phraseMarksHidden = UserDefaults.standard.bool(forKey: MarksModel.phraseMarksHiddenKey) {
+        didSet { UserDefaults.standard.set(phraseMarksHidden, forKey: Self.phraseMarksHiddenKey) }
+    }
     /// The piece's own settings, by id, as the project keeps them: the Settings sheet lists them, to clear in one tap.
     @Published private(set) var pieceOverrides: [String: String] = [:]
     /// The bookmark last gone to and the selection that gave: a second tap on it lifts the passage into focus.
@@ -143,15 +149,17 @@ final class MarksModel: ObservableObject {
         }
     }
 
-    /// A level shown becomes the piece's own (`phrases.granularity`: "short", "sentences" or "phrases").
-    func keepLevel(_ value: String) {
-        pieceOverrides[Self.granularity] = value
+    /// The phrases' marks shown or hidden, kept on this device.
+    func showPhraseMarks(_ on: Bool) {
+        phraseMarksHidden = !on
     }
 
-    /// The piece's own choices (`settings` on the piece): its layers and its level.
+    /// The piece's own choices (`settings` on the piece): its layers. The level an older piece kept
+    /// (`phrases.granularity`) is no choice any more: the score shows phrases (the phrases spec, v1.2).
     func loadSettings(of piece: Int32) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "settings") }
-        pieceOverrides = facadeObject(answer)?["overrides"] as? [String: String] ?? [:]
+        let overrides = facadeObject(answer)?["overrides"] as? [String: String] ?? [:]
+        pieceOverrides = overrides.filter { $0.key.hasPrefix("layers.") }
         hiddenLayers = layersHidden()
     }
 

@@ -147,6 +147,16 @@ final class DraftsTests: XCTestCase {
         XCTAssertNil(draftView.draftOwner(under: workspace.sources), "no «Черновик» on a draft's own view")
         XCTAssertTrue(workspace.score.placeMarkers.isEmpty, "the piece itself is no draft")
         XCTAssertTrue(workspace.draftOwner(under: nil) === workspace.sources, "on the piece, its own drafts")
+
+        // The phrases' marks stand only on the working notes, where they are edited (v1.2 i-2): none on a draft's view.
+        XCTAssertTrue(screen.piece.shownOnly)
+        await draftView.score.selectionModel.loadPhrases(of: screen.piece.id)
+        XCTAssertNotNil(draftView.score.selectionModel.phrases, "the draft's phrases are read, for ‹ ›")
+        XCTAssertEqual((draftView.score.phraseMarks["phrases"] as? [[String: Any]])?.count, 0, "no phrase marks on a draft's view")
+        XCTAssertEqual((draftView.score.phraseMarks["sections"] as? [[String: Any]])?.count, 0)
+        workspace.score.show(piece, dark: false)
+        await workspace.score.selectionModel.loadPhrases(of: piece.id)
+        XCTAssertFalse((workspace.score.phraseMarks["phrases"] as? [[String: Any]] ?? []).isEmpty, "the working notes have them")
     }
 
     /// Notes shown over the piece (`sources.notes.open`): a passage is selected there, music-core answering on a view only
@@ -163,6 +173,8 @@ final class DraftsTests: XCTestCase {
         await view.score.select(request: #"{"bars": {"first": 1, "last": 2}}"#, step: false)
         XCTAssertNotNil(view.score.selectionModel.selection, workspace.sources.status ?? "")
         XCTAssertTrue(view.draftOwner(under: workspace.sources) === workspace.sources, "the piece under the view owns its drafts")
+        await view.score.selectionModel.loadPhrases(of: shown.id)
+        XCTAssertEqual((view.score.phraseMarks["phrases"] as? [[String: Any]])?.count, 0, "no phrase marks on Notes shown over the piece")
 
         let request = try XCTUnwrap(view.draftSheet())
         XCTAssertEqual(request.piece, shown.id)

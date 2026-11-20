@@ -180,11 +180,15 @@
      * A point on the score, in window pixels: the nth bar on the pages (from 1), or with `card` the nth bar of Expand's
      * card, `x` across it and `y` down its ink, from 0 to 1 (below 0 or past 1 is beside it); or the handle of the
      * selection's `edge` ("start" or "end"), or of a playhead (`grip`: "black" or "blue"), or a marker over the bars
-     * (`marker`, `markerPoint`), as the page draws it, moved by `dx` and `dy` pixels.
+     * (`marker`, `markerPoint`), or a phrase's number or a section's letter (`phrase`, `section`, `phrasePoint`), as the page
+     * draws it, moved by `dx` and `dy` pixels.
      */
     function scorePoint(point) {
         if ("marker" in point) {
             return markerPoint(point);
+        }
+        if ("phrase" in point || "section" in point) {
+            return phrasePoint(point);
         }
         if ("card" in point) {
             const bar = cardBars()[point.card - 1];
@@ -217,6 +221,19 @@
         const drawn = scoreMarks.markers().filter((each) => each.kind === point.marker && (point.bar === undefined || each.bar === point.bar));
         if (drawn.length === 0) {
             throw new Error(`The page draws no ${point.marker} marker${point.bar === undefined ? "" : ` of bar ${point.bar}`}.`);
+        }
+        const box = drawn[0];
+        return { x: (box.left + box.right) / 2 + (point.dx ?? 0) - window.scrollX, y: (box.top + box.bottom) / 2 + (point.dy ?? 0) - window.scrollY };
+    }
+
+    /**
+     * The centre of the touch target of a phrase's number (`phrase`, its number) or of a section's letter (`section`, its id)
+     * as the page draws it (v1.2), moved by `dx` and `dy` pixels; window pixels.
+     */
+    function phrasePoint(point) {
+        const drawn = scoreMarks.phraseTargets().filter((each) => ("phrase" in point ? each.phrase === point.phrase : each.section === point.section));
+        if (drawn.length === 0) {
+            throw new Error(`The page draws no ${"phrase" in point ? `number of phrase ${point.phrase}` : `letter of section ${point.section}`}.`);
         }
         const box = drawn[0];
         return { x: (box.left + box.right) / 2 + (point.dx ?? 0) - window.scrollX, y: (box.top + box.bottom) / 2 + (point.dy ?? 0) - window.scrollY };
@@ -358,6 +375,25 @@
             text: marker.textContent,
             state: [...marker.classList].find((name) => name.startsWith("state-"))?.slice("state-".length) ?? null,
             ...boxOf(marker),
+        })),
+        // The phrases' marks (v1.2), each part drawn in the order the page draws them: its kind (comma, letter or number), its
+        // phrase (null for a section's letter where no phrase starts), its text, whether it is the player's own, the
+        // selected phrase's number or the phrase playing, and its box.
+        phrases: () => [...document.querySelectorAll("body > .phrase-ink")].filter(shown).map((ink) => ({
+            kind: ["comma", "letter", "number"].find((kind) => ink.classList.contains(kind)),
+            phrase: ink.dataset.phrase === undefined ? null : Number(ink.dataset.phrase),
+            text: ink.textContent,
+            own: ink.classList.contains("own"),
+            selected: ink.classList.contains("selected"),
+            current: ink.classList.contains("current"),
+            ...boxOf(ink),
+        })),
+        // The touch targets of the phrases' numbers and the sections' letters: which each is, what it says, and its box.
+        phraseTargets: () => [...document.querySelectorAll("body > .phrase-mark")].filter(shown).map((target) => ({
+            phrase: target.dataset.phrase === undefined ? null : Number(target.dataset.phrase),
+            section: target.dataset.section ?? null,
+            label: target.getAttribute("aria-label"),
+            ...boxOf(target),
         })),
         paper,
         card,
@@ -532,6 +568,7 @@
             } else if ("wait" in step) {
                 await sleep(step.wait);
             } else if ("expect" in step) {
+                await document.fonts.ready;
                 return check(step.expect, label(index));
             } else {
                 throw new Error(`${label(index)} is no call, pointer, wait or expect.`);
