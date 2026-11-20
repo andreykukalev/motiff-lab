@@ -108,7 +108,7 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
             int total = Math.Max(mine.Count, theirs.Count);
             MatchKind kind = !found && total > 0 ? MatchKind.NotFound
                 : total == 0 ? MatchKind.Same
-                : matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare) ? MatchKind.Same
+                : IsSame(matched, total) ? MatchKind.Same
                 : matched >= total * PartlyShare ? MatchKind.Partly
                 : MatchKind.Differs;
             bool clean = target is { } landed && CleanBar(notes, landed, bar.Duration) is not null;
@@ -117,6 +117,13 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
 
         return new AssemblyMatch(sourceId, stamp, bars, RunsOf(source, bars)) { Alignment = alignment };
     }
+
+    /// <summary>
+    /// «Совпадает»: <paramref name="matched"/> of <paramref name="total"/> notes found in place is at least
+    /// <see cref="SameShare"/> of them, or all but one of at least <see cref="PartlyShare"/> (a correction).
+    /// </summary>
+    public static bool IsSame(int matched, int total) =>
+        matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare);
 
     /// <summary>Where a stretch of the source lands in the player's notes and how alike it is there: «Похоже на такты 15–16 · частично».</summary>
     public (TickSpan Span, MatchKind Kind)? Similar(TickSpan inSource)

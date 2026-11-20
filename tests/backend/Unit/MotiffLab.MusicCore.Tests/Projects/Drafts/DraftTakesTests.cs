@@ -73,6 +73,20 @@ public class DraftTakesTests
     }
 
     [Fact]
+    public void Take_all_sure_never_merges_two_variants_in_one_bar()
+    {
+        Draft draft = Drafted(Octaves()).With(Variant("v_3", Octaves(), 1, 8, notes: "perf_2"), DraftDrop.Variant, "pl_1");
+        Assert.Equal([("v_2", true), ("v_3", true)], draft.TechniquesOf("pl_1").Select(static technique => (technique.Variant, technique.IsSure)));
+
+        (Draft taken, IReadOnlyList<int> numbers) = DraftTakes.TakeSure(draft, "pl_1", Later);
+
+        Assert.Equal([1], numbers);
+        SourceMusic result = taken.ResultOf("pl_1").Music;
+        Assert.Equal(5, result.NotesIn(new Tick(BarLength), new Tick(2 * BarLength)).Count);
+        Assert.DoesNotContain(result.Notes, static note => note.Id.StartsWith("v_3.", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Take_all_sure_never_takes_inserted_bars_and_says_when_nothing_is_sure()
     {
         Draft draft = Drafted(WithABarAdded(after: 4));

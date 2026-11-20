@@ -20,27 +20,34 @@ public enum TechniqueState
 /// </summary>
 /// <param name="Bar">The place's bar, from 1, as its base has it: the bar it is in, or the one inserted bars go before (one past the last at the end).</param>
 /// <param name="Span">Where it lies in the base's ticks; for inserted bars, where they go and how long they are.</param>
-/// <param name="Confidence">
-/// How sure the comparison is here, in per cent: the share of the base's notes found in place in the bar and its neighbours,
-/// as 0022 (section 3) counts it, leaving out the notes the приём itself takes out, which its kind explains (all but
-/// <see cref="TechniqueKind.Other"/>, which explains none).
+/// <param name="Matched">The bar's notes found in place, as 0024 (section 6) finds them; none for inserted bars, found nowhere in the base.</param>
+/// <param name="Total">
+/// The bar's notes counted against them: those on the side with more, the base's or the variant's, leaving out the notes the
+/// приём itself takes out or puts in.
 /// </param>
-public sealed record TechniqueOccurrence(int Bar, TickSpan Span, int Confidence, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State);
+public sealed record TechniqueOccurrence(int Bar, TickSpan Span, int Matched, int Total, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State)
+{
+    /// <summary>The share of the bar's notes found in place, in whole per cent, rounded down; 0 with none to count.</summary>
+    public int Confidence => Total == 0 ? 0 : Matched * 100 / Total;
+
+    /// <summary>
+    /// Sure here: the bar «совпадает» as in 0024 (<see cref="AssemblyMatch.IsSame"/>) once the приём's own notes are left
+    /// aside; a bar with no other note to find in place is not.
+    /// </summary>
+    public bool IsSure => Total > 0 && AssemblyMatch.IsSame(Matched, Total);
+}
 
 /// <summary>
 /// A приём of a variant against its place's base (decision record 0034, section 4): the differences of one kind and one
-/// shape in different bars, numbered in the place. Sure when the comparison is at least 85 % sure everywhere it is found,
-/// as «совпадает» in 0024 (<see cref="AssemblyMatch.SameShare"/>); inserted bars are never sure, so never taken by default.
+/// shape in different bars, numbered in the place. Sure when it is sure at every occurrence (<see cref="TechniqueOccurrence.IsSure"/>);
+/// inserted bars are never sure, so never taken by default.
 /// </summary>
 public sealed record PlaceTechnique(int Number, string Variant, TechniqueKind Kind, IReadOnlyList<TechniqueOccurrence> Occurrences)
 {
-    /// <summary>The confidence a sure приём has at least, in per cent: 85.</summary>
-    public const int SureConfidence = (int)(AssemblyMatch.SameShare * 100);
-
     /// <summary>The lowest confidence of its occurrences.</summary>
     public int Confidence => Occurrences.Min(static occurrence => occurrence.Confidence);
 
-    public bool IsSure => Kind != TechniqueKind.InsertBars && Confidence >= SureConfidence;
+    public bool IsSure => Kind != TechniqueKind.InsertBars && Occurrences.All(static occurrence => occurrence.IsSure);
 
     /// <summary>The occurrences still to decide: what «Взять везде · N» takes.</summary>
     public IReadOnlyList<TechniqueOccurrence> Open => [.. Occurrences.Where(static occurrence => occurrence.State == TechniqueState.Open)];
@@ -64,18 +71,6 @@ public static class PlaceTechniques
 {
     /// <summary>The grid the shape of a difference is read on: a 16th.</summary>
     private const long ShapeGrid = CanonicalTime.TicksPerQuarter / 4;
-
-    /// <summary>The kind of a приём for each kind of a bar's differences in 0022's comparison; inserted bars are no bar's kind.</summary>
-    private static readonly (BarDifference Difference, TechniqueKind Kind)[] s_kinds =
-    [
-        (BarDifference.AddedNotes, TechniqueKind.Fill),
-        (BarDifference.DifferentBass, TechniqueKind.Bass),
-        (BarDifference.Simplified, TechniqueKind.Simplify),
-        (BarDifference.Ornament, TechniqueKind.Ornament),
-        (BarDifference.Octave, TechniqueKind.Octave),
-        (BarDifference.Rhythm, TechniqueKind.Rhythm),
-        (BarDifference.Other, TechniqueKind.Other),
-    ];
 
     /// <summary>The приёмы of the place <paramref name="place"/>, decided as its <paramref name="steps"/> (its own) left them.</summary>
     public static IReadOnlyList<PlaceTechnique> Of(DraftPlace place, IReadOnlyList<DraftStep> steps)
@@ -115,14 +110,14 @@ public static class PlaceTechniques
         List<(TickSpan Span, Tick At)> inserted = Inserted(match, basis, alignment);
         IReadOnlyList<PlayedNote> played = [.. AssemblyMatch.Played(music).Where(note => !inserted.Any(run => run.Span.Contains(new Tick(note.Onset / 1000))))];
         PerformanceComparison comparison = PerformanceComparison.Compare(basis.Notes, basis.Meter, played, alignment);
-        Dictionary<long, int> byOnset = comparison.Bars.Select((bar, at) => (bar, at)).ToDictionary(each => basis.Meter.GetBar(each.bar.Bar).Span.Onset.Value, static each => each.at);
+        Dictionary<long, BarComparison> byOnset = comparison.Bars.ToDictionary(bar => basis.Meter.GetBar(bar.Bar).Span.Onset.Value);
         Dictionary<string, Note> notes = basis.Notes.ToDictionary(static note => note.Id, StringComparer.Ordinal);
 
         List<(TechniqueKind Kind, string Shape, List<TechniqueOccurrence> Occurrences)> techniques = [];
         for (int index = 0; index < basis.Bars.Count; index++)
         {
             TickSpan span = basis.Bars[index].Span;
-            if (!byOnset.TryGetValue(span.Onset.Value, out int compared) || comparison.Bars[compared] is not { Aligned: true } bar || bar.Difference == BarDifference.None)
+            if (!byOnset.TryGetValue(span.Onset.Value, out BarComparison? bar) || !bar.Aligned || bar.Difference == BarDifference.None)
             {
                 continue;
             }
@@ -130,7 +125,9 @@ public static class PlaceTechniques
             TechniqueKind kind = KindOf(bar.Difference);
             string shape = ShapeOf(bar, notes, span);
             string[] added = [.. bar.PlayedNotPrinted.Select(static note => note.Id).Order(StringComparer.Ordinal)];
-            var occurrence = new TechniqueOccurrence(index + 1, span, ConfidenceOf(comparison.Bars, compared, kind), bar.PrintedNotHeard, added, null, decided.Of(kind, index + 1, bar.PrintedNotHeard, added));
+            // The bar's notes on each side, the приём's own left aside: the base's matched or probably not heard, the variant's matched or likely artefacts.
+            int total = bar.Matched.Count + Math.Max(bar.ProbablyNotHeard.Count, bar.LikelyArtefacts.Count);
+            var occurrence = new TechniqueOccurrence(index + 1, span, bar.Matched.Count, total, bar.PrintedNotHeard, added, null, decided.Of(kind, index + 1, bar.PrintedNotHeard, added));
             if (techniques.FindIndex(each => each.Kind == kind && each.Shape == shape) is var at and >= 0)
             {
                 techniques[at].Occurrences.Add(occurrence);
@@ -145,12 +142,7 @@ public static class PlaceTechniques
         foreach ((TickSpan span, Tick at) in inserted)
         {
             int bar = basis.Bars.Count(each => each.Span.Onset < at) + 1;
-
-            // As sure as the base's bars on either side of where they go.
-            int confidence = basis.Bars.Where(each => each.Span.Onset == at || each.Span.End == at)
-                .Select(each => byOnset.TryGetValue(each.Span.Onset.Value, out int around) && comparison.Bars[around].Aligned ? comparison.Bars[around].Confidence : 0)
-                .DefaultIfEmpty(0).Min();
-            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), confidence, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
+            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), 0, 0, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
         }
 
         return result;
@@ -190,19 +182,6 @@ public static class PlaceTechniques
         return inserted;
     }
 
-    /// <summary>
-    /// The confidence of a bar's difference: the base's notes found in place over those that can be heard, in the bar and
-    /// the bars on either side (0022, section 3), the bar's notes not heard that the kind explains left out.
-    /// </summary>
-    private static int ConfidenceOf(IReadOnlyList<BarComparison> bars, int at, TechniqueKind kind)
-    {
-        BarComparison bar = bars[at];
-        BarComparison[] around = [.. bars.Skip(Math.Max(0, at - 1)).Take(at == 0 ? 2 : 3)];
-        int heard = around.Sum(static each => each.Matched.Count);
-        int hearable = around.Sum(static each => each.Matched.Count + each.PrintedNotHeard.Count) - (kind == TechniqueKind.Other ? 0 : bar.PrintedNotHeard.Count);
-        return hearable <= 0 ? 0 : (int)(100L * heard / hearable);
-    }
-
     /// <summary>The bar line of <paramref name="music"/> nearest to a tick, its end among them; the earlier on a tie.</summary>
     private static Tick NearestBarLine(SourceMusic music, Tick tick) =>
         music.Bars.Select(static bar => bar.Span.Onset).Append(music.End).OrderBy(line => Math.Abs(line.Value - tick.Value)).ThenBy(static line => line.Value).First();
@@ -215,11 +194,18 @@ public static class PlaceTechniques
         return $"{string.Join(",", removed)}|{string.Join(",", added)}";
     }
 
-    /// <summary>The kind of a приём in a word or two, as the comparison names a bar's differences: «другой бас», «октава»; «вставка тактов».</summary>
-    public static string Name(TechniqueKind kind, Words words) =>
-        kind == TechniqueKind.InsertBars ? words.T("bars put in", "вставка тактов") : BarComparison.NameOf(s_kinds.First(each => each.Kind == kind).Difference, words);
+    /// <summary>The kind of a приём for the kind of a bar's differences in 0022's comparison.</summary>
+    private static TechniqueKind KindOf(BarDifference difference) => difference switch
+    {
+        BarDifference.AddedNotes => TechniqueKind.Fill,
+        BarDifference.DifferentBass => TechniqueKind.Bass,
+        BarDifference.Simplified => TechniqueKind.Simplify,
+        BarDifference.Ornament => TechniqueKind.Ornament,
+        BarDifference.Octave => TechniqueKind.Octave,
+        BarDifference.Rhythm => TechniqueKind.Rhythm,
+        _ => TechniqueKind.Other,
+    };
 
-    private static TechniqueKind KindOf(BarDifference difference) => s_kinds.First(each => each.Difference == difference).Kind;
     /// <summary>
     /// How the steps of a place left an occurrence of a variant's приём: left when a leave of the variant names its kind and
     /// bar; taken when a take does, or when its notes are already as the variant has them (a hand or a selection taken).

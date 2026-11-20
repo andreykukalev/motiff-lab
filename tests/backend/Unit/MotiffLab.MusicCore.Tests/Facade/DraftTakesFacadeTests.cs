@@ -28,11 +28,11 @@ public class DraftTakesFacadeTests
     private static Draft Saved(MusicCoreFacade facade) => ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Drafts.Single();
 
     [Fact]
-    public void The_techniques_are_labelled_in_the_language_of_the_piece()
+    public void The_techniques_are_labelled_in_the_language_of_the_piece_and_marked_inferred()
     {
         JsonElement technique = Call(Drafted(), "drafts.techniques", $$"""{{{Place}}}""").GetProperty("techniques")[0];
 
-        Assert.Equal(("simplify", "упрощено", true), (technique.GetProperty("kind").GetString(), technique.GetProperty("label").GetString(), technique.GetProperty("sure").GetBoolean()));
+        Assert.Equal(("simplify", "упрощение", true, true), (technique.GetProperty("kind").GetString(), technique.GetProperty("label").GetString(), technique.GetProperty("inferred").GetBoolean(), technique.GetProperty("sure").GetBoolean()));
     }
 
     [Fact]

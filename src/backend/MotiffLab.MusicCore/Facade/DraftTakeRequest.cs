@@ -17,8 +17,9 @@ internal static class DraftTakeRequest
     /// <summary>
     /// The приёмы of the place "place" of the draft "draft": "draft", "place", "total" (how many), "taken" (how many are
     /// taken), "sure" (how many sure ones are open: what «Взять всё уверенное» takes) and "techniques" [{"number", "variant",
-    /// "kind" (fill, bass, simplify, ornament, octave, rhythm, insertBars, other), "label" («октава»), "confidence" (per
-    /// cent, the lowest of its occurrences), "sure", "state" (open, taken, left), "occurrences" [{"bar" (the place's bar,
+    /// "kind" (fill, bass, simplify, ornament, octave, rhythm, insertBars, other), "label" («октава»), "inferred" (always
+    /// true: the engine found the kind), "confidence" (per cent, the lowest of its occurrences: the bar's notes found in
+    /// place, the приём's own left aside), "sure", "state" (open, taken, left), "occurrences" [{"bar" (the place's bar,
     /// from 1, as "take" names it), "firstBar", "lastBar" (the draft's own numbers), "onset", "end" (the draft's ticks; for
     /// bars not yet put in, where they would go, onset and end the same), "confidence", "state"}]}] in number order.
     /// </summary>
@@ -43,7 +44,8 @@ internal static class DraftTakeRequest
                 json.WriteNumber("number", technique.Number);
                 json.WriteString("variant", technique.Variant);
                 json.WriteString("kind", Answer.Camel(technique.Kind));
-                json.WriteString("label", PlaceTechniques.Name(technique.Kind, owner.Words));
+                json.WriteString("label", DraftLabels.Technique(technique.Kind, owner.Words));
+                json.WriteBoolean("inferred", true);
                 json.WriteNumber("confidence", technique.Confidence);
                 json.WriteBoolean("sure", technique.IsSure);
                 json.WriteString("state", Answer.Camel(technique.State));

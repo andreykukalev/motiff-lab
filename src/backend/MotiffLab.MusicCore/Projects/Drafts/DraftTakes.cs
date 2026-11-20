@@ -48,21 +48,41 @@ public static class DraftTakes
 
     /// <summary>
     /// «Взять всё уверенное»: every sure приём of the place still open taken everywhere, in number order, as one group so one
-    /// undo takes them back; inserted bars are never among them. The draft and the numbers taken, to show what it took.
+    /// undo takes them back; inserted bars are never among them. A приём in a bar the group already took from another variant
+    /// is skipped, so two variants are never merged in one bar by themselves (decision record 0034, section 3). The draft and
+    /// the numbers taken, to show what it took.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     /// <exception cref="InvalidOperationException">No sure приём is open.</exception>
     public static (Draft Draft, IReadOnlyList<int> Taken) TakeSure(Draft draft, string placeId, DateTimeOffset at)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        int[] sure = [.. draft.TechniquesOf(placeId).Where(static technique => technique.IsSure && technique.State == TechniqueState.Open).Select(static technique => technique.Number)];
+        PlaceTechnique[] sure = [.. draft.TechniquesOf(placeId).Where(static technique => technique.IsSure && technique.State == TechniqueState.Open)];
         if (sure.Length == 0)
         {
             throw new InvalidOperationException("No sure приём of the place is left to take.");
         }
 
         string group = Project.NextId("g_", draft.Steps.Select(static step => step.Group).OfType<string>());
-        return (sure.Aggregate(draft, (taken, number) => Take(taken, placeId, number, null, at, group)), sure);
+        Dictionary<int, string> barsTaken = [];
+        List<int> taken = [];
+        foreach (PlaceTechnique technique in sure)
+        {
+            int[] bars = [.. technique.Open.Select(static occurrence => occurrence.Bar)];
+            if (bars.Any(bar => barsTaken.TryGetValue(bar, out string? from) && from != technique.Variant))
+            {
+                continue;
+            }
+
+            draft = Take(draft, placeId, technique.Number, null, at, group);
+            taken.Add(technique.Number);
+            foreach (int bar in bars)
+            {
+                barsTaken[bar] = technique.Variant;
+            }
+        }
+
+        return (draft, taken);
     }
 
     /// <summary>

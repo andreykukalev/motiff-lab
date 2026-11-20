@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Assembly;
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Projects.Drafts;
 using MotiffLab.MusicCore.Time;
 
@@ -17,7 +18,7 @@ public class PlaceTechniquesTests
         Assert.Equal((1, "v_2", TechniqueKind.Octave), (octave.Number, octave.Variant, octave.Kind));
         Assert.Equal([2, 6], octave.Occurrences.Select(static occurrence => occurrence.Bar));
         Assert.True(octave.IsSure);
-        Assert.True(octave.Confidence >= PlaceTechnique.SureConfidence);
+        Assert.Equal(100, octave.Confidence);
         Assert.Equal(TechniqueState.Open, octave.State);
         TechniqueOccurrence second = octave.Occurrences[0];
         Assert.Equal(["v_1.n1r0", "v_1.n1r1", "v_1.n1r2", "v_1.n1r3"], second.Removed);
@@ -53,6 +54,56 @@ public class PlaceTechniquesTests
         Assert.Equal(5, occurrence.Bar);
         Assert.Equal(new DraftInsert(new Tick(4 * BarLength), new TickSpan(new Tick(4 * BarLength), BarLength)), occurrence.Insert);
         Assert.Empty(occurrence.Added);
+    }
+
+    [Fact]
+    public void A_technique_found_in_adjacent_bars_is_sure_by_each_bar_s_own_notes()
+    {
+        PlaceTechnique octave = Assert.Single(Drafted(Score(melody: bar => bar is 1 or 2 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h")).TechniquesOf("pl_1"));
+
+        Assert.Equal([2, 3], octave.Occurrences.Select(static occurrence => occurrence.Bar));
+        Assert.True(octave.IsSure);
+    }
+
+    [Theory]
+    [InlineData(4, 85, true)]
+    [InlineData(3, 84, false)]
+    public void A_technique_is_sure_when_85_per_cent_of_its_bar_s_other_notes_are_found_in_place(int chordNotes, int confidence, bool sure)
+    {
+        PlaceTechnique octave = Dense(chordNotes).TechniquesOf("pl_1")[0];
+
+        Assert.Equal((TechniqueKind.Octave, confidence, sure), (octave.Kind, octave.Confidence, octave.IsSure));
+    }
+
+    [Fact]
+    public void Take_all_sure_skips_a_technique_under_85_per_cent()
+    {
+        Draft draft = Dense(3);
+
+        Assert.Equal([2], DraftTakes.TakeSure(draft, "pl_1", At).Taken);
+    }
+
+    /// <summary>
+    /// Four bars whose bar 2 is dense: the melody, a triad on each beat, the bass with <paramref name="chordNotes"/> notes
+    /// over it and three notes too low for a recording to hear. The variant plays the melody of bar 2 an octave higher, does
+    /// not sound the low notes (the bar's notes not found in place that are not the приём's), and another bass in bar 4.
+    /// </summary>
+    internal static Draft Dense(int chordNotes)
+    {
+        SourceMusic Music(string prefix, bool low, Func<int, int[]> melody, int bass)
+        {
+            SourceMusic score = Score(bars: 4, melody: melody, prefix: prefix);
+            List<Note> notes = [.. score.Notes.Select(note => note.Id == $"{prefix}3l" ? note with { Pitch = new Pitch(bass) } : note)];
+            int[] under = [50, 52, 53, 57];
+            notes.AddRange(Enumerable.Range(0, 4).SelectMany(beat => new[] { 60, 64, 67 }.Select(pitch => Note($"{prefix}c{beat}.{pitch}", pitch, BarLength + (beat * Quarter), Quarter))));
+            notes.AddRange(under.Take(chordNotes).Select(pitch => Note($"{prefix}u{pitch}", pitch, BarLength, BarLength, Hand.Left)));
+            notes.AddRange(low ? new[] { 24, 26, 28 }.Select(pitch => Note($"{prefix}low{pitch}", pitch, BarLength, BarLength, Hand.Left)) : []);
+            return SourceMusic.Of(notes, score.Meter, score.End, score.Tempos, score.Keys);
+        }
+
+        SourceMusic notes = Music("n", low: true, static _ => [72, 74, 76, 77], 48);
+        SourceMusic heard = Music("h", low: false, static bar => bar == 1 ? [84, 86, 88, 89] : [72, 74, 76, 77], 43);
+        return Draft.Start("d_1", "Предложение", At, "pl_1", Variant("v_1", notes, 1, 4)).With(Variant("v_2", heard, 1, 4, notes: "perf_1"), DraftDrop.Variant, "pl_1");
     }
 
     [Fact]

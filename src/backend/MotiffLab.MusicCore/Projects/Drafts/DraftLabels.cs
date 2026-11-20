@@ -23,7 +23,7 @@ public enum DraftSourceKind
 /// <summary>
 /// The texts of drafts (decision record 0034, section 2; spec «Экран (iPad)»), in the language of <see cref="Words"/>: a
 /// place's label over its start («① Ноты 9–16 + Запись · 2 варианта»), a draft's line in Sources («из нот с PDF и
-/// записи») and the name a new draft takes («Черновик 2»).
+/// записи»), the kind of a приём («октава») and the name a new draft takes («Черновик 2»).
 /// </summary>
 public static class DraftLabels
 {
@@ -64,6 +64,19 @@ public static class DraftLabels
         List<string> kinds = [.. draft.Places.SelectMany(static place => place.Variants).Concat(draft.Shelf).Select(Kind).Distinct().Select(kind => Of(kind, words))];
         return kinds.Count == 0 ? words.T("empty so far", "пока пусто") : words.T($"from {words.Joined(kinds)}", $"из {words.Joined(kinds)}");
     }
+
+    /// <summary>The kind of a приём in a word, the spec's nouns: «заполнение», «другой бас», «упрощение», «украшение», «октава», «ритм», «вставка тактов», «иначе».</summary>
+    public static string Technique(TechniqueKind kind, Words words) => kind switch
+    {
+        TechniqueKind.Fill => words.T("fill", "заполнение"),
+        TechniqueKind.Bass => words.T("another bass", "другой бас"),
+        TechniqueKind.Simplify => words.T("simplification", "упрощение"),
+        TechniqueKind.Ornament => words.T("ornament", "украшение"),
+        TechniqueKind.Octave => words.T("octave", "октава"),
+        TechniqueKind.Rhythm => words.T("rhythm", "ритм"),
+        TechniqueKind.InsertBars => words.T("inserted bars", "вставка тактов"),
+        _ => words.T("other", "иначе"),
+    };
 
     /// <summary>The name of a new draft of <paramref name="project"/>: «Черновик N», "Draft N", N one more than its drafts, the first such name not taken.</summary>
     public static string NewName(Project project, Words words)

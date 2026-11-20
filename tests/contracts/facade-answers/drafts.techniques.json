@@ -184,8 +184,9 @@
       "number": 1,
       "variant": "v_0002",
       "kind": "simplify",
-      "label": "simplified",
-      "confidence": 90,
+      "label": "simplification",
+      "inferred": true,
+      "confidence": 100,
       "sure": true,
       "state": "open",
       "occurrences": [
@@ -195,7 +196,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 90,
+        "confidence": 100,
         "state": "open"
        }
       ]
@@ -301,8 +302,9 @@
       "number": 1,
       "variant": "v_0002",
       "kind": "simplify",
-      "label": "simplified",
-      "confidence": 90,
+      "label": "simplification",
+      "inferred": true,
+      "confidence": 100,
       "sure": true,
       "state": "taken",
       "occurrences": [
@@ -312,7 +314,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 90,
+        "confidence": 100,
         "state": "taken"
        }
       ]
@@ -817,8 +819,9 @@
       "number": 1,
       "variant": "v_0002",
       "kind": "simplify",
-      "label": "simplified",
-      "confidence": 90,
+      "label": "simplification",
+      "inferred": true,
+      "confidence": 100,
       "sure": true,
       "state": "taken",
       "occurrences": [
@@ -828,7 +831,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 90,
+        "confidence": 100,
         "state": "taken"
        }
       ]
