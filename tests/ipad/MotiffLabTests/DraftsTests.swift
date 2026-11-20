@@ -467,7 +467,7 @@ final class DraftsTests: XCTestCase {
         let into = DraftChoice.Elsewhere(file: other.file, draft: draft.id, name: draft.name, piece: other.title)
         let added = await b.sources.addToDraft(DraftChoice(part: "all", into: .elsewhere(into), way: DraftChoice.Way(drop: .place)), span: 0..<1440, from: pieceB.id)
         XCTAssertTrue(added, b.sources.status ?? "")
-        XCTAssertEqual(b.sources.addedElsewhere, into, "its toast tells it, with «Открыть»")
+        XCTAssertEqual(b.sources.addedElsewhere?.draft, into, "its toast tells it, with «Открыть»")
         XCTAssertNil(b.sources.toast, "nothing of B's to undo")
         XCTAssertTrue(b.sources.layers.drafts.isEmpty, "B has no draft")
         XCTAssertEqual(try Data(contentsOf: fileB), savedB, "B's file is not saved again")

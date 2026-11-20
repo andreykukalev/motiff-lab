@@ -92,7 +92,7 @@ final class SourcesController: ObservableObject {
     @Published var performance: String?
     /// The draft of another piece a fragment just went into (v1.2, collage), whose toast offers «Открыть»; nil while none
     /// is told (`DraftElsewhereToast`).
-    @Published var addedElsewhere: DraftChoice.Elsewhere?
+    @Published var addedElsewhere: DraftAddedElsewhere?
 
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?

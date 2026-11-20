@@ -636,9 +636,10 @@ extension ScoreScreenContent {
     }
 
     /// Over the selection's toast: that of a fragment just added to another piece's draft, with «Открыть» (v1.2, collage),
-    /// and that of an edit of the phrases, with its Undo or Redo (ScorePhraseEdits.swift).
+    /// and that of an edit of the phrases, with its Undo or Redo (ScorePhraseEdits.swift). Only on the screen in sight: not
+    /// behind a view shown over the piece, whose owner is the same and which shows it itself.
     @ViewBuilder var toastsOverSelection: some View {
-        if let owner = workspace.draftOwner(under: pieceUnder) {
+        if shownView == nil, let owner = workspace.draftOwner(under: pieceUnder) {
             DraftElsewhereToast(owner: owner, text: text, open: openElsewhere)
         }
         PhraseEditToast(selectionModel: selectionModel, score: score, text: text)

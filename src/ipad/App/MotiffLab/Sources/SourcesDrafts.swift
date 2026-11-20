@@ -37,7 +37,7 @@ extension SourcesController {
             return false
         }
         status = nil
-        addedElsewhere = other
+        addedElsewhere = DraftAddedElsewhere(draft: other)
         return true
     }
 

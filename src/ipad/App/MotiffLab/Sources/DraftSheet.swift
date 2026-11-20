@@ -263,6 +263,12 @@ struct DraftSheet: View {
     }
 }
 
+/// A fragment just added to another piece's draft `draft`, each add with its own id, so its toast stays its while.
+struct DraftAddedElsewhere: Identifiable, Equatable {
+    let id = UUID()
+    let draft: DraftChoice.Elsewhere
+}
+
 /// The toast of a fragment just added to another piece's draft (v1.2, collage, the plan's answer 5): «Добавлено в черновик
 /// «…» · Открыть», where «Открыть» (`open`, the screen's way; none where it has none) opens that piece at that draft. It
 /// goes by itself, as a Sources toast with an action does.
@@ -273,9 +279,9 @@ struct DraftElsewhereToast: View {
 
     var body: some View {
         if let added = owner.addedElsewhere {
-            let opening: (() -> Void)? = open.map { open in { owner.addedElsewhere = nil; Task { await open(added) } } }
-            UndoToast(words: text.format("drafts.addedElsewhere", added.name), text: text, undo: opening, close: { owner.addedElsewhere = nil }, actionKey: "drafts.openElsewhere")
-                .task(id: added) {
+            let opening: (() -> Void)? = open.map { open in { owner.addedElsewhere = nil; Task { await open(added.draft) } } }
+            UndoToast(words: text.format("drafts.addedElsewhere", added.draft.name), text: text, undo: opening, close: { owner.addedElsewhere = nil }, actionKey: "drafts.openElsewhere")
+                .task(id: added.id) {
                     try? await Task.sleep(for: SourcesToastView.lasting)
                     if owner.addedElsewhere == added { owner.addedElsewhere = nil }
                 }
