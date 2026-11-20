@@ -188,7 +188,7 @@ internal static class DraftTakeRequest
     }
 
     /// <summary>The recording of a variant heard in one, its Notes in the piece itself or in the other piece it names, when that is open.</summary>
-    private static VariantRecording? RecordingOf(DraftVariant variant, Project project, Func<string, Project?> pieces) =>
+    internal static VariantRecording? RecordingOf(DraftVariant variant, Project project, Func<string, Project?> pieces) =>
         (variant.From.Project is null ? project : pieces(variant.From.Project)) is { } holder ? VariantRecording.Of(holder, variant) : null;
 
     /// <summary>A step made by <paramref name="step"/> on the draft's place, answered as the sources with "draft", "place" and "step".</summary>

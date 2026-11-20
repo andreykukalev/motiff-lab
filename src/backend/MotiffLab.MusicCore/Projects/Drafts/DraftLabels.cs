@@ -19,6 +19,9 @@ public enum DraftSourceKind
 
     /// <summary>Notes of another piece.</summary>
     OtherPiece,
+
+    /// <summary>A bridge candidate music-core made at a seam (<see cref="DraftBridges"/>).</summary>
+    Bridge,
 }
 
 /// <summary>
@@ -28,11 +31,12 @@ public enum DraftSourceKind
 /// </summary>
 public static class DraftLabels
 {
-    /// <summary>What the variant was copied from: another piece's Notes, Notes heard in a recording, read from a PDF, or a file's.</summary>
+    /// <summary>What the variant was copied from: a bridge music-core made, another piece's Notes, Notes heard in a recording, read from a PDF, or a file's.</summary>
     public static DraftSourceKind Kind(DraftVariant variant)
     {
         ArgumentNullException.ThrowIfNull(variant);
-        return variant.From.Project is not null ? DraftSourceKind.OtherPiece
+        return DraftBridges.KindOf(variant) is not null ? DraftSourceKind.Bridge
+            : variant.From.Project is not null ? DraftSourceKind.OtherPiece
             : variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null ? DraftSourceKind.Recording
             : variant.Provenance.Op == NotesProvenance.PdfRecognition ? DraftSourceKind.PdfNotes
             : DraftSourceKind.FileNotes;
@@ -55,11 +59,16 @@ public static class DraftLabels
 
     /// <summary>
     /// A variant on the draft's map: what it was copied from with the bars there, and the part taken when not all:
-    /// «Запись 9–12 · правая рука», "Recording 9–12 · right hand".
+    /// «Запись 9–12 · правая рука», "Recording 9–12 · right hand"; a bridge candidate by its kind, «Доминанта».
     /// </summary>
     public static string Variant(DraftVariant variant, Words words)
     {
         ArgumentNullException.ThrowIfNull(variant);
+        if (DraftBridges.KindOf(variant) is { } bridge)
+        {
+            return DraftBridges.Label(bridge, words);
+        }
+
         string label = $"{Name(Kind(variant), words)}{Bars(variant)}";
         string? part = variant.From.Part switch
         {
@@ -119,6 +128,18 @@ public static class DraftLabels
     /// <summary>The offer to play a place at the tempo of the place before it, at <paramref name="index"/> (from 0): «Темп как в ①», "Tempo as in ①".</summary>
     public static string TempoAsIn(int index, Words words) => words.T($"Tempo as in {Circled(index + 1)}", $"Темп как в {Circled(index + 1)}");
 
+    /// <summary>
+    /// The register of the place at <paramref name="index"/> (from 0) against the place before it, or the offer to move it an
+    /// octave: «② на октаву выше», "② an octave higher"; «② на октаву ниже», "② an octave lower".
+    /// </summary>
+    public static string Octave(int index, bool up, Words words) => up
+        ? words.T($"{Circled(index + 1)} an octave higher", $"{Circled(index + 1)} на октаву выше")
+        : words.T($"{Circled(index + 1)} an octave lower", $"{Circled(index + 1)} на октаву ниже");
+
+    /// <summary>The offer of a bridge at a seam: «Связка · 3 кандидата», "Bridge · 3 candidates".</summary>
+    public static string Bridge(int candidates, Words words) =>
+        $"{Name(DraftSourceKind.Bridge, words)} · {words.Count(candidates, "candidate", "candidates", "кандидат", "кандидата", "кандидатов")}";
+
     /// <summary>The name of a new draft of <paramref name="project"/>: «Черновик N», "Draft N", N one more than its drafts, the first such name not taken.</summary>
     public static string NewName(Project project, Words words)
     {
@@ -146,6 +167,7 @@ public static class DraftLabels
     {
         DraftSourceKind.Recording => words.T("Recording", "Запись"),
         DraftSourceKind.OtherPiece => words.T("Another piece", "Другая пьеса"),
+        DraftSourceKind.Bridge => words.T("Bridge", "Связка"),
         _ => words.T("Notes", "Ноты"),
     };
 
@@ -154,6 +176,7 @@ public static class DraftLabels
         DraftSourceKind.PdfNotes => words.T("the PDF's notes", "нот с PDF"),
         DraftSourceKind.Recording => words.T("the recording", "записи"),
         DraftSourceKind.OtherPiece => words.T("another piece", "другой пьесы"),
+        DraftSourceKind.Bridge => words.T("a bridge", "связки"),
         _ => words.T("the file's notes", "нот из файла"),
     };
 }

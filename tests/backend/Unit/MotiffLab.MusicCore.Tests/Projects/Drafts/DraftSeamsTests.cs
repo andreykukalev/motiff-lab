@@ -153,4 +153,61 @@ public class DraftSeamsTests
         Assert.Throws<ArgumentOutOfRangeException>(() => DraftSeams.Tempo(draft, "pl_1", 400, At));
         Assert.Throws<KeyNotFoundException>(() => DraftSeams.Transpose(draft, "pl_9", 2, At));
     }
+
+    /// <summary>The fragment of the second place with every note, or only the right hand's, moved by <paramref name="semitones"/>.</summary>
+    private static SourceMusic Moved(int semitones, bool rightOnly = false, int fifths = 0)
+    {
+        SourceMusic other = Score(fifths: fifths, prefix: "o");
+        return other with { Notes = [.. other.Notes.Select(note => rightOnly && note.Hand?.Value == Hand.Left ? note : note with { Pitch = new Pitch(note.Pitch.MidiNumber + semitones) })] };
+    }
+
+    [Theory]
+    [InlineData(11, 0)]
+    [InlineData(12, 1)]
+    [InlineData(-11, 0)]
+    [InlineData(-12, -1)]
+    [InlineData(-30, -1)]
+    public void The_register_differs_from_an_octave_of_the_mean_pitch_on(int semitones, int register)
+    {
+        DraftSeam seam = DraftSeams.Of(Collage(Moved(semitones)))[0];
+
+        Assert.Equal(register, seam.Register);
+        Assert.Equal(register == 0 ? null : -12 * register, seam.Octave);
+    }
+
+    [Fact]
+    public void The_mean_pitch_counts_both_hands()
+    {
+        // The right hand 14 higher, the left as before: the mean of the five notes of each bar is 11.2 higher, under an octave.
+        Assert.Equal(0, DraftSeams.Of(Collage(Moved(14, rightOnly: true)))[0].Register);
+        Assert.Equal(1, DraftSeams.Of(Collage(Moved(15, rightOnly: true)))[0].Register);
+    }
+
+    [Fact]
+    public void The_octave_offered_is_one_step_that_keeps_the_key_and_says_nothing_more_of_register()
+    {
+        Draft draft = Collage(Moved(12));
+        DraftSeam seam = DraftSeams.Of(draft)[0];
+
+        Draft moved = DraftSeams.Transpose(draft, "pl_2", seam.Octave!.Value, At);
+
+        DraftSeam after = DraftSeams.Of(moved)[0];
+        Assert.Equal((0, null, 0), (after.Register, after.Octave, after.After.Key!.Fifths));
+        Assert.Equal(74, moved.ResultOf("pl_2").Music.Notes.Single(note => note.Id == "v_2.o0r1").Pitch.MidiNumber);
+        Assert.Equal(1, DraftSeams.Of(moved.Undone())[0].Register);
+        Assert.Equal(("② на октаву выше", "② an octave lower"), (DraftLabels.Octave(1, true, Words.Russian), DraftLabels.Octave(1, false, Words.English)));
+    }
+
+    [Fact]
+    public void The_octave_keeps_a_sharp_key_signature()
+    {
+        // D major an octave lower after C major: the octave down is offered and the place keeps its two sharps.
+        Draft draft = Collage(Moved(-12, fifths: 2));
+        DraftSeam seam = DraftSeams.Of(draft)[0];
+
+        DraftSeam after = DraftSeams.Of(DraftSeams.Transpose(draft, "pl_2", seam.Octave!.Value, At))[0];
+
+        Assert.Equal((12, 2), (seam.Octave, seam.After.Key!.Fifths));
+        Assert.Equal((0, 2, true), (after.Register, after.After.Key!.Fifths, after.KeyChanges));
+    }
 }

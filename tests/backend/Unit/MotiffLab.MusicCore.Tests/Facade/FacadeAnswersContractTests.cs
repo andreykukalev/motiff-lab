@@ -209,6 +209,43 @@ public class FacadeAnswersContractTests
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // The register at a seam (version 1.2, the plan's answer 3): bars 5–8 two octaves up after bars 1–4, the seam saying
+        // «② на октаву выше» and offering «② на октаву ниже», a transposition by −12.
+        ["drafts.register"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.transpose", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","semitones":24,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.seams", """{"draft":"d_0001"}"""),
+        ],
+        // A bridge at a seam (version 1.2, the plan's answer 2): the second place a tone up, the seam offering «Связка · 3
+        // кандидата», the candidates put as a place between, the draft view with it, the bass walk made its base, the place
+        // left (removed) and that undone.
+        ["drafts.bridge"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.transpose", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","semitones":2,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.seams", """{"draft":"d_0001"}"""),
+            ("drafts.bridge", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.base", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0003","variant":"v_0005","now":"2026-11-20T10:20:00Z"}"""),
+            ("drafts.leaveBridge", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0003","now":"2026-11-20T10:25:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // Anchors (version 1.2, the plan's answer 4): bars 1–8 as a place and bars 1–4 as its variant, its bar 1 confirmed to
+        // be the base's bar 3, the приёмы worked out around it, the draft's map with the anchor over its bar, the anchor taken
+        // away and that undone.
+        ["drafts.anchors"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":8},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.anchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","anchor":{"base":2880,"variant":0},"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.unanchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","base":2880,"now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for

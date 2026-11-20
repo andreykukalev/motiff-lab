@@ -37,7 +37,8 @@ through the facade; the API references it.
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
-  `PlaceTechniques`, `VariantRecording`, `DraftSeams`.
+  `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
+  seam), `DraftAnchors` (anchors the player confirms).
 - `Assistant` (its tools; the digest `FactsDigest`, `.Piece`; the template's `NearestFacts`), `Analytics`
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
   `Words.cs`: the sentences in both languages.

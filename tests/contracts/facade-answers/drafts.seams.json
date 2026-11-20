@@ -194,6 +194,7 @@
       },
       "left": false,
       "changes": [],
+      "register": null,
       "sides": [
        {
         "place": "pl_0001",
@@ -242,7 +243,8 @@
         }
        }
       ],
-      "offers": []
+      "offers": [],
+      "bridge": null
      }
     ]
    }
@@ -438,6 +440,7 @@
        "key",
        "tempo"
       ],
+      "register": null,
       "sides": [
        {
         "place": "pl_0001",
@@ -499,7 +502,12 @@
         "quarterNotesPerMinute": 72,
         "label": "Tempo as in ①"
        }
-      ]
+      ],
+      "bridge": {
+       "place": "pl_0002",
+       "candidates": 3,
+       "label": "Bridge · 3 candidates"
+      }
      }
     ]
    }
@@ -610,6 +618,7 @@
        "key",
        "tempo"
       ],
+      "register": null,
       "sides": [
        {
         "place": "pl_0001",
@@ -671,7 +680,12 @@
         "quarterNotesPerMinute": 72,
         "label": "Tempo as in ①"
        }
-      ]
+      ],
+      "bridge": {
+       "place": "pl_0002",
+       "candidates": 3,
+       "label": "Bridge · 3 candidates"
+      }
      }
     ]
    }

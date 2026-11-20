@@ -25,6 +25,11 @@ internal static class DraftSeamRequest
     /// dottedQuarter, the meter's) and "beatsPerMinute" as playback's "tempo" answers them, "mark" ("= 92", "≈ 92" when
     /// inferred, "= 60" of dotted quarters in 6/8, null when assumed, as the score marks it)}}, and "offers" [{"kind"
     /// (transpose, tempo), "place", "semitones" or "quarterNotesPerMinute", "label"}] for the place after the seam}] in order.
+    /// Since version 1.2 (the plan's answers 2 and 3): "changes" may name "register", "register" {"direction" (higher or
+    /// lower: the mean pitch of the place after it an octave or more from the place before it), "label" («② на октаву
+    /// выше»)} or null, with the offer of a "transpose" by −12 or 12 («② на октаву ниже», spelling kept); and "bridge"
+    /// {"place" (after it), "candidates" (2 or 3), "label" («Связка · 3 кандидата»)} where the keys differ, for
+    /// drafts.bridge, else null. A bridge place is offered nothing at the seam before it.
     /// </summary>
     public static string Seams(OpenPiece owner, Request request)
     {
@@ -69,7 +74,7 @@ internal static class DraftSeamRequest
         json.WriteEndObject();
         json.WriteBoolean("left", seam.Left);
         json.WriteStartArray("changes");
-        foreach ((bool changes, string name) in new[] { (seam.KeyChanges, "key"), (seam.MeterChanges, "meter"), (seam.TempoChanges, "tempo") })
+        foreach ((bool changes, string name) in new[] { (seam.KeyChanges, "key"), (seam.MeterChanges, "meter"), (seam.TempoChanges, "tempo"), (seam.Register != 0, "register") })
         {
             if (changes)
             {
@@ -78,32 +83,77 @@ internal static class DraftSeamRequest
         }
 
         json.WriteEndArray();
+        Register(json, seam, words);
         json.WriteStartArray("sides");
         Side(json, seam.Before, words);
         Side(json, seam.After, words);
         json.WriteEndArray();
+        Offers(json, seam, words);
+        Bridge(json, seam, words);
+        json.WriteEndObject();
+    }
+
+    /// <summary>"register": the direction the place after the seam is an octave or more from the place before it, in words; null when not.</summary>
+    private static void Register(Utf8JsonWriter json, DraftSeam seam, Words words)
+    {
+        if (seam.Register == 0)
+        {
+            json.WriteNull("register");
+            return;
+        }
+
+        json.WriteStartObject("register");
+        json.WriteString("direction", seam.Register > 0 ? "higher" : "lower");
+        json.WriteString("label", DraftLabels.Octave(seam.After.Index, seam.Register > 0, words));
+        json.WriteEndObject();
+    }
+
+    /// <summary>"offers" for the place after the seam: the key before it, the octave towards it, the tempo before it.</summary>
+    private static void Offers(Utf8JsonWriter json, DraftSeam seam, Words words)
+    {
+        void Offer(string kind, string field, int value, string label)
+        {
+            json.WriteStartObject();
+            json.WriteString("kind", kind);
+            json.WriteString("place", seam.After.Place);
+            json.WriteNumber(field, value);
+            json.WriteString("label", label);
+            json.WriteEndObject();
+        }
+
         json.WriteStartArray("offers");
         if (seam.Semitones is { } semitones)
         {
-            json.WriteStartObject();
-            json.WriteString("kind", "transpose");
-            json.WriteString("place", seam.After.Place);
-            json.WriteNumber("semitones", semitones);
-            json.WriteString("label", DraftLabels.Transpose(seam.After.Index, seam.Transposed!, words));
-            json.WriteEndObject();
+            Offer("transpose", "semitones", semitones, DraftLabels.Transpose(seam.After.Index, seam.Transposed!, words));
+        }
+
+        if (seam.Octave is { } octave)
+        {
+            Offer("transpose", "semitones", octave, DraftLabels.Octave(seam.After.Index, octave > 0, words));
         }
 
         if (seam.Tempo is { } tempo)
         {
-            json.WriteStartObject();
-            json.WriteString("kind", "tempo");
-            json.WriteString("place", seam.After.Place);
-            json.WriteNumber("quarterNotesPerMinute", tempo);
-            json.WriteString("label", DraftLabels.TempoAsIn(seam.Before.Index, words));
-            json.WriteEndObject();
+            Offer("tempo", "quarterNotesPerMinute", tempo, DraftLabels.TempoAsIn(seam.Before.Index, words));
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>"bridge": how many candidates drafts.bridge would put at the seam, in words; null where none is offered.</summary>
+    private static void Bridge(Utf8JsonWriter json, DraftSeam seam, Words words)
+    {
+        int candidates = DraftBridges.Of(seam).Count;
+        if (candidates == 0)
+        {
+            json.WriteNull("bridge");
+            return;
+        }
+
+        json.WriteStartObject("bridge");
+        json.WriteString("place", seam.After.Place);
+        json.WriteNumber("candidates", candidates);
+        json.WriteString("label", DraftLabels.Bridge(candidates, words));
         json.WriteEndObject();
     }
 

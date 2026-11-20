@@ -370,6 +370,7 @@
        "firstBar": 1,
        "lastBar": 4,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0001",
@@ -387,6 +388,7 @@
        "firstBar": 5,
        "lastBar": 8,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0002",
@@ -863,12 +865,14 @@
        "firstBar": 1,
        "lastBar": 4,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0001",
          "label": "Notes 1–4",
          "base": false,
-         "steps": 0
+         "steps": 0,
+         "anchors": []
         },
         {
          "id": "v_0003",
@@ -886,6 +890,7 @@
        "firstBar": 5,
        "lastBar": 8,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0002",
@@ -903,6 +908,7 @@
        "firstBar": 9,
        "lastBar": 12,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0004",

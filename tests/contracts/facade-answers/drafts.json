@@ -346,6 +346,7 @@
        "firstBar": 1,
        "lastBar": 4,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0001",
@@ -363,6 +364,7 @@
        "firstBar": 5,
        "lastBar": 8,
        "steps": 0,
+       "bridge": false,
        "variants": [
         {
          "id": "v_0002",
