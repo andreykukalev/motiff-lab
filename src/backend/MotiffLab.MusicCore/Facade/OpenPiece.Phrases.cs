@@ -70,10 +70,11 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// An edit of the boundaries, one step for Undo: at a level (the one shown unless "level" says otherwise) Make phrase,
     /// Merge with next, Split here or Reset to detected; or, of the phrases, a mark dragged ("move" {from, to}, the target
-    /// snapped to the nearest note), «Начать фразу здесь» ("start", a tick snapped so), «Убрать границу» ("remove", a
-    /// phrase start), «Вернуть найденную» ("putBack", a start of the player's), «Вернуть найденные границы» ("resetAll":
-    /// every level as found, answering "replaced", how many of the player's boundaries went) or Undo and Redo ("restore",
-    /// the edits a "previous" gave). The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>).
+    /// snapped to the nearest note), «Начать фразу здесь» ("start", at the first note from that tick), «Убрать границу»
+    /// ("remove", a phrase start), «Вернуть найденную» ("putBack", a start of the player's), «Вернуть найденные границы»
+    /// ("resetAll": the phrases as found, the other levels as they are, answering "replaced", how many of the player's
+    /// boundaries went) or Undo and Redo ("restore", the edits a "previous" gave, with "expected", the "edits" it left).
+    /// The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>).
     /// Bookmarks stay where they are (the phrases spec: a bookmark never moves with a phrase boundary).
     /// </summary>
     private string EditPhrases(Request request)
@@ -114,13 +115,42 @@ internal sealed partial class OpenPiece
             return Levels.Edits.With(PhraseLevel.Phrase, Phrases.Move(from, Levels.NoteAt(to)));
         }
 
-        return request.Long("start") is long start ? Levels.Edits.With(PhraseLevel.Phrase, Phrases.StartAt(Levels.NoteAt(new Tick(start))))
+        return request.Long("start") is long start ? Levels.Edits.With(PhraseLevel.Phrase, Phrases.StartAt(Levels.NoteFrom(new Tick(start))))
             : request.Long("remove") is long remove ? Levels.Edits.With(PhraseLevel.Phrase, Phrases.Remove(new Tick(remove)))
             : request.Long("putBack") is long putBack ? Levels.Edits.With(PhraseLevel.Phrase, Phrases.PutBack(new Tick(putBack)))
-            : request.Bool("resetAll") == true ? LevelEdits.None
-            : request.Has("restore") ? Restored(request.Object("restore"))
+            : request.Bool("resetAll") == true ? Levels.Reset(PhraseLevel.Phrase)
+            : request.Has("restore") ? Restore(request)
             : null;
     }
+
+    /// <summary>
+    /// The edits "restore" puts back (Undo or Redo of a step), once the edits now are those "expected" (the edits the step
+    /// left, its answer's "edits"); otherwise, the phrases having changed since, refused with the edits as they are.
+    /// </summary>
+    private LevelEdits Restore(Request request)
+    {
+        if (!request.Has("expected"))
+        {
+            throw FacadeException.BadRequest("\"restore\" needs \"expected\", the edits the step being undone or redone left (its answer's \"edits\").");
+        }
+
+        if (!Restored(request.Object("expected")).Equals(Normal(Levels.Edits)))
+        {
+            throw FacadeException.Unavailable(Words.T(
+                "The phrases have changed since, so this step can no longer be undone.",
+                "Фразы с тех пор изменились, этот шаг уже не отменить."));
+        }
+
+        return Restored(request.Object("restore"));
+    }
+
+    /// <summary>Edits with each list in time order, each tick once, as <see cref="Restored"/> reads them, so edits sent back compare with the edits kept.</summary>
+    private static LevelEdits Normal(LevelEdits edits) =>
+        new(Normal(edits.Short), Normal(edits.Phrase), Normal(edits.Sentence));
+
+    private static PhraseEdits Normal(PhraseEdits edits) => new(Ordered(edits.Added), Ordered(edits.Removed));
+
+    private static Tick[] Ordered(IEnumerable<Tick> ticks) => [.. ticks.Distinct().Order()];
 
     /// <summary>The edits at a level an edit asks for: Make phrase, Merge with next, Split here or Reset to detected.</summary>
     private LevelEdits LevelEditOf(Request request, PhraseLevel level)
@@ -138,7 +168,7 @@ internal sealed partial class OpenPiece
 
         return request.Long("split") is long at ? Levels.SplitAt(level, new Tick(at))
             : request.Bool("reset") == true ? Levels.Reset(level)
-            : throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a number), \"split\" (a tick) or \"reset\", with an optional \"level\"; or \"move\" {from, to}, \"start\", \"remove\" or \"putBack\" (a tick), \"resetAll\" or \"restore\" (the edits).");
+            : throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a number), \"split\" (a tick) or \"reset\", with an optional \"level\"; or \"move\" {from, to}, \"start\", \"remove\" or \"putBack\" (a tick), \"resetAll\" or \"restore\" (the edits) with \"expected\".");
     }
 
     /// <summary>The edits "restore" sends, {short, phrase, sentence} each {added, removed} as the answers write them; a level left out has none.</summary>
@@ -152,5 +182,5 @@ internal sealed partial class OpenPiece
     }
 
     private static Tick[] TicksOf(Request edits, string name) =>
-        [.. edits.Elements(name).Select(tick => tick.ValueKind == JsonValueKind.Number && tick.TryGetInt64(out long value) && value >= 0 ? new Tick(value) : throw FacadeException.BadRequest($"\"{name}\" holds ticks.")).Distinct().Order()];
+        Ordered(edits.Elements(name).Select(tick => tick.ValueKind == JsonValueKind.Number && tick.TryGetInt64(out long value) && value >= 0 ? new Tick(value) : throw FacadeException.BadRequest($"\"{name}\" holds ticks.")));
 }

@@ -26,7 +26,7 @@ public static class SettingsCatalogue
 
         // The level a piece opened in (0018, section 3), no longer read when a piece opens (version 1.2, the phrases spec: the
         // iPad shows phrases only); kept so files that set it still open, and until the iPad's Settings row goes.
-        Choice("phrases.granularity",SettingSection.Score, ["short", "phrases", "sentences"], "phrases", new("short", "phrases", "phrases"), SettingScope.Piece),
+        Choice("phrases.granularity", SettingSection.Score, ["short", "phrases", "sentences"], "phrases", new("short", "phrases", "phrases"), SettingScope.Piece),
         Choice("score.layout", SettingSection.Score, ["pages", "strip"], "pages", null, SettingScope.Device),
         Switch("score.noteNames", SettingSection.Score, null, SettingScope.Device),
         // Even bars (testing item 35): the bars take room by their length, so the playhead keeps one pace; off, by their

@@ -88,6 +88,25 @@ public class PhraseMarksTests
     }
 
     [Fact]
+    public void A_start_set_where_one_was_found_leaves_it_found_and_one_confirmed_is_put_back_as_found()
+    {
+        PhraseMap found = Phrases();
+
+        // «Начать фразу здесь» on a note that already starts a phrase changes nothing: no boundary of the player's.
+        Assert.Equal(PhraseEdits.None, found.StartAt(T(4320)));
+
+        // A start the player confirmed where one was found (saved before) is put back by dropping it, the found one kept.
+        PhraseMap confirmed = Phrases(new PhraseEdits([T(4320)], []));
+        Assert.Equal(Provenance.UserConfirmed, confirmed.Boundaries[0].Attribution.Provenance);
+        Assert.Equal(1, confirmed.OwnCount);
+        Assert.Equal(PhraseEdits.None, confirmed.PutBack(T(4320)));
+        Assert.Equal([4320L, 7680L], Starts(confirmed.With(confirmed.PutBack(T(4320)))));
+
+        // A found start is not the player's to put back.
+        Assert.Throws<ArgumentOutOfRangeException>(() => found.PutBack(T(4320)));
+    }
+
+    [Fact]
     public void A_mark_dragged_to_the_start_of_the_piece_is_taken_away()
     {
         PhraseMap found = Phrases();
@@ -136,6 +155,19 @@ public class PhraseMarksTests
         Assert.Equal(T(Quarter), levels.NoteAt(T((Quarter / 2) + 1)));
         Assert.Equal(T(Quarter), levels.NoteAt(T(Quarter)));
         Assert.Equal(T(1200), levels.NoteAt(T(Bar)));
+    }
+
+    [Fact]
+    public void A_start_set_from_a_selection_takes_the_note_at_or_after_it_never_one_before()
+    {
+        Note[] notes = [Note("a", 0), Note("b", 2 * Quarter), Note("c", Bar + (3 * Quarter))];
+        PhraseLevels levels = PhraseLevels.Suggest(notes, MeterMap.Default, PhraseMarks.None, T(2 * Bar), null);
+
+        Assert.Equal(T(2 * Quarter), levels.NoteFrom(T(2 * Quarter)));
+        // A bar that starts with a rest gives its first note, not the nearer one in the bar before.
+        Assert.Equal(T(2 * Quarter), levels.NoteAt(T(Bar)));
+        Assert.Equal(T(Bar + (3 * Quarter)), levels.NoteFrom(T(Bar)));
+        Assert.Equal(T(Bar + (3 * Quarter) + 1), levels.NoteFrom(T(Bar + (3 * Quarter) + 1)));
     }
 
     private static Note Note(string id, long onset) => new()

@@ -245,12 +245,12 @@ public sealed class PhraseLevels
 
     /// <summary>
     /// The onset of the note nearest <paramref name="at"/>, the earlier of two as near: where a phrase start the player
-    /// sets or drags snaps to, note by note, upbeats included (the phrases spec, decision 5); <paramref name="at"/> itself
-    /// in a piece without notes.
+    /// drags snaps to, note by note, upbeats included (the phrases spec, decision 5); <paramref name="at"/> itself in a
+    /// piece without notes.
     /// </summary>
     public Tick NoteAt(Tick at)
     {
-        Tick[] onsets = _onsets ??= [.. _notes.Select(static note => note.Span.Onset).Distinct().Order()];
+        Tick[] onsets = Onsets();
         int index = Array.BinarySearch(onsets, at);
         if (index >= 0 || onsets.Length == 0)
         {
@@ -265,6 +265,13 @@ public sealed class PhraseLevels
 
         return onsets[after].Value - at.Value < at.Value - onsets[after - 1].Value ? onsets[after] : onsets[after - 1];
     }
+
+    /// <summary>
+    /// The onset of the first note at or after <paramref name="at"/>: the note the player selected, where «Начать фразу
+    /// здесь» sets a start (so a selection that starts on a rest never gives a note before it); <paramref name="at"/>
+    /// itself when no note starts there or later.
+    /// </summary>
+    public Tick NoteFrom(Tick at) => PhraseBoundaryFinder.FirstOnsetFrom(Onsets(), at) ?? at;
 
     /// <summary>The edits with one level back to what was detected.</summary>
     public LevelEdits Reset(PhraseLevel level) => Edits.With(level, PhraseEdits.None);
@@ -304,6 +311,9 @@ public sealed class PhraseLevels
         PhraseLevel.Sentence => words.T("sentence", "предложение"),
         _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unknown level."),
     };
+
+    /// <summary>Every note's onset, in time order, each once.</summary>
+    private Tick[] Onsets() => _onsets ??= [.. _notes.Select(static note => note.Span.Onset).Distinct().Order()];
 
     private static PhraseLevels Build(IReadOnlyList<Note> notes, MeterMap meter, KeySignature? signature, Words words, PhraseMap phrases, LevelEdits edits)
     {

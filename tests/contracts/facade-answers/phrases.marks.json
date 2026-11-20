@@ -2265,6 +2265,16 @@
       "added": [],
       "removed": []
      }
+    },
+    "expected": {
+     "phrase": {
+      "added": [
+       2520
+      ],
+      "removed": [
+       2880
+      ]
+     }
     }
    },
    "answer": {

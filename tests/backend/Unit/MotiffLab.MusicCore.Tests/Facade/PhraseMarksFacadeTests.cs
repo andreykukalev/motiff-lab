@@ -84,12 +84,11 @@ public class PhraseMarksFacadeTests
         Assert.Equal(at, changed[1].GetProperty("after").GetProperty("onset").GetInt64());
         Assert.Equal(at, changed[1].GetProperty("after").GetProperty("selectable").GetProperty("onset").GetInt64());
 
-        // Undo is "restore" with the edits before: one step back, and Redo the same way.
-        string previous = moved.GetProperty("previous").GetRawText();
-        JsonElement undone = Call(_facade, "phrases.edit", $$"""{"restore": {{previous}}}""");
+        // Undo is "restore" with the edits before, expecting the edits the step left: one step back, and Redo the same way.
+        JsonElement undone = Restore(moved);
         Assert.Equal(from, Onset(Units(undone)[1]));
         Assert.Equal(0, undone.GetProperty("own").GetInt32());
-        JsonElement redone = Call(_facade, "phrases.edit", $$"""{"restore": {{undone.GetProperty("previous").GetRawText()}}}""");
+        JsonElement redone = Restore(undone);
         Assert.Equal(at, Onset(Units(redone)[1]));
 
         // «Вернуть найденную»: the found boundary back.
@@ -127,10 +126,51 @@ public class PhraseMarksFacadeTests
         Assert.Equal(2, reset.GetProperty("replaced").GetInt32());
         Assert.Equal(0, reset.GetProperty("own").GetInt32());
         Assert.Equal(units.Select(Onset), Units(reset).Select(Onset));
-        Assert.All(reset.GetProperty("edits").EnumerateObject(), level => Assert.Empty(level.Value.GetProperty("added").EnumerateArray()));
-        JsonElement undone = Call(_facade, "phrases.edit", $$"""{"restore": {{reset.GetProperty("previous").GetRawText()}}}""");
+        JsonElement edits = reset.GetProperty("edits");
+        Assert.Empty(edits.GetProperty("phrase").GetProperty("added").EnumerateArray());
+        Assert.Empty(edits.GetProperty("phrase").GetProperty("removed").EnumerateArray());
+        JsonElement undone = Restore(reset);
         Assert.Equal(2, undone.GetProperty("own").GetInt32());
     }
+
+    [Fact]
+    public void Reset_returns_only_the_phrases_and_leaves_the_sentences_and_short_phrases_as_saved()
+    {
+        JsonElement[] units = Units(Call(_facade, "phrases"));
+        JsonElement[] sentences = Units(Call(_facade, "phrases", """{"level": "sentence"}"""));
+        Call(_facade, "phrases.edit", $$$"""{"level": "sentence", "joinWithNext": {{{sentences[0].GetProperty("number").GetInt32()}}}}""");
+        Call(_facade, "phrases.edit", $$$"""{"level": "short", "split": {{{Onset(units[0]) + 240}}}}""");
+        JsonElement edits = Call(_facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[1])}}}}""").GetProperty("edits");
+        Assert.NotEmpty(edits.GetProperty("short").GetProperty("added").EnumerateArray());
+        Assert.NotEmpty(edits.GetProperty("sentence").GetProperty("removed").EnumerateArray());
+
+        JsonElement reset = Call(_facade, "phrases.edit", """{"resetAll": true}""");
+
+        Assert.Equal(1, reset.GetProperty("replaced").GetInt32());
+        Assert.Equal(Others(edits), Others(reset.GetProperty("edits")));
+        Assert.Equal(units.Select(Onset), Units(reset).Select(Onset));
+    }
+
+    [Fact]
+    public void An_Undo_after_the_phrases_changed_since_is_refused_and_changes_nothing()
+    {
+        JsonElement[] units = Units(Call(_facade, "phrases"));
+        JsonElement moved = Call(_facade, "phrases.edit", $$$"""{"move": {"from": {{{Onset(units[1])}}}, "to": {{{Onset(units[1]) - 480}}}}}""");
+        JsonElement removed = Call(_facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[3])}}}}""");
+
+        Assert.Equal("unavailable", Error(_facade, "phrases.edit", Undo(moved)));
+        Assert.Equal(removed.GetProperty("edits").GetRawText(), Call(_facade, "phrases").GetProperty("edits").GetRawText());
+        Assert.Equal("badRequest", Error(_facade, "phrases.edit", $$"""{"restore": {{removed.GetProperty("previous").GetRawText()}}}"""));
+    }
+
+    /// <summary>Undo (or Redo) of the step that gave <paramref name="step"/>: its edits before, expecting the edits it left.</summary>
+    private static string Undo(JsonElement step) =>
+        $$"""{"restore": {{step.GetProperty("previous").GetRawText()}}, "expected": {{step.GetProperty("edits").GetRawText()}}}""";
+
+    private JsonElement Restore(JsonElement step) => Call(_facade, "phrases.edit", Undo(step));
+
+    /// <summary>The edits of the short phrases and the sentences, as written.</summary>
+    private static string Others(JsonElement edits) => edits.GetProperty("short").GetRawText() + edits.GetProperty("sentence").GetRawText();
 
     [Fact]
     public void An_edit_never_changes_the_selection_even_one_that_was_the_phrase()

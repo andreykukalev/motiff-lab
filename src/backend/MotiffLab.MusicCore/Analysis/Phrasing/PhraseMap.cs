@@ -148,8 +148,11 @@ public sealed class PhraseMap
     /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="from"/>.</exception>
     public PhraseEdits Move(Tick from, Tick to) => Editor().Move(InEffect(from).At, to);
 
-    /// <summary>The edits that set a phrase start exactly at <paramref name="at"/> («Начать фразу здесь»); unchanged at the start or the end of the piece.</summary>
-    public PhraseEdits StartAt(Tick at) => Editor().Split(at);
+    /// <summary>
+    /// The edits that set a phrase start exactly at <paramref name="at"/> («Начать фразу здесь»); unchanged where a phrase
+    /// already starts (a found start stays found, never one the player confirmed) and at the start or the end of the piece.
+    /// </summary>
+    public PhraseEdits StartAt(Tick at) => Boundaries.Any(boundary => boundary.At == at) ? Edits : Editor().Split(at);
 
     /// <summary>The edits that take the phrase start at <paramref name="at"/> away («Убрать границу»), joining the phrases on either side.</summary>
     /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="at"/>.</exception>
@@ -157,14 +160,24 @@ public sealed class PhraseMap
 
     /// <summary>
     /// The edits that put the found boundary back in place of the player's own at <paramref name="at"/> («Вернуть
-    /// найденную»): moved back to the found boundary it took the place of (<see cref="Replaced"/>), or, when it replaced
-    /// none, taken away.
+    /// найденную»): one they confirmed where it was found is that found boundary again; one they set is moved back to the
+    /// found boundary it took the place of (<see cref="Replaced"/>), or, when it replaced none, taken away.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">No phrase starts at <paramref name="at"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">None of the player's phrase starts is at <paramref name="at"/>.</exception>
     public PhraseEdits PutBack(Tick at)
     {
         PhraseBoundary boundary = InEffect(at);
-        return Replaced.TryGetValue(boundary.At, out Tick found) ? Editor().Move(boundary.At, found) : Editor().Join(boundary.At);
+        if (!IsOwn(boundary))
+        {
+            throw new ArgumentOutOfRangeException(nameof(at), at, "The phrase starts there as found, not by the player.");
+        }
+
+        if (boundary.Attribution.Provenance == Provenance.UserConfirmed)
+        {
+            return new PhraseEdits([.. Edits.Added.Where(tick => tick != at)], Edits.Removed);
+        }
+
+        return Replaced.TryGetValue(at, out Tick found) ? Editor().Move(at, found) : Editor().Join(at);
     }
 
     /// <summary>Whether a boundary in effect is the player's own: set or confirmed by them.</summary>

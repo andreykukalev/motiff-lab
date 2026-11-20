@@ -236,7 +236,7 @@ The contents of the piece in the player's own order (prep item 2): four built-in
 }
 ```
 
-Bookmarks may overlap. A bookmark made from a phrase (`fromPhrase`) takes the span of the phrase that contains its onset after every phrase edit (`Project.FollowPhrases`); a bookmark the player drew over bars keeps its bars. Removing an own category moves its bookmarks to Practise; built-in categories cannot be removed or renamed.
+Bookmarks may overlap. A bookmark keeps its span when the phrases change, one made from a phrase (`fromPhrase`) too (the phrases spec, version 1.2; until then it took the span of the phrase that contained its onset). Removing an own category moves its bookmarks to Practise; built-in categories cannot be removed or renamed.
 
 ## Resume points (`resumePoints`)
 

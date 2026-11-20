@@ -46,8 +46,8 @@ public sealed partial class MusicCoreFacade
     /// Also within 13 (version 1.2, the phrases spec, «Engine»): the phrases answer is the one answer of the score's marks: a
     /// phrase's start tells "bar", "beat", "found" (what a moved one replaced), "close" and "why" («Почему здесь»), a phrase
     /// its "motifs", the answer "own" and "sections" (dna's form, each with its "phrase", bar and beat); phrases.edit takes
-    /// "move", "start", "remove", "putBack", "resetAll" ("replaced") and "restore" (Undo), and answers "previous" and
-    /// "changed"; fields added. A piece opens in phrases whatever level its file keeps, and no edit moves a bookmark.
+    /// "move", "start", "remove", "putBack", "resetAll" (the phrases only, "replaced") and "restore" with "expected" (Undo,
+    /// refused when stale), answering "previous" and "changed"; fields added. A piece opens in phrases, no edit moves a bookmark.
     /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";

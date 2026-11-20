@@ -125,13 +125,14 @@ public class FacadeAnswersContractTests
         ],
         // The phrase marks (the phrases spec, version 1.2): the marks with nothing changed; the start of phrase 2 dragged a
         // little before its note (snapped to the nearest note, the player's own with the found boundary it replaced) and put
-        // back by Undo ("restore" with the edits before); a start set inside phrase 3, phrase 4's start taken away and
-        // phrase 2's moved again; «Вернуть найденную» on it; then «Вернуть найденные границы» over the player's two.
+        // back by Undo ("restore" with the edits before, "expected" the edits the move left, a level left out having none);
+        // a start set inside phrase 3, phrase 4's start taken away and phrase 2's moved again; «Вернуть найденную» on it;
+        // then «Вернуть найденные границы» over the player's two.
         ["phrases.marks"] =
         [
             ("phrases", null),
             ("phrases.edit", """{"move":{"from":2880,"to":2500}}"""),
-            ("phrases.edit", """{"restore":{"short":{"added":[],"removed":[]},"phrase":{"added":[],"removed":[]},"sentence":{"added":[],"removed":[]}}}"""),
+            ("phrases.edit", """{"restore":{"short":{"added":[],"removed":[]},"phrase":{"added":[],"removed":[]},"sentence":{"added":[],"removed":[]}},"expected":{"phrase":{"added":[2520],"removed":[2880]}}}"""),
             ("phrases.edit", """{"start":7680}"""),
             ("phrases.edit", """{"remove":10560}"""),
             ("phrases.edit", """{"move":{"from":2880,"to":2400}}"""),
