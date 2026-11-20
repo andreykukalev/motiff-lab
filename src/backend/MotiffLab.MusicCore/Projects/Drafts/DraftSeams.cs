@@ -54,6 +54,8 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
                 return null;
             }
 
+            // Transposition.Semitones never answers +6 (its range is −6 to +5), so a tritone always comes as −6: up instead
+            // where only up writes the place in the key signature before the seam.
             return semitones == -6 && Transposition.Moved(after.Fifths, -6) != before.Fifths ? 6 : semitones;
         }
     }
