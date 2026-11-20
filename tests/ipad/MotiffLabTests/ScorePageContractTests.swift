@@ -76,6 +76,19 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual(id, "section_2")
     }
 
+    /// A phrase's number held names its phrase with where it is, for its menu; a mark dragged and let go, the start it
+    /// moves from and the note it goes to (the phrases spec, v1.2 i-3a).
+    func testAPhraseMarkHeldCarriesItsPlaceAndOneDraggedItsMove() {
+        let held = PageEvent.events(in: ["phraseHeld": 3, "left": 12.5, "bottom": 80])
+        XCTAssertEqual(held.count, 1, "left and bottom belong to the mark")
+        guard case let .phraseHeld(number, left, bottom)? = held.first else { return XCTFail("a mark held: \(held)") }
+        XCTAssertEqual(number, 3)
+        XCTAssertEqual([left, bottom], [12.5, 80])
+        guard case let .phraseMoved(from, to)? = PageEvent.events(in: ["phraseMoved": ["from": 2880, "to": 2520]]).first else { return XCTFail("a mark moved") }
+        XCTAssertEqual([from, to], [2880, 2520])
+        XCTAssertTrue(PageEvent.events(in: ["phraseMoved": ["from": 2880]]).isEmpty, "a move needs both ticks")
+    }
+
     func testTheMenuPutAwayIsNoPlace() {
         guard case .menu(let place)? = PageEvent.events(in: ["menu": NSNull()]).first else { return XCTFail("the menu") }
         XCTAssertNil(place)

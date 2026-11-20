@@ -85,6 +85,11 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     static let noticeSeconds = 2.0
     /// The piece's beat lines (SelectionTools.swift): the one selection's grid; the bars/beats choice went in v0.6.4.
     var pieceBeatLines: [Double] = []
+    /// The player's beats with their bar and beat (`setBarBeats`): what a dragged phrase mark's caption writes
+    /// (ScorePhraseEdits.swift).
+    var barBeats = BarBeats()
+    /// A phrase's mark held, whose menu is open under its number (ScorePhraseEdits.swift); nil for none.
+    @Published var phraseMenu: PhraseMarkPick?
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
     var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
@@ -349,6 +354,10 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             pages = PagesInView(first: first, last: last, count: count)
         case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .phraseMark, .sectionMark:
             markTapped(event)
+        case let .phraseHeld(number, left, bottom):
+            holdPhrase(number, at: CGPoint(x: left, y: bottom))
+        case let .phraseMoved(from, to):
+            movePhrase(from: from, to: to)
         case .playheadAway(let away):
             playheadAway = away < 0 ? nil : away
         case let .place(start, end):
@@ -1271,8 +1280,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// with the phrase it is.
     private func loadPhrases(_ piece: OpenPiece) async {
         await selectionModel.loadPhrases(of: piece.id)
-        await scorePage.send(.phraseMarks, phraseMarks)
-        await showSelection()
+        await drawPhraseMarks()
     }
 
     /// Draws the band over the selection, and says which phrase it is exactly, whose number the page turns cobalt.

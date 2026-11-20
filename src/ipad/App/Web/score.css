@@ -110,7 +110,16 @@ g.note.version-artefact { fill: var(--ink-3); stroke: var(--ink-3); color: var(-
 .phrase-ink.number.selected { color: var(--accent); }
 body[data-phrases-playing] .phrase-ink:not(.current) { color: var(--ink-3); }
 body[data-phrases-playing] .phrase-ink.number.current { color: var(--ink); font-weight: 600; }
-button.phrase-mark { position: absolute; z-index: 1; min-height: 0; padding: 0; border: 0; background: transparent; }
+button.phrase-mark { position: absolute; z-index: 1; min-height: 0; padding: 0; border: 0; background: transparent; -webkit-touch-callout: none; user-select: none; }
+/* A found start the player moved keeps a faint comma where it was found; a held mark (page-phrase-drag.ts) lifts in amber,
+   its ghost faint where it was, an amber line at the note it would go to, its caption over the finger, and the two phrases
+   it would make lit lightly in amber. */
+.phrase-ink.ghost { color: var(--ink-3); }
+.phrase-ink.lifted { z-index: 2; color: var(--warning); }
+div.phrase-drag { position: absolute; pointer-events: none; }
+div.phrase-neighbour { z-index: 0; border-radius: var(--r-xs); background: color-mix(in srgb, var(--amber-tint) 50%, transparent); }
+div.phrase-snap { z-index: 2; width: var(--stroke-icon); background: var(--amber); }
+div.phrase-caption { z-index: 3; padding: var(--s-1) var(--s-2); border-radius: var(--r-xs); background: var(--surface); box-shadow: var(--shadow-menu); color: var(--ink); font: var(--t-caption); white-space: nowrap; }
 body[data-mode="pen"] button.phrase-mark { pointer-events: none; }
 
 /* The layers of marks, hidden for a clean page (0018 section 5). */

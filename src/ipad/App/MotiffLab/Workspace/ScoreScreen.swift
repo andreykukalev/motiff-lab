@@ -345,6 +345,11 @@ struct ScoreScreenContent: View {
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
+                } else if let pick = score.phraseMenu, let unit = selectionModel.phrases?.unit(pick.number), !focusModel.focused {
+                    // A phrase's number held (v1.2): its mark's menu under it (ScorePhraseEdits.swift).
+                    DraftCardAtMark(at: pick.at, close: { score.closePhraseMenu() }) {
+                        PhraseMarkMenu(score: score, unit: unit, first: unit.number == selectionModel.phrases?.units.first?.number, text: text)
+                    }
                 } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
                     // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
                     DraftViewCards(score: score, seams: score.seamsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
@@ -360,7 +365,12 @@ struct ScoreScreenContent: View {
                 } else if score.practiceChrome.hints {
                     // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
-                    SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text).padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
+                    // Over it, the toast of an edit of the phrases with its Undo or Redo (v1.2, ScorePhraseEdits.swift).
+                    VStack(spacing: CGFloat.ds("s-2")) {
+                        PhraseEditToast(selectionModel: selectionModel, score: score, text: text)
+                        SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text)
+                    }
+                    .padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
                 }
             }
             .overlay {

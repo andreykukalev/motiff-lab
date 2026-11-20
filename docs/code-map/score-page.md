@@ -35,6 +35,8 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
   again by `layout` (and once the fonts have loaded); their 44 pt targets (`button.phrase-mark`, `page-taps.ts` posts
   `phraseMark`/`sectionMark`); the selected phrase's number (`select`'s `phrase`), the phrase playing (`playing`),
   `phraseMarksTop` (the menu clears them); hidden by the layer `phrases`.
+- `page-phrase-drag.ts` (v1.2 i-3a): a number held (`phraseHeld`, for Swift's menu) or dragged (`phraseMoved`): the mark
+  lifted, its ghost, the amber line at the note, the caption, the two phrases it would make lit; rule `phrase-drag.ts`.
 - `page-marks.ts`: margin notes and highlights (`notes`), Check flags (`checks`), `layers`, `tint`, highlight bands.
 - `page-versions.ts`: another version's or a draft's labels, numbers and seams (`performance`), tints, taken bars.
 - `page-selection.ts`: the menu's stand-in, `SelectionLayer` and `PlaceLayer` (`selection`, `places`), `select`,

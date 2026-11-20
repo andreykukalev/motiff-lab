@@ -2,10 +2,12 @@
 // start a breath mark right before the start note and the phrase's number, and a section of the form's boxed letter at its
 // start, right above the notes and raised only over what is printed there (Scripts/score/phrase-marks.ts places them).
 // Found marks are a tone lighter than the notes, the player's own amber, the selected phrase's number cobalt; while the
-// piece plays, the number of the phrase playing is in full ink and the rest are dimmed. A tap on a number or a letter
-// names it to Swift (page-taps.ts); in the Pen they take no touch. Nothing here changes the selection.
+// piece plays, the number of the phrase playing is in full ink and the rest are dimmed; a found start the player moved keeps
+// a faint comma where it was found. A tap on a number or a letter names it to Swift (page-taps.ts), a hold or a drag of a
+// number is page-phrase-drag.ts's; in the Pen they take no touch. Nothing here changes the selection.
 import type { Rect } from "../score-geometry.js";
 import type { PageCommands, PagePhraseMark, PageSectionMark } from "../page-contract.js";
+import type { BarBeatPlace } from "../phrase-drag.js";
 import { type MarkSpot, phraseAt, placeMarks } from "../phrase-marks.js";
 import { token } from "../../layout/tokens.js";
 import { state } from "./page-state.js";
@@ -21,17 +23,21 @@ const PRINTED = "g.note, g.chord, g.rest, g.mRest, g.beam, g.ledgerLines, g.tie,
 /** The breath mark: a round head with a tail down to the left, as a pencil writes it over the notes, a unit wide. */
 const COMMA = "M -1 0 a 1 1 0 1 1 2 0 c 0 1.538 -0.769 2.692 -2.077 3.231 c 0.692 -0.692 1 -1.385 1 -2 z";
 
-/** A start on the score: a phrase's, a section's, or both. */
+/** A start on the score: a phrase's, a section's, or both; or where a start the player moved was found (`ghost`). */
 interface Start {
     tick: number;
     phrase?: PagePhraseMark;
     section?: PageSectionMark;
+    ghost?: true;
 }
 
 let phrases: PagePhraseMark[] = [];
 let sections: PageSectionMark[] = [];
 /** The phrases' starts in time order, for the one playing. */
 let starts: number[] = [];
+/** The piece's beats with their bar and beat, and the words the drag's caption is written in («такт {0} · доля {1}»). */
+let places: BarBeatPlace[] = [];
+let caption = "";
 /** The phrase the selection is (Swift's `select`), whose number is cobalt; null for none. */
 let selected: number | null = null;
 /** The phrase playing, by its place in `starts`; -1 while nothing plays. */
@@ -40,13 +46,16 @@ let playingIndex = -1;
 let awaitingFonts = false;
 
 /**
- * The phrases' marks, each { number, tick, own, label }, and the sections' letters, each { id, tick, letter, label }, drawn
- * where their starts are; none draws none. Answers how many marks take a tap.
+ * The phrases' marks, each { number, tick, own, label, found }, and the sections' letters, each { id, tick, letter, label },
+ * drawn where their starts are; none draws none. With them the beats (`places`) and the words (`caption`) a dragged mark's
+ * caption is written with. Answers how many marks take a tap.
  */
-export function phraseMarks({ phrases: given, sections: lettered }: Parameters<PageCommands["phraseMarks"]>[0]): number {
+export function phraseMarks({ phrases: given, sections: lettered, places: beats, caption: words }: Parameters<PageCommands["phraseMarks"]>[0]): number {
     phrases = [...(given ?? [])].sort((a, b) => a.tick - b.tick);
     sections = lettered ?? [];
     starts = phrases.map((phrase) => phrase.tick);
+    places = beats ?? [];
+    caption = words ?? "";
     placePhrases();
     return document.querySelectorAll("body > .phrase-mark").length;
 }
@@ -102,7 +111,12 @@ export function placePhrases(): void {
     }
 }
 
-/** The starts of the phrases and the sections, one for each tick, in time order. */
+/** What a mark's drag reads: the phrases and their starts in time order, the beats and the caption's words. */
+export function phraseDragContext(): { phrases: readonly PagePhraseMark[]; starts: readonly number[]; places: readonly BarBeatPlace[]; caption: string } {
+    return { phrases, starts, places, caption };
+}
+
+/** The starts of the phrases and the sections, one for each tick, in time order; then where moved starts were found. */
 function startsOf(): Start[] {
     const byTick = new Map<number, Start>();
     for (const phrase of phrases) {
@@ -110,6 +124,11 @@ function startsOf(): Start[] {
     }
     for (const section of sections) {
         byTick.set(section.tick, { ...(byTick.get(section.tick) ?? { tick: section.tick }), section });
+    }
+    for (const found of phrases.flatMap((phrase) => (phrase.found === undefined ? [] : [phrase.found]))) {
+        if (!byTick.has(found)) {
+            byTick.set(found, { tick: found, ghost: true });
+        }
     }
     return [...byTick.values()].sort((a, b) => a.tick - b.tick);
 }
@@ -129,8 +148,8 @@ function inkOf(start: Start): { comma?: HTMLElement; letter?: HTMLElement; numbe
         return element;
     };
     const ink: { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } = {};
-    if (start.phrase !== undefined) {
-        ink.comma = part("comma");
+    if (start.phrase !== undefined || start.ghost === true) {
+        ink.comma = part(start.ghost === true ? "comma ghost" : "comma");
         ink.comma.innerHTML = `<svg viewBox="-1.2 -1.2 2.4 4.6" aria-hidden="true"><path d="${COMMA}"/></svg>`;
     }
     if (start.section !== undefined) {
