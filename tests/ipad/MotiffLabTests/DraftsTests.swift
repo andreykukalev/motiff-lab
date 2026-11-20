@@ -126,7 +126,7 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(screen.piece.title, draft.name)
         let places = try XCTUnwrap(screen.piece.draft?.places)
         XCTAssertEqual(places.count, 1)
-        XCTAssertEqual(places[0].firstBar, 1)
+        XCTAssertEqual(places[0].firstBar, 0, "Für Elise starts with its pickup, bar 0, and so does the place taken from 0")
         XCTAssertTrue(places[0].label.hasPrefix("①"), places[0].label)
         XCTAssertFalse(workspace.panels[.versions], "nothing went wrong, so Sources did not open")
 
@@ -137,9 +137,10 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(markers.count, 1)
         XCTAssertEqual(markers[0]["text"] as? String, places[0].label)
         XCTAssertEqual(markers[0]["place"] as? Bool, true)
-        XCTAssertEqual(markers[0]["bar"] as? Int, 1)
+        XCTAssertEqual(markers[0]["bar"] as? Int, 0, "the bar the label's tap posts")
         XCTAssertFalse(draftView.score.pickPlace(startingAt: 99), "no place starts there")
-        XCTAssertTrue(draftView.score.pickPlace(startingAt: 1))
+        XCTAssertFalse(draftView.score.pickPlace(startingAt: 1), "bar 1 is inside the place, not its start")
+        XCTAssertTrue(draftView.score.pickPlace(startingAt: 0))
         for _ in 0..<100 where draftView.score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
         let selected = try XCTUnwrap(draftView.score.selectionModel.selection, "music-core selects on a draft's view")
         XCTAssertEqual(selected.onset, Double(places[0].onset))
