@@ -48,6 +48,17 @@ internal sealed class LevelEditor
     /// <summary>The edits that set a boundary at <paramref name="at"/> and change nothing else; the edits as they are where the level allows none.</summary>
     public PhraseEdits Split(Tick at) => _allows(at) ? Within(_edits.Adding([at])) : _edits;
 
+    /// <summary>
+    /// The edits that move the boundary at <paramref name="from"/> to <paramref name="to"/> as one edit: taken away there and
+    /// set here. Set where the level found one, it is that found boundary back rather than one of the player's own; set where
+    /// the level allows none (the start or the end of the piece), the boundary is only taken away.
+    /// </summary>
+    public PhraseEdits Move(Tick from, Tick to)
+    {
+        PhraseEdits moved = Within(_edits.Removing([from]).Adding([to]));
+        return _found is not null && _found.Contains(to) ? new PhraseEdits([.. moved.Added.Where(tick => tick != to)], moved.Removed) : moved;
+    }
+
     /// <summary>A place less than a beat from <paramref name="edge"/>, the nearest, the earlier of two as near; or the edge itself.</summary>
     public Tick Snap(Tick edge, MeterMap meter)
     {

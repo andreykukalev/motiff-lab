@@ -15,7 +15,6 @@ using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
-using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -44,12 +43,8 @@ internal sealed partial class OpenPiece
         Notes = notes;
         Words = words;
         ReadStructure(project.PhraseLevels);
-        Level = PhraseLevels.Parse(project.SettingOverrides.GetValueOrDefault(GranularitySetting)) ?? PhraseLevels.Parse(SettingsCatalogue.Get(GranularitySetting).Default) ?? PhraseLevel.Phrase;
         Keep = [.. s_defaultKeep];
     }
-
-    /// <summary>The piece setting that remembers the level shown (0018, section 3).</summary>
-    public const string GranularitySetting = "phrases.granularity";
 
     public Project Project { get; private set; }
 
@@ -69,8 +64,11 @@ internal sealed partial class OpenPiece
     /// <summary>The piece in three levels (0018, section 3) with the player's edits at each.</summary>
     public PhraseLevels Levels => Structure.Levels;
 
-    /// <summary>The level the app shows, remembered per piece through <see cref="GranularitySetting"/>.</summary>
-    public PhraseLevel Level { get; private set; }
+    /// <summary>
+    /// The level the phrases answer shows: the phrases when the piece opens (the phrases spec: the iPad shows phrases and the
+    /// sections of the form, no level), another while phrases.level shows one.
+    /// </summary>
+    public PhraseLevel Level { get; private set; } = PhraseLevel.Phrase;
 
     public PhraseMap Phrases => Levels.Phrases;
 
@@ -186,7 +184,7 @@ internal sealed partial class OpenPiece
     {
         "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true, Words)),
         "language" => Language(request),
-        "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, LevelOf(request) ?? Level, Words)),
+        "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, Structure.Sections, LevelOf(request) ?? Level, Words, Piece.Meter)),
         "phrases.level" => ChangeLevel(request),
         "phrases.edit" => EditPhrases(request),
         "select" => Select(request),
@@ -242,90 +240,6 @@ internal sealed partial class OpenPiece
         ReadStructure();
         _understood = null;
         return Answer.Write(json => json.WriteString("language", Words.IsRussian ? "ru" : "en"));
-    }
-
-    /// <summary>The level a request names in "level", or null when it names none.</summary>
-    private static PhraseLevel? LevelOf(Request request) =>
-        request.Text("level") is { } name
-            ? PhraseLevels.Parse(name) ?? throw FacadeException.BadRequest("\"level\" is \"short\", \"phrase\" or \"sentence\".")
-            : null;
-
-    /// <summary>
-    /// Shows another level and remembers it with the piece (0018, section 3), unless "remember" is false: the level
-    /// the player's device opens pieces in is shown without becoming the piece's own. The selection moves to the unit
-    /// that is, encloses or starts it at the new level; the answer is the phrases with the selection as it now is.
-    /// </summary>
-    private string ChangeLevel(Request request)
-    {
-        PhraseLevel level = LevelOf(request) ?? throw FacadeException.BadRequest("Send \"level\": \"short\", \"phrase\" or \"sentence\".");
-        Level = level;
-        if (request.Bool("remember") ?? true)
-        {
-            Project = Project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
-        }
-
-        if (Selection is { } selection && _selectionKind == MotifSelectionKind.Range)
-        {
-            TickSpan mapped = Levels.Selectable(Levels.Map(selection.Span, level));
-            if (mapped != selection.Span)
-            {
-                MotifSelection moved = MotifSelector.Select(Notes, Piece.Meter, mapped, selection.Filter, MotifSelection.MaxStructureBars);
-                if (moved.NoteIds.Count > 0)
-                {
-                    Selection = moved;
-                    _understood = null;
-                    _chip = null;
-                    Chain = null;
-                }
-            }
-        }
-
-        return Answer.Write(json =>
-        {
-            Answer.Phrases(json, Levels, Level, Words);
-            if (Selection is { } now)
-            {
-                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset), Piece.Meter);
-            }
-            else
-            {
-                json.WriteNull("selection");
-            }
-        });
-    }
-
-    /// <summary>Make phrase, Merge with next, Split here or Reset to detected at a level (the one shown unless "level" says otherwise).</summary>
-    private string EditPhrases(Request request)
-    {
-        PhraseLevel level = LevelOf(request) ?? Level;
-        LevelEdits edits;
-        if (request.Span("makePhrase") is { } span)
-        {
-            edits = Levels.MakeUnit(level, span);
-        }
-        else if (request.Int("joinWithNext") is int number)
-        {
-            PhraseUnit unit = Levels.Units(level).FirstOrDefault(unit => unit.Number == number) ?? throw FacadeException.BadRequest($"There is no {PhraseLevels.Name(level)} {number}.");
-            edits = Levels.JoinWithNext(level, unit);
-        }
-        else if (request.Long("split") is long at)
-        {
-            edits = Levels.SplitAt(level, new Tick(at));
-        }
-        else if (request.Bool("reset") == true)
-        {
-            edits = Levels.Reset(level);
-        }
-        else
-        {
-            throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a number), \"split\" (a tick) or \"reset\", with an optional \"level\".");
-        }
-
-        Structure = Structure.With(Levels.With(edits));
-        // Bookmarks made from a phrase follow it through the merge or split (0018, section 5).
-        Project = Project.WithPhraseLevels(Levels.Edits).FollowPhrases(Levels.Phrases.Phrases.Select(phrase => phrase.Span));
-        _understood = null;
-        return Answer.Write(json => Answer.Phrases(json, Levels, Level, Words));
     }
 
     /// <summary>The sentence map's facts about the selection: about the phrase it is, or the sentence it is; none for another range.</summary>

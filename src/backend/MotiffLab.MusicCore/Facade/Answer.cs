@@ -705,6 +705,16 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>A section of the form, as Piece DNA and the phrase marks write it: its letter, its bars and the span a tap selects (at most 32 bars).</summary>
+    public static void FormSection(Utf8JsonWriter json, DnaSection section, MeterMap? meter)
+    {
+        json.WriteString("id", section.Id);
+        json.WriteString("label", section.Label);
+        Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
+        Span(json, "selectable", meter is null ? section.Span : FormAnalyzer.Selectable(section, meter));
+        Texts(json, "sharesWith", section.SharesWith);
+    }
+
     /// <summary>
     /// Piece DNA (0018 section 11): every lane with its status (<c>notYet</c>, <c>partial</c>, <c>ready</c>), so the
     /// screen shows an empty state for a lane not analysed yet.
@@ -729,11 +739,7 @@ internal static partial class Answer
         foreach (DnaSection section in dna.Form)
         {
             json.WriteStartObject();
-            json.WriteString("id", section.Id);
-            json.WriteString("label", section.Label);
-            Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
-            Span(json, "selectable", meter is null ? section.Span : FormAnalyzer.Selectable(section, meter));
-            Texts(json, "sharesWith", section.SharesWith);
+            FormSection(json, section, meter);
             json.WriteEndObject();
         }
 

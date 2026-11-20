@@ -20,7 +20,8 @@ through the facade; the API references it.
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA, the circle of fifths; `.Phrasing`: the
-  phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13).
+  phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`,
+  `PutBack`, `Replaced`, `OwnCount`) and `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
@@ -41,7 +42,8 @@ through the facade; the API references it.
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); drafts:
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); phrases: `OpenPiece.Phrases`,
+  `Answer.Phrases` (the marks); drafts:
   `Draft*Request`, `MusicCoreFacade.Drafts`, `ShownView`.
 
 ## The native build (`src/ipad/Core`)
@@ -71,7 +73,7 @@ as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFac
 
 - No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
-  same notes and diff.
+  same notes and diff. A phrase edit keeps the player's boundaries as saved and never moves the selection or a bookmark.
 - A new call goes into `facade-calls.json`; a change to the project file or to an answer the app reads is Andrei's
   decision 3 (`ProjectFile.Version`, `Contract`).
 - Analytics events are built only from `AnalyticsCatalogue`; sentences come in both languages from `Words`.
