@@ -124,6 +124,32 @@ public class PerformanceTakeTests
     }
 
     [Fact]
+    public void A_merge_kept_with_a_version_comes_back_from_the_project_file_as_it_was()
+    {
+        // The bar-by-bar merge left the iPad in version 1.1 (ADR 0034, section 8): a file that kept one reads and writes it as before.
+        List<Note> score = Score();
+        (PerformanceComparison comparison, List<PlayedNote> played) = Compare();
+        byte[] midi = MidiExporter.Export([.. score], [], MeterMap.Default, "performance");
+        TakenBar taken = PerformanceTake.Take("perf_1", comparison.Bars[1], played, comparison.Alignment, MeterMap.Default, score);
+        var own = new TakenBar(4, ["rh14"], [new TakenNote("perf-perf_1-own-4-1", new Pitch(74), new TickSpan(new Tick(3 * Bar), Quarter), 80, 0, Hand.Right)]);
+        var merge = new MergeRecord(
+            [new MergeDecision(2, MergeChoice.Version), new MergeDecision(3, MergeChoice.NotADifference), new MergeDecision(4, MergeChoice.Own, own)],
+            new DateTimeOffset(2026, 11, 7, 12, 30, 0, TimeSpan.Zero));
+        Project project = Project.Create("p_1", "score.mid", midi, DateTimeOffset.UnixEpoch)
+            .AddPerformance(new SavedPerformance("perf_1", "Live", PerformanceSource.Midi, midi, 0, comparison.Alignment.Anchors) { Merge = merge })
+            .ChangePerformance("perf_1", performance => performance.Dismiss(3).TakeBars([taken, own]));
+
+        byte[] written = ProjectFile.Write(project);
+        Project reread = ProjectFile.Read(written);
+
+        SavedPerformance kept = Assert.Single(reread.Performances);
+        Assert.Equal(project.Performances[0], kept);
+        Assert.Equal(merge, kept.Merge);
+        Assert.Equal(own.Added, kept.Merge!.Decisions[2].Own!.Added);
+        Assert.Equal(written, ProjectFile.Write(reread));
+    }
+
+    [Fact]
     public void Removing_a_performance_drops_its_bars_and_its_check_flags()
     {
         byte[] midi = MidiExporter.Export([.. Score()], [], MeterMap.Default, "performance");

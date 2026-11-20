@@ -302,7 +302,9 @@ final class FacadeTests: XCTestCase {
         let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "version", "id": "\#(id)"}"#)))
         XCTAssertFalse(heard.notes.isEmpty)
 
-        shelf.read(list: MusicCore.call(piece: piece, "performance.remove", #"{"id": "\#(id)"}"#))
+        // Removed as Notes are, as the Sources sheet removes it (performance.remove went with the merge, ADR 0034 section 8).
+        _ = MusicCore.call(piece: piece, "sources.notes.remove", #"{"id": "\#(id)"}"#)
+        shelf.read(list: MusicCore.call(piece: piece, "performances"))
         XCTAssertTrue(shelf.entries.isEmpty)
         XCTAssertNil(shelf.shown)
         XCTAssertTrue(shelf.bars.isEmpty)

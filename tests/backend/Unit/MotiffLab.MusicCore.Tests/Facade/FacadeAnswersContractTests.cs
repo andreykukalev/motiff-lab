@@ -101,25 +101,14 @@ public class FacadeAnswersContractTests
             ("corrections.layer", """{"on":true,"bar":2}"""),
             ("corrections.revert", """{"bar":2,"id":"n_0014"}"""),
         ],
-        // A version merged through a draft, as MusicCoreFacadeTests merges one: the example played with three notes more in
-        // bar 5, its draft opened keeping mine, bar 5 taken from the version, undone, redone, undecided, reset and taken
-        // again; the result heard, applied (the version as compared then) and the merge undone; the draft opened again
-        // with the choices applied, and cancelled (none open).
-        ["performance.merge"] =
+        // A version with a bar taken into the notes, as files saved before version 1.1 hold one (the bar-by-bar merge left
+        // the iPad, ADR 0034 section 8): the example played with three notes more in bar 5, as MusicCoreFacadeTests plays
+        // it, every bar the comparison is sure of taken, and the bar restored.
+        ["performance.taken"] =
         [
             ("performance.add", """{"name":"Live","midi":"<played>","now":"2026-11-15T13:00:00Z"}"""),
-            ("performance.merge.open", """{"id":"perf_1","start":"mine"}"""),
-            ("performance.merge.choose", """{"bars":[5],"choice":"version"}"""),
-            ("performance.merge.undo", "{}"),
-            ("performance.merge.redo", "{}"),
-            ("performance.merge.undecide", """{"bars":[5]}"""),
-            ("performance.merge.reset", "{}"),
-            ("performance.merge.choose", """{"bars":[5],"choice":"version"}"""),
-            ("performance.merge.playback", """{"view":"result"}"""),
-            ("performance.merge.apply", """{"at":"2026-11-15T14:00:00Z"}"""),
-            ("performance.merge.undoApplied", """{"id":"perf_1"}"""),
-            ("performance.merge.open", """{"id":"perf_1","start":"saved"}"""),
-            ("performance.merge.cancel", "{}"),
+            ("performance.takeAll", """{"id":"perf_1"}"""),
+            ("performance.restore", """{"id":"perf_1","bars":[5]}"""),
         ],
         // Another level shown with nothing selected (the selection null), a passage selected and the level changed under
         // it (the selection moved to the units there), the device's level shown without becoming the piece's; then the
@@ -141,12 +130,8 @@ public class FacadeAnswersContractTests
         ["roll"] = [("roll", null)],
     };
 
-    /// <summary>
-    /// Calls whose answer the file does not keep, only their request: those that only build a file's state (another
-    /// answer's), and `performance.merge.playback`, the playback score that playback.json pins (`Answer.Playback`, the
-    /// whole piece's notes).
-    /// </summary>
-    private static readonly HashSet<string> s_steps = ["performance.add", "performance.take", "performance.merge.playback"];
+    /// <summary>Calls whose answer the file does not keep, only their request: those that only build a file's state (another answer's).</summary>
+    private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
 
     /// <summary>
     /// The files whose calls start from a project file and not from the example opened anew: the file the project is made

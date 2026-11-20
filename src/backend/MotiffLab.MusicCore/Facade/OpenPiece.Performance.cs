@@ -1,18 +1,17 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
-using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
 /// The calls about performances compared with the piece (decision record 0022; contract 4): add one from MIDI,
-/// compare, take bars into the score or restore the print, mark a bar "not a difference", rename and remove.
+/// compare, take bars into the score or restore the print, mark a bar "not a difference", and rename. Since version 1.1
+/// (ADR 0034, section 8) a version is removed as Notes are (sources.notes.remove), and the merge draft is gone.
 /// The comparison is always against the printed notes with the player's corrections, never against bars
 /// already taken, so a taken bar can be restored and compared again.
 /// </summary>
@@ -28,8 +27,6 @@ internal sealed partial class OpenPiece
         "performance.take" => TakeBars(request),
         "performance.takeAll" => TakeAll(request),
         "performance.restore" => ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true),
-        "performance.remove" => RemovePerformance(request),
-        _ when name.StartsWith("performance.merge", StringComparison.Ordinal) || name == "performance.putBack" => CallOnMerge(name, request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
@@ -240,27 +237,6 @@ internal sealed partial class OpenPiece
         }
 
         return taken.Count == 0 ? PerformanceAnswer(performance) : ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
-    }
-
-    /// <summary>Removes the version, its taken bars and its Check flags; "performance.putBack" brings it back while the piece is open.</summary>
-    private string RemovePerformance(Request request)
-    {
-        SavedPerformance removed = Performance(request);
-        bool hadTaken = removed.Taken.Count > 0;
-        int index = Project.Performances.ToList().FindIndex(performance => performance.Id == removed.Id);
-        _removedVersion = (removed, index, [.. (Project.Check ?? []).Where(flag => flag.Source == CheckSource.Performance)]);
-        if (_merge?.PerformanceId == removed.Id)
-        {
-            _merge = null;
-        }
-
-        Project = Project.RemovePerformance(removed.Id);
-        if (hadTaken)
-        {
-            RefreshNotes();
-        }
-
-        return Answer.Write(json => Answer.Performances(json, Project));
     }
 
     private string ChangePerformance(Request request, Func<SavedPerformance, SavedPerformance> change, bool notesChange = false)

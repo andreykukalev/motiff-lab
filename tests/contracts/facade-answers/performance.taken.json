@@ -12,229 +12,9 @@
    "answer": null
   },
   {
-   "call": "performance.merge.open",
+   "call": "performance.takeAll",
    "request": {
-    "id": "perf_1",
-    "start": "mine"
-   },
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 0,
-     "canUndo": false,
-     "canRedo": false,
-     "changed": false,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "mine"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.choose",
-   "request": {
-    "bars": [
-     5
-    ],
-    "choice": "version"
-   },
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 1,
-     "canUndo": true,
-     "canRedo": false,
-     "changed": true,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "version"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.undo",
-   "request": {},
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 0,
-     "canUndo": false,
-     "canRedo": true,
-     "changed": false,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "mine"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.redo",
-   "request": {},
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 1,
-     "canUndo": true,
-     "canRedo": false,
-     "changed": true,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "version"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.undecide",
-   "request": {
-    "bars": [
-     5
-    ]
-   },
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 0,
-     "total": 1,
-     "sure": 1,
-     "taking": 0,
-     "canUndo": true,
-     "canRedo": false,
-     "changed": true,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": null
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.reset",
-   "request": {},
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 0,
-     "canUndo": true,
-     "canRedo": false,
-     "changed": false,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "mine"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.choose",
-   "request": {
-    "bars": [
-     5
-    ],
-    "choice": "version"
-   },
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 1,
-     "canUndo": true,
-     "canRedo": false,
-     "changed": true,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "version"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.playback",
-   "request": {
-    "view": "result"
-   },
-   "answer": null
-  },
-  {
-   "call": "performance.merge.apply",
-   "request": {
-    "at": "2026-11-15T14:00:00Z"
+    "id": "perf_1"
    },
    "answer": {
     "performance": {
@@ -244,8 +24,6 @@
      "recordingStart": 0,
      "takenBars": 1,
      "dismissedBars": 0,
-     "mergedAt": "2026-11-15T14:00:00.0000000+00:00",
-     "mergeKept": true,
      "matched": 902,
      "printed": 902,
      "bars": [
@@ -6797,9 +6575,12 @@
    }
   },
   {
-   "call": "performance.merge.undoApplied",
+   "call": "performance.restore",
    "request": {
-    "id": "perf_1"
+    "id": "perf_1",
+    "bars": [
+     5
+    ]
    },
    "answer": {
     "performance": {
@@ -6809,8 +6590,6 @@
      "recordingStart": 0,
      "takenBars": 0,
      "dismissedBars": 0,
-     "mergedAt": null,
-     "mergeKept": true,
      "matched": 902,
      "printed": 902,
      "bars": [
@@ -13359,44 +13138,6 @@
       }
      ]
     }
-   }
-  },
-  {
-   "call": "performance.merge.open",
-   "request": {
-    "id": "perf_1",
-    "start": "saved"
-   },
-   "answer": {
-    "merge": {
-     "id": "perf_1",
-     "name": "Live",
-     "decided": 1,
-     "total": 1,
-     "sure": 1,
-     "taking": 1,
-     "canUndo": false,
-     "canRedo": false,
-     "changed": false,
-     "bars": [
-      {
-       "bar": 5,
-       "kind": "addedNotes",
-       "group": "addedNotes",
-       "marker": "+3 · added notes",
-       "confidence": 100,
-       "sure": true,
-       "choice": "version"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "call": "performance.merge.cancel",
-   "request": {},
-   "answer": {
-    "merge": null
    }
   }
  ]

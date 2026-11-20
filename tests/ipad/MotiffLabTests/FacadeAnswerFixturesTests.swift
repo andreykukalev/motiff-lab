@@ -227,11 +227,13 @@ final class FacadeAnswerFixturesTests: XCTestCase {
     }
 
     /// A version with bars taken into the notes, as a file saved before v1.1 holds it (the bar-by-bar merge left the
-    /// iPad, ADR 0034 section 8): the answers of the merge applied and undone, read as any version is.
+    /// iPad, ADR 0034 section 8): the answers of a bar taken and restored, read as any version is.
     func testAVersionWithTakenBarsDecodes() throws {
-        let answers = try Self.answers("performance.merge")
-        XCTAssertEqual(answers.count, 11, "each call's answer but the version added and the result heard")
-        let applied = try [7, 8].map { try XCTUnwrap(FacadeAnswer.decode(PerformanceAnswer.self, answers[$0].text, of: "performance.merge.apply"), "\(reported)") }
+        let answers = try Self.answers("performance.taken")
+        XCTAssertEqual(answers.count, 2, "each call's answer but the version added")
+        let applied = try [(0, "performance.takeAll"), (1, "performance.restore")].map {
+            try XCTUnwrap(FacadeAnswer.decode(PerformanceAnswer.self, answers[$0.0].text, of: $0.1), "\(reported)")
+        }
         XCTAssertEqual(reported, [])
 
         var shelf = VersionShelf()
@@ -244,7 +246,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(bar5.played, 3)
         XCTAssertNotNil(bar5.span)
         XCTAssertTrue(shelf.read(performance: applied[1]))
-        XCTAssertEqual(shelf.taken.count, 0, "undone, no bar is taken")
+        XCTAssertEqual(shelf.taken.count, 0, "restored, no bar is taken")
         XCTAssertEqual(shelf.entries.count, 1)
     }
 
