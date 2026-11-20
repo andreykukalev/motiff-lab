@@ -5,6 +5,7 @@
 // touch target of the kit's size, split halfway with a close neighbour's. In focus a motif's small comma (decision 2) is
 // placed as a comma alone and takes the tap instead. Kept free of the DOM, so Node tests the rules; the iPad's page draws by
 // them (ipad-page/page-phrases.ts).
+import type { PagePhraseMark, PageSectionMark } from "./page-contract.js";
 import type { Rect } from "./score-geometry.js";
 
 /** One mark to place, in the document's pixels: where its start is and how wide its parts are drawn (0 for a part it has not). */
@@ -158,4 +159,55 @@ export function phraseAt(starts: readonly number[], tick: number): number {
         }
     }
     return low - 1;
+}
+
+/**
+ * A start on the score: a phrase's, a section's, or both; or where a start the player moved was found (`ghost`); in focus
+ * also a motif's (`motif`: its phrase's number, its place in it from 1, and its label).
+ */
+export interface MarkStart {
+    tick: number;
+    phrase?: PagePhraseMark;
+    section?: PageSectionMark;
+    ghost?: true;
+    motif?: { of: number; number: number; label: string };
+}
+
+/**
+ * The starts of the phrases (in time order) and the sections, one for each tick, in time order: where moved starts were
+ * found among them, and with `motifs` (in focus) each motif's at its own tick, at its phrase's start or on a ghost.
+ */
+export function markStarts(phrases: readonly PagePhraseMark[], sections: readonly PageSectionMark[], motifs: boolean): MarkStart[] {
+    const byTick = new Map<number, MarkStart>();
+    for (const phrase of phrases) {
+        byTick.set(phrase.tick, { tick: phrase.tick, phrase });
+    }
+    for (const section of sections) {
+        byTick.set(section.tick, { ...(byTick.get(section.tick) ?? { tick: section.tick }), section });
+    }
+    for (const found of phrases.flatMap((phrase) => (phrase.found === undefined ? [] : [phrase.found]))) {
+        if (!byTick.has(found)) {
+            byTick.set(found, { tick: found, ghost: true });
+        }
+    }
+    for (const phrase of motifs ? phrases : []) {
+        (phrase.motifs ?? []).forEach(({ tick, label }, index) => {
+            byTick.set(tick, { ...(byTick.get(tick) ?? { tick }), motif: { of: phrase.number, number: index + 1, label } });
+        });
+    }
+    return [...byTick.values()].sort((a, b) => a.tick - b.tick);
+}
+
+/**
+ * The kind of a start's comma: a phrase's, else a moved start's faint ghost (a motif starting there takes its tap), else a
+ * motif's small one (in focus); null for a section alone.
+ */
+export function commaOf(start: MarkStart): string | null {
+    if (start.phrase !== undefined) {
+        return "comma";
+    }
+    if (start.ghost === true) {
+        return "comma ghost";
+    }
+    return start.motif === undefined ? null : "comma motif";
 }

@@ -263,11 +263,13 @@ final class SelectionModelTests: XCTestCase {
 
         score.pickMotif(phrase.motifs.count + 1, of: 1)
         XCTAssertNil(score.selectionModel.selection, "no such motif")
+        // The piece's history is kept by its number in music-core, which another test may have left steps under.
+        let stepsBefore = score.selectionModel.steps.done.count
         score.pickMotif(phrase.motifs.count, of: 1)
         for _ in 0..<100 where score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
         let selected = try XCTUnwrap(score.selectionModel.selection, "music-core selects the motif")
         XCTAssertEqual([selected.onset, selected.end], [motif.onset, motif.end])
-        XCTAssertTrue(score.selectionModel.steps.canUndo, "one step of the selection's history")
+        XCTAssertEqual(score.selectionModel.steps.done.count, stepsBefore + 1, "one step of the selection's history: this tap's")
     }
 
     /// «Вся фраза» (the phrases spec, decision 5): only for a selection inside one phrase that is not that phrase exactly.

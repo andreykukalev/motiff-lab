@@ -11,7 +11,7 @@
 import type { Rect, ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PagePhraseMark, PageSectionMark } from "../page-contract.js";
 import type { BarBeatPlace } from "../phrase-drag.js";
-import { type MarkSpot, type PlacedMark, phraseAt, placeMarks } from "../phrase-marks.js";
+import { type MarkSpot, type MarkStart, type PlacedMark, commaOf, markStarts, phraseAt, placeMarks } from "../phrase-marks.js";
 import { token } from "../../layout/tokens.js";
 import { state } from "./page-state.js";
 
@@ -67,18 +67,6 @@ let cardSurface: PhraseSurface | null = null;
 /** The marks' parts on both surfaces, for the selected and the playing phrase to show on each. */
 const INK = "body > .phrase-ink, #focus .card-score > .phrase-ink";
 const NUMBERS = "body > .phrase-ink.number, #focus .card-score > .phrase-ink.number";
-
-/**
- * A start on the score: a phrase's, a section's, or both; or where a start the player moved was found (`ghost`); in focus
- * also a motif's (`motif`: its phrase's number, its place in it from 1, and its label).
- */
-interface Start {
-    tick: number;
-    phrase?: PagePhraseMark;
-    section?: PageSectionMark;
-    ghost?: true;
-    motif?: { of: number; number: number; label: string };
-}
 
 let phrases: PagePhraseMark[] = [];
 let sections: PageSectionMark[] = [];
@@ -164,7 +152,7 @@ function drawOn(surface: PhraseSurface): void {
     if (geometry === null) {
         return;
     }
-    const drawn = startsOf(surface.taps === "motifs").flatMap((start) => {
+    const drawn = markStarts(phrases, sections, surface.taps === "motifs").flatMap((start) => {
         const tick = start.tick - surface.offset;
         const bar = tick < surface.end ? geometry.barAt(tick) : undefined;
         if (bar === undefined) {
@@ -193,7 +181,7 @@ function drawOn(surface: PhraseSurface): void {
 }
 
 /** What of a start's mark takes a tap on a surface: on the pages its letter and number, on the card a motif's comma. */
-function tapOf(start: Start, surface: PhraseSurface): MarkSpot["tap"] {
+function tapOf(start: MarkStart, surface: PhraseSurface): MarkSpot["tap"] {
     if (surface.taps === "marks") {
         return "parts";
     }
@@ -201,7 +189,7 @@ function tapOf(start: Start, surface: PhraseSurface): MarkSpot["tap"] {
 }
 
 /** The touch targets of a start's mark placed (`placeMarks` makes only those its surface taps), each naming what it marks. */
-function targetsOf(start: Start, place: PlacedMark, root: HTMLElement): void {
+function targetsOf(start: MarkStart, place: PlacedMark, root: HTMLElement): void {
     if (start.motif !== undefined && place.commaTarget !== null) {
         const button = target(place.commaTarget, start.motif.label, root);
         button.dataset.motif = String(start.motif.number);
@@ -220,33 +208,8 @@ export function phraseDragContext(): { phrases: readonly PagePhraseMark[]; start
     return { phrases, starts, places, caption };
 }
 
-/**
- * The starts of the phrases and the sections, one for each tick, in time order; `motifs` (in focus) with each motif's at
- * its own tick or at its phrase's start; then where moved starts were found.
- */
-function startsOf(motifs: boolean): Start[] {
-    const byTick = new Map<number, Start>();
-    for (const phrase of phrases) {
-        byTick.set(phrase.tick, { tick: phrase.tick, phrase });
-    }
-    for (const section of sections) {
-        byTick.set(section.tick, { ...(byTick.get(section.tick) ?? { tick: section.tick }), section });
-    }
-    for (const phrase of motifs ? phrases : []) {
-        (phrase.motifs ?? []).forEach(({ tick, label }, index) => {
-            byTick.set(tick, { ...(byTick.get(tick) ?? { tick }), motif: { of: phrase.number, number: index + 1, label } });
-        });
-    }
-    for (const found of phrases.flatMap((phrase) => (phrase.found === undefined ? [] : [phrase.found]))) {
-        if (!byTick.has(found)) {
-            byTick.set(found, { tick: found, ghost: true });
-        }
-    }
-    return [...byTick.values()].sort((a, b) => a.tick - b.tick);
-}
-
 /** The parts of a start's mark, on the page to be measured: the comma and the number for a phrase, the letter for a section. */
-function inkOf(start: Start, root: HTMLElement): { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } {
+function inkOf(start: MarkStart, root: HTMLElement): { comma?: HTMLElement; letter?: HTMLElement; number?: HTMLElement } {
     const part = (kind: string): HTMLElement => {
         const element = document.createElement("span");
         element.className = `phrase-ink ${kind}`;
@@ -275,20 +238,6 @@ function inkOf(start: Start, root: HTMLElement): { comma?: HTMLElement; letter?:
         ink.number.classList.toggle("selected", start.phrase.number === selected);
     }
     return ink;
-}
-
-/**
- * The kind of a start's comma: a phrase's, else a motif's small one (in focus), else a moved start's faint ghost; null for a
- * section alone.
- */
-function commaOf(start: Start): string | null {
-    if (start.phrase !== undefined) {
-        return "comma";
-    }
-    if (start.motif !== undefined) {
-        return "comma motif";
-    }
-    return start.ghost === true ? "comma ghost" : null;
 }
 
 /** The boxes of what is printed on the systems of these bars, in the surface's pixels, by system. */
