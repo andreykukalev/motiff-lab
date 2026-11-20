@@ -23,7 +23,7 @@
     { "id": "here.chords.ru", "language": "ru", "kind": "specific", "bars": { "from": 1, "to": 8 }, "question": "Какие здесь аккорды?", "near": ["chord."] },
     { "id": "here.left.en", "language": "en", "kind": "specific", "bars": { "from": 9, "to": 12 }, "question": "How should the left hand play here?", "near": ["range.L"] },
     { "id": "here.left.ru", "language": "ru", "kind": "specific", "bars": { "from": 9, "to": 12 }, "question": "Как здесь играть левой рукой?", "near": ["range.L"] },
-    { "id": "here.tempo.en", "language": "en", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "At what tempo should I start these bars?", "near": [] },
-    { "id": "here.tempo.ru", "language": "ru", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "С какого темпа начать эти такты?", "near": [] }
+    { "id": "here.tempo.en", "language": "en", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "At what tempo should I start these bars?", "near": ["here.tempo."] },
+    { "id": "here.tempo.ru", "language": "ru", "kind": "specific", "bars": { "from": 24, "to": 27 }, "question": "С какого темпа начать эти такты?", "near": ["here.tempo."] }
   ]
 }

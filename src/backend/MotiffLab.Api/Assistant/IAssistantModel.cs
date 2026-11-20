@@ -29,7 +29,9 @@ public sealed record ModelTurn(string Instructions, string Language, JsonElement
     /// <summary>
     /// Where the context goes among the history's entries: just before the question it belongs to, the player's last one, so
     /// earlier questions about other bars come before it and the bars the player selected now stand beside the question about
-    /// them. Set when the turn is made, so a turn the relay extends (<see cref="AnswerRetry"/>) keeps it there.
+    /// them. Fixed when the turn is made, from the history it is made with: a turn extended by <c>with { History = … }</c>
+    /// keeps it (as <see cref="AnswerRetry"/> wants: its note is not the player's question), so a copy whose history holds
+    /// another player's question must set it again, <c>ContextAt = TurnRequest.LastQuestion(history)</c>.
     /// </summary>
     public int ContextAt { get; init; } = TurnRequest.LastQuestion(History);
 

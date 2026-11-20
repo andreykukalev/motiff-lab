@@ -165,7 +165,7 @@ internal static class AssistantEndpoints
         }
         catch (Exception error) when (error is OperationCanceledException or HttpRequestException or InvalidOperationException or JsonException)
         {
-            string reason = error is OperationCanceledException && !cancel.IsCancellationRequested ? "timeout" : "modelError";
+            string reason = error is OperationCanceledException && !cancel.IsCancellationRequested ? AnswerCheck.Timeout : AnswerCheck.ModelError;
             return new Step(Template(reason), cancel.IsCancellationRequested ? "cancelled" : reason, null, null);
         }
 
@@ -173,17 +173,17 @@ internal static class AssistantEndpoints
         {
             if (answered.Calls.Any(call => !AssistantRoles.Allows(request.Role, call.Name)))
             {
-                return new Step(Template("toolNotAllowed"), "toolNotAllowed", answered, null);
+                return new Step(Template(AnswerCheck.ToolNotAllowed), AnswerCheck.ToolNotAllowed, answered, null);
             }
 
             // A call whose arguments the tool's schema refuses (out of range, missing) never reaches the device.
             if (answered.Calls.Any(call => AssistantRoles.CallRefusal(request.Role, call, words) is not null))
             {
-                return new Step(Template("badArguments"), "badArguments", answered, null);
+                return new Step(Template(AnswerCheck.BadArguments), AnswerCheck.BadArguments, answered, null);
             }
 
             return request.ToolCallsInQuestion + answered.Calls.Count > AssistantRoles.MostToolCalls
-                ? new Step(Template("tooManyCalls"), "tooManyCalls", answered, null)
+                ? new Step(Template(AnswerCheck.TooManyCalls), AnswerCheck.TooManyCalls, answered, null)
                 : new Step(TurnReply.Called(answered.Calls), "toolCalls", answered, null);
         }
 

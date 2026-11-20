@@ -27,8 +27,10 @@ public sealed record TurnReply(TurnReplyKind Kind)
     public bool Fallback { get; init; }
 
     /// <summary>
-    /// Why the answer is the template, with <see cref="Fallback"/>; null otherwise. The answer's check (<see cref="AnswerCheck"/>):
-    /// empty, tooLong, noCitation, unknownFact; the relay: timeout, modelError, toolNotAllowed, badArguments, tooManyCalls.
+    /// Why the answer is the template, with <see cref="Fallback"/>; null otherwise: one of the reasons <see cref="AnswerCheck"/>
+    /// names, the check's (<see cref="AnswerCheck.Empty"/>, <see cref="AnswerCheck.TooLong"/>, <see cref="AnswerCheck.NoCitation"/>,
+    /// <see cref="AnswerCheck.UnknownFact"/>) or the relay's (<see cref="AnswerCheck.Timeout"/>, <see cref="AnswerCheck.ModelError"/>,
+    /// <see cref="AnswerCheck.ToolNotAllowed"/>, <see cref="AnswerCheck.BadArguments"/>, <see cref="AnswerCheck.TooManyCalls"/>).
     /// Written as "reason" beside "fallback" (added in version 1.2; a device that does not read it shows the template as before).
     /// </summary>
     public string? Reason { get; init; }
