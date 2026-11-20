@@ -271,16 +271,7 @@ enum PhotoPiece {
         guard let object = facadeObject(opened), let piece = (object["piece"] as? NSNumber)?.int32Value, piece > 0 else {
             return .failure(ProjectError(message: facadeObject(opened)?["message"] as? String ?? "music-core did not open the pages."))
         }
-        let url = ProjectFiles.newURL(for: title)
-        let saved: Result<URL, ProjectError>
-        do {
-            try await ProjectFiles.save(piece: piece, to: url)
-            saved = .success(url)
-        } catch {
-            saved = .failure((error as? ProjectError) ?? ProjectError(message: error.localizedDescription))
-        }
-        _ = await MusicCore.run { MusicCore.close(piece: piece) }
-        return saved
+        return await ProjectFiles.saveNew(piece: piece, title: title)
     }
 
     /// The pictures «Открыть файл» takes beside the files it opens (v1.1, finding 29): a JPEG or a PNG.

@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `KeptCopies`, `OriginalSounds`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -16,7 +16,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 - `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
   (`SourcesController.performance`), under the bar of `ScoreScreen` and `PdfScreen`, for their piece while the switch
   shows or the piece under a screen over it (`heardOver`: a view in a cover, the PDF linked in Files;
-  `sources(over:own:switchOn:)`); `RecordingViewCapsule`, `RecordingListening`. The sound,
+  `sources(over:own:switchOn:)`); `RecordingViewCapsule` (its ✕ only with `close`: none under the waveform of
+  `Workspace/RecordingScreen`), `RecordingListening`. The sound,
   `RecordingListening.shared`, counts the capsules showing it (`shown`, `hidden`) and stops at none (`end`) unless the
   piece was handed over (`SourcesController.handOver`). `load` takes the recording handed (`takeHanded`) or stops it;
   a screen going without handing over calls `leave` (`cancelHandOver`); a switch that never ran takes it back
@@ -36,12 +37,14 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   or Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
-  Recognising is one path: `canRecognise` (pages kept here, or a recording's sound here, with working notes), then
+  Recognising is one path: `canRecognise` (pages kept here with working notes, or a recording's sound here, also on a
+  piece with no notes yet, v1.1), then
   `recognise` builds a `Recognised` (fields, the field dropped on "badRequest", toast): `readPages`, or `hearRecording`
   (`OriginalSounds.file` → `RecordingHearing.hear`, `progress`, s-3; `hearFields`: "tempo": "live" and "hint", the
-  working notes' metre and tempo from `playback`, dropped when refused); `keepRecognised` keeps it under the literal
+  working notes' metre and tempo from `playback`, dropped when refused; none without working notes); `keepRecognised` keeps it under the literal
   call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
-  `fresh`, save, toast. New Notes go under their original; the working notes change only by «Сделать рабочими». A
+  `fresh`, save, toast; the first notes of a piece that had none are its working notes, and the piece opens again on
+  them (`reopen`, toast handed over). New Notes go under their original; the working notes change only by «Сделать рабочими». A
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031 section 3): the versions, their words, a version's marker tapped (`markerPick`),

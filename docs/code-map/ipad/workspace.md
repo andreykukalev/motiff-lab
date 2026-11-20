@@ -4,7 +4,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `ScoreColouring`, `ScoreController`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`,
+`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreScreen`,
+`ScoreScreenViews`, `ScoreWorkspace`,
 `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
@@ -14,6 +15,14 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `tests/ipad/MotiffLabTests/PanelStateTests.swift` against `Golden/panel-states.txt`, the table of start states and
   every action offered in each, render by render.
 
+- `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
+  `ScoreScreen`; `reopen` opens the piece's own project file again in its place.
+- `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
+  line that there are none yet, the title, Sources), the waveform across the screen, `RecordingViewCapsule` under it;
+  nothing docked. «Распознать · Pro» in Sources makes its working notes and the piece opens again as notes.
+- `RecordingWave.swift`: the levels of every 100 ms (`RecordingSound.levels`) as columns (`columns`), the play cursor
+  where `RecordingListening.shared` is, a tap seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s.
+  Tests: `RecordingWaveTests`.
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and

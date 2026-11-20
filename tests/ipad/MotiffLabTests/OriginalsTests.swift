@@ -75,7 +75,8 @@ final class OriginalsTests: XCTestCase {
 
     /// The Sources sheet offers «Распознать» on a piece with working notes for the pages kept in the piece here (a PDF or
     /// photos) and, since v0.10 (findings 26, 28), for a recording whose sound is on this iPad; never for a linked or a
-    /// deleted PDF, a recording heard elsewhere, MusicXML, nor anything on a piece that is only its PDF.
+    /// deleted PDF, a recording heard elsewhere, MusicXML, nor the pages of a piece that is only its PDF; a piece that is
+    /// only its recording, with no notes yet, hears it (v1.1, finding 29).
     @MainActor
     func testThePagesKeptInThePieceAndARecordingHereAreRecognised() {
         func source(_ kind: String, state: String = "here", kept: String = "file") -> SourceLayers.Original {
@@ -96,6 +97,7 @@ final class OriginalsTests: XCTestCase {
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "onAnotherDevice")))
         XCTAssertFalse(sources.canRecognise(source("pdf", state: "removed")))
         XCTAssertFalse(SourcesController().canRecognise(source("pdf")), "a piece that is only its PDF has no notes to add to")
+        XCTAssertTrue(SourcesController().canRecognise(source("audio", kept: "device")), "a piece that is only its recording takes its notes")
     }
 
     /// A recording is recognised from its sound on this iPad (v0.10, finding 26): without it nothing is sent, the row says
@@ -118,7 +120,7 @@ final class OriginalsTests: XCTestCase {
     /// v0.10 s-3: the fields `sources.notes.hear` gets for a recording kept in the piece, as the facade takes them: the
     /// transcription's with the live tempo, the original, the time, and the working notes' metre and tempo as "hint".
     func testTheRecordingHeardIsSentWithTheFieldsTheFacadeTakes() throws {
-        let heard = HeardRecording(name: "Live", engine: "basic-pitch", milliseconds: 60_000, parts: [(index: 0, midi: Data([1, 2]))], levels: [3, 4])
+        let heard = HeardRecording(engine: "basic-pitch", milliseconds: 60_000, parts: [(index: 0, midi: Data([1, 2]))], levels: [3, 4])
         let hint: [String: Any] = ["signature": "3/4", "quarterNotesPerMinute": 92]
         let fields = SourcesController.hearFields(heard, original: "src_rec", hint: hint, now: "2026-11-19T10:00:00Z")
         XCTAssertEqual(Set(fields.keys), ["engine", "milliseconds", "levels", "parts", "tempo", "original", "now", "hint"])
@@ -131,6 +133,8 @@ final class OriginalsTests: XCTestCase {
         XCTAssertEqual(parts.first?["midi"] as? String, Data([1, 2]).base64EncodedString())
         XCTAssertEqual((fields["hint"] as? [String: Any])?["signature"] as? String, "3/4")
         XCTAssertNil(SourcesController.hearFields(heard, original: "src_rec", hint: nil, now: "").index(forKey: "hint"), "no hint, no field")
+        XCTAssertNil(fields["starts"], "the iPad does not know where the pieces begin")
+        XCTAssertNil(heard.request["tempo"], "the request itself finds no bars")
     }
 
     /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set

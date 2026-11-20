@@ -74,6 +74,21 @@ enum ProjectFiles {
         }
         try Data(text.utf8).write(to: url, options: .atomic)
     }
+
+    /// A piece just made in music-core saved to a new project file here, titled `title`, and closed again, for the library
+    /// to open as any saved piece: photos of pages (`PhotoPiece`) or, since v1.1, a recording added (`RecordingPiece`).
+    static func saveNew(piece: Int32, title: String) async -> Result<URL, ProjectError> {
+        let url = newURL(for: title)
+        let saved: Result<URL, ProjectError>
+        do {
+            try await save(piece: piece, to: url)
+            saved = .success(url)
+        } catch {
+            saved = .failure((error as? ProjectError) ?? ProjectError(message: error.localizedDescription))
+        }
+        _ = await MusicCore.run { MusicCore.close(piece: piece) }
+        return saved
+    }
 }
 
 struct ProjectError: Error {
@@ -119,6 +134,11 @@ struct PieceSummary: Equatable, Sendable {
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
+
+    /// A piece that is only its recording, with no notes yet (v1.1, finding 29): no PDF here or described, and a recording.
+    var isRecordingOnly: Bool {
+        !hasNotes && !document && !originals.contains(where: \.isDocument) && originals.contains { $0.kind == "audio" }
+    }
 
     /// The composer the player set in the library, if they did.
     var playersComposer: String? { composerFrom == "player" ? composer : nil }

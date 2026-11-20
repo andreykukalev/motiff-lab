@@ -11,6 +11,9 @@ struct OpenPiece: Identifiable, Sendable {
     var file: URL?
     /// A PDF piece (0023): the pages as added and no notes, shown by PdfScreen; nothing is engraved.
     var isDocument = false
+    /// A piece that is only its recording (v1.1, finding 29): the recording original's id, its sound kept on this iPad
+    /// (`OriginalSounds`), and no notes yet, shown by RecordingScreen; nothing is engraved. Nil for any other piece.
+    var recording: String?
     /// The piece's other view, PDF or notes, when the library holds one (PDF | Notes, 0023), and where this view opens.
     var other: OtherView?
     var landing: Landing?
@@ -25,12 +28,12 @@ struct OpenPiece: Identifiable, Sendable {
     var edits: EditsLayerState?
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
-    /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave. With `heard`, a recording heard by the
-    /// scan server, the new piece is its notes and `data` is not read (0014, 0016). With `asPdf`, a piece with notes and a
+    /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave, and the project file of a piece that is
+    /// only its recording opens as that recording (v1.1, finding 29). With `asPdf`, a piece with notes and a
     /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `pdf`, the PDF of a piece that
     /// is only a PDF and whose PDF is not in its file, read where it lies, `data` being the project file (version 0.5).
-    static func open(fileName: String, data: Data, language: String, title given: String? = nil, heard: HeardRecording? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
-        let fields = openRequest(language: language, heard: heard, asPdf: asPdf, pdf: pdf)
+    static func open(fileName: String, data: Data, language: String, title given: String? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
+        let fields = openRequest(language: language, asPdf: asPdf, pdf: pdf)
         let request = facadeRequest(fields)
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
         return await MusicCore.run {
@@ -47,6 +50,9 @@ struct OpenPiece: Identifiable, Sendable {
             if opened["document"] is [String: Any] {
                 return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", isDocument: true, own: own))
             }
+            if let recording = (opened["recording"] as? [String: Any])?["id"] as? String {
+                return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", recording: recording, own: own))
+            }
             let edits = EditsLayerState.opened(answer)
             switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
             case .success(let engraving):
@@ -59,17 +65,11 @@ struct OpenPiece: Identifiable, Sendable {
         }
     }
 
-    /// The open request's fields: the language; a recording's notes as a "transcription" whose bars are found again after
-    /// each pause and tempo jump ("tempo": "live", HeardRecording.transcription); else "edits": "piece", so a project file
-    /// lays the player's corrections one by one, or leaves them out when its file says they are off (version 0.5), and
-    /// opens even when some no longer fit. music-core reads "edits" only for a project file.
-    static func openRequest(language: String, heard: HeardRecording? = nil, asPdf: Bool = false, pdf: Data? = nil) -> [String: Any] {
-        var fields: [String: Any] = ["language": language]
-        if let heard {
-            fields["transcription"] = heard.transcription
-        } else {
-            fields["edits"] = "piece"
-        }
+    /// The open request's fields: the language and "edits": "piece", so a project file lays the player's corrections one
+    /// by one, or leaves them out when its file says they are off (version 0.5), and opens even when some no longer fit.
+    /// music-core reads "edits" only for a project file.
+    static func openRequest(language: String, asPdf: Bool = false, pdf: Data? = nil) -> [String: Any] {
+        var fields: [String: Any] = ["language": language, "edits": "piece"]
         if asPdf { fields["view"] = "pdf" }
         if let pdf { fields["pdf"] = pdf.base64EncodedString() }
         return fields

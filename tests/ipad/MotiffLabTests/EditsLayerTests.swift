@@ -14,23 +14,11 @@ final class EditsLayerTests: XCTestCase {
 
     // MARK: - Requests
 
-    func testAProjectFileOpensWithTheLayerItsFileSaysAndARecordingAsALiveTempoTranscription() throws {
+    func testAProjectFileOpensWithTheLayerItsFileSays() {
         let file = OpenPiece.openRequest(language: "ru")
         XCTAssertEqual(file["edits"] as? String, "piece")
         XCTAssertEqual(file["language"] as? String, "ru")
-        XCTAssertNil(file["transcription"])
-
-        let heard = HeardRecording(name: "Concert", engine: "transkun", milliseconds: 120_000, parts: [(index: 0, midi: Data([1, 2, 3]))], levels: [4, 5])
-        let recorded = OpenPiece.openRequest(language: "en", heard: heard)
-        XCTAssertNil(recorded["edits"], "a new piece from a recording has no corrections to lay")
-        let transcription = try XCTUnwrap(recorded["transcription"] as? [String: Any])
-        XCTAssertEqual(transcription["tempo"] as? String, "live")
-        XCTAssertNil(transcription["starts"], "the iPad does not know where the pieces begin")
-        XCTAssertNil(transcription["hint"], "a new piece has no score to hint at its metre and tempo")
-        XCTAssertEqual(transcription["milliseconds"] as? Int64, 120_000)
-        XCTAssertEqual((transcription["parts"] as? [[String: Any]])?.first?["midi"] as? String, Data([1, 2, 3]).base64EncodedString())
-        // A version from a recording is lined up with the score (`performance.add`): no bars are found there.
-        XCTAssertNil(heard.request["tempo"])
+        XCTAssertNil(file["transcription"], "since v1.1 a recording is added as it is, never heard into a new piece")
     }
 
     func testTheLayerAndDropRequestsCarryTheBarCheckListsOnlyWhenThereIsOne() {

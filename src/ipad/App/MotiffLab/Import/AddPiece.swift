@@ -1,24 +1,24 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Add piece (0018 section 9): opening a file runs on the device and is free; a folder, photos of pages and a recording heard
-/// by Motiff Lab's server (Pro) are the other ways in. Every way in is a card that acts on a tap, and the sheet is as tall
-/// as its cards, so all of them are in view the moment it opens (v0.5.6, #533 section 8).
+/// Add piece (0018 section 9): a file, photos of pages, a picture of a page or a recording, each added on the device and
+/// free (v1.1, finding 29: a recording too, recognised later in Sources); a folder is another way in. Every way in is a card
+/// that acts on a tap, and the sheet is as tall as its cards, so all of them are in view the moment it opens (v0.5.6, #533
+/// section 8).
 struct AddPieceSheet: View {
     let text: UIText
+    /// A file to open, or the project file of a piece made here (photos, a picture, a recording).
     let picked: (Result<URL, Error>) -> Void
-    /// A recording heard by Motiff Lab's scan server (Pro), to open as a new piece.
-    let heard: (HeardRecording) -> Void
     let demo: () -> Void
     /// «Добавить папку» (version 0.5, experiment «Импорт папки»): a folder picked in Files, to look through.
     var folder: ((Result<URL, Error>) -> Void)?
-    @EnvironmentObject private var account: Account
-    @ObservedObject private var settings = DeviceSettings.shared
     @State private var choosing = false
     @State private var photographing = false
     @State private var choosingFolder = false
     @State private var choosingRecording = false
-    @State private var progress: String?
+    /// A recording picked is being made a piece.
+    @State private var adding = false
+    /// Why the recording picked made no piece.
     @State private var problem: String?
     /// Why the picture picked with «Открыть файл» made no piece.
     @State private var unopened: String?
@@ -54,9 +54,7 @@ struct AddPieceSheet: View {
                     fromFolder(folder)
                 }
                 fromPhotos
-                if account.isAvailable {
-                    fromRecording
-                }
+                fromRecording
                 Button(action: demo) {
                     HStack(spacing: CGFloat.ds("s-2")) {
                         Icon(name: "play")
@@ -69,7 +67,7 @@ struct AddPieceSheet: View {
             .fittedSheet()
         }
         .background(Color.ds("surface").ignoresSafeArea())
-        .interactiveDismissDisabled(progress != nil)
+        .interactiveDismissDisabled(adding)
         .fullScreenCover(isPresented: $photographing) {
             PhotoReviewScreen(text: text) { url in picked(.success(url)) }
         }
@@ -100,25 +98,22 @@ struct AddPieceSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// From a recording (0014): the scan server hears the sound of an audio or video file, however long, and its notes
-    /// become a new piece. Pro, as on the web. The whole card picks the recording, as Open file picks a file: choosing it is
-    /// the player's yes to sending its sound, and the card says where the sound goes (v0.5.6, #533 section 8). What it
-    /// needs first (an account, Pro) is said on the card instead, and the card waits for it.
+    /// From a recording (v1.1, finding 29; ADR 0030): an audio or video file added as it is, free and on this iPad, as the
+    /// only original of a new piece (`RecordingPiece`), which opens in its own view with the recording's waveform. Nothing
+    /// is heard here: its notes are recognised later with «Распознать · Pro» on its row in Sources, which says where the
+    /// sound goes. The whole card picks the recording, as Open file picks a file.
     private var fromRecording: some View {
-        let blocked = RecordingChooser.blocker(account, text)
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Button {
                 choosingRecording = true
             } label: {
-                AddRoute(icon: "mic", title: text["library.fromRecording"], hint: progress ?? text["library.fromRecordingHint"], pro: true,
-                         line: blocked?.words ?? text["library.fromRecordingLineDevice"])
+                AddRoute(icon: "mic", title: text["library.fromRecording"], hint: text["library.fromRecordingHint"])
             }
             .buttonStyle(.plain)
-            .disabled(blocked != nil || progress != nil)
-            .accessibilityHint(text["transcribe.choose"])
+            .disabled(adding)
             .fileImporter(isPresented: $choosingRecording, allowedContentTypes: RecordingHearing.recordings) { result in
                 guard case .success(let url) = result else { return }
-                Task { await hear(url) }
+                Task { await addRecording(url) }
             }
             if let problem {
                 problemLine(problem)
@@ -143,49 +138,38 @@ struct AddPieceSheet: View {
         }
     }
 
-    private func hear(_ url: URL) async {
+    /// The recording picked made a new piece (`RecordingPiece.make`), opened as the project file it was saved to.
+    private func addRecording(_ url: URL) async {
         problem = nil
-        defer { progress = nil }
-        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
-        case .success(let recording):
-            heard(recording)
-        case .failure(let failure):
-            problem = failure.message
+        adding = true
+        defer { adding = false }
+        switch await RecordingPiece.make(url, text: text) {
+        case .success(let project): picked(.success(project))
+        case .failure(let failure): problem = failure.message
         }
     }
 }
 
-/// One way in on Add piece: its icon, what it does and a line on it, on a card; Pro where Motiff Lab's server does it, and
-/// a second line where there is more to say, such as where a recording's sound goes.
+/// One way in on Add piece: its icon, what it does and a line on it, on a card. Every way in runs on the device and is
+/// free (v1.1, finding 29: a recording's card lost its Pro tag and the line on where its sound goes, said now when it is
+/// recognised in Sources).
 struct AddRoute: View {
     let icon: String
     let title: String
     let hint: String
-    var pro = false
-    var line: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
             Icon(name: icon, size: CGFloat.ds("icon-l"))
                 .foregroundStyle(Color.ds("accent"))
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    Text(title)
-                        .dsType(.bodyStrong)
-                        .foregroundStyle(Color.ds("ink"))
-                    if pro { ProTag() }
-                }
+                Text(title)
+                    .dsType(.bodyStrong)
+                    .foregroundStyle(Color.ds("ink"))
                 Text(hint)
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
-                if let line {
-                    Text(line)
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, CGFloat.ds("s-1"))
-                }
             }
             Spacer(minLength: 0)
         }

@@ -68,5 +68,6 @@
   "library.edit": "Edit",
   "library.tabOnline": "Not on this iPad",
   "recognition.choose": "Recognise notes in several pieces",
-  "recognition.withoutNotes": "Without notes"
+  "recognition.withoutNotes": "Without notes",
+  "library.recordingAsIs": "The recording, as it is"
 }

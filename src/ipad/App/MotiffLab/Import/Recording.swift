@@ -175,10 +175,9 @@ enum Transcriber {
     }
 }
 
-/// A recording heard by Motiff Lab's scan server, part by part: what music-core needs to make notes of it, as a new piece
-/// (`open` with "transcription") or another version (`performance.add` with "parts").
+/// A recording heard by Motiff Lab's scan server, part by part: what music-core needs to make notes of it, Notes of a
+/// recording kept in the piece (`sources.notes.hear`, `SourcesController.hearFields`).
 struct HeardRecording: Sendable {
-    let name: String
     let engine: String
     let milliseconds: Int64
     let parts: [(index: Int, midi: Data)]
@@ -194,19 +193,6 @@ struct HeardRecording: Sendable {
             "levels": levels,
             "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
         ]
-    }
-
-    /// The request with "tempo": "live" (version 0.5, «Темп живого исполнения», contract 12), so music-core finds the beat
-    /// again after each pause and tempo jump and a concert of several pieces keeps its bars: a new piece's
-    /// "transcription", and, since v0.10 s-3, the fields of Notes heard in a recording kept in the piece
-    /// (`sources.notes.hear`, `SourcesController.hearFields`), which add the working notes' metre and tempo as the "hint".
-    /// No "starts": the iPad does not know where the pieces begin; a new piece has no "hint", with no score of it to take
-    /// a metre and tempo from. A version added from a recording (`performance.add`) is lined up with the score instead, so
-    /// it keeps `request`.
-    var transcription: [String: Any] {
-        var fields = request
-        fields["tempo"] = "live"
-        return fields
     }
 }
 
@@ -236,8 +222,7 @@ enum RecordingHearing {
         })
         if let why = heard.failure { return .failure(RecordingProblem(why)) }
         guard !heard.parts.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"])) }
-        let name = url.deletingPathExtension().lastPathComponent
-        return .success(HeardRecording(name: name, engine: heard.engine, milliseconds: milliseconds, parts: heard.parts, levels: levels))
+        return .success(HeardRecording(engine: heard.engine, milliseconds: milliseconds, parts: heard.parts, levels: levels))
     }
 
     /// How many parts go to Motiff Lab's scan server at most at once, as on the web (ScanService.HostedAtOnce).
@@ -249,23 +234,10 @@ struct RecordingProblem: Error, Sendable {
     init(_ message: String) { self.message = message }
 }
 
-/// Choosing a recording to be heard: what it needs first (Motiff Lab's scan server, an account, Pro, offered here), where
-/// the sound goes, and the button that picks the recording; picking it is the player's yes to sending its sound, with no
-/// switch to turn on first (v0.5.6, #533 section 8). Used to add another version from a recording (Other versions, 0022);
-/// the library's Add piece makes its whole card the button, with the same `blocker`.
-struct RecordingChooser: View {
-    @EnvironmentObject private var account: Account
-    let text: UIText
-    /// What the scan server does with the recording, said above the button.
-    let line: String
-    let button: String
-    let hint: String
-    let progress: String?
-    /// Why the last recording was not heard, under the button.
-    var problem: String?
-    let picked: (URL) -> Void
-    @State private var choosing = false
-
+/// What hearing a recording needs first (Motiff Lab's scan server, an account, Pro), said where «Распознать · Pro» on a
+/// recording kept in the piece offers it (`SourcesRecognisePanel`); picking Send there is the player's yes to sending its
+/// sound (v0.5.6, #533 section 8). Since v1.1 (finding 29) Add piece adds a recording without hearing it.
+enum RecordingChooser {
     /// What hearing a recording needs before it works here, in the player's words, and whether that is Pro; nil when it
     /// works: Motiff Lab's scan server in this build, an account, then Pro.
     @MainActor
@@ -274,44 +246,6 @@ struct RecordingChooser: View {
         if account.player == nil { return (text["transcribe.signInPrompt"], false) }
         if !account.allows(.transcribe) { return (text["transcribe.proPrompt"], true) }
         return nil
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            if let blocked = Self.blocker(account, text) {
-                if blocked.pro {
-                    HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                        ProTag()
-                        caption(blocked.words)
-                    }
-                } else {
-                    caption(blocked.words)
-                }
-            } else {
-                caption(line)
-                Button(progress ?? button) { choosing = true }
-                    .buttonStyle(DSButtonStyle(kind: .secondary))
-                    .disabled(progress != nil)
-                    .accessibilityHint(hint)
-            }
-            if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .fileImporter(isPresented: $choosing, allowedContentTypes: RecordingHearing.recordings) { result in
-            guard case .success(let url) = result else { return }
-            picked(url)
-        }
-    }
-
-    private func caption(_ words: String) -> some View {
-        Text(words)
-            .dsType(.caption)
-            .foregroundStyle(Color.ds("ink-2"))
-            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
