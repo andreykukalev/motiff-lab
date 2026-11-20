@@ -3,7 +3,7 @@
 Notes, time, analysis, variations and the project file: pure, deterministic, no UI, I/O, cloud or AI. The iPad reads it
 through the facade; the API references it.
 
-## Folders (`MotiffLab.MusicCore.<Folder>`; `Import` and `Assistant` have sub-namespaces)
+## Folders (`MotiffLab.MusicCore.<Folder>`; `Import`, `Assistant` and `Analysis` have sub-namespaces)
 
 - `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
   the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
@@ -19,7 +19,8 @@ through the facade; the API references it.
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
-- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, phrases, Piece DNA, the circle of fifths.
+- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA, the circle of fifths; `.Phrasing`: the
+  phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
@@ -60,10 +61,10 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 
 ## Which namespace uses which
 
-No two namespaces use each other, directly or round a loop, by `using`, code or `cref`: a comment names a type of a
-higher namespace in plain text (`<c>Project.PartOf</c>`). From the bottom: `Time`, `Events`, `Motifs`, `Pieces`, `Import`
-and `Playback`, then the rules (`Analysis`, `Notation`, ...), `Projects`, `Assistant` and `Facade`. The `dependencies`
-check keeps the layers (`CORE_LAYERS`, in `governance/quality/README.md`): each uses only those below it.
+No two namespaces use each other, in a loop too, by `using`, code or `cref` (a comment names a higher one's type
+in plain text); a sub-namespace counts as its parent. Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`,
+`Playback`, rules (`Analysis`, `Notation`…), `Projects`, `Assistant`, `Facade`; kept by the `dependencies` check
+(`CORE_LAYERS`, `governance/quality/README.md`).
 
 ## Rules not to break
 

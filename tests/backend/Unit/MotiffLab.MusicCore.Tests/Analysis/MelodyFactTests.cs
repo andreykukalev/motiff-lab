@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Motifs;

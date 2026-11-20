@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Import;

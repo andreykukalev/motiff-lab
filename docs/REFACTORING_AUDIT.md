@@ -351,9 +351,9 @@ Unchanged since the first edition.
 | `…/Analysis/Harmony.cs` | 674 | 2 | 3: chord types; finding chords (windows, scoring); harmony facts as text | `ChordModel`, `ChordFinder`, `HarmonyFacts` |
 | `…/Analysis/PieceDna.cs` | 593 | 4 | 3: 11 record types; seven lanes; the key read from notes | `DnaModel`, `DnaLanes`, key reading shared with `KeyFinder` |
 | `…/Facade/MusicCoreFacade.cs` | 532 | 6 | 4: the registry of open pieces; four ways to open; the dispatch of piece 0; a 115-line history of the contract in a comment | The history to `docs/`; a call registry as data (name, handler, «showing», «without a piece») in place of the `switch` blocks and name lists |
-| `…/Analysis/SentenceMap.cs` | 526 | 2 | 3: the model and its edits; suggesting sentences (`Group` complexity 21); facts as text | `SentenceMap`, `SentenceFinder`, `SentenceFacts` |
+| `…/Analysis/SentenceMap.cs` | 526 | 2 | 3: the model and its edits; suggesting sentences (`Group` complexity 21); facts as text | `SentenceMap`, `SentenceFinder`, `SentenceFacts`. Done as partial files (v1.2 c-1): `Analysis/Phrasing/SentenceMap.cs`, `.Grouping.cs`, `.Facts.cs`, records in `Sentence.cs`; `Group` itself is still to cut |
 | `…/Projects/PieceParts.cs` | 524 | 5 | 3: the parts model; splitting a PDF, notes or a recording; cuts and titles | `PiecePart` types; a splitter per origin |
-| `…/Analysis/PhraseBoundaries.cs` | 508 | 2 | 3: evidence types; the finder (slurs, rests, repeats); the player's boundaries | One file per kind of evidence |
+| `…/Analysis/PhraseBoundaries.cs` | 508 | 2 | 3: evidence types; the finder (slurs, rests, repeats); the player's boundaries | One file per kind of evidence. v1.2 c-1: `Analysis/Phrasing/PhraseBoundary.cs` (evidence types) and `PhraseBoundaryFinder.cs`; the player's boundaries go through `PhraseEdits.AppliedTo`; one file per kind of evidence is still to do |
 | `…/Variations/VariationFacts.cs` | 503 | 4 | 2: the Keep checks; the explanation text (`Explain` 112 lines, complexity 34) | `KeepChecks`, `VariationExplanation` |
 | `…/Experiments/ExperimentCatalogue.cs` | 475 | 6 | 3: types; four experiments; the context and its text | Types apart; one file per experiment |
 | `…/Import/Midi/MidiImporter.cs` | 472 | 3 | 2: the import; the track reader with the pedal | `TrackReader` in its own file |
@@ -361,7 +361,7 @@ Unchanged since the first edition.
 | `…/Import/PieceImporter.cs` | 445 | 6 | 3: sniffing the format; importing; the model `ImportedPiece` every namespace uses | `ImportedPiece`, `ImportedTrack` to `Pieces` (this breaks three cycles); `FormatSniffer` |
 | `…/Analysis/StructureAnalyzer.cs` | 432 | 4 | 2: recurrences and spans; facts as text | Measures and facts apart |
 | `…/Projects/ProjectFile.Layers.Read.cs` | 401 | 3 | 1: the reader of version 16 | Leave; it moves into `Projects/File/`. Done (v1.1 c-1): split by layer into `OriginalsCodec`, `NotesCodec`, `WorkspaceCodec` |
-| `…/Analysis/ShortMap.cs`, `PhraseMap.cs` | 399, 396 | 2, 3 | Each: a level's model, its suggestion and its edits. With `SentenceMap` they are three parallel implementations of `Make…`, `JoinWithNext`, `SplitAt`, `Snap`, `EditsFor` | One edit algebra for the three levels |
+| `…/Analysis/ShortMap.cs`, `PhraseMap.cs` | 399, 396 | 2, 3 | Each: a level's model, its suggestion and its edits. With `SentenceMap` they are three parallel implementations of `Make…`, `JoinWithNext`, `SplitAt`, `Snap`, `EditsFor` | One edit algebra for the three levels. Done (v1.2 c-1): `PhraseEdits` (`Adding`, `Removing`, `AppliedTo`) and `LevelEditor` in `Analysis/Phrasing`; the cuts in `ShortMap.Cuts.cs` |
 | `…/Analysis/MusicalIdeas.cs` | 395 | 2 | 2: finding ideas; text | Measures and facts apart |
 | `…/Assembly/Assembled.cs` | 391 | 5 | 2: replaying the journal; `Carry` (105 lines, complexity 26) | One method per step kind; raise branch coverage first (Assembly: 61 %) |
 | `…/Performance/PerformanceComparison.cs` | 381 | 2 | 2: matching (`Compare` 123 lines); classifying | `NoteMatcher`, `DifferenceClassifier` |
@@ -521,7 +521,7 @@ what the archive did to each:
 | D10 | The scan server client | the web's `ScanService.cs` and `Scan.swift` | **Gone**; the HTTP shape is still hand-kept against Python |
 | D11 | The assistant's turn format | `Assistant.Conversation` (core, used by the API) and `AssistantChat.swift` | **Live**, C# ↔ Swift, nothing pins it |
 | D12 | Flat payload packing | the web's `PlaybackPayload.cs`, `Playback/PianoRollData.cs`, `Facade/Answer.cs` | Reduced to the core's two; one writer in W1.5 |
-| D13 | Three phrase levels' edit operations | `ShortMap.cs`, `PhraseMap.cs`, `SentenceMap.cs` | **Live**: W1.10, moved to 1.2 |
+| D13 | Three phrase levels' edit operations | `ShortMap.cs`, `PhraseMap.cs`, `SentenceMap.cs` | **Gone** (1.2 c-1): one edit algebra, `Analysis/Phrasing/PhraseEdits.cs` and `LevelEditor.cs` |
 | D14 | Small wording helpers | `Bars(first, last, Words)` in 5 files; `Listed`, `Count`, `WithArticle`, `Plural` twice each | **Live**: W1.8 |
 | D15 | Reading «now» from a request | `Now(Request)` in 6 facade files | **Live**: W1.7 |
 | D16 | The JSON primitives of the two codecs | `Projects/File/SpanCodec.cs`, `MarksCodec.cs`, `Facade/Answer.cs`, `Facade/OpenDocument.cs` (baselined duplicates) | **Live**: W1.5 |
@@ -657,9 +657,9 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 | W1.5 | `Answer.cs` by feature; `JsonWrite` primitives shared with the codec (removes D16); one flat payload writer for the roll and the playback score (D12) | C1 |
 | W1.6 | The call registry: names, handlers and flags as data; the `switch` blocks and the three name lists go; the contract's history moves to `docs/facade-contract.md`, generated from the registry; the stale comments in the header and in `MusicCore.swift` are corrected | C1, C2 |
 | W1.7 | Typed sessions out of `OpenPiece`, one a pull request, in this order: selection and understanding; corrections and the edits layer; merge (gone in v1.1 c-2, ADR 0034 section 8); sources; performances; marks and bookmarks. Each returns a typed result; the JSON adapter writes it (removes D15) | C1; facade tests; acceptance |
-| W1.8 | One phrasing module; `MotifAnalyzer`, `StructureAnalyzer`, `Harmony`, `SentenceMap`, `MusicalIdeas`, `VariationFacts` each cut into measures and facts (removes D14) | Analysis golden in both languages; `ExplanationAuditTests` |
+| W1.8 | One phrasing module; `MotifAnalyzer`, `StructureAnalyzer`, `Harmony`, `SentenceMap`, `MusicalIdeas`, `VariationFacts` each cut into measures and facts (removes D14). Not done; the phrase levels' files moved to `Analysis.Phrasing`, a file per type (v1.2 c-1), which is not this text module (L3) | Analysis golden in both languages; `ExplanationAuditTests` |
 | W1.9 | The algorithm files, one each: `MusicXmlImporter`, `NotationGenerator`, `BarGrid`, `OperationTemplates`, `Assembled`, `PerformanceComparison` | Their tests (94–98 % of lines today); C9 |
-| W1.10 | `Project`: operations per sub-aggregate in their own files; `SourceOperations` in two; the phrase levels' one edit algebra (D13). Done (v1.1 c-2) but D13, which goes to 1.2 with the phrases (the lead's decision, 2026-11-19) | `Projects` and `Analysis` tests |
+| W1.10 | `Project`: operations per sub-aggregate in their own files; `SourceOperations` in two; the phrase levels' one edit algebra (D13). Done (v1.1 c-2); D13 done in 1.2 c-1 | `Projects` and `Analysis` tests |
 | W1.11 | Leftovers: `Invitations` into `Experiments`; the types only tests use, after the reference finder confirms; the experiment catalogue as decision 2 says | Compiler; `SettingsTests` |
 | W1.12 | New: the rule engines internal, one namespace a pull request, after W1.7 has put a typed session in front of them; public stay the facade, the sessions' results and what the API uses (`Accounts`, `Assistant.Conversation`, the project envelope) | Compiler; the API's tests |
 
