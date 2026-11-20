@@ -76,6 +76,43 @@ public sealed class PerformanceAlignment
         return new PerformanceAlignment([.. anchors]);
     }
 
+    /// <summary>
+    /// Aligns a performance with the score's notes around anchors the player confirmed (decision record 0034, section 2):
+    /// each confirmed anchor is kept as it is, and the notes of each stretch between two of them, before the first and after
+    /// the last, are aligned on their own (<see cref="Align(IReadOnlyList{Note}, IReadOnlyList{PlayedNote})"/>), so no
+    /// anchor found moves past a confirmed one. With none confirmed it is the alignment of all the notes.
+    /// </summary>
+    /// <exception cref="ArgumentException">The confirmed anchors do not strictly increase in both ticks and time.</exception>
+    public static PerformanceAlignment Align(IReadOnlyList<Note> score, IReadOnlyList<PlayedNote> played, IReadOnlyList<Anchor> confirmed)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+        ArgumentNullException.ThrowIfNull(played);
+        ArgumentNullException.ThrowIfNull(confirmed);
+        Anchor[] fixedAnchors = [.. FromAnchors(confirmed).Anchors];
+        if (fixedAnchors.Length == 0)
+        {
+            return Align(score, played);
+        }
+
+        List<Anchor> anchors = [];
+        for (int k = 0; k <= fixedAnchors.Length; k++)
+        {
+            Anchor? from = k == 0 ? null : fixedAnchors[k - 1];
+            Anchor? to = k == fixedAnchors.Length ? null : fixedAnchors[k];
+            if (from is { } start)
+            {
+                anchors.Add(start);
+            }
+
+            // Only the notes strictly inside the stretch: those at a confirmed anchor are what it holds.
+            Note[] printed = [.. score.Where(note => (from is null || note.Span.Onset > from.Value.Score) && (to is null || note.Span.Onset < to.Value.Score))];
+            PlayedNote[] heard = [.. played.Where(note => (from is null || note.Onset > from.Value.Microseconds) && (to is null || note.Onset < to.Value.Microseconds))];
+            anchors.AddRange(Align(printed, heard).Anchors);
+        }
+
+        return new PerformanceAlignment([.. anchors]);
+    }
+
     /// <summary>The alignment from anchors kept in a project. They must strictly increase in both ticks and time.</summary>
     public static PerformanceAlignment FromAnchors(IEnumerable<Anchor> anchors)
     {

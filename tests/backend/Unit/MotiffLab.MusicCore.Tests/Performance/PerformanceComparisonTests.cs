@@ -228,6 +228,21 @@ public class PerformanceComparisonTests
     }
 
     [Fact]
+    public void Confirmed_anchors_are_kept_and_the_notes_between_them_aligned_on_their_own()
+    {
+        List<Note> score = Score();
+        PerformanceAlignment found = PerformanceAlignment.Align(score, AsPrinted(score));
+        Anchor confirmed = new(found.Anchors[2].Score, found.Anchors[3].Microseconds);
+
+        PerformanceAlignment aligned = PerformanceAlignment.Align(score, AsPrinted(score), [confirmed]);
+
+        Assert.Contains(confirmed, aligned.Anchors);
+        Assert.Equal(found.Anchors[2].Score, aligned.TickAt(confirmed.Microseconds));
+        Assert.Equal(PerformanceAlignment.FromAnchors(aligned.Anchors).Anchors, aligned.Anchors);
+        Assert.Equal(found.Anchors, PerformanceAlignment.Align(score, AsPrinted(score), []).Anchors);
+    }
+
+    [Fact]
     public void A_recording_of_the_whole_piece_is_compared_with_its_opening()
     {
         // Public-domain material: Für Elise's opening as printed, and Transkun's hearing of a recording of the whole piece.

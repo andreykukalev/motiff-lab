@@ -130,7 +130,7 @@ internal static partial class Answer
     }
 
     /// <summary>An enum's name in lower camel case, as the facade's answers name values.</summary>
-    private static string Camel<T>(T value)
+    internal static string Camel<T>(T value)
         where T : struct, Enum
     {
         string name = value.ToString();
