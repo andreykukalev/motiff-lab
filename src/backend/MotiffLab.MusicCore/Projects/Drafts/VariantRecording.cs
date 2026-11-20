@@ -57,6 +57,17 @@ public sealed class VariantRecording
         }
     }
 
+    /// <summary>
+    /// The tick of the variant played at <paramref name="milliseconds"/> of the recording, the other way from <see cref="Stretch"/>
+    /// on the same clock: an anchor confirmed at the recording's time (the plan's answer 4); null before the variant's start.
+    /// </summary>
+    public Tick? VariantTickAt(long milliseconds)
+    {
+        long sent = _notes.Transcription?.SentFromMilliseconds ?? 0;
+        long tick = _clock.TickAt((milliseconds - sent) * 1000).Value - _from;
+        return tick >= 0 ? new Tick(tick) : null;
+    }
+
     /// <summary>The stretch of the recording <paramref name="span"/> of the variant's ticks was played in, in milliseconds; null when it has none.</summary>
     public (long From, long To)? Stretch(TickSpan span) =>
         DraftFragment.Heard(_notes, _clock, new TickSpan(span.Onset.Offset(_from), span.Duration));

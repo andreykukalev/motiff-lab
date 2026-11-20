@@ -32,6 +32,10 @@ public sealed partial class MusicCoreFacade
             "drafts.transpose" => DraftSeamRequest.Transpose(owner, fields),
             "drafts.tempo" => DraftSeamRequest.Tempo(owner, fields),
             "drafts.leaveSeam" => DraftSeamRequest.Leave(owner, fields),
+            "drafts.bridge" => DraftBridgeRequest.Put(owner, fields),
+            "drafts.leaveBridge" => DraftBridgeRequest.Leave(owner, fields),
+            "drafts.anchor" => DraftAnchorRequest.Confirm(owner, fields, Working),
+            "drafts.unanchor" => DraftAnchorRequest.Remove(owner, fields),
             _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
         };
     }
