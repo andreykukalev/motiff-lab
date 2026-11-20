@@ -179,10 +179,13 @@
     /**
      * A point on the score, in window pixels: the nth bar on the pages (from 1), or with `card` the nth bar of Expand's
      * card, `x` across it and `y` down its ink, from 0 to 1 (below 0 or past 1 is beside it); or the handle of the
-     * selection's `edge` ("start" or "end"), or of a playhead (`grip`: "black" or "blue"), as the page draws it, moved by
-     * `dx` and `dy` pixels.
+     * selection's `edge` ("start" or "end"), or of a playhead (`grip`: "black" or "blue"), or a marker over the bars
+     * (`marker`, `markerPoint`), as the page draws it, moved by `dx` and `dy` pixels.
      */
     function scorePoint(point) {
+        if ("marker" in point) {
+            return markerPoint(point);
+        }
         if ("card" in point) {
             const bar = cardBars()[point.card - 1];
             if (bar === undefined) {
@@ -204,6 +207,19 @@
             throw new Error(`There is no bar ${point.bar} on the pages.`);
         }
         return { x: bar.left + (bar.right - bar.left) * point.x - window.scrollX, y: bar.top + (bar.bottom - bar.top) * point.y - window.scrollY };
+    }
+
+    /**
+     * The centre of the first marker over the bars of a kind (`marker`: "version", "place", "technique" or "seam", as
+     * `scoreMarks.markers` reads them), of the bar `bar` when given, moved by `dx` and `dy` pixels; window pixels.
+     */
+    function markerPoint(point) {
+        const drawn = scoreMarks.markers().filter((each) => each.kind === point.marker && (point.bar === undefined || each.bar === point.bar));
+        if (drawn.length === 0) {
+            throw new Error(`The page draws no ${point.marker} marker${point.bar === undefined ? "" : ` of bar ${point.bar}`}.`);
+        }
+        const box = drawn[0];
+        return { x: (box.left + box.right) / 2 + (point.dx ?? 0) - window.scrollX, y: (box.top + box.bottom) / 2 + (point.dy ?? 0) - window.scrollY };
     }
 
     /**
@@ -333,6 +349,15 @@
         grips: () => [["black", ".gtrack .dot"], ["blue", ".ph-sel .knob"]].flatMap(([handle, selector]) => [...document.querySelectorAll(selector)].filter(shown).map((grip) => {
             const box = boxOf(grip);
             return { handle, x: round((box.left + box.right) / 2), y: round((box.top + box.bottom) / 2) };
+        })),
+        // The labels over the bars (`performance`): another version's, and a draft's place labels, приём numbers and seam
+        // diamonds (v1.1), in the order the page draws them, each with its bar, its words, its state and its box.
+        markers: () => [...document.querySelectorAll("body > .perf-marker")].filter(shown).map((marker) => ({
+            kind: ["place", "technique", "seam"].find((kind) => marker.classList.contains(kind)) ?? "version",
+            bar: Number(marker.dataset.bar),
+            text: marker.textContent,
+            state: [...marker.classList].find((name) => name.startsWith("state-"))?.slice("state-".length) ?? null,
+            ...boxOf(marker),
         })),
         paper,
         card,
