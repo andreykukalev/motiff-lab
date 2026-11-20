@@ -89,8 +89,6 @@ struct SourceLayers: Equatable, Sendable {
         var op: String
         /// A draft's name, its word in the switch; nil for every other view.
         var name: String? = nil
-
-        var isDraft: Bool { kind == "draft" }
     }
 
     /// The working notes' id; nil for a piece that is only its PDF.

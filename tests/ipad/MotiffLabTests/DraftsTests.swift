@@ -34,7 +34,8 @@ final class DraftsTests: XCTestCase {
     }
 
     /// The same music in a place of a draft: that draft, as a variant of that place, is offered first, with its percentage;
-    /// then a new place at the end and the shelf. Places that are not the same music are not offered as variants.
+    /// then a variant of each other place (without one where it is not the same music), a new place at the end and the
+    /// shelf.
     func testTheSameMusicIsOfferedFirstAsAVariantOfItsPlace() throws {
         let read = try sheet(#"""
         {"parts": ["all", "right", "left", "melody"], "part": "all", "notes": 27, "newName": "Draft 3",
@@ -50,8 +51,9 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(choice.into, .draft("d_1"), "the draft music-core suggests, not the latest")
         XCTAssertEqual(choice.way, DraftChoice.Way(drop: .variant, place: "pl_2", label: "② Notes 5–8", percent: 100))
         let ways = DraftChoice.ways(DraftChoice.draft(.draft("d_1"), in: read))
-        XCTAssertEqual(ways.map(\.drop), [.variant, .variant, .place, .shelf])
-        XCTAssertEqual(ways.compactMap(\.place), ["pl_2", "pl_1"], "the suggested place first, then the others that are the same music")
+        XCTAssertEqual(ways.map(\.drop), [.variant, .variant, .variant, .place, .shelf])
+        XCTAssertEqual(ways.compactMap(\.place), ["pl_2", "pl_1", "pl_3"], "the suggested place first, the others that are the same music, then the rest")
+        XCTAssertEqual(ways.map(\.percent), [100, 60, nil, nil, nil], "how much is the same music only where it is")
         let fields = choice.fields(span: 0..<2880, now: "now")
         XCTAssertEqual(fields["draft"] as? String, "d_1")
         XCTAssertEqual(fields["drop"] as? String, "variant")
@@ -60,6 +62,9 @@ final class DraftsTests: XCTestCase {
         let other = DraftChoice.first(read, part: "right", into: .draft("d_2"))
         XCTAssertEqual(other.into, .draft("d_2"), "the draft the player chose stays as the part changes")
         XCTAssertEqual(other.way.drop, .place, "no same music there: a new place at the end")
+        XCTAssertEqual(DraftChoice.ways(DraftChoice.draft(.draft("d_2"), in: read)), [
+            DraftChoice.Way(drop: .variant, place: "pl_1", label: "① Notes 1–4"), DraftChoice.Way(drop: .place), DraftChoice.Way(drop: .shelf),
+        ], "a variant of any place can be chosen")
         XCTAssertEqual(other.part, "right")
         XCTAssertEqual(DraftChoice.first(read, part: "all", into: .new).into, .new)
         XCTAssertEqual(DraftChoice.first(read, part: "all", into: .draft("d_gone")).into, .draft("d_1"), "a draft no longer there gives way")
@@ -92,11 +97,7 @@ final class DraftsTests: XCTestCase {
     /// A fragment added from the sheet is a draft in Sources, its view last in the switch with its name; picked there, the
     /// draft opens by `drafts.open` on a screen of its own (never as Notes), its places with it for the labels above them.
     func testADraftsTabOpensTheDraftWithItsPlaces() async throws {
-        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
-        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
-        opened.append(piece.id)
-        let workspace = ScoreWorkspace(piece: piece)
-        await workspace.sources.load(piece: piece.id, file: nil)
+        let (workspace, piece) = try await sourced()
         let new = DraftChoice(part: "all", into: .new, way: DraftChoice.Way(drop: .place))
         let added = await workspace.sources.addToDraft(new, span: 0..<1440, from: piece.id)
         XCTAssertTrue(added, workspace.sources.status ?? "")
@@ -137,8 +138,89 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(markers[0]["text"] as? String, places[0].label)
         XCTAssertEqual(markers[0]["place"] as? Bool, true)
         XCTAssertEqual(markers[0]["bar"] as? Int, 1)
-        XCTAssertTrue(draftView.score.pickPlace(startingAt: 1))
         XCTAssertFalse(draftView.score.pickPlace(startingAt: 99), "no place starts there")
+        XCTAssertTrue(draftView.score.pickPlace(startingAt: 1))
+        for _ in 0..<100 where draftView.score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
+        let selected = try XCTUnwrap(draftView.score.selectionModel.selection, "music-core selects on a draft's view")
+        XCTAssertEqual(selected.onset, Double(places[0].onset))
+        XCTAssertNil(draftView.draftOwner(under: workspace.sources), "no «Черновик» on a draft's own view")
         XCTAssertTrue(workspace.score.placeMarkers.isEmpty, "the piece itself is no draft")
+        XCTAssertTrue(workspace.draftOwner(under: nil) === workspace.sources, "on the piece, its own drafts")
     }
+
+    /// Notes shown over the piece (`sources.notes.open`): a passage is selected there, music-core answering on a view only
+    /// to be shown, and goes into a draft of the piece they were opened from, sent to the shown notes' number.
+    func testAFragmentSelectedOnNotesShownOverThePieceGoesIntoItsDraft() async throws {
+        let (workspace, piece) = try await sourced()
+        let working = try XCTUnwrap(workspace.sources.layers.notes(workspace.sources.layers.working))
+        let openedNotes = await workspace.sources.openNotes(working, title: "Notes", at: nil)
+        let shown = try XCTUnwrap(openedNotes, workspace.sources.status ?? "")
+        opened.append(shown.id)
+        XCTAssertNotEqual(shown.id, piece.id)
+        let view = ScoreWorkspace(piece: shown, viewing: "view only")
+        view.score.show(shown, dark: false)
+        await view.score.select(request: #"{"bars": {"first": 1, "last": 2}}"#, step: false)
+        XCTAssertNotNil(view.score.selectionModel.selection, workspace.sources.status ?? "")
+        XCTAssertTrue(view.draftOwner(under: workspace.sources) === workspace.sources, "the piece under the view owns its drafts")
+
+        let request = try XCTUnwrap(view.draftSheet())
+        XCTAssertEqual(request.piece, shown.id)
+        XCTAssertNil(request.into)
+        let added = await workspace.sources.addToDraft(DraftChoice(part: "all", into: .new, way: DraftChoice.Way(drop: .place)), span: request.span, from: request.piece)
+        XCTAssertTrue(added, workspace.sources.status ?? "")
+        XCTAssertEqual(workspace.sources.layers.drafts.count, 1)
+    }
+
+    /// «Новый черновик» with nothing selected: Sources gives way to the notes and the hint to select them shows; no empty
+    /// draft is made. With a passage selected, the sheet opens for a new draft.
+    func testANewDraftAsksForNotesUntilSomeAreSelected() async throws {
+        let (workspace, piece) = try await sourced()
+        workspace.change(.open(.versions))
+        XCTAssertNil(workspace.newDraft(), "no empty draft")
+        XCTAssertFalse(workspace.panels[.versions], "Sources gives way to the notes")
+        XCTAssertEqual(workspace.score.notice?.key, "drafts.selectNotes")
+        XCTAssertTrue(workspace.sources.layers.drafts.isEmpty)
+
+        workspace.score.show(piece, dark: false)
+        await workspace.score.select(request: #"{"bars": {"first": 1, "last": 2}}"#, step: false)
+        let request = try XCTUnwrap(workspace.newDraft())
+        XCTAssertEqual(request.into, .new)
+        XCTAssertEqual(request.piece, piece.id)
+    }
+
+    /// «Удалить…» on a draft's row: only the draft goes, and the toast's Undo writes the project file back as it was and
+    /// opens the piece again from it.
+    func testADraftIsRemovedAndTheToastUndoesIt() async throws {
+        let (workspace, piece) = try await sourced()
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).motiff.json")
+        addTeardownBlock { try? FileManager.default.removeItem(at: file) }
+        let sources = workspace.sources
+        await sources.load(piece: piece.id, file: file)
+        var reopened = 0
+        sources.reopen = { reopened += 1 }
+        let added = await sources.addToDraft(DraftChoice(part: "all", into: .new, way: DraftChoice.Way(drop: .place)), span: 0..<1440, from: piece.id)
+        XCTAssertTrue(added, sources.status ?? "")
+        let draft = try XCTUnwrap(sources.layers.drafts.first)
+
+        await sources.removeDraft(draft)
+        XCTAssertTrue(sources.layers.drafts.isEmpty)
+        XCTAssertNotNil(sources.layers.working, "its notes stay")
+        XCTAssertFalse(try String(contentsOf: file, encoding: .utf8).contains(draft.id), "saved at once")
+        guard case .restore(let before)? = sources.toast?.undo else { return XCTFail("the toast undoes it") }
+        XCTAssertTrue(before.contains(draft.id))
+        await sources.undo()
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), before, "the file as it was")
+        XCTAssertEqual(reopened, 1, "the piece opens again from it")
+    }
+
+    /// The kit's piece open in music-core, with its sources read.
+    private func sourced() async throws -> (ScoreWorkspace, OpenPiece) {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        opened.append(piece.id)
+        let workspace = ScoreWorkspace(piece: piece)
+        await workspace.sources.load(piece: piece.id, file: nil)
+        return (workspace, piece)
+    }
+}
 }

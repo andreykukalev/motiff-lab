@@ -6,7 +6,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreDraftPlaces`, `ScoreScreen`,
 `ScoreScreenViews`, `ScoreWorkspace`,
-`ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
+`ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
+`TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,
   Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
@@ -33,9 +34,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
   `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
-- `ScoreDraftPlaces.swift` (v1.1): a draft's view, its places' labels sent with a version's (`placeMarkers`), a tap
-  selecting the place (`pickPlace`). In `ScoreScreen.swift`: `draftOwner`, `toDraft` (the menu's «Черновик») and
-  `newDraft` (Sources' «Новый черновик»: the sheet with a selection, else a hint; no empty draft).
+- `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels (`placeMarkers`); a tap selects one (`pickPlace`).
+- `ScoreWorkspaceDrafts.swift` (v1.1): `draftOwner` (nil on a draft's view), `draftSheet`, `newDraft` (no selection:
+  a hint, never an empty draft).
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web
   view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
   `following`); `ScoreBar`, `Pill` (the transport, then the roll and the assistant), `SelectionMenu` (with the pill,

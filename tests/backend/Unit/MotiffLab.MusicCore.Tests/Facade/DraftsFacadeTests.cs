@@ -116,6 +116,28 @@ public class DraftsFacadeTests
     }
 
     [Fact]
+    public void A_passage_is_selected_on_notes_and_on_a_draft_open_only_to_be_shown_and_the_piece_saves_nothing_of_it()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+        Call(facade, "sources.notes.recognise", JsonSerializer.Serialize(new { original = "src_pdf", musicXml = Convert.ToBase64String(Scanned()), engine = "homr 0.8.0", pages = 1, now = "2026-11-20T10:30:00Z" }));
+        string before = facade.Call(1, "project.save");
+        int shown = Call(facade, "sources.notes.open", """{"id": "n_2"}""").GetProperty("piece").GetInt32();
+        int view = Call(facade, "drafts.open", """{"draft": "d_0001"}""").GetProperty("piece").GetInt32();
+
+        JsonElement onNotes = Json(facade.Call(shown, "select", """{"bars": {"first": 1, "last": 2}}"""));
+        JsonElement onDraft = Json(facade.Call(view, "select", """{"bars": {"first": 1, "last": 4}}"""));
+
+        Assert.Equal(1, onNotes.GetProperty("selection").GetProperty("firstBar").GetInt32());
+        Assert.Equal(4, onDraft.GetProperty("selection").GetProperty("lastBar").GetInt32());
+        Assert.Equal(before, facade.Call(1, "project.save"));
+        Assert.Equal("noSelection", Error(facade, "drafts.sheet", "{}"));
+        JsonElement added = Json(facade.Call(shown, "drafts.add", """{"draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:40:00Z"}"""));
+        Assert.Equal("v_0002", added.GetProperty("variant").GetString());
+        Assert.Equal("n_2", Saved(facade).FindDraft("d_0001")!.Places.Single().Variants[1].From.Notes);
+    }
+
+    [Fact]
     public void A_fragment_of_another_piece_names_that_piece_and_its_label_says_so()
     {
         MusicCoreFacade facade = Opened();

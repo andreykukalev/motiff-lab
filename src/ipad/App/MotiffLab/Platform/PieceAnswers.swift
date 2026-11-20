@@ -288,7 +288,7 @@ struct SourceLayersAnswer: Decodable, Sendable {
     let views: [View]
     /// How many views are hidden from the switch.
     let hidden: Int
-    /// The piece's drafts in the order they were made (since v1.1); none in an answer written before them.
+    /// The piece's drafts in the order they were made (since v1.1).
     let drafts: [Draft]
 
     private enum CodingKeys: String, CodingKey { case working, originals, notes, views, hidden, drafts }
@@ -300,7 +300,7 @@ struct SourceLayersAnswer: Decodable, Sendable {
         notes = try fields.decode([Notes].self, forKey: .notes)
         views = try fields.decode([View].self, forKey: .views)
         hidden = try fields.decode(Int.self, forKey: .hidden)
-        drafts = try fields.decodeIfPresent([Draft].self, forKey: .drafts) ?? []
+        drafts = try fields.decode([Draft].self, forKey: .drafts)
     }
 }
 

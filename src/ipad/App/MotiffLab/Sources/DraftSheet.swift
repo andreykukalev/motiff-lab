@@ -2,8 +2,8 @@ import SwiftUI
 
 /// What the «В черновик» sheet chooses for a fragment (v1.1, ADR 0034 section 3; spec «Экран (iPad)»): what is taken (all,
 /// a hand, or the melody where music-core offers it), the draft it goes into (one of the piece's, or a new one) and how:
-/// as a variant of a place where it is the same music (offered first), as a new place at the end, or on the shelf. A new
-/// draft takes it as its first place. Nothing is merged by itself: the player's «Добавить» sends exactly this.
+/// as a variant of a place (where it is the same music offered first, with how much), as a new place at the end, or on
+/// the shelf. A new draft takes it as its first place. Nothing is merged by itself: «Добавить» sends exactly this.
 struct DraftChoice: Equatable, Sendable {
     enum Into: Equatable, Sendable {
         case new
@@ -14,8 +14,8 @@ struct DraftChoice: Equatable, Sendable {
         case variant, place, shelf
     }
 
-    /// One way a fragment goes into a draft: a variant of `place` (its label and how much is the same music), a new place
-    /// at the end, or the shelf.
+    /// One way a fragment goes into a draft: a variant of `place` (its label, and how much is the same music where it is),
+    /// a new place at the end, or the shelf.
     struct Way: Equatable, Sendable {
         var drop: Drop
         var place: String?
@@ -28,25 +28,34 @@ struct DraftChoice: Equatable, Sendable {
     var into: Into
     var way: Way
 
-    /// The ways `draft` offers, the first offered first: a variant of each place where the fragment is the same music, the
-    /// place music-core suggests before the others, then a new place at the end, then the shelf; a new draft (nil) only
-    /// its first place.
+    /// The ways `draft` offers: a variant of each of its places, first those where the fragment is the same music with how
+    /// much (the place music-core suggests first of all), then the others in order, then a new place at the end, then the
+    /// shelf; a new draft (nil) only its first place.
     static func ways(_ draft: DraftSheetAnswer.Draft?) -> [Way] {
         guard let draft else { return [Way(drop: .place)] }
         let same = draft.places.filter(\.sameMusic)
         let ordered = same.filter { $0.id == draft.suggested } + same.filter { $0.id != draft.suggested }
-        return ordered.map { Way(drop: .variant, place: $0.id, label: $0.label, percent: $0.percent) } + [Way(drop: .place), Way(drop: .shelf)]
+        let variants = ordered.map { Way(drop: .variant, place: $0.id, label: $0.label, percent: $0.percent) }
+            + draft.places.filter { !$0.sameMusic }.map { Way(drop: .variant, place: $0.id, label: $0.label) }
+        return variants + [Way(drop: .place), Way(drop: .shelf)]
+    }
+
+    /// The way offered first among `ways`: a variant of the place where the fragment is the same music, else a new place
+    /// at the end.
+    static func firstWay(_ ways: [Way]) -> Way {
+        ways.first { $0.percent != nil } ?? Way(drop: .place)
     }
 
     /// What the sheet offers first for `part`: `into` when given (the player's draft, or a new one) and still there, else the
-    /// draft where the fragment is the same music, else the piece's latest draft, else a new one; and that draft's first way.
+    /// draft where the fragment is the same music, else the piece's latest draft, else a new one; and that draft's
+    /// `firstWay`.
     static func first(_ sheet: DraftSheetAnswer, part: String, into given: Into? = nil) -> DraftChoice {
         let chosen = given.flatMap { into -> Into? in
             guard case .draft(let id) = into else { return into }
             return sheet.drafts.contains { $0.id == id } ? into : nil
         }
         let into = chosen ?? (sheet.suggested?.draft ?? sheet.drafts.last?.id).map(Into.draft) ?? .new
-        return DraftChoice(part: part, into: into, way: ways(draft(into, in: sheet))[0])
+        return DraftChoice(part: part, into: into, way: firstWay(ways(draft(into, in: sheet))))
     }
 
     /// The sheet's draft for `into`; nil for a new one.
@@ -114,7 +123,6 @@ struct DraftSheet: View {
             }
             .padding(CGFloat.ds("s-6"))
         }
-        .frame(maxWidth: 480)
         .background(Color.ds("surface"))
         .presentationDetents([.medium, .large])
         .task { await load(part: nil) }
@@ -157,9 +165,10 @@ struct DraftSheet: View {
         }
     }
 
+    /// The place a variant goes to, with how much is the same music there when it is.
     private func caption(_ way: DraftChoice.Way) -> String? {
-        guard let label = way.label, let percent = way.percent else { return nil }
-        return text.format("drafts.sameMusic", label, String(percent))
+        guard let label = way.label else { return nil }
+        return way.percent.map { text.format("drafts.sameMusic", label, String($0)) } ?? label
     }
 
     private func section(_ key: String) -> some View {
@@ -175,7 +184,7 @@ struct DraftSheet: View {
     private func row(_ words: String, _ line: String?, on: Bool, pick: @escaping () -> Void) -> some View {
         Button(action: pick) {
             HStack(spacing: CGFloat.ds("s-3")) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                     Text(words).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
                     if let line { Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true) }
                 }

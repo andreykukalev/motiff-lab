@@ -244,7 +244,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(layers[2].drafts.first?.shelf, 1)
         XCTAssertEqual(layers[3].drafts.first?.name, "Coda", "renamed")
         let tab = try XCTUnwrap(layers[3].views.last)
-        XCTAssertTrue(tab.isDraft)
+        XCTAssertEqual(tab.kind, "draft")
         XCTAssertNil(tab.group)
         XCTAssertEqual(SourceLayers.word(tab, UIText.current), "Coda")
         XCTAssertEqual(layers[0].draft("d_0001")?.caption, "from the file's notes")

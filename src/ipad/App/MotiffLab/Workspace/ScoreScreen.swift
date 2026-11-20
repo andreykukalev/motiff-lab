@@ -289,7 +289,7 @@ struct ScoreScreenContent: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = selectionModel.menuPlace {
-                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: draftOwner == nil ? nil : { toDraft() })
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() })
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -541,37 +541,13 @@ extension ScoreScreenContent {
             sources: sources, score: score, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
-            versionStatus: sourcesModel.status, newDraft: { newDraft() }
+            versionStatus: sourcesModel.status, newDraft: { draftSheet = workspace.newDraft() }
         )
     }
 
-    /// The piece whose drafts a fragment selected here goes into (v1.1, ADR 0034): this piece, or the one a view shown over
-    /// it was opened from; none on a draft's own view, as music-core takes fragments from notes, never from a draft.
-    var draftOwner: SourcesController? {
-        piece.draft != nil ? nil : sourcesOn ? sources : pieceUnder
-    }
-
-    /// «Черновик» in the selection menu: the «В черновик» sheet for the passage selected, `into` a new draft from Sources.
-    func toDraft(into: DraftChoice.Into? = nil) {
-        guard let selection = selectionModel.selection else { return }
-        draftSheet = DraftSheetRequest(piece: piece.id, span: selection.onset..<selection.end, into: into)
-    }
-
-    /// «Новый черновик» in Sources (Andrei's open question; the lead's recommendation built, 2026-11-20): Sources gives
-    /// way to the notes; with a passage selected the sheet opens for a new draft, with none the hint to select notes
-    /// shows. No empty draft is ever made. This one place decides it.
-    func newDraft() {
-        change(.close(.versions))
-        if selectionModel.selection != nil {
-            toDraft(into: .new)
-        } else {
-            score.showNotice("drafts.selectNotes")
-        }
-    }
-
-    /// The «В черновик» sheet, over the screen; once a fragment is added the screen says so.
+    /// The «В черновик» sheet (ScoreWorkspaceDrafts.swift), over the screen; once a fragment is added the screen says so.
     @ViewBuilder func draftSheetScreen(_ request: DraftSheetRequest) -> some View {
-        if let owner = draftOwner {
+        if let owner = workspace.draftOwner(under: pieceUnder) {
             DraftSheet(request: request, sources: owner, text: text) {
                 draftSheet = nil
                 score.showNotice("drafts.added")
