@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
-using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Settings;

@@ -1,9 +1,9 @@
-using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Tests.Analysis;
+namespace MotiffLab.MusicCore.Tests.Analysis.Phrasing;
 
 /// <summary>The Short level (decision record 0018, section 3): phrases divided into units of 1–4 bars where the notes give a reason, else for length.</summary>
 public class ShortMapTests
