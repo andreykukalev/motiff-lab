@@ -1,0 +1,293 @@
+{
+ "id": "score-draft-anchors",
+ "protects": [
+  "DRAFT-09"
+ ],
+ "says": "An anchor the player confirmed on a draft's variant stands as a small amber mark over its bar, beside the приёмы's numbers there, and a tap on it, with the stylus or a finger, in Select or Navigate, says which anchor it is and selects no bar and places no playhead (v1.2 i-5, the plan's answer 4).",
+ "page": "score",
+ "fixture": "fur-elise-score.json",
+ "steps": [
+  {
+   "call": "show",
+   "with": {
+    "pages": "$fixture.pages",
+    "timemap": "$fixture.timemap",
+    "dark": false
+   },
+   "note": "the app shows the engraved pages (ScoreController.render); a draft's view is a score as any other"
+  },
+  {
+   "call": "pen",
+   "with": false
+  },
+  {
+   "call": "input",
+   "with": {
+    "touch": {
+     "select": "longPress",
+     "tap": true,
+     "handles": true,
+     "hold": false
+    },
+    "pen": {
+     "select": "now",
+     "tap": true,
+     "handles": true,
+     "hold": false
+    },
+    "places": true
+   },
+   "note": "InputRules.page in Select, the iPad used with a stylus"
+  },
+  {
+   "call": "mode",
+   "with": {
+    "name": "select"
+   }
+  },
+  {
+   "call": "playheads",
+   "with": {
+    "selection": null,
+    "loop": false
+   }
+  },
+  {
+   "call": "beats",
+   "with": {
+    "lines": "$fixture.beats"
+   },
+   "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+  },
+  {
+   "call": "menuSize",
+   "with": {
+    "width": 420,
+    "height": 44
+   }
+  },
+  {
+   "call": "performance",
+   "with": {
+    "markers": [
+     {
+      "bar": 2,
+      "tick": 240,
+      "text": "① Ноты 1–4",
+      "label": "① Ноты 1–4",
+      "place": true
+     },
+     {
+      "bar": 3,
+      "tick": 960,
+      "text": "1",
+      "label": "Приём 1: упрощение, такт 3",
+      "technique": "pl_0001/1/3",
+      "state": "open"
+     },
+     {
+      "bar": 4,
+      "tick": 1680,
+      "text": "1",
+      "label": "Приём 1: упрощение, такт 4",
+      "technique": "pl_0001/1/4",
+      "state": "taken"
+     },
+     {
+      "bar": 6,
+      "tick": 3120,
+      "text": "② Ноты 9–12",
+      "label": "② Ноты 9–12",
+      "place": true
+     },
+     {
+      "bar": 6,
+      "tick": 3120,
+      "text": "",
+      "label": "Стык тактов 5 и 6: тональность",
+      "seam": "pl_0002",
+      "state": "open"
+     },
+     {
+      "bar": 3,
+      "tick": 960,
+      "text": "",
+      "label": "Опорная точка в такте 3 · Ноты 1–4",
+      "anchor": "pl_0001/v_0002/960"
+     }
+    ],
+    "unheard": [],
+    "artefacts": [],
+    "taken": []
+   },
+   "note": "a draft's marks as ScoreController.placeMarkers gives them, the anchor's last (DraftAnchorsModel.markers)"
+  },
+  {
+   "expect": {
+    "returned": 6,
+    "marks": {
+     "markers": [
+      {
+       "kind": "seam",
+       "bar": 6,
+       "text": "",
+       "state": "open",
+       "left": 663,
+       "top": 195,
+       "right": 687,
+       "bottom": 219
+      },
+      {
+       "kind": "place",
+       "bar": 2,
+       "text": "① Ноты 1–4",
+       "state": null,
+       "left": 210,
+       "top": 169,
+       "bottom": 193
+      },
+      {
+       "kind": "technique",
+       "bar": 3,
+       "text": "1",
+       "state": "open",
+       "left": 335,
+       "top": 195,
+       "right": 367,
+       "bottom": 219
+      },
+      {
+       "kind": "technique",
+       "bar": 4,
+       "text": "1",
+       "state": "taken",
+       "left": 444,
+       "top": 195,
+       "right": 476,
+       "bottom": 219
+      },
+      {
+       "kind": "place",
+       "bar": 6,
+       "text": "② Ноты 9–12",
+       "state": null,
+       "left": 693,
+       "top": 195,
+       "bottom": 219
+      },
+      {
+       "kind": "anchor",
+       "bar": 3,
+       "text": "",
+       "state": null,
+       "left": 363,
+       "top": 195,
+       "right": 387,
+       "bottom": 219
+      }
+     ]
+    }
+   },
+   "note": "the page draws each mark over its bar in the order it is given, the anchor's amber mark beside the приём's number over bar 3"
+  },
+  {
+   "pointer": "pen",
+   "path": [
+    {
+     "marker": "anchor",
+     "bar": 3
+    }
+   ],
+   "click": true,
+   "note": "a stylus tap on the anchor's mark over bar 3, in Select"
+  },
+  {
+   "expect": {
+    "posted": {
+     "kinds": [
+      "performanceBar",
+      "chosen",
+      "picked",
+      "cleared",
+      "place",
+      "bar",
+      "blank"
+     ],
+     "messages": [
+      {
+       "performanceBar": 3,
+       "anchor": "pl_0001/v_0002/960"
+      }
+     ]
+    }
+   },
+   "note": "the mark tapped says which anchor it is (for its menu «Открепить»), and selects nothing"
+  },
+  {
+   "call": "input",
+   "with": {
+    "touch": {
+     "select": "none",
+     "tap": true,
+     "handles": false,
+     "hold": true
+    },
+    "pen": {
+     "select": "none",
+     "tap": true,
+     "handles": false,
+     "hold": true
+    },
+    "places": true
+   },
+   "note": "Navigate"
+  },
+  {
+   "call": "mode",
+   "with": {
+    "name": "navigate"
+   }
+  },
+  {
+   "pointer": "touch",
+   "path": [
+    {
+     "marker": "anchor",
+     "bar": 3
+    }
+   ],
+   "click": true,
+   "note": "a finger's tap on the anchor's mark, in Navigate"
+  },
+  {
+   "expect": {
+    "posted": {
+     "kinds": [
+      "performanceBar",
+      "chosen",
+      "picked",
+      "cleared",
+      "place",
+      "bar",
+      "blank"
+     ],
+     "messages": [
+      {
+       "performanceBar": 3,
+       "anchor": "pl_0001/v_0002/960"
+      }
+     ]
+    }
+   },
+   "note": "the mark answers in Navigate too, and the playhead is not placed"
+  },
+  {
+   "expect": {
+    "marks": {
+     "band": []
+    }
+   },
+   "note": "nothing selected on the page by those taps"
+  }
+ ]
+}

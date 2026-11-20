@@ -335,6 +335,8 @@
             current: ink.classList.contains("current"),
             // A motif's small comma on the card (v1.2 i-3c); the key only where there is one, so the marks before read as they did.
             ...(ink.classList.contains("motif") ? { motif: true } : {}),
+            // The faint comma left where a moved start was found (v1.2 i-3a); the key only where there is one, as `motif`.
+            ...(ink.classList.contains("ghost") ? { ghost: true } : {}),
             ...boxOf(ink),
         };
         if (!painted) {

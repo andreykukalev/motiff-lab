@@ -1,0 +1,862 @@
+{
+  "id": "score-phrase-motifs",
+  "protects": [
+    "PHR-04"
+  ],
+  "says": "In Expand each motif of a phrase on the card is a small comma, lighter than a phrase's mark, before its start note; a motif that starts its phrase is marked by the phrase's comma. A tap on a motif's comma posts motifMark (its phrase and its place), which Swift selects; nothing else is posted. In the Pen and with the «Фразы» row off they take no tap and are hidden; not on the pages (the phrases spec, decision 2 and «Polish of option A»: in focus motifs as small commas without numbers; v1.2 i-3c).",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "phraseMarks",
+      "with": {
+        "phrases": [
+          {
+            "number": 1,
+            "tick": 0,
+            "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы"
+          },
+          {
+            "number": 2,
+            "tick": 2880,
+            "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции",
+            "motifs": [
+              {
+                "tick": 2880,
+                "label": "Мотив 1 фразы 2, такты 4–5"
+              },
+              {
+                "tick": 3840,
+                "label": "Мотив 2 фразы 2, такты 6–8"
+              }
+            ]
+          },
+          {
+            "number": 3,
+            "tick": 5760,
+            "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции",
+            "motifs": [
+              {
+                "tick": 5760,
+                "label": "Мотив 1 фразы 3, такты 9–11"
+              },
+              {
+                "tick": 7920,
+                "label": "Мотив 2 фразы 3, такты 12–15"
+              }
+            ]
+          },
+          {
+            "number": 4,
+            "tick": 10560,
+            "own": true,
+            "label": "Фраза 4, с такта 15, доля 3, ваша граница",
+            "motifs": [
+              {
+                "tick": 10560,
+                "label": "Мотив 1 фразы 4, такты 15–16"
+              },
+              {
+                "tick": 11520,
+                "label": "Мотив 2 фразы 4, такты 17–19"
+              }
+            ]
+          },
+          {
+            "number": 5,
+            "tick": 13440,
+            "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции",
+            "motifs": [
+              {
+                "tick": 13440,
+                "label": "Мотив 1 фразы 5, такты 19–20"
+              },
+              {
+                "tick": 14400,
+                "label": "Мотив 2 фразы 5, такты 21–23"
+              }
+            ]
+          },
+          {
+            "number": 6,
+            "tick": 16560,
+            "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы"
+          },
+          {
+            "number": 7,
+            "tick": 22320,
+            "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции"
+          }
+        ],
+        "sections": [
+          {
+            "id": "section_1",
+            "tick": 0,
+            "letter": "A",
+            "label": "Часть A, такты 0–8"
+          },
+          {
+            "id": "section_2",
+            "tick": 5760,
+            "letter": "B",
+            "label": "Часть B, такты 9–23"
+          }
+        ]
+      },
+      "note": "ScoreController.phraseMarks (ScorePhraseMarks.swift): the phrases answer's starts and sections, labels from Words; on the working notes only; each phrase's motifs from the phrases answer (v1.2 i-3c)"
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3120,
+        "end": 14640,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "bars 5–20 selected (music-core's bars 5 to 20), drawn by the app"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3120,
+          "end": 14640
+        },
+        "loop": true
+      }
+    },
+    {
+      "call": "focus",
+      "with": {
+        "open": true,
+        "label": "Passage",
+        "back": "Back"
+      },
+      "note": "«Развернуть» (ScoreController.enterFocus): the page dimmed under an empty card"
+    },
+    {
+      "expect": {
+        "returned": {
+          "options": {
+            "pageWidth": 2295
+          }
+        },
+        "note": "the card is 964 px wide, the width fixture.mjs engraves the card's bars at (cardLayout(964))"
+      }
+    },
+    {
+      "call": "card",
+      "with": {
+        "pages": "$fixture.card.pages",
+        "timemap": "$fixture.card.timemap",
+        "start": 3120,
+        "ossias": []
+      },
+      "note": "the passage's bars engraved at the card's width (ScoreController.engraveCard)"
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 3120,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the playhead at the passage's start"
+    },
+    {
+      "wait": 640,
+      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms): the bars came during the lift, read while the card was scaled, and the card reads them again when the lift ends (#729); this scenario checks the card once it stands still"
+    },
+    {
+      "expect": {
+        "marks": {
+          "cardPhrases": [
+            {
+              "kind": "comma",
+              "phrase": null,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "motif": true,
+              "left": 209,
+              "top": 506,
+              "right": 213,
+              "bottom": 514,
+              "paint": "ink-3",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": 3,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 478,
+              "top": 502,
+              "right": 486,
+              "bottom": 514,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "letter",
+              "phrase": 3,
+              "text": "B",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 488,
+              "top": 496,
+              "right": 506,
+              "bottom": 516,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 3,
+              "text": "3",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 511,
+              "top": 496,
+              "right": 517,
+              "bottom": 514,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": null,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "motif": true,
+              "left": 775,
+              "top": 497,
+              "right": 779,
+              "bottom": 505,
+              "paint": "ink-3",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": 4,
+              "text": "",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 292,
+              "top": 712,
+              "right": 300,
+              "bottom": 724,
+              "paint": "warning",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 4,
+              "text": "4",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 302,
+              "top": 706,
+              "right": 309,
+              "bottom": 724,
+              "paint": "warning",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": null,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "motif": true,
+              "left": 475,
+              "top": 718,
+              "right": 479,
+              "bottom": 726,
+              "paint": "ink-3",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": 5,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 790,
+              "top": 693,
+              "right": 798,
+              "bottom": 705,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 5,
+              "text": "5",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 800,
+              "top": 687,
+              "right": 806,
+              "bottom": 705,
+              "paint": "ink-2",
+              "inside": true
+            }
+          ],
+          "motifTargets": [
+            {
+              "motif": 2,
+              "of": 2,
+              "label": "Мотив 2 фразы 2, такты 6–8",
+              "left": 189,
+              "top": 474,
+              "right": 233,
+              "bottom": 518
+            },
+            {
+              "motif": 1,
+              "of": 3,
+              "label": "Мотив 1 фразы 3, такты 9–11",
+              "left": 460,
+              "top": 474,
+              "right": 504,
+              "bottom": 518
+            },
+            {
+              "motif": 2,
+              "of": 3,
+              "label": "Мотив 2 фразы 3, такты 12–15",
+              "left": 755,
+              "top": 465,
+              "right": 799,
+              "bottom": 509
+            },
+            {
+              "motif": 1,
+              "of": 4,
+              "label": "Мотив 1 фразы 4, такты 15–16",
+              "left": 274,
+              "top": 684,
+              "right": 318,
+              "bottom": 728
+            },
+            {
+              "motif": 2,
+              "of": 4,
+              "label": "Мотив 2 фразы 4, такты 17–19",
+              "left": 455,
+              "top": 686,
+              "right": 499,
+              "bottom": 730
+            },
+            {
+              "motif": 1,
+              "of": 5,
+              "label": "Мотив 1 фразы 5, такты 19–20",
+              "left": 772,
+              "top": 665,
+              "right": 816,
+              "bottom": 709
+            }
+          ],
+          "phraseTargets": [
+            {
+              "phrase": null,
+              "section": "section_1",
+              "label": "Часть A, такты 0–8",
+              "left": 149,
+              "top": 142,
+              "right": 179,
+              "bottom": 186
+            },
+            {
+              "phrase": 1,
+              "section": null,
+              "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы",
+              "left": 179,
+              "top": 142,
+              "right": 210,
+              "bottom": 186
+            },
+            {
+              "phrase": 2,
+              "section": null,
+              "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции",
+              "left": 627,
+              "top": 168,
+              "right": 671,
+              "bottom": 212
+            },
+            {
+              "phrase": null,
+              "section": "section_2",
+              "label": "Часть B, такты 9–23",
+              "left": 303,
+              "top": 416,
+              "right": 333,
+              "bottom": 460
+            },
+            {
+              "phrase": 3,
+              "section": null,
+              "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции",
+              "left": 333,
+              "top": 416,
+              "right": 364,
+              "bottom": 460
+            },
+            {
+              "phrase": 4,
+              "section": null,
+              "label": "Фраза 4, с такта 15, доля 3, ваша граница",
+              "left": 194,
+              "top": 677,
+              "right": 238,
+              "bottom": 721
+            },
+            {
+              "phrase": 5,
+              "section": null,
+              "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции",
+              "left": 643,
+              "top": 657,
+              "right": 687,
+              "bottom": 701
+            },
+            {
+              "phrase": 6,
+              "section": null,
+              "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы",
+              "left": 357,
+              "top": 910,
+              "right": 401,
+              "bottom": 954
+            },
+            {
+              "phrase": 7,
+              "section": null,
+              "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции",
+              "left": 698,
+              "top": 1136,
+              "right": 742,
+              "bottom": 1180
+            }
+          ]
+        }
+      },
+      "note": "the card's phrase marks as before (i-3b), and each motif of the phrases on it a small comma in ink-3, 4 × 8 px, before its start note (phrase 2's second in bar 6, phrase 3's in bar 12, phrase 4's in bar 17); a motif that starts its phrase has no comma of its own. Each motif's 44 pt target on the card says «Мотив 2 фразы 3, такты 12–15»; the pages' targets stay as they were (only the numbers and letters)"
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "motif": 2,
+          "of": 3
+        }
+      ],
+      "click": true,
+      "note": "a finger's tap on phrase 3's second motif's comma"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "motifMark",
+            "phraseMark",
+            "sectionMark",
+            "place",
+            "chosen",
+            "bar",
+            "blank",
+            "drag"
+          ],
+          "messages": [
+            {
+              "motifMark": {
+                "phrase": 3,
+                "motif": 2
+              }
+            }
+          ]
+        }
+      },
+      "note": "the motif named to Swift, which selects it (ScorePhraseMarks.pickMotif); no place on the card"
+    },
+    {
+      "pointer": "pen",
+      "path": [
+        {
+          "motif": 1,
+          "of": 4
+        }
+      ],
+      "click": true,
+      "note": "a stylus tap on phrase 4's comma, its first motif's"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "motifMark",
+            "phraseMark",
+            "sectionMark",
+            "place",
+            "chosen",
+            "bar",
+            "blank",
+            "drag"
+          ],
+          "messages": [
+            {
+              "motifMark": {
+                "phrase": 4,
+                "motif": 1
+              }
+            }
+          ]
+        }
+      },
+      "note": "the phrase's comma takes its first motif's tap"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "pen"
+      },
+      "note": "the Pen"
+    },
+    {
+      "pointer": "touch",
+      "path": [
+        {
+          "motif": 2,
+          "of": 3
+        }
+      ],
+      "click": true,
+      "note": "the same tap in the Pen"
+    },
+    {
+      "expect": {
+        "posted": {
+          "kinds": [
+            "motifMark"
+          ],
+          "messages": []
+        }
+      },
+      "note": "in the Pen the commas do not react"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "layers",
+      "with": {
+        "hidden": [
+          "phrases"
+        ]
+      },
+      "note": "the «Фразы» row off"
+    },
+    {
+      "expect": {
+        "marks": {
+          "cardPhrases": [],
+          "motifTargets": []
+        }
+      },
+      "note": "the motifs hidden with the phrases' marks"
+    },
+    {
+      "call": "layers",
+      "with": {
+        "hidden": []
+      }
+    },
+    {
+      "call": "focus",
+      "with": {
+        "open": false
+      },
+      "note": "back to the page (ScoreController.leaveFocus)"
+    },
+    {
+      "expect": {
+        "marks": {
+          "cardPhrases": [],
+          "motifTargets": [],
+          "phrases": [
+            {
+              "kind": "comma",
+              "phrase": 1,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 151,
+              "top": 170,
+              "right": 159,
+              "bottom": 182
+            },
+            {
+              "kind": "letter",
+              "phrase": 1,
+              "text": "A",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 161,
+              "top": 164,
+              "right": 181,
+              "bottom": 184
+            },
+            {
+              "kind": "number",
+              "phrase": 1,
+              "text": "1",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 184,
+              "top": 164,
+              "right": 191,
+              "bottom": 182
+            },
+            {
+              "kind": "comma",
+              "phrase": 2,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 635,
+              "top": 196,
+              "right": 643,
+              "bottom": 208
+            },
+            {
+              "kind": "number",
+              "phrase": 2,
+              "text": "2",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 645,
+              "top": 190,
+              "right": 652,
+              "bottom": 208
+            },
+            {
+              "kind": "comma",
+              "phrase": 3,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 305,
+              "top": 444,
+              "right": 313,
+              "bottom": 456
+            },
+            {
+              "kind": "letter",
+              "phrase": 3,
+              "text": "B",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 315,
+              "top": 438,
+              "right": 334,
+              "bottom": 458
+            },
+            {
+              "kind": "number",
+              "phrase": 3,
+              "text": "3",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 338,
+              "top": 438,
+              "right": 345,
+              "bottom": 456
+            },
+            {
+              "kind": "comma",
+              "phrase": 4,
+              "text": "",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 202,
+              "top": 705,
+              "right": 210,
+              "bottom": 717
+            },
+            {
+              "kind": "number",
+              "phrase": 4,
+              "text": "4",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 212,
+              "top": 699,
+              "right": 219,
+              "bottom": 717
+            },
+            {
+              "kind": "comma",
+              "phrase": 5,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 651,
+              "top": 685,
+              "right": 659,
+              "bottom": 697
+            },
+            {
+              "kind": "number",
+              "phrase": 5,
+              "text": "5",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 661,
+              "top": 679,
+              "right": 668,
+              "bottom": 697
+            },
+            {
+              "kind": "comma",
+              "phrase": 6,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 366,
+              "top": 938,
+              "right": 374,
+              "bottom": 950
+            },
+            {
+              "kind": "number",
+              "phrase": 6,
+              "text": "6",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 376,
+              "top": 932,
+              "right": 382,
+              "bottom": 950
+            },
+            {
+              "kind": "comma",
+              "phrase": 7,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 707,
+              "top": 1164,
+              "right": 715,
+              "bottom": 1176
+            },
+            {
+              "kind": "number",
+              "phrase": 7,
+              "text": "7",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 717,
+              "top": 1158,
+              "right": 723,
+              "bottom": 1176
+            }
+          ]
+        }
+      },
+      "note": "the card's marks and targets go; the pages' marks never had motifs"
+    }
+  ]
+}

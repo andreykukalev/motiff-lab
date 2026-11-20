@@ -1,0 +1,312 @@
+{
+  "id": "score-phrase-focus",
+  "protects": [
+    "PHR-03"
+  ],
+  "says": "In Expand the card has the same phrase marks over its bars as the page (a comma before each start note inside the passage and the phrase's number, a section's boxed letter), only to read: no touch targets on the card; back out of focus, the card's marks go (the phrases spec, «Polish of option A»: in focus the same marks; v1.2 i-3b).",
+  "page": "score",
+  "fixture": "fur-elise-score.json",
+  "steps": [
+    {
+      "call": "show",
+      "with": {
+        "pages": "$fixture.pages",
+        "timemap": "$fixture.timemap",
+        "dark": false
+      },
+      "note": "the app shows the engraved pages (ScoreController.render)"
+    },
+    {
+      "call": "pen",
+      "with": false
+    },
+    {
+      "call": "input",
+      "with": {
+        "touch": {
+          "select": "longPress",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "pen": {
+          "select": "now",
+          "tap": true,
+          "handles": true,
+          "hold": false
+        },
+        "places": true
+      },
+      "note": "InputRules.page in Select, the iPad used with a stylus"
+    },
+    {
+      "call": "mode",
+      "with": {
+        "name": "select"
+      }
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": null,
+        "loop": false
+      }
+    },
+    {
+      "call": "beats",
+      "with": {
+        "lines": "$fixture.beats"
+      },
+      "note": "the piece's beat lines (SelectionTools.setBeatLines)"
+    },
+    {
+      "call": "menuSize",
+      "with": {
+        "width": 420,
+        "height": 44
+      }
+    },
+    {
+      "call": "phraseMarks",
+      "with": {
+        "phrases": [
+          {
+            "number": 1,
+            "tick": 0,
+            "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы"
+          },
+          {
+            "number": 2,
+            "tick": 2880,
+            "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции"
+          },
+          {
+            "number": 3,
+            "tick": 5760,
+            "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции"
+          },
+          {
+            "number": 4,
+            "tick": 10560,
+            "own": true,
+            "label": "Фраза 4, с такта 15, доля 3, ваша граница"
+          },
+          {
+            "number": 5,
+            "tick": 13440,
+            "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции"
+          },
+          {
+            "number": 6,
+            "tick": 16560,
+            "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы"
+          },
+          {
+            "number": 7,
+            "tick": 22320,
+            "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции"
+          }
+        ],
+        "sections": [
+          {
+            "id": "section_1",
+            "tick": 0,
+            "letter": "A",
+            "label": "Часть A, такты 0–8"
+          },
+          {
+            "id": "section_2",
+            "tick": 5760,
+            "letter": "B",
+            "label": "Часть B, такты 9–23"
+          }
+        ]
+      },
+      "note": "ScoreController.phraseMarks (ScorePhraseMarks.swift): the phrases answer's starts and sections, labels from Words; on the working notes only"
+    },
+    {
+      "call": "select",
+      "with": {
+        "start": 3120,
+        "end": 14640,
+        "startLabel": "Start",
+        "endLabel": "End"
+      },
+      "note": "bars 5–20 selected (music-core's bars 5 to 20), drawn by the app"
+    },
+    {
+      "call": "playheads",
+      "with": {
+        "selection": {
+          "start": 3120,
+          "end": 14640
+        },
+        "loop": true
+      }
+    },
+    {
+      "call": "focus",
+      "with": {
+        "open": true,
+        "label": "Passage",
+        "back": "Back"
+      },
+      "note": "«Развернуть» (ScoreController.enterFocus): the page dimmed under an empty card"
+    },
+    {
+      "expect": {
+        "returned": {
+          "options": {
+            "pageWidth": 2295
+          }
+        },
+        "note": "the card is 964 px wide, the width fixture.mjs engraves the card's bars at (cardLayout(964))"
+      }
+    },
+    {
+      "call": "card",
+      "with": {
+        "pages": "$fixture.card.pages",
+        "timemap": "$fixture.card.timemap",
+        "start": 3120,
+        "ossias": []
+      },
+      "note": "the passage's bars engraved at the card's width (ScoreController.engraveCard)"
+    },
+    {
+      "call": "playing",
+      "with": {
+        "tick": 3120,
+        "playing": false,
+        "follow": false
+      },
+      "note": "the playhead at the passage's start"
+    },
+    {
+      "wait": 640,
+      "note": "twice the card's lift (score.css card-lift, the kit's slow time, 320 ms): the bars came during the lift, read while the card was scaled, and the card reads them again when the lift ends (#729); this scenario checks the card once it stands still"
+    },
+    {
+      "expect": {
+        "marks": {
+          "cardPhrases": [
+            {
+              "kind": "comma",
+              "phrase": 3,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 478,
+              "top": 502,
+              "right": 486,
+              "bottom": 514,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "letter",
+              "phrase": 3,
+              "text": "B",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 488,
+              "top": 496,
+              "right": 506,
+              "bottom": 516,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 3,
+              "text": "3",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 511,
+              "top": 496,
+              "right": 517,
+              "bottom": 514,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": 4,
+              "text": "",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 292,
+              "top": 712,
+              "right": 300,
+              "bottom": 724,
+              "paint": "warning",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 4,
+              "text": "4",
+              "own": true,
+              "selected": false,
+              "current": false,
+              "left": 302,
+              "top": 706,
+              "right": 309,
+              "bottom": 724,
+              "paint": "warning",
+              "inside": true
+            },
+            {
+              "kind": "comma",
+              "phrase": 5,
+              "text": "",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 790,
+              "top": 693,
+              "right": 798,
+              "bottom": 705,
+              "paint": "ink-2",
+              "inside": true
+            },
+            {
+              "kind": "number",
+              "phrase": 5,
+              "text": "5",
+              "own": false,
+              "selected": false,
+              "current": false,
+              "left": 800,
+              "top": 687,
+              "right": 806,
+              "bottom": 705,
+              "paint": "ink-2",
+              "inside": true
+            }
+          ]
+        }
+      },
+      "note": "the card's marks: the starts inside the passage (phrases 3, 4 and 5; 2 starts before it, 6 after it), each comma before its start note and its number over it, section B's letter before 3, the player's own amber; none takes a touch (no button on the card); painted as on the page (found ink-2, own amber), each comma inside its box: the card's engraving rules (score.css #focus .card-score .card-page svg) do not reach them"
+    },
+    {
+      "call": "focus",
+      "with": {
+        "open": false
+      },
+      "note": "back to the page (ScoreController.leaveFocus)"
+    },
+    {
+      "expect": {
+        "marks": {
+          "cardPhrases": []
+        }
+      },
+      "note": "the card's marks go with it"
+    }
+  ]
+}

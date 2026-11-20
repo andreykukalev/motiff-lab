@@ -327,8 +327,9 @@ final class DraftsBaselineTests: XCTestCase {
 
     /// DRAFT-06: where two places meet with the same key, meter and tempo no diamond shows; where they differ, a diamond
     /// stands before the place after the seam, and its card tells both sides and offers the place after it in the key and
-    /// the tempo before it, never a bridge in 1.1; nothing changes by itself: each place plays in its own key and tempo until
-    /// the player takes an offer, a step its toast undoes; «Оставить» keeps the seam as it is, remembered.
+    /// the tempo before it, and since 1.2, the keys differing, a bridge (DRAFT-10; the register: Drafts12BaselineTests);
+    /// nothing changes by itself: each place plays in its own key and tempo until the player takes an offer, a step its toast
+    /// undoes; «Оставить» keeps the seam as it is, remembered.
     func testDRAFT06ASeamShowsWhatDiffersAndChangesNothingByItself() async throws {
         let (workspace, _) = try await pieceOnScreen()
         let sources = workspace.sources
@@ -354,7 +355,9 @@ final class DraftsBaselineTests: XCTestCase {
         XCTAssertEqual(marker["state"] as? String, "open")
         XCTAssertEqual(diamond.sides.map { $0.key?.name }, ["ля минор", "си минор"], "both sides, each as it is")
         XCTAssertTrue(diamond.listen.onset < diamond.at && diamond.at < diamond.listen.end, "«Послушать стык»: the bars either side")
-        XCTAssertEqual(diamond.offers.map(\.label), ["② в ля минор", "Темп как в ①"], "no «Связка» in 1.1")
+        XCTAssertEqual(diamond.offers.map(\.label), ["② в ля минор", "Темп как в ①"], "the key and the tempo before it")
+        XCTAssertNotNil(diamond.bridge, "and, the keys differing, «Связка · N» beside them (1.2)")
+        XCTAssertNil(diamond.register, "the same register: nothing said of it")
         let viewId = try XCTUnwrap(score.piece?.id)
         let tempos = await PieceCore(piece: viewId).playback().value?.tempos ?? []
         XCTAssertTrue(tempos.contains { $0.at == Double(second.onset) && abs(60_000_000 / $0.microsecondsPerQuarter - 140) < 1 }, "② in its own tempo")
