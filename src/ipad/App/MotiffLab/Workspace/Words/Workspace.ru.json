@@ -78,5 +78,8 @@
   "drafts.showNumbers": "Показать номера",
   "drafts.techniqueCount.one": "{0} приём",
   "drafts.techniqueCount.few": "{0} приёма",
-  "drafts.techniqueCount.many": "{0} приёмов"
+  "drafts.techniqueCount.many": "{0} приёмов",
+  "drafts.playAll": "Всё",
+  "drafts.loopPlace": "Место",
+  "drafts.refused": "Не получилось: черновик остался как был."
 }

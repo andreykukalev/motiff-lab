@@ -7,16 +7,16 @@ import SwiftUI
 
 /// The card at a приём's number tapped (ds.css `.menu` surface, as a version marker's popover): its number and bar, its kind
 /// as the engine read it, how sure that is, «▶ Как в нотах» and «▶ Как на записи», «Взять везде · N», «Только здесь»,
-/// «Оставить», and one hand from its variant. A tap elsewhere puts it away; once a step is taken the draft's view opens
-/// again at the occurrence (`reopen`).
+/// «Оставить», and one hand from its variant, each only where music-core takes it (`Spot.offer`). A tap elsewhere puts it
+/// away; once a step is taken the draft's view opens again at the occurrence (`reopen`).
 struct DraftTechniqueCard: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
     let owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
-    /// Why the last step was not taken, music-core's words; nil when it was.
-    @State private var refused: String?
+    /// The last step was not taken: the card says so in its own words, never music-core's.
+    @State private var refused = false
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
@@ -24,18 +24,16 @@ struct DraftTechniqueCard: View {
                 ZStack(alignment: .topLeading) {
                     Color.clear.contentShape(Rectangle()).onTapGesture { model.closeCard() }
                     card(pick.spot)
-                        .offset(x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - Self.width - CGFloat.ds("s-3")), y: at.y + CGFloat.ds("s-1"))
+                        .offset(x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")), y: at.y + CGFloat.ds("s-1"))
                 }
             }
-            .onChange(of: pick.spot) { _, _ in refused = nil }
+            .onChange(of: pick.spot) { _, _ in refused = false }
         }
     }
 
-    /// As wide as the selection menu's Bookmark card.
-    private static let width: CGFloat = 340
-
     private func card(_ spot: DraftTechniquesModel.Spot) -> some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+        let offer = spot.offer
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text.format("drafts.techniqueAt", String(spot.technique.number), String(spot.occurrence.firstBar))).overline()
             HStack(spacing: CGFloat.ds("s-2")) {
                 Text(spot.technique.label).dsType(.label).foregroundStyle(Color.ds("ink"))
@@ -48,25 +46,27 @@ struct DraftTechniqueCard: View {
                 hear(spot, variant: true, "drafts.asOnRecording")
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text.format("drafts.takeEverywhere", String(spot.technique.occurrences.count))) { act { await owner.take(spot, here: false) } }
+                Button(text.format("drafts.takeEverywhere", String(offer.everywhere))) { act { await owner.take(spot, here: false) } }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                 Button(text["drafts.takeHere"]) { act { await owner.take(spot, here: true) } }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                 Button(text["drafts.leaveButton"]) { act { await owner.leave(spot) } }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
+            .disabled(!offer.steps)
             ForEach(["right", "left"], id: \.self) { part in
                 Button { act { await owner.takeHand(part, at: spot) } } label: {
                     Label { Text(text[part == "left" ? "drafts.leftFromVariant" : "drafts.rightFromVariant"]) } icon: { Icon(name: "hands", size: CGFloat.ds("icon-s")) }
                 }
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                .disabled(!offer.hands)
             }
-            if let refused {
-                Text(refused).dsType(.caption).foregroundStyle(Color.ds("danger"))
+            if refused {
+                Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
             }
         }
         .padding(CGFloat.ds("s-3"))
-        .frame(width: Self.width, alignment: .leading)
+        .frame(width: ScoreScreen.popoverWidth, alignment: .leading)
         .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
         .dsShadow("shadow-menu")
@@ -82,12 +82,13 @@ struct DraftTechniqueCard: View {
         .disabled(!score.canHear(spot, variant: variant))
     }
 
-    /// A step on the draft: taken, the card goes and the draft's view opens again at the occurrence; refused, why.
+    /// A step on the draft: taken, the card goes and the draft's view opens again at the occurrence; refused, the card says
+    /// it was not taken.
     private func act(_ step: @escaping () async -> Bool) {
         guard let spot = model.picked?.spot else { return }
         Task {
             guard await step() else {
-                refused = owner.status
+                refused = true
                 return
             }
             model.closeCard()
@@ -97,11 +98,13 @@ struct DraftTechniqueCard: View {
 }
 
 /// The pill of the assembly under the bar of a draft's view with приёмы (spec «Экран (iPad)», «при сборке»): ‹ › from one
-/// occurrence to the next, the current one's name, «▶ Ноты» and «▶ Запись» for it, and «Скрыть номера», which leaves the
-/// score to practise on (the numbers, the card and the stepping put away) with «Показать номера» alone.
+/// occurrence to the next, the current one's name, «▶ Ноты» and «▶ Запись» for it, «▶ Всё» (the whole draft) and «↻ Место»
+/// (its place round and round) by the one playback model, and «Скрыть номера», which leaves the score to practise on (the
+/// numbers, the card and the stepping put away) with «Показать номера» alone. «Карта» and «Полка» are not here yet.
 struct DraftAssemblyPill: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
+    @ObservedObject var player: Player
     let text: UIText
 
     var body: some View {
@@ -123,30 +126,27 @@ struct DraftAssemblyPill: View {
 
     @ViewBuilder private var assembly: some View {
         let current = model.picked?.spot
-        step("back", "drafts.previous") { score.stepTechnique(-1) }
-        Text(current.map { DraftTechniquesModel.title($0, text) } ?? text.count("drafts.techniqueCount", model.spots.count))
+        stepItem("back", text["drafts.previous"]) { score.stepTechnique(-1) }
+        Text(current.map { DraftTechniquesModel.title($0, text) } ?? text.count("drafts.techniqueCount", model.total))
             .dsType(.label)
             .foregroundStyle(Color.ds("plum"))
             .lineLimit(1)
-        step("fwd", "drafts.next") { score.stepTechnique(1) }
-        Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+        stepItem("fwd", text["drafts.next"]) { score.stepTechnique(1) }
+        ItemDivider()
         ForEach([false, true], id: \.self) { variant in
             word("play", variant ? "drafts.pillRecording" : "drafts.pillNotes") {
                 if let current { score.hearTechnique(current, variant: variant) }
             }
             .disabled(!(current.map { score.canHear($0, variant: variant) } ?? false))
         }
-        Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-        word("eyeoff", "drafts.hideNumbers") { score.hideTechniqueNumbers(true) }
-    }
-
-    private func step(_ icon: String, _ key: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(name: icon).frame(width: 32, height: 32)
+        ItemDivider()
+        Group {
+            word("play", "drafts.playAll") { score.playDraft(on: player) }
+            word("loop", "drafts.loopPlace") { Task { await score.loopPlace(on: player) } }
         }
-        .buttonStyle(DSItemStyle())
-        .accessibilityLabel(text[key])
-        .help(text[key])
+        .disabled(!player.ready)
+        ItemDivider()
+        word("eyeoff", "drafts.hideNumbers") { score.hideTechniqueNumbers(true) }
     }
 
     private func word(_ icon: String, _ key: String, action: @escaping () -> Void) -> some View {

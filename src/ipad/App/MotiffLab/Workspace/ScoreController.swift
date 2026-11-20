@@ -165,7 +165,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     private var handleSpots: [CGPoint] = []
     /// The playheads' handles, in the document's pixels, as the page last reported them: a finger there takes the handle.
     private var headSpots: [CGPoint] = []
-    private let text = UIText.current
+    let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
     /// The places ringed for the fact chosen in Insights.

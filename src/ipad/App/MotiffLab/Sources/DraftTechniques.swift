@@ -21,6 +21,24 @@ final class DraftTechniquesModel: ObservableObject {
         /// Where it is in the draft's ticks; empty for bars of a recording not yet put in (they would go there).
         var span: Range<Double> { Double(occurrence.onset)..<Double(max(occurrence.onset, occurrence.end)) }
         var isTaken: Bool { occurrence.state == "taken" }
+
+        /// What the card offers here, as music-core takes it: the steps only while the occurrence is open (one taken or
+        /// left is refused), a hand from the variant only over bars that hold notes (an inserted bar not yet put in has
+        /// none), and «Взять везде · N» counts the occurrences still open.
+        var offer: Offer {
+            let open = occurrence.state == "open"
+            return Offer(steps: open, hands: open && !span.isEmpty, everywhere: technique.occurrences.filter { $0.state == "open" }.count)
+        }
+    }
+
+    /// The card's steps at an occurrence (`Spot.offer`).
+    struct Offer: Equatable {
+        /// «Взять везде», «Только здесь» and «Оставить».
+        let steps: Bool
+        /// «Правая рука из варианта», «Левая рука из варианта».
+        let hands: Bool
+        /// The N of «Взять везде · N».
+        let everywhere: Int
     }
 
     /// The occurrence picked: its card shows at its number (`at`, the number's bottom left on the page); picked by the
@@ -68,9 +86,13 @@ final class DraftTechniquesModel: ObservableObject {
         spots.first { $0.key == key }
     }
 
-    /// How many приёмы the draft has, and how many are taken (the Sources caption's «взято N приёмов из M»).
+    /// How many приёмы the draft has, and how many are taken.
     var total: Int { places.map(\.total).reduce(0, +) }
     var taken: Int { places.map(\.taken).reduce(0, +) }
+
+    /// Whether the pill steps through the occurrences (‹ ›): there are some, and the numbers show. The playback pill's
+    /// phrase steps give way to it meanwhile, so one pair of ‹ › is on the screen.
+    var stepping: Bool { !numbersHidden && !spots.isEmpty }
 
     /// A number tapped (`at` its bottom left), or the pill's step (`at` nil): that occurrence is the one picked. Nil for a
     /// key no occurrence has, or while the numbers are hidden.
@@ -109,7 +131,7 @@ final class DraftTechniquesModel: ObservableObject {
     /// its key and state, and what VoiceOver says of it.
     func markers(_ text: UIText) -> [[String: Any]] {
         guard !numbersHidden else { return [] }
-        return spots.map { spot in
+        return spots.map { spot -> [String: Any] in
             [
                 "bar": spot.occurrence.firstBar, "tick": spot.occurrence.onset, "text": String(spot.technique.number),
                 "label": text.format("drafts.techniqueLabel", String(spot.technique.number), spot.technique.label, String(spot.occurrence.firstBar)),

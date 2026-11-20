@@ -12,8 +12,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   switch); `SourcesDrafts.swift` (`addToDraft` on the piece the notes are shown on, `renameDraft`, `removeDraft` with
   Undo, `openDraft` by `drafts.open` through `openShown`); `DraftSheet.swift`: `DraftChoice` (what, into, how, the
   same music first; `drafts.add`'s fields) and the «В черновик» sheet; the group «Черновики» is `SourcesDraftRow`
-  (`SourcesRows.swift`, «взято N приёмов из M» by `tally`) and `DraftDialogs`. Step 6: `DraftTechniquesModel`
-  (`DraftTechniques.swift`: a draft view's приёмы, the one picked, the numbers hidden); `take`, `leave`, `takeHand`
+  (`SourcesRows.swift`) and `DraftDialogs`. Step 6: `DraftTechniquesModel`
+  (`DraftTechniques.swift`: a draft view's приёмы, the one picked, the numbers hidden, what the card offers); `take`, `leave`, `takeHand`
   (`drafts.take`, `drafts.leave`, `drafts.takeFrom`) with a toast whose Undo is `drafts.undo` (`SourcesToast.Undo.draftStep`). No «расширить»: music-core has no call for it yet.
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of

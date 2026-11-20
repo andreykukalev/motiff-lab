@@ -9,9 +9,9 @@ import Foundation
 extension ScoreController {
     /// The labels of the draft's places for the page, in order, then the numbers of their приёмы; none for any other piece.
     var placeMarkers: [[String: Any]] {
-        (piece?.draft?.places ?? []).map { place in
+        (piece?.draft?.places ?? []).map { place -> [String: Any] in
             ["bar": place.firstBar, "tick": place.onset, "text": place.label, "label": place.label, "place": true]
-        } + draftModel.markers(UIText.current)
+        } + draftModel.markers(text)
     }
 
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
@@ -46,6 +46,29 @@ extension ScoreController {
     func hideTechniqueNumbers(_ hidden: Bool) {
         draftModel.hideNumbers(hidden)
         Task { await drawVersions() }
+    }
+
+    /// The place the pill's «↻ Место» loops: the current occurrence's, else the one at `tick`, else the first; nil on a
+    /// piece that is not a draft.
+    func currentPlace(at tick: Double) -> DraftViewAnswer.Place? {
+        let places = piece?.draft?.places ?? []
+        let id = draftModel.picked?.spot.place
+        return places.first { $0.id == id } ?? places.first { Double($0.onset) <= tick && tick < Double($0.end) } ?? places.first
+    }
+
+    /// «↻ Место»: the current place selected and played round and round by the playback model (Цикл on), from its start.
+    func loopPlace(on player: Player) async {
+        guard let place = currentPlace(at: player.tick) else { return }
+        await select(Double(place.onset), Double(place.end))
+        player.hold(selection: focusModel.playRange?.range)
+        if !player.cycle { player.apply(.cycle) }
+        if player.state == .stopped { player.apply(.press) }
+    }
+
+    /// «▶ Всё»: the whole draft from its start, Цикл off so playback goes on past the selection; the selection stays.
+    func playDraft(on player: Player) {
+        if player.cycle, player.selection != nil { player.apply(.cycle) }
+        player.go(to: 0, play: true)
     }
 
     /// The occurrence selected and brought into view; bars of a recording not yet put in only come into view, as they

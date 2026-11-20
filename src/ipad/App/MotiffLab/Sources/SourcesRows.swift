@@ -198,9 +198,6 @@ struct SourcesDraftRow: View {
     let draft: SourceLayers.Draft
     let row: SourcesRow
 
-    /// «взято 3 приёма из 4» (v1.1, step 6), read as the row shows; nil until read, or for a draft with no приёмы.
-    @State private var tally: (taken: Int, total: Int)?
-
     private var text: UIText { row.text }
 
     var body: some View {
@@ -210,22 +207,13 @@ struct SourcesDraftRow: View {
                 sources: sources, row: row, icon: SourceLayers.pictogram(op: "draft"), iconLabel: nil, title: draft.name, removed: false,
                 eye: shownView.map { (id: $0.id, hidden: $0.hidden) }, menu: AnyView(menu)
             )
-            Text(SourcesDraftRow.caption(draft, tally: tally, text))
+            Text([draft.caption, text.count("drafts.places", draft.places)].joined(separator: " · "))
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, CGFloat.ds("s-3"))
         .padding(.horizontal, CGFloat.ds("s-2"))
-        .task(id: draft) { tally = await sources.tally(of: draft) }
-    }
-
-    /// The line under the draft's name: where its fragments came from, its places and, once there are приёмы, how many of
-    /// them are taken: «из нот с PDF и записи · 2 места · взято 3 приёма из 4».
-    static func caption(_ draft: SourceLayers.Draft, tally: (taken: Int, total: Int)?, _ text: UIText) -> String {
-        var parts = [draft.caption, text.count("drafts.places", draft.places)]
-        if let tally, tally.total > 0 { parts.append(SourceLayers.counted("drafts.tally", tally.taken, String(tally.total), text: text)) }
-        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var menu: some View {

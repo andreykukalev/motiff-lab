@@ -246,9 +246,9 @@ final class DraftsTests: XCTestCase {
         XCTAssertNil(model.picked?.at, "stepping shows no card")
         XCTAssertTrue(screen.score.canHear(spot, variant: false), "open: the draft sounds as the base there")
         XCTAssertFalse(screen.score.canHear(spot, variant: true))
-        let tally = await sources.tally(of: draft)
-        XCTAssertEqual(tally?.taken, 0)
-        XCTAssertEqual(tally?.total, 1)
+        XCTAssertEqual(spot.offer, DraftTechniquesModel.Offer(steps: true, hands: true, everywhere: 1), "open: every step")
+        XCTAssertTrue(model.stepping, "the pill's ‹ ›, in place of the phrase's")
+        XCTAssertEqual(screen.score.currentPlace(at: 0)?.id, spot.place, "«↻ Место» loops the current occurrence's place")
 
         let taken = await sources.take(spot, here: false)
         XCTAssertTrue(taken, sources.status ?? "")
@@ -262,14 +262,11 @@ final class DraftsTests: XCTestCase {
         let takenSpot = try XCTUnwrap(model.spots.first)
         XCTAssertTrue(takenSpot.isTaken)
         XCTAssertTrue(screen.score.canHear(takenSpot, variant: true), "taken: the draft sounds as the variant there")
-        let takenTally = await sources.tally(of: draft)
-        XCTAssertEqual(takenTally?.taken, 1)
+        XCTAssertEqual(takenSpot.offer, DraftTechniquesModel.Offer(steps: false, hands: false, everywhere: 0), "taken: music-core refuses another step")
 
         await sources.undo()
         await model.load(again.draft, on: again.id)
         XCTAssertEqual(model.spots.first?.isTaken, false, "undone by drafts.undo")
-        let undoneTally = await sources.tally(of: draft)
-        XCTAssertEqual(undoneTally?.taken, 0)
 
         let hand = await sources.takeHand("right", at: spot)
         XCTAssertTrue(hand, sources.status ?? "")
@@ -283,6 +280,35 @@ final class DraftsTests: XCTestCase {
         XCTAssertTrue(model.markers(UIText.current).isEmpty, "«Скрыть номера»: practice on the draft")
         XCTAssertNil(model.pick(spot.key, at: nil))
         XCTAssertNil(model.step(1))
+        XCTAssertFalse(model.stepping, "hidden: the phrase's ‹ › come back")
+    }
+
+    /// The card offers only what music-core takes: an open occurrence every step, a hand only over bars with notes (an
+    /// inserted bar not yet put in has none), one taken or left nothing; «Взять везде · N» counts the open ones.
+    func testTheCardOffersOnlyTheStepsMusicCoreTakes() throws {
+        let json = #"""
+        {"draft": "dr_0001", "place": "pl_0001", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
+        "kind": "octave", "label": "октава", "inferred": true, "confidence": 90, "sure": true, "state": "open", "occurrences": [
+        {"bar": 4, "firstBar": 4, "lastBar": 4, "onset": 5760, "end": 7200, "confidence": 90, "state": "open"},
+        {"bar": 6, "firstBar": 6, "lastBar": 6, "onset": 8640, "end": 8640, "confidence": 80, "state": "open"},
+        {"bar": 8, "firstBar": 8, "lastBar": 8, "onset": 11520, "end": 12960, "confidence": 90, "state": "taken"},
+        {"bar": 9, "firstBar": 9, "lastBar": 9, "onset": 12960, "end": 14400, "confidence": 90, "state": "left"}]}]}
+        """#
+        let read = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, json, of: "drafts.techniques"))
+        let model = DraftTechniquesModel()
+        model.keep([read])
+        let offers = model.spots.map(\.offer)
+        XCTAssertEqual(offers.map(\.steps), [true, true, false, false])
+        XCTAssertEqual(offers.map(\.hands), [true, false, false, false], "no hand over a bar not yet put in")
+        XCTAssertEqual(offers.map(\.everywhere), [2, 2, 2, 2], "«Взять везде · 2»: the open ones")
+    }
+
+    /// On a view only to be shown (Notes or a draft over the piece) the selection menu offers no Note, Bookmark, Insights or
+    /// More, which music-core refuses there; elsewhere all of them, Insights only over notes.
+    func testAViewOnlyMenuOffersOnlyWhatWorksThere() {
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: true, notes: true), [])
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: false, notes: true), [.note, .bookmark, .insights, .more])
+        XCTAssertEqual(SelectionMenu.offered(viewOnly: false, notes: false), [.note, .bookmark, .more])
     }
 
     /// The draft opened to be shown, closed when the test ends.

@@ -68,22 +68,4 @@ extension SourcesController {
         toast = SourcesToast(text: words, undo: .draftStep(draft))
         return true
     }
-
-    /// The Sources caption's «взято N приёмов из M»: how many приёмы the draft has in all its places, and how many are
-    /// taken, from music-core's `drafts.techniques` for each place, whose ids the draft opened for a moment gives (the
-    /// sources list only how many places it has); nil when it cannot be shown or read.
-    func tally(of draft: SourceLayers.Draft) async -> (taken: Int, total: Int)? {
-        let piece = self.piece
-        let request = facadeRequest(["draft": draft.id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "drafts.open", request) }
-        guard let view = FacadeAnswer.decode(DraftViewAnswer.self, answer, of: "drafts.open") else { return nil }
-        _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
-        var tally = (taken: 0, total: 0)
-        for place in view.draft.places {
-            guard let read = await PieceCore(piece: piece).draftTechniques(draft: draft.id, place: place.id).value else { return nil }
-            tally.taken += read.taken
-            tally.total += read.total
-        }
-        return tally
-    }
 }
