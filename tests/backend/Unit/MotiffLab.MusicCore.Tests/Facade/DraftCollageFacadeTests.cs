@@ -12,7 +12,7 @@ using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;
 namespace MotiffLab.MusicCore.Tests.Facade;
 
 /// <summary>
-/// The collage through the facade (version 1.2, the plan's answer 5; decision record 0034, section 1.3): in piece B, open,
+/// The collage through the facade (version 1.2, the plan's answer 5; decision record 0034, section 3): in piece B, open,
 /// a fragment goes into a draft of piece A, whose project file the app sends and saves again; B and its undo stay as they
 /// were, and A's draft keeps a copy that names B.
 /// </summary>
@@ -136,12 +136,21 @@ public class DraftCollageFacadeTests
     }
 
     [Fact]
+    public void A_file_and_into_together_are_refused_and_nothing_changes()
+    {
+        MusicCoreFacade facade = OpenedB();
+        string before = SavedB(facade);
+
+        Assert.Equal("badRequest", Error(facade, "drafts.add", Into(FileOfA(), """ "draft": "d_0001", "drop": "place", "into": 1 """)));
+        Assert.Equal(before, SavedB(facade));
+    }
+
+    [Fact]
     public void The_same_calls_give_the_same_file()
     {
         string fileOfA = FileOfA();
         string request = Into(fileOfA, """ "draft": "d_0001", "drop": "place" """);
 
         Assert.Equal(OpenedB().Call(1, "drafts.add", request), OpenedB().Call(1, "drafts.add", request));
-        Assert.Equal(fileOfA, FileOfA());
     }
 }

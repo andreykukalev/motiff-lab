@@ -17,7 +17,7 @@ public sealed partial class MusicCoreFacade
     {
         if (name == "drafts.add" && fields.Has("file"))
         {
-            return DraftRequest.AddTo(Elsewhere(fields), Origin(open), fields);
+            return fields.Has("into") ? throw FacadeException.BadRequest("Send \"into\" or \"file\", not both.") : DraftRequest.AddTo(Elsewhere(fields), Origin(open), fields);
         }
 
         (int ownerNumber, OpenPiece owner) = Owner(number, open, fields);
