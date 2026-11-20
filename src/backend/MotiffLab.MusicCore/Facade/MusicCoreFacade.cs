@@ -37,6 +37,9 @@ public sealed partial class MusicCoreFacade
     /// place with their numbers, kinds, labels, confidence, whether sure, and where each is found, drafts.take and drafts.leave
     /// take or leave one everywhere or at one bar, drafts.takeSure takes every sure one as a group, drafts.takeFrom a hand or
     /// a span of a variant, drafts.undo the draft's last step (<see cref="DraftTakeRequest"/>); calls added.
+    /// Also within 13 (version 1.1, ADR 0034 section 9 step 4, the iPad's step 7): drafts.seams answers a draft's seams, what
+    /// differs of key, meter and tempo either side and what is offered, drafts.transpose and drafts.tempo add the step an
+    /// offer names, drafts.leaveSeam keeps a seam as it is (<see cref="DraftSeamRequest"/>); calls added.
     /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";

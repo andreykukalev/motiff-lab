@@ -324,7 +324,8 @@ public static class KeyReference
         return Math.Abs(other) <= 7 ? new MusicalKey(other, key.Mode) : null;
     }
 
-    private static string CountOf(int fifths, Words words) => fifths switch
+    /// <summary>A key signature in words: «5 диезов», «1 бемоль», «без знаков»; "5 sharps", "1 flat", "no sharps or flats".</summary>
+    internal static string CountOf(int fifths, Words words) => fifths switch
     {
         0 => words.T("no sharps or flats", "без знаков"),
         > 0 => words.Count(fifths, "sharp", "sharps", "диез", "диеза", "диезов"),

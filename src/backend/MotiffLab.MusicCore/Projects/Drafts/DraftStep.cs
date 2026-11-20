@@ -79,13 +79,13 @@ public sealed record DraftLeave(int Number, DateTimeOffset At, string Place) : D
     public bool Seam { get; init; }
 }
 
-/// <summary>The place's notes moved by <paramref name="Semitones"/>.</summary>
+/// <summary>The place's notes moved by <paramref name="Semitones"/>, and the keys its source states with them («② в соль мажор», decision record 0034, section 5).</summary>
 public sealed record DraftTranspose(int Number, DateTimeOffset At, string Place, int Semitones) : DraftStep(Number, At, Place)
 {
     public int Semitones { get; } = Semitones is >= -24 and <= 24 and not 0 ? Semitones : throw new ArgumentOutOfRangeException(nameof(Semitones), Semitones, "A transposition moves by 1 to 24 semitones up or down.");
 }
 
-/// <summary>The place played at <paramref name="QuarterNotesPerMinute"/> from its start, its own changes in proportion.</summary>
+/// <summary>The place played at <paramref name="QuarterNotesPerMinute"/> from its start, its own changes in proportion («Темп как в ①»).</summary>
 public sealed record DraftTempo(int Number, DateTimeOffset At, string Place, int QuarterNotesPerMinute) : DraftStep(Number, At, Place)
 {
     public int QuarterNotesPerMinute { get; } = Playback.PlayerTempo.IsValid(QuarterNotesPerMinute)
