@@ -67,7 +67,7 @@ public sealed partial record Project
 
     /// <summary>
     /// The piece with the view <paramref name="id"/> hidden from the switch or shown again; the working notes cannot be
-    /// hidden while they are the working ones, nor a draft, which no other part of the file names (docs/project-file.md, "Drafts").
+    /// hidden while they are the working ones. A draft is a view too (version 17).
     /// </summary>
     public Project ViewHidden(string id, bool hidden)
     {
@@ -75,11 +75,6 @@ public sealed partial record Project
         if (hidden && HasNotes && id == NotesId)
         {
             throw new InvalidOperationException("The working notes are always in the switch.");
-        }
-
-        if (hidden && FindDraft(id) is not null)
-        {
-            throw new InvalidOperationException("A draft is always in the switch.");
         }
 
         return HiddenViews.Contains(id, StringComparer.Ordinal) == hidden ? this

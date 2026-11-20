@@ -59,8 +59,12 @@ public sealed partial record Project
         return changed.Id == id ? this with { Drafts = [.. Drafts.Select(each => each.Id == id ? changed : each)] } : throw new ArgumentException("A draft keeps its id.", nameof(change));
     }
 
-    /// <summary>The piece without the draft <paramref name="id"/>: only the draft goes (decision record 0034, section 1).</summary>
+    /// <summary>
+    /// The piece without the draft <paramref name="id"/>: only the draft goes (decision record 0034, section 1), and its id
+    /// leaves the views hidden from the switch.
+    /// </summary>
     /// <exception cref="KeyNotFoundException">The piece has no draft with the id.</exception>
     public Project WithoutDraft(string id) =>
-        FindDraft(id) is null ? throw new KeyNotFoundException($"There is no draft {id}.") : this with { Drafts = [.. Drafts.Where(draft => draft.Id != id)] };
+        FindDraft(id) is null ? throw new KeyNotFoundException($"There is no draft {id}.")
+            : this with { Drafts = [.. Drafts.Where(draft => draft.Id != id)], HiddenViews = [.. HiddenViews.Where(view => view != id)] };
 }

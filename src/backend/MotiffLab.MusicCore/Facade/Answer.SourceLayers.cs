@@ -19,7 +19,7 @@ internal static partial class Answer
     /// "engine", "at", "original", "state" (as an original's, or "fileChanged"; null with no original), "edits", "taken",
     /// "hidden"}], "views": [{"id", "kind" ("original" / "notes" / "performance"), "group", "working", "hidden", "op"}] in
     /// the switch's order, "hidden", how many views are hidden (<see cref="PieceViews"/>), and since version 1.1 (0034) "drafts"
-    /// (<see cref="Drafts"/>), the Sources group «Черновики»; a draft is a view of kind "draft" too, last in the switch.
+    /// (<see cref="Drafts"/>), the Sources group «Черновики»; a draft is a view of kind "draft" too, last in the switch, hidden as any other.
     /// </summary>
     public static void SourceLayers(Utf8JsonWriter json, Project project, PieceViews views, Words words)
     {

@@ -32,7 +32,7 @@ public sealed partial class MusicCoreFacade
     /// Also within 13 (version 1.1, ADR 0034 section 9 step 2, the iPad's step 5): drafts.sheet, drafts.add, drafts.open,
     /// drafts.rename and drafts.remove (<see cref="DraftRequest"/>), on the piece open, on Notes or a version open only to be
     /// shown, or with "into" from another piece; sources.layers and the Sources sheet's answers gain "drafts", their views
-    /// the kind "draft", and sources.view.hide refuses a draft; calls, a field and a value added.
+    /// the kind "draft", which sources.view.hide hides as any other; calls, a field and a value added.
     /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";

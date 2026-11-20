@@ -73,7 +73,6 @@ public class DraftsFacadeTests
         Assert.Equal(("d_0001", "draft", "draft"), (view.GetProperty("id").GetString(), view.GetProperty("kind").GetString(), view.GetProperty("op").GetString()));
         DraftVariant variant = Saved(facade).FindDraft("d_0001")!.Places[0].BaseVariant;
         Assert.Equal(("n_1", null, (1, 4)), (variant.From.Notes, variant.From.Project, variant.From.Bars));
-        Assert.Equal("unavailable", Error(facade, "sources.view.hide", """{"id": "d_0001", "hidden": true}"""));
     }
 
     [Fact]
@@ -145,6 +144,23 @@ public class DraftsFacadeTests
         Assert.False(Json(facade.Call(view, "notation")).TryGetProperty("error", out _));
         Assert.Equal("readOnly", Json(facade.Call(view, "drafts.add", $$"""{{{Bars}}}""")).GetProperty("error").GetString());
         Assert.Equal("badRequest", Error(facade, "drafts.open", """{"draft": "d_0009"}"""));
+    }
+
+    [Fact]
+    public void A_draft_is_hidden_from_the_switch_and_shown_again_and_deleting_it_forgets_it_was_hidden()
+    {
+        MusicCoreFacade facade = Opened();
+        New(facade);
+
+        JsonElement hidden = Call(facade, "sources.view.hide", """{"id": "d_0001", "hidden": true}""");
+
+        Assert.True(Item(hidden, "views", "d_0001").GetProperty("hidden").GetBoolean());
+        Assert.Equal(1, hidden.GetProperty("hidden").GetInt32());
+        Assert.Equal(["d_0001"], Saved(facade).HiddenViews);
+        Assert.False(Item(Call(facade, "sources.view.hide", """{"id": "d_0001", "hidden": false}"""), "views", "d_0001").GetProperty("hidden").GetBoolean());
+        Call(facade, "sources.view.hide", """{"id": "d_0001", "hidden": true}""");
+        Assert.Equal(0, Call(facade, "drafts.remove", """{"draft": "d_0001"}""").GetProperty("hidden").GetInt32());
+        Assert.Empty(Saved(facade).HiddenViews);
     }
 
     [Fact]

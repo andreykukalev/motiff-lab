@@ -1761,6 +1761,9 @@
         "steps": []
       }
     ],
-    "settings": {}
+    "settings": {},
+    "hiddenViews": [
+      "d_2"
+    ]
   }
 }

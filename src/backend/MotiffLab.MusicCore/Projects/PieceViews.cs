@@ -86,9 +86,8 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
     /// bytes the app has on this device, such as a recording's sound it keeps beside the file). The views, PDF before Notes
     /// (Andrei, 0.6.1 #582 item 2): by original, a PDF here (or photos) followed by the Notes read from it, the working ones
     /// first, a recording here followed by its sound and the Notes heard from it; then Notes of no original here, the
-    /// working ones first; an assembly that is not working last; then the drafts in the order they were made, never hidden
-    /// (no other part of the file names a draft, docs/project-file.md, "Drafts"). A recording or PDF that is not here, and a
-    /// removed original, are no views.
+    /// working ones first; an assembly that is not working last; then the drafts in the order they were made (version 17).
+    /// A recording or PDF that is not here, and a removed original, are no views.
     /// </summary>
     public static PieceViews Of(Project project, HoldingDevice device, IReadOnlyCollection<string>? here = null)
     {
@@ -101,7 +100,7 @@ public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOn
             .. project.Sources.Removed.Select(removed => new SourceOriginal(removed.Original, SourceState.Removed, removed.At, Hidden: false, MadeFrom(notes, removed.Original.Id), removed.Marks.Ink.Count + removed.Marks.Bookmarks.Count)),
         ];
         List<SourceView> views = ViewsOf(notes, originals);
-        views.AddRange(project.Drafts.Select(static draft => new SourceView(draft.Id, ViewKind.Draft, null, Working: false, Hidden: false, "draft")));
+        views.AddRange(project.Drafts.Select(draft => new SourceView(draft.Id, ViewKind.Draft, null, Working: false, project.IsHidden(draft.Id), "draft")));
         return new PieceViews(originals, notes, views);
     }
 
