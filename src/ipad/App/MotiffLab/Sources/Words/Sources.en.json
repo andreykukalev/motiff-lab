@@ -154,5 +154,6 @@
   "drafts.toastBridgeLeft": "Bridge removed",
   "drafts.toastAnchored": "Anchored in bar {0}",
   "drafts.toastUnanchored": "Anchor in bar {0} removed",
-  "drafts.anchorLabel": "Anchor in bar {0} · {1}"
+  "drafts.anchorLabel": "Anchor in bar {0} · {1}",
+  "drafts.toastProposal": "Accepted: {0}"
 }

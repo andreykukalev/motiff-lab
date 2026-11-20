@@ -149,6 +149,14 @@ extension SourcesController {
         return await draftStep("drafts.place", fields, of: draft, toast: text.format(shelf ? "drafts.toastShelved" : "drafts.toastPut", label))
     }
 
+    /// «Принять» on the assistant's proposal in a draft (v1.2, ADR 0034 section 6, the plan's answer 7): music-core makes its
+    /// call (`fields`: the place, the tool, its parameters and the role) again on the draft as it is now and keeps what it
+    /// proposes, its steps marked as the assistant's (`drafts.accept`), saved at once and undone from the toast as any step
+    /// (`words` say what was taken). Nil once kept; else why not, in music-core's words (the draft changed under it).
+    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> String? {
+        await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? nil : status ?? ""
+    }
+
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
     /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open).
     private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {

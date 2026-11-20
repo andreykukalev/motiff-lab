@@ -50,11 +50,7 @@ struct AssistantDraftOffer: Codable, Equatable, Sendable, Identifiable {
     /// The drafts the question's tool calls made, in the order the calls came, each with the call it was made by, as
     /// music-core's AssistantSession.Resulted keeps them; a draft that changes nothing is left out.
     static func offers(in chat: AssistantChat) -> [AssistantDraftOffer] {
-        let calls = chat.callsInQuestion
-        return chat.resultsInQuestion.flatMap { result -> [AssistantDraftOffer] in
-            guard let call = calls.first(where: { $0.id == result.id }) else { return [] }
-            return result.content["drafts"]?.items.enumerated().compactMap { index, draft in offer(draft, call: call, index: index) } ?? []
-        }
+        chat.proposedInQuestion.compactMap { offer($0.draft, call: $0.call, index: $0.index) }
     }
 
     static func offer(_ draft: JSONValue, call: AssistantToolCall, index: Int) -> AssistantDraftOffer? {

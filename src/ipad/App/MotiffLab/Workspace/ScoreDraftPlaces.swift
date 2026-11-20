@@ -51,10 +51,39 @@ extension ScoreController {
     /// «▶ Послушать стык»: the bar before the seam and the bar after it, once, as the draft view plays them (music-core's
     /// `listen`), each place in its own key and tempo.
     func hearSeam(_ seam: DraftSeamsAnswer.Seam) {
+        hearDraft(over: Double(seam.listen.onset)..<Double(seam.listen.end))
+    }
+
+    /// The draft view's own notes heard once over `span` (its ticks): a seam, or a place as the draft has it now («▶ До»
+    /// on the assistant's proposal, v1.2).
+    func hearDraft(over span: Range<Double>) {
         Task {
             guard let notes = await draftNotes() else { return }
-            hearNotes?(notes, Double(seam.listen.onset)..<Double(seam.listen.end))
+            hearNotes?(notes, span)
         }
+    }
+
+    /// «▶ После» on the assistant's proposal in a place (v1.2 step 8): the draft as the proposal would leave it
+    /// (`drafts.proposal`, opened only to be shown, its playback read, closed again), heard once over what it changes
+    /// there (`proposedSpan`); nothing is kept.
+    func hearProposal(_ proposal: AssistantPlaceProposal) {
+        guard let piece else { return }
+        Task {
+            guard let view = await PieceCore(piece: piece.id).openProposal(proposal.callFields).value else { return }
+            let notes = await PieceCore(piece: view.piece).playback().value.map(PlaybackScore.init)?.notes
+            _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
+            guard let notes, let span = Self.proposedSpan(of: proposal.place, in: view.draft, before: piece.draft) else { return }
+            hearNotes?(notes, span)
+        }
+    }
+
+    /// The ticks of `place` in the draft a proposal would leave (`after`), from the start of a place it puts just before it
+    /// (a bridge, which `before`, the draft now, does not have); nil when the place is not there.
+    static func proposedSpan(of place: String, in after: DraftViewAnswer.Draft, before: DraftViewAnswer.Draft?) -> Range<Double>? {
+        guard let index = after.places.firstIndex(where: { $0.id == place }) else { return nil }
+        let known = Set(before?.places.map(\.id) ?? [])
+        let put = after.places[..<index].last.flatMap { known.contains($0.id) ? nil : $0 }
+        return Double((put ?? after.places[index]).onset)..<Double(after.places[index].end)
     }
 
     /// The draft view's own notes as it plays them, in its ticks (the seam heard, the map's thumbnails); nil before a piece.

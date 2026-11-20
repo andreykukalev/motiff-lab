@@ -61,6 +61,11 @@ enum JSONValue: Codable, Equatable, Sendable {
 
     var text: String { String(decoding: data, as: UTF8.self) }
 
+    /// The value as Foundation's JSON objects, for a request built with `facadeRequest`.
+    var foundation: Any {
+        (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) ?? NSNull()
+    }
+
     subscript(key: String) -> JSONValue? {
         if case let .object(object) = self { return object[key] }
         return nil
@@ -198,6 +203,8 @@ struct AssistantExchange: Codable, Equatable, Sendable, Identifiable {
     var drafts: [AssistantDraftOffer]?
     /// The practice actions its tool calls suggested (`practice.suggest`, v1.2), one button each; nil when none.
     var practice: [AssistantPracticeOffer]?
+    /// The steps its tool calls proposed in a draft's place (v1.2 step 8), to hear and accept or refuse; nil when none.
+    var proposals: [AssistantPlaceProposal]?
 
     /// The text key that says in words why the answer is the engine's template (v1.2, assistant option A item 4): one for
     /// each reason the API names, a general one for a reason this iPad does not know; nil when there is no fallback or the
@@ -260,6 +267,17 @@ struct AssistantChat: Codable, Equatable, Sendable, Identifiable {
     /// The tool results since the last question: with the context, where an answer's citations are found.
     var resultsInQuestion: [AssistantToolOutcome] {
         history[lastQuestion...].flatMap { $0.results ?? [] }
+    }
+
+    /// What the tool calls since the last question proposed, in the order the calls came: each entry of a result's "drafts"
+    /// with the call that made it and its place among the call's drafts, as music-core's AssistantSession.Resulted keeps
+    /// them (a draft of the notes, or since v1.2 a step in a draft's place).
+    var proposedInQuestion: [(call: AssistantToolCall, draft: JSONValue, index: Int)] {
+        let calls = callsInQuestion
+        return resultsInQuestion.flatMap { result -> [(call: AssistantToolCall, draft: JSONValue, index: Int)] in
+            guard let call = calls.first(where: { $0.id == result.id }) else { return [] }
+            return result.content["drafts"]?.items.enumerated().map { (call: call, draft: $1, index: $0) } ?? []
+        }
     }
 
     private var lastQuestion: Int {

@@ -14,7 +14,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet; «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
   `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams,
   since v1.2 the register and the bridge place picked), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
-  amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`. Collage (v1.2):
+  amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`, `acceptProposal` (the assistant's «Принять», `drafts.accept`). Collage (v1.2):
   `OtherPieceDrafts.swift` (other files' drafts, `project.drafts` kept by bytes), `DraftChoice.Into.elsewhere`,
   `addToDraft` writes that file as music-core answers it (`drafts.add` with "file"), nothing here changes;
   `addedElsewhere` and `DraftElsewhereToast` («Открыть»).

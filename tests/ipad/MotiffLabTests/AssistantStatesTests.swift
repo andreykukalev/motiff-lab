@@ -227,6 +227,8 @@ final class AssistantStub: URLProtocol {
         didSet { asked = [] }
     }
     static var asked: [String] = []
+    /// Turns answered one after another before `answers["turn"]`, each 200: a question's tool calls, then its answer.
+    static var turns: [Data] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -234,7 +236,8 @@ final class AssistantStub: URLProtocol {
     override func startLoading() {
         let path = request.url?.lastPathComponent ?? ""
         Self.asked.append(path)
-        guard let (status, body) = Self.answers[path], let url = request.url,
+        let queued: (Int, Data)? = path == "turn" && !Self.turns.isEmpty ? (200, Self.turns.removeFirst()) : nil
+        guard let (status, body) = queued ?? Self.answers[path], let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))

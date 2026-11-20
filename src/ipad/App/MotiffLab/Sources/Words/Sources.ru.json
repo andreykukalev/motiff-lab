@@ -167,5 +167,6 @@
   "drafts.toastBridgeLeft": "Связка убрана",
   "drafts.toastAnchored": "Опорная точка в такте {0}",
   "drafts.toastUnanchored": "Опорная точка в такте {0} откреплена",
-  "drafts.anchorLabel": "Опорная точка в такте {0} · {1}"
+  "drafts.anchorLabel": "Опорная точка в такте {0} · {1}",
+  "drafts.toastProposal": "Принято: {0}"
 }

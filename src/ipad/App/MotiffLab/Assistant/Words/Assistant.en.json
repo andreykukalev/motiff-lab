@@ -74,5 +74,13 @@
   "dictation.notOnDevice": "Dictation is not available: this iPad cannot recognise English speech on the iPad itself, and the sound is never sent anywhere.",
   "dictation.denied": "Dictation needs the microphone and speech recognition: allow them for Motiff Lab in the iPad's Settings.",
   "dictation.restricted": "Dictation is not allowed by this iPad's settings.",
-  "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again."
+  "dictation.failed": "Dictation stopped before it heard anything. Tap the microphone to try again.",
+  "mentor.draftConsentTitle": "Before your first question in a draft",
+  "mentor.draftConsentLead": "The assistant answers with an AI model in the cloud. In a draft each question sends:",
+  "mentor.draftConsentNotes": "the notes of the place's base and of the variant you build from (at most 32 bars each): for each note its bar and hand, place in the bar, length, pitch, velocity and where it came from;",
+  "mentor.draftConsentPlace": "the place's meter and key;",
+  "mentor.draftConsentTechniques": "the list of techniques (what differs, in which bars, how sure, whether taken) and the description of the place's seams (key, meter, tempo, register, bridge candidates), each fact with its id;",
+  "mentor.draftConsentQuestion": "your question and this conversation with what the assistant looked at in the place.",
+  "mentor.draftConsentNot": "Never sent: a recording's sound, files and their names, the piece's title, the notes of the draft's other places, your marks, notes, bookmarks and data.",
+  "mentor.placeTooLong": "The place or its variant is longer than 32 bars, more than a question in a draft takes. Nothing was sent."
 }

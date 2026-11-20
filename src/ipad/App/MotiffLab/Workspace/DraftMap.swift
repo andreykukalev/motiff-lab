@@ -20,7 +20,8 @@ extension EnvironmentValues {
 
 /// A draft's map over its view (v1.1, ADR 0034 sections 2 and 9 step 7; spec «Коллаж», «Экран (iPad)»): the places in
 /// order, each with a small roll of its notes and its variants, the base marked, «Сделать основой» and a variant moved to
-/// another place, a new place or the shelf; «Взять всё уверенное» for each place; a bridge place's candidates (v1.2,
+/// another place, a new place or the shelf; «Взять всё уверенное» and, since v1.2, «С ассистентом · Pro»
+/// (`DraftAssistantSection`) for each place; a bridge place's candidates (v1.2,
 /// `DraftBridgeContent`); the diamond of each seam that shows between two places, which opens the seam's card there; and
 /// the shelf, each variant on it put («Поставить…») into a place or as a new place. Each step is music-core's
 /// (`drafts.base`, `drafts.place`, `drafts.takeSure`, `drafts.leaveBridge`), undone from its toast, and the view opens
@@ -36,6 +37,7 @@ struct DraftMap: View {
     let text: UIText
     let reopen: ((Landing) async -> Void)?
     @Environment(\.draftMap) private var map
+    @EnvironmentObject private var assistant: AssistantController
     /// The draft view's notes, for the places' rolls.
     @State private var notes: [PlaybackNote] = []
     @State private var asked: Asked?
@@ -123,6 +125,10 @@ struct DraftMap: View {
                 Button(text.format("drafts.takeSureCount", String(sure))) { take { await owner.takeSure(place, of: draft.id) } }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(sure == 0)
+                // The assistant assembles a place from a variant (v1.2 step 8): none in a place of the base alone.
+                if place.variants.contains(where: { !$0.base }) {
+                    DraftAssistantSection(assistant: assistant, score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
+                }
             }
         }
         .padding(CGFloat.ds("s-3"))

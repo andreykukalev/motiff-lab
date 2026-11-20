@@ -274,21 +274,42 @@ struct AssistantExchangeView: View {
 
 /// The consent before the first question (the web app's MentorPanel): exactly what each question sends, where it goes,
 /// and what never goes; nothing is sent until the player agrees. Since v1.2 it lists the piece's counted facts too, and a
-/// player who agreed to the list before is asked again (`AssistantController.consented`).
+/// player who agreed to the list before is asked again (`AssistantController.consented`); a question in a draft has a list of
+/// its own (`Wording.draft`, v1.2).
 struct AssistantConsent: View {
+    /// The words of one list: its title, its lead, each thing a question sends, and what never goes.
+    struct Wording: Equatable {
+        let title: String
+        let lead: String
+        let sent: [String]
+        let not: String
+
+        static let piece = Wording(
+            title: "mentor.consentTitle", lead: "mentor.consentLead",
+            sent: ["mentor.consentNotes", "mentor.consentDigest", "mentor.consentPiece", "mentor.consentQuestion"], not: "mentor.consentNot"
+        )
+        /// What a question in a draft's place sends (ADR 0034 section 6, the plan's answer 7; c-7b's words).
+        static let draft = Wording(
+            title: "mentor.draftConsentTitle", lead: "mentor.draftConsentLead",
+            sent: ["mentor.draftConsentNotes", "mentor.draftConsentPlace", "mentor.draftConsentTechniques", "mentor.draftConsentQuestion"],
+            not: "mentor.draftConsentNot"
+        )
+    }
+
     let text: UIText
     /// The player agreed to the list before it changed: the consent says why it asks again.
     var again = false
+    var wording = Wording.piece
     let decide: (Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            Text(text["mentor.consentTitle"]).dsType(.heading)
+            Text(text[wording.title]).dsType(.heading)
             if again {
                 Text(text["mentor.consentAgain"]).dsType(.body).fixedSize(horizontal: false, vertical: true)
             }
-            Text(text["mentor.consentLead"]).dsType(.body)
-            ForEach(["mentor.consentNotes", "mentor.consentDigest", "mentor.consentPiece", "mentor.consentQuestion"], id: \.self) { key in
+            Text(text[wording.lead]).dsType(.body)
+            ForEach(wording.sent, id: \.self) { key in
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
                     Text("•")
                     Text(text[key]).fixedSize(horizontal: false, vertical: true)
@@ -296,7 +317,7 @@ struct AssistantConsent: View {
                 .dsType(.body)
             }
             Text(text["mentor.consentWhere"]).dsType(.body)
-            Text(text["mentor.consentNot"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            Text(text[wording.not]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             HStack(spacing: CGFloat.ds("s-2")) {
                 Button(text["mentor.agree"]) { decide(true) }
                     .buttonStyle(DSButtonStyle(kind: .primary))
