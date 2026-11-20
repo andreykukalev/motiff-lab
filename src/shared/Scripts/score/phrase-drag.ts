@@ -55,9 +55,18 @@ export class MarkPress {
         return this.press !== null && this.press.state !== "waiting";
     }
 
-    /** A pointer comes down on a mark (`draggable` false for the piece's first phrase, whose start cannot move). */
+    /** Whether a press waits for its hold now. */
+    get pending(): boolean {
+        return this.press?.state === "waiting";
+    }
+
+    /**
+     * A pointer comes down on a mark (`draggable` false for the piece's first phrase, whose start cannot move). A click
+     * left to swallow from a press before (a drag let go with no click) is forgotten, so this press's tap is a tap.
+     */
     down(pointer: number, point: PressPoint, draggable = true): void {
         this.end(null);
+        this.swallowNextClick = false;
         const press: Press = { pointer, from: point, timer: 0, draggable, state: "waiting" };
         press.timer = this.timers.set(() => this.hold(press), HOLD_MS);
         this.press = press;

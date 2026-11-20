@@ -84,14 +84,14 @@ final class SelectionModel: ObservableObject {
 
     /// An edit of the phrases' boundaries (`phrases.edit`: a mark moved, which music-core snaps to the nearest note, a
     /// boundary removed or put back where it was found): the phrases as they are now, one step of their history, and the
-    /// toast with `words` and Undo; refused, the toast says why. The selection stays as it is (the phrases spec: nothing
+    /// toast with `words` and Undo (none for an edit that left the edits as they were); refused, the toast says why. The selection stays as it is (the phrases spec: nothing
     /// about phrase marks changes it). Returns music-core's refusal, nil once edited.
     func editPhrases(in piece: Int32, _ request: String, done words: String) async -> String? {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
         guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
         phrases = edited
-        if let after = edited.edits { _ = phraseSteps.record(from: edited.previous, to: after) }
-        showPhraseToast(PhraseToast(words: words, offer: .undo))
+        let step = edited.edits.flatMap { phraseSteps.record(from: edited.previous, to: $0) }
+        showPhraseToast(PhraseToast(words: words, offer: step == nil ? nil : .undo))
         return nil
     }
 

@@ -162,6 +162,17 @@ final class SelectionModelTests: XCTestCase {
         XCTAssertEqual(model.selection, selected, "nor do Undo and Redo")
     }
 
+    /// «Начать фразу здесь» where a phrase already starts changes no edit (c-2): no step, so its toast offers no Undo.
+    func testAnEditThatChangesNothingIsNoStep() async throws {
+        let (model, piece) = try inMusicCore()
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        let refused = await model.editPhrases(in: piece, #"{"start": \#(Int(second.onset))}"#, done: "started")
+        XCTAssertNil(refused)
+        XCTAssertNil(model.phraseToast?.offer, "nothing to take back")
+        XCTAssertFalse(model.phraseSteps.canUndo)
+    }
+
     /// An Undo after the phrases changed elsewhere is refused (c-2: "unavailable"): its reason in the toast, and the step goes.
     func testAnUndoThatCanNoLongerBeDoneSaysWhyAndGoes() async throws {
         let (model, piece) = try inMusicCore()

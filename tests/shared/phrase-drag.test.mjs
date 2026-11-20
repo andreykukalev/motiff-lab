@@ -73,6 +73,26 @@ test("held and moved, the mark drags and let go drops where the pointer is; no m
     assert.equal(press.swallowsClick(), true);
 });
 
+test("a drag let go with no click after it leaves the next press's tap a tap", () => {
+    const { press, timers } = setUp();
+    press.down(1, { x: 10, y: 10 });
+    timers.run();
+    press.move(1, { x: 40, y: 10 });
+    press.up(1, { x: 40, y: 10 });
+    press.down(2, { x: 10, y: 10 });
+    press.up(2, { x: 10, y: 10 });
+    assert.equal(press.swallowsClick(), false, "the tap selects its phrase");
+});
+
+test("a press waits for its hold, then holds", () => {
+    const { press, timers } = setUp();
+    press.down(1, { x: 10, y: 10 });
+    assert.equal(press.pending, true);
+    timers.run();
+    assert.equal(press.pending, false);
+    assert.equal(press.holding, true);
+});
+
 test("a drag cancelled goes back; another pointer's moves are not the press's", () => {
     const { press, timers, calls } = setUp();
     press.down(1, { x: 10, y: 10 });

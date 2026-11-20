@@ -46,6 +46,12 @@ export function listenPhraseDrag(): void {
             event.preventDefault();
         }
     }, { passive: false });
+    // A long press on a touch screen brings no browser menu while it may hold a mark.
+    document.addEventListener("contextmenu", (event) => {
+        if (markPress.holding || markPress.pending) {
+            event.preventDefault();
+        }
+    });
 }
 
 /** The held phrase's comma and number on the page. */
