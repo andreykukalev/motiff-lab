@@ -111,13 +111,17 @@ export function placePhrases(): void {
     drawAgainWithFonts();
 }
 
-/** Once the fonts the marks are set in have loaded, all of them drawn again: their widths place them. */
+/**
+ * Once the fonts the marks are set in have loaded, all of them drawn again: their widths place them. That drawing waits
+ * for no fonts again, so a `ready` WebKit has already resolved while the fonts still say "loading" (the card's engraving
+ * in focus) draws them once more, never round and round without end.
+ */
 function drawAgainWithFonts(): void {
     if (document.fonts.status === "loading" && !awaitingFonts) {
         awaitingFonts = true;
         void document.fonts.ready.then(() => {
-            awaitingFonts = false;
             placePhrases();
+            awaitingFonts = false;
         });
     }
 }

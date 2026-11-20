@@ -157,7 +157,7 @@ export function layoutCard(): void {
         root: cardScore,
         geometry: card.geometry,
         offset: card.offset,
-        end: Math.max(0, ...timeline.spans.map((span) => span.end)),
+        end: timeline.spans.reduce((end, span) => Math.max(end, span.end), 0),
         onsetOf: (id) => timeline.onsetOf(id),
         local: (box) => {
             const at = cardScore.getBoundingClientRect();
